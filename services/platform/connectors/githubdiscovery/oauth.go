@@ -35,6 +35,7 @@ type EffectClient interface {
 	ExchangeClient
 	Recover(context.Context, string) (Connection, error)
 	Discard(context.Context, string, bool) error
+	Revoke(context.Context, string) error
 }
 type Adapter struct {
 	config  Config
@@ -106,6 +107,19 @@ func (adapter *Adapter) Discard(ctx context.Context, effectID string, revoke boo
 	bounded, cancel := context.WithTimeout(ctx, adapter.timeout)
 	defer cancel()
 	if err := client.Discard(bounded, effectID, revoke); err != nil || bounded.Err() != nil {
+		return ErrProvider
+	}
+	return nil
+}
+
+func (adapter *Adapter) Revoke(ctx context.Context, reference string) error {
+	client, ok := adapter.client.(EffectClient)
+	if adapter == nil || !ok || ctx == nil || ctx.Err() != nil || !referencePattern.MatchString(reference) {
+		return ErrInvalid
+	}
+	bounded, cancel := context.WithTimeout(ctx, adapter.timeout)
+	defer cancel()
+	if err := client.Revoke(bounded, reference); err != nil || bounded.Err() != nil {
 		return ErrProvider
 	}
 	return nil

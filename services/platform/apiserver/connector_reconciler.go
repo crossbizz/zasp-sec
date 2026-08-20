@@ -14,6 +14,8 @@ import (
 type ConnectorReconciliationRepository interface {
 	ClaimReconciliation(context.Context, string, int, int) ([]ConnectorEffectLease, error)
 	CompleteOAuthReconciliation(context.Context, ConnectorEffectLease, OAuthCompletion) (OAuthCompletionRecord, error)
+	CompleteConnectorCleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error)
+	QuarantineConnectorReconciliation(context.Context, ConnectorEffectLease, string) (ConnectorEffectTransition, error)
 	FailConnectorReconciliation(context.Context, ConnectorEffectLease, string) (ConnectorEffectTransition, error)
 	CompleteConnectorRevocation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error)
 }
@@ -111,6 +113,17 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	workflow, err := reconciler.workflows.GetWorkflow(ctx, scope, "integration", lease.IntegrationID)
 	providerKey, configuration, valid := authorizedOAuthIntegration(workflow, lease.IntegrationID)
 	definition, ready := reconciler.registry.Provider(ctx, providerKey)
+	if lease.LastErrorCode == "cleanup_pending" {
+		provider, providerErr := connectorOAuthProvider(definition, configuration)
+		if err != nil || !valid || !ready || providerKey != lease.Provider || providerErr != nil {
+			return ErrRepositoryUnavailable
+		}
+		if err := provider.Discard(ctx, lease.ID, false); err != nil {
+			return err
+		}
+		_, err = reconciler.repository.CompleteConnectorCleanupReconciliation(ctx, lease)
+		return err
+	}
 	if err != nil || !valid || !ready || providerKey != lease.Provider || !equalStringSet(definition.RequestedScopes, lease.RequestedScopes) {
 		return reconciler.failAfterCleanup(ctx, lease, nil, "authorization_intent_changed")
 	}
@@ -122,7 +135,11 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	}
 	grant, recoverErr := provider.Recover(ctx, lease.ID)
 	if errors.Is(recoverErr, ErrConnectorOutcomeNotFound) {
-		return reconciler.failAfterCleanup(ctx, lease, provider, "provider_outcome_unrecoverable")
+		if lease.Attempt < 100 {
+			return recoverErr
+		}
+		_, err := reconciler.repository.QuarantineConnectorReconciliation(ctx, lease, "provider_outcome_ambiguous")
+		return err
 	}
 	if recoverErr != nil || !validConnectorOAuthGrant(grant, definition.CredentialClass) {
 		if lease.Attempt >= 100 {
@@ -140,7 +157,8 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	if err := provider.Discard(ctx, lease.ID, false); err != nil {
 		return err
 	}
-	return nil
+	_, err = reconciler.repository.CompleteConnectorCleanupReconciliation(ctx, lease)
+	return err
 }
 
 func (reconciler *ConnectorReconciler) reconcileRevocation(ctx context.Context, lease ConnectorEffectLease) error {

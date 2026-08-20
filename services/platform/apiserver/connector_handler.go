@@ -192,8 +192,28 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		writeProductionError(writer, request, err)
 		return
 	}
+	requestDigest, decodeErr := hex.DecodeString(consumption.RequestDigest)
+	effectID := connectorDeterministicID(identity.Scope, consumption.ID, "oauth-effect")
+	effect, err := handler.repository.BeginConnectorEffect(request.Context(), identity.Scope, ConnectorEffectStart{ID: effectID, IntegrationID: consumption.IntegrationID, OAuthAttemptID: consumption.ID, Provider: consumption.Provider, Operation: "authorize", IdempotencyKey: "oauth-authorize:" + consumption.ID, RequestDigest: requestDigest})
+	if decodeErr != nil || len(requestDigest) != sha256.Size || err != nil || effect.Status != "pending" && effect.Status != "unknown" {
+		writeProductionError(writer, request, firstError(err, ErrRepositoryConflict))
+		return
+	}
+	rejectConsumed := func(reason string) error {
+		verifier, consumeErr := handler.secrets.Consume(request.Context(), consumption.PKCEVerifierReference)
+		clear(verifier)
+		_, resolveErr := handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "failed", ErrorCode: reason, Metadata: json.RawMessage(`{}`)})
+		if consumeErr != nil || resolveErr != nil {
+			return ErrRepositoryUnavailable
+		}
+		return nil
+	}
 	definition, ready := handler.registry.Provider(request.Context(), consumption.Provider)
 	if !ready || !equalStringSet(consumption.RequestedScopes, definition.RequestedScopes) {
+		if err := rejectConsumed("authorization_intent_changed"); err != nil {
+			writeProductionError(writer, request, err)
+			return
+		}
 		writeProductionError(writer, request, ErrRepositoryConflict)
 		return
 	}
@@ -201,24 +221,24 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 	providerKey, providerConfiguration, integrationOK := authorizedOAuthIntegration(workflow, consumption.IntegrationID)
 	provider, providerConfigErr := connectorOAuthProvider(definition, providerConfiguration)
 	if workflowErr != nil || !integrationOK || providerKey != consumption.Provider || providerConfigErr != nil {
+		if err := rejectConsumed("authorization_intent_changed"); err != nil {
+			writeProductionError(writer, request, err)
+			return
+		}
 		writeProductionError(writer, request, ErrRepositoryConflict)
 		return
 	}
-	requestDigest, decodeErr := hex.DecodeString(consumption.RequestDigest)
 	expectedDigest := connectorAuthorizationIntentDigest(identity, workflow, consumption.IntegrationID, consumption.ID, providerKey, providerConfiguration, definition.RequestedScopes)
 	if decodeErr != nil || len(requestDigest) != sha256.Size || subtle.ConstantTimeCompare(requestDigest, expectedDigest[:]) != 1 {
+		if err := rejectConsumed("authorization_intent_changed"); err != nil {
+			writeProductionError(writer, request, err)
+			return
+		}
 		writeProductionError(writer, request, ErrRepositoryConflict)
-		return
-	}
-	effectID := connectorDeterministicID(identity.Scope, consumption.ID, "oauth-effect")
-	effect, err := handler.repository.BeginConnectorEffect(request.Context(), identity.Scope, ConnectorEffectStart{ID: effectID, IntegrationID: consumption.IntegrationID, OAuthAttemptID: consumption.ID, Provider: consumption.Provider, Operation: "authorize", IdempotencyKey: "oauth-authorize:" + consumption.ID, RequestDigest: requestDigest})
-	if err != nil || effect.Status != "pending" && effect.Status != "unknown" {
-		writeProductionError(writer, request, firstError(err, ErrRepositoryConflict))
 		return
 	}
 	if providerDenial != "" {
-		_, err = handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "failed", ErrorCode: "provider_" + providerDenial, Metadata: json.RawMessage(`{}`)})
-		if err != nil {
+		if err := rejectConsumed("provider_" + providerDenial); err != nil {
 			writeProductionError(writer, request, err)
 			return
 		}
@@ -252,7 +272,14 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		writeProductionError(writer, request, err)
 		return
 	}
-	_ = provider.Discard(request.Context(), effectID, false)
+	if err := provider.Discard(request.Context(), effectID, false); err != nil {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	if _, err := handler.repository.CompleteConnectorCleanup(request.Context(), identity.Scope, effectID); err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
 	http.Redirect(writer, request, consumption.ReturnPath, http.StatusSeeOther)
 }
 

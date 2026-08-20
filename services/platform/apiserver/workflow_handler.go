@@ -329,6 +329,18 @@ func (handler *workflowHTTPHandler) writeMutationResult(writer http.ResponseWrit
 		writer.Header().Set("X-Mutation-Receipt-ID", result.ReceiptID)
 	}
 	if status == http.StatusNoContent {
+		if routed.OperationID == "deleteIntegration" && len(result.Body) != 0 {
+			deletionStatus, valid := integrationDeletionResponseStatus(result.Body, routed.PathParameters["id"])
+			if !valid {
+				writeProductionError(writer, request, ErrRepositoryUnavailable)
+				return
+			}
+			if deletionStatus == "revoking" {
+				writer.Header().Set("Retry-After", "1")
+				writeProductionResponse(writer, request, http.StatusAccepted, result.Body, nil)
+				return
+			}
+		}
 		writer.WriteHeader(status)
 		return
 	}
@@ -339,6 +351,44 @@ func (handler *workflowHTTPHandler) writeMutationResult(writer http.ResponseWrit
 		payload, err = json.Marshal(map[string]any{"policy_id": routed.PathParameters["id"], "state": parts[1], "target_id": parts[2]})
 	}
 	writeProductionResponse(writer, request, status, payload, err)
+}
+
+func integrationDeletionResponseStatus(payload json.RawMessage, expectedID string) (string, bool) {
+	var value map[string]any
+	if json.Unmarshal(payload, &value) != nil || value == nil || value["id"] != expectedID {
+		return "", false
+	}
+	status, ok := value["status"].(string)
+	if !ok {
+		return "", false
+	}
+	if status == "deleted" {
+		return status, len(value) == 2
+	}
+	if status != "revoking" || len(value) != 7 {
+		return "", false
+	}
+	connectorKey, connectorOK := value["connector_key"].(string)
+	name, nameOK := value["name"].(string)
+	configuration, configurationOK := value["configuration"].(map[string]any)
+	createdAt, createdOK := value["created_at"].(string)
+	updatedAt, updatedOK := value["updated_at"].(string)
+	if !connectorOK || connectorKey == "" || len(connectorKey) > 63 || !nameOK || name == "" || len(name) > 128 || !configurationOK || len(configuration) == 0 || len(configuration) > 16 || !createdOK || !updatedOK {
+		return "", false
+	}
+	for key, item := range configuration {
+		text, stringOK := item.(string)
+		if key == "" || len(key) > 128 || !stringOK || text == "" || len(text) > 2048 {
+			return "", false
+		}
+	}
+	for _, instant := range []string{createdAt, updatedAt} {
+		parsed, err := time.Parse(time.RFC3339Nano, instant)
+		if err != nil || parsed.Location() != time.UTC {
+			return "", false
+		}
+	}
+	return status, true
 }
 
 func canonicalWorkflowIntent(request *http.Request, routed RoutedOperation) (json.RawMessage, int64, error) {

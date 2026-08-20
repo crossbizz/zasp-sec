@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/idpdiscovery"
@@ -39,7 +40,7 @@ func TestGitHubExchangeUsesFixedEndpointsStrictParsersAndReferenceOnlyResult(t *
 			}
 			return connectorJSONResponse(http.StatusOK, `{"total_count":1,"installations":[{"id":123456,"account":{"login":"acme"},"repository_selection":"selected","permissions":{"metadata":"read"}}]}`), nil
 		case 3:
-			if request.Method != http.MethodDelete || request.URL.String() != "https://api.github.com/applications/Iv1.1234567890abcdef/token" || request.Header.Get("Authorization") == "" {
+			if request.Method != http.MethodDelete || request.URL.String() != "https://api.github.com/applications/Iv1.1234567890abcdef/grant" || request.Header.Get("Authorization") == "" {
 				t.Fatalf("revocation request = %s %s %#v", request.Method, request.URL, request.Header)
 			}
 			return &http.Response{StatusCode: http.StatusNoContent, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
@@ -50,18 +51,32 @@ func TestGitHubExchangeUsesFixedEndpointsStrictParsersAndReferenceOnlyResult(t *
 	})}
 	exchange := &githubExchangeClient{http: client, secrets: &connectorProviderSecrets{driver: &connectorSecretsDriver{client: secretAPI}, root: "zasp", kmsKey: "kms"}}
 	result, err := exchange.Exchange(context.Background(), githubdiscovery.ExchangeRequest{EffectID: "pid_70000003-0000-4000-8000-000000000003", ClientID: "Iv1.1234567890abcdef", ClientSecretReference: "ref:github/app-secret-0001", CallbackURL: "https://app.zasp.example/api/v1/integrations/oauth/callback", Code: "provider-code-0001", PKCEVerifier: []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")})
-	if err != nil || result.Reference != "ref:github/install/123456" || result.AccountLogin != "acme" || calls != 3 {
+	if err != nil || result.Reference != "ref:github/grant/70000003-0000-4000-8000-000000000003" || result.AccountLogin != "acme" || calls != 2 {
 		t.Fatalf("GitHub exchange = %#v, %v, calls=%d", result, err, calls)
 	}
 	if strings.Contains(result.Reference, secret) {
 		t.Fatal("secret reached reference-only result")
 	}
 	recovered, err := exchange.Recover(context.Background(), "pid_70000003-0000-4000-8000-000000000003")
-	if err != nil || recovered.Reference != result.Reference || calls != 3 {
+	if err != nil || recovered.Reference != result.Reference || calls != 2 {
 		t.Fatalf("durable GitHub recovery = %#v, %v, calls=%d", recovered, err, calls)
 	}
-	if err := exchange.Discard(context.Background(), "pid_70000003-0000-4000-8000-000000000003", true); err != nil {
-		t.Fatalf("GitHub cleanup: %v", err)
+	if err := exchange.Discard(context.Background(), "pid_70000003-0000-4000-8000-000000000003", false); err != nil || calls != 2 {
+		t.Fatalf("GitHub effect cleanup: %v calls=%d", err, calls)
+	}
+	adapter, err := githubdiscovery.NewAdapter(githubdiscovery.Config{ClientID: "Iv1.1234567890abcdef", ClientSecretReference: "ref:github/app-secret-0001", CallbackURL: "https://app.zasp.example/api/v1/integrations/oauth/callback"}, exchange, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := &githubOAuthProvider{adapter: adapter}
+	if err := provider.Revoke(context.Background(), result.Reference); err != nil || calls != 3 {
+		t.Fatalf("GitHub durable grant revoke: %v calls=%d", err, calls)
+	}
+	if err := provider.Revoke(context.Background(), result.Reference); err != nil || calls != 3 {
+		t.Fatalf("GitHub durable grant revoke replay: %v calls=%d", err, calls)
+	}
+	if err := provider.Revoke(context.Background(), "ref:github/grant/70000009-0000-4000-8000-000000000009"); err == nil || calls != 3 {
+		t.Fatalf("GitHub missing revocation proof accepted: %v calls=%d", err, calls)
 	}
 
 	calls = 0
@@ -71,6 +86,28 @@ func TestGitHubExchangeUsesFixedEndpointsStrictParsersAndReferenceOnlyResult(t *
 	})
 	if _, err := exchange.Exchange(context.Background(), githubdiscovery.ExchangeRequest{EffectID: "pid_70000004-0000-4000-8000-000000000004", ClientID: "Iv1.1234567890abcdef", ClientSecretReference: "ref:github/app-secret-0001", CallbackURL: "https://app.zasp.example/api/v1/integrations/oauth/callback", Code: "provider-code-0001", PKCEVerifier: []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")}); err == nil || strings.Contains(err.Error(), secret) {
 		t.Fatalf("hostile GitHub response error = %v", err)
+	}
+}
+
+func TestGitHubRecoveryAfterProviderResponseBeforeFirstGrantWriteNeverRepeatsExchange(t *testing.T) {
+	effectID := "pid_70000003-0000-4000-8000-000000000003"
+	manifest := `{"client_id":"Iv1.1234567890abcdef","client_secret_reference":"ref:github/app-secret-0001"}`
+	secretAPI := &connectorSecretsAPIStub{values: map[string][]byte{
+		"zasp/github/effect-manifest/70000003-0000-4000-8000-000000000003": []byte(manifest),
+	}}
+	providerCalls := 0
+	exchange := &githubExchangeClient{
+		http: &http.Client{Transport: connectorRoundTripFunc(func(*http.Request) (*http.Response, error) {
+			providerCalls++
+			t.Fatal("recovery repeated an irreversible provider exchange")
+			return nil, nil
+		})},
+		secrets: &connectorProviderSecrets{driver: &connectorSecretsDriver{client: secretAPI}, root: "zasp", kmsKey: "kms"},
+	}
+	for restart := 0; restart < 2; restart++ {
+		if _, err := exchange.Recover(context.Background(), effectID); err != githubdiscovery.ErrOutcomeNotFound || providerCalls != 0 {
+			t.Fatalf("restart %d recovery = %v provider_calls=%d", restart, err, providerCalls)
+		}
 	}
 }
 
@@ -111,12 +148,28 @@ func TestOktaExchangePersistsDeterministicOutcomeAndRevokesTransientTokens(t *te
 	if err != nil || recovered.Reference != result.Reference || calls != 3 {
 		t.Fatalf("durable Okta recovery = %#v, %v, calls=%d", recovered, err, calls)
 	}
-	if err := exchange.Discard(context.Background(), effectID, true); err != nil || calls != 4 {
-		t.Fatalf("Okta cleanup err=%v calls=%d", err, calls)
+	if err := exchange.Discard(context.Background(), effectID, false); err != nil || calls != 3 {
+		t.Fatalf("Okta completed-effect cleanup err=%v calls=%d", err, calls)
+	}
+	adapter, err := idpdiscovery.NewOktaAdapter(idpdiscovery.Config{Issuer: "https://acme.okta.com", ClientID: "0oa1234567890abcdef", ClientSecretReference: "ref:okta/client-secret-0001", CallbackURL: "https://app.zasp.example/api/v1/integrations/oauth/callback"}, exchange, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := &oktaOAuthProvider{adapter: adapter}
+	if err := provider.Revoke(context.Background(), result.Reference); err != nil || calls != 4 {
+		t.Fatalf("Okta durable refresh revoke err=%v calls=%d", err, calls)
+	}
+	if err := provider.Revoke(context.Background(), result.Reference); err != nil || calls != 4 {
+		t.Fatalf("Okta durable refresh revoke replay err=%v calls=%d", err, calls)
+	}
+	if err := provider.Revoke(context.Background(), "ref:okta/refresh/70000009-0000-4000-8000-000000000009"); err == nil || calls != 4 {
+		t.Fatalf("Okta missing revocation proof accepted err=%v calls=%d", err, calls)
 	}
 	for name := range secretAPI.values {
 		if strings.Contains(name, "70000003-0000-4000-8000-000000000003") {
-			t.Fatalf("effect secret residue %q", name)
+			if !strings.Contains(name, "revoked-refresh") {
+				t.Fatalf("effect secret residue %q", name)
+			}
 		}
 	}
 }

@@ -26,6 +26,8 @@ const (
 	postgresConnectorCompleteReconciliationSQL = `SELECT zasp_connector_complete_reconciliation($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14)`
 	postgresConnectorFailReconciliationSQL     = `SELECT zasp_connector_fail_reconciliation($1,$2,$3,$4,$5,$6,$7)`
 	postgresConnectorCompleteRevocationSQL     = `SELECT zasp_connector_complete_revocation($1,$2,$3,$4,$5,$6)`
+	postgresConnectorCompleteCleanupSQL        = `SELECT zasp_connector_complete_cleanup($1,$2,$3,$4)`
+	postgresConnectorQuarantineSQL             = `SELECT zasp_connector_quarantine_reconciliation($1,$2,$3,$4,$5,$6,$7)`
 )
 
 var connectorScopePattern = regexp.MustCompile(`^[A-Za-z0-9:_./-]{1,128}$`)
@@ -39,6 +41,7 @@ type ConnectorAuthorizationRepository interface {
 	ResolveConnectorEffect(context.Context, domain.Scope, ConnectorEffectResolution) (ConnectorEffectRecord, error)
 	PutConnectorCredential(context.Context, domain.Scope, ConnectorCredentialPut) (ConnectorCredentialRecord, error)
 	CompleteOAuth(context.Context, domain.Scope, OAuthCompletion) (OAuthCompletionRecord, error)
+	CompleteConnectorCleanup(context.Context, domain.Scope, string) (ConnectorEffectTransition, error)
 }
 
 type ConnectorRepository struct{ database JSONDatabase }
@@ -291,6 +294,7 @@ type ConnectorEffectLease struct {
 	Operation           string    `json:"operation"`
 	IdempotencyKey      string    `json:"idempotency_key"`
 	RequestDigest       string    `json:"request_digest"`
+	LastErrorCode       string    `json:"last_error_code"`
 	Attempt             int       `json:"attempt"`
 	LeaseOwner          string    `json:"lease_owner"`
 	LeaseToken          string    `json:"lease_token"`
@@ -322,7 +326,7 @@ func (repository *ConnectorRepository) ClaimReconciliation(ctx context.Context, 
 	for index := range page.Items {
 		item := &page.Items[index]
 		digest, digestErr := hex.DecodeString(item.RequestDigest)
-		if digestErr != nil || len(digest) != 32 || !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.IntegrationID) || item.Operation == "authorize" && (!validProductID(item.OAuthAttemptID) || !validProductID(item.PrincipalID) || !validConnectorScopes(item.RequestedScopes)) || item.Operation != "authorize" && (item.OAuthAttemptID != "" || item.PrincipalID != "" || item.RequestedScopes != nil) || item.Operation == "revoke" && !validOpaqueReference(item.ConnectionReference) || item.Operation != "revoke" && item.ConnectionReference != "" || !validConnectorProvider(item.Provider) || !stringIn(item.Operation, "authorize", "bind", "test", "rotate", "revoke", "nango_connect") || len(item.IdempotencyKey) < 16 || len(item.IdempotencyKey) > 128 || item.Attempt < 1 || item.Attempt > 100 || item.LeaseOwner != owner || len(item.LeaseToken) != 64 || !item.LeaseExpiresAt.After(now) || item.LeaseExpiresAt.After(now.Add(time.Duration(leaseSeconds)*time.Second+time.Second)) {
+		if digestErr != nil || len(digest) != 32 || !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.IntegrationID) || item.Operation == "authorize" && (!validProductID(item.OAuthAttemptID) || !validProductID(item.PrincipalID) || !validConnectorScopes(item.RequestedScopes)) || item.Operation != "authorize" && (item.OAuthAttemptID != "" || item.PrincipalID != "" || item.RequestedScopes != nil) || item.Operation == "revoke" && !validOpaqueReference(item.ConnectionReference) || item.Operation != "revoke" && item.ConnectionReference != "" || !validConnectorProvider(item.Provider) || !stringIn(item.Operation, "authorize", "bind", "test", "rotate", "revoke", "nango_connect") || item.LastErrorCode != "" && !connectorCodePattern.MatchString(item.LastErrorCode) || len(item.IdempotencyKey) < 16 || len(item.IdempotencyKey) > 128 || item.Attempt < 1 || item.Attempt > 100 || item.LeaseOwner != owner || len(item.LeaseToken) != 64 || !item.LeaseExpiresAt.After(now) || item.LeaseExpiresAt.After(now.Add(time.Duration(leaseSeconds)*time.Second+time.Second)) {
 			return nil, ErrRepositoryUnavailable
 		}
 		item.LeaseExpiresAt = item.LeaseExpiresAt.UTC()
@@ -379,9 +383,51 @@ func (repository *ConnectorRepository) CompleteConnectorRevocation(ctx context.C
 	return result, nil
 }
 
+func (repository *ConnectorRepository) CompleteConnectorCleanup(ctx context.Context, scope domain.Scope, effectID string) (ConnectorEffectTransition, error) {
+	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(effectID) {
+		return ConnectorEffectTransition{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompleteCleanupSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), effectID)
+	if err != nil {
+		return ConnectorEffectTransition{}, discoveryProviderError(err)
+	}
+	return decodeConnectorTransition(payload, effectID, "reconciled", 0)
+}
+
+func (repository *ConnectorRepository) CompleteConnectorCleanupReconciliation(ctx context.Context, lease ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	if !validConnectorRepository(repository, ctx) || !validConnectorLease(lease) || lease.Operation != "authorize" {
+		return ConnectorEffectTransition{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompleteCleanupSQL, lease.OrganizationID, lease.WorkspaceID, lease.EnvironmentID, lease.ID)
+	if err != nil {
+		return ConnectorEffectTransition{}, discoveryProviderError(err)
+	}
+	return decodeConnectorTransition(payload, lease.ID, "reconciled", lease.Attempt)
+}
+
+func (repository *ConnectorRepository) QuarantineConnectorReconciliation(ctx context.Context, lease ConnectorEffectLease, errorCode string) (ConnectorEffectTransition, error) {
+	if !validConnectorRepository(repository, ctx) || !validConnectorLease(lease) || lease.Operation != "authorize" || lease.Attempt != 100 || !connectorCodePattern.MatchString(errorCode) {
+		return ConnectorEffectTransition{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorQuarantineSQL, lease.OrganizationID, lease.WorkspaceID, lease.EnvironmentID, lease.ID, lease.LeaseOwner, lease.LeaseToken, errorCode)
+	if err != nil {
+		return ConnectorEffectTransition{}, discoveryProviderError(err)
+	}
+	return decodeConnectorTransition(payload, lease.ID, "unknown", lease.Attempt)
+}
+
 func validConnectorLease(lease ConnectorEffectLease) bool {
 	digest, err := hex.DecodeString(lease.RequestDigest)
-	return err == nil && len(digest) == sha256.Size && validProductID(lease.OrganizationID) && validProductID(lease.WorkspaceID) && validProductID(lease.EnvironmentID) && validProductID(lease.ID) && validProductID(lease.IntegrationID) && validConnectorProvider(lease.Provider) && stringIn(lease.Operation, "authorize", "bind", "test", "rotate", "revoke", "nango_connect") && (lease.Operation != "authorize" || validProductID(lease.OAuthAttemptID) && validProductID(lease.PrincipalID) && validConnectorScopes(lease.RequestedScopes)) && (lease.Operation == "authorize" || lease.OAuthAttemptID == "" && lease.PrincipalID == "" && lease.RequestedScopes == nil) && (lease.Operation != "revoke" && lease.ConnectionReference == "" || lease.Operation == "revoke" && validOpaqueReference(lease.ConnectionReference)) && len(lease.IdempotencyKey) >= 16 && len(lease.IdempotencyKey) <= 128 && lease.Attempt >= 1 && lease.Attempt <= 100 && len(lease.LeaseOwner) >= 3 && len(lease.LeaseOwner) <= 128 && len(lease.LeaseToken) == 64 && lease.LeaseExpiresAt.After(time.Now())
+	return err == nil && len(digest) == sha256.Size && validProductID(lease.OrganizationID) && validProductID(lease.WorkspaceID) && validProductID(lease.EnvironmentID) && validProductID(lease.ID) && validProductID(lease.IntegrationID) && validConnectorProvider(lease.Provider) && stringIn(lease.Operation, "authorize", "bind", "test", "rotate", "revoke", "nango_connect") && (lease.Operation != "authorize" || validProductID(lease.OAuthAttemptID) && validProductID(lease.PrincipalID) && validConnectorScopes(lease.RequestedScopes)) && (lease.Operation == "authorize" || lease.OAuthAttemptID == "" && lease.PrincipalID == "" && lease.RequestedScopes == nil) && (lease.Operation != "revoke" && lease.ConnectionReference == "" || lease.Operation == "revoke" && validOpaqueReference(lease.ConnectionReference)) && (lease.LastErrorCode == "" || connectorCodePattern.MatchString(lease.LastErrorCode)) && len(lease.IdempotencyKey) >= 16 && len(lease.IdempotencyKey) <= 128 && lease.Attempt >= 1 && lease.Attempt <= 100 && len(lease.LeaseOwner) >= 3 && len(lease.LeaseOwner) <= 128 && len(lease.LeaseToken) == 64 && lease.LeaseExpiresAt.After(time.Now())
+}
+
+func decodeConnectorTransition(payload json.RawMessage, effectID, status string, minimumAttempt int) (ConnectorEffectTransition, error) {
+	var result ConnectorEffectTransition
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != effectID || result.Status != status || result.Attempt < minimumAttempt || result.Attempt > 100 || !validPastServerTime(result.UpdatedAt) {
+		return ConnectorEffectTransition{}, ErrRepositoryUnavailable
+	}
+	result.UpdatedAt = result.UpdatedAt.UTC()
+	return result, nil
 }
 
 func validOAuthCompletion(input OAuthCompletion) bool {

@@ -97,6 +97,10 @@ function verifyDocument(value, rawText) {
       description: "BrowserSession-only durable recovery receipt bound to the exact authenticated principal, scope, operation, intent, and attempt key. This header is absent for ProductAPIToken mutations and replays.",
       schema: { $ref: "#/components/schemas/ProductID" },
     },
+    RetryAfter: {
+      description: "Minimum whole seconds before retrying an accepted asynchronous mutation.",
+      schema: { type: "string", pattern: "^[1-9][0-9]{0,2}$" },
+    },
   });
 
   assert.deepEqual(value.components.parameters, {
@@ -331,6 +335,14 @@ describe("production workflow concurrency contract", () => {
     }
   });
 
+  it("reports asynchronous integration revocation without claiming early deletion", () => {
+    const responses = document.paths["/api/v1/integrations/{id}"].delete.responses;
+    assert.deepEqual(Object.keys(responses).slice(0, 2), ["202", "204"]);
+    assert.equal(responses["202"].content["application/json"].schema.$ref, "#/components/schemas/Integration");
+    assert.equal(responses["202"].headers["Retry-After"].$ref, "#/components/headers/RetryAfter");
+    assert.deepEqual(document.components.schemas.IntegrationStatus.enum, ["configured", "pending_authorization", "active", "degraded", "revoking"]);
+  });
+
   it("separates server-assigned security-agent identity from create input", () => {
     assert.equal(document.paths["/api/v1/security-agents"].post.requestBody.content["application/json"].schema.$ref, "#/components/schemas/SecurityAgentInput");
     assert.equal(document.components.schemas.SecurityAgentInput.properties.id, undefined);
@@ -369,6 +381,8 @@ describe("production workflow concurrency contract", () => {
       const expectedHeaders = durableReceiptMutations.has(operationId)
         ? ["ETag", "X-Audit-ID", "X-Mutation-Receipt-ID"]
         : ["ETag", "X-Audit-ID"];
+	  if (operationId === "deleteIntegration") expectedHeaders.push("Retry-After");
+	  expectedHeaders.sort();
       assert.deepEqual(Object.keys(success.headers ?? {}).sort(), expectedHeaders);
     }
   });

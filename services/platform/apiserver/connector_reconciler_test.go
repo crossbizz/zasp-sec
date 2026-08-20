@@ -17,6 +17,17 @@ type connectorReconciliationRepositoryStub struct {
 	completeCount int
 	revoked       bool
 	failedCode    string
+	cleanupCount  int
+	quarantined   string
+}
+
+func (stub *connectorReconciliationRepositoryStub) CompleteConnectorCleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	stub.cleanupCount++
+	return ConnectorEffectTransition{ID: stub.lease.ID, Status: "reconciled", Attempt: stub.lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
+}
+func (stub *connectorReconciliationRepositoryStub) QuarantineConnectorReconciliation(_ context.Context, _ ConnectorEffectLease, code string) (ConnectorEffectTransition, error) {
+	stub.quarantined = code
+	return ConnectorEffectTransition{ID: stub.lease.ID, Status: "unknown", Attempt: stub.lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
 }
 
 func (stub *connectorReconciliationRepositoryStub) CompleteConnectorRevocation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
@@ -108,11 +119,26 @@ func TestConnectorReconcilerRecoversDurableOutcomeWithoutRepeatingProviderEffect
 	provider.grant = ConnectorOAuthGrant{}
 	provider.recoverErr = ErrConnectorOutcomeNotFound
 	repository.completed = OAuthCompletion{}
+	repository.lease.Attempt = 100
 	if err := reconciler.reconcileOnce(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if provider.completeCalls != 0 || !provider.discardRequestedRevoke || repository.failedCode != "provider_outcome_unrecoverable" || repository.completed.AttemptID != "" {
-		t.Fatalf("missing outcome cleanup provider=%#v completed=%#v failed=%q", provider, repository.completed, repository.failedCode)
+	if provider.completeCalls != 0 || provider.discardCalls != 1 || provider.discardRequestedRevoke || repository.failedCode != "" || repository.quarantined != "provider_outcome_ambiguous" || repository.completed.AttemptID != "" {
+		t.Fatalf("missing outcome quarantine provider=%#v completed=%#v failed=%q quarantined=%q", provider, repository.completed, repository.failedCode, repository.quarantined)
+	}
+}
+
+func TestConnectorReconcilerRetriesPostCompletionCleanupWithoutRecoveringOrExchanging(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_70000001-0000-4000-8000-000000000001"
+	attemptID := "pid_70000002-0000-4000-8000-000000000002"
+	effectID := "pid_70000003-0000-4000-8000-000000000003"
+	repository := &connectorReconciliationRepositoryStub{lease: ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: effectID, IntegrationID: integrationID, OAuthAttemptID: attemptID, PrincipalID: identity.PrincipalID.String(), RequestedScopes: []string{"read:org", "repo"}, Provider: "github", Operation: "authorize", IdempotencyKey: "oauth-authorize:" + attemptID, RequestDigest: hex.EncodeToString(make([]byte, sha256.Size)), LastErrorCode: "cleanup_pending", Attempt: 2, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute)}}
+	provider := &connectorRecoveryProvider{}
+	registry, _ := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, nil)
+	reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: connectorWorkflowValue(integrationID, "github")}, Registry: registry, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 10, Interval: time.Second})
+	if err := reconciler.reconcileOnce(context.Background()); err != nil || provider.completeCalls != 0 || provider.recoverCalls != 0 || provider.discardCalls != 1 || provider.discardRequestedRevoke || repository.cleanupCount != 1 || repository.completeCount != 0 {
+		t.Fatalf("cleanup reconciliation err=%v provider=%#v repository=%#v", err, provider, repository)
 	}
 }
 
@@ -179,7 +205,10 @@ func TestConnectorReconcilerRejectsChangedAuthorizationIntentAndRunCancels(t *te
 	contextValue, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- reconciler.Run(contextValue) }()
-	time.Sleep(20 * time.Millisecond)
+	deadline := time.Now().Add(time.Second)
+	for !reconciler.Ready() && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
 	cancel()
 	if err := <-done; !errors.Is(err, context.Canceled) || !reconciler.Ready() {
 		t.Fatalf("cancelled worker err=%v ready=%v", err, reconciler.Ready())

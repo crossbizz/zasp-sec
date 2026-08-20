@@ -795,6 +795,12 @@ paths:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/ResourceVersion'
       responses:
+        '202':
+          description: Provider revocation is durably staged but not yet confirmed; retry the exact request to reconcile the terminal result.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }, Retry-After: { $ref: '#/components/headers/RetryAfter' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Integration' }
         '204': { description: Integration deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
@@ -1416,6 +1422,9 @@ components:
     WorkflowMutationReceiptID:
       description: BrowserSession-only durable recovery receipt bound to the exact authenticated principal, scope, operation, intent, and attempt key. This header is absent for ProductAPIToken mutations and replays.
       schema: { $ref: '#/components/schemas/ProductID' }
+    RetryAfter:
+      description: Minimum whole seconds before retrying an accepted asynchronous mutation.
+      schema: { type: string, pattern: '^[1-9][0-9]{0,2}$' }
   parameters:
     CSRFToken:
       name: X-CSRF-Token
@@ -2623,7 +2632,7 @@ components:
       additionalProperties: { type: string, minLength: 1, maxLength: 2048 }
     IntegrationStatus:
       type: string
-      enum: [configured, pending_authorization, active]
+      enum: [configured, pending_authorization, active, degraded, revoking]
     IntegrationOAuthCallbackValue:
       type: string
       minLength: 8

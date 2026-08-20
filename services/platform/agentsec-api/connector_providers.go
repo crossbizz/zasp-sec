@@ -97,6 +97,16 @@ type githubEffectOutcome struct {
 	Connection githubdiscovery.Connection `json:"connection"`
 }
 
+type githubGrantSecret struct {
+	Manifest    githubEffectManifest `json:"manifest"`
+	AccessToken string               `json:"access_token"`
+}
+
+type githubRevocationProof struct {
+	Reference string `json:"reference"`
+	Revoked   bool   `json:"revoked"`
+}
+
 func (client *githubExchangeClient) Exchange(ctx context.Context, request githubdiscovery.ExchangeRequest) (githubdiscovery.Connection, error) {
 	manifestReference, tokenReference, outcomeReference, ok := connectorEffectReferences("github", request.EffectID)
 	if !ok {
@@ -127,8 +137,10 @@ func (client *githubExchangeClient) Exchange(ctx context.Context, request github
 	if performConnectorJSON(client.http, tokenRequest, &token, 32<<10) != nil || len(token.AccessToken) < 20 || len(token.AccessToken) > 4096 || !strings.EqualFold(token.TokenType, "bearer") {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
-	if err := client.secrets.put(ctx, tokenReference, []byte(token.AccessToken)); err != nil {
-		_ = client.revokeToken(ctx, manifest, token.AccessToken)
+	grantSecret := githubGrantSecret{Manifest: manifest, AccessToken: token.AccessToken}
+	grantJSON, _ := json.Marshal(grantSecret)
+	if err := client.secrets.put(ctx, tokenReference, grantJSON); err != nil {
+		_ = client.revokeGrant(ctx, grantSecret)
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
 	installationsRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/installations?per_page=2", nil)
@@ -147,21 +159,22 @@ func (client *githubExchangeClient) Exchange(ctx context.Context, request github
 		} `json:"installations"`
 	}
 	if performConnectorJSON(client.http, installationsRequest, &page, 128<<10) != nil || page.TotalCount != 1 || len(page.Installations) != 1 {
-		_ = client.revokeToken(ctx, manifest, token.AccessToken)
+		_ = client.revokeGrant(ctx, grantSecret)
 		_ = client.secrets.delete(ctx, tokenReference)
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
 	installation := page.Installations[0]
-	connection := githubdiscovery.Connection{Reference: "ref:github/install/" + strconv.FormatInt(installation.ID, 10), InstallationID: installation.ID, AccountLogin: installation.Account.Login, RepositorySelection: installation.RepositorySelection, Permissions: installation.Permissions}
+	grantReference := "ref:github/grant/" + strings.TrimPrefix(request.EffectID, "pid_")
+	connection := githubdiscovery.Connection{Reference: grantReference, InstallationID: installation.ID, AccountLogin: installation.Account.Login, RepositorySelection: installation.RepositorySelection, Permissions: installation.Permissions}
 	outcomeJSON, _ := json.Marshal(githubEffectOutcome{Manifest: manifest, Connection: connection})
-	if err := client.secrets.put(ctx, outcomeReference, outcomeJSON); err != nil || client.revokeToken(ctx, manifest, token.AccessToken) != nil || client.secrets.delete(ctx, tokenReference) != nil {
+	if err := client.secrets.put(ctx, grantReference, grantJSON); err != nil || client.secrets.put(ctx, outcomeReference, outcomeJSON) != nil || client.secrets.delete(ctx, tokenReference) != nil {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
 	return connection, nil
 }
 
 func (client *githubExchangeClient) Recover(ctx context.Context, effectID string) (githubdiscovery.Connection, error) {
-	manifestReference, tokenReference, outcomeReference, ok := connectorEffectReferences("github", effectID)
+	manifestReference, _, outcomeReference, ok := connectorEffectReferences("github", effectID)
 	if !ok {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
@@ -171,29 +184,35 @@ func (client *githubExchangeClient) Recover(ctx context.Context, effectID string
 	}
 	outcomeBytes, err := client.secrets.resolve(ctx, outcomeReference)
 	if errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
-		_ = client.cleanupToken(ctx, manifest, tokenReference)
 		return githubdiscovery.Connection{}, githubdiscovery.ErrOutcomeNotFound
 	}
 	var outcome githubEffectOutcome
 	if err != nil || decodeConnectorSecretJSON(outcomeBytes, &outcome) != nil || outcome.Manifest != manifest {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
-	if err := client.cleanupToken(ctx, manifest, tokenReference); err != nil {
+	grantBytes, grantErr := client.secrets.resolve(ctx, outcome.Connection.Reference)
+	var grant githubGrantSecret
+	if grantErr != nil || decodeConnectorSecretJSON(grantBytes, &grant) != nil || grant.Manifest != manifest || len(grant.AccessToken) < 20 || len(grant.AccessToken) > 4096 {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
 	return outcome.Connection, nil
 }
 
-func (client *githubExchangeClient) Discard(ctx context.Context, effectID string, _ bool) error {
+func (client *githubExchangeClient) Discard(ctx context.Context, effectID string, revoke bool) error {
 	manifestReference, tokenReference, outcomeReference, ok := connectorEffectReferences("github", effectID)
 	if !ok {
 		return errRuntimeUnavailable
 	}
-	manifest, err := readGitHubManifest(ctx, client.secrets, manifestReference)
-	if err != nil && !errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
-		return errRuntimeUnavailable
-	}
-	if err == nil && client.cleanupToken(ctx, manifest, tokenReference) != nil {
+	if revoke {
+		foundGrant, err := client.cleanupGrant(ctx, "ref:github/grant/"+strings.TrimPrefix(effectID, "pid_"))
+		if err != nil {
+			return errRuntimeUnavailable
+		}
+		foundTransient, err := client.cleanupGrant(ctx, tokenReference)
+		if err != nil || !foundGrant && !foundTransient {
+			return errRuntimeUnavailable
+		}
+	} else if err := deleteConnectorSecret(ctx, client.secrets, tokenReference); err != nil {
 		return errRuntimeUnavailable
 	}
 	if deleteConnectorSecret(ctx, client.secrets, outcomeReference) != nil || deleteConnectorSecret(ctx, client.secrets, manifestReference) != nil {
@@ -202,32 +221,75 @@ func (client *githubExchangeClient) Discard(ctx context.Context, effectID string
 	return nil
 }
 
-func (client *githubExchangeClient) cleanupToken(ctx context.Context, manifest githubEffectManifest, reference string) error {
-	token, err := client.secrets.resolve(ctx, reference)
-	if errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
-		return nil
-	}
-	if err != nil || client.revokeToken(ctx, manifest, string(token)) != nil {
-		clear(token)
+func (client *githubExchangeClient) Revoke(ctx context.Context, reference string) error {
+	found, err := client.cleanupGrant(ctx, reference)
+	if err != nil || !found {
 		return errRuntimeUnavailable
 	}
-	clear(token)
-	return client.secrets.delete(ctx, reference)
+	return nil
 }
 
-func (client *githubExchangeClient) revokeToken(ctx context.Context, manifest githubEffectManifest, token string) error {
-	secret, err := client.secrets.resolve(ctx, manifest.ClientSecretReference)
+func (client *githubExchangeClient) cleanupGrant(ctx context.Context, reference string) (bool, error) {
+	value, err := client.secrets.resolve(ctx, reference)
+	if errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
+		proofReference, ok := githubRevocationProofReference(reference)
+		if !ok {
+			return false, errRuntimeUnavailable
+		}
+		proofBytes, proofErr := client.secrets.resolve(ctx, proofReference)
+		var proof githubRevocationProof
+		if proofErr != nil || decodeConnectorSecretJSON(proofBytes, &proof) != nil || !proof.Revoked || proof.Reference != reference {
+			return false, nil
+		}
+		return true, nil
+	}
+	var grant githubGrantSecret
+	if err != nil || decodeConnectorSecretJSON(value, &grant) != nil || len(grant.AccessToken) < 20 || len(grant.AccessToken) > 4096 || client.revokeGrant(ctx, grant) != nil {
+		clear(value)
+		return true, errRuntimeUnavailable
+	}
+	clear(value)
+	proofReference, ok := githubRevocationProofReference(reference)
+	proofJSON, _ := json.Marshal(githubRevocationProof{Reference: reference, Revoked: true})
+	if !ok || client.secrets.put(ctx, proofReference, proofJSON) != nil {
+		return true, errRuntimeUnavailable
+	}
+	return true, client.secrets.delete(ctx, reference)
+}
+
+func githubRevocationProofReference(reference string) (string, bool) {
+	const prefix = "ref:github/"
+	if !strings.HasPrefix(reference, prefix) {
+		return "", false
+	}
+	path := strings.TrimPrefix(reference, prefix)
+	parts := strings.SplitN(path, "/", 2)
+	if len(parts) != 2 || parts[1] == "" {
+		return "", false
+	}
+	switch parts[0] {
+	case "grant":
+		return prefix + "revoked-grant/" + parts[1], true
+	case "effect-token":
+		return prefix + "revoked-effect-token/" + parts[1], true
+	default:
+		return "", false
+	}
+}
+
+func (client *githubExchangeClient) revokeGrant(ctx context.Context, grant githubGrantSecret) error {
+	secret, err := client.secrets.resolve(ctx, grant.Manifest.ClientSecretReference)
 	if err != nil {
 		return errRuntimeUnavailable
 	}
-	payload, _ := json.Marshal(map[string]string{"access_token": token})
-	request, _ := http.NewRequestWithContext(ctx, http.MethodDelete, "https://api.github.com/applications/"+url.PathEscape(manifest.ClientID)+"/token", bytes.NewReader(payload))
-	request.SetBasicAuth(manifest.ClientID, string(secret))
+	payload, _ := json.Marshal(map[string]string{"access_token": grant.AccessToken})
+	request, _ := http.NewRequestWithContext(ctx, http.MethodDelete, "https://api.github.com/applications/"+url.PathEscape(grant.Manifest.ClientID)+"/grant", bytes.NewReader(payload))
+	request.SetBasicAuth(grant.Manifest.ClientID, string(secret))
 	clear(secret)
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	return performConnectorEmpty(client.http, request)
+	return performConnectorRevocation(client.http, request)
 }
 
 type oktaExchangeClient struct {
@@ -244,6 +306,11 @@ type oktaEffectManifest struct {
 type oktaEffectOutcome struct {
 	Manifest   oktaEffectManifest      `json:"manifest"`
 	Connection idpdiscovery.Connection `json:"connection"`
+}
+
+type oktaRevocationProof struct {
+	Reference string `json:"reference"`
+	Revoked   bool   `json:"revoked"`
 }
 
 func (client *oktaExchangeClient) Exchange(ctx context.Context, request idpdiscovery.ExchangeRequest) (idpdiscovery.Connection, error) {
@@ -354,10 +421,45 @@ func (client *oktaExchangeClient) Discard(ctx context.Context, effectID string, 
 
 func (client *oktaExchangeClient) Revoke(ctx context.Context, reference string, config idpdiscovery.Config) error {
 	manifest := oktaEffectManifest{Issuer: config.Issuer, ClientID: config.ClientID, ClientSecretReference: config.ClientSecretReference}
-	if client.cleanupToken(ctx, manifest, reference, "refresh_token") != nil {
+	found, err := client.revokePersistedToken(ctx, manifest, reference)
+	if err != nil || !found {
 		return errRuntimeUnavailable
 	}
 	return nil
+}
+
+func (client *oktaExchangeClient) revokePersistedToken(ctx context.Context, manifest oktaEffectManifest, reference string) (bool, error) {
+	proofReference, ok := oktaRevocationProofReference(reference)
+	if !ok {
+		return false, errRuntimeUnavailable
+	}
+	token, err := client.secrets.resolve(ctx, reference)
+	if errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
+		proofBytes, proofErr := client.secrets.resolve(ctx, proofReference)
+		var proof oktaRevocationProof
+		if proofErr != nil || decodeConnectorSecretJSON(proofBytes, &proof) != nil || !proof.Revoked || proof.Reference != reference {
+			return false, nil
+		}
+		return true, nil
+	}
+	if err != nil || client.revokeToken(ctx, manifest, string(token), "refresh_token") != nil {
+		clear(token)
+		return true, errRuntimeUnavailable
+	}
+	clear(token)
+	proofJSON, _ := json.Marshal(oktaRevocationProof{Reference: reference, Revoked: true})
+	if client.secrets.put(ctx, proofReference, proofJSON) != nil || client.secrets.delete(ctx, reference) != nil {
+		return true, errRuntimeUnavailable
+	}
+	return true, nil
+}
+
+func oktaRevocationProofReference(reference string) (string, bool) {
+	const prefix = "ref:okta/refresh/"
+	if !strings.HasPrefix(reference, prefix) || len(reference) <= len(prefix) {
+		return "", false
+	}
+	return "ref:okta/revoked-refresh/" + strings.TrimPrefix(reference, prefix), true
 }
 
 func (client *oktaExchangeClient) cleanupToken(ctx context.Context, manifest oktaEffectManifest, reference, hint string) error {
@@ -484,6 +586,22 @@ func performConnectorEmpty(client *http.Client, request *http.Request) error {
 	return nil
 }
 
+func performConnectorRevocation(client *http.Client, request *http.Request) error {
+	if client == nil || request == nil {
+		return errRuntimeUnavailable
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return errRuntimeUnavailable
+	}
+	defer response.Body.Close()
+	payload, readErr := io.ReadAll(io.LimitReader(response.Body, 1))
+	if response.StatusCode != http.StatusNotFound && (response.StatusCode < 200 || response.StatusCode > 299) || response.Header.Get("Location") != "" || readErr != nil || len(payload) != 0 {
+		return errRuntimeUnavailable
+	}
+	return nil
+}
+
 type githubOAuthProvider struct{ adapter *githubdiscovery.Adapter }
 
 func (provider *githubOAuthProvider) AuthorizationURL(state, challenge string) (string, error) {
@@ -514,7 +632,12 @@ func (provider *githubOAuthProvider) Discard(ctx context.Context, effectID strin
 	}
 	return nil
 }
-func (*githubOAuthProvider) Revoke(context.Context, string) error { return errRuntimeUnavailable }
+func (provider *githubOAuthProvider) Revoke(ctx context.Context, reference string) error {
+	if err := provider.adapter.Revoke(ctx, reference); err != nil {
+		return errRuntimeUnavailable
+	}
+	return nil
+}
 
 type oktaOAuthProvider struct{ adapter *idpdiscovery.OktaAdapter }
 

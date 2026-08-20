@@ -15,13 +15,15 @@ import (
 )
 
 type connectorAuthorizationStub struct {
-	started     OAuthStart
-	consumed    OAuthConsumption
-	consumeErr  error
-	effect      ConnectorEffectStart
-	completed   OAuthCompletion
-	resolved    ConnectorEffectResolution
-	completeErr error
+	started      OAuthStart
+	consumed     OAuthConsumption
+	consumeErr   error
+	effect       ConnectorEffectStart
+	completed    OAuthCompletion
+	resolved     ConnectorEffectResolution
+	resolveErr   error
+	completeErr  error
+	cleanupCount int
 }
 
 func (stub *connectorAuthorizationStub) StartOAuth(_ context.Context, _ RequestIdentity, input OAuthStart) (OAuthAttemptRecord, error) {
@@ -37,7 +39,7 @@ func (stub *connectorAuthorizationStub) BeginConnectorEffect(_ context.Context, 
 }
 func (stub *connectorAuthorizationStub) ResolveConnectorEffect(_ context.Context, _ domain.Scope, input ConnectorEffectResolution) (ConnectorEffectRecord, error) {
 	stub.resolved = input
-	return ConnectorEffectRecord{ID: input.ID, Status: input.Status, UpdatedAt: time.Now().UTC()}, nil
+	return ConnectorEffectRecord{ID: input.ID, Status: input.Status, UpdatedAt: time.Now().UTC()}, stub.resolveErr
 }
 func (*connectorAuthorizationStub) PutConnectorCredential(context.Context, domain.Scope, ConnectorCredentialPut) (ConnectorCredentialRecord, error) {
 	return ConnectorCredentialRecord{}, nil
@@ -48,6 +50,10 @@ func (stub *connectorAuthorizationStub) CompleteOAuth(_ context.Context, _ domai
 		return OAuthCompletionRecord{}, stub.completeErr
 	}
 	return OAuthCompletionRecord{AttemptID: input.AttemptID, ConnectionID: input.ConnectionID, Status: "succeeded", CompletedAt: time.Now().UTC()}, nil
+}
+func (stub *connectorAuthorizationStub) CompleteConnectorCleanup(context.Context, domain.Scope, string) (ConnectorEffectTransition, error) {
+	stub.cleanupCount++
+	return ConnectorEffectTransition{ID: stub.effect.ID, Status: "reconciled", UpdatedAt: time.Now().UTC()}, nil
 }
 func (*connectorAuthorizationStub) ClaimReconciliation(context.Context, string, int, int) ([]ConnectorEffectLease, error) {
 	return nil, nil
@@ -84,6 +90,8 @@ type connectorProviderStub struct {
 	state, challenge, code string
 	verifier               []byte
 	beforeComplete         func()
+	discardCalls           int
+	discardErr             error
 }
 
 func (stub *connectorProviderStub) AuthorizationURL(state, challenge string) (string, error) {
@@ -100,8 +108,11 @@ func (stub *connectorProviderStub) Complete(_ context.Context, _ string, code st
 func (*connectorProviderStub) Recover(context.Context, string) (ConnectorOAuthGrant, error) {
 	return ConnectorOAuthGrant{}, ErrConnectorOutcomeNotFound
 }
-func (*connectorProviderStub) Discard(context.Context, string, bool) error { return nil }
-func (*connectorProviderStub) Revoke(context.Context, string) error        { return nil }
+func (stub *connectorProviderStub) Discard(context.Context, string, bool) error {
+	stub.discardCalls++
+	return stub.discardErr
+}
+func (*connectorProviderStub) Revoke(context.Context, string) error { return nil }
 
 func TestConnectorCallbackMarksEffectUnknownBeforeProviderAndRetainsRecoveryAfterPersistenceFailure(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
@@ -192,7 +203,7 @@ func TestConnectorOAuthCallbackConsumesStateBeforeProviderAndRedirectsSafely(t *
 	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/connectors" || response.Header().Get("Cache-Control") != "no-store" || response.Header().Get("Referrer-Policy") != "no-referrer" {
 		t.Fatalf("callback response = %d headers=%v body=%s", response.Code, response.Header(), response.Body.String())
 	}
-	if !secrets.taken || provider.code != "provider-code-0001" || string(provider.verifier) != string(verifier) || repository.effect.OAuthAttemptID != repository.consumed.ID || repository.completed.AttemptID != repository.consumed.ID || repository.completed.ConnectionReference == "" {
+	if !secrets.taken || provider.code != "provider-code-0001" || string(provider.verifier) != string(verifier) || repository.effect.OAuthAttemptID != repository.consumed.ID || repository.completed.AttemptID != repository.consumed.ID || repository.completed.ConnectionReference == "" || provider.discardCalls != 1 || repository.cleanupCount != 1 {
 		t.Fatalf("callback durable/provider state = taken:%v provider:%#v effect:%#v completion:%#v", secrets.taken, provider, repository.effect, repository.completed)
 	}
 	for _, rawQuery := range []string{"code=a&code=b&state=" + state, "code=a&state=" + state + "&redirect_uri=https://evil.test", "code=a&state=" + strings.Repeat("x", 513)} {
@@ -204,6 +215,82 @@ func TestConnectorOAuthCallbackConsumesStateBeforeProviderAndRedirectsSafely(t *
 		if response.Code != http.StatusBadRequest {
 			t.Fatalf("hostile callback %q = %d %s", rawQuery, response.Code, response.Body.String())
 		}
+	}
+}
+
+func TestConnectorCallbackRejectsChangedIntentAfterConsumingStateAndDestroysVerifier(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	now := time.Now().UTC()
+	state := strings.Repeat("s", 43)
+	original := connectorWorkflowValue("pid_70000001-0000-4000-8000-000000000001", "github")
+	changed := original
+	changed.Version++
+	repository := &connectorAuthorizationStub{consumed: OAuthConsumption{ID: "pid_70000002-0000-4000-8000-000000000002", IntegrationID: "pid_70000001-0000-4000-8000-000000000001", Provider: "github", PrincipalID: identity.PrincipalID.String(), PKCEVerifierReference: "ref:oauth/pkce/attempt-0001", ReturnPath: "/connectors", RequestedScopes: []string{"read:org", "repo"}, ExpiresAt: now.Add(5 * time.Minute), ConsumedAt: now}}
+	digest := connectorAuthorizationIntentDigest(identity, original, repository.consumed.IntegrationID, repository.consumed.ID, "github", map[string]string{}, repository.consumed.RequestedScopes)
+	repository.consumed.RequestDigest = jsonDigest(digest[:])
+	secrets := &connectorSecretStub{reference: repository.consumed.PKCEVerifierReference, material: OAuthSecretMaterial{State: state, Verifier: []byte(strings.Repeat("v", 43))}}
+	provider := &connectorProviderStub{}
+	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: changed}, Secrets: secrets, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/integrations/oauth/callback?code=provider-code-0001&state="+state, nil)
+	request.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "browser-session-token-0001"})
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "completeIntegrationOAuthCallback", PathParameters: map[string]string{}}))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusConflict || !secrets.taken || repository.effect.OAuthAttemptID != repository.consumed.ID || repository.resolved.Status != "failed" || repository.resolved.ErrorCode != "authorization_intent_changed" || provider.code != "" {
+		t.Fatalf("changed intent callback=%d taken=%v effect=%#v resolution=%#v provider_code=%q", response.Code, secrets.taken, repository.effect, repository.resolved, provider.code)
+	}
+}
+
+func TestConnectorCallbackDoesNotReportIntentConflictUntilConsumedAttemptCleanupIsDurable(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	now := time.Now().UTC()
+	state := strings.Repeat("s", 43)
+	original := connectorWorkflowValue("pid_70000001-0000-4000-8000-000000000001", "github")
+	changed := original
+	changed.Version++
+	repository := &connectorAuthorizationStub{resolveErr: ErrRepositoryUnavailable, consumed: OAuthConsumption{ID: "pid_70000002-0000-4000-8000-000000000002", IntegrationID: "pid_70000001-0000-4000-8000-000000000001", Provider: "github", PrincipalID: identity.PrincipalID.String(), PKCEVerifierReference: "ref:oauth/pkce/attempt-0001", ReturnPath: "/connectors", RequestedScopes: []string{"read:org", "repo"}, ExpiresAt: now.Add(5 * time.Minute), ConsumedAt: now}}
+	digest := connectorAuthorizationIntentDigest(identity, original, repository.consumed.IntegrationID, repository.consumed.ID, "github", map[string]string{}, repository.consumed.RequestedScopes)
+	repository.consumed.RequestDigest = jsonDigest(digest[:])
+	secrets := &connectorSecretStub{reference: repository.consumed.PKCEVerifierReference, material: OAuthSecretMaterial{State: state, Verifier: []byte(strings.Repeat("v", 43))}}
+	provider := &connectorProviderStub{}
+	handler, _ := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: changed}, Secrets: secrets, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
+	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/integrations/oauth/callback?code=provider-code-0001&state="+state, nil)
+	request.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "browser-session-token-0001"})
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "completeIntegrationOAuthCallback", PathParameters: map[string]string{}}))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusServiceUnavailable || !secrets.taken || repository.resolved.ErrorCode != "authorization_intent_changed" || provider.code != "" {
+		t.Fatalf("cleanup failure callback=%d taken=%v resolution=%#v provider_code=%q", response.Code, secrets.taken, repository.resolved, provider.code)
+	}
+}
+
+func TestConnectorCallbackLeavesDurableCleanupPendingWhenDiscardFails(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	now := time.Now().UTC()
+	state := strings.Repeat("s", 43)
+	workflow := connectorWorkflowValue("pid_70000001-0000-4000-8000-000000000001", "github")
+	repository := &connectorAuthorizationStub{consumed: OAuthConsumption{ID: "pid_70000002-0000-4000-8000-000000000002", IntegrationID: "pid_70000001-0000-4000-8000-000000000001", Provider: "github", PrincipalID: identity.PrincipalID.String(), PKCEVerifierReference: "ref:oauth/pkce/attempt-0001", ReturnPath: "/connectors", RequestedScopes: []string{"read:org", "repo"}, ExpiresAt: now.Add(5 * time.Minute), ConsumedAt: now}}
+	digest := connectorAuthorizationIntentDigest(identity, workflow, repository.consumed.IntegrationID, repository.consumed.ID, "github", map[string]string{}, repository.consumed.RequestedScopes)
+	repository.consumed.RequestDigest = jsonDigest(digest[:])
+	secrets := &connectorSecretStub{reference: repository.consumed.PKCEVerifierReference, material: OAuthSecretMaterial{State: state, Verifier: []byte(strings.Repeat("v", 43))}}
+	provider := &connectorProviderStub{discardErr: ErrRepositoryUnavailable}
+	handler, _ := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Secrets: secrets, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
+	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/integrations/oauth/callback?code=provider-code-0001&state="+state, nil)
+	request.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "browser-session-token-0001"})
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "completeIntegrationOAuthCallback", PathParameters: map[string]string{}}))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusServiceUnavailable || repository.completed.AttemptID == "" || provider.discardCalls != 1 || repository.cleanupCount != 0 {
+		t.Fatalf("discard failure callback=%d completion=%#v provider=%#v cleanup=%d", response.Code, repository.completed, provider, repository.cleanupCount)
 	}
 }
 
@@ -247,8 +334,9 @@ func TestConnectorCallbackConsumesFixedProviderDenialWithoutExchange(t *testing.
 	}}
 	digest := connectorAuthorizationIntentDigest(identity, workflow, repository.consumed.IntegrationID, repository.consumed.ID, "github", map[string]string{}, repository.consumed.RequestedScopes)
 	repository.consumed.RequestDigest = jsonDigest(digest[:])
+	secrets := &connectorSecretStub{reference: repository.consumed.PKCEVerifierReference, material: OAuthSecretMaterial{State: state, Verifier: []byte(strings.Repeat("v", 43))}}
 	provider := &connectorProviderStub{}
-	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Secrets: &connectorSecretStub{}, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
+	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Secrets: secrets, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
 	if err != nil {
 		t.Fatal(err)
 	}

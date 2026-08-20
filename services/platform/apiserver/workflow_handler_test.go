@@ -444,6 +444,48 @@ func TestWorkflowHandlerDeleteRequiresExactEmptyWireBodyBeforeReplayOrMutation(t
 	}
 }
 
+func TestWorkflowHandlerIntegrationDeleteReportsDurableRevocationProgress(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_90000001-0000-4000-8000-000000000001"
+	result := WorkflowMutationResult{
+		WorkflowValue: WorkflowValue{
+			Body:    json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"GitHub","configuration":{"authorization_mode":"github_app"},"status":"revoking","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:01:00Z"}`),
+			Version: 4,
+		},
+		AuditID:       "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+		CorrelationID: testCorrelationID,
+		ReceiptID:     "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+	}
+	repository := &workflowRepositoryStub{result: result}
+	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	request := workflowRequest(t, identity, testCorrelationID, "deleteIntegration", map[string]string{"id": integrationID}, http.MethodDelete, "/api/v1/integrations/"+integrationID, "")
+	request.Header.Set("Idempotency-Key", "idem-revoke-integration-0001")
+	request.Header.Set("If-Match", `"3"`)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusAccepted || response.Header().Get("Retry-After") != "1" || response.Header().Get("ETag") != `"4"` || response.Header().Get("X-Mutation-Receipt-ID") != result.ReceiptID {
+		t.Fatalf("revoking response = %d headers=%v body=%s", response.Code, response.Header(), response.Body.String())
+	}
+	var body map[string]any
+	if json.Unmarshal(response.Body.Bytes(), &body) != nil || body["id"] != integrationID || body["status"] != "revoking" {
+		t.Fatalf("revoking body = %s", response.Body.String())
+	}
+
+	result.Body = json.RawMessage(`{"id":"` + integrationID + `","status":"deleted"}`)
+	result.Replayed = true
+	repository = &workflowRepositoryStub{replayed: true, replay: result}
+	handler, _ = newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	request = workflowRequest(t, identity, testCorrelationID, "deleteIntegration", map[string]string{"id": integrationID}, http.MethodDelete, "/api/v1/integrations/"+integrationID, "")
+	request.Header.Set("Idempotency-Key", "idem-revoke-integration-0001")
+	request.Header.Set("If-Match", `"3"`)
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent || response.Body.Len() != 0 || response.Header().Get("Retry-After") != "" || repository.mutationCalls != 0 {
+		t.Fatalf("terminal replay = %d headers=%v body=%s mutations=%d", response.Code, response.Header(), response.Body.String(), repository.mutationCalls)
+	}
+}
+
 func TestWorkflowHandlerRejectsUnmountedPolicySimulationWithoutPersistence(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"

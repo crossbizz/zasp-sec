@@ -1639,7 +1639,7 @@ export type components = {
             readonly page_info: components["schemas"]["PageInfo"];
         };
         /** @enum {string} */
-        readonly IntegrationStatus: "configured" | "pending_authorization" | "active";
+        readonly IntegrationStatus: "configured" | "pending_authorization" | "active" | "degraded" | "revoking";
         readonly IntegrationSync: {
             /** Format: date-time */
             readonly created_at: string;
@@ -2252,6 +2252,8 @@ export type components = {
     };
     requestBodies: never;
     headers: {
+        /** @description Minimum whole seconds before retrying an accepted asynchronous mutation. */
+        readonly RetryAfter: string;
         /** @description Durable audit record identifier for this mutation or its exact replay. */
         readonly WorkflowAuditID: components["schemas"]["ProductID"];
         /** @description Quoted durable resource version for optimistic concurrency. */
@@ -2438,6 +2440,7 @@ export type ParameterIdempotencyKey = components['parameters']['IdempotencyKey']
 export type ParameterPageCursor = components['parameters']['PageCursor'];
 export type ParameterPageLimit = components['parameters']['PageLimit'];
 export type ParameterResourceVersion = components['parameters']['ResourceVersion'];
+export type HeaderRetryAfter = components['headers']['RetryAfter'];
 export type HeaderWorkflowAuditId = components['headers']['WorkflowAuditID'];
 export type HeaderWorkflowETag = components['headers']['WorkflowETag'];
 export type HeaderWorkflowMutationReceiptId = components['headers']['WorkflowMutationReceiptID'];
@@ -3480,6 +3483,19 @@ export interface operations {
         };
         readonly requestBody?: never;
         readonly responses: {
+            /** @description Provider revocation is durably staged but not yet confirmed; retry the exact request to reconcile the terminal result. */
+            readonly 202: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "Retry-After": components["headers"]["RetryAfter"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Integration"];
+                };
+            };
             /** @description Integration deleted. */
             readonly 204: {
                 headers: {
