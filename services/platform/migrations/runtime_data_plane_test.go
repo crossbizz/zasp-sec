@@ -20,6 +20,14 @@ func TestProductionRuntimeDataPlaneRegistersImmutableV15Authority(t *testing.T) 
 		"runtime-data-plane-v1",
 		"zasp_runtime_authenticate_sensor",
 		"zasp_runtime_sensor_heartbeat",
+		"zasp_runtime_sensor_mutations",
+		"zasp_runtime_public_sensor_page",
+		"zasp_runtime_public_sensor_detail",
+		"zasp_runtime_public_sensor_coverage",
+		"zasp_runtime_public_create_sensor",
+		"zasp_runtime_public_update_sensor",
+		"zasp_runtime_public_delete_sensor",
+		"zasp_runtime_public_rotate_sensor",
 		"zasp_runtime_reconcile_batch",
 		"zasp_runtime_commit_reserved_batch",
 		"zasp_runtime_gateway_enrollment_secret_hash",
@@ -55,6 +63,7 @@ func TestProductionRuntimeDataPlaneRegistersImmutableV15Authority(t *testing.T) 
 		"ALTER TABLE zasp_sensor_tokens ADD COLUMN secret ",
 		"CREATE TABLE zasp_runtime_raw_events",
 		"GRANT SELECT ON zasp_sensor_tokens",
+		"zasp_sensor_v1.",
 	} {
 		if strings.Contains(metadata.UpSQL(), forbidden) {
 			t.Fatalf("runtime data plane migration persists or grants secret authority %q", forbidden)

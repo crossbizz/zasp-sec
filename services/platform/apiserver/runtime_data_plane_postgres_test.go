@@ -84,6 +84,98 @@ func TestProductionRuntimeDataPlanePostgresKeepsInheritedProductAuthorityReady(t
 	}
 }
 
+func TestProductionRuntimeDataPlanePostgresSensorPublicAuthority(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(context.Background())
+	runner := migrateToTypedInventoryCutover(t, ctx, connection)
+	if err := runner.UpProductionRuntimeDataPlane(ctx); err != nil {
+		t.Fatalf("v15 migration: %v", err)
+	}
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := NewSensorPublicRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	sensorID := "pid_96000001-0000-4000-8000-000000000001"
+	tokenID := "pid_96000002-0000-4000-8000-000000000002"
+	tokenProductID, _ := domain.ParseProductID(tokenID)
+	credential, err := sensor.NewTokenCredential(bytes.Repeat([]byte{0x11}, 16), bytes.Repeat([]byte{0x22}, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer credential.Destroy()
+	locator, secret, err := credential.Parts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clear(locator)
+	defer clear(secret)
+	locatorDigest, _ := credential.LocatorDigest()
+	salt := bytes.Repeat([]byte{0x33}, 32)
+	tokenHash, _ := credential.Hash(sensor.SensorTokenAudienceEventIngest, tokenProductID, 1, salt)
+	expires := time.Now().UTC().Add(30 * 24 * time.Hour).Truncate(time.Microsecond)
+	createDigest := sha256.Sum256([]byte("sensor-public-create"))
+	create := SensorCreateMutation{SensorID: sensorID, Name: "Production runtime", Kind: "tetragon", Mode: "metadata_only", IdempotencyKey: "sensor-public-create-0001", RequestDigest: createDigest[:], TokenID: tokenID, TokenGeneration: 1, LocatorDigest: locatorDigest[:], Salt: salt, TokenHash: tokenHash[:], TokenExpiresAt: expires}
+	created, err := repository.CreateSensor(ctx, identity, create)
+	if err != nil || created.Sensor.ID != sensorID || created.Sensor.Version != 1 || created.TokenID != tokenID || created.Replayed {
+		t.Fatalf("created=%#v err=%v", created, err)
+	}
+	replayed, err := repository.CreateSensor(ctx, identity, create)
+	if err != nil || !replayed.Replayed || replayed.TokenID != tokenID {
+		t.Fatalf("replayed=%#v err=%v", replayed, err)
+	}
+	wire, _ := credential.Wire()
+	var leaked bool
+	if err := connection.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM zasp_runtime_sensor_mutations WHERE result::text LIKE '%'||$1||'%')`, wire).Scan(&leaked); err != nil || leaked {
+		t.Fatalf("wire token persisted=%t err=%v", leaked, err)
+	}
+	if _, err := repository.ListSensors(ctx, identity.Scope, "", 100); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `SELECT zasp_runtime_sensor_heartbeat($1,$2,'event-ingest',1,'healthy','["network","process"]'::jsonb,'6.8.0',true,12,0)`, locator, secret); err != nil {
+		t.Fatalf("heartbeat: %v", err)
+	}
+	coverage, err := repository.GetSensorCoverage(ctx, identity.Scope, sensorID)
+	if err != nil || coverage.Status != "healthy" || coverage.Kernel != "6.8.0" || len(coverage.Capabilities) != 2 {
+		t.Fatalf("coverage=%#v err=%v", coverage, err)
+	}
+	updateDigest := sha256.Sum256([]byte("sensor-public-update"))
+	updated, err := repository.UpdateSensor(ctx, identity, SensorUpdateMutation{SensorID: sensorID, Name: "Production runtime renamed", Mode: "full", ExpectedVersion: 1, IdempotencyKey: "sensor-public-update-0001", RequestDigest: updateDigest[:]})
+	if err != nil || updated.Sensor.Version != 2 || updated.Sensor.Mode != "full" || updated.Sensor.TokenExpiresAt == nil {
+		t.Fatalf("updated=%#v err=%v", updated, err)
+	}
+	replacementID := "pid_96000003-0000-4000-8000-000000000003"
+	replacementProductID, _ := domain.ParseProductID(replacementID)
+	replacement, _ := sensor.NewTokenCredential(bytes.Repeat([]byte{0x44}, 16), bytes.Repeat([]byte{0x55}, 32))
+	defer replacement.Destroy()
+	replacementDigest, _ := replacement.LocatorDigest()
+	replacementHash, _ := replacement.Hash(sensor.SensorTokenAudienceEventIngest, replacementProductID, 2, salt)
+	rotateDigest := sha256.Sum256([]byte("sensor-public-rotate"))
+	rotated, err := repository.RotateSensorToken(ctx, identity, SensorRotateMutation{SensorID: sensorID, ExpectedVersion: 2, IdempotencyKey: "sensor-public-rotate-0001", RequestDigest: rotateDigest[:], TokenID: replacementID, TokenGeneration: 2, LocatorDigest: replacementDigest[:], Salt: salt, TokenHash: replacementHash[:], TokenExpiresAt: expires})
+	if err != nil || rotated.Replayed || rotated.TokenGeneration != 2 {
+		t.Fatalf("rotated=%#v err=%v", rotated, err)
+	}
+	deleteDigest := sha256.Sum256([]byte("sensor-public-delete"))
+	deleted, err := repository.DeleteSensor(ctx, identity, SensorDeleteMutation{SensorID: sensorID, ExpectedVersion: 2, IdempotencyKey: "sensor-public-delete-0001", RequestDigest: deleteDigest[:]})
+	if err != nil || deleted.Sensor.State != "deleted" || deleted.Sensor.TokenExpiresAt != nil || deleted.Sensor.Version != 3 {
+		t.Fatalf("deleted=%#v err=%v", deleted, err)
+	}
+	page, err := repository.ListSensors(ctx, identity.Scope, "", 100)
+	if err != nil || len(page.Items) != 0 {
+		t.Fatalf("page=%#v err=%v", page, err)
+	}
+}
+
 func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t *testing.T) {
 	dsn := startDisposablePostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)

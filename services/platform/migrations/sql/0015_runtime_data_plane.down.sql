@@ -1,5 +1,5 @@
 DO $runtime_guard$ BEGIN
- IF zasp_runtime_data_plane_live_fingerprint()<>'a4e82d0e2a689dd30e2d2a0259859b7b921fc4efc912b01c5d024023b1668412' OR NOT zasp_runtime_data_plane_security_ready() THEN
+ IF zasp_runtime_data_plane_live_fingerprint()<>'27231caf874018313cc8c25de846549ecb8d65c1e41cd49f43233af1d6277ab5' OR NOT zasp_runtime_data_plane_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime data plane semantic drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_runtime_data_plane_state WHERE used_at IS NOT NULL) THEN
@@ -56,6 +56,14 @@ DROP FUNCTION public.zasp_runtime_commit_reserved_batch(text,text,text,text,bigi
 DROP FUNCTION public.zasp_runtime_reserve_batch(bytea,bytea,text,text,text,bytea,text,text,text,bigint,integer);
 DROP FUNCTION public.zasp_runtime_sensor_heartbeat(bytea,bytea,text,bigint,text,jsonb,text,boolean,bigint,bigint);
 DROP FUNCTION public.zasp_runtime_authenticate_sensor(bytea,bytea,text);
+DROP FUNCTION public.zasp_runtime_public_rotate_sensor(text,text,text,text,text,bigint,text,bytea,text,bigint,bytea,bytea,bytea,timestamptz);
+DROP FUNCTION public.zasp_runtime_public_delete_sensor(text,text,text,text,text,bigint,text,bytea);
+DROP FUNCTION public.zasp_runtime_public_update_sensor(text,text,text,text,text,bigint,text,text,text,bytea);
+DROP FUNCTION public.zasp_runtime_public_create_sensor(text,text,text,text,text,text,text,text,text,bytea,text,bigint,bytea,bytea,bytea,timestamptz);
+DROP FUNCTION public.zasp_runtime_public_sensor_coverage(text,text,text,text);
+DROP FUNCTION public.zasp_runtime_public_sensor_detail(text,text,text,text);
+DROP FUNCTION public.zasp_runtime_public_sensor_page(text,text,text,text,integer);
+DROP FUNCTION public.zasp_runtime_public_sensor_value(text,text,text,text);
 DROP FUNCTION public.zasp_runtime_revoke_sensor_token(text,text,text,text,text);
 DROP FUNCTION public.zasp_runtime_rotate_sensor_token(text,text,text,text,text,text,bigint,bigint,bytea,bytea,bytea,timestamptz);
 DROP FUNCTION public.zasp_runtime_issue_sensor_token(text,text,text,text,text,bigint,bigint,bytea,bytea,bytea,timestamptz);
@@ -77,6 +85,7 @@ DROP TABLE public.zasp_runtime_gateway_events;
 DROP TABLE public.zasp_runtime_gateway_policy_bundles;
 DROP TABLE public.zasp_runtime_gateway_replay_receipts;
 DROP TABLE public.zasp_runtime_principal_bindings;
+DROP TABLE public.zasp_runtime_sensor_mutations;
 
 DROP INDEX public.zasp_gateway_credentials_live_v15_idx;
 DROP INDEX public.zasp_gateway_credentials_generation_v15_idx;
