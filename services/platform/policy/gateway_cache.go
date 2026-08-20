@@ -218,12 +218,11 @@ func NewGatewayPolicyDiskCache(path string, keys GatewayPolicyKeys, binding Gate
 		_ = cache.Close()
 		return nil, err
 	}
-	nowValue, ok := gatewayNow(cache.now)
-	if !ok || !canonicalGatewayTime(state.ObservedAt) {
+	if !canonicalGatewayTime(state.ObservedAt) {
 		_ = cache.Close()
 		return nil, ErrGatewayPolicy
 	}
-	effectiveNow := laterGatewayTime(nowValue, state.ObservedAt)
+	effectiveNow := laterGatewayTime(cache.observedAt, state.ObservedAt)
 	verified, err := verifyGatewayPolicyEnvelope(state.Envelope, cache.keys, cache.binding, effectiveNow, true)
 	if err != nil {
 		_ = cache.Close()

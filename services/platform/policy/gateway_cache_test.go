@@ -259,6 +259,38 @@ func TestGatewayPolicyDiskCacheRetainsStartupClockFloorBeforeFirstCurrent(t *tes
 	}
 }
 
+func TestGatewayPolicyDiskCacheCannotDiscardFirstStartupClockSample(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	base := gatewayFixtureTime()
+	binding := gatewayFixtureBinding()
+	keys, _ := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
+	path := filepath.Join(gatewayRealTempDir(t), "gateway-policy.json")
+	cache, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return base })
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := gatewayFixtureEnvelope(t, private, base, binding, 1, 1, "closed")
+	if err := cache.Store(envelope); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.Close(); err != nil {
+		t.Fatal(err)
+	}
+	samples := []time.Time{envelope.ExpiresAt.Add(time.Second), base, base}
+	call := 0
+	restored, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time {
+		value := samples[call]
+		call++
+		return value
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, state, err := restored.Current(); err != nil || state != GatewayPolicyExpiredClosed {
+		t.Fatalf("discarded first startup sample: state=%q calls=%d err=%v", state, call, err)
+	}
+}
+
 func TestGatewayPolicyCacheBindsFailureModeToPolicyVersion(t *testing.T) {
 	public, private, _ := ed25519.GenerateKey(rand.Reader)
 	now := gatewayFixtureTime()
