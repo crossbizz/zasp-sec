@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { APIProductError, APITransportError } from "../../../apps/web/api/client";
 import type { ConnectorManifest, Integration, IntegrationInput, IntegrationUpdateInput, Policy, PolicyRollout } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
-import { useSession } from "../../auth/SessionProvider";
+import { useOptionalSession, useSession } from "../../auth/SessionProvider";
 import { Badge, Button, Card, EmptyState, Field, LoadingState, Modal, PageHeader } from "../../components/ui";
 import { createIntegrationsAPI, createPoliciesAPI, IntegrationRevocationPending, type Versioned, type WorkflowReceipt } from "./api";
 import { useRetainedWorkflowMutation } from "./useRetainedWorkflowMutation";
@@ -22,9 +23,10 @@ type PolicyMutationResult =
 type IntegrationMutationIntent =
   | { kind: "create"; value: IntegrationInput }
   | { kind: "update"; id: string; version: string; value: IntegrationUpdateInput }
+  | { kind: "authorize-reference"; id: string; version: string; connectorKey: "aws" | "kubernetes" }
   | { kind: "delete"; id: string; version: string };
 type IntegrationMutationResult =
-  | { kind: "created" | "updated"; receipt: WorkflowReceipt<Integration> }
+  | { kind: "created" | "updated" | "authorized"; receipt: WorkflowReceipt<Integration> }
   | { kind: "deleted"; receipt: WorkflowReceipt<void> };
 
 function QueryBoundary({ status, label, onRetry, disabled = false }: { status: string; label: string; onRetry(): Promise<void>; disabled?: boolean }) {
@@ -85,6 +87,8 @@ export function ProductionPoliciesView({ canWrite }: { canWrite: boolean }) {
 
 export function ProductionIntegrationsView({ canWrite }: { canWrite: boolean }) {
   const { client, invalidate } = useAPI();
+  const session = useOptionalSession();
+  const fresh = session === null || session.status === "authenticated" && session.isFreshAuthenticated;
   const api = useMemo(() => createIntegrationsAPI(client), [client]);
   const mutation = useRetainedWorkflowMutation<IntegrationMutationIntent>("integrations", canWrite);
   const catalog = useAPIQuery("workflow:integration-catalog", api.listCatalog);
@@ -121,23 +125,54 @@ export function ProductionIntegrationsView({ canWrite }: { canWrite: boolean }) 
     invalidate(["workflow:integrations"]);
     if (result.kind === "deleted") { setSelected(null); setFeedback({ tone: "status", message: `Integration deleted. Audit ${result.receipt.auditID}` }); return; }
     setSelected(result.receipt); setName(result.receipt.value.name); setConfiguration({ ...result.receipt.value.configuration });
-    setManifest(null); setFeedback({ tone: "status", message: `Integration ${result.kind}. Audit ${result.receipt.auditID}. Provider authorization controls remain unavailable until a real adapter is configured.` });
+    setManifest(null); setFeedback({ tone: "status", message: `Integration ${result.kind}. Audit ${result.receipt.auditID}` });
   };
   const runMutation = (operation: () => Promise<IntegrationMutationResult>) => void run(async () => { applyMutation(await operation()); });
   const choose = (value: ConnectorManifest) => { setManifest(value); setName(value.provider); setConfiguration(Object.fromEntries(value.setup_schema.map((field) => [field.key, ""]))); };
   const create = () => manifest && runMutation(() => mutation.execute({ kind: "create", value: { connector_key: manifest.key, name, configuration } }, async (intent, attempt) => { if (intent.kind !== "create") throw new TypeError("Invalid retained integration intent"); return { kind: "created", receipt: await api.createIntegration(intent.value, attempt) }; }));
   const open = (id: string) => void run(async () => { const value = await api.getIntegration(id); setSelected(value); setName(value.value.name); setConfiguration({ ...value.value.configuration }); });
   const update = () => selected && runMutation(() => mutation.execute({ kind: "update", id: selected.value.id, version: selected.version, value: { name, configuration } }, async (intent, attempt) => { if (intent.kind !== "update") throw new TypeError("Invalid retained integration intent"); return { kind: "updated", receipt: await api.updateIntegration(intent.id, intent.version, intent.value, attempt) }; }));
+  const authorizeReference = () => {
+    if (!selected || !isReferenceAuthorizationCandidate(selected.value) || !fresh) return;
+    const current = selected;
+    const connectorKey = current.value.connector_key;
+    if (!isReferenceConnector(connectorKey)) return;
+    const intent = { kind: "authorize-reference", id: current.value.id, version: current.version, connectorKey } as const;
+    void run(async () => {
+      try {
+        applyMutation(await mutation.execute(intent, async (frozen, attempt) => {
+          if (frozen.kind !== "authorize-reference") throw new TypeError("Invalid retained integration intent");
+          const receipt = await api.authorizeIntegrationReference(frozen.id, frozen.version, attempt);
+          if (receipt.value.connector_key !== frozen.connectorKey) throw new APITransportError("invalid_response", "Reference authorization changed connector identity");
+          return { kind: "authorized", receipt };
+        }));
+      } catch (error) {
+        if (!(error instanceof APIProductError) || error.status !== 409) throw error;
+        const current = await api.getIntegration(intent.id);
+        setSelected(current); setName(current.value.name); setConfiguration({ ...current.value.configuration });
+        setFeedback({ tone: "alert", message: "Integration changed. Review the current version before authorizing again." });
+      }
+    });
+  };
   const remove = () => selected && runMutation(() => mutation.execute({ kind: "delete", id: selected.value.id, version: selected.version }, async (intent, attempt) => { if (intent.kind !== "delete") throw new TypeError("Invalid retained integration intent"); return { kind: "deleted", receipt: await api.deleteIntegration(intent.id, intent.version, attempt) }; }));
   const retryMutation = () => runMutation(() => mutation.retry<IntegrationMutationResult>());
   const visibleSelected = selected ?? pendingRevocation?.receipt ?? null;
   const visibleConfiguration = selected ? configuration : pendingRevocation?.receipt.value.configuration ?? configuration;
   const revocationPending = visibleSelected?.value.status === "revoking" && mutation.isUnresolved && pendingRevocation !== null;
   const revocationRetryReady = pendingRevocation === null || revocationClock >= pendingRevocation.retryNotBefore || Date.now() >= pendingRevocation.retryNotBefore;
-  return <div className="page"><PageHeader title="Integrations" description="Durable local connector configuration. Provider authorization and sync controls appear only when a real adapter exists." /><FeedbackLine value={feedback} />{mutation.canRetry && !visibleSelected && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained integration operation</Button></p>}
+  const referenceAuthorizationCandidate = selected !== null && isReferenceAuthorizationCandidate(selected.value);
+  return <div className="page"><PageHeader title="Integrations" description="Durable connector configuration with reference authorization for supported AWS and Kubernetes integrations." />{!visibleSelected && <FeedbackLine value={feedback} />}{mutation.canRetry && !visibleSelected && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained integration operation</Button></p>}
     <QueryBoundary status={integrations.status} label="integrations" onRetry={integrations.retry} disabled={mutation.isUnresolved} /><Card title="Configured integrations">{integrations.data?.length ? <div className="connection-list">{integrations.data.map((value) => <button type="button" key={value.id} disabled={busy || mutation.isUnresolved} aria-label={`Open ${value.name}`} onClick={() => open(value.id)}><strong>{value.name}</strong><span>{value.connector_key}</span><span>{value.status}</span></button>)}</div> : integrations.status === "empty" ? <EmptyState title="No integrations" description="Choose a supported connector catalog entry to save its scoped configuration." /> : null}</Card>
     <QueryBoundary status={catalog.status} label="integration catalog" onRetry={catalog.retry} disabled={mutation.isUnresolved} />{canWrite && <Card title="Connector catalog"><div className="connector-grid">{catalog.data?.map((value) => <article key={value.key} className="connector-card"><h3>{value.provider}</h3><p>{value.description}</p><Badge tone="info">{value.auth_mode}</Badge><Button disabled={busy || mutation.isUnresolved} onClick={() => choose(value)}>Configure {value.provider}</Button></article>)}</div></Card>}
     <Modal open={manifest !== null} title={`Configure ${manifest?.provider ?? "integration"}`} closeDisabled={mutation.isUnresolved} onClose={() => setManifest(null)} footer={<><Button disabled={mutation.isUnresolved} onClick={() => setManifest(null)}>Cancel</Button><Button variant="primary" disabled={busy || mutation.isUnresolved || !name || manifest?.setup_schema.some((field) => field.required && !configuration[field.key])} onClick={create}>Save integration</Button></>}>{manifest && <div className="form-stack">{mutation.canRetry && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained integration operation</Button></p>}<p>{manifest.access_guidance}</p><Field label="Integration name" value={name} disabled={mutation.isUnresolved} onChange={(event) => setName(event.target.value)} />{manifest.setup_schema.map((field) => <Field key={field.key} label={field.label} hint={field.description} value={configuration[field.key] ?? ""} disabled={mutation.isUnresolved} onChange={(event) => setConfiguration((current) => ({ ...current, [field.key]: event.target.value }))} />)}</div>}</Modal>
-    <Modal open={visibleSelected !== null} title={visibleSelected?.value.name ?? "Integration"} closeDisabled={mutation.isUnresolved} onClose={() => setSelected(null)} footer={<><Button disabled={mutation.isUnresolved} onClick={() => setSelected(null)}>Close</Button>{canWrite && <><Button disabled={busy || mutation.isUnresolved} onClick={update}>Save changes</Button><Button variant="danger" disabled={busy || mutation.isUnresolved} onClick={remove}>Delete integration</Button></>}</>}>{visibleSelected && <div className="form-stack">{revocationPending ? <p role="status">Provider revocation is pending. The exact DELETE and idempotency key are retained. {mutation.canRetry && <Button disabled={busy || !revocationRetryReady} onClick={retryMutation}>Retry pending integration deletion</Button>}</p> : mutation.canRetry && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained integration operation</Button></p>}<p><Badge tone="info">{visibleSelected.value.status}</Badge> Version {visibleSelected.version}</p><Field label="Integration name" value={selected ? name : visibleSelected.value.name} disabled={!canWrite || mutation.isUnresolved} onChange={(event) => setName(event.target.value)} />{Object.entries(visibleConfiguration).map(([key, value]) => { const reference = key.endsWith("_reference"); return <Field key={key} label={key.replaceAll("_", " ")} value={reference ? "Configured reference" : value} disabled={!canWrite || mutation.isUnresolved || reference} onChange={reference ? undefined : (event) => setConfiguration((current) => ({ ...current, [key]: event.target.value }))} />; })}<p>Provider authorization and sync are capability-hidden for this deployment.</p></div>}</Modal>
+    <Modal open={visibleSelected !== null} title={visibleSelected?.value.name ?? "Integration"} closeDisabled={mutation.isUnresolved} onClose={() => setSelected(null)} footer={<><Button disabled={mutation.isUnresolved} onClick={() => setSelected(null)}>Close</Button>{canWrite && <>{referenceAuthorizationCandidate && <Button variant="primary" disabled={busy || mutation.isUnresolved || !fresh} onClick={authorizeReference}>Authorize {selected?.value.connector_key === "aws" ? "AWS" : "Kubernetes"} reference</Button>}<Button disabled={busy || mutation.isUnresolved} onClick={update}>Save changes</Button><Button variant="danger" disabled={busy || mutation.isUnresolved} onClick={remove}>Delete integration</Button></>}</>}>{visibleSelected && <div className="form-stack">{!revocationPending && !mutation.canRetry && <FeedbackLine value={feedback} />}{revocationPending ? <p role="status">Provider revocation is pending. The exact DELETE and idempotency key are retained. {mutation.canRetry && <Button disabled={busy || !revocationRetryReady} onClick={retryMutation}>Retry pending integration deletion</Button>}</p> : mutation.canRetry && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained integration operation</Button></p>}{canWrite && referenceAuthorizationCandidate && !fresh && <p role="alert">Fresh authentication is required to authorize this reference. {session?.status === "authenticated" && <Button onClick={session.reauthenticate}>Reauthenticate</Button>}</p>}<p><Badge tone="info">{visibleSelected.value.status}</Badge> Version {visibleSelected.version}</p><Field label="Integration name" value={selected ? name : visibleSelected.value.name} disabled={!canWrite || mutation.isUnresolved} onChange={(event) => setName(event.target.value)} />{Object.entries(visibleConfiguration).map(([key, value]) => { const reference = key.endsWith("_reference"); return <Field key={key} label={key.replaceAll("_", " ")} value={reference ? "Configured reference" : value} disabled={!canWrite || mutation.isUnresolved || reference} onChange={reference ? undefined : (event) => setConfiguration((current) => ({ ...current, [key]: event.target.value }))} />; })}<p>{isReferenceConnector(visibleSelected.value.connector_key) ? visibleSelected.value.status === "active" ? "Reference authorization is active." : "Authorization uses the configured reference without exposing its value." : "Provider authorization controls are unavailable for this connector."}</p></div>}</Modal>
   </div>;
+}
+
+function isReferenceConnector(value: string): value is "aws" | "kubernetes" {
+  return value === "aws" || value === "kubernetes";
+}
+
+function isReferenceAuthorizationCandidate(value: Integration): value is Integration & { connector_key: "aws" | "kubernetes" } {
+  return isReferenceConnector(value.connector_key) && (value.status === "configured" || value.status === "pending_authorization" || value.status === "degraded");
 }

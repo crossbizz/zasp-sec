@@ -225,6 +225,22 @@ export function createIntegrationsAPI(client: APIClient) {
     async updateIntegration(id: string, version: string, value: IntegrationUpdateInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<Integration>> {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.PATCH("/api/v1/integrations/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: value }), decodeIntegration), attempt);
     },
+    async authorizeIntegrationReference(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<Integration>> {
+      return executeWorkflowMutation(async (active) => {
+        // CSRF and expected scope remain transport-owned. Fresh auth is an
+        // explicit assertion from the capability- and freshness-gated UI.
+        const params = { path: { id }, header: { ...workflowMutationHeaders(active, version), "X-Zasp-Fresh-Auth": "confirmed" } } as never;
+        const result = await client.POST("/api/v1/integrations/{id}/reference-authorization", { params, body: {} });
+        const receipt = requireWorkflowReceipt(result, decodeIntegration);
+        if (result.response.status !== 200 || result.response.headers.get("Cache-Control") !== "no-store") {
+          throw new APITransportError("invalid_response", "Reference authorization returned invalid response metadata");
+        }
+        if (receipt.value.id !== id || !isReferenceConnector(receipt.value.connector_key) || receipt.value.status !== "active") {
+          throw new APITransportError("invalid_response", "Reference authorization returned an invalid integration");
+        }
+        return receipt;
+      }, attempt);
+    },
     async deleteIntegration(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<void>> {
       return executeWorkflowMutation(async (active) => requireIntegrationDeletion(await client.DELETE("/api/v1/integrations/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } } }), id), attempt);
     },
@@ -232,6 +248,10 @@ export function createIntegrationsAPI(client: APIClient) {
 }
 
 export type IntegrationsAPI = ReturnType<typeof createIntegrationsAPI>;
+
+function isReferenceConnector(value: string): value is "aws" | "kubernetes" {
+  return value === "aws" || value === "kubernetes";
+}
 
 export function createWorkflowRecoveryAPI(client: APIClient, capturedScopeKey = "component-local-scope") {
   if (!capturedScopeKey) throw new APITransportError("invalid_configuration", "Workflow recovery scope is required");

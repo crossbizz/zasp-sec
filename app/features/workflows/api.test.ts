@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { APIProductError, APITransportError, type APIClient } from "../../../apps/web/api/client";
+import { APIProductError, APITransportError, createAPIClient, type APIClient } from "../../../apps/web/api/client";
 import { decodeIntegrationPage, decodePolicyPage } from "../../../apps/web/api/decoders";
 import type { Integration, Policy } from "../../../apps/web/api/generated";
 import { createSecurityAgentsAPI } from "../securityagents/SecurityAgentsView";
@@ -38,6 +38,53 @@ function referenceAuthorizationReceipt(scope = capturedScope) {
 }
 
 describe("production workflow API", () => {
+	it("sends an exact fresh scoped reference-authorization mutation and strictly accepts its receipt", async () => {
+		const attempt = createWorkflowMutationAttempt();
+		const requests: Array<{ url: string; method: string; credentials: RequestCredentials; redirect: RequestRedirect; headers: Headers; body: string }> = [];
+		const client = createAPIClient({
+			getCSRFToken: () => "csrf_12345678901234567890123456789012",
+			getExpectedScope: () => capturedScope,
+			fetch: async (value) => {
+				const copy = value.clone();
+				requests.push({ url: copy.url, method: copy.method, credentials: copy.credentials, redirect: copy.redirect, headers: new Headers(copy.headers), body: await copy.text() });
+				return new Response(JSON.stringify(referenceIntegration), { status: 200, headers: {
+					"Content-Type": "application/json", "Cache-Control": "no-store", ETag: '"2"',
+					"X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001",
+					"X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002",
+				} });
+			},
+		});
+
+		await expect(createIntegrationsAPI(client).authorizeIntegrationReference(referenceIntegration.id, '"1"', attempt)).resolves.toMatchObject({
+			value: referenceIntegration, version: '"2"', auditID: "pid_30000001-0000-4000-8000-000000000001", receiptID: "pid_30000002-0000-4000-8000-000000000002",
+		});
+		const request = requests[0];
+		expect(requests).toHaveLength(1);
+		expect(new URL(request!.url).pathname).toBe(`/api/v1/integrations/${referenceIntegration.id}/reference-authorization`);
+		expect(request!.method).toBe("POST");
+		expect(request!.credentials).toBe("same-origin");
+		expect(request!.redirect).toBe("error");
+		expect(request!.headers.get("Content-Type")).toBe("application/json");
+		expect(request!.headers.get("Idempotency-Key")).toBe(attempt.idempotencyKey);
+		expect(request!.headers.get("If-Match")).toBe('"1"');
+		expect(request!.headers.get("X-CSRF-Token")).toBe("csrf_12345678901234567890123456789012");
+		expect(request!.headers.get("X-Zasp-Expected-Scope")).toBe(capturedScope);
+		expect(request!.headers.get("X-Zasp-Fresh-Auth")).toBe("confirmed");
+		expect(request!.body).toBe("{}");
+	});
+
+	it.each([
+		["missing no-store", referenceIntegration, { ...receiptHeadersForReference(), "Cache-Control": undefined }],
+		["foreign integration", { ...referenceIntegration, id: "pid_20000001-0000-4000-8000-000000000099" }, receiptHeadersForReference()],
+		["non-reference connector", { ...referenceIntegration, connector_key: "github", configuration: { authorization_mode: "github_app" } }, receiptHeadersForReference()],
+		["non-active result", { ...referenceIntegration, status: "pending_authorization" }, receiptHeadersForReference()],
+	])("rejects a reference-authorization success with %s", async (_name, value, headerValues) => {
+		const headers = Object.fromEntries(Object.entries(headerValues).filter(([, item]) => item !== undefined)) as Record<string, string>;
+		const POST = vi.fn(async () => ({ data: value, response: new Response(JSON.stringify(value), { status: 200, headers: { "Content-Type": "application/json", ...headers } }) }));
+
+		await expect(createIntegrationsAPI({ POST } as unknown as APIClient).authorizeIntegrationReference(referenceIntegration.id, '"1"')).rejects.toMatchObject({ kind: "invalid_response" });
+	});
+
 	it.each(["2", "999"])("retains a strictly decoded 202 integration revocation with Retry-After %s", async (retryAfter) => {
 		const DELETE = vi.fn(async () => ({
 			data: integration,
@@ -330,3 +377,12 @@ describe("production workflow API", () => {
   });
 
 });
+
+function receiptHeadersForReference() {
+	return {
+		"Cache-Control": "no-store",
+		ETag: '"2"',
+		"X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001",
+		"X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002",
+	};
+}
