@@ -24,4 +24,11 @@ describe("bounded cursor pagination", () => {
     let cursor = 0;
     await expect(loadAllCursorPages(async () => ({ items: [String(cursor)], page_info: { has_more: true, next_cursor: `cursor-${cursor += 1}` } }), { maximumItems: 10, maximumPages: 2 })).rejects.toThrow("page cap");
   });
+
+  it("propagates cancellation without issuing a later page", async () => {
+    const reason = new DOMException("scope changed", "AbortError");
+    const read = vi.fn(async () => { throw reason; });
+    await expect(loadAllCursorPages(read, { maximumItems: 10_000, maximumPages: 100 })).rejects.toBe(reason);
+    expect(read).toHaveBeenCalledTimes(1);
+  });
 });

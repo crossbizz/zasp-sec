@@ -2,12 +2,12 @@
 
 import { useCallback, useMemo, useState } from "react";
 
-import { createAPIClient, requireAPIData, type APIClient } from "../../../apps/web/api/client";
-import { decodeAgentSessionPage, decodeCapabilityPage, decodeHomeSummary, decodeInventoryPage, decodeInventoryRecord, decodeRelationshipPage } from "../../../apps/web/api/decoders";
-import type { AgentSession, AttackPath, BreakOption, Capability, Finding, HomeSummary, InventoryRecord, Relationship, SearchResult } from "../../../apps/web/api/generated";
+import { createAPIClient, type APIClient } from "../../../apps/web/api/client";
+import type { AgentSession, AttackPath, BreakOption, Capability, Finding, HomeSummary, InventoryDetail, InventoryRecord, InventorySummary, Relationship, SearchResult } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { Badge, Button, Card, Drawer, MetricGrid, PageHeader, SearchBox, Select } from "../../components/ui";
+import { createProductionAgentSecurityAPI, type ProductionAgentSecurityAPI } from "./ProductionAgentSecurityView";
 
 type AgentFilter = { owner: string; environment: string; risk: string; shell: boolean; highImpact: boolean; sensor: string; policy: string };
 
@@ -34,28 +34,8 @@ export type AgentSecurityAPI = {
   search(query: string): Promise<readonly SearchResult[]>;
 };
 
-type ProductionAgentSecurityAPI = Pick<AgentSecurityAPI,
-  "listAgents" | "listTools" | "listIdentities" | "listRuntimes" |
-  "getAgent" | "getTool" | "getIdentity" | "getRuntime" |
-  "getAgentCapabilities" | "getAgentRelationships" | "listAgentSessions" |
-  "getHomeSummary"
->;
-
 export function createAgentSecurityAPI(client: APIClient = createAPIClient()): ProductionAgentSecurityAPI {
-  return {
-    async listAgents(signal) { return requireAPIData(await client.GET("/api/v1/agents", { signal }), decodeInventoryPage).items; },
-    async listTools(signal) { return requireAPIData(await client.GET("/api/v1/tools", { signal }), decodeInventoryPage).items; },
-    async listIdentities(signal) { return requireAPIData(await client.GET("/api/v1/identities", { signal }), decodeInventoryPage).items; },
-    async listRuntimes(signal) { return requireAPIData(await client.GET("/api/v1/runtimes", { signal }), decodeInventoryPage).items; },
-    async getAgent(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}", { params: { path: { id } } }), decodeInventoryRecord); },
-    async getTool(id) { return requireAPIData(await client.GET("/api/v1/tools/{id}", { params: { path: { id } } }), decodeInventoryRecord); },
-    async getIdentity(id) { return requireAPIData(await client.GET("/api/v1/identities/{id}", { params: { path: { id } } }), decodeInventoryRecord); },
-    async getRuntime(id) { return requireAPIData(await client.GET("/api/v1/runtimes/{id}", { params: { path: { id } } }), decodeInventoryRecord); },
-    async getAgentCapabilities(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}/capabilities", { params: { path: { id } } }), decodeCapabilityPage).items; },
-    async getAgentRelationships(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}/relationships", { params: { path: { id } } }), decodeRelationshipPage).items; },
-    async listAgentSessions(id) { return requireAPIData(await client.GET("/api/v1/agents/{id}/sessions", { params: { path: { id } } }), decodeAgentSessionPage).items; },
-    async getHomeSummary(signal) { return requireAPIData(await client.GET("/api/v1/home/summary", { signal }), decodeHomeSummary); },
-  };
+  return createProductionAgentSecurityAPI(client);
 }
 
 const ids = {
@@ -68,16 +48,16 @@ const ids = {
   path: "pid_20000007-0000-4000-8000-000000000007",
 } as const;
 
-const common = { owner: "security", team: "agent-platform", tags: ["production"], evidence_id: ids.evidence, first_seen: "2026-08-18T09:00:00.000Z", last_seen: "2026-08-18T10:00:00.000Z" } as const;
+const common = { owner: "security", team: "agent-platform", tags: ["production"], evidence_id: ids.evidence, confidence_basis_points: 9500, first_seen: "2026-08-18T09:00:00.000Z", last_seen: "2026-08-18T10:00:00.000Z", observed_at: "2026-08-18T10:00:00.000Z", fresh_until: "2026-08-18T10:15:00.000Z", freshness_state: "fresh", version: 1 } as const;
 const agents: InventoryRecord[] = [{ id: ids.agent, name: "Support agent", kind: "agent", ...common }];
 const tools: InventoryRecord[] = [{ id: ids.tool, name: "Customer records MCP", kind: "tool", ...common }];
-const identities: InventoryRecord[] = [{ id: ids.identity, name: "Support service identity", kind: "identity", credential_reference: "connection_ref_support", credential_fingerprint: `sha256:${"a".repeat(64)}`, ...common }];
-const runtimes: InventoryRecord[] = [{ id: ids.runtime, name: "support-agent-pod", kind: "runtime", workload_id: "pod/support-agent", sandbox_id: "sandbox-support", isolation: "container", ...common }];
+const identities: InventoryRecord[] = [{ id: ids.identity, name: "Support service identity", kind: "identity", ...common }];
+const runtimes: InventoryRecord[] = [{ id: ids.runtime, name: "support-agent-pod", kind: "runtime", ...common }];
 const capabilities: Capability[] = [
   { agent_id: ids.agent, target_id: ids.tool, target_kind: "tool", category: "data_read", outcome: "read", state: "observed", reachable: true, evidence_ids: [ids.evidence] },
   { agent_id: ids.agent, target_id: ids.identity, target_kind: "identity", category: "data_write", outcome: "write", state: "blocked", reachable: true, evidence_ids: [ids.evidence] },
 ];
-const relationships: Relationship[] = [{ from_id: ids.agent, to_id: ids.tool, type: "uses", evidence_id: ids.evidence }];
+const relationships: Relationship[] = [{ id: ids.path, from_id: ids.agent, to_id: ids.tool, type: "uses", evidence_id: ids.evidence }];
 const sessions: AgentSession[] = [{ id: ids.evidence, agent_id: ids.agent, started_at: "2026-08-18T10:00:00.000Z" }];
 const riskTime = { version: 1, created_at: "2026-08-18T09:00:00.000Z", updated_at: "2026-08-18T10:00:00.000Z" } as const;
 const findings: Finding[] = [
@@ -159,7 +139,7 @@ export function AgentSecurityView({ path, onNavigate, api, state = "ready" }: { 
 
 type ConnectedData =
   | { kind: "home"; value: HomeSummary }
-  | { kind: "inventory"; title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventoryRecord[] };
+  | { kind: "inventory"; title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[] };
 
 function ConnectedAgentSecurityView({ path, onNavigate }: { path: string; onNavigate: (path: string) => void }) {
   const { client } = useAPI();
@@ -207,9 +187,9 @@ function ConnectedHome({ value, onNavigate }: { value: HomeSummary; onNavigate: 
 }
 
 function ConnectedInventory({ title, category, values, api }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventoryRecord[]; api: ProductionAgentSecurityAPI }) {
-  const [selected, setSelected] = useState<InventoryRecord | null>(null);
+  const [selected, setSelected] = useState<InventoryDetail | null>(null);
   const [detailError, setDetailError] = useState(false);
-  const open = async (item: InventoryRecord) => {
+  const open = async (item: InventorySummary) => {
     try {
       const loaders = { agent: api.getAgent, tool: api.getTool, identity: api.getIdentity, runtime: api.getRuntime };
       setSelected(await loaders[category](item.id));
@@ -218,5 +198,5 @@ function ConnectedInventory({ title, category, values, api }: { title: string; c
       setDetailError(true);
     }
   };
-  return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}<Card>{values.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Last seen</th></tr></thead><tbody>{values.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => void open(item)}>{item.name}</button></td><td>{item.owner || "Unowned"}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.name} onClose={() => setSelected(null)}><div className="detail-content"><h3>Canonical record</h3><code>{selected.id}</code><h3>Ownership</h3><p>{selected.owner || "Unowned"} · {selected.team || "No team"}</p><h3>Evidence and freshness</h3><p>{selected.evidence_id} · last seen {selected.last_seen}</p></div></Drawer>}</div>;
+  return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}<Card>{values.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Freshness</th><th>Last seen</th></tr></thead><tbody>{values.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => void open(item)}>{item.name}</button></td><td>{item.owner || "Unowned"}</td><td>{item.freshness_state}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.summary.name} onClose={() => setSelected(null)}><div className="detail-content"><h3>Canonical record</h3><code>{selected.summary.id}</code><h3>Ownership</h3><p>{selected.summary.owner || "Unowned"} · {selected.summary.team || "No team"}</p><h3>Evidence and freshness</h3><p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p></div></Drawer>}</div>;
 }

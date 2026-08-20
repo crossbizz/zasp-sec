@@ -134,7 +134,7 @@ screens:
     actions:
       - id: view_home_summary
         operation_id: getHomeSummary
-        availability: api_available
+        availability: available
       - id: search_all_entities
         operation_id: globalSearch
         availability: planned
@@ -251,43 +251,43 @@ screens:
     actions:
       - id: view_agents
         operation_id: listAgents
-        availability: api_available
+        availability: available
       - id: view_agent
         operation_id: getAgent
-        availability: api_available
+        availability: available
       - id: update_agent
         operation_id: updateAgent
         availability: planned
       - id: view_agent_capabilities
         operation_id: getAgentCapabilities
-        availability: api_available
+        availability: available
       - id: view_agent_relationships
         operation_id: getAgentRelationships
-        availability: api_available
+        availability: available
       - id: view_agent_sessions
         operation_id: listAgentSessions
-        availability: api_available
+        availability: available
       - id: view_tools
         operation_id: listTools
-        availability: api_available
+        availability: available
       - id: view_tool
         operation_id: getTool
-        availability: api_available
+        availability: available
       - id: view_identities
         operation_id: listIdentities
-        availability: api_available
+        availability: available
       - id: view_identity
         operation_id: getIdentity
-        availability: api_available
+        availability: available
       - id: view_runtimes
         operation_id: listRuntimes
-        availability: api_available
+        availability: available
       - id: view_runtime
         operation_id: getRuntime
-        availability: api_available
+        availability: available
       - id: view_asset
         operation_id: getAsset
-        availability: api_available
+        availability: available
   - id: red_team
     label: Red Team
     actions:

@@ -1,4 +1,4 @@
-import type { AgentSession, AttackPath, AttackPathPage, BreakOptionPage, Capability, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryRecord, Policy, PolicyRollout, PolicySimulation, Principal, Relationship, RuntimeDecision, SecurityAgentDefinition, SecurityAgentPage, SecurityAgentTemplate, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
+import type { AgentSessionPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RelationshipPage, RuntimeDecision, SecurityAgentDefinition, SecurityAgentPage, SecurityAgentTemplate, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -36,36 +36,68 @@ export function decodeSessionScopePage(value: unknown): SessionScopePage {
   return value as SessionScopePage;
 }
 
-export function decodeInventoryPage(value: unknown): { readonly items: readonly InventoryRecord[] } {
-  const record = exactRecord(value, ["items"]); const items = array(record.items, 10000);
-  for (const item of items) decodeInventoryRecord(item);
-  return value as { readonly items: readonly InventoryRecord[] };
+export function decodeInventoryPage(value: unknown): InventoryPage {
+  const record = exactRecord(value, ["items", "page_info"]); const items = array(record.items, 100); let prior = "";
+  for (const item of items) { const summary = decodeInventorySummary(item); if (prior !== "" && summary.id <= prior) fail(); prior = summary.id; }
+  decodePageInfo(record.page_info);
+  return value as InventoryPage;
+}
+
+export function decodeInventorySummary(value: unknown): InventorySummary {
+  const required = ["id", "name", "kind", "owner", "team", "tags", "evidence_id", "confidence_basis_points", "first_seen", "last_seen", "observed_at", "fresh_until", "freshness_state", "version"];
+  const record = exactRecord(value, required);
+  productID(record.id); boundedString(record.name, 1, 256); enumValue(record.kind, ["asset", "agent", "tool", "identity", "runtime"]);
+  boundedString(record.owner, 0, 128); boundedString(record.team, 0, 128); stringArray(record.tags, 32, 64); productID(record.evidence_id); boundedInteger(record.confidence_basis_points, 1, 10000); positiveInteger(record.version);
+  for (const key of ["first_seen", "last_seen", "observed_at", "fresh_until"] as const) dateTime(record[key]);
+  if (Date.parse(record.last_seen as string) < Date.parse(record.first_seen as string) || Date.parse(record.fresh_until as string) <= Date.parse(record.observed_at as string)) fail();
+  enumValue(record.freshness_state, ["fresh", "stale"]);
+  const tags = record.tags as readonly string[]; for (let index = 1; index < tags.length; index += 1) if (tags[index] <= tags[index - 1]) fail();
+  return value as InventorySummary;
 }
 
 export function decodeInventoryRecord(value: unknown): InventoryRecord {
-  const required = ["id", "name", "kind", "owner", "team", "tags", "evidence_id", "first_seen", "last_seen"];
-  const record = exactRecord(value, required, ["credential_reference", "credential_fingerprint", "workload_id", "sandbox_id", "isolation"]);
-  productID(record.id); boundedString(record.name, 1, 256); enumValue(record.kind, ["asset", "agent", "tool", "identity", "runtime"]);
-  boundedString(record.owner, 0, 128); boundedString(record.team, 0, 128); stringArray(record.tags, 32); productID(record.evidence_id); dateTime(record.first_seen); dateTime(record.last_seen);
-  for (const key of ["credential_reference", "workload_id", "sandbox_id"] as const) if (record[key] !== undefined) boundedString(record[key], 1, 256);
-  if (record.credential_fingerprint !== undefined && (typeof record.credential_fingerprint !== "string" || !/^sha256:[0-9a-f]{64}$/.test(record.credential_fingerprint))) fail();
-  if (record.isolation !== undefined) enumValue(record.isolation, ["container", "sandbox"]);
+  decodeInventorySummary(value);
   return value as InventoryRecord;
 }
 
-export function decodeCapabilityPage(value: unknown): { readonly items: readonly Capability[] } {
-  const record = exactRecord(value, ["items"]); for (const item of array(record.items, 10000)) {
+export function decodeInventoryDetail(value: unknown): InventoryDetail {
+  const record = exactRecord(value, ["summary", "sources", "evidence"]); const summary = decodeInventorySummary(record.summary);
+  const evidenceValues = array(record.evidence, 64); if (evidenceValues.length < 1) fail();
+  const evidence = new Set<string>(); let priorEvidence = "";
+  for (const value of evidenceValues) {
+    const item = exactRecord(value, ["id", "checksum", "media_type", "schema_version", "parser_version", "tool_version", "collected_at", "size_bytes"]);
+    productID(item.id); checksum(item.checksum); boundedString(item.media_type, 1, 128); boundedString(item.schema_version, 1, 64); boundedString(item.parser_version, 1, 64); boundedString(item.tool_version, 1, 64); dateTime(item.collected_at); boundedInteger(item.size_bytes, 1, 536870912);
+    if (evidence.has(item.id as string) || priorEvidence !== "" && (item.id as string) <= priorEvidence) fail(); evidence.add(item.id as string); priorEvidence = item.id as string;
+  }
+  const sources = array(record.sources, 64); if (sources.length < 1) fail(); let winners = 0; let priorSource = "";
+  for (const value of sources) {
+    const source = decodeInventorySourceObservation(value); const key = `${source.integration_id}\u001f${source.provider}\u001f${source.source}\u001f${source.source_identifier}`;
+    if (priorSource !== "" && key <= priorSource || !evidence.has(source.evidence_id)) fail(); priorSource = key;
+    if (source.winning) { winners += 1; if (source.evidence_id !== summary.evidence_id || source.confidence_basis_points !== summary.confidence_basis_points || source.observed_at !== summary.observed_at || source.fresh_until !== summary.fresh_until) fail(); }
+  }
+  if (winners !== 1) fail();
+  return value as InventoryDetail;
+}
+
+function decodeInventorySourceObservation(value: unknown): InventorySourceObservation {
+  const entry = exactRecord(value, ["integration_id", "provider", "source", "source_identifier", "snapshot_id", "generation", "evidence_id", "confidence_basis_points", "observed_at", "fresh_until", "projection_version", "winning"]);
+  productID(entry.integration_id); enumValue(entry.provider, ["aws", "kubernetes", "github", "okta"]); if (typeof entry.source !== "string" || !/^[a-z][a-z0-9_]{1,63}$/.test(entry.source)) fail(); checksum(entry.source_identifier); productID(entry.snapshot_id); positiveInteger(entry.generation); productID(entry.evidence_id); boundedInteger(entry.confidence_basis_points, 1, 10000); dateTime(entry.observed_at); dateTime(entry.fresh_until); if (Date.parse(entry.fresh_until as string) <= Date.parse(entry.observed_at as string)) fail(); positiveInteger(entry.projection_version); if (typeof entry.winning !== "boolean") fail();
+  return value as InventorySourceObservation;
+}
+
+export function decodeCapabilityPage(value: unknown): CapabilityPage {
+  const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) {
     const entry = exactRecord(item, ["agent_id", "target_id", "target_kind", "category", "outcome", "state", "reachable", "evidence_ids"]);
-    productID(entry.agent_id); productID(entry.target_id); enumValue(entry.target_kind, ["tool", "identity", "resource", "action"]); boundedString(entry.category, 1, 64); boundedString(entry.outcome, 1, 32); enumValue(entry.state, ["reachable", "observed", "verified", "blocked"]); if (typeof entry.reachable !== "boolean") fail(); productIDArray(entry.evidence_ids, 64);
-  } return value as { readonly items: readonly Capability[] };
+    productID(entry.agent_id); productID(entry.target_id); enumValue(entry.target_kind, ["tool", "identity", "resource", "action"]); enumValue(entry.category, ["data_read", "data_write", "action_execute", "identity_assume", "network_egress", "administration"]); enumValue(entry.outcome, ["read", "write", "execute", "assume", "connect", "administer"]); enumValue(entry.state, ["reachable", "observed", "verified", "blocked"]); if (typeof entry.reachable !== "boolean") fail(); productIDArray(entry.evidence_ids, 64);
+  } decodePageInfo(record.page_info); return value as CapabilityPage;
 }
 
-export function decodeRelationshipPage(value: unknown): { readonly items: readonly Relationship[] } {
-  const record = exactRecord(value, ["items"]); for (const item of array(record.items, 10000)) { const entry = exactRecord(item, ["from_id", "to_id", "type", "evidence_id"]); productID(entry.from_id); productID(entry.to_id); boundedString(entry.type, 1, 64); productID(entry.evidence_id); } return value as { readonly items: readonly Relationship[] };
+export function decodeRelationshipPage(value: unknown): RelationshipPage {
+  const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) { const entry = exactRecord(item, ["id", "from_id", "to_id", "type", "evidence_id"]); productID(entry.id); productID(entry.from_id); productID(entry.to_id); if (entry.from_id === entry.to_id) fail(); boundedString(entry.type, 1, 64); productID(entry.evidence_id); } decodePageInfo(record.page_info); return value as RelationshipPage;
 }
 
-export function decodeAgentSessionPage(value: unknown): { readonly items: readonly AgentSession[] } {
-  const record = exactRecord(value, ["items"]); for (const item of array(record.items, 10000)) { const entry = exactRecord(item, ["id", "agent_id", "started_at"]); productID(entry.id); productID(entry.agent_id); dateTime(entry.started_at); } return value as { readonly items: readonly AgentSession[] };
+export function decodeAgentSessionPage(value: unknown): AgentSessionPage {
+  const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) { const entry = exactRecord(item, ["id", "agent_id", "started_at"]); productID(entry.id); productID(entry.agent_id); dateTime(entry.started_at); } decodePageInfo(record.page_info); return value as AgentSessionPage;
 }
 
 export function decodeHomeSummary(value: unknown): HomeSummary {
@@ -465,6 +497,7 @@ function array(value: unknown, maximum: number): readonly unknown[] { if (!Array
 function boundedString(value: unknown, minimum: number, maximum: number): asserts value is string { if (typeof value !== "string" || value.length < minimum || value.length > maximum) fail(); }
 function productID(value: unknown): asserts value is string { if (typeof value !== "string" || !PRODUCT_ID.test(value)) fail(); }
 function dateTime(value: unknown): asserts value is string { if (typeof value !== "string" || !DATE_TIME.test(value) || Number.isNaN(Date.parse(value))) fail(); }
+function checksum(value: unknown): asserts value is string { if (typeof value !== "string" || !/^sha256:[0-9a-f]{64}$/.test(value)) fail(); }
 function nullableDateTime(value: unknown): void { if (value !== null) dateTime(value); }
 function stringArray(value: unknown, maximumItems: number, maximumLength = 128, minimumItems = 0): asserts value is readonly string[] { const values = array(value, maximumItems); if (values.length < minimumItems || new Set(values).size !== values.length || values.some((item) => typeof item !== "string" || item.length < 1 || item.length > maximumLength)) fail(); }
 function productIDArray(value: unknown, maximum: number): void { const values = array(value, maximum); if (values.length < 1 || new Set(values).size !== values.length) fail(); for (const item of values) productID(item); }

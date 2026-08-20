@@ -832,4 +832,30 @@ describe("production workflow concurrency contract", () => {
       assert.deepEqual(schema.properties.page_info, { $ref: "#/components/schemas/PageInfo" });
     }
   });
+
+  it("publishes typed discovery inventory pages, details, evidence, and freshness", () => {
+    for (const path of ["/api/v1/agents", "/api/v1/tools", "/api/v1/identities", "/api/v1/runtimes", "/api/v1/agents/{id}/capabilities", "/api/v1/agents/{id}/relationships", "/api/v1/agents/{id}/sessions"]) {
+      assert.deepEqual(document.paths[path].get.parameters, [
+        { $ref: "#/components/parameters/PageCursor" },
+        { $ref: "#/components/parameters/PageLimit" },
+      ]);
+    }
+    for (const name of ["InventoryPage", "CapabilityPage", "RelationshipPage", "AgentSessionPage"]) {
+      const page = document.components.schemas[name];
+      assert.deepEqual(page.required, ["items", "page_info"]);
+      assert.equal(page.properties.items.maxItems, 100);
+      assert.deepEqual(page.properties.page_info, { $ref: "#/components/schemas/PageInfo" });
+    }
+    assert.deepEqual(document.components.schemas.InventoryKind.enum, ["asset", "agent", "tool", "identity", "runtime"]);
+    assert.deepEqual(document.components.schemas.InventoryFreshnessState.enum, ["fresh", "stale"]);
+    assert.deepEqual(document.components.schemas.InventoryDetail.required, ["summary", "sources", "evidence"]);
+    assert.deepEqual(document.components.schemas.InventorySourceObservation.required, ["integration_id", "provider", "source", "source_identifier", "snapshot_id", "generation", "evidence_id", "confidence_basis_points", "observed_at", "fresh_until", "projection_version", "winning"]);
+    assert.deepEqual(document.components.schemas.InventoryEvidenceReference.required, ["id", "checksum", "media_type", "schema_version", "parser_version", "tool_version", "collected_at", "size_bytes"]);
+    assert.equal(document.components.schemas.InventorySummary.properties.confidence_basis_points.maximum, 10000);
+    assert.equal(document.components.schemas.InventorySummary.properties.credential_reference, undefined);
+    assert.equal(document.components.schemas.InventoryEvidenceReference.properties.object_reference, undefined);
+    for (const path of ["/api/v1/agents/{id}", "/api/v1/tools/{id}", "/api/v1/identities/{id}", "/api/v1/runtimes/{id}", "/api/v1/assets/{id}"]) {
+      assert.deepEqual(document.paths[path].get.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/InventoryDetail" });
+    }
+  });
 });

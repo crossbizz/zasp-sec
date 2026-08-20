@@ -1369,6 +1369,7 @@ export type components = {
         };
         readonly AgentSessionPage: {
             readonly items: readonly components["schemas"]["AgentSession"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly AIExplanation: {
             readonly explanation: string;
@@ -1557,6 +1558,7 @@ export type components = {
         };
         readonly CapabilityPage: {
             readonly items: readonly components["schemas"]["Capability"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         /** @enum {string} */
         readonly CapabilityState: "reachable" | "observed" | "verified" | "blocked";
@@ -1919,29 +1921,67 @@ export type components = {
             readonly configuration: components["schemas"]["IntegrationConfiguration"];
             readonly name: string;
         };
+        readonly InventoryDetail: {
+            readonly evidence: readonly components["schemas"]["InventoryEvidenceReference"][];
+            readonly sources: readonly components["schemas"]["InventorySourceObservation"][];
+            readonly summary: components["schemas"]["InventorySummary"];
+        };
+        readonly InventoryEvidenceReference: {
+            readonly checksum: string;
+            /** Format: date-time */
+            readonly collected_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly media_type: string;
+            readonly parser_version: string;
+            readonly schema_version: string;
+            readonly size_bytes: number;
+            readonly tool_version: string;
+        };
+        /** @enum {string} */
+        readonly InventoryFreshnessState: "fresh" | "stale";
         /** @enum {string} */
         readonly InventoryKind: "asset" | "agent" | "tool" | "identity" | "runtime";
         readonly InventoryPage: {
-            readonly items: readonly components["schemas"]["InventoryRecord"][];
+            readonly items: readonly components["schemas"]["InventorySummary"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
-        readonly InventoryRecord: {
-            readonly credential_fingerprint?: string;
-            readonly credential_reference?: string;
+        readonly InventoryRecord: components["schemas"]["InventorySummary"];
+        readonly InventorySourceObservation: {
+            readonly confidence_basis_points: number;
+            readonly evidence_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly fresh_until: string;
+            readonly generation: number;
+            readonly integration_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly observed_at: string;
+            readonly projection_version: number;
+            /** @enum {string} */
+            readonly provider: "aws" | "kubernetes" | "github" | "okta";
+            readonly snapshot_id: components["schemas"]["ProductID"];
+            readonly source: string;
+            readonly source_identifier: string;
+            readonly winning: boolean;
+        };
+        readonly InventorySummary: {
+            readonly confidence_basis_points: number;
             readonly evidence_id: components["schemas"]["ProductID"];
             /** Format: date-time */
             readonly first_seen: string;
+            /** Format: date-time */
+            readonly fresh_until: string;
+            readonly freshness_state: components["schemas"]["InventoryFreshnessState"];
             readonly id: components["schemas"]["ProductID"];
-            /** @enum {string} */
-            readonly isolation?: "container" | "sandbox";
             readonly kind: components["schemas"]["InventoryKind"];
             /** Format: date-time */
             readonly last_seen: string;
             readonly name: string;
+            /** Format: date-time */
+            readonly observed_at: string;
             readonly owner: string;
-            readonly sandbox_id?: string;
             readonly tags: readonly string[];
             readonly team: string;
-            readonly workload_id?: string;
+            readonly version: number;
         };
         readonly KubernetesReferenceAuthorizationConfiguration: {
             readonly connection_reference: string;
@@ -2130,11 +2170,13 @@ export type components = {
         readonly Relationship: {
             readonly evidence_id: components["schemas"]["ProductID"];
             readonly from_id: components["schemas"]["ProductID"];
+            readonly id: components["schemas"]["ProductID"];
             readonly to_id: components["schemas"]["ProductID"];
             readonly type: string;
         };
         readonly RelationshipPage: {
             readonly items: readonly components["schemas"]["Relationship"][];
+            readonly page_info: components["schemas"]["PageInfo"];
         };
         readonly RiskFactor: {
             readonly evidence_id: components["schemas"]["ProductID"];
@@ -2727,9 +2769,14 @@ export type IntegrationSyncPage = components['schemas']['IntegrationSyncPage'];
 export type IntegrationSyncStatus = components['schemas']['IntegrationSyncStatus'];
 export type IntegrationSyncTriggerKind = components['schemas']['IntegrationSyncTriggerKind'];
 export type IntegrationUpdateInput = components['schemas']['IntegrationUpdateInput'];
+export type InventoryDetail = components['schemas']['InventoryDetail'];
+export type InventoryEvidenceReference = components['schemas']['InventoryEvidenceReference'];
+export type InventoryFreshnessState = components['schemas']['InventoryFreshnessState'];
 export type InventoryKind = components['schemas']['InventoryKind'];
 export type InventoryPage = components['schemas']['InventoryPage'];
 export type InventoryRecord = components['schemas']['InventoryRecord'];
+export type InventorySourceObservation = components['schemas']['InventorySourceObservation'];
+export type InventorySummary = components['schemas']['InventorySummary'];
 export type KubernetesReferenceAuthorizationConfiguration = components['schemas']['KubernetesReferenceAuthorizationConfiguration'];
 export type KubernetesReferenceAuthorizationReceiptIntent = components['schemas']['KubernetesReferenceAuthorizationReceiptIntent'];
 export type MemberRoleInput = components['schemas']['MemberRoleInput'];
@@ -3145,7 +3192,12 @@ export interface operations {
     };
     readonly listAgents: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -3182,7 +3234,7 @@ export interface operations {
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["InventoryRecord"];
+                    readonly "application/json": components["schemas"]["InventoryDetail"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -3191,7 +3243,12 @@ export interface operations {
     };
     readonly getAgentCapabilities: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
@@ -3215,7 +3272,12 @@ export interface operations {
     };
     readonly getAgentRelationships: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
@@ -3239,7 +3301,12 @@ export interface operations {
     };
     readonly listAgentSessions: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];
@@ -3278,7 +3345,7 @@ export interface operations {
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["InventoryRecord"];
+                    readonly "application/json": components["schemas"]["InventoryDetail"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -3713,7 +3780,12 @@ export interface operations {
     };
     readonly listIdentities: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -3750,7 +3822,7 @@ export interface operations {
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["InventoryRecord"];
+                    readonly "application/json": components["schemas"]["InventoryDetail"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -4645,7 +4717,12 @@ export interface operations {
     };
     readonly listRuntimes: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -4682,7 +4759,7 @@ export interface operations {
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["InventoryRecord"];
+                    readonly "application/json": components["schemas"]["InventoryDetail"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -5265,7 +5342,12 @@ export interface operations {
     };
     readonly listTools: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -5302,7 +5384,7 @@ export interface operations {
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["InventoryRecord"];
+                    readonly "application/json": components["schemas"]["InventoryDetail"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
