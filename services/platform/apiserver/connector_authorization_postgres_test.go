@@ -158,7 +158,7 @@ func TestConnectorAuthorizationPostgresPublicIntegrationMutationCreatesTypedOAut
 	identity := fixtureRequestIdentity(t)
 	integrationID := "pid_71000001-0000-4000-8000-000000000001"
 	body := json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"GitHub","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`)
-	mutation := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: "idem-public-connector-0001", ExpectedVersion: 0, Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: body, AuditID: "pid_71000002-0000-4000-8000-000000000002", CorrelationID: "pid_71000003-0000-4000-8000-000000000003", ReceiptID: "pid_71000004-0000-4000-8000-000000000004"}
+	mutation := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: "idem-public-connector-0001", ExpectedVersion: 0, Intent: json.RawMessage(`{"body":{"connector_key":"github","configuration":{"authorization_mode":"github_app"},"name":"GitHub"},"expected_version":0,"resource_id":""}`), Body: body, AuditID: "pid_71000002-0000-4000-8000-000000000002", CorrelationID: "pid_71000003-0000-4000-8000-000000000003", ReceiptID: "pid_71000004-0000-4000-8000-000000000004"}
 	if _, err := repository.MutateWorkflow(ctx, identity, mutation); err != nil {
 		t.Fatalf("public integration mutation: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestConnectorAuthorizationPostgresPublicIntegrationMutationCreatesTypedOAut
 		t.Fatalf("typed integration = %q/%q", typedKind, typedName)
 	}
 	updatedBody := json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"GitHub Org","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:01:00Z"}`)
-	update := WorkflowMutation{Action: "update", Kind: "integration", ID: integrationID, Operation: "updateIntegration", IdempotencyKey: "idem-public-connector-update-0001", ExpectedVersion: 1, Intent: json.RawMessage(`{"body":{"name":"GitHub Org"},"expected_version":1,"resource_id":"` + integrationID + `"}`), Body: updatedBody, AuditID: "pid_71000012-0000-4000-8000-000000000012", CorrelationID: "pid_71000013-0000-4000-8000-000000000013", ReceiptID: "pid_71000014-0000-4000-8000-000000000014"}
+	update := WorkflowMutation{Action: "update", Kind: "integration", ID: integrationID, Operation: "updateIntegration", IdempotencyKey: "idem-public-connector-update-0001", ExpectedVersion: 1, Intent: json.RawMessage(`{"body":{"configuration":{"authorization_mode":"github_app"},"name":"GitHub Org"},"expected_version":1,"resource_id":"` + integrationID + `"}`), Body: updatedBody, AuditID: "pid_71000012-0000-4000-8000-000000000012", CorrelationID: "pid_71000013-0000-4000-8000-000000000013", ReceiptID: "pid_71000014-0000-4000-8000-000000000014"}
 	if result, err := repository.MutateWorkflow(ctx, identity, update); err != nil || result.Version != 2 {
 		t.Fatalf("public integration update = %#v, %v", result, err)
 	}
