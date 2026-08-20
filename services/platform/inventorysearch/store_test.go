@@ -14,6 +14,7 @@ import (
 type recordingDriver struct {
 	stage       func(context.Context, DriverStage) (DriverStaged, error)
 	activate    func(context.Context, DriverActivation) (DriverActivated, error)
+	discard     func(context.Context, DriverDiscard) (DriverDiscarded, error)
 	removeStale func(context.Context, DriverCleanup) (DriverCleaned, error)
 	search      func(context.Context, DriverQuery) (DriverSearchResult, error)
 }
@@ -24,6 +25,10 @@ func (driver *recordingDriver) Stage(ctx context.Context, input DriverStage) (Dr
 
 func (driver *recordingDriver) Activate(ctx context.Context, input DriverActivation) (DriverActivated, error) {
 	return driver.activate(ctx, input)
+}
+
+func (driver *recordingDriver) DiscardStage(ctx context.Context, input DriverDiscard) (DriverDiscarded, error) {
+	return driver.discard(ctx, input)
 }
 
 func (driver *recordingDriver) RemoveStale(ctx context.Context, input DriverCleanup) (DriverCleaned, error) {
@@ -39,8 +44,8 @@ func TestStoreStagesActivatesThenCleansCompleteSnapshot(t *testing.T) {
 
 	snapshot := fixtureSnapshot(t)
 	wantIDs := []string{
-		"inv_4b4b10357e769fa0466914778849bbe66cc57e27d2bd706485cc2beea8fa8520",
-		"inv_f79d5d34514bb43980eed61fd638d9d914b16d185126412d4ba71e2e9a344449",
+		"inv_4bea8b2f1c3c4ab4bc8b82ca513b04fdaca49dca4d1912070bea54c3fcfcb30b",
+		"inv_8235a7b22be7a82bba80b9d9e18d3ef8f0da9c9b714e6415df40c1f5cb68cffb",
 	}
 	// Independent literal locks the canonical digest wire contract.
 	wantContentDigest := [sha256.Size]byte{0x23, 0x9c, 0x50, 0x84, 0x36, 0x58, 0xd7, 0x61, 0xfe, 0x2e, 0x6f, 0x5a, 0x46, 0x59, 0x8b, 0xf6, 0xc7, 0x45, 0x71, 0xac, 0xe6, 0x2b, 0xf2, 0x5d, 0x55, 0x5b, 0x96, 0x99, 0x69, 0xe3, 0x66, 0x62}
@@ -69,7 +74,7 @@ func TestStoreStagesActivatesThenCleansCompleteSnapshot(t *testing.T) {
 		if ctx == nil || !sameBinding(input.Snapshot, driverBinding(snapshot, wantContentDigest)) || !reflect.DeepEqual(input.DocumentIDs, wantIDs) {
 			t.Fatalf("Activate input = %#v", input)
 		}
-		return DriverActivated{Snapshot: input.Snapshot}, nil
+		return DriverActivated{ActiveSnapshot: input.Snapshot, ActiveDocumentIDs: append([]string(nil), input.DocumentIDs...)}, nil
 	}
 	driver.removeStale = func(ctx context.Context, input DriverCleanup) (DriverCleaned, error) {
 		calls = append(calls, "cleanup")
@@ -126,7 +131,7 @@ func TestStorePhaseFailuresPreserveActivationFenceAndRecoverByExactReplay(t *tes
 	}{
 		{name: "stage lost acknowledgement", failPhase: "stage", failure: ErrUnknownOutcome, wantCalls: []string{"stage"}},
 		{name: "activation lost acknowledgement", failPhase: "activate", failure: ErrUnknownOutcome, wantCalls: []string{"stage", "activate"}},
-		{name: "stale older generation", failPhase: "activate", failure: ErrStale, wantCalls: []string{"stage", "activate"}},
+		{name: "stale older generation", failPhase: "activate", failure: ErrStale, wantCalls: []string{"stage", "activate", "discard"}},
 		{name: "cleanup lost acknowledgement", failPhase: "cleanup", failure: ErrUnknownOutcome, wantCalls: []string{"stage", "activate", "cleanup"}},
 	}
 	for _, testCase := range tests {
@@ -142,6 +147,13 @@ func TestStorePhaseFailuresPreserveActivationFenceAndRecoverByExactReplay(t *tes
 			case "activate":
 				driver.activate = func(context.Context, DriverActivation) (DriverActivated, error) {
 					calls = append(calls, "activate")
+					if errors.Is(testCase.failure, ErrStale) {
+						active := driverBinding(fixtureSnapshot(t), sha256.Sum256([]byte("newer-content")))
+						active.SnapshotID = "pid_80000000-0000-4000-8000-000000000008"
+						active.Generation++
+						active.InputDigest = sha256.Sum256([]byte("newer-input"))
+						return DriverActivated{ActiveSnapshot: active}, testCase.failure
+					}
 					return DriverActivated{}, testCase.failure
 				}
 			case "cleanup":
@@ -167,7 +179,7 @@ func TestStorePhaseFailuresPreserveActivationFenceAndRecoverByExactReplay(t *tes
 	}
 	driver.activate = func(_ context.Context, input DriverActivation) (DriverActivated, error) {
 		calls = append(calls, "activate")
-		return DriverActivated{Snapshot: input.Snapshot, Replayed: true}, nil
+		return DriverActivated{ActiveSnapshot: input.Snapshot, ActiveDocumentIDs: append([]string(nil), input.DocumentIDs...), Replayed: true}, nil
 	}
 	driver.removeStale = func(_ context.Context, input DriverCleanup) (DriverCleaned, error) {
 		calls = append(calls, "cleanup")
@@ -176,6 +188,79 @@ func TestStorePhaseFailuresPreserveActivationFenceAndRecoverByExactReplay(t *tes
 	result, err := mustStore(t, driver).ApplySnapshot(context.Background(), fixtureSnapshot(t))
 	if err != nil || !result.Replayed || !reflect.DeepEqual(calls, []string{"stage", "activate", "cleanup"}) {
 		t.Fatalf("exact recovery replay = %#v, %v, calls %#v", result, err, calls)
+	}
+}
+
+func TestStoreRejectedCandidatesLeaveNoResidueAndPreserveNewerActiveSnapshot(t *testing.T) {
+	t.Parallel()
+
+	driver := newStatefulDriver()
+	store := mustStore(t, driver)
+	newer := fixtureSnapshot(t)
+	newer.Generation = 8
+	newer.SnapshotID = mustProductID(t, "pid_80000000-0000-4000-8000-000000000008")
+	newer.InputDigest = sha256.Sum256([]byte("snapshot-8-input"))
+	newerResult, err := store.ApplySnapshot(context.Background(), newer)
+	if err != nil {
+		t.Fatalf("ApplySnapshot(newer) error = %v", err)
+	}
+	if len(driver.documents) != len(newer.Documents) {
+		t.Fatalf("documents after newer = %d", len(driver.documents))
+	}
+
+	delayedOlder := fixtureSnapshot(t)
+	delayedOlder.SnapshotID = mustProductID(t, "pid_71000000-0000-4000-8000-000000000007")
+	if _, err := store.ApplySnapshot(context.Background(), delayedOlder); !errors.Is(err, ErrStale) {
+		t.Fatalf("ApplySnapshot(delayed older) error = %v", err)
+	}
+	assertOnlyDocumentIDs(t, driver.documents, newerResult.DocumentIDs)
+	if driver.active.Generation != newer.Generation || driver.active.SnapshotID != newer.SnapshotID.String() {
+		t.Fatalf("active after delayed older = %#v", driver.active)
+	}
+
+	sameGenerationDrift := newer
+	sameGenerationDrift.SnapshotID = mustProductID(t, "pid_81000000-0000-4000-8000-000000000008")
+	sameGenerationDrift.InputDigest = sha256.Sum256([]byte("snapshot-8-conflict"))
+	sameGenerationDrift.Documents = append([]Document(nil), newer.Documents[:1]...)
+	if _, err := store.ApplySnapshot(context.Background(), sameGenerationDrift); !errors.Is(err, ErrDrift) {
+		t.Fatalf("ApplySnapshot(same generation drift) error = %v", err)
+	}
+	assertOnlyDocumentIDs(t, driver.documents, newerResult.DocumentIDs)
+
+	olderActive := driverBinding(delayedOlder, contentDigestFromApply(t, delayedOlder))
+	if _, err := driver.RemoveStale(context.Background(), DriverCleanup{ActiveSnapshot: olderActive}); !errors.Is(err, ErrStale) {
+		t.Fatalf("delayed old RemoveStale() error = %v", err)
+	}
+	assertOnlyDocumentIDs(t, driver.documents, newerResult.DocumentIDs)
+}
+
+func TestStoreDiscardUnknownOutcomeRequiresExactRetryBeforeRejectedResult(t *testing.T) {
+	t.Parallel()
+
+	active := fixtureSnapshot(t)
+	active.Generation = 8
+	active.SnapshotID = mustProductID(t, "pid_80000000-0000-4000-8000-000000000008")
+	active.InputDigest = sha256.Sum256([]byte("snapshot-8-input"))
+	driver := newStatefulDriver()
+	store := mustStore(t, driver)
+	if _, err := store.ApplySnapshot(context.Background(), active); err != nil {
+		t.Fatalf("ApplySnapshot(active) error = %v", err)
+	}
+
+	candidate := fixtureSnapshot(t)
+	candidate.SnapshotID = mustProductID(t, "pid_71000000-0000-4000-8000-000000000007")
+	driver.failDiscardOnce = true
+	if _, err := store.ApplySnapshot(context.Background(), candidate); !errors.Is(err, ErrUnknownOutcome) {
+		t.Fatalf("ApplySnapshot(discard crash) error = %v", err)
+	}
+	if len(driver.documents) <= len(active.Documents) {
+		t.Fatalf("discard crash did not leave an observable retry candidate")
+	}
+	if _, err := store.ApplySnapshot(context.Background(), candidate); !errors.Is(err, ErrStale) {
+		t.Fatalf("ApplySnapshot(discard retry) error = %v", err)
+	}
+	if len(driver.documents) != len(active.Documents) {
+		t.Fatalf("documents after exact discard retry = %d", len(driver.documents))
 	}
 }
 
@@ -218,7 +303,7 @@ func TestStoreBindsCanonicalContentDigestAndRejectsPhaseDrift(t *testing.T) {
 			driver.activate = func(_ context.Context, input DriverActivation) (DriverActivated, error) {
 				binding := input.Snapshot
 				testCase.edit(&binding)
-				return DriverActivated{Snapshot: binding, Replayed: true}, nil
+				return DriverActivated{ActiveSnapshot: binding, ActiveDocumentIDs: append([]string(nil), input.DocumentIDs...), Replayed: true}, nil
 			}
 			if _, err := mustStore(t, driver).ApplySnapshot(context.Background(), original); !errors.Is(err, ErrDrift) {
 				t.Fatalf("ApplySnapshot() error = %v", err)
@@ -339,7 +424,13 @@ func successfulDriver(calls *[]string) *recordingDriver {
 		if calls != nil {
 			*calls = append(*calls, "activate")
 		}
-		return DriverActivated{Snapshot: input.Snapshot}, nil
+		return DriverActivated{ActiveSnapshot: input.Snapshot, ActiveDocumentIDs: append([]string(nil), input.DocumentIDs...)}, nil
+	}
+	driver.discard = func(_ context.Context, input DriverDiscard) (DriverDiscarded, error) {
+		if calls != nil {
+			*calls = append(*calls, "discard")
+		}
+		return DriverDiscarded{CandidateSnapshot: input.CandidateSnapshot, ActiveSnapshot: input.ExpectedActiveSnapshot, ActiveDocumentIDs: append([]string(nil), input.ExpectedActiveDocumentIDs...)}, nil
 	}
 	driver.removeStale = func(_ context.Context, input DriverCleanup) (DriverCleaned, error) {
 		if calls != nil {
@@ -419,7 +510,7 @@ func productDriverDocument(snapshot Snapshot, contentDigest [sha256.Size]byte, d
 	if len(attributes) > 1 && attributes[0].Name > attributes[1].Name {
 		attributes[0], attributes[1] = attributes[1], attributes[0]
 	}
-	return DriverDocument{Snapshot: driverBinding(snapshot, contentDigest), DocumentID: documentID(snapshot.Scope, snapshot.IntegrationID, snapshot.SnapshotID, document.EntityID), EntityID: document.EntityID.String(), Kind: document.Kind, DisplayName: document.DisplayName, Attributes: attributes}
+	return DriverDocument{Snapshot: driverBinding(snapshot, contentDigest), DocumentID: documentID(snapshot.Scope, snapshot.IntegrationID, snapshot.SnapshotID, snapshot.Generation, snapshot.InputDigest, contentDigest, document.EntityID), EntityID: document.EntityID.String(), Kind: document.Kind, DisplayName: document.DisplayName, Attributes: attributes}
 }
 
 func contentDigestFromApply(t *testing.T, snapshot Snapshot) [sha256.Size]byte {
@@ -434,4 +525,103 @@ func contentDigestFromApply(t *testing.T, snapshot Snapshot) [sha256.Size]byte {
 		t.Fatalf("ApplySnapshot() error = %v", err)
 	}
 	return digest
+}
+
+type statefulDriver struct {
+	documents       map[string]DriverDocument
+	active          DriverSnapshot
+	activeIDs       []string
+	failDiscardOnce bool
+}
+
+func newStatefulDriver() *statefulDriver {
+	return &statefulDriver{documents: make(map[string]DriverDocument)}
+}
+
+func (driver *statefulDriver) Stage(_ context.Context, input DriverStage) (DriverStaged, error) {
+	replayed := true
+	for _, document := range input.Documents {
+		if current, ok := driver.documents[document.DocumentID]; ok {
+			if !reflect.DeepEqual(current, document) {
+				return DriverStaged{}, ErrDrift
+			}
+			continue
+		}
+		driver.documents[document.DocumentID] = document
+		replayed = false
+	}
+	return DriverStaged{Snapshot: input.Snapshot, DocumentIDs: documentIDs(input.Documents), Replayed: replayed}, nil
+}
+
+func (driver *statefulDriver) Activate(_ context.Context, input DriverActivation) (DriverActivated, error) {
+	if driver.active.Generation > input.Snapshot.Generation {
+		return DriverActivated{ActiveSnapshot: driver.active, ActiveDocumentIDs: append([]string(nil), driver.activeIDs...)}, ErrStale
+	}
+	if driver.active.Generation == input.Snapshot.Generation {
+		if driver.active != input.Snapshot || !equalDocumentIDs(driver.activeIDs, input.DocumentIDs) {
+			return DriverActivated{ActiveSnapshot: driver.active, ActiveDocumentIDs: append([]string(nil), driver.activeIDs...)}, ErrDrift
+		}
+		return DriverActivated{ActiveSnapshot: driver.active, ActiveDocumentIDs: append([]string(nil), driver.activeIDs...), Replayed: true}, nil
+	}
+	driver.active = input.Snapshot
+	driver.activeIDs = append([]string(nil), input.DocumentIDs...)
+	return DriverActivated{ActiveSnapshot: driver.active, ActiveDocumentIDs: append([]string(nil), driver.activeIDs...)}, nil
+}
+
+func (driver *statefulDriver) DiscardStage(_ context.Context, input DriverDiscard) (DriverDiscarded, error) {
+	if driver.failDiscardOnce {
+		driver.failDiscardOnce = false
+		return DriverDiscarded{}, ErrUnknownOutcome
+	}
+	if driver.active != input.ExpectedActiveSnapshot || !equalDocumentIDs(driver.activeIDs, input.ExpectedActiveDocumentIDs) {
+		return DriverDiscarded{}, ErrStale
+	}
+	activeIDs := make(map[string]struct{}, len(driver.activeIDs))
+	for _, id := range driver.activeIDs {
+		activeIDs[id] = struct{}{}
+	}
+	removed := 0
+	for _, id := range input.CandidateDocumentIDs {
+		if _, active := activeIDs[id]; active {
+			continue
+		}
+		if _, found := driver.documents[id]; found {
+			delete(driver.documents, id)
+			removed++
+		}
+	}
+	return DriverDiscarded{CandidateSnapshot: input.CandidateSnapshot, ActiveSnapshot: driver.active, ActiveDocumentIDs: append([]string(nil), driver.activeIDs...), Removed: removed}, nil
+}
+
+func (driver *statefulDriver) RemoveStale(_ context.Context, input DriverCleanup) (DriverCleaned, error) {
+	if driver.active.Generation > input.ActiveSnapshot.Generation {
+		return DriverCleaned{}, ErrStale
+	}
+	if driver.active != input.ActiveSnapshot {
+		return DriverCleaned{}, ErrDrift
+	}
+	removed := 0
+	for id, document := range driver.documents {
+		if document.Snapshot.OrganizationID == driver.active.OrganizationID && document.Snapshot.WorkspaceID == driver.active.WorkspaceID && document.Snapshot.EnvironmentID == driver.active.EnvironmentID && document.Snapshot.IntegrationID == driver.active.IntegrationID && document.Snapshot.Generation < driver.active.Generation {
+			delete(driver.documents, id)
+			removed++
+		}
+	}
+	return DriverCleaned{ActiveSnapshot: driver.active, Removed: removed}, nil
+}
+
+func (driver *statefulDriver) Search(context.Context, DriverQuery) (DriverSearchResult, error) {
+	return DriverSearchResult{}, errors.New("unexpected search")
+}
+
+func assertOnlyDocumentIDs(t *testing.T, documents map[string]DriverDocument, want []string) {
+	t.Helper()
+	if len(documents) != len(want) {
+		t.Fatalf("document count = %d, want %d", len(documents), len(want))
+	}
+	for _, id := range want {
+		if _, found := documents[id]; !found {
+			t.Fatalf("missing active document %q", id)
+		}
+	}
 }

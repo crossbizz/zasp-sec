@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"hash"
 	"reflect"
 	"regexp"
@@ -183,8 +184,27 @@ type DriverActivation struct {
 }
 
 type DriverActivated struct {
-	Snapshot DriverSnapshot
-	Replayed bool
+	ActiveSnapshot    DriverSnapshot
+	ActiveDocumentIDs []string
+	Replayed          bool
+}
+
+// DriverDiscard removes only the rejected candidate's immutable document IDs.
+// Implementations must first prove ExpectedActiveSnapshot and its document IDs
+// are still current, and must never delete an ID in ExpectedActiveDocumentIDs.
+type DriverDiscard struct {
+	CandidateSnapshot         DriverSnapshot
+	CandidateDocumentIDs      []string
+	ExpectedActiveSnapshot    DriverSnapshot
+	ExpectedActiveDocumentIDs []string
+}
+
+type DriverDiscarded struct {
+	CandidateSnapshot DriverSnapshot
+	ActiveSnapshot    DriverSnapshot
+	ActiveDocumentIDs []string
+	Removed           int
+	Replayed          bool
 }
 
 // DriverCleanup removes only generations older than ActiveSnapshot. It must
@@ -224,6 +244,7 @@ type DriverSearchResult struct {
 type Driver interface {
 	Stage(context.Context, DriverStage) (DriverStaged, error)
 	Activate(context.Context, DriverActivation) (DriverActivated, error)
+	DiscardStage(context.Context, DriverDiscard) (DriverDiscarded, error)
 	RemoveStale(context.Context, DriverCleanup) (DriverCleaned, error)
 	Search(context.Context, DriverQuery) (DriverSearchResult, error)
 }
@@ -255,15 +276,33 @@ func (store *Store) ApplySnapshot(ctx context.Context, snapshot Snapshot) (Apply
 	if err != nil {
 		return ApplyResult{}, sanitizeDriverError(err)
 	}
-	if !sameDriverSnapshot(staged.Snapshot, stage.Snapshot) || !reflect.DeepEqual(staged.DocumentIDs, expectedIDs) {
+	if !sameDriverSnapshot(staged.Snapshot, stage.Snapshot) || !equalDocumentIDs(staged.DocumentIDs, expectedIDs) {
 		return ApplyResult{}, ErrDrift
 	}
 	activation := DriverActivation{Snapshot: stage.Snapshot, DocumentIDs: append([]string(nil), expectedIDs...)}
 	activated, err := callActivate(store.driver, ctx, activation)
 	if err != nil {
-		return ApplyResult{}, sanitizeDriverError(err)
+		stable := sanitizeDriverError(err)
+		if !errors.Is(stable, ErrStale) && !errors.Is(stable, ErrDrift) {
+			return ApplyResult{}, stable
+		}
+		if !validRejectedActivation(stage.Snapshot, expectedIDs, activated, stable) {
+			return ApplyResult{}, ErrUnknownOutcome
+		}
+		discard := DriverDiscard{
+			CandidateSnapshot: stage.Snapshot, CandidateDocumentIDs: append([]string(nil), expectedIDs...),
+			ExpectedActiveSnapshot: activated.ActiveSnapshot, ExpectedActiveDocumentIDs: append([]string(nil), activated.ActiveDocumentIDs...),
+		}
+		discarded, discardErr := callDiscardStage(store.driver, ctx, discard)
+		if discardErr != nil {
+			return ApplyResult{}, sanitizeDriverError(discardErr)
+		}
+		if discarded.CandidateSnapshot != discard.CandidateSnapshot || discarded.ActiveSnapshot != discard.ExpectedActiveSnapshot || !equalDocumentIDs(discarded.ActiveDocumentIDs, discard.ExpectedActiveDocumentIDs) || discarded.Removed < 0 {
+			return ApplyResult{}, ErrUnknownOutcome
+		}
+		return ApplyResult{}, stable
 	}
-	if !sameDriverSnapshot(activated.Snapshot, stage.Snapshot) {
+	if !sameDriverSnapshot(activated.ActiveSnapshot, stage.Snapshot) || !equalDocumentIDs(activated.ActiveDocumentIDs, expectedIDs) {
 		return ApplyResult{}, ErrDrift
 	}
 	cleanup := DriverCleanup{ActiveSnapshot: stage.Snapshot}
@@ -324,9 +363,7 @@ func (store *Store) driverStage(snapshot Snapshot) (DriverStage, []string, bool)
 		if totalBytes > store.config.MaximumBatchBytes {
 			return DriverStage{}, nil, false
 		}
-		id := documentID(snapshot.Scope, snapshot.IntegrationID, snapshot.SnapshotID, document.EntityID)
-		expectedIDs[index] = id
-		driverDocuments[index] = DriverDocument{DocumentID: id, EntityID: document.EntityID.String(), Kind: document.Kind, DisplayName: document.DisplayName, Attributes: attributes}
+		driverDocuments[index] = DriverDocument{EntityID: document.EntityID.String(), Kind: document.Kind, DisplayName: document.DisplayName, Attributes: attributes}
 	}
 	binding := DriverSnapshot{
 		OrganizationID: snapshot.Scope.OrganizationID().String(), WorkspaceID: snapshot.Scope.WorkspaceID().String(), EnvironmentID: snapshot.Scope.EnvironmentID().String(),
@@ -335,6 +372,9 @@ func (store *Store) driverStage(snapshot Snapshot) (DriverStage, []string, bool)
 	binding.ContentDigest = canonicalContentDigest(binding, driverDocuments)
 	for index := range driverDocuments {
 		driverDocuments[index].Snapshot = binding
+		id := documentID(snapshot.Scope, snapshot.IntegrationID, snapshot.SnapshotID, snapshot.Generation, snapshot.InputDigest, binding.ContentDigest, documents[index].EntityID)
+		driverDocuments[index].DocumentID = id
+		expectedIDs[index] = id
 	}
 	return DriverStage{Snapshot: binding, Documents: driverDocuments}, expectedIDs, true
 }
@@ -375,7 +415,7 @@ func (store *Store) productPage(scope domain.Scope, query Query, result DriverSe
 	wantBinding := DriverSnapshot{OrganizationID: scope.OrganizationID().String(), WorkspaceID: scope.WorkspaceID().String(), EnvironmentID: scope.EnvironmentID().String(), IntegrationID: query.IntegrationID.String(), SnapshotID: query.SnapshotID.String(), Generation: query.Generation, InputDigest: query.InputDigest, ContentDigest: query.ContentDigest}
 	for index, document := range result.Hits {
 		entityID, err := domain.ParseProductID(document.EntityID)
-		if err != nil || !sameDriverSnapshot(document.Snapshot, wantBinding) || document.DocumentID != documentID(scope, query.IntegrationID, query.SnapshotID, entityID) || !validDriverDocument(document, store.config.MaximumDocumentBytes) || document.EntityID <= previous {
+		if err != nil || !sameDriverSnapshot(document.Snapshot, wantBinding) || document.DocumentID != documentID(scope, query.IntegrationID, query.SnapshotID, query.Generation, query.InputDigest, query.ContentDigest, entityID) || !validDriverDocument(document, store.config.MaximumDocumentBytes) || document.EntityID <= previous {
 			return Page{}, ErrDrift
 		}
 		if len(wantedKinds) > 0 {
@@ -505,8 +545,8 @@ func validProductID(id domain.ProductID) bool {
 
 func validDigest(value [sha256.Size]byte) bool { return value != [sha256.Size]byte{} }
 
-func documentID(scope domain.Scope, integrationID, snapshotID, entityID domain.ProductID) string {
-	digest := sha256.Sum256([]byte(strings.Join([]string{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID.String(), snapshotID.String(), entityID.String()}, "\x1f")))
+func documentID(scope domain.Scope, integrationID, snapshotID domain.ProductID, generation int64, inputDigest, contentDigest [sha256.Size]byte, entityID domain.ProductID) string {
+	digest := sha256.Sum256([]byte(strings.Join([]string{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID.String(), snapshotID.String(), fmt.Sprintf("%d", generation), hex.EncodeToString(inputDigest[:]), hex.EncodeToString(contentDigest[:]), entityID.String()}, "\x1f")))
 	return "inv_" + hex.EncodeToString(digest[:])
 }
 
@@ -538,6 +578,18 @@ func callActivate(driver Driver, ctx context.Context, input DriverActivation) (r
 	}()
 	input.DocumentIDs = append([]string(nil), input.DocumentIDs...)
 	return driver.Activate(ctx, input)
+}
+
+func callDiscardStage(driver Driver, ctx context.Context, input DriverDiscard) (result DriverDiscarded, resultErr error) {
+	defer func() {
+		if recover() != nil {
+			result = DriverDiscarded{}
+			resultErr = ErrUnavailable
+		}
+	}()
+	input.CandidateDocumentIDs = append([]string(nil), input.CandidateDocumentIDs...)
+	input.ExpectedActiveDocumentIDs = append([]string(nil), input.ExpectedActiveDocumentIDs...)
+	return driver.DiscardStage(ctx, input)
 }
 
 func callRemoveStale(driver Driver, ctx context.Context, input DriverCleanup) (result DriverCleaned, resultErr error) {
@@ -577,6 +629,56 @@ func cloneDriverQuery(input DriverQuery) DriverQuery {
 func cloneAttributes(input []Attribute) []Attribute { return append([]Attribute(nil), input...) }
 
 func sameDriverSnapshot(left, right DriverSnapshot) bool { return left == right }
+
+func validRejectedActivation(candidate DriverSnapshot, candidateIDs []string, activated DriverActivated, reason error) bool {
+	active := activated.ActiveSnapshot
+	if active.OrganizationID != candidate.OrganizationID || active.WorkspaceID != candidate.WorkspaceID || active.EnvironmentID != candidate.EnvironmentID || active.IntegrationID != candidate.IntegrationID || !validDriverSnapshot(active) || !validDocumentIDs(activated.ActiveDocumentIDs) || !validDocumentIDs(candidateIDs) {
+		return false
+	}
+	if errors.Is(reason, ErrStale) {
+		return active.Generation > candidate.Generation
+	}
+	return errors.Is(reason, ErrDrift) && active.Generation == candidate.Generation && active != candidate
+}
+
+func validDriverSnapshot(snapshot DriverSnapshot) bool {
+	organizationID, organizationErr := domain.ParseProductID(snapshot.OrganizationID)
+	workspaceID, workspaceErr := domain.ParseProductID(snapshot.WorkspaceID)
+	environmentID, environmentErr := domain.ParseProductID(snapshot.EnvironmentID)
+	_, integrationErr := domain.ParseProductID(snapshot.IntegrationID)
+	_, snapshotErr := domain.ParseProductID(snapshot.SnapshotID)
+	_, scopeErr := domain.NewScope(organizationID, workspaceID, environmentID)
+	return organizationErr == nil && workspaceErr == nil && environmentErr == nil && integrationErr == nil && snapshotErr == nil && scopeErr == nil && snapshot.Generation >= 1 && validDigest(snapshot.InputDigest) && validDigest(snapshot.ContentDigest)
+}
+
+func validDocumentIDs(ids []string) bool {
+	if len(ids) > absoluteMaximumDocuments {
+		return false
+	}
+	seen := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		if !documentIDPattern.MatchString(id) {
+			return false
+		}
+		if _, duplicate := seen[id]; duplicate {
+			return false
+		}
+		seen[id] = struct{}{}
+	}
+	return true
+}
+
+func equalDocumentIDs(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
 
 func attributeSet(names ...string) map[string]struct{} {
 	result := make(map[string]struct{}, len(names))
