@@ -33,6 +33,9 @@ export type KnownWorkflowMutationPending = Readonly<{
   kind: "integration_revocation";
   receipt: WorkflowReceipt<Integration>;
   retryNotBefore: number;
+}> | Readonly<{
+  kind: "reference_authorization_conflict";
+  integrationID: string;
 }>;
 export class IntegrationRevocationPending extends Error {
   readonly receipt: WorkflowReceipt<Integration>;
@@ -45,6 +48,15 @@ export class IntegrationRevocationPending extends Error {
     this.retryAfterSeconds = retryAfterSeconds;
   }
 }
+export class ReferenceAuthorizationConflict extends Error {
+  readonly integrationID: string;
+
+  constructor(integrationID: string) {
+    super("Reference authorization requires authoritative conflict reconciliation");
+    this.name = "ReferenceAuthorizationConflict";
+    this.integrationID = integrationID;
+  }
+}
 export type RetainedWorkflowMutationController<I> = {
   execute<T>(intent: I, send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<T>): Promise<T>;
   retry<T>(): Promise<T>;
@@ -52,6 +64,7 @@ export type RetainedWorkflowMutationController<I> = {
   isUnresolved(): boolean;
   canRetry(): boolean;
   knownPending(): KnownWorkflowMutationPending | null;
+  retainedIntent(): I | null;
   resolveAfterServerReconciliation(): void;
 };
 
@@ -93,7 +106,7 @@ export function isAmbiguousWorkflowMutationError(error: unknown): boolean {
 }
 
 function isRetainableWorkflowMutationError(error: unknown): boolean {
-  return error instanceof IntegrationRevocationPending || isAmbiguousWorkflowMutationError(error);
+  return error instanceof IntegrationRevocationPending || error instanceof ReferenceAuthorizationConflict || isAmbiguousWorkflowMutationError(error);
 }
 
 export async function executeWorkflowMutation<T>(send: (attempt: WorkflowMutationAttempt) => Promise<T>, attempt: WorkflowMutationAttempt = createWorkflowMutationAttempt()): Promise<T> {
@@ -121,6 +134,7 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
         (result) => { if (pending === active) pending = undefined; return result; },
         (error: unknown) => {
           if (error instanceof IntegrationRevocationPending && pending === active) active.known = knownIntegrationRevocation(error);
+          if (error instanceof ReferenceAuthorizationConflict && pending === active) active.known = knownReferenceAuthorizationConflict(error);
           if (!isRetainableWorkflowMutationError(error) && pending === active) pending = undefined;
           throw error;
         },
@@ -134,6 +148,7 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
         (result) => { if (pending === active) pending = undefined; return result; },
         (error: unknown) => {
           if (error instanceof IntegrationRevocationPending && pending === active) active.known = knownIntegrationRevocation(error);
+          if (error instanceof ReferenceAuthorizationConflict && pending === active) active.known = knownReferenceAuthorizationConflict(error);
           if (!isRetainableWorkflowMutationError(error) && pending === active) pending = undefined;
           throw error;
         },
@@ -144,6 +159,7 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
     isUnresolved() { return pending !== undefined; },
     canRetry() { return pending !== undefined && inFlight === undefined; },
     knownPending() { return pending?.known ?? null; },
+    retainedIntent() { return pending?.intent ?? null; },
     resolveAfterServerReconciliation() {
       if (inFlight) throw new Error("Cannot reconcile a workflow mutation while its request is in flight");
       pending = undefined;
@@ -153,6 +169,10 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
 
 function knownIntegrationRevocation(error: IntegrationRevocationPending): KnownWorkflowMutationPending {
   return Object.freeze({ kind: "integration_revocation", receipt: error.receipt, retryNotBefore: Date.now() + error.retryAfterSeconds * 1_000 });
+}
+
+function knownReferenceAuthorizationConflict(error: ReferenceAuthorizationConflict): KnownWorkflowMutationPending {
+  return Object.freeze({ kind: "reference_authorization_conflict", integrationID: error.integrationID });
 }
 
 function canonicalFrozenIntent<I>(intent: I): I {
@@ -217,7 +237,9 @@ export function createIntegrationsAPI(client: APIClient) {
       return loadAllWorkflowPages((cursor) => client.GET("/api/v1/integrations", { params: { query: { cursor, limit: 100 } }, signal }), decodeIntegrationPage);
     },
     async getIntegration(id: string, signal?: AbortSignal): Promise<Versioned<Integration>> {
-      return requireWorkflowVersioned(await client.GET("/api/v1/integrations/{id}", { params: { path: { id } }, signal }), decodeIntegration);
+      const integration = requireWorkflowVersioned(await client.GET("/api/v1/integrations/{id}", { params: { path: { id } }, signal }), decodeIntegration);
+      if (integration.value.id !== id) throw new APITransportError("invalid_response", "Integration detail returned a different resource");
+      return integration;
     },
     async createIntegration(value: IntegrationInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<Integration>> {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.POST("/api/v1/integrations", { params: { header: workflowMutationHeaders(active) }, body: value }), decodeIntegration), attempt);
@@ -227,18 +249,24 @@ export function createIntegrationsAPI(client: APIClient) {
     },
     async authorizeIntegrationReference(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<Integration>> {
       return executeWorkflowMutation(async (active) => {
-        // CSRF and expected scope remain transport-owned. Fresh auth is an
-        // explicit assertion from the capability- and freshness-gated UI.
-        const params = { path: { id }, header: { ...workflowMutationHeaders(active, version), "X-Zasp-Fresh-Auth": "confirmed" } } as never;
-        const result = await client.POST("/api/v1/integrations/{id}/reference-authorization", { params, body: {} });
-        const receipt = requireWorkflowReceipt(result, decodeIntegration);
-        if (result.response.status !== 200 || result.response.headers.get("Cache-Control") !== "no-store") {
-          throw new APITransportError("invalid_response", "Reference authorization returned invalid response metadata");
+        try {
+          // CSRF and expected scope remain transport-owned. Fresh auth is an
+          // explicit assertion from the capability- and freshness-gated UI.
+          const params = { path: { id }, header: { ...workflowMutationHeaders(active, version), "X-Zasp-Fresh-Auth": "confirmed" } } as never;
+          const result = await client.POST("/api/v1/integrations/{id}/reference-authorization", { params, body: {} });
+          const receipt = requireWorkflowReceipt(result, decodeIntegration);
+          if (result.response.status !== 200 || result.response.headers.get("Cache-Control") !== "no-store") {
+            throw new APITransportError("invalid_response", "Reference authorization returned invalid response metadata");
+          }
+          if (receipt.value.id !== id || !isReferenceConnector(receipt.value.connector_key) || receipt.value.status !== "active") {
+            throw new APITransportError("invalid_response", "Reference authorization returned an invalid integration");
+          }
+          requireNextWorkflowVersion(version, receipt.version);
+          return receipt;
+        } catch (error) {
+          if (error instanceof APIProductError && error.status === 409) throw new ReferenceAuthorizationConflict(id);
+          throw error;
         }
-        if (receipt.value.id !== id || !isReferenceConnector(receipt.value.connector_key) || receipt.value.status !== "active") {
-          throw new APITransportError("invalid_response", "Reference authorization returned an invalid integration");
-        }
-        return receipt;
       }, attempt);
     },
     async deleteIntegration(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<void>> {
@@ -251,6 +279,14 @@ export type IntegrationsAPI = ReturnType<typeof createIntegrationsAPI>;
 
 function isReferenceConnector(value: string): value is "aws" | "kubernetes" {
   return value === "aws" || value === "kubernetes";
+}
+
+function requireNextWorkflowVersion(previous: string, next: string): void {
+  const previousValue = Number(previous.slice(1, -1));
+  const nextValue = Number(next.slice(1, -1));
+  if (!quotedVersion.test(previous) || !quotedVersion.test(next) || !Number.isSafeInteger(previousValue) || !Number.isSafeInteger(nextValue) || nextValue !== previousValue + 1) {
+    throw new APITransportError("invalid_response", "Workflow mutation response did not advance the resource by exactly one version");
+  }
 }
 
 export function createWorkflowRecoveryAPI(client: APIClient, capturedScopeKey = "component-local-scope") {

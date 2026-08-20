@@ -34,6 +34,24 @@ const receiptHeaders = {
 };
 
 describe("production integration deletion", () => {
+	it("fails closed when reference authorization has no session authority", async () => {
+		const user = userEvent.setup();
+		const GET = vi.fn(async (path: string) => {
+			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
+			if (path === "/api/v1/integrations") return jsonResult({ items: [awsPending], page_info: { next_cursor: null, has_more: false } });
+			if (path === "/api/v1/integrations/{id}") return jsonResult(awsPending, 200, { ETag: '"1"' });
+			throw new Error(`unexpected GET ${path}`);
+		});
+		const POST = vi.fn();
+		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></APIProvider>);
+
+		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
+		expect(screen.getByRole("button", { name: "Authorize AWS reference" })).toBeDisabled();
+		expect(screen.getByRole("alert")).toHaveTextContent("Fresh authentication is required to authorize this reference.");
+		expect(screen.queryByRole("button", { name: "Reauthenticate" })).not.toBeInTheDocument();
+		expect(POST).not.toHaveBeenCalled();
+	});
+
 	it("authorizes a supported reference integration and keeps its references redacted", async () => {
 		const user = userEvent.setup();
 		const authorization = deferred<ReturnType<typeof jsonResult>>();
@@ -44,7 +62,7 @@ describe("production integration deletion", () => {
 			throw new Error(`unexpected GET ${path}`);
 		});
 		const POST = vi.fn(() => authorization.promise);
-		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></APIProvider>);
+		renderFreshIntegrations({ GET, POST } as unknown as APIClient);
 
 		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
 		const authorize = screen.getByRole("button", { name: "Authorize AWS reference" });
@@ -73,7 +91,7 @@ describe("production integration deletion", () => {
 			throw new Error(`unexpected GET ${path}`);
 		});
 		const POST = vi.fn(async () => productErrorResult(409, "conflict", "Resource version changed"));
-		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></APIProvider>);
+		renderFreshIntegrations({ GET, POST } as unknown as APIClient);
 
 		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
 		await user.click(screen.getByRole("button", { name: "Authorize AWS reference" }));
@@ -97,7 +115,7 @@ describe("production integration deletion", () => {
 			.mockRejectedValueOnce(new TypeError("response lost after commit"))
 			.mockRejectedValueOnce(new TypeError("replay response lost"))
 			.mockResolvedValueOnce(jsonResult(awsActive, 200, { ...receiptHeaders, "Cache-Control": "no-store" }));
-		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></APIProvider>);
+		renderFreshIntegrations({ GET, POST } as unknown as APIClient);
 
 		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
 		await user.click(screen.getByRole("button", { name: "Authorize AWS reference" }));
@@ -106,6 +124,82 @@ describe("production integration deletion", () => {
 		expect(await screen.findByRole("status")).toHaveTextContent("Integration authorized");
 		const calls = POST.mock.calls as unknown as Array<[string, { params: { header: Record<string, string> } }] >;
 		expect(calls).toHaveLength(3);
+		expect(new Set(calls.map(([, options]) => options.params.header["Idempotency-Key"])).size).toBe(1);
+		expect(new Set(calls.map(([, options]) => options.params.header["If-Match"]))).toEqual(new Set(['"1"']));
+	});
+
+	it("blocks a retained reference authorization retry when fresh authentication expires", async () => {
+		const user = userEvent.setup();
+		const GET = vi.fn(async (path: string) => {
+			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
+			if (path === "/api/v1/integrations") return jsonResult({ items: [awsPending], page_info: { next_cursor: null, has_more: false } });
+			if (path === "/api/v1/integrations/{id}") return jsonResult(awsPending, 200, { ETag: '"1"' });
+			throw new Error(`unexpected GET ${path}`);
+		});
+		const POST = vi.fn()
+			.mockRejectedValueOnce(new TypeError("response lost after commit"))
+			.mockRejectedValueOnce(new TypeError("replay response lost"));
+		renderFreshIntegrations({ GET, POST } as unknown as APIClient, new Date(Date.now() + 500).toISOString());
+
+		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
+		await user.click(screen.getByRole("button", { name: "Authorize AWS reference" }));
+		expect(await screen.findByText(/The response was lost\. The exact operation and idempotency key are retained\./)).toBeVisible();
+		await act(async () => { await new Promise((resolve) => setTimeout(resolve, 510)); });
+
+		expect(screen.getByRole("button", { name: "Retry retained integration operation" })).toBeDisabled();
+		expect(screen.getByText("Fresh authentication is required to retry this reference authorization.")).toBeVisible();
+		expect(screen.getByRole("button", { name: "Reauthenticate" })).toBeEnabled();
+		fireEvent.click(screen.getByRole("button", { name: "Retry retained integration operation" }));
+		expect(POST).toHaveBeenCalledTimes(2);
+	});
+
+	it("keeps a retained reference authorization locked through 409 refetch failures", async () => {
+		const user = userEvent.setup();
+		let listCalls = 0;
+		let detailCalls = 0;
+		const changed = { ...awsPending, name: "AWS current", status: "degraded" as const, updated_at: "2026-08-19T00:03:00Z" };
+		const foreign = { ...changed, id: "pid_20000001-0000-4000-8000-000000000099" };
+		const GET = vi.fn(async (path: string) => {
+			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
+			if (path === "/api/v1/integrations") {
+				listCalls += 1;
+				return jsonResult({ items: [awsPending], page_info: { next_cursor: null, has_more: false } });
+			}
+			if (path === "/api/v1/integrations/{id}") {
+				detailCalls += 1;
+				if (detailCalls === 1) return jsonResult(awsPending, 200, { ETag: '"1"' });
+				if (detailCalls === 2) throw new TypeError("authoritative refetch failed");
+				if (detailCalls === 3) return jsonResult(foreign, 200, { ETag: '"2"' });
+				return jsonResult(changed, 200, { ETag: '"2"' });
+			}
+			throw new Error(`unexpected GET ${path}`);
+		});
+		const POST = vi.fn()
+			.mockRejectedValueOnce(new TypeError("response lost after commit"))
+			.mockRejectedValueOnce(new TypeError("replay response lost"))
+			.mockResolvedValueOnce(productErrorResult(409, "conflict", "Resource version changed"));
+		renderFreshIntegrations({ GET, POST } as unknown as APIClient);
+
+		await user.click(await screen.findByRole("button", { name: "Open AWS" }));
+		const listCallsBeforeConflictReconciliation = listCalls;
+		await user.click(screen.getByRole("button", { name: "Authorize AWS reference" }));
+		await user.click(await screen.findByRole("button", { name: "Retry retained integration operation" }));
+
+		expect(await screen.findByRole("button", { name: "Retry authoritative integration refetch" })).toBeEnabled();
+		expect(screen.getByRole("alert")).toHaveTextContent("The current integration could not be confirmed. Retry the authoritative refetch.");
+		for (const close of screen.getAllByRole("button", { name: "Close" })) expect(close).toBeDisabled();
+		await user.click(screen.getByRole("button", { name: "Retry authoritative integration refetch" }));
+		expect(screen.getByRole("button", { name: "Retry authoritative integration refetch" })).toBeEnabled();
+		for (const close of screen.getAllByRole("button", { name: "Close" })) expect(close).toBeDisabled();
+		await user.click(screen.getByRole("button", { name: "Retry authoritative integration refetch" }));
+
+		expect(await screen.findByRole("alert")).toHaveTextContent("Integration changed. Review the current version before authorizing again.");
+		expect(screen.getByRole("dialog", { name: "AWS current" })).toHaveTextContent('Version "2"');
+		expect(screen.getByRole("button", { name: "Authorize AWS reference" })).toBeEnabled();
+		await waitFor(() => expect(listCalls).toBe(listCallsBeforeConflictReconciliation + 1));
+		expect(detailCalls).toBe(4);
+		expect(POST).toHaveBeenCalledTimes(3);
+		const calls = POST.mock.calls as unknown as Array<[string, { params: { header: Record<string, string> } }] >;
 		expect(new Set(calls.map(([, options]) => options.params.header["Idempotency-Key"])).size).toBe(1);
 		expect(new Set(calls.map(([, options]) => options.params.header["If-Match"]))).toEqual(new Set(['"1"']));
 	});
@@ -142,7 +236,7 @@ describe("production integration deletion", () => {
 			if (path === "/api/v1/integrations/{id}") return jsonResult(kubernetes, 200, { ETag: '"1"' });
 			throw new Error(`unexpected GET ${path}`);
 		});
-		render(<APIProvider client={{ GET } as unknown as APIClient}><ProductionIntegrationsView canWrite /></APIProvider>);
+		renderFreshIntegrations({ GET } as unknown as APIClient);
 
 		await user.click(await screen.findByRole("button", { name: "Open Kubernetes" }));
 		expect(screen.getByRole("button", { name: "Authorize Kubernetes reference" })).toBeEnabled();
@@ -244,6 +338,26 @@ function jsonResult(data: unknown, status = 200, headers: Record<string, string>
 function productErrorResult(status: number, code: string, message: string) {
 	const error = { code, message, correlation_id: "pid_90000001-0000-4000-8000-000000000001", retryable: false };
 	return { error, response: new Response(JSON.stringify(error), { status, headers: { "Content-Type": "application/json" } }) };
+}
+
+function renderFreshIntegrations(client: APIClient, expiresAt = new Date(Date.now() + 60_000).toISOString()) {
+	const GET = client.GET.bind(client);
+	const sessionClient = {
+		...client,
+		GET: (path: Parameters<APIClient["GET"]>[0], options?: unknown) => path === "/api/v1/session/bootstrap"
+			? Promise.resolve(jsonResult(sessionBootstrap(expiresAt)))
+			: GET(path as never, options as never),
+	} as APIClient;
+	return render(<APIProvider client={sessionClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></SessionProvider></APIProvider>);
+}
+
+function sessionBootstrap(freshAuthExpiresAt: string) {
+	return {
+		principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "org-production", member_reference: "member-production", role: "admin", active: true },
+		organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
+		permissions: ["view", "manage_workflows"], capabilities: ["integrations.read", "integrations.write"], csrf_token: "csrf_12345678901234567890123456789012",
+		fresh_auth_expires_at: freshAuthExpiresAt, correlation_id: "pid_10000005-0000-4000-8000-000000000005",
+	};
 }
 
 function deferred<T>() {

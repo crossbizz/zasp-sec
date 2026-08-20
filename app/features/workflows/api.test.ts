@@ -85,6 +85,20 @@ describe("production workflow API", () => {
 		await expect(createIntegrationsAPI({ POST } as unknown as APIClient).authorizeIntegrationReference(referenceIntegration.id, '"1"')).rejects.toMatchObject({ kind: "invalid_response" });
 	});
 
+	it.each(['"1"', '"999"'])("rejects reference authorization response version %s when version 2 is required", async (responseVersion) => {
+		const headers = { ...receiptHeadersForReference(), ETag: responseVersion };
+		const POST = vi.fn(async () => ({ data: referenceIntegration, response: new Response(JSON.stringify(referenceIntegration), { status: 200, headers: { "Content-Type": "application/json", ...headers } }) }));
+
+		await expect(createIntegrationsAPI({ POST } as unknown as APIClient).authorizeIntegrationReference(referenceIntegration.id, '"1"')).rejects.toMatchObject({ kind: "invalid_response" });
+	});
+
+	it("binds an integration detail response to the requested resource", async () => {
+		const foreign = { ...referenceIntegration, id: "pid_20000001-0000-4000-8000-000000000099" };
+		const GET = vi.fn(async () => ({ data: foreign, response: new Response(JSON.stringify(foreign), { status: 200, headers: { "Content-Type": "application/json", ETag: '"2"' } }) }));
+
+		await expect(createIntegrationsAPI({ GET } as unknown as APIClient).getIntegration(referenceIntegration.id)).rejects.toMatchObject({ kind: "invalid_response" });
+	});
+
 	it.each(["2", "999"])("retains a strictly decoded 202 integration revocation with Retry-After %s", async (retryAfter) => {
 		const DELETE = vi.fn(async () => ({
 			data: integration,
