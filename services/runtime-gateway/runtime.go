@@ -118,7 +118,12 @@ func newGatewayRuntime(config gatewayRuntimeConfig) (*gatewayRuntime, error) {
 	}, nil
 }
 
-func (runtime *gatewayRuntime) SyncOnce(ctx context.Context) error {
+func (runtime *gatewayRuntime) SyncOnce(ctx context.Context) (resultErr error) {
+	defer func() {
+		if recover() != nil {
+			resultErr = errGatewayRuntime
+		}
+	}()
 	if runtime == nil || ctx == nil || ctx.Err() != nil {
 		return errGatewayRuntime
 	}
@@ -214,7 +219,7 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 
 	runtime.mu.Lock()
 	defer runtime.mu.Unlock()
-	if runtime.authority.CredentialID == "" {
+	if runtime.authority.CredentialID == "" || result.PolicyVersion == 0 {
 		return result, nil
 	}
 	if len(runtime.pending) >= runtime.maximumPendingEvents || runtime.nextFloor == ^uint64(0) {
@@ -224,17 +229,13 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 	if !validGatewayTime(now) {
 		return gatewayEvaluationResult{}, errGatewayRuntime
 	}
-	policyVersion := result.PolicyVersion
-	if policyVersion == 0 {
-		policyVersion = 1
-	}
 	event := gatewayDecisionEvent{
 		CredentialID:   runtime.authority.CredentialID,
 		DeviceID:       runtime.authority.DeviceID,
 		EventID:        request.EventID,
 		ExpectedFloor:  runtime.nextFloor,
 		NextFloor:      runtime.nextFloor + 1,
-		PolicyVersion:  policyVersion,
+		PolicyVersion:  result.PolicyVersion,
 		Decision:       result.Decision,
 		ActionKind:     request.ActionKind,
 		Classification: cloneGatewayStrings(request.Classification),
@@ -245,7 +246,12 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 	return result, nil
 }
 
-func (runtime *gatewayRuntime) RecordOnce(ctx context.Context) error {
+func (runtime *gatewayRuntime) RecordOnce(ctx context.Context) (resultErr error) {
+	defer func() {
+		if recover() != nil {
+			resultErr = errGatewayRuntime
+		}
+	}()
 	if runtime == nil || ctx == nil || ctx.Err() != nil {
 		return errGatewayRuntime
 	}
@@ -268,6 +274,55 @@ func (runtime *gatewayRuntime) RecordOnce(ctx context.Context) error {
 	runtime.pending = runtime.pending[1:]
 	runtime.confirmedFloor = event.NextFloor
 	return nil
+}
+
+func (runtime *gatewayRuntime) Run(ctx context.Context, syncInterval, recordInterval time.Duration) error {
+	if runtime == nil || ctx == nil || ctx.Err() != nil || syncInterval < time.Millisecond || syncInterval > 5*time.Minute || recordInterval < time.Millisecond || recordInterval > time.Second {
+		return errGatewayRuntime
+	}
+	syncTicker := time.NewTicker(syncInterval)
+	recordTicker := time.NewTicker(recordInterval)
+	defer syncTicker.Stop()
+	defer recordTicker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-syncTicker.C:
+			_ = runtime.SyncOnce(ctx)
+		case <-recordTicker.C:
+			_ = runtime.RecordOnce(ctx)
+		}
+	}
+}
+
+func (runtime *gatewayRuntime) Ready(ctx context.Context) error {
+	if runtime == nil || ctx == nil || ctx.Err() != nil {
+		return errGatewayRuntime
+	}
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+	if len(runtime.pending) >= runtime.maximumPendingEvents {
+		return errGatewayRuntime
+	}
+	return nil
+}
+
+func (runtime *gatewayRuntime) Drain(ctx context.Context) error {
+	if runtime == nil || ctx == nil || ctx.Err() != nil {
+		return errGatewayRuntime
+	}
+	for {
+		runtime.mu.Lock()
+		remaining := len(runtime.pending)
+		runtime.mu.Unlock()
+		if remaining == 0 {
+			return nil
+		}
+		if err := runtime.RecordOnce(ctx); err != nil {
+			return errGatewayRuntime
+		}
+	}
 }
 
 func validGatewayAuthority(authority gatewayAuthority, credentialID string) bool {

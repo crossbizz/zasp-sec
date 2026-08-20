@@ -21,7 +21,7 @@ func TestGatewayRuntimeSyncsSignedPolicyAndEvaluatesWithoutControlPlaneCall(t *t
 	now := gatewayRuntimeTime()
 	authority := gatewayRuntimeAuthority()
 	envelope := signedGatewayRuntimeEnvelope(t, private, authority, now, "closed")
-	control := &gatewayControlStub{authority: authority, envelope: &envelope}
+	control := &gatewayControlStub{authority: authority, envelope: &envelope, recorded: make(chan struct{}, 1)}
 	keys, _ := policy.NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
 	cache, _ := policy.NewGatewayPolicyCache(keys, authority.Binding(), func() time.Time { return now })
 	runtime, err := newGatewayRuntime(gatewayRuntimeConfig{Control: control, Cache: cache, CredentialID: authority.CredentialID, BootstrapFailureMode: "closed", MaximumPendingEvents: 8, Now: func() time.Time { return now }})
@@ -72,11 +72,41 @@ func TestGatewayRuntimeRejectsRawOrUnboundEvaluationData(t *testing.T) {
 	}
 }
 
+func TestGatewayRuntimeBackgroundSyncsAndDrainsEvidence(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	now := gatewayRuntimeTime()
+	authority := gatewayRuntimeAuthority()
+	envelope := signedGatewayRuntimeEnvelope(t, private, authority, now, "closed")
+	control := &gatewayControlStub{authority: authority, envelope: &envelope, recorded: make(chan struct{}, 1)}
+	keys, _ := policy.NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
+	cache, _ := policy.NewGatewayPolicyCache(keys, authority.Binding(), func() time.Time { return now })
+	runtime, _ := newGatewayRuntime(gatewayRuntimeConfig{Control: control, Cache: cache, CredentialID: authority.CredentialID, BootstrapFailureMode: "closed", MaximumPendingEvents: 8, Now: func() time.Time { return now }})
+	if runtime.SyncOnce(context.Background()) != nil {
+		t.Fatal("initial sync failed")
+	}
+	if _, err := runtime.Evaluate(context.Background(), gatewayEvaluationRequest{EventID: gatewayRuntimeID(9), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "shell"}, Classification: gatewayRuntimeClassification("blocked")}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- runtime.Run(ctx, 10*time.Millisecond, time.Millisecond) }()
+	select {
+	case <-control.recorded:
+	case <-time.After(time.Second):
+		t.Fatal("evidence did not drain")
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}
+
 type gatewayControlStub struct {
 	authority gatewayAuthority
 	envelope  *policy.GatewayPolicyEnvelope
 	events    []gatewayDecisionEvent
 	calls     int
+	recorded  chan struct{}
 }
 
 func (stub *gatewayControlStub) Ready(context.Context) error { stub.calls++; return nil }
@@ -95,6 +125,12 @@ func (stub *gatewayControlStub) Policy(context.Context, string, uint64) (*policy
 func (stub *gatewayControlStub) Record(_ context.Context, event gatewayDecisionEvent) error {
 	stub.calls++
 	stub.events = append(stub.events, event)
+	if stub.recorded != nil {
+		select {
+		case stub.recorded <- struct{}{}:
+		default:
+		}
+	}
 	return nil
 }
 
