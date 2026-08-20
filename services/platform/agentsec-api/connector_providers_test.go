@@ -69,7 +69,9 @@ func TestPerformConnectorJSONRejectsRedirectWrongMediaTypeOversizeAndTrailingVal
 	}{
 		{name: "redirect", status: http.StatusFound, body: `{}`, contentType: "application/json", location: "https://attacker.invalid"},
 		{name: "media", status: http.StatusOK, body: `{}`, contentType: "text/plain"},
+		{name: "media prefix", status: http.StatusOK, body: `{}`, contentType: "application/jsonfoo"},
 		{name: "oversize", status: http.StatusOK, body: `{"value":"` + strings.Repeat("x", 200) + `"}`, contentType: "application/json"},
+		{name: "oversize whitespace", status: http.StatusOK, body: `{}` + strings.Repeat(" ", 63), contentType: "application/json"},
 		{name: "trailing", status: http.StatusOK, body: `{} {}`, contentType: "application/json"},
 	}
 	for _, test := range tests {

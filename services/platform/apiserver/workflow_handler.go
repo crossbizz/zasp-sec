@@ -34,14 +34,15 @@ type workflowRepository interface {
 }
 
 type workflowHTTPHandler struct {
-	repository workflowRepository
-	signingKey []byte
-	now        func() time.Time
-	catalog    *platformintegration.Catalog
+	repository   workflowRepository
+	signingKey   []byte
+	now          func() time.Time
+	catalog      *platformintegration.Catalog
+	capabilities ConnectorCapabilities
 }
 
-func newWorkflowHTTPHandler(repository workflowRepository, signingKey []byte, now func() time.Time) (*workflowHTTPHandler, error) {
-	if nilInterface(repository) || len(signingKey) < 32 || len(signingKey) > 4096 {
+func newWorkflowHTTPHandler(repository workflowRepository, signingKey []byte, now func() time.Time, configuredCapabilities ...ConnectorCapabilities) (*workflowHTTPHandler, error) {
+	if nilInterface(repository) || len(signingKey) < 32 || len(signingKey) > 4096 || len(configuredCapabilities) > 1 {
 		return nil, ErrRepositoryConfiguration
 	}
 	if now == nil {
@@ -51,11 +52,18 @@ func newWorkflowHTTPHandler(repository workflowRepository, signingKey []byte, no
 	if instant.IsZero() {
 		return nil, ErrRepositoryConfiguration
 	}
-	catalog, err := platformintegration.NewCatalog(locallyCompleteWorkflowManifests())
+	capabilities := defaultWorkflowConnectorCapabilities()
+	if len(configuredCapabilities) == 1 {
+		if nilInterface(configuredCapabilities[0]) {
+			return nil, ErrRepositoryConfiguration
+		}
+		capabilities = configuredCapabilities[0]
+	}
+	catalog, err := platformintegration.NewCatalog(locallyCompleteWorkflowManifests(context.Background(), capabilities))
 	if err != nil {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &workflowHTTPHandler{repository: repository, signingKey: append([]byte(nil), signingKey...), now: now, catalog: catalog}, nil
+	return &workflowHTTPHandler{repository: repository, signingKey: append([]byte(nil), signingKey...), now: now, catalog: catalog, capabilities: capabilities}, nil
 }
 
 func (handler *workflowHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -83,7 +91,12 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 			writeProductionError(writer, request, ErrRepositoryOperation)
 			return
 		}
-		values, err := handler.catalog.SearchContext(request.Context(), platformintegration.CatalogFilter{
+		catalog, catalogErr := handler.currentCatalog(request.Context())
+		if catalogErr != nil {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		values, err := catalog.SearchContext(request.Context(), platformintegration.CatalogFilter{
 			Query: query.Get("q"), Category: query.Get("category"), DataType: query.Get("data_type"), Action: query.Get("action"), AuthMode: query.Get("auth_mode"),
 		})
 		payload, marshalErr := json.Marshal(map[string]any{"items": values})
@@ -550,7 +563,11 @@ func (handler *workflowHTTPHandler) integrationBody(request *http.Request, scope
 		}
 		input.ConnectorKey, _ = current["connector_key"].(string)
 	}
-	if handler.catalog.ValidateSetup(input.ConnectorKey, input.Configuration) != nil {
+	catalog, err := handler.currentCatalog(request.Context())
+	if err != nil {
+		return nil, "", ErrRepositoryUnavailable
+	}
+	if catalog.ValidateSetup(input.ConnectorKey, input.Configuration) != nil {
 		return nil, "", ErrRepositoryOperation
 	}
 	if create {
@@ -633,11 +650,18 @@ func workflowTemplates() []map[string]any {
 	return result
 }
 
-func locallyCompleteWorkflowManifests() []platformintegration.ConnectorManifest {
+func (handler *workflowHTTPHandler) currentCatalog(ctx context.Context) (*platformintegration.Catalog, error) {
+	if handler == nil || nilInterface(handler.capabilities) || ctx == nil || ctx.Err() != nil {
+		return nil, ErrRepositoryUnavailable
+	}
+	return platformintegration.NewCatalog(locallyCompleteWorkflowManifests(ctx, handler.capabilities))
+}
+
+func locallyCompleteWorkflowManifests(ctx context.Context, capabilities ConnectorCapabilities) []platformintegration.ConnectorManifest {
 	values := platformintegration.BuiltinManifests()
-	result := make([]platformintegration.ConnectorManifest, 0, 5)
+	result := make([]platformintegration.ConnectorManifest, 0, 3)
 	for _, value := range values {
-		if value.Key == "aws" || value.Key == "github" || value.Key == "kubernetes" || value.Key == "okta" {
+		if (value.Key == "github" || value.Key == "okta") && capabilities.ConnectorAvailable(ctx, value.Key) {
 			value.Description = "Authorize " + value.Provider + " through the first-party credential boundary. Collection remains unavailable until its worker capability is ready."
 			value.DataTypes = []string{"authorization"}
 			value.Actions = []string{"authorize"}

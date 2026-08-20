@@ -547,8 +547,13 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 			TestSemantics string   `json:"test_semantics"`
 		} `json:"items"`
 	}
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &catalog) != nil || len(catalog.Items) != 5 {
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &catalog) != nil || len(catalog.Items) != 3 {
 		t.Fatalf("local catalog = %d %s", response.Code, response.Body.String())
+	}
+	for _, unavailable := range []string{"aws", "kubernetes"} {
+		if strings.Contains(response.Body.String(), `"key":"`+unavailable+`"`) {
+			t.Fatalf("catalog exposes unavailable %s authorization: %s", unavailable, response.Body.String())
+		}
 	}
 	for _, item := range catalog.Items {
 		if item.Key == "generic-webhook" {
@@ -557,7 +562,7 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 			}
 			continue
 		}
-		if !slices.Equal(item.Actions, []string{"authorize"}) || !slices.Contains([]string{"aws", "github", "kubernetes", "okta"}, item.Key) {
+		if !slices.Equal(item.Actions, []string{"authorize"}) || !slices.Contains([]string{"github", "okta"}, item.Key) {
 			t.Fatalf("launch catalog overclaimed collection = %#v", item)
 		}
 	}
@@ -577,6 +582,27 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 		if !servedWorkflowActions([]string{action}) {
 			t.Fatalf("template publishes unsupported action %q", action)
 		}
+	}
+}
+
+type connectorCapabilitiesStub map[string]bool
+
+func (stub connectorCapabilitiesStub) ConnectorAvailable(_ context.Context, key string) bool {
+	return stub[key]
+}
+
+func TestWorkflowHandlerIsolatesProviderCapabilityDegradation(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	repository := &workflowRepositoryStub{}
+	handler, err := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now, connectorCapabilitiesStub{"github": true, "okta": false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := workflowRequest(t, identity, testCorrelationID, "listIntegrationCatalog", nil, http.MethodGet, "/api/v1/integration-catalog", "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"key":"github"`) || strings.Contains(response.Body.String(), `"key":"okta"`) || strings.Contains(response.Body.String(), `"key":"aws"`) || strings.Contains(response.Body.String(), `"key":"kubernetes"`) {
+		t.Fatalf("provider-isolated catalog = %d %s", response.Code, response.Body.String())
 	}
 }
 

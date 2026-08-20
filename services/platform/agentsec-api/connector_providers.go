@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -52,6 +53,12 @@ func (store *connectorProviderSecrets) put(ctx context.Context, reference string
 		return errRuntimeUnavailable
 	}
 	return nil
+}
+
+func (store *connectorProviderSecrets) ready(ctx context.Context, reference string) error {
+	value, err := store.resolve(ctx, reference)
+	clear(value)
+	return err
 }
 
 func (store *connectorProviderSecrets) name(reference string) (string, bool) {
@@ -168,10 +175,15 @@ func performConnectorJSON(client *http.Client, request *http.Request, target any
 		return errRuntimeUnavailable
 	}
 	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode > 299 || response.Header.Get("Location") != "" || !strings.HasPrefix(strings.ToLower(response.Header.Get("Content-Type")), "application/json") {
+	mediaType, parameters, mediaErr := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	if response.StatusCode < 200 || response.StatusCode > 299 || response.Header.Get("Location") != "" || mediaErr != nil || strings.ToLower(mediaType) != "application/json" || len(parameters) > 1 || len(parameters) == 1 && !strings.EqualFold(parameters["charset"], "utf-8") {
 		return errRuntimeUnavailable
 	}
-	decoder := json.NewDecoder(io.LimitReader(response.Body, maximum+1))
+	payload, err := io.ReadAll(io.LimitReader(response.Body, maximum+1))
+	if err != nil || int64(len(payload)) > maximum {
+		return errRuntimeUnavailable
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(target) != nil {
 		return errRuntimeUnavailable

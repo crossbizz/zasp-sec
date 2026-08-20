@@ -47,13 +47,14 @@ type SessionGrant struct {
 }
 
 type CookiePolicy struct {
-	Secure             bool
-	WorkflowSigningKey []byte
-	TokenRevealKey     []byte
-	Clock              func() time.Time
-	BuildVersion       string
-	DeploymentMode     string
-	OrganizationID     string
+	Secure                bool
+	WorkflowSigningKey    []byte
+	TokenRevealKey        []byte
+	Clock                 func() time.Time
+	BuildVersion          string
+	DeploymentMode        string
+	OrganizationID        string
+	ConnectorCapabilities ConnectorCapabilities
 }
 
 type sessionRepository interface {
@@ -82,7 +83,11 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 	if err != nil {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
-	workflow, err := newWorkflowHTTPHandler(repository, cookie.WorkflowSigningKey, cookie.Clock)
+	workflowCapabilities := cookie.ConnectorCapabilities
+	if nilInterface(workflowCapabilities) {
+		workflowCapabilities = defaultWorkflowConnectorCapabilities()
+	}
+	workflow, err := newWorkflowHTTPHandler(repository, cookie.WorkflowSigningKey, cookie.Clock, workflowCapabilities)
 	if err != nil {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}

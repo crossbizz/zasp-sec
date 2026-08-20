@@ -61,6 +61,7 @@ type ConnectorHTTPConfig struct {
 	Workflows  connectorWorkflowReader
 	Secrets    ConnectorOAuthSecretStore
 	Providers  map[string]ConnectorOAuthProviderDefinition
+	Registry   *ConnectorProviderRegistry
 	Clock      func() time.Time
 }
 
@@ -68,21 +69,21 @@ type connectorHTTPHandler struct {
 	repository ConnectorAuthorizationRepository
 	workflows  connectorWorkflowReader
 	secrets    ConnectorOAuthSecretStore
-	providers  map[string]ConnectorOAuthProviderDefinition
+	registry   *ConnectorProviderRegistry
 	now        func() time.Time
 }
 
 func NewConnectorHTTPHandler(config ConnectorHTTPConfig) (http.Handler, error) {
-	if nilInterface(config.Repository) || nilInterface(config.Workflows) || nilInterface(config.Secrets) || len(config.Providers) < 1 || len(config.Providers) > 16 {
+	if nilInterface(config.Repository) || nilInterface(config.Workflows) || nilInterface(config.Secrets) || config.Registry != nil && len(config.Providers) != 0 {
 		return nil, ErrRepositoryConfiguration
 	}
-	providers := make(map[string]ConnectorOAuthProviderDefinition, len(config.Providers))
-	for key, definition := range config.Providers {
-		if !stringIn(key, "github", "okta") || nilInterface(definition.Provider) == nilInterface(definition.Factory) || !validConnectorScopes(definition.RequestedScopes) || !stringIn(definition.CredentialClass, "github_installation_reference", "okta_refresh_reference") {
+	registry := config.Registry
+	if registry == nil {
+		var err error
+		registry, err = NewConnectorProviderRegistry(config.Providers, nil)
+		if err != nil {
 			return nil, ErrRepositoryConfiguration
 		}
-		definition.RequestedScopes = append([]string(nil), definition.RequestedScopes...)
-		providers[key] = definition
 	}
 	now := config.Clock
 	if now == nil {
@@ -91,7 +92,7 @@ func NewConnectorHTTPHandler(config ConnectorHTTPConfig) (http.Handler, error) {
 	if instant := now(); instant.IsZero() {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &connectorHTTPHandler{repository: config.Repository, workflows: config.Workflows, secrets: config.Secrets, providers: providers, now: now}, nil
+	return &connectorHTTPHandler{repository: config.Repository, workflows: config.Workflows, secrets: config.Secrets, registry: registry, now: now}, nil
 }
 
 func (handler *connectorHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -122,7 +123,7 @@ func (handler *connectorHTTPHandler) authorize(writer http.ResponseWriter, reque
 	}
 	workflow, err := handler.workflows.GetWorkflow(request.Context(), identity.Scope, "integration", integrationID)
 	providerKey, providerConfiguration, ok := authorizedOAuthIntegration(workflow, integrationID)
-	definition, ready := handler.providers[providerKey]
+	definition, ready := handler.registry.Provider(request.Context(), providerKey)
 	if err != nil || !ok || !ready {
 		writeProductionError(writer, request, firstError(err, ErrRepositoryNotFound))
 		return
@@ -183,7 +184,7 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		writeProductionError(writer, request, err)
 		return
 	}
-	definition, ready := handler.providers[consumption.Provider]
+	definition, ready := handler.registry.Provider(request.Context(), consumption.Provider)
 	if !ready || !equalStringSet(consumption.RequestedScopes, definition.RequestedScopes) {
 		writeProductionError(writer, request, ErrRepositoryConflict)
 		return

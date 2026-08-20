@@ -116,17 +116,23 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	connectorHandler, err := apiserver.NewConnectorHTTPHandler(apiserver.ConnectorHTTPConfig{
-		Repository: connectorRepository, Workflows: repository, Secrets: secretStore, Clock: func() time.Time { return time.Now().UTC() },
-		Providers: map[string]apiserver.ConnectorOAuthProviderDefinition{
-			"github": {Provider: &githubOAuthProvider{adapter: githubAdapter}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"},
-			"okta":   {Factory: &oktaOAuthFactory{clientID: config.OktaClientID, secretReference: config.OktaSecretReference, callback: config.PublicOrigin + "/api/v1/integrations/oauth/callback", exchange: &oktaExchangeClient{http: providerHTTP, secrets: providerSecrets}, timeout: config.ProviderTimeout}, RequestedScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, CredentialClass: "okta_refresh_reference"},
-		},
+	connectorRegistry, err := apiserver.NewConnectorProviderRegistry(map[string]apiserver.ConnectorOAuthProviderDefinition{
+		"github": {Provider: &githubOAuthProvider{adapter: githubAdapter}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"},
+		"okta":   {Factory: &oktaOAuthFactory{clientID: config.OktaClientID, secretReference: config.OktaSecretReference, callback: config.PublicOrigin + "/api/v1/integrations/oauth/callback", exchange: &oktaExchangeClient{http: providerHTTP, secrets: providerSecrets}, timeout: config.ProviderTimeout}, RequestedScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, CredentialClass: "okta_refresh_reference"},
+	}, map[string]apiserver.ConnectorCapabilityCheck{
+		"github": func(ctx context.Context) error { return providerSecrets.ready(ctx, config.GitHubSecretReference) },
+		"okta":   func(ctx context.Context) error { return providerSecrets.ready(ctx, config.OktaSecretReference) },
 	})
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, tracedProvider, connectorHandler, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID})
+	connectorHandler, err := apiserver.NewConnectorHTTPHandler(apiserver.ConnectorHTTPConfig{
+		Repository: connectorRepository, Workflows: repository, Secrets: secretStore, Clock: func() time.Time { return time.Now().UTC() }, Registry: connectorRegistry,
+	})
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, tracedProvider, connectorHandler, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, ConnectorCapabilities: connectorRegistry})
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
