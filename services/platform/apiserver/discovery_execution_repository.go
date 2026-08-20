@@ -112,6 +112,7 @@ type ExecutionJobInput struct {
 	ConnectionID                    string                     `json:"connection_id"`
 	SnapshotID                      string                     `json:"snapshot_id"`
 	Generation                      int64                      `json:"generation"`
+	ObservationTime                 time.Time                  `json:"observation_time"`
 	Provider                        collection.Provider        `json:"provider"`
 	CollectorVersion                string                     `json:"collector_version"`
 	CredentialClass                 collection.CredentialClass `json:"credential_class"`
@@ -728,6 +729,7 @@ func validExecutionJobInput(scope domain.Scope, jobID string, input ExecutionJob
 		ConnectionID:        connectionID,
 		JobID:               parsedJobID,
 		Attempt:             input.Attempt,
+		ObservationTime:     input.ObservationTime,
 		Provider:            input.Provider,
 		CollectorVersion:    input.CollectorVersion,
 		CredentialClass:     input.CredentialClass,

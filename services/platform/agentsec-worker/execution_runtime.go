@@ -227,7 +227,10 @@ func (processor *discoveryProcessor) finishComplete(ctx context.Context, deliver
 	candidate := result.Snapshot()
 	cursor := result.NextCursor()
 	manifestChecksum := descriptor.Checksum()
-	collectedAt := processor.config.Now()
+	collectedAt := input.ObservationTime
+	if collectedAt.IsZero() {
+		collectedAt = processor.config.Now()
+	}
 	if collectedAt.IsZero() || collectedAt.Location() != time.UTC {
 		return errWorkerExecution
 	}
@@ -343,6 +346,6 @@ func collectionRequest(scope domain.Scope, input apiserver.ExecutionJobInput) (c
 		}
 		cursor = collection.Cursor{Provider: *input.CursorProvider, Version: *input.CursorVersion, Value: *input.CursorValue}
 	}
-	request := collection.Request{Scope: scope, IntegrationID: integration, ConnectionID: connection, JobID: job, Attempt: input.Attempt, Provider: input.Provider, CollectorVersion: input.CollectorVersion, CredentialClass: input.CredentialClass, CredentialReference: input.CredentialReference, ExpectedSubject: collection.SubjectBinding{Kind: input.SubjectKind, ID: input.SubjectID}, Cursor: cursor, ParserVersion: input.ParserVersion, ToolVersion: input.ToolVersion, Bounds: collection.Bounds{MaxPages: 100, MaxItems: projectionMaximumEntities, MaxRawBytes: 64 << 20, Timeout: 10 * time.Minute}}
+	request := collection.Request{Scope: scope, IntegrationID: integration, ConnectionID: connection, JobID: job, Attempt: input.Attempt, ObservationTime: input.ObservationTime, Provider: input.Provider, CollectorVersion: input.CollectorVersion, CredentialClass: input.CredentialClass, CredentialReference: input.CredentialReference, ExpectedSubject: collection.SubjectBinding{Kind: input.SubjectKind, ID: input.SubjectID}, Cursor: cursor, ParserVersion: input.ParserVersion, ToolVersion: input.ToolVersion, Bounds: collection.Bounds{MaxPages: 100, MaxItems: projectionMaximumEntities, MaxRawBytes: 64 << 20, Timeout: 10 * time.Minute}}
 	return request, request.Validate() == nil
 }

@@ -22,10 +22,13 @@ func TestDiscoveryProcessorAppliesCompleteSnapshotAndAcknowledgesLast(t *testing
 	scope := workerScope(t)
 	jobID := workerID(t, "pid_10000003-0000-4000-8000-000000000003")
 	input := workerExecutionInput(scope, jobID.String())
+	outcome := workerCompleteOutcome(t, input)
+	observationTime := time.Date(2026, 8, 20, 11, 59, 0, 0, time.UTC)
+	input.ObservationTime = observationTime
 	steps := []string{}
 	authority := &recordingDiscoveryAuthority{input: input, steps: &steps}
 	queue := &recordingDiscoveryQueue{deliveries: []jobqueue.Delivery{{Job: jobqueue.Job{Scope: scope, JobID: jobID, Kind: "discovery", Payload: json.RawMessage(`{"version":1}`)}}}, steps: &steps}
-	collector := recordingCollector{steps: &steps, outcome: workerCompleteOutcome(t, input)}
+	collector := recordingCollector{steps: &steps, outcome: outcome}
 	factory := &recordingDiscoveryCollectorFactory{collector: collector, steps: &steps}
 	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, CollectorFactory: factory, WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, Now: func() time.Time { return time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC) }, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
 	if err != nil {
@@ -38,7 +41,7 @@ func TestDiscoveryProcessorAppliesCompleteSnapshotAndAcknowledgesLast(t *testing
 	if fmt.Sprint(steps) != fmt.Sprint(want) {
 		t.Fatalf("steps = %v, want %v", steps, want)
 	}
-	if authority.applied.JobID != jobID.String() || authority.applied.SnapshotID != input.SnapshotID || authority.finished.ResultDigest == nil {
+	if authority.applied.JobID != jobID.String() || authority.applied.SnapshotID != input.SnapshotID || !authority.applied.CollectedAt.Equal(observationTime) || authority.finished.ResultDigest == nil {
 		t.Fatalf("apply/finish = %#v / %#v", authority.applied, authority.finished)
 	}
 	if len(factory.bindings) != 1 || factory.bindings[0].Scope != scope || factory.bindings[0].Input.JobID != input.JobID || factory.bindings[0].WorkerID != "discovery-01" || factory.bindings[0].LeaseToken != "0123456789abcdef" {
@@ -88,6 +91,20 @@ func TestDiscoveryCollectionRequestUsesProjectionSafeSnapshotBounds(t *testing.T
 	}
 	if request.Bounds.MaxItems != 1_000 {
 		t.Fatalf("MaxItems = %d, want projection-safe 1000", request.Bounds.MaxItems)
+	}
+}
+
+func TestDiscoveryCollectionRequestCarriesDurableObservationTime(t *testing.T) {
+	scope := workerScope(t)
+	input := workerExecutionInput(scope, workerID(t, "pid_10000003-0000-4000-8000-000000000003").String())
+	observationTime := time.Date(2026, time.August, 20, 12, 34, 56, 0, time.UTC)
+	input.ObservationTime = observationTime
+	request, ok := collectionRequest(scope, input)
+	if !ok {
+		t.Fatal("collectionRequest() rejected durable observation authority")
+	}
+	if !request.ObservationTime.Equal(observationTime) {
+		t.Fatalf("ObservationTime = %s, want %s", request.ObservationTime, observationTime)
 	}
 }
 
