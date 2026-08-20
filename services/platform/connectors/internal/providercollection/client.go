@@ -123,6 +123,7 @@ type Client struct {
 	parserVersion    string
 	toolVersion      string
 	clock            func() time.Time
+	resume           *ResumeSeed
 }
 
 func New(config Config) (*Client, error) {
@@ -202,8 +203,40 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	relationshipSourceIDs := make(map[string]struct{})
 	snapshotLimit := newSnapshotBudget(maximumArtifactBytes)
 	complete := false
+	remainingPages := request.Bounds.MaxPages
+	if client.resume != nil {
+		seed, seedErr := client.loadResumeSeed(ctx, request)
+		if seedErr != nil {
+			return nil, outcomeUnknown()
+		}
+		objects = seed.objects
+		entities = seed.entities
+		relationships = seed.relationships
+		entityObjects = seed.entityObjects
+		entitySourceIDs = seed.entitySourceIDs
+		relationshipIDs = seed.relationshipIDs
+		relationshipSourceIDs = seed.relationshipSourceIDs
+		remainingRawBytes -= seed.rawBytes
+		remainingItems -= len(seed.entities)
+		remainingRelationships -= len(seed.relationships)
+		remainingPages -= len(seed.objects)
+		for index, page := range seed.pages {
+			if !snapshotLimit.addPage(page.Entities, page.Relationships, seed.evidenceLengths[index]) {
+				return nil, outcomeUnknown()
+			}
+		}
+		if remainingRawBytes < 1 || remainingItems < 0 || remainingRelationships < 0 || remainingPages < 0 {
+			return nil, outcomeUnknown()
+		}
+	}
 
-	for pageNumber := 1; pageNumber <= request.Bounds.MaxPages; pageNumber++ {
+	for pageNumber := 1; pageNumber <= remainingPages; pageNumber++ {
+		if remainingItems < 1 {
+			if len(objects) == 0 {
+				return nil, collection.ErrContract
+			}
+			break
+		}
 		manifestBody, err := marshalManifest(request, cursor, objects)
 		if err != nil || len(manifestBody) > maximumArtifactBytes {
 			return nil, collection.ErrContract

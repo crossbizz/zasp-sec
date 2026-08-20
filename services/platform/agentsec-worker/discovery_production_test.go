@@ -95,6 +95,15 @@ func TestProductionDiscoveryCollectorPreservesRetainedPartialCursor(t *testing.T
 	input := workerExecutionInput(scope, "pid_10000003-0000-4000-8000-000000000003")
 	retained := "retained-partial-page-17"
 	input.CursorValue = &retained
+	input.CheckpointVersion = 1
+	input.CheckpointDigest = bytes.Repeat([]byte{7}, 32)
+	input.CheckpointManifestReference = "s3://zasp-evidence/organizations/checkpoint/pid_80100002-0000-4000-8000-000000000002"
+	input.CheckpointManifestKey = "organizations/checkpoint/pid_80100002-0000-4000-8000-000000000002"
+	input.CheckpointManifestVersionID = "version-0001"
+	input.CheckpointManifestChecksum = bytes.Repeat([]byte{8}, 32)
+	input.CheckpointManifestSizeBytes = 128
+	input.CheckpointManifestMediaType = "application/json"
+	input.CheckpointManifestSchemaVersion = "manifest_v1"
 	expected, ok := collectionRequest(scope, input)
 	if !ok {
 		t.Fatal("retained input did not produce a collection request")
@@ -117,6 +126,10 @@ func TestProductionDiscoveryCollectorPreservesRetainedPartialCursor(t *testing.T
 	result, isPartial := outcome.(collection.PartialResult)
 	if err != nil || !isPartial || result.NextCursor().Value != "next-page-18" || provider.request().Cursor != (collection.Cursor{Provider: collection.ProviderAWS, Version: "cursor_v1", Value: retained}) {
 		t.Fatalf("retained collection outcome/error/request = %#v / %v / %#v", outcome, err, provider.request())
+	}
+	seed := provider.resumeSeed()
+	if seed.Cursor != expected.Cursor || seed.ManifestReference != input.CheckpointManifestReference || seed.ManifestVersionID != input.CheckpointManifestVersionID || !bytes.Equal(seed.CheckpointDigest, input.CheckpointDigest) || !bytes.Equal(seed.ManifestChecksum, input.CheckpointManifestChecksum) {
+		t.Fatalf("resume seed drifted: %#v", seed)
 	}
 }
 
@@ -275,6 +288,16 @@ type recordingJobProviderClient struct {
 	outcomes   map[string]collection.Outcome
 	err        error
 	panicCall  bool
+	resume     []collection.ResumeSeed
+}
+
+func (client *recordingJobProviderClient) WithResumeSeed(seed collection.ResumeSeed) (collection.ProviderClient, error) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	seed.CheckpointDigest = bytes.Clone(seed.CheckpointDigest)
+	seed.ManifestChecksum = bytes.Clone(seed.ManifestChecksum)
+	client.resume = append(client.resume, seed)
+	return client, nil
 }
 
 func (client *recordingJobProviderClient) CollectWithCredential(_ context.Context, request collection.Request, credential []byte) (collection.Outcome, error) {
@@ -322,6 +345,15 @@ func (client *recordingJobProviderClient) credentialText() string {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 	return string(client.credential)
+}
+
+func (client *recordingJobProviderClient) resumeSeed() collection.ResumeSeed {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	if len(client.resume) == 0 {
+		return collection.ResumeSeed{}
+	}
+	return client.resume[len(client.resume)-1]
 }
 
 type recordingJobCredentialMaterialResolver struct {

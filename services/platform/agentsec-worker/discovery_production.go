@@ -53,7 +53,25 @@ func (factory *productionDiscoveryCollectorFactory) BuildDiscoveryCollector(ctx 
 			Scope: binding.Scope, Input: cloneExecutionJobInput(binding.Input), WorkerID: binding.WorkerID, LeaseToken: []byte(binding.LeaseToken), Credential: credentialRequestForJob(expected),
 		},
 	}
-	delegate, err := buildCollectionCollector(factory.providers, resolver)
+	resume, hasResume, validResume := discoveryResumeSeed(binding.Input)
+	if !validResume {
+		resolver.Destroy()
+		return nil, errWorkerExecution
+	}
+	var delegate collection.Collector
+	var err error
+	if hasResume {
+		resumeFactory, ok := factory.providers.(interface {
+			BuildCollectionCollectorWithResume(collection.WorkerCredentialResolver, collection.ResumeSeed) (collection.Collector, error)
+		})
+		if !ok {
+			resolver.Destroy()
+			return nil, errWorkerExecution
+		}
+		delegate, err = buildResumeCollectionCollector(resumeFactory, resolver, resume)
+	} else {
+		delegate, err = buildCollectionCollector(factory.providers, resolver)
+	}
 	if err != nil || nilWorkerDependency(delegate) {
 		resolver.Destroy()
 		return nil, errWorkerExecution
@@ -183,12 +201,32 @@ func newFirstPartyCollectionFactory(registrations []firstPartyProviderClientRegi
 }
 
 func (factory *firstPartyCollectionFactory) BuildCollectionCollector(resolver collection.WorkerCredentialResolver) (collection.Collector, error) {
+	return factory.buildCollectionCollector(resolver, nil)
+}
+
+func (factory *firstPartyCollectionFactory) BuildCollectionCollectorWithResume(resolver collection.WorkerCredentialResolver, seed collection.ResumeSeed) (collection.Collector, error) {
+	return factory.buildCollectionCollector(resolver, &seed)
+}
+
+func (factory *firstPartyCollectionFactory) buildCollectionCollector(resolver collection.WorkerCredentialResolver, seed *collection.ResumeSeed) (collection.Collector, error) {
 	if factory == nil || nilWorkerDependency(resolver) || len(factory.registrations) != 4 {
 		return nil, collection.ErrContract
 	}
 	registrations := make([]collection.Registration, 0, len(factory.registrations))
 	for _, configured := range factory.registrations {
-		adapter, err := collection.NewProviderAdapter(configured.Provider, configured.CredentialClass, resolver, configured.Client)
+		client := configured.Client
+		if seed != nil {
+			resumable, ok := client.(collection.ResumableProviderClient)
+			if !ok {
+				return nil, collection.ErrContract
+			}
+			seeded, seedErr := resumable.WithResumeSeed(*seed)
+			if seedErr != nil {
+				return nil, collection.ErrContract
+			}
+			client = seeded
+		}
+		adapter, err := collection.NewProviderAdapter(configured.Provider, configured.CredentialClass, resolver, client)
 		if err != nil {
 			return nil, collection.ErrContract
 		}
@@ -198,6 +236,22 @@ func (factory *firstPartyCollectionFactory) BuildCollectionCollector(resolver co
 		})
 	}
 	return collection.NewRegistry(registrations)
+}
+
+func discoveryResumeSeed(input apiserver.ExecutionJobInput) (collection.ResumeSeed, bool, bool) {
+	present := input.CheckpointVersion != 0 || len(input.CheckpointDigest) != 0 || input.CheckpointManifestReference != "" || input.CheckpointManifestKey != "" || input.CheckpointManifestVersionID != "" || len(input.CheckpointManifestChecksum) != 0 || input.CheckpointManifestSizeBytes != 0 || input.CheckpointManifestMediaType != "" || input.CheckpointManifestSchemaVersion != ""
+	if !present {
+		return collection.ResumeSeed{}, false, true
+	}
+	if input.CursorProvider == nil || input.CursorVersion == nil || input.CursorValue == nil {
+		return collection.ResumeSeed{}, true, false
+	}
+	seed := collection.ResumeSeed{
+		CheckpointVersion: input.CheckpointVersion, CheckpointDigest: bytes.Clone(input.CheckpointDigest), Cursor: collection.Cursor{Provider: *input.CursorProvider, Version: *input.CursorVersion, Value: *input.CursorValue},
+		ManifestReference: input.CheckpointManifestReference, ManifestKey: input.CheckpointManifestKey, ManifestVersionID: input.CheckpointManifestVersionID, ManifestChecksum: bytes.Clone(input.CheckpointManifestChecksum), ManifestSizeBytes: input.CheckpointManifestSizeBytes,
+		ManifestMediaType: input.CheckpointManifestMediaType, ManifestSchema: input.CheckpointManifestSchemaVersion, ParserVersion: input.ParserVersion, ToolVersion: input.ToolVersion,
+	}
+	return seed, true, true
 }
 
 func credentialRequestForJob(request collection.Request) collection.CredentialRequest {
@@ -215,6 +269,18 @@ func buildCollectionCollector(factory collection.CollectorFactory, resolver coll
 		}
 	}()
 	return factory.BuildCollectionCollector(resolver)
+}
+
+func buildResumeCollectionCollector(factory interface {
+	BuildCollectionCollectorWithResume(collection.WorkerCredentialResolver, collection.ResumeSeed) (collection.Collector, error)
+}, resolver collection.WorkerCredentialResolver, seed collection.ResumeSeed) (collector collection.Collector, resultErr error) {
+	defer func() {
+		if recover() != nil {
+			collector = nil
+			resultErr = collection.ErrContract
+		}
+	}()
+	return factory.BuildCollectionCollectorWithResume(resolver, seed)
 }
 
 func callBoundCollectionCollector(collector collection.Collector, ctx context.Context, request collection.Request) (outcome collection.Outcome, resultErr error) {

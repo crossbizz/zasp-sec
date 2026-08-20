@@ -515,6 +515,26 @@ type ProviderClient interface {
 	CollectWithCredential(context.Context, Request, []byte) (Outcome, error)
 }
 
+type ResumeSeed struct {
+	CheckpointVersion int64
+	CheckpointDigest  []byte
+	Cursor            Cursor
+	ManifestReference string
+	ManifestKey       string
+	ManifestVersionID string
+	ManifestChecksum  []byte
+	ManifestSizeBytes int64
+	ManifestMediaType string
+	ManifestSchema    string
+	ParserVersion     string
+	ToolVersion       string
+}
+
+type ResumableProviderClient interface {
+	ProviderClient
+	WithResumeSeed(ResumeSeed) (ProviderClient, error)
+}
+
 type ProviderAdapter struct {
 	provider Provider
 	class    CredentialClass

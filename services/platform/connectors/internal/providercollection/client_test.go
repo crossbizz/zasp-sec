@@ -209,6 +209,74 @@ func TestClientReturnsPartialOnlyAfterManifestLastWhenPageBoundIsReached(t *test
 	}
 }
 
+func TestClientStopsAtExactItemBudgetAndPublishesPartialWithoutAnotherProviderCall(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	request.Bounds.MaxItems = 1
+	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "continue"}, false,
+		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)}, nil)
+	api := &recordingAPI{pages: []Page{page}}
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, err := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	partial, ok := outcome.(collection.PartialResult)
+	if !ok || partial.NextCursor() != page.Cursor || api.calls != 1 || len(store.requests) != 2 {
+		t.Fatalf("result=%T cursor=%#v calls=%d writes=%d", outcome, partial.NextCursor(), api.calls, len(store.requests))
+	}
+}
+
+func TestClientResumesFromVersionPinnedManifestAndReturnsExactUnion(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	request.Bounds.MaxPages = 1
+	firstEntity := json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)
+	firstPage := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "continue"}, false, []json.RawMessage{firstEntity}, nil)
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	firstClient, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{firstPage}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := firstClient.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential"))
+	partial, ok := outcome.(collection.PartialResult)
+	if err != nil || !ok {
+		t.Fatalf("first outcome = %T / %v", outcome, err)
+	}
+	descriptor := partial.Manifest().Descriptor()
+	checksum := descriptor.Checksum()
+	seed := ResumeSeed{CheckpointVersion: 1, CheckpointDigest: bytes.Repeat([]byte{7}, sha256.Size), Cursor: partial.NextCursor(), ManifestReference: descriptor.ObjectReference(), ManifestKey: descriptor.Key(), ManifestVersionID: descriptor.VersionID(), ManifestChecksum: checksum[:], ManifestSizeBytes: descriptor.Size(), ManifestMediaType: descriptor.MediaType(), ManifestSchema: descriptor.SchemaVersion(), ParserVersion: descriptor.ParserVersion(), ToolVersion: descriptor.ToolVersion()}
+
+	request.Attempt++
+	request.Cursor = partial.NextCursor()
+	request.Bounds.MaxPages = 2
+	secondEntity := json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{},"attributes":{}}`)
+	tail := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"}, true, []json.RawMessage{secondEntity}, nil)
+	api := &recordingAPI{pages: []Page{tail}}
+	base, _ := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	resumed, err := base.WithResumeSeed(seed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err = resumed.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential"))
+	complete, ok := outcome.(collection.CompleteResult)
+	if err != nil || !ok || complete.Snapshot().EntityCount() != 2 || len(complete.Manifest().Objects()) != 2 || api.calls != 1 {
+		t.Fatalf("resumed = %T / %v entities=%d objects=%d calls=%d", outcome, err, complete.Snapshot().EntityCount(), len(complete.Manifest().Objects()), api.calls)
+	}
+
+	delete(store.objects, descriptor.Reference().String())
+	api = &recordingAPI{pages: []Page{tail}}
+	base, _ = New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	resumed, _ = base.WithResumeSeed(seed)
+	if _, err := resumed.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential")); !failureHasCode(err, collection.FailureOutcomeUnknown) || api.calls != 0 {
+		t.Fatalf("missing checkpoint error/calls = %v / %d", err, api.calls)
+	}
+}
+
 func TestClientReservesManifestCapacityBeforeFetchingOrWritingRawPages(t *testing.T) {
 	t.Parallel()
 	request := testRequest(t, collection.ProviderKubernetes)
@@ -612,8 +680,13 @@ func (store *recordingArtifacts) Put(_ context.Context, request artifactstore.Pu
 	return artifact, nil
 }
 
-func (*recordingArtifacts) Get(context.Context, artifactstore.Locator) (artifactstore.Artifact, error) {
-	return artifactstore.Artifact{}, artifactstore.ErrGet
+func (store *recordingArtifacts) Get(_ context.Context, locator artifactstore.Locator) (artifactstore.Artifact, error) {
+	artifact, ok := store.objects[locator.Reference.String()]
+	if !ok || artifact.Locator != locator {
+		return artifactstore.Artifact{}, artifactstore.ErrGet
+	}
+	artifact.Body = bytes.Clone(artifact.Body)
+	return artifact, nil
 }
 func (*recordingArtifacts) Delete(context.Context, artifactstore.Locator) error {
 	return artifactstore.ErrDelete
