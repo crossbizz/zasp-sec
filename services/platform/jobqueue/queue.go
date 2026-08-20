@@ -96,8 +96,11 @@ type DriverReceipt struct {
 type JobQueue interface {
 	PublishBatch(context.Context, []Job) (PublishResult, error)
 	ConsumeBatch(context.Context, int) ([]Delivery, error)
-	ExtendVisibility(context.Context, []Receipt, time.Duration) error
 	AcknowledgeBatch(context.Context, []Receipt) error
+}
+
+type VisibilityExtender interface {
+	ExtendVisibility(context.Context, []Receipt, time.Duration) error
 }
 
 type Driver interface {

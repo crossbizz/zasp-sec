@@ -11,6 +11,23 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
+type baseOnlyJobQueue struct{}
+
+func (baseOnlyJobQueue) PublishBatch(context.Context, []Job) (PublishResult, error) {
+	return PublishResult{}, nil
+}
+
+func (baseOnlyJobQueue) ConsumeBatch(context.Context, int) ([]Delivery, error) {
+	return nil, nil
+}
+
+func (baseOnlyJobQueue) AcknowledgeBatch(context.Context, []Receipt) error {
+	return nil
+}
+
+var _ JobQueue = baseOnlyJobQueue{}
+var _ VisibilityExtender = (*Queue)(nil)
+
 type visibilityRecordingDriver struct {
 	*recordingDriver
 	extend func(context.Context, []DriverReceipt, int32) ([]domain.ProductID, error)
@@ -34,7 +51,7 @@ func TestQueueExtendsVisibilityForExactOwnedReceipts(t *testing.T) {
 		}
 		return []domain.ProductID{jobs[1].JobID, jobs[0].JobID}, nil
 	}
-	var contract JobQueue = queue
+	var contract VisibilityExtender = queue
 	if err := contract.ExtendVisibility(context.Background(), receipts, 5*time.Minute); err != nil {
 		t.Fatalf("ExtendVisibility() error = %v", err)
 	}
