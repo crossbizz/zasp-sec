@@ -7,7 +7,7 @@ import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { useSession } from "../../auth/SessionProvider";
 import { Badge, Button, Card, EmptyState, Field, LoadingState, Modal, PageHeader } from "../../components/ui";
-import { createIntegrationsAPI, createPoliciesAPI, type Versioned, type WorkflowReceipt } from "./api";
+import { createIntegrationsAPI, createPoliciesAPI, IntegrationRevocationPending, type Versioned, type WorkflowReceipt } from "./api";
 import { useRetainedWorkflowMutation } from "./useRetainedWorkflowMutation";
 
 type Feedback = { tone: "status" | "alert"; message: string } | null;
@@ -86,7 +86,7 @@ export function ProductionPoliciesView({ canWrite }: { canWrite: boolean }) {
 export function ProductionIntegrationsView({ canWrite }: { canWrite: boolean }) {
   const { client, invalidate } = useAPI();
   const api = useMemo(() => createIntegrationsAPI(client), [client]);
-  const mutation = useRetainedWorkflowMutation<IntegrationMutationIntent>("integrations");
+  const mutation = useRetainedWorkflowMutation<IntegrationMutationIntent>("integrations", canWrite);
   const catalog = useAPIQuery("workflow:integration-catalog", api.listCatalog);
   const integrations = useAPIQuery("workflow:integrations", api.listIntegrations);
   const [manifest, setManifest] = useState<ConnectorManifest | null>(null);
@@ -95,7 +95,19 @@ export function ProductionIntegrationsView({ canWrite }: { canWrite: boolean }) 
   const [selected, setSelected] = useState<Versioned<Integration> | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [busy, setBusy] = useState(false);
-  const run = async (action: () => Promise<void>) => { setBusy(true); setFeedback(null); try { await action(); } catch { setFeedback({ tone: "alert", message: "The integration operation was not confirmed. Retry the retained operation when offered." }); } finally { setBusy(false); } };
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true); setFeedback(null);
+    try { await action(); } catch (error) {
+      if (error instanceof IntegrationRevocationPending) {
+        setSelected(error.receipt);
+        setName(error.receipt.value.name);
+        setConfiguration({ ...error.receipt.value.configuration });
+        setFeedback({ tone: "status", message: `Provider revocation is pending. Audit ${error.receipt.auditID}` });
+      } else {
+        setFeedback({ tone: "alert", message: "The integration operation was not confirmed. Retry the retained operation when offered." });
+      }
+    } finally { setBusy(false); }
+  };
   const applyMutation = (result: IntegrationMutationResult) => {
     invalidate(["workflow:integrations"]);
     if (result.kind === "deleted") { setSelected(null); setFeedback({ tone: "status", message: `Integration deleted. Audit ${result.receipt.auditID}` }); return; }
@@ -109,10 +121,11 @@ export function ProductionIntegrationsView({ canWrite }: { canWrite: boolean }) 
   const update = () => selected && runMutation(() => mutation.execute({ kind: "update", id: selected.value.id, version: selected.version, value: { name, configuration } }, async (intent, attempt) => { if (intent.kind !== "update") throw new TypeError("Invalid retained integration intent"); return { kind: "updated", receipt: await api.updateIntegration(intent.id, intent.version, intent.value, attempt) }; }));
   const remove = () => selected && runMutation(() => mutation.execute({ kind: "delete", id: selected.value.id, version: selected.version }, async (intent, attempt) => { if (intent.kind !== "delete") throw new TypeError("Invalid retained integration intent"); return { kind: "deleted", receipt: await api.deleteIntegration(intent.id, intent.version, attempt) }; }));
   const retryMutation = () => runMutation(() => mutation.retry<IntegrationMutationResult>());
-  return <div className="page"><PageHeader title="Integrations" description="Durable local connector configuration. Provider authorization and sync controls appear only when a real adapter exists." /><FeedbackLine value={feedback} />{mutation.canRetry && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained integration operation</Button></p>}
+  const revocationPending = selected?.value.status === "revoking" && mutation.isUnresolved;
+  return <div className="page"><PageHeader title="Integrations" description="Durable local connector configuration. Provider authorization and sync controls appear only when a real adapter exists." /><FeedbackLine value={feedback} />{mutation.canRetry && !selected && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained integration operation</Button></p>}
     <QueryBoundary status={integrations.status} label="integrations" onRetry={integrations.retry} disabled={mutation.isUnresolved} /><Card title="Configured integrations">{integrations.data?.length ? <div className="connection-list">{integrations.data.map((value) => <button type="button" key={value.id} disabled={busy || mutation.isUnresolved} aria-label={`Open ${value.name}`} onClick={() => open(value.id)}><strong>{value.name}</strong><span>{value.connector_key}</span><span>{value.status}</span></button>)}</div> : integrations.status === "empty" ? <EmptyState title="No integrations" description="Choose a supported connector catalog entry to save its scoped configuration." /> : null}</Card>
     <QueryBoundary status={catalog.status} label="integration catalog" onRetry={catalog.retry} disabled={mutation.isUnresolved} />{canWrite && <Card title="Connector catalog"><div className="connector-grid">{catalog.data?.map((value) => <article key={value.key} className="connector-card"><h3>{value.provider}</h3><p>{value.description}</p><Badge tone="info">{value.auth_mode}</Badge><Button disabled={busy || mutation.isUnresolved} onClick={() => choose(value)}>Configure {value.provider}</Button></article>)}</div></Card>}
     <Modal open={manifest !== null} title={`Configure ${manifest?.provider ?? "integration"}`} closeDisabled={mutation.isUnresolved} onClose={() => setManifest(null)} footer={<><Button disabled={mutation.isUnresolved} onClick={() => setManifest(null)}>Cancel</Button><Button variant="primary" disabled={busy || mutation.isUnresolved || !name || manifest?.setup_schema.some((field) => field.required && !configuration[field.key])} onClick={create}>Save integration</Button></>}>{manifest && <div className="form-stack">{mutation.canRetry && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained integration operation</Button></p>}<p>{manifest.access_guidance}</p><Field label="Integration name" value={name} disabled={mutation.isUnresolved} onChange={(event) => setName(event.target.value)} />{manifest.setup_schema.map((field) => <Field key={field.key} label={field.label} hint={field.description} value={configuration[field.key] ?? ""} disabled={mutation.isUnresolved} onChange={(event) => setConfiguration((current) => ({ ...current, [field.key]: event.target.value }))} />)}</div>}</Modal>
-    <Modal open={selected !== null} title={selected?.value.name ?? "Integration"} closeDisabled={mutation.isUnresolved} onClose={() => setSelected(null)} footer={<><Button disabled={mutation.isUnresolved} onClick={() => setSelected(null)}>Close</Button>{canWrite && <><Button disabled={busy || mutation.isUnresolved} onClick={update}>Save changes</Button><Button variant="danger" disabled={busy || mutation.isUnresolved} onClick={remove}>Delete integration</Button></>}</>}>{selected && <div className="form-stack">{mutation.canRetry && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained integration operation</Button></p>}<p><Badge tone="info">{selected.value.status}</Badge> Version {selected.version}</p><Field label="Integration name" value={name} disabled={!canWrite || mutation.isUnresolved} onChange={(event) => setName(event.target.value)} />{Object.entries(configuration).map(([key, value]) => <Field key={key} label={key.replaceAll("_", " ")} value={value} disabled={!canWrite || mutation.isUnresolved} onChange={(event) => setConfiguration((current) => ({ ...current, [key]: event.target.value }))} />)}<p>Provider authorization and sync are capability-hidden for this deployment.</p></div>}</Modal>
+    <Modal open={selected !== null} title={selected?.value.name ?? "Integration"} closeDisabled={mutation.isUnresolved} onClose={() => setSelected(null)} footer={<><Button disabled={mutation.isUnresolved} onClick={() => setSelected(null)}>Close</Button>{canWrite && <><Button disabled={busy || mutation.isUnresolved} onClick={update}>Save changes</Button><Button variant="danger" disabled={busy || mutation.isUnresolved} onClick={remove}>Delete integration</Button></>}</>}>{selected && <div className="form-stack">{revocationPending ? <p role="status">Provider revocation is pending. The exact DELETE and idempotency key are retained. {mutation.canRetry && <Button disabled={busy} onClick={retryMutation}>Retry pending integration deletion</Button>}</p> : mutation.canRetry && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained integration operation</Button></p>}<p><Badge tone="info">{selected.value.status}</Badge> Version {selected.version}</p><Field label="Integration name" value={name} disabled={!canWrite || mutation.isUnresolved} onChange={(event) => setName(event.target.value)} />{Object.entries(configuration).map(([key, value]) => <Field key={key} label={key.replaceAll("_", " ")} value={value} disabled={!canWrite || mutation.isUnresolved} onChange={(event) => setConfiguration((current) => ({ ...current, [key]: event.target.value }))} />)}<p>Provider authorization and sync are capability-hidden for this deployment.</p></div>}</Modal>
   </div>;
 }

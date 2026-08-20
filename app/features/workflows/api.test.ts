@@ -8,8 +8,63 @@ import { createIntegrationsAPI, createPoliciesAPI, createRetainedWorkflowMutatio
 
 const policy: Policy = { id: "policy-production", name: "Production", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" };
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
+const integration: Integration = { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "github", name: "GitHub", configuration: { authorization_mode: "github_app" }, status: "revoking", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z" };
 
 describe("production workflow API", () => {
+	it("retains a strictly decoded 202 integration revocation instead of reporting deletion", async () => {
+		const DELETE = vi.fn(async () => ({
+			data: integration,
+			response: new Response(JSON.stringify(integration), { status: 202, headers: {
+				"Content-Type": "application/json", ETag: '"2"', "Retry-After": "1",
+				"X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001",
+				"X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002",
+			} }),
+		}));
+		const attempt = createWorkflowMutationAttempt();
+
+		await expect(createIntegrationsAPI({ DELETE } as unknown as APIClient).deleteIntegration(integration.id, '"1"', attempt)).rejects.toMatchObject({
+			name: "IntegrationRevocationPending",
+			receipt: { value: integration, version: '"2"', auditID: "pid_30000001-0000-4000-8000-000000000001", receiptID: "pid_30000002-0000-4000-8000-000000000002" },
+		});
+		expect(DELETE).toHaveBeenCalledOnce();
+		const calls = DELETE.mock.calls as unknown as Array<[string, { params: { header: Record<string, string> } }]>;
+		expect(calls[0]?.[1]).toMatchObject({ params: { header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"1"' } } });
+	});
+
+	it("rejects a 202 integration deletion response unless it is exactly revoking", async () => {
+		const invalid = { ...integration, status: "active" };
+		const DELETE = vi.fn(async () => ({
+			data: invalid,
+			response: new Response(JSON.stringify(invalid), { status: 202, headers: {
+				"Content-Type": "application/json", ETag: '"2"', "Retry-After": "1",
+				"X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001",
+				"X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002",
+			} }),
+		}));
+
+		await expect(createIntegrationsAPI({ DELETE } as unknown as APIClient).deleteIntegration(integration.id, '"1"')).rejects.toMatchObject({ kind: "invalid_response" });
+	});
+
+	it("retains one integration DELETE attempt through a lost response, 202 progress, and terminal retry", async () => {
+		const terminalHeaders = { ETag: '"2"', "X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001", "X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002" };
+		const DELETE = vi.fn()
+			.mockRejectedValueOnce(new TypeError("response lost after commit"))
+			.mockResolvedValueOnce({ data: integration, response: new Response(JSON.stringify(integration), { status: 202, headers: { ...terminalHeaders, "Content-Type": "application/json", "Retry-After": "1" } }) })
+			.mockResolvedValueOnce({ response: new Response(null, { status: 204, headers: terminalHeaders }) });
+		const api = createIntegrationsAPI({ DELETE } as unknown as APIClient);
+		const controller = createRetainedWorkflowMutationController<{ id: string; version: string }>();
+		const intent = { id: integration.id, version: '"1"' };
+		const send = (frozen: typeof intent, attempt: { idempotencyKey: string }) => api.deleteIntegration(frozen.id, frozen.version, attempt);
+
+		await expect(controller.execute(intent, send)).rejects.toMatchObject({ name: "IntegrationRevocationPending" });
+		expect(controller.canRetry()).toBe(true);
+		await expect(controller.retry()).resolves.toMatchObject({ value: undefined, version: '"2"' });
+		const requestCalls = DELETE.mock.calls as unknown as Array<[string, { params: { header: Record<string, string> } }]>;
+		expect(requestCalls).toHaveLength(3);
+		expect(new Set(requestCalls.map(([, options]) => options.params.header["Idempotency-Key"])).size).toBe(1);
+		expect(new Set(requestCalls.map(([, options]) => options.params.header["If-Match"]))).toEqual(new Set(['"1"']));
+	});
+
 	it("sends no wire body for every retained DELETE operation", async () => {
 		const calls: Array<{ path: string; options: unknown }> = [];
 		const client = {

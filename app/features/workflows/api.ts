@@ -29,6 +29,15 @@ const productID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 export type Versioned<T> = { value: T; version: string };
 export type WorkflowReceipt<T> = Versioned<T> & { auditID: string; receiptID: string };
 export type WorkflowMutationAttempt = Readonly<{ idempotencyKey: string }>;
+export class IntegrationRevocationPending extends Error {
+  readonly receipt: WorkflowReceipt<Integration>;
+
+  constructor(receipt: WorkflowReceipt<Integration>) {
+    super("Integration provider revocation is pending");
+    this.name = "IntegrationRevocationPending";
+    this.receipt = receipt;
+  }
+}
 export type RetainedWorkflowMutationController<I> = {
   execute<T>(intent: I, send: (intent: I, attempt: WorkflowMutationAttempt) => Promise<T>): Promise<T>;
   retry<T>(): Promise<T>;
@@ -75,6 +84,10 @@ export function isAmbiguousWorkflowMutationError(error: unknown): boolean {
     || error instanceof APITransportError && ["timeout", "invalid_response", "invalid_error"].includes(error.kind);
 }
 
+function isRetainableWorkflowMutationError(error: unknown): boolean {
+  return error instanceof IntegrationRevocationPending || isAmbiguousWorkflowMutationError(error);
+}
+
 export async function executeWorkflowMutation<T>(send: (attempt: WorkflowMutationAttempt) => Promise<T>, attempt: WorkflowMutationAttempt = createWorkflowMutationAttempt()): Promise<T> {
   try { return await send(attempt); } catch (error) {
     if (!isAmbiguousWorkflowMutationError(error)) throw error;
@@ -98,7 +111,7 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
       if (inFlight) return inFlight as Promise<T>;
       inFlight = active.send(active.intent, active.attempt).then(
         (result) => { if (pending === active) pending = undefined; return result; },
-        (error: unknown) => { if (!isAmbiguousWorkflowMutationError(error) && pending === active) pending = undefined; throw error; },
+        (error: unknown) => { if (!isRetainableWorkflowMutationError(error) && pending === active) pending = undefined; throw error; },
       ).finally(() => { inFlight = undefined; });
       return inFlight as Promise<T>;
     },
@@ -107,7 +120,7 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
       const active = pending;
       inFlight = active.send(active.intent, active.attempt).then(
         (result) => { if (pending === active) pending = undefined; return result; },
-        (error: unknown) => { if (!isAmbiguousWorkflowMutationError(error) && pending === active) pending = undefined; throw error; },
+        (error: unknown) => { if (!isRetainableWorkflowMutationError(error) && pending === active) pending = undefined; throw error; },
       ).finally(() => { inFlight = undefined; });
       return inFlight as Promise<T>;
     },
@@ -192,7 +205,7 @@ export function createIntegrationsAPI(client: APIClient) {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.PATCH("/api/v1/integrations/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: value }), decodeIntegration), attempt);
     },
     async deleteIntegration(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<void>> {
-      return executeWorkflowMutation(async (active) => { const result = await client.DELETE("/api/v1/integrations/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } } }); if (result.error) requireAPIData<never>(result); return requireWorkflowEmptyReceipt(result.response); }, attempt);
+      return executeWorkflowMutation(async (active) => requireIntegrationDeletion(await client.DELETE("/api/v1/integrations/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } } })), attempt);
     },
   };
 }
@@ -290,4 +303,19 @@ export function requireWorkflowEmptyReceipt(response: Response): WorkflowReceipt
   const receiptID = response.headers.get("X-Mutation-Receipt-ID");
   if (!version || !quotedVersion.test(version) || !auditID || !productID.test(auditID) || !receiptID || !productID.test(receiptID)) throw new APITransportError("invalid_response", "Workflow response omitted durable mutation headers");
   return { value: undefined, version, auditID, receiptID };
+}
+
+function requireIntegrationDeletion(result: APIResult<unknown>): WorkflowReceipt<void> {
+  if (result.error) requireAPIData<never>(result);
+  if (result.response.status === 202) {
+    const receipt = requireWorkflowReceipt(result, decodeIntegration);
+    if (receipt.value.status !== "revoking" || result.response.headers.get("Retry-After") !== "1") {
+      throw new APITransportError("invalid_response", "Integration deletion returned invalid revocation progress");
+    }
+    throw new IntegrationRevocationPending(receipt);
+  }
+  if (result.response.status !== 204 || result.data !== undefined) {
+    throw new APITransportError("invalid_response", "Integration deletion returned an invalid terminal response");
+  }
+  return requireWorkflowEmptyReceipt(result.response);
 }

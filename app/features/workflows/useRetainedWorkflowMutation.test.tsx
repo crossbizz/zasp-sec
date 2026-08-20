@@ -172,6 +172,42 @@ describe("observable scope-owned workflow mutation registry", () => {
     expect(reconcileReceipt.mock.invocationCallOrder[0]).toBeLessThan(acknowledgeReceipt.mock.invocationCallOrder[0]);
   });
 
+  it("keeps a reloaded revoking integration receipt locked until terminal reconciliation", async () => {
+    const user = userEvent.setup();
+    const integration = {
+      id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "github", name: "GitHub",
+      configuration: { authorization_mode: "github_app" }, status: "revoking",
+      created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z",
+    };
+    const receipt = {
+      ...receiptFixture("pid_11111111-1111-4111-8111-111111111111"),
+      operation: "deleteIntegration", resource_kind: "integration", resource_id: integration.id, resource_version: 2,
+      intent: { body: {}, expected_version: 1, resource_id: integration.id }, result: integration,
+    } as WorkflowMutationReceipt;
+    const listReceipts = vi.fn().mockResolvedValueOnce([receipt]).mockResolvedValueOnce([]);
+    const acknowledgeReceipt = vi.fn().mockResolvedValue(undefined);
+    const reconcileReceipt = vi.fn()
+      .mockRejectedValueOnce(new APITransportError("invalid_response", "Authoritative integration is still revoking"))
+      .mockResolvedValueOnce(undefined);
+
+    render(<WorkflowMutationProvider scopeKey="principal/organization/workspace-a/environment-a" recovery={{ listReceipts, acknowledgeReceipt }} reconcileReceipt={reconcileReceipt}>
+      <Probe operation="integrations" name="integration" send={async () => "unused"} />
+    </WorkflowMutationProvider>);
+
+    await screen.findByRole("heading", { name: "Recover committed operations" });
+    expect(screen.getByText("revoking")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Start integration" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Acknowledge recovered result" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Authoritative integration is still revoking");
+    expect(acknowledgeReceipt).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Integration deleted/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Acknowledge recovered result" }));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Recover committed operations" })).not.toBeInTheDocument());
+    expect(acknowledgeReceipt).toHaveBeenCalledWith(receipt.id);
+    expect(screen.getByRole("button", { name: "Start integration" })).toBeEnabled();
+  });
+
   it("retains an ambiguous attempt but blocks retry transport after current authorization is lost", async () => {
     const user = userEvent.setup();
     const send = vi.fn().mockRejectedValueOnce(new APITransportError("timeout", "response lost")).mockResolvedValueOnce("must not send");
