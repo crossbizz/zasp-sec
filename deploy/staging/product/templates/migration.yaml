@@ -65,6 +65,10 @@ spec:
             - { name: ZASP_MIGRATION_DB_PRINCIPAL, value: {{ required "databasePrincipals.migration is required" .Values.databasePrincipals.migration | quote }} }
             - { name: ZASP_DISCOVERY_API_DB_PRINCIPAL, value: {{ required "databasePrincipals.api is required" .Values.databasePrincipals.api | quote }} }
             - { name: ZASP_DISCOVERY_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.discoveryWorker is required" .Values.databasePrincipals.discoveryWorker | quote }} }
+            - { name: ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL, value: {{ required "databasePrincipals.discoveryScheduler is required" .Values.databasePrincipals.discoveryScheduler | quote }} }
+            - { name: ZASP_PROJECTION_RISK_DB_PRINCIPAL, value: {{ required "databasePrincipals.projectionRisk is required" .Values.databasePrincipals.projectionRisk | quote }} }
+            - { name: ZASP_PROJECTION_GRAPH_DB_PRINCIPAL, value: {{ required "databasePrincipals.projectionGraph is required" .Values.databasePrincipals.projectionGraph | quote }} }
+            - { name: ZASP_PROJECTION_SEARCH_DB_PRINCIPAL, value: {{ required "databasePrincipals.projectionSearch is required" .Values.databasePrincipals.projectionSearch | quote }} }
             - { name: ZASP_RUNTIME_INGEST_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeIngest is required" .Values.databasePrincipals.runtimeIngest | quote }} }
             - { name: ZASP_RUNTIME_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeWorker is required" .Values.databasePrincipals.runtimeWorker | quote }} }
             - { name: ZASP_OUTBOX_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.outboxWorker is required" .Values.databasePrincipals.outboxWorker | quote }} }

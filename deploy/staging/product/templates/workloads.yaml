@@ -71,6 +71,8 @@ spec:
             - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
             - { name: ZASP_READINESS_INTERVAL, value: "5s" }
             - { name: ZASP_READINESS_MAX_INTERVAL, value: "1m" }
+            - { name: ZASP_DISCOVERY_PARSER_VERSION, value: {{ required "discovery.parserVersion is required" $root.Values.discovery.parserVersion | quote }} }
+            - { name: ZASP_DISCOVERY_TOOL_VERSION, value: {{ required "discovery.toolVersion is required" $root.Values.discovery.toolVersion | quote }} }
             - { name: ZASP_TRUSTED_PROXY_CIDRS, value: {{ join "," $root.Values.global.trustedProxyCIDRs | quote }} }
             - { name: ZASP_REQUEST_RATE_PER_SECOND, value: "100" }
             - { name: ZASP_REQUEST_BURST, value: "200" }
@@ -127,4 +129,59 @@ spec:
               - serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token }
       {{- end }}
 {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentsec-discovery-scheduler
+  labels: { app.kubernetes.io/name: agentsec-discovery-scheduler, app.kubernetes.io/part-of: zasp }
+spec:
+  replicas: {{ .Values.replicas.discoveryScheduler }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-scheduler } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-discovery-scheduler, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.scheduler.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.global.terminationGracePeriodSeconds }}
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-scheduler } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-scheduler } } }
+      containers:
+        - name: scheduler
+          image: {{ required "global.productImages.agentsecWorker must be an immutable digest" .Values.global.productImages.agentsecWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-scheduler/postgres-dsn)"; exec /app/agentsec-worker']
+          ports: [{ name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 32Mi }, limits: { cpu: "1", memory: 256Mi, ephemeral-storage: 128Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_WORKER_MODE, value: "scheduler" }
+            - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_discovery_scheduler" }
+            - name: ZASP_WORKER_ID
+              valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
+            - { name: ZASP_POLL_INTERVAL, value: "1s" }
+            - { name: ZASP_LEASE_DURATION, value: "30s" }
+            - { name: ZASP_BATCH_SIZE, value: "8" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
+            - { name: ZASP_DISCOVERY_PARSER_VERSION, value: {{ required "discovery.parserVersion is required" .Values.discovery.parserVersion | quote }} }
+            - { name: ZASP_DISCOVERY_TOOL_VERSION, value: {{ required "discovery.toolVersion is required" .Values.discovery.toolVersion | quote }} }
+          volumeMounts: [{ name: scheduler-secrets, mountPath: /var/run/secrets/zasp-scheduler, readOnly: true }]
+      volumes:
+        - name: scheduler-secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.schedulerProviderClassName | quote }} } }
 {{- end }}

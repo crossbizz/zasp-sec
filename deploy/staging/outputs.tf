@@ -79,6 +79,9 @@ output "migration_role_arn" {
 output "worker_role_arn" {
   value = aws_iam_role.worker.arn
 }
+output "scheduler_role_arn" {
+  value = aws_iam_role.scheduler.arn
+}
 output "canary_secret_sync_role_arn" {
   value = aws_iam_role.canary_secret_sync.arn
 }

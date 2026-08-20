@@ -1,5 +1,5 @@
 {{- if ne .Values.profile "customer_edge" }}
-{{- range $name := list "web" "agentsec-api" }}
+{{- range $name := list "web" "agentsec-api" "agentsec-discovery-scheduler" }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -95,6 +95,16 @@ kind: NetworkPolicy
 metadata: { name: schema-database, labels: { app.kubernetes.io/part-of: zasp } }
 spec:
   podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-schema } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: discovery-scheduler-database, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-scheduler } }
   policyTypes: [Egress]
   egress:
     - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]

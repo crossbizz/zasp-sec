@@ -13,6 +13,7 @@ const rolePrefix = "arn:aws:iam::[0-9]{12}:role/zasp-production-";
 const identityContract = Object.freeze({
   web: Object.freeze({ serviceAccount: "agentsec-web", role: null }),
   agentsecApi: Object.freeze({ serviceAccount: "agentsec-api", role: new RegExp(`^${rolePrefix}api$`) }),
+  discoveryScheduler: Object.freeze({ serviceAccount: "zasp-discovery-scheduler", role: new RegExp(`^${rolePrefix}discovery-scheduler$`) }),
   migration: Object.freeze({ serviceAccount: "agentsec-migration", role: new RegExp(`^${rolePrefix}migration$`) }),
   canary: Object.freeze({ serviceAccount: "agentsec-canary", role: null }),
   canarySecretSync: Object.freeze({ serviceAccount: "agentsec-canary-secret-sync", role: new RegExp(`^${rolePrefix}canary-secret-sync$`) }),
@@ -24,13 +25,13 @@ function exactKeys(value, keys) {
 
 export function validateReleaseInput(input) {
   if (!exactKeys(input, ["environment", "privateEndpointOnly", "endpoint_public_access", "productImages", "workloadIdentities"]) || input.environment !== "production" || input.privateEndpointOnly !== true || input.endpoint_public_access !== false) throw new Error("release preflight rejected");
-  if (!exactKeys(input.productImages, ["web", "agentsecApi"]) || !Object.values(input.productImages).every((value) => digestPattern.test(value))) throw new Error("release preflight rejected");
+  if (!exactKeys(input.productImages, ["web", "agentsecApi", "agentsecWorker"]) || !Object.values(input.productImages).every((value) => digestPattern.test(value))) throw new Error("release preflight rejected");
   if (!exactKeys(input.workloadIdentities, Object.keys(identityContract))) throw new Error("release preflight rejected");
   for (const [name, expected] of Object.entries(identityContract)) {
     const identity = input.workloadIdentities[name];
     if (!exactKeys(identity, ["serviceAccount", "roleArn"]) || identity.serviceAccount !== expected.serviceAccount || (expected.role === null ? identity.roleArn !== null : !expected.role.test(identity.roleArn))) throw new Error("release preflight rejected");
   }
-  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 2, cloudIdentities: 3 });
+  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 3, cloudIdentities: 4 });
 }
 
 export function runPreflight(argv = process.argv.slice(2), runtime = { spawn: spawnSync, read: readFileSync }) {

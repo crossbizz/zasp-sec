@@ -18,22 +18,30 @@ provider "aws" {
 
 locals {
   database_principals = {
-    migration        = var.database_principals.migration
-    api              = var.database_principals.api
-    discovery_worker = var.database_principals.discovery_worker
-    runtime_ingest   = var.database_principals.runtime_ingest
-    runtime_worker   = var.database_principals.runtime_worker
-    outbox_worker    = var.database_principals.outbox_worker
-    runtime_gateway  = var.database_principals.runtime_gateway
+    migration           = var.database_principals.migration
+    api                 = var.database_principals.api
+    discovery_worker    = var.database_principals.discovery_worker
+    runtime_ingest      = var.database_principals.runtime_ingest
+    runtime_worker      = var.database_principals.runtime_worker
+    outbox_worker       = var.database_principals.outbox_worker
+    runtime_gateway     = var.database_principals.runtime_gateway
+    discovery_scheduler = var.database_principals.discovery_scheduler
+    projection_risk     = var.database_principals.projection_risk
+    projection_graph    = var.database_principals.projection_graph
+    projection_search   = var.database_principals.projection_search
   }
   postgres_secret_principals = {
-    postgres-api-dsn             = local.database_principals.api
-    postgres-worker-dsn          = local.database_principals.discovery_worker
-    postgres-migration-dsn       = local.database_principals.migration
-    postgres-runtime-ingest-dsn  = local.database_principals.runtime_ingest
-    postgres-runtime-worker-dsn  = local.database_principals.runtime_worker
-    postgres-outbox-worker-dsn   = local.database_principals.outbox_worker
-    postgres-runtime-gateway-dsn = local.database_principals.runtime_gateway
+    postgres-api-dsn               = local.database_principals.api
+    postgres-worker-dsn            = local.database_principals.discovery_worker
+    postgres-migration-dsn         = local.database_principals.migration
+    postgres-runtime-ingest-dsn    = local.database_principals.runtime_ingest
+    postgres-runtime-worker-dsn    = local.database_principals.runtime_worker
+    postgres-outbox-worker-dsn     = local.database_principals.outbox_worker
+    postgres-runtime-gateway-dsn   = local.database_principals.runtime_gateway
+    postgres-scheduler-dsn         = local.database_principals.discovery_scheduler
+    postgres-projection-risk-dsn   = local.database_principals.projection_risk
+    postgres-projection-graph-dsn  = local.database_principals.projection_graph
+    postgres-projection-search-dsn = local.database_principals.projection_search
   }
   api_secret_names = toset([
     "postgres-api-dsn",
@@ -255,6 +263,10 @@ resource "aws_secretsmanager_secret" "product" {
     "postgres-runtime-worker-dsn",
     "postgres-outbox-worker-dsn",
     "postgres-runtime-gateway-dsn",
+    "postgres-scheduler-dsn",
+    "postgres-projection-risk-dsn",
+    "postgres-projection-graph-dsn",
+    "postgres-projection-search-dsn",
     "stytch-project-id",
     "stytch-secret",
     "stytch-public-token",
@@ -524,6 +536,29 @@ resource "aws_iam_role_policy" "worker" {
   role = aws_iam_role.worker.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
     { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-worker-dsn"].arn },
+    { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" } } },
+  ] })
+}
+
+resource "aws_iam_role" "scheduler" {
+  name = "${var.cluster_name}-discovery-scheduler"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:zasp-discovery-scheduler"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "scheduler" {
+  name = "${var.cluster_name}-discovery-scheduler-secret"
+  role = aws_iam_role.scheduler.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-scheduler-dsn"].arn },
     { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" } } },
   ] })
 }

@@ -9,6 +9,7 @@ global:
   productImages:
     web: ""
     agentsecApi: ""
+    agentsecWorker: ""
   images:
     neo4j: neo4j:5.26.28-community@sha256:ff32db30b2baff97971e441b46bfd9c832c1b62c970398ef579244c06b21d357
     nango: nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed
@@ -17,6 +18,7 @@ global:
 replicas:
   web: 3
   agentsecApi: 3
+  discoveryScheduler: 2
 ingress:
   enabled: true
   className: nginx
@@ -26,11 +28,13 @@ secrets:
   providerClassName: ""
   migrationProviderClassName: zasp-production-migration-secrets
   workerProviderClassName: zasp-production-worker-secrets
+  schedulerProviderClassName: zasp-production-scheduler-secrets
   canaryProviderClassName: zasp-production-canary-secrets
   region: us-west-2
   apiPostgresDSNObjectName: ""
   migrationPostgresDSNObjectName: ""
   workerPostgresDSNObjectName: ""
+  schedulerPostgresDSNObjectName: ""
   stytchProjectIDObjectName: ""
   stytchSecretObjectName: ""
   stytchPublicTokenObjectName: ""
@@ -52,8 +56,11 @@ connectors:
   githubPrivateKeyReference: ""
   oktaClientID: ""
   oktaClientSecretReference: ""
+discovery:
+  parserVersion: ""
+  toolVersion: ""
 schema:
-  expectedVersion: 12
+  expectedVersion: 13
   migrationTimeout: 10m
 databasePrincipals:
   migration: ""
@@ -63,6 +70,10 @@ databasePrincipals:
   runtimeWorker: ""
   outboxWorker: ""
   runtimeGateway: ""
+  discoveryScheduler: ""
+  projectionRisk: ""
+  projectionGraph: ""
+  projectionSearch: ""
 serviceAccounts:
   web: agentsec-web
   api:
@@ -73,6 +84,9 @@ serviceAccounts:
     roleArn: ""
   worker:
     name: zasp-discovery-worker
+    roleArn: ""
+  scheduler:
+    name: zasp-discovery-scheduler
     roleArn: ""
   canary: agentsec-canary
   canarySecretSync:

@@ -74,6 +74,11 @@ e90eb20090470cd54add98ea8fffb0db171685da:services/platform/apiserver/risk_postgr
 # changed or relocated value remains detectable.
 85ea81785c5ccfe2ca4043727540c1eb13c5a1a4:services/platform/agentsec-api/runtime_test.go:generic-api-key:207
 
+# Task 4 extends the same hermetic runtime fixture with fixed synthetic signing
+# bytes. Ignore only its exact introduction finding; changed or relocated
+# values remain detectable.
+c7fb512077ee856e788debd7adee2094e75ca2d5:services/platform/agentsec-api/runtime_test.go:generic-api-key:305
+
 # The Task 3 release-regression proof uses two descriptive idempotency values
 # only inside disposable PostgreSQL tests. Ignore only their exact introduction
 # findings; changed or relocated values remain detectable.

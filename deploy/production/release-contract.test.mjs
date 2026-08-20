@@ -9,6 +9,7 @@ const release = Object.freeze({
   host: "app.zasp.example",
   tlsSecretName: "zasp-product-tls",
   secretProviderClass: "zasp-production-secrets",
+  discovery: Object.freeze({ parserVersion: "inventory-parser-2026.08.20", toolVersion: "collector-tool-2026.08.20" }),
   connectors: Object.freeze({
     awsRegion: "us-west-2",
     roleArn: "arn:aws:iam::123456789012:role/zasp-production-api-connectors",
@@ -31,7 +32,7 @@ const release = Object.freeze({
     kubernetes: Object.freeze(["203.0.113.0/28"]),
   }),
   images: Object.freeze({
-    web: digest("web", "a"), agentsecApi: digest("api", "b"),
+    web: digest("web", "a"), agentsecApi: digest("api", "b"), agentsecWorker: digest("worker", "c"),
   }),
 });
 
@@ -40,6 +41,7 @@ test("production container builds are exact, non-root, health-bound, and secret-
   assert.deepEqual(builds.map(({ name, user, port }) => ({ name, user, port })), [
     { name: "web", user: "65532:65532", port: 3000 },
     { name: "agentsec-api", user: "65532:65532", port: 8080 },
+    { name: "agentsec-worker", user: "65532:65532", port: 8081 },
   ]);
   for (const build of builds) {
     assert.equal(build.readOnlyCompatible, true);
@@ -68,9 +70,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.deepEqual(one(resources, "Service", "agentsec-api").spec.ports.map(({ name, port }) => [name, port]), [["product", 8080], ["internal", 8081]]);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Ingress" && metadata?.name !== "zasp-product"), false);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Service" && ["neo4j", "nango", "otel-collector"].includes(metadata.name) && metadata.annotations?.["service.beta.kubernetes.io/aws-load-balancer-type"]), false);
-  assert.equal(one(resources, "Job", "agentsec-schema-v12").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
-  assert.match(one(resources, "Job", "agentsec-schema-v12").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
-  const migration = one(resources, "Job", "agentsec-schema-v12");
+  assert.equal(one(resources, "Job", "agentsec-schema-v13").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.match(one(resources, "Job", "agentsec-schema-v13").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
+  const migration = one(resources, "Job", "agentsec-schema-v13");
   assert.equal(migration.spec.template.spec.serviceAccountName, "agentsec-migration");
   assert.equal(migration.spec.template.spec.containers[0].env.some(({ valueFrom }) => valueFrom?.secretKeyRef), false);
   assert.equal(migration.spec.template.spec.containers[0].volumeMounts[0].mountPath, "/var/run/secrets/zasp-migration");
@@ -79,29 +81,36 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_MIGRATION_DB_PRINCIPAL: "zasp_migration",
     ZASP_DISCOVERY_API_DB_PRINCIPAL: "zasp_api_runtime",
     ZASP_DISCOVERY_WORKER_DB_PRINCIPAL: "zasp_discovery_runtime",
+    ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL: "zasp_scheduler_runtime",
+    ZASP_PROJECTION_RISK_DB_PRINCIPAL: "zasp_projection_risk_runtime",
+    ZASP_PROJECTION_GRAPH_DB_PRINCIPAL: "zasp_projection_graph_runtime",
+    ZASP_PROJECTION_SEARCH_DB_PRINCIPAL: "zasp_projection_search_runtime",
     ZASP_RUNTIME_INGEST_DB_PRINCIPAL: "zasp_ingest_runtime",
     ZASP_RUNTIME_WORKER_DB_PRINCIPAL: "zasp_runtime_worker_runtime",
     ZASP_OUTBOX_WORKER_DB_PRINCIPAL: "zasp_outbox_runtime",
     ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL: "zasp_gateway_runtime",
   });
-  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v12", "-10"]]) {
+  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v13", "-10"]]) {
     const resource = one(resources, kind, name);
     assert.equal(resource.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
     assert.equal(resource.metadata.annotations["helm.sh/hook-weight"], weight);
   }
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "12");
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "12");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "13");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "13");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
   assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 7);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-migration-secrets").spec.secretObjects[0].data.length, 1);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-worker-secrets").spec.secretObjects[0].data.length, 1);
+  assert.equal(one(resources, "SecretProviderClass", "zasp-production-scheduler-secrets").spec.secretObjects[0].data.length, 1);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-canary-secrets").spec.secretObjects[0].data.length, 1);
   assert.equal(one(resources, "ServiceAccount", "agentsec-api").metadata.annotations["eks.amazonaws.com/role-arn"], "arn:aws:iam::123456789012:role/zasp-production-api");
   assert.equal(one(resources, "ServiceAccount", "agentsec-migration").metadata.annotations["eks.amazonaws.com/role-arn"], "arn:aws:iam::123456789012:role/zasp-production-migration");
   assert.equal(one(resources, "ServiceAccount", "zasp-discovery-worker").metadata.annotations["eks.amazonaws.com/role-arn"], "arn:aws:iam::123456789012:role/zasp-production-worker");
+  assert.equal(one(resources, "ServiceAccount", "zasp-discovery-scheduler").metadata.annotations["eks.amazonaws.com/role-arn"], "arn:aws:iam::123456789012:role/zasp-production-discovery-scheduler");
   const rendered = JSON.stringify(resources);
   assert.match(rendered, /zasp\/production\/postgres-api-dsn/);
   assert.match(rendered, /zasp\/production\/postgres-worker-dsn/);
+  assert.match(rendered, /zasp\/production\/postgres-scheduler-dsn/);
   assert.match(rendered, /zasp\/production\/postgres-migration-dsn/);
   assert.doesNotMatch(rendered, /zasp\/production\/postgres-dsn"/);
   for (const name of ["agentsec-web", "agentsec-canary"]) {
@@ -111,16 +120,16 @@ test("release renders one TLS origin, split ports, private internals, and migrat
 
 test("release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies", async () => {
   const resources = await renderRelease(release);
-  assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), ["agentsec-api", "web"]);
+  assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), ["agentsec-api", "agentsec-discovery-scheduler", "web"]);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Service").map(({ metadata }) => metadata.name).sort(), ["agentsec-api", "web"]);
-  for (const name of ["web", "agentsec-api"]) {
+  for (const name of ["web", "agentsec-api", "agentsec-discovery-scheduler"]) {
     const deployment = one(resources, "Deployment", name);
     assert.deepEqual(deployment.spec.strategy.rollingUpdate, { maxSurge: 1, maxUnavailable: 0 });
     assert.equal(deployment.spec.template.spec.securityContext.seccompProfile.type, "RuntimeDefault");
     assert.equal(deployment.spec.template.spec.containers[0].securityContext.runAsUser, 65532);
     assert.equal(deployment.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem, true);
     assert.equal(deployment.spec.template.spec.containers[0].lifecycle.preStop.exec.command.at(-1), "sleep 10");
-	if (name === "agentsec-api") {
+	if (name !== "web") {
 	  const shutdown = deployment.spec.template.spec.containers[0].env.find(({ name: key }) => key === "ZASP_SHUTDOWN_TIMEOUT");
 	  assert.equal(shutdown.value, "15s");
 	  assert.ok(10 + Number.parseInt(shutdown.value, 10) + 5 <= deployment.spec.template.spec.terminationGracePeriodSeconds);
@@ -133,7 +142,14 @@ test("release applies non-root rollout, zone and host spread, drain, PDB, and de
   assert.ok(policies.some(({ metadata }) => metadata.name === "web-from-ingress"));
   assert.ok(policies.some(({ metadata }) => metadata.name === "api-from-ingress"));
   assert.ok(policies.some(({ metadata }) => metadata.name === "internal-monitoring"));
-  assert.equal(JSON.stringify(resources).includes("agentsec-worker"), false);
+  const scheduler = one(resources, "Deployment", "agentsec-discovery-scheduler");
+  const schedulerEnv = Object.fromEntries(scheduler.spec.template.spec.containers[0].env.map(({ name, value }) => [name, value]));
+  assert.equal(schedulerEnv.ZASP_WORKER_MODE, "scheduler");
+  assert.equal(schedulerEnv.ZASP_DATABASE_AUTHORITY, "zasp_discovery_scheduler");
+  assert.equal(schedulerEnv.ZASP_DISCOVERY_PARSER_VERSION, release.discovery.parserVersion);
+  assert.equal(schedulerEnv.ZASP_DISCOVERY_TOOL_VERSION, release.discovery.toolVersion);
+  assert.equal(scheduler.spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_WORKER_ID").valueFrom.fieldRef.fieldPath, "metadata.name");
+  assert.doesNotMatch(JSON.stringify(scheduler), /ZASP_DISCOVERY_QUEUE_URL|ZASP_OPENSEARCH_ENDPOINT|ZASP_NEO4J_URI|ZASP_CONNECTOR_/);
   assert.equal(JSON.stringify(resources).includes("event-ingest"), false);
   assert.equal(JSON.stringify(resources).includes("runtime-gateway"), false);
   assert.equal(JSON.stringify(resources).includes("4317"), false);
@@ -235,6 +251,7 @@ test("release rejects unpinned images and hostile public identifiers", async () 
   await assert.doesNotReject(() => renderRelease({ ...release, connectors: { ...release.connectors, kmsKeyArn: "arn:aws:kms:us-west-2:123456789012:key/1234abcd-12ab-34cd-56ef-1234567890ab" } }));
   await assert.rejects(() => renderRelease({ ...release, host: "app.zasp.example\nmalicious: true" }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, images: { ...release.images, web: "zasp/web:latest" } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, discovery: { ...release.discovery, parserVersion: "parser-v1" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, tlsSecretName: "" }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, roleArn: "arn:aws:iam::123456789012:role/zasp-production-api" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, webIdentityTokenFile: "/tmp/token" } }), /release rejected/);
@@ -255,6 +272,7 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
   for (const [role, account, secret] of [
     ["api", "agentsec-api", "api_secret_names"],
     ["worker", "zasp-discovery-worker", "postgres-worker-dsn"],
+    ["scheduler", "zasp-discovery-scheduler", "postgres-scheduler-dsn"],
     ["migration", "agentsec-migration", "postgres-migration-dsn"],
     ["canary_secret_sync", "agentsec-canary-secret-sync", "canary-read-token"],
   ]) {
@@ -262,7 +280,7 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
     assert.match(terraform, new RegExp(`system:serviceaccount:agentsec:${account}`));
     assert.match(terraform, new RegExp(secret));
   }
-  for (const policy of ["api", "worker", "migration", "canary_secret_sync"]) {
+  for (const policy of ["api", "worker", "scheduler", "migration", "canary_secret_sync"]) {
     const block = terraform.slice(terraform.indexOf(`resource "aws_iam_role_policy" "${policy}"`));
     assert.match(block.slice(0, block.indexOf("\n}\n") + 3), /secretsmanager:DescribeSecret.*secretsmanager:GetSecretValue/s);
     assert.doesNotMatch(block.slice(0, block.indexOf("\n}\n") + 3), /s3:|sqs:|es:|kms:Encrypt|kms:GenerateDataKey/);
@@ -271,7 +289,7 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
   assert.match(apiSecrets, /postgres-api-dsn/);
   assert.doesNotMatch(apiSecrets, /postgres-worker-dsn|postgres-migration-dsn/);
   assert.match(terraform, /database_principals\s*=\s*\{/);
-  for (const principal of ["migration", "api", "discovery_worker", "runtime_ingest", "runtime_worker", "outbox_worker", "runtime_gateway"]) {
+  for (const principal of ["migration", "api", "discovery_worker", "runtime_ingest", "runtime_worker", "outbox_worker", "runtime_gateway", "discovery_scheduler", "projection_risk", "projection_graph", "projection_search"]) {
     assert.match(terraform, new RegExp(`${principal}\\s*=\\s*var\\.database_principals`));
   }
   assert.match(terraform, /DatabasePrincipal/);

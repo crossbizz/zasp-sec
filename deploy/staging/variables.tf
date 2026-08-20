@@ -83,29 +83,37 @@ variable "environment" {
 variable "database_principals" {
   description = "Stable PostgreSQL login names provisioned outside Terraform; credentials may rotate, identities must not."
   type = object({
-    migration        = string
-    api              = string
-    discovery_worker = string
-    runtime_ingest   = string
-    runtime_worker   = string
-    outbox_worker    = string
-    runtime_gateway  = string
+    migration           = string
+    api                 = string
+    discovery_worker    = string
+    runtime_ingest      = string
+    runtime_worker      = string
+    outbox_worker       = string
+    runtime_gateway     = string
+    discovery_scheduler = string
+    projection_risk     = string
+    projection_graph    = string
+    projection_search   = string
   })
   default = {
-    migration        = "zasp_migration"
-    api              = "zasp_api_runtime"
-    discovery_worker = "zasp_discovery_runtime"
-    runtime_ingest   = "zasp_ingest_runtime"
-    runtime_worker   = "zasp_runtime_worker_runtime"
-    outbox_worker    = "zasp_outbox_runtime"
-    runtime_gateway  = "zasp_gateway_runtime"
+    migration           = "zasp_migration"
+    api                 = "zasp_api_runtime"
+    discovery_worker    = "zasp_discovery_runtime"
+    runtime_ingest      = "zasp_ingest_runtime"
+    runtime_worker      = "zasp_runtime_worker_runtime"
+    outbox_worker       = "zasp_outbox_runtime"
+    runtime_gateway     = "zasp_gateway_runtime"
+    discovery_scheduler = "zasp_scheduler_runtime"
+    projection_risk     = "zasp_projection_risk_runtime"
+    projection_graph    = "zasp_projection_graph_runtime"
+    projection_search   = "zasp_projection_search_runtime"
   }
 
   validation {
-    condition = length(distinct(values(var.database_principals))) == 7 && alltrue([
+    condition = length(distinct(values(var.database_principals))) == 11 && alltrue([
       for principal in values(var.database_principals) : can(regex("^[a-z][a-z0-9_]{2,62}$", principal))
     ])
-    error_message = "database_principals must contain seven distinct bounded PostgreSQL login names."
+    error_message = "database_principals must contain eleven distinct bounded PostgreSQL login names."
   }
 }
 

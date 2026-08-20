@@ -47,7 +47,7 @@ export async function runReadOnlySynthetic({ origin, token, allowHTTPLoopback = 
 
 export async function verifyReleaseSources() {
   const builds = await inspectContainerBuilds();
-  if (builds.length !== 2 || builds.some((build) => !build.readOnlyCompatible || build.containsSecret)) throw new Error("container gate rejected");
+  if (builds.length !== 3 || builds.some((build) => !build.readOnlyCompatible || build.containsSecret)) throw new Error("container gate rejected");
 
   const canary = await source("deploy/staging/product/templates/canary.yaml");
   const monitoring = await source("deploy/staging/product/templates/monitoring.yaml");
@@ -78,13 +78,13 @@ export async function verifyReleaseSources() {
   }
 
   const sensitiveSources = await Promise.all([
-    source(".dockerignore"), source("deploy/production/api.Dockerfile"), source("deploy/production/web.Dockerfile"),
+    source(".dockerignore"), source("deploy/production/api.Dockerfile"), source("deploy/production/web.Dockerfile"), source("deploy/production/worker.Dockerfile"),
     source("deploy/staging/product/values.yaml"), source("deploy/staging/product/templates/secrets.yaml"), source("deploy/staging/product/templates/workloads.yaml"),
   ]);
   const combined = sensitiveSources.join("\n");
-  if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|AKIA[0-9A-Z]{16}|sk_live_[A-Za-z0-9]{16,}/.test(combined) || !sensitiveSources[0].includes(".env") || !sensitiveSources[4].includes("secretsmanager") || !sensitiveSources[5].includes("/var/run/secrets/zasp")) throw new Error("secret gate rejected");
+  if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|AKIA[0-9A-Z]{16}|sk_live_[A-Za-z0-9]{16,}/.test(combined) || !sensitiveSources[0].includes(".env") || !sensitiveSources[5].includes("secretsmanager") || !sensitiveSources[6].includes("/var/run/secrets/zasp")) throw new Error("secret gate rejected");
   const terraform = await source("deploy/staging/main.tf");
-  for (const contract of ["system:serviceaccount:agentsec:agentsec-api", "system:serviceaccount:agentsec:zasp-discovery-worker", "system:serviceaccount:agentsec:agentsec-migration", "system:serviceaccount:agentsec:agentsec-canary-secret-sync", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "canary-read-token", "token-reveal-key", "stytch-secret", "postgres-api-dsn", "postgres-worker-dsn", "postgres-migration-dsn"]) {
+  for (const contract of ["system:serviceaccount:agentsec:agentsec-api", "system:serviceaccount:agentsec:zasp-discovery-worker", "system:serviceaccount:agentsec:zasp-discovery-scheduler", "system:serviceaccount:agentsec:agentsec-migration", "system:serviceaccount:agentsec:agentsec-canary-secret-sync", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "canary-read-token", "token-reveal-key", "stytch-secret", "postgres-api-dsn", "postgres-worker-dsn", "postgres-scheduler-dsn", "postgres-migration-dsn"]) {
     if (!terraform.includes(contract)) throw new Error("secret identity gate rejected");
   }
 
@@ -92,7 +92,7 @@ export async function verifyReleaseSources() {
   const workflow = await source(".github/workflows/runnable-ui.yml");
   if (!workflow.includes("fetch-depth: 0") || !workflow.includes("github.com/zricethezav/gitleaks/v8@v8.30.1") || !workflow.includes("npm run production:release:gate")) throw new Error("required CI gate rejected");
 
-  const definitions = [await source("deploy/production/web.Dockerfile"), await source("deploy/production/api.Dockerfile")];
+  const definitions = [await source("deploy/production/web.Dockerfile"), await source("deploy/production/api.Dockerfile"), await source("deploy/production/worker.Dockerfile")];
   const imageReferences = new Set(definitions.flatMap((definition) => [...definition.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1])));
   if (imageReferences.size !== 3 || [...imageReferences].some((reference) => !/@sha256:[0-9a-f]{64}$/.test(reference))) throw new Error("image definition gate rejected");
 
@@ -101,7 +101,7 @@ export async function verifyReleaseSources() {
 
 async function goSourceSBOM() {
   const template = "{{with .Module}}{{.Path}}\t{{.Version}}\t{{.Dir}}{{end}}";
-  const { stdout } = await exec("go", ["list", "-deps", "-f", template, "./agentsec-api", "./agentsec-migrate", "./cmd/zasp-healthcheck"], { cwd: path.join(root, "services/platform"), encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+  const { stdout } = await exec("go", ["list", "-deps", "-f", template, "./agentsec-api", "./agentsec-migrate", "./agentsec-worker", "./cmd/zasp-healthcheck"], { cwd: path.join(root, "services/platform"), encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   const modules = new Map();
   for (const line of stdout.split("\n")) {
     if (!line) continue;

@@ -19,6 +19,15 @@ automountServiceAccountToken: false
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  name: {{ .Values.serviceAccounts.scheduler.name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    eks.amazonaws.com/role-arn: {{ required "serviceAccounts.scheduler.roleArn is required" .Values.serviceAccounts.scheduler.roleArn | quote }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
   name: {{ .Values.serviceAccounts.api.name }}
   labels: { app.kubernetes.io/part-of: zasp }
   annotations:

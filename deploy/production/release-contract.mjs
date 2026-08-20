@@ -12,7 +12,8 @@ const root = path.resolve(here, "../..");
 const digestPattern = /^[a-z0-9][a-z0-9./_-]*(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$/;
 const hostPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const namePattern = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
-const imageNames = Object.freeze(["web", "agentsecApi"]);
+const imageNames = Object.freeze(["web", "agentsecApi", "agentsecWorker"]);
+const discoveryKeys = Object.freeze(["parserVersion", "toolVersion"]);
 const connectorKeys = Object.freeze(["awsRegion", "roleArn", "awsCustomerRolePrefixes", "awsCustomerRoleARNs", "webIdentityTokenFile", "kmsKeyArn", "secretPrefix", "githubClientID", "githubClientSecretReference", "githubAppID", "githubPrivateKeyReference", "oktaClientID", "oktaClientSecretReference"]);
 const connectorEgressKeys = Object.freeze(["aws", "github", "okta", "kubernetes"]);
 
@@ -20,6 +21,7 @@ export async function inspectContainerBuilds() {
   const definitions = [
     { name: "web", file: "web.Dockerfile", port: 3000 },
     { name: "agentsec-api", file: "api.Dockerfile", port: 8080 },
+    { name: "agentsec-worker", file: "worker.Dockerfile", port: 8081 },
   ];
   return Promise.all(definitions.map(async ({ name, file, port }) => {
     const source = await readFile(path.join(here, file), "utf8");
@@ -45,11 +47,13 @@ export async function renderRelease(value) {
     ["serviceAccounts.api.roleArn", "arn:aws:iam::123456789012:role/zasp-production-api"],
     ["serviceAccounts.migration.roleArn", "arn:aws:iam::123456789012:role/zasp-production-migration"],
     ["serviceAccounts.worker.roleArn", "arn:aws:iam::123456789012:role/zasp-production-worker"],
+    ["serviceAccounts.scheduler.roleArn", "arn:aws:iam::123456789012:role/zasp-production-discovery-scheduler"],
     ["serviceAccounts.canarySecretSync.roleArn", "arn:aws:iam::123456789012:role/zasp-production-canary-sync"],
     ["ingress.host", value.host], ["ingress.tlsSecretName", value.tlsSecretName],
     ["secrets.providerClassName", value.secretProviderClass],
     ["secrets.apiPostgresDSNObjectName", "zasp/production/postgres-api-dsn"],
     ["secrets.workerPostgresDSNObjectName", "zasp/production/postgres-worker-dsn"],
+    ["secrets.schedulerPostgresDSNObjectName", "zasp/production/postgres-scheduler-dsn"],
     ["secrets.migrationPostgresDSNObjectName", "zasp/production/postgres-migration-dsn"],
     ["secrets.stytchProjectIDObjectName", "zasp/production/stytch-project-id"],
     ["secrets.stytchSecretObjectName", "zasp/production/stytch-secret"],
@@ -65,6 +69,12 @@ export async function renderRelease(value) {
     ["databasePrincipals.runtimeWorker", "zasp_runtime_worker_runtime"],
     ["databasePrincipals.outboxWorker", "zasp_outbox_runtime"],
     ["databasePrincipals.runtimeGateway", "zasp_gateway_runtime"],
+    ["databasePrincipals.discoveryScheduler", "zasp_scheduler_runtime"],
+    ["databasePrincipals.projectionRisk", "zasp_projection_risk_runtime"],
+    ["databasePrincipals.projectionGraph", "zasp_projection_graph_runtime"],
+    ["databasePrincipals.projectionSearch", "zasp_projection_search_runtime"],
+    ["discovery.parserVersion", value.discovery.parserVersion],
+    ["discovery.toolVersion", value.discovery.toolVersion],
     ["network.postgresCIDR", "10.30.0.0/24"], ["network.stytchCIDR", "10.40.0.0/24"],
     ["network.canaryCIDR", "10.60.0.0/24"],
     ["connectors.awsRegion", value.connectors.awsRegion],
@@ -102,10 +112,12 @@ export async function renderRelease(value) {
 }
 
 function validRelease(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
   if (!hostPattern.test(value.host) || !namePattern.test(value.tlsSecretName) || !namePattern.test(value.secretProviderClass)) return false;
   if (!value.images || typeof value.images !== "object" || Array.isArray(value.images) || Object.keys(value.images).sort().join("\0") !== [...imageNames].sort().join("\0")) return false;
   if (!imageNames.every((name) => digestPattern.test(value.images[name]))) return false;
+  if (!value.discovery || typeof value.discovery !== "object" || Array.isArray(value.discovery) || Object.keys(value.discovery).sort().join("\0") !== [...discoveryKeys].sort().join("\0")) return false;
+  if (!discoveryKeys.every((name) => /^[a-z][a-z0-9_.-]{1,63}$/.test(value.discovery[name])) || Object.values(value.discovery).some((version) => version === "parser-v1" || version === "tool-v1")) return false;
   if (!value.connectors || typeof value.connectors !== "object" || Array.isArray(value.connectors) || Object.keys(value.connectors).sort().join("\0") !== [...connectorKeys].sort().join("\0")) return false;
   const role = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-api-connectors$/.exec(value.connectors.roleArn);
   const kms = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.connectors.kmsKeyArn);
