@@ -104,15 +104,23 @@ func (stub connectorWorkflowStub) GetWorkflow(context.Context, domain.Scope, str
 }
 
 type connectorSecretStub struct {
-	reference string
-	material  OAuthSecretMaterial
-	taken     bool
-	deleted   []string
-	deleteErr error
+	reference     string
+	material      OAuthSecretMaterial
+	taken         bool
+	deleted       []string
+	deleteErr     error
+	acquireErr    error
+	beforeAcquire func()
 }
 
 func (stub *connectorSecretStub) Acquire(_ context.Context, reference string, candidate OAuthSecretMaterial, _ time.Time) (OAuthSecretMaterial, error) {
+	if stub.beforeAcquire != nil {
+		stub.beforeAcquire()
+	}
 	stub.reference = reference
+	if stub.acquireErr != nil {
+		return OAuthSecretMaterial{}, stub.acquireErr
+	}
 	if stub.material.State == "" {
 		stub.material = candidate
 	}
@@ -130,7 +138,7 @@ func (stub *connectorSecretStub) Delete(_ context.Context, reference string) err
 	return stub.deleteErr
 }
 
-func TestConnectorAuthorizeCleansPKCEAfterRejectedStart(t *testing.T) {
+func TestConnectorAuthorizeActivatesDurablePKCECleanupAfterRejectedStart(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	identity.CredentialKind = CredentialBrowserSession
 	integrationID := "pid_70000001-0000-4000-8000-000000000001"
@@ -148,8 +156,36 @@ func TestConnectorAuthorizeCleansPKCEAfterRejectedStart(t *testing.T) {
 	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "authorizeIntegration", PathParameters: map[string]string{"id": integrationID}}))
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusConflict || len(secrets.deleted) != 1 || secrets.deleted[0] != repository.started.PKCEVerifierReference {
+	if response.Code != http.StatusConflict || secrets.reference == "" || len(repository.staged) != 1 || repository.activatedID == "" || len(secrets.deleted) != 0 {
 		t.Fatalf("rejected start cleanup status=%d deleted=%#v started=%#v", response.Code, secrets.deleted, repository.started)
+	}
+}
+
+func TestConnectorAuthorizeDurablyStagesCleanupBeforeCreatingPKCE(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	integrationID := "pid_70000001-0000-4000-8000-000000000001"
+	repository := &connectorAuthorizationStub{}
+	secrets := &connectorSecretStub{acquireErr: ErrRepositoryUnavailable}
+	secrets.beforeAcquire = func() {
+		if len(repository.staged) != 1 || repository.staged[0].OAuthAttemptID != "" || repository.started.AttemptID != "" {
+			t.Fatal("PKCE secret creation preceded its independent durable cleanup intent")
+		}
+	}
+	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: connectorWorkflowValue(integrationID, "github")}, Secrets: secrets, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: &connectorProviderStub{}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "https://app.zasp.test/api/v1/integrations/"+integrationID+"/authorize", strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Idempotency-Key", "oauth-durable-pkce-0001")
+	request.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "browser-session-token-0001"})
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "authorizeIntegration", PathParameters: map[string]string{"id": integrationID}}))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusServiceUnavailable || repository.activatedID == "" || repository.started.AttemptID != "" {
+		t.Fatalf("secret failure status=%d cleanup=%q", response.Code, repository.activatedID)
 	}
 }
 
@@ -172,7 +208,7 @@ func TestConnectorAuthorizeActivatesAtomicPKCECleanupWhenProviderURLFails(t *tes
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	wantCleanupID := connectorDeterministicID(identity.Scope, repository.started.AttemptID, "pkce-cleanup")
-	if response.Code != http.StatusServiceUnavailable || repository.activatedID != wantCleanupID || len(repository.staged) != 0 {
+	if response.Code != http.StatusServiceUnavailable || repository.activatedID != wantCleanupID || len(repository.staged) != 1 {
 		t.Fatalf("authorization URL failure status=%d activated=%q want=%q staged=%#v", response.Code, repository.activatedID, wantCleanupID, repository.staged)
 	}
 }

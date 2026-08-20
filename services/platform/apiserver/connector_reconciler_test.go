@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -28,8 +29,9 @@ func (*connectorConcurrentRepositoryStub) CompleteOAuthReconciliation(context.Co
 func (*connectorConcurrentRepositoryStub) CompleteConnectorCleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
 	return ConnectorEffectTransition{}, nil
 }
-func (*connectorConcurrentRepositoryStub) CompletePKCECleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
-	return ConnectorEffectTransition{}, nil
+func (stub *connectorConcurrentRepositoryStub) CompletePKCECleanupReconciliation(_ context.Context, lease ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	stub.completed <- lease.ID
+	return ConnectorEffectTransition{ID: lease.ID, Status: "reconciled", Attempt: lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
 }
 func (*connectorConcurrentRepositoryStub) QuarantineConnectorReconciliation(context.Context, ConnectorEffectLease, string) (ConnectorEffectTransition, error) {
 	return ConnectorEffectTransition{}, nil
@@ -76,28 +78,38 @@ func (provider *connectorDelayedRevocationProvider) Revoke(ctx context.Context, 
 }
 
 type connectorReconciliationRepositoryStub struct {
-	mu            sync.Mutex
-	lease         ConnectorEffectLease
-	leases        []ConnectorEffectLease
-	completed     OAuthCompletion
-	completeCount int
-	revoked       bool
-	failedCode    string
-	cleanupCount  int
-	quarantined   string
-	claimCount    int
+	mu               sync.Mutex
+	lease            ConnectorEffectLease
+	leases           []ConnectorEffectLease
+	completed        OAuthCompletion
+	completeCount    int
+	revoked          bool
+	failedCode       string
+	cleanupCount     int
+	quarantined      string
+	claimCount       int
+	completeOAuthErr error
+	cleanupErr       error
+	pkceCleanupErr   error
+	revocationErr    error
 }
 
 func (stub *connectorReconciliationRepositoryStub) CompleteConnectorCleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
 	stub.mu.Lock()
 	defer stub.mu.Unlock()
 	stub.cleanupCount++
+	if stub.cleanupErr != nil {
+		return ConnectorEffectTransition{}, stub.cleanupErr
+	}
 	return ConnectorEffectTransition{ID: stub.lease.ID, Status: "reconciled", Attempt: stub.lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
 }
 func (stub *connectorReconciliationRepositoryStub) CompletePKCECleanupReconciliation(_ context.Context, lease ConnectorEffectLease) (ConnectorEffectTransition, error) {
 	stub.mu.Lock()
 	defer stub.mu.Unlock()
 	stub.cleanupCount++
+	if stub.pkceCleanupErr != nil {
+		return ConnectorEffectTransition{}, stub.pkceCleanupErr
+	}
 	return ConnectorEffectTransition{ID: lease.ID, Status: "reconciled", Attempt: lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
 }
 func (stub *connectorReconciliationRepositoryStub) QuarantineConnectorReconciliation(_ context.Context, _ ConnectorEffectLease, code string) (ConnectorEffectTransition, error) {
@@ -111,6 +123,9 @@ func (stub *connectorReconciliationRepositoryStub) CompleteConnectorRevocation(c
 	stub.mu.Lock()
 	defer stub.mu.Unlock()
 	stub.revoked = true
+	if stub.revocationErr != nil {
+		return ConnectorEffectTransition{}, stub.revocationErr
+	}
 	return ConnectorEffectTransition{ID: stub.lease.ID, Status: "reconciled", Attempt: stub.lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
 }
 
@@ -149,6 +164,9 @@ func (stub *connectorReconciliationRepositoryStub) CompleteOAuthReconciliation(_
 	defer stub.mu.Unlock()
 	stub.completed = completion
 	stub.completeCount++
+	if stub.completeOAuthErr != nil {
+		return OAuthCompletionRecord{}, stub.completeOAuthErr
+	}
 	return OAuthCompletionRecord{AttemptID: completion.AttemptID, ConnectionID: completion.ConnectionID, Status: "succeeded", CompletedAt: time.Now().UTC()}, nil
 }
 func (stub *connectorReconciliationRepositoryStub) FailConnectorReconciliation(_ context.Context, _ ConnectorEffectLease, code string) (ConnectorEffectTransition, error) {
@@ -296,6 +314,68 @@ func TestConnectorReconcilerQuarantinesFinalAttemptCleanupAndRevocationFailures(
 	}
 }
 
+func TestConnectorReconcilerQuarantinesEveryFinalAttemptFinalizationFailure(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_70000001-0000-4000-8000-000000000001"
+	attemptID := "pid_70000002-0000-4000-8000-000000000002"
+	workflow := connectorWorkflowValue(integrationID, "github")
+	digest := connectorAuthorizationIntentDigestValues(identity.Scope, identity.PrincipalID.String(), workflow, integrationID, attemptID, "github", map[string]string{}, []string{"read:org", "repo"})
+	base := ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: "pid_70000003-0000-4000-8000-000000000003", IntegrationID: integrationID, OAuthAttemptID: attemptID, PrincipalID: identity.PrincipalID.String(), RequestedScopes: []string{"read:org", "repo"}, Provider: "github", Operation: "authorize", IdempotencyKey: "oauth-authorize:" + attemptID, RequestDigest: hex.EncodeToString(digest[:]), Attempt: 100, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute)}
+	grant := ConnectorOAuthGrant{ConnectionReference: "ref:github/installation/123456", ProviderSubject: "installation:123456", CredentialClass: "github_installation_reference", Metadata: json.RawMessage(`{"installation_id":123456}`)}
+	run := func(t *testing.T, repository *connectorReconciliationRepositoryStub, provider ConnectorOAuthProvider, lease ConnectorEffectLease, workflow WorkflowValue, want string) {
+		t.Helper()
+		repository.lease = lease
+		registry, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		reconciler, err := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 10, Interval: time.Second})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := reconciler.reconcileOnce(context.Background()); err != nil || repository.quarantined != want {
+			t.Fatalf("finalization err=%v quarantine=%q want=%q", err, repository.quarantined, want)
+		}
+	}
+
+	t.Run("oauth completion", func(t *testing.T) {
+		repository := &connectorReconciliationRepositoryStub{completeOAuthErr: errors.New("completion unavailable")}
+		run(t, repository, &connectorRecoveryProvider{grant: grant}, base, workflow, "provider_outcome_ambiguous")
+	})
+	t.Run("post completion discard", func(t *testing.T) {
+		repository := &connectorReconciliationRepositoryStub{}
+		provider := &connectorRecoveryProviderWithDiscardError{connectorRecoveryProvider: &connectorRecoveryProvider{grant: grant}, discardErr: errors.New("discard unavailable")}
+		run(t, repository, provider, base, workflow, "provider_cleanup_ambiguous")
+	})
+	t.Run("cleanup completion", func(t *testing.T) {
+		lease := base
+		lease.LastErrorCode = "cleanup_pending"
+		lease.ConnectionReference = grant.ConnectionReference
+		repository := &connectorReconciliationRepositoryStub{cleanupErr: errors.New("cleanup completion unavailable")}
+		run(t, repository, &connectorRecoveryProvider{}, lease, workflow, "provider_cleanup_ambiguous")
+	})
+	t.Run("revocation completion", func(t *testing.T) {
+		lease := base
+		lease.OAuthAttemptID = ""
+		lease.Operation = "revoke"
+		lease.ConnectionReference = grant.ConnectionReference
+		var body map[string]any
+		_ = json.Unmarshal(workflow.Body, &body)
+		body["status"] = "revoking"
+		revoking := workflow
+		revoking.Body, _ = json.Marshal(body)
+		repository := &connectorReconciliationRepositoryStub{revocationErr: errors.New("revocation completion unavailable")}
+		run(t, repository, &connectorRecoveryProvider{}, lease, revoking, "provider_revocation_ambiguous")
+	})
+	t.Run("PKCE cleanup completion", func(t *testing.T) {
+		lease := base
+		lease.Operation = "pkce_cleanup"
+		lease.ConnectionReference = "ref:oauth/pkce/70000002-0000-4000-8000-000000000002"
+		repository := &connectorReconciliationRepositoryStub{pkceCleanupErr: errors.New("PKCE completion unavailable")}
+		run(t, repository, &connectorRecoveryProvider{}, lease, workflow, "pkce_cleanup_ambiguous")
+	})
+}
+
 type connectorRecoveryProviderWithDiscardError struct {
 	*connectorRecoveryProvider
 	discardErr error
@@ -360,10 +440,18 @@ func TestConnectorReconcilerProcessesSlowProvidersWithoutStarvingOtherLeases(t *
 	lease := func(id, integrationID, provider, reference string) ConnectorEffectLease {
 		return ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: id, IntegrationID: integrationID, Provider: provider, Operation: "revoke", IdempotencyKey: "delete-" + id, RequestDigest: hex.EncodeToString(make([]byte, sha256.Size)), ConnectionReference: reference, Attempt: 1, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute)}
 	}
-	repository := &connectorConcurrentRepositoryStub{leases: []ConnectorEffectLease{
-		lease("pid_70000003-0000-4000-8000-000000000003", githubID, "github", "ref:github/installation/123456"),
-		lease("pid_70000004-0000-4000-8000-000000000004", oktaID, "okta", "ref:okta/refresh/70000004-0000-4000-8000-000000000004"),
-	}, completed: make(chan string, 2)}
+	leases := make([]ConnectorEffectLease, 0, 10)
+	for ordinal := 3; ordinal <= 10; ordinal++ {
+		id := fmt.Sprintf("pid_700000%02d-0000-4000-8000-%012d", ordinal, ordinal)
+		leases = append(leases, lease(id, githubID, "github", "ref:github/installation/123456"))
+	}
+	oktaEffectID := "pid_70000011-0000-4000-8000-000000000011"
+	pkceEffectID := "pid_70000012-0000-4000-8000-000000000012"
+	leases = append(leases,
+		lease(oktaEffectID, oktaID, "okta", "ref:okta/refresh/70000004-0000-4000-8000-000000000004"),
+		ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: pkceEffectID, IntegrationID: githubID, Provider: "github", Operation: "pkce_cleanup", IdempotencyKey: "pkce-cleanup:" + pkceEffectID, RequestDigest: hex.EncodeToString(make([]byte, sha256.Size)), ConnectionReference: "ref:oauth/pkce/70000012-0000-4000-8000-000000000012", Attempt: 1, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute)},
+	)
+	repository := &connectorConcurrentRepositoryStub{leases: leases, completed: make(chan string, len(leases))}
 	registry, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{
 		"github": {Provider: &connectorDelayedRevocationProvider{delay: 250 * time.Millisecond}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"},
 		"okta":   {Provider: &connectorDelayedRevocationProvider{}, RequestedScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, CredentialClass: "okta_refresh_reference"},
@@ -377,13 +465,17 @@ func TestConnectorReconcilerProcessesSlowProvidersWithoutStarvingOtherLeases(t *
 	}
 	done := make(chan error, 1)
 	go func() { done <- reconciler.reconcileOnce(context.Background()) }()
-	select {
-	case completed := <-repository.completed:
-		if completed != "pid_70000004-0000-4000-8000-000000000004" {
-			t.Fatalf("slow provider completed before fast provider: %s", completed)
+	quick := map[string]bool{}
+	deadline := time.After(100 * time.Millisecond)
+	for len(quick) < 2 {
+		select {
+		case completed := <-repository.completed:
+			if completed == oktaEffectID || completed == pkceEffectID {
+				quick[completed] = true
+			}
+		case <-deadline:
+			t.Fatalf("Okta/PKCE lanes starved behind saturated GitHub leases: completed=%v", quick)
 		}
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("fast Okta reconciliation was starved behind slow GitHub reconciliation")
 	}
 	if err := <-done; err != nil {
 		t.Fatal(err)

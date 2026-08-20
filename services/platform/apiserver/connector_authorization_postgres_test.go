@@ -639,6 +639,74 @@ func TestConnectorAuthorizationPostgresStartAtomicallyStagesAndExpiresPKCECleanu
 	}
 }
 
+func TestConnectorAuthorizationPostgresConsumedAttemptCannotBeExpiredByPKCECleanup(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToConnectorAuthorization(t, ctx, connection)
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	workflows, _ := NewPostgresRepository(database)
+	connectors := &ConnectorRepository{database: database}
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_72200001-0000-4000-8000-000000000001"
+	create := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: "idem-atomic-pkce-create-0002", Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"GitHub Recovery","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: "pid_72300002-0000-4000-8000-000000000002", CorrelationID: "pid_72300003-0000-4000-8000-000000000003", ReceiptID: "pid_72300004-0000-4000-8000-000000000004"}
+	if _, err := workflows.MutateWorkflow(ctx, identity, create); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("consuming-pkce"))
+	attemptID := "pid_72200015-0000-4000-8000-000000000015"
+	start := OAuthStart{AttemptID: attemptID, IntegrationID: integrationID, Provider: "github", PKCEVerifierReference: "ref:oauth/pkce/consuming-recovery", SessionDigest: digest[:], StateDigest: digest[:], RequestDigest: digest[:], RequestedScopes: []string{"read:org"}, ExpiresAt: time.Now().UTC().Add(5 * time.Minute).Truncate(time.Microsecond), IntegrationVersion: 1, Configuration: json.RawMessage(`{"authorization_mode":"github_app"}`)}
+	cleanupID := connectorDeterministicID(identity.Scope, attemptID, "pkce-cleanup")
+	if _, err := connectors.StagePKCECleanup(ctx, identity.Scope, PKCECleanupStage{ID: cleanupID, IntegrationID: integrationID, Provider: "github", Reference: start.PKCEVerifierReference, RequestDigest: digest[:], AvailableAt: start.ExpiresAt, Reason: "oauth_attempt_expiry"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connectors.StartOAuth(ctx, identity, start); err != nil {
+		t.Fatal(err)
+	}
+	if record, err := connectors.StartOAuth(ctx, identity, start); err != nil || !record.ExpiresAt.Equal(start.ExpiresAt) {
+		t.Fatalf("durable-before-secret replay = %#v, %v", record, err)
+	}
+	consumption, err := connectors.ConsumeOAuth(ctx, identity, digest[:], digest[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET available_at=transaction_timestamp()-interval '1 second',updated_at=transaction_timestamp()-interval '16 seconds' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), cleanupID); err != nil {
+		t.Fatal(err)
+	}
+	leases, err := connectors.ClaimReconciliation(ctx, "connector-worker-consuming", 30, 10)
+	if err != nil || len(leases) != 0 {
+		t.Fatalf("consuming attempt exposed PKCE cleanup lease = %#v, %v", leases, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET attempt=99,updated_at=transaction_timestamp()-interval '16 seconds' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), consumption.EffectID); err != nil {
+		t.Fatal(err)
+	}
+	leases, err = connectors.ClaimReconciliation(ctx, "connector-worker-recovery", 30, 10)
+	if err != nil || len(leases) != 1 || leases[0].ID != consumption.EffectID || leases[0].Attempt != 100 {
+		t.Fatalf("authorize recovery lease = %#v, %v", leases, err)
+	}
+	completion := OAuthCompletion{AttemptID: attemptID, EffectID: consumption.EffectID, ConnectionID: "pid_72200016-0000-4000-8000-000000000016", ConnectionReference: "ref:github/installation/723000", ProviderSubject: "installation:723000", CredentialID: "pid_72200017-0000-4000-8000-000000000017", CredentialClass: "github_installation_reference", Metadata: json.RawMessage(`{"installation_id":723000}`)}
+	if _, err := connectors.CompleteOAuthReconciliation(ctx, leases[0], completion); err != nil {
+		t.Fatal(err)
+	}
+	var retainedOwner, retainedToken string
+	var retainedExpiry time.Time
+	if err := connection.QueryRow(ctx, `SELECT lease_owner,lease_token,lease_expires_at FROM zasp_connector_effects WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), consumption.EffectID).Scan(&retainedOwner, &retainedToken, &retainedExpiry); err != nil || retainedOwner != leases[0].LeaseOwner || retainedToken != leases[0].LeaseToken || !retainedExpiry.Equal(leases[0].LeaseExpiresAt) {
+		t.Fatalf("completion did not retain finalization lease owner=%q token=%q expiry=%s err=%v", retainedOwner, retainedToken, retainedExpiry, err)
+	}
+	if _, err := connectors.CompleteConnectorCleanupReconciliation(ctx, leases[0]); err != nil {
+		t.Fatal(err)
+	}
+	var attemptStatus, cleanupStatus string
+	if err := connection.QueryRow(ctx, `SELECT a.status,c.status FROM zasp_connector_oauth_attempts a JOIN zasp_connector_effects c ON (c.organization_id,c.workspace_id,c.environment_id,c.oauth_attempt_id)=(a.organization_id,a.workspace_id,a.environment_id,a.id) AND c.operation='pkce_cleanup' WHERE a.organization_id=$1 AND a.workspace_id=$2 AND a.environment_id=$3 AND a.id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), attemptID).Scan(&attemptStatus, &cleanupStatus); err != nil || attemptStatus != "succeeded" || cleanupStatus != "unknown" {
+		t.Fatalf("recovered attempt=%q cleanup=%q err=%v", attemptStatus, cleanupStatus, err)
+	}
+}
+
 func TestConnectorAuthorizationPostgresCompletionRejectsChangedStoredIntentAtomically(t *testing.T) {
 	dsn := startDisposablePostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
@@ -836,6 +904,21 @@ func TestConnectorAuthorizationPostgresWorkerHasOnlyLeasedTransitionAuthority(t 
 	}
 	if !claim || !leasedCompletion || unleasedResolution || unleasedCompletion {
 		t.Fatalf("worker authority claim=%t leased=%t resolve=%t complete=%t", claim, leasedCompletion, unleasedResolution, unleasedCompletion)
+	}
+	if _, err := connection.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
+		t.Fatal(err)
+	}
+	var unusedBegin, unusedPut bool
+	if err := connection.QueryRow(ctx, `SELECT
+		has_function_privilege(current_user,'zasp_connector_begin_effect(text,text,text,text,text,text,text,text,text,bytea)','EXECUTE'),
+		has_function_privilege(current_user,'zasp_connector_put_credential(text,text,text,text,text,text,text,text,bigint,jsonb)','EXECUTE')`).Scan(&unusedBegin, &unusedPut); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `RESET ROLE`); err != nil {
+		t.Fatal(err)
+	}
+	if unusedBegin || unusedPut {
+		t.Fatalf("API retained unused direct authority begin=%t put=%t", unusedBegin, unusedPut)
 	}
 	var ready bool
 	if err := connection.QueryRow(ctx, `SELECT zasp_connector_security_ready()`).Scan(&ready); err != nil || !ready {

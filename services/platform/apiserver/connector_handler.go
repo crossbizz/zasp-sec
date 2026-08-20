@@ -218,28 +218,35 @@ func (handler *connectorHTTPHandler) authorize(writer http.ResponseWriter, reque
 	}
 	expiresAt := handler.now().UTC().Add(10 * time.Minute)
 	reference := "ref:oauth/pkce/" + strings.TrimPrefix(attemptID, "pid_")
-	material, err := handler.secrets.Acquire(request.Context(), reference, OAuthSecretMaterial{State: state, Verifier: []byte(verifier), ExpiresAt: expiresAt}, expiresAt)
-	if err != nil || !connectorOAuthValuePattern.MatchString(material.State) || !connectorPKCEVerifier(material.Verifier) || !material.ExpiresAt.After(handler.now()) || material.ExpiresAt.After(expiresAt.Add(time.Second)) {
-		writeProductionError(writer, request, ErrRepositoryUnavailable)
-		return
-	}
 	sessionDigest := sha256.Sum256([]byte(cookie.Value))
-	stateDigest := sha256.Sum256([]byte(material.State))
 	requestDigest := connectorAuthorizationIntentDigest(identity, workflow, integrationID, attemptID, providerKey, providerConfiguration, definition.RequestedScopes)
 	configurationJSON, configurationErr := json.Marshal(providerConfiguration)
 	if configurationErr != nil {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
+	cleanupID := connectorDeterministicID(identity.Scope, attemptID, "pkce-cleanup")
+	if _, err := handler.repository.StagePKCECleanup(request.Context(), identity.Scope, PKCECleanupStage{ID: cleanupID, IntegrationID: integrationID, Provider: providerKey, Reference: reference, RequestDigest: requestDigest[:], AvailableAt: expiresAt, Reason: "oauth_attempt_expiry"}); err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	material, err := handler.secrets.Acquire(request.Context(), reference, OAuthSecretMaterial{State: state, Verifier: []byte(verifier), ExpiresAt: expiresAt}, expiresAt)
+	if err != nil || !connectorOAuthValuePattern.MatchString(material.State) || !connectorPKCEVerifier(material.Verifier) || !material.ExpiresAt.After(handler.now()) || material.ExpiresAt.After(expiresAt.Add(time.Second)) {
+		if _, activateErr := handler.repository.ActivatePKCECleanup(request.Context(), identity.Scope, cleanupID); activateErr != nil {
+			writeProductionError(writer, request, activateErr)
+			return
+		}
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	stateDigest := sha256.Sum256([]byte(material.State))
 	attempt, err := handler.repository.StartOAuth(request.Context(), identity, OAuthStart{
 		AttemptID: attemptID, IntegrationID: integrationID, Provider: providerKey, SessionDigest: sessionDigest[:], StateDigest: stateDigest[:], PKCEVerifierReference: reference,
 		RequestDigest: requestDigest[:], RequestedScopes: definition.RequestedScopes, ExpiresAt: material.ExpiresAt.UTC(), IntegrationVersion: workflow.Version, Configuration: configurationJSON,
 	})
-	cleanupID := connectorDeterministicID(identity.Scope, attemptID, "pkce-cleanup")
 	if err != nil {
-		if cleanupErr := handler.secrets.Delete(request.Context(), reference); cleanupErr != nil {
-			_, _ = handler.repository.StagePKCECleanup(request.Context(), identity.Scope, PKCECleanupStage{ID: cleanupID, IntegrationID: integrationID, Provider: providerKey, Reference: reference, RequestDigest: requestDigest[:], AvailableAt: handler.now().UTC(), Reason: "oauth_start_rejected"})
-			writeProductionError(writer, request, ErrRepositoryUnavailable)
+		if _, activateErr := handler.repository.ActivatePKCECleanup(request.Context(), identity.Scope, cleanupID); activateErr != nil {
+			writeProductionError(writer, request, activateErr)
 			return
 		}
 		writeProductionError(writer, request, err)

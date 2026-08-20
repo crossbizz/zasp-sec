@@ -103,23 +103,27 @@ func (reconciler *ConnectorReconciler) reconcileBatch(ctx context.Context) (bool
 	if len(leases) == 0 {
 		return true, nil
 	}
-	workerCount := min(len(leases), 8)
-	jobs := make(chan ConnectorEffectLease)
+	lanes := make(map[string][]ConnectorEffectLease, 4)
+	for _, lease := range leases {
+		lane := lease.Provider
+		if lease.Operation == "pkce_cleanup" {
+			lane = "pkce_cleanup"
+		} else if lane != "github" && lane != "okta" {
+			lane = "nango"
+		}
+		lanes[lane] = append(lanes[lane], lease)
+	}
 	results := make(chan error, len(leases))
 	var workers sync.WaitGroup
-	workers.Add(workerCount)
-	for range workerCount {
-		go func() {
+	workers.Add(len(lanes))
+	for _, lane := range lanes {
+		go func(items []ConnectorEffectLease) {
 			defer workers.Done()
-			for lease := range jobs {
+			for _, lease := range items {
 				results <- reconciler.reconcileLease(ctx, lease)
 			}
-		}()
+		}(lane)
 	}
-	for _, lease := range leases {
-		jobs <- lease
-	}
-	close(jobs)
 	workers.Wait()
 	close(results)
 	var result error
@@ -156,7 +160,7 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 			return err
 		}
 		_, err := reconciler.repository.CompletePKCECleanupReconciliation(finalizationContext, lease)
-		return err
+		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "pkce_cleanup_ambiguous", err)
 	}
 	if lease.Operation == "revoke" {
 		return reconciler.reconcileRevocation(providerContext, finalizationContext, lease)
@@ -174,7 +178,7 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	if lease.LastErrorCode == "cleanup_pending" {
 		provider, providerErr := connectorOAuthProvider(definition, configuration)
 		if err != nil || !valid || !ready || providerKey != lease.Provider || providerErr != nil {
-			return ErrRepositoryUnavailable
+			return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", ErrRepositoryUnavailable)
 		}
 		if err := provider.Discard(providerContext, lease.ID, false); err != nil {
 			if lease.Attempt >= 100 {
@@ -184,7 +188,7 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 			return err
 		}
 		_, err = reconciler.repository.CompleteConnectorCleanupReconciliation(finalizationContext, lease)
-		return err
+		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", err)
 	}
 	if err != nil || !valid || !ready || providerKey != lease.Provider || !equalStringSet(definition.RequestedScopes, lease.RequestedScopes) {
 		return reconciler.failAfterCleanup(providerContext, finalizationContext, lease, nil, "authorization_intent_changed")
@@ -214,13 +218,13 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	}
 	completion := OAuthCompletion{AttemptID: lease.OAuthAttemptID, EffectID: lease.ID, ConnectionID: connectorDeterministicID(scope, lease.OAuthAttemptID, "connection"), ConnectionReference: grant.ConnectionReference, ProviderSubject: grant.ProviderSubject, CredentialID: connectorDeterministicID(scope, lease.OAuthAttemptID, "credential"), CredentialClass: grant.CredentialClass, Metadata: grant.Metadata}
 	if _, err := reconciler.repository.CompleteOAuthReconciliation(finalizationContext, lease, completion); err != nil {
-		return err
+		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_outcome_ambiguous", err)
 	}
 	if err := provider.Discard(providerContext, lease.ID, false); err != nil {
-		return err
+		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", err)
 	}
 	_, err = reconciler.repository.CompleteConnectorCleanupReconciliation(finalizationContext, lease)
-	return err
+	return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", err)
 }
 
 func (reconciler *ConnectorReconciler) reconcileRevocation(providerContext, finalizationContext context.Context, lease ConnectorEffectLease) error {
@@ -247,7 +251,7 @@ func (reconciler *ConnectorReconciler) reconcileRevocation(providerContext, fina
 		return err
 	}
 	_, err = reconciler.repository.CompleteConnectorRevocation(finalizationContext, lease)
-	return err
+	return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_revocation_ambiguous", err)
 }
 
 func (reconciler *ConnectorReconciler) failAfterCleanup(providerContext, finalizationContext context.Context, lease ConnectorEffectLease, provider ConnectorOAuthProvider, reason string) error {
@@ -263,10 +267,18 @@ func (reconciler *ConnectorReconciler) failAfterCleanup(providerContext, finaliz
 	}
 	if provider != nil {
 		if err := provider.Discard(providerContext, lease.ID, true); err != nil {
-			return err
+			return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", err)
 		}
 	}
 	_, err := reconciler.repository.FailConnectorReconciliation(finalizationContext, lease, reason)
+	return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_outcome_ambiguous", err)
+}
+
+func (reconciler *ConnectorReconciler) quarantineFinalAttempt(ctx context.Context, lease ConnectorEffectLease, code string, cause error) error {
+	if cause == nil || lease.Attempt < 100 {
+		return cause
+	}
+	_, err := reconciler.repository.QuarantineConnectorReconciliation(ctx, lease, code)
 	return err
 }
 
