@@ -54,6 +54,41 @@ func TestProductionIngestDerivesScopeAndCommitsArtifactBeforeAcceptance(t *testi
 	}
 }
 
+func TestProductionIngestMetadataOnlyArchivesCanonicalFilteredEvents(t *testing.T) {
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	scope := fixtureScope(t, 70)
+	repository := &productionIngestRepositoryStub{authority: IngestAuthority{Scope: scope, SensorID: fixtureID(t, 73), TokenID: fixtureID(t, 74), TokenGeneration: 2, Source: "tetragon", Mode: "metadata_only"}}
+	artifacts := &productionRawArtifactStub{}
+	handler, err := NewProductionIngestHandler(ProductionIngestConfig{Repository: repository, Artifacts: artifacts, MaximumBytes: 1 << 20, Clock: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := bytes.Replace(productionEventBody(now), []byte(`"binary":"agent"`), []byte(`"binary":"secret-runtime-token"`), 1)
+	request := httptest.NewRequest(http.MethodPost, "/internal/v1/runtime/events", bytes.NewReader(body))
+	request.Header.Set("Authorization", "Bearer "+productionSensorToken(t))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Zasp-Runtime-Schema", "runtime-event-v1")
+	request.Header.Set("Idempotency-Key", "runtime-event-request-metadata-0001")
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("response=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if bytes.Contains(artifacts.put.Body, []byte("secret-runtime-token")) || bytes.Equal(artifacts.put.Body, body) {
+		t.Fatalf("metadata-only artifact retained caller content: %s", artifacts.put.Body)
+	}
+	archived, decodeErr := DecodeArchivedBatch(scope, artifacts.put.Body)
+	if decodeErr != nil || len(archived.Records) != 1 || len(archived.Records[0].Content) != 0 {
+		t.Fatalf("archived=%#v err=%v body=%s", archived, decodeErr, artifacts.put.Body)
+	}
+	digest := sha256.Sum256(artifacts.put.Body)
+	if repository.reserved.ContentDigest != digest || artifacts.put.ContentDigest != digest || repository.reserved.PayloadSize != int64(len(artifacts.put.Body)) {
+		t.Fatalf("reserve=%#v artifact=%#v", repository.reserved, artifacts.put)
+	}
+}
+
 func TestProductionIngestRejectsCallerScopeAndHostileTransportBeforeAuthority(t *testing.T) {
 	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
 	for _, test := range []struct {

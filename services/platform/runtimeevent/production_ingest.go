@@ -187,27 +187,28 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 		return
 	}
 	defer clear(body)
-	input, err := decodeProductionInput(body, authority, handler.config.Clock())
-	if err != nil {
+	input, archivedBody, err := decodeProductionInput(body, authority, handler.config.Clock())
+	if err != nil || int64(len(archivedBody)) > handler.config.MaximumBytes {
 		writeProductionIngestError(writer, http.StatusBadRequest, false)
 		return
 	}
-	digest := sha256.Sum256(body)
+	defer clear(archivedBody)
+	digest := sha256.Sum256(archivedBody)
 	idempotencyKey := request.Header.Get("Idempotency-Key")
 	batchID, err := deterministicID(authority.SensorID.String() + "\x00runtime-batch\x00" + idempotencyKey + "\x00" + hex.EncodeToString(digest[:]))
 	if err != nil {
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
 		return
 	}
-	reservation, err := safeProductionReserve(ctx, handler.config.Repository, credential, IngestReserveRequest{Scope: authority.Scope, BatchID: batchID, IdempotencyKey: idempotencyKey, ContentDigest: digest, Source: input.Source, MediaType: "application/json", SchemaVersion: productionRuntimeSchema, PayloadSize: int64(len(body)), EventCount: len(input.Events)})
+	reservation, err := safeProductionReserve(ctx, handler.config.Repository, credential, IngestReserveRequest{Scope: authority.Scope, BatchID: batchID, IdempotencyKey: idempotencyKey, ContentDigest: digest, Source: input.Source, MediaType: "application/json", SchemaVersion: productionRuntimeSchema, PayloadSize: int64(len(archivedBody)), EventCount: len(input.Events)})
 	if err != nil || !validReservation(reservation, batchID) {
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
 		return
 	}
-	rawRequest := RawArtifactPut{Scope: authority.Scope, Key: reservation.ArtifactKey, MediaType: "application/json", Body: bytes.Clone(body), ContentDigest: digest}
+	rawRequest := RawArtifactPut{Scope: authority.Scope, Key: reservation.ArtifactKey, MediaType: "application/json", Body: bytes.Clone(archivedBody), ContentDigest: digest}
 	artifact, err := safeProductionArtifactPut(ctx, handler.config.Artifacts, rawRequest)
 	clear(rawRequest.Body)
-	if err != nil || !validRawArtifact(artifact, authority.Scope, reservation.ArtifactKey, digest, int64(len(body))) {
+	if err != nil || !validRawArtifact(artifact, authority.Scope, reservation.ArtifactKey, digest, int64(len(archivedBody))) {
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
 		return
 	}
@@ -247,23 +248,58 @@ func productionIngestCredential(header http.Header) (*sensor.TokenCredential, er
 	return sensor.ParseTokenCredential(strings.TrimPrefix(values[0], "Bearer "))
 }
 
-func decodeProductionInput(body []byte, authority IngestAuthority, now time.Time) (ingestInput, error) {
+func decodeProductionInput(body []byte, authority IngestAuthority, now time.Time) (ingestInput, []byte, error) {
 	var input ingestInput
 	decoder := json.NewDecoder(bytes.NewReader(body))
 	decoder.DisallowUnknownFields()
 	if !utf8.Valid(body) || !uniqueProductionJSON(body) || decoder.Decode(&input) != nil || decoder.Decode(&struct{}{}) != io.EOF || input.Source != authority.Source || len(input.Events) == 0 || len(input.Events) > maximumProductionEvents || now.IsZero() || now.Location() != time.UTC {
-		return ingestInput{}, ErrProductionIngest
+		return ingestInput{}, nil, ErrProductionIngest
 	}
-	for _, event := range input.Events {
+	canonicalEvents := make([]ingestEvent, len(input.Events))
+	for index, event := range input.Events {
 		record, err := event.toRecord(authority.Scope, authority.Source)
 		if err != nil || record.EventTime.Before(now.Add(-24*time.Hour)) || record.EventTime.After(now.Add(5*time.Minute)) {
-			return ingestInput{}, ErrProductionIngest
+			return ingestInput{}, nil, ErrProductionIngest
 		}
-		if _, err := FilterRecord(record, authority.Mode); err != nil {
-			return ingestInput{}, ErrProductionIngest
+		filtered, filterErr := FilterRecord(record, authority.Mode)
+		if filterErr != nil {
+			return ingestInput{}, nil, ErrProductionIngest
 		}
+		canonical, canonicalErr := canonicalIngestEvent(filtered)
+		if canonicalErr != nil {
+			return ingestInput{}, nil, ErrProductionIngest
+		}
+		canonicalEvents[index] = canonical
 	}
-	return input, nil
+	input.Events = canonicalEvents
+	canonicalBody, err := json.Marshal(input)
+	if err != nil || len(canonicalBody) == 0 || len(canonicalBody) > maximumProductionIngestBytes {
+		return ingestInput{}, nil, ErrProductionIngest
+	}
+	return input, canonicalBody, nil
+}
+
+func canonicalIngestEvent(record Record) (ingestEvent, error) {
+	if !validRecord(record) || record.Event.Evidence.Validate() != nil {
+		return ingestEvent{}, ErrProductionIngest
+	}
+	event := ingestEvent{EventTime: record.EventTime.Format(timestampLayout), EvidenceID: record.Event.Evidence.String(), Content: cloneContent(record.Content)}
+	switch record.Source {
+	case "tetragon":
+		event.EventID = record.SourceEventID
+		event.Class = record.Class
+		event.Action = record.Action
+		event.WorkloadID = record.WorkloadID
+	case "otlp":
+		event.Attributes = map[string]string{
+			"event.id": record.SourceEventID, "event.class": record.Class, "event.action": record.Action,
+			"agent.id": record.AgentID.String(), "session.id": record.SessionID.String(), "task.id": record.TaskID,
+			"tool.id": record.ToolID, "sandbox.id": record.SandboxID, "trace.id": record.TraceID, "span.id": record.SpanID,
+		}
+	default:
+		return ingestEvent{}, ErrProductionIngest
+	}
+	return event, nil
 }
 
 func validIngestAuthority(value IngestAuthority) bool {
