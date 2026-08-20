@@ -28,6 +28,7 @@ const (
 	postgresExecutionJobInputSQL            = `SELECT zasp_execution_job_input($1,$2,$3,$4,$5,$6)`
 	postgresExecutionClaimDeliverySQL       = `SELECT zasp_execution_claim_delivery($1,$2,$3,$4,$5,$6,$7)`
 	postgresExecutionHeartbeatJobSQL        = `SELECT zasp_execution_heartbeat_job($1,$2,$3,$4,$5,$6,$7)`
+	postgresExecutionCheckpointPartialSQL   = `SELECT zasp_execution_checkpoint_partial($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`
 	postgresExecutionFinishJobSQL           = `SELECT zasp_execution_finish_job($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
 	postgresExecutionClaimJobsSQL           = `SELECT zasp_execution_claim_jobs($1,$2,$3,$4)`
 	postgresExecutionScheduleInputSQL       = `SELECT zasp_execution_schedule_input($1,$2,$3,$4,$5,$6)`
@@ -96,30 +97,39 @@ func (repository *DiscoveryExecutionRepository) Ready(ctx context.Context) error
 }
 
 type ExecutionJobInput struct {
-	OrganizationID      string                     `json:"organization_id"`
-	WorkspaceID         string                     `json:"workspace_id"`
-	EnvironmentID       string                     `json:"environment_id"`
-	JobID               string                     `json:"job_id"`
-	Attempt             int                        `json:"attempt"`
-	LeaseExpiresAt      time.Time                  `json:"lease_expires_at"`
-	SyncID              string                     `json:"sync_id"`
-	IntegrationID       string                     `json:"integration_id"`
-	ConnectionID        string                     `json:"connection_id"`
-	SnapshotID          string                     `json:"snapshot_id"`
-	Generation          int64                      `json:"generation"`
-	Provider            collection.Provider        `json:"provider"`
-	CollectorVersion    string                     `json:"collector_version"`
-	CredentialClass     collection.CredentialClass `json:"credential_class"`
-	CredentialReference string                     `json:"credential_reference"`
-	SubjectKind         string                     `json:"subject_kind"`
-	SubjectID           string                     `json:"subject_id"`
-	CursorProvider      *collection.Provider       `json:"cursor_provider"`
-	CursorVersion       *string                    `json:"cursor_version"`
-	CursorValue         *string                    `json:"cursor_value"`
-	ParserVersion       string                     `json:"parser_version"`
-	ToolVersion         string                     `json:"tool_version"`
-	Configuration       json.RawMessage            `json:"configuration"`
-	ExpectedSubject     collection.SubjectBinding  `json:"-"`
+	OrganizationID                  string                     `json:"organization_id"`
+	WorkspaceID                     string                     `json:"workspace_id"`
+	EnvironmentID                   string                     `json:"environment_id"`
+	JobID                           string                     `json:"job_id"`
+	Attempt                         int                        `json:"attempt"`
+	LeaseExpiresAt                  time.Time                  `json:"lease_expires_at"`
+	SyncID                          string                     `json:"sync_id"`
+	IntegrationID                   string                     `json:"integration_id"`
+	ConnectionID                    string                     `json:"connection_id"`
+	SnapshotID                      string                     `json:"snapshot_id"`
+	Generation                      int64                      `json:"generation"`
+	Provider                        collection.Provider        `json:"provider"`
+	CollectorVersion                string                     `json:"collector_version"`
+	CredentialClass                 collection.CredentialClass `json:"credential_class"`
+	CredentialReference             string                     `json:"credential_reference"`
+	SubjectKind                     string                     `json:"subject_kind"`
+	SubjectID                       string                     `json:"subject_id"`
+	CursorProvider                  *collection.Provider       `json:"cursor_provider"`
+	CursorVersion                   *string                    `json:"cursor_version"`
+	CursorValue                     *string                    `json:"cursor_value"`
+	ParserVersion                   string                     `json:"parser_version"`
+	ToolVersion                     string                     `json:"tool_version"`
+	Configuration                   json.RawMessage            `json:"configuration"`
+	CheckpointVersion               int64                      `json:"checkpoint_version"`
+	CheckpointDigest                []byte                     `json:"checkpoint_digest"`
+	CheckpointManifestReference     string                     `json:"checkpoint_manifest_reference"`
+	CheckpointManifestKey           string                     `json:"checkpoint_manifest_key"`
+	CheckpointManifestVersionID     string                     `json:"checkpoint_manifest_version_id"`
+	CheckpointManifestChecksum      []byte                     `json:"checkpoint_manifest_checksum"`
+	CheckpointManifestSizeBytes     int64                      `json:"checkpoint_manifest_size_bytes"`
+	CheckpointManifestMediaType     string                     `json:"checkpoint_manifest_media_type"`
+	CheckpointManifestSchemaVersion string                     `json:"checkpoint_manifest_schema_version"`
+	ExpectedSubject                 collection.SubjectBinding  `json:"-"`
 }
 
 type DiscoveryDeliveryClaim struct {
@@ -203,6 +213,45 @@ func (repository *DiscoveryExecutionRepository) HeartbeatDiscoveryJob(ctx contex
 		return LeaseHeartbeatResult{}, ErrRepositoryUnavailable
 	}
 	result.LeaseExpiresAt = result.LeaseExpiresAt.UTC()
+	return result, nil
+}
+
+type ExecutionPartialCheckpoint struct {
+	JobID, Worker, LeaseToken                                            string
+	ExpectedVersion                                                      int64
+	CursorProvider                                                       collection.Provider
+	CursorVersion, CursorValue                                           string
+	ManifestReference, ManifestKey, ManifestVersionID                    string
+	ManifestChecksum                                                     []byte
+	ManifestSizeBytes                                                    int64
+	ManifestMediaType, ManifestSchemaVersion, ParserVersion, ToolVersion string
+}
+
+type ExecutionPartialCheckpointResult struct {
+	ID                string              `json:"id"`
+	Version           int64               `json:"version"`
+	CheckpointDigest  []byte              `json:"checkpoint_digest"`
+	CursorProvider    collection.Provider `json:"cursor_provider"`
+	CursorVersion     string              `json:"cursor_version"`
+	CursorValue       string              `json:"cursor_value"`
+	ManifestVersionID string              `json:"manifest_version_id"`
+	UpdatedAt         time.Time           `json:"updated_at"`
+}
+
+func (repository *DiscoveryExecutionRepository) CheckpointPartialDiscoveryJob(ctx context.Context, scope domain.Scope, input ExecutionPartialCheckpoint) (ExecutionPartialCheckpointResult, error) {
+	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityWorker || scope.Validate() != nil || !validProductID(input.JobID) || !validWorkerLease(input.Worker, input.LeaseToken) || input.ExpectedVersion < 0 || input.ExpectedVersion > 9999 || !stringIn(string(input.CursorProvider), "aws", "kubernetes", "github", "okta") || !executionVersionPattern.MatchString(input.CursorVersion) || len(input.CursorValue) < 1 || len(input.CursorValue) > 2048 || !validS3ObjectReference(input.ManifestReference) || len(input.ManifestKey) < 32 || len(input.ManifestKey) > 1024 || !strings.HasSuffix(input.ManifestReference, "/"+input.ManifestKey) || len(input.ManifestReference) != strings.LastIndex(input.ManifestReference, "/"+input.ManifestKey)+1+len(input.ManifestKey) || len(input.ManifestVersionID) < 1 || len(input.ManifestVersionID) > 1024 || len(input.ManifestChecksum) != sha256.Size || bytes.Equal(input.ManifestChecksum, make([]byte, sha256.Size)) || input.ManifestSizeBytes < 1 || input.ManifestSizeBytes > 512<<20 || input.ManifestMediaType != "application/json" || !executionVersionPattern.MatchString(input.ManifestSchemaVersion) || !executionVersionPattern.MatchString(input.ParserVersion) || !executionVersionPattern.MatchString(input.ToolVersion) {
+		return ExecutionPartialCheckpointResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionCheckpointPartialSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.JobID, input.Worker, input.LeaseToken, input.ExpectedVersion, input.CursorProvider, input.CursorVersion, input.CursorValue, input.ManifestReference, input.ManifestKey, input.ManifestVersionID, input.ManifestChecksum, input.ManifestSizeBytes, input.ManifestMediaType, input.ManifestSchemaVersion, input.ParserVersion, input.ToolVersion)
+	if err != nil {
+		return ExecutionPartialCheckpointResult{}, discoveryProviderError(err)
+	}
+	var result ExecutionPartialCheckpointResult
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != input.JobID || result.Version < 1 || result.Version > 10000 || len(result.CheckpointDigest) != sha256.Size || result.CursorProvider != input.CursorProvider || result.CursorVersion != input.CursorVersion || result.CursorValue != input.CursorValue || result.ManifestVersionID != input.ManifestVersionID || !validPastServerTime(result.UpdatedAt) {
+		return ExecutionPartialCheckpointResult{}, ErrRepositoryUnavailable
+	}
+	result.CheckpointDigest = bytes.Clone(result.CheckpointDigest)
+	result.UpdatedAt = result.UpdatedAt.UTC()
 	return result, nil
 }
 
@@ -628,6 +677,10 @@ func validExecutionJobInput(scope domain.Scope, jobID string, input ExecutionJob
 			return false
 		}
 		request.Cursor = collection.Cursor{Provider: *input.CursorProvider, Version: *input.CursorVersion, Value: *input.CursorValue}
+	}
+	checkpointPresent := input.CheckpointVersion != 0 || len(input.CheckpointDigest) != 0 || input.CheckpointManifestReference != "" || input.CheckpointManifestKey != "" || input.CheckpointManifestVersionID != "" || len(input.CheckpointManifestChecksum) != 0 || input.CheckpointManifestSizeBytes != 0 || input.CheckpointManifestMediaType != "" || input.CheckpointManifestSchemaVersion != ""
+	if checkpointPresent && (input.CheckpointVersion < 1 || input.CheckpointVersion > 10000 || len(input.CheckpointDigest) != sha256.Size || !validS3ObjectReference(input.CheckpointManifestReference) || len(input.CheckpointManifestKey) < 32 || len(input.CheckpointManifestKey) > 1024 || !strings.HasSuffix(input.CheckpointManifestReference, "/"+input.CheckpointManifestKey) || input.CheckpointManifestVersionID == "" || len(input.CheckpointManifestVersionID) > 1024 || len(input.CheckpointManifestChecksum) != sha256.Size || input.CheckpointManifestSizeBytes < 1 || input.CheckpointManifestSizeBytes > 512<<20 || input.CheckpointManifestMediaType != "application/json" || !executionVersionPattern.MatchString(input.CheckpointManifestSchemaVersion)) {
+		return false
 	}
 	return request.Validate() == nil
 }

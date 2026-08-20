@@ -539,6 +539,81 @@ func TestProductionDiscoveryExecutionPostgresHydratesAndFencesLeasedJob(t *testi
 	}
 }
 
+func TestProductionDiscoveryExecutionPostgresPersistsPartialCheckpointAcrossReclaim(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	runner := migrateToReferenceAuthorization(t, ctx, connection)
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_78100001-0000-4000-8000-000000000001"
+	connectionID := "pid_78100002-0000-4000-8000-000000000002"
+	configuration := json.RawMessage(`{"external_id_reference":"ref:aws/external-id/customer-0007","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/zasp-discovery"}`)
+	seedReferenceAuthorizedIntegration(t, ctx, connection, "aws", integrationID, connectionID, "ref:aws/external-id/customer-0007", configuration, "7")
+	if err := runner.UpProductionDiscoveryExecution(ctx); err != nil {
+		t.Fatal(err)
+	}
+	syncID := "pid_78100003-0000-4000-8000-000000000003"
+	jobID := "pid_78100004-0000-4000-8000-000000000004"
+	outboxID := "pid_78100005-0000-4000-8000-000000000005"
+	requestDigest := bytes.Repeat([]byte{7}, 32)
+	var payload []byte
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_request_sync($1,$2,$3,$4,$5,$6,$7,$8,'execution-sync-partial-0007',$9,'manual','parser_v1','tool_v1')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), integrationID, syncID, jobID, outboxID, requestDigest).Scan(&payload); err != nil {
+		t.Fatal(err)
+	}
+	worker, token := "discovery-worker-07", "lease-token-000000000007"
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_claim_jobs($1,$2,30,1)`, worker, token).Scan(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_job_input($1,$2,$3,$4,$5,$6)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, worker, token).Scan(&payload); err != nil {
+		t.Fatal(err)
+	}
+	manifestKey := "organizations/" + identity.Scope.OrganizationID().String() + "/workspaces/" + identity.Scope.WorkspaceID().String() + "/environments/" + identity.Scope.EnvironmentID().String() + "/artifacts/pid_78100006-0000-4000-8000-000000000006"
+	manifestReference := "s3://zasp-evidence/" + manifestKey
+	manifestChecksum := bytes.Repeat([]byte{8}, 32)
+	checkpointSQL := `SELECT zasp_execution_checkpoint_partial($1,$2,$3,$4,$5,$6,0,'aws','cursor_v1','page-101',$7,$8,'manifest-version-0007',$9,256,'application/json','raw-manifest-v1','parser_v1','tool_v1')`
+	checkpointArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, worker, token, manifestReference, manifestKey, manifestChecksum}
+	wrongArgs := append([]any(nil), checkpointArgs...)
+	wrongArgs[5] = "wrong-lease-token-000007"
+	if err := connection.QueryRow(ctx, checkpointSQL, wrongArgs...).Scan(&payload); err == nil {
+		t.Fatal("wrong-owner partial checkpoint succeeded")
+	}
+	var checkpointRows int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_discovery_job_checkpoints WHERE job_id=$1`, jobID).Scan(&checkpointRows); err != nil || checkpointRows != 0 {
+		t.Fatalf("wrong-owner checkpoint residue=%d err=%v", checkpointRows, err)
+	}
+	if err := connection.QueryRow(ctx, checkpointSQL, checkpointArgs...).Scan(&payload); err != nil {
+		t.Fatal(err)
+	}
+	firstCheckpoint := string(payload)
+	var checkpoint ExecutionPartialCheckpointResult
+	if err := json.Unmarshal(payload, &checkpoint); err != nil || checkpoint.ID != jobID || checkpoint.Version != 1 || checkpoint.CursorProvider != "aws" || checkpoint.CursorValue != "page-101" || checkpoint.ManifestVersionID != "manifest-version-0007" || len(checkpoint.CheckpointDigest) != 32 {
+		t.Fatalf("checkpoint=%s err=%v", payload, err)
+	}
+	if err := connection.QueryRow(ctx, checkpointSQL, checkpointArgs...).Scan(&payload); err != nil || string(payload) != firstCheckpoint {
+		t.Fatalf("checkpoint replay=%s err=%v first=%s", payload, err, firstCheckpoint)
+	}
+	changed := append([]any(nil), checkpointArgs...)
+	changed[8] = bytes.Repeat([]byte{9}, 32)
+	if err := connection.QueryRow(ctx, checkpointSQL, changed...).Scan(&payload); err == nil {
+		t.Fatal("changed checkpoint replay succeeded")
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_finish_job($1,$2,$3,$4,$5,$6,'retryable',$7,'partial','partial provider result',0)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, worker, token, checkpoint.CheckpointDigest).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"state": "retryable"`)) {
+		t.Fatalf("partial finish=%s err=%v", payload, err)
+	}
+	worker, token = "discovery-worker-08", "lease-token-000000000008"
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_claim_delivery($1,$2,$3,$4,$5,$6,30)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, worker, token).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"disposition": "claimed"`)) {
+		t.Fatalf("partial reclaim=%s err=%v", payload, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_job_input($1,$2,$3,$4,$5,$6)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, worker, token).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"cursor_value": "page-101"`)) || !bytes.Contains(payload, []byte(`"checkpoint_version": 1`)) || !bytes.Contains(payload, []byte(`"checkpoint_manifest_version_id": "manifest-version-0007"`)) {
+		t.Fatalf("checkpoint hydration=%s err=%v", payload, err)
+	}
+}
+
 func TestProductionDiscoveryExecutionPostgresBindsRequestIntentAndSerializesQuota(t *testing.T) {
 	dsn := startDisposablePostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)

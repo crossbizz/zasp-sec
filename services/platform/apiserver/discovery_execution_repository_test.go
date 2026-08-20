@@ -1,12 +1,15 @@
 package apiserver
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 )
 
 type blockingDiscoveryExecutionDatabase struct{}
@@ -50,9 +53,33 @@ func TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput(t *testing.
 	if err != nil || input.JobID != jobID || input.ExpectedSubject.ID != "123456789012" || input.LeaseExpiresAt.Location() != time.UTC {
 		t.Fatalf("input=%#v err=%v", input, err)
 	}
+	database.responses[postgresExecutionJobInputSQL] = json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","job_id":"` + jobID + `","attempt":2,"lease_expires_at":"` + now.Format(time.RFC3339Nano) + `","sync_id":"pid_80000004-0000-4000-8000-000000000004","integration_id":"` + integrationID + `","connection_id":"` + connectionID + `","snapshot_id":"` + snapshotID + `","generation":1,"provider":"aws","collector_version":"collector_v1","credential_class":"aws_assume_role","credential_reference":"ref:aws/external-id/customer-0001","subject_kind":"aws_account","subject_id":"123456789012","cursor_provider":"aws","cursor_version":"cursor_v1","cursor_value":"page-101","parser_version":"parser_v1","tool_version":"tool_v1","configuration":{"external_id_reference":"ref:aws/external-id/customer-0001","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/zasp-discovery"},"checkpoint_version":1,"checkpoint_digest":"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","checkpoint_manifest_reference":"s3://zasp-evidence/organizations/pid_00000001-0000-4000-8000-000000000001/workspaces/pid_00000002-0000-4000-8000-000000000002/environments/pid_00000003-0000-4000-8000-000000000003/artifacts/pid_80100002-0000-4000-8000-000000000002","checkpoint_manifest_key":"organizations/pid_00000001-0000-4000-8000-000000000001/workspaces/pid_00000002-0000-4000-8000-000000000002/environments/pid_00000003-0000-4000-8000-000000000003/artifacts/pid_80100002-0000-4000-8000-000000000002","checkpoint_manifest_version_id":"version-0001","checkpoint_manifest_checksum":"AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=","checkpoint_manifest_size_bytes":128,"checkpoint_manifest_media_type":"application/json","checkpoint_manifest_schema_version":"raw-manifest-v1"}`)
+	input, err = repository.GetDiscoveryJobInput(context.Background(), identity.Scope, jobID, "worker-01", "lease-token-000000000001")
+	if err != nil || input.CheckpointVersion != 1 || input.CursorValue == nil || *input.CursorValue != "page-101" || input.CheckpointManifestVersionID != "version-0001" || len(input.CheckpointDigest) != 32 {
+		t.Fatalf("checkpoint input=%#v err=%v", input, err)
+	}
 	database.responses[postgresExecutionJobInputSQL] = json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","job_id":"` + jobID + `","attempt":1,"lease_expires_at":"` + now.Format(time.RFC3339Nano) + `","sync_id":"pid_80000004-0000-4000-8000-000000000004","integration_id":"` + integrationID + `","connection_id":"` + connectionID + `","snapshot_id":"` + snapshotID + `","generation":1,"provider":"aws","collector_version":"collector_v1","credential_class":"aws_assume_role","credential_reference":"ref:aws/external-id/customer-0001","subject_kind":"aws_account","subject_id":"123456789012","cursor_provider":null,"cursor_version":null,"cursor_value":null,"parser_version":"parser_v1","tool_version":"tool_v1","configuration":{},"access_token":"leak"}`)
 	if _, err := repository.GetDiscoveryJobInput(context.Background(), identity.Scope, jobID, "worker-01", "lease-token-000000000001"); !errors.Is(err, ErrRepositoryUnavailable) {
 		t.Fatalf("unknown output field error=%v", err)
+	}
+}
+
+func TestDiscoveryExecutionRepositoryCheckpointsPartialCollectionForReclaim(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	jobID := "pid_80100001-0000-4000-8000-000000000001"
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityWorker)
+	updated := time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano)
+	digest := "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+	database.responses[postgresExecutionCheckpointPartialSQL] = json.RawMessage(`{"id":"` + jobID + `","version":1,"checkpoint_digest":"` + digest + `","cursor_provider":"aws","cursor_version":"cursor_v1","cursor_value":"page-101","manifest_version_id":"version-0001","updated_at":"` + updated + `"}`)
+	input := ExecutionPartialCheckpoint{JobID: jobID, Worker: "worker-01", LeaseToken: "lease-token-000000000001", ExpectedVersion: 0, CursorProvider: collection.ProviderAWS, CursorVersion: "cursor_v1", CursorValue: "page-101", ManifestReference: "s3://zasp-evidence/organizations/pid_00000001-0000-4000-8000-000000000001/workspaces/pid_00000002-0000-4000-8000-000000000002/environments/pid_00000003-0000-4000-8000-000000000003/artifacts/pid_80100002-0000-4000-8000-000000000002", ManifestKey: "organizations/pid_00000001-0000-4000-8000-000000000001/workspaces/pid_00000002-0000-4000-8000-000000000002/environments/pid_00000003-0000-4000-8000-000000000003/artifacts/pid_80100002-0000-4000-8000-000000000002", ManifestVersionID: "version-0001", ManifestChecksum: bytes.Repeat([]byte{1}, 32), ManifestSizeBytes: 128, ManifestMediaType: "application/json", ManifestSchemaVersion: "raw-manifest-v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1"}
+	result, err := repository.CheckpointPartialDiscoveryJob(context.Background(), identity.Scope, input)
+	if err != nil || result.Version != 1 || len(result.CheckpointDigest) != 32 || result.UpdatedAt.Location() != time.UTC {
+		t.Fatalf("partial checkpoint=%#v err=%v", result, err)
+	}
+	database.responses[postgresExecutionCheckpointPartialSQL] = json.RawMessage(`{"id":"` + jobID + `","version":1,"checkpoint_digest":"` + digest + `","cursor_provider":"aws","cursor_version":"cursor_v1","cursor_value":"page-101","manifest_version_id":"version-0001","updated_at":"` + updated + `","secret":"leak"}`)
+	if _, err := repository.CheckpointPartialDiscoveryJob(context.Background(), identity.Scope, input); !errors.Is(err, ErrRepositoryUnavailable) {
+		t.Fatalf("hostile checkpoint output error=%v", err)
 	}
 }
 
