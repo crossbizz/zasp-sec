@@ -37,8 +37,10 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "browserStorageHistoryAndCaches", "indexedDB.databases", "assertResponsiveRiskLayout", "Emulation.setDeviceMetricsOverride",
     "browser console and exception stream remained clean", "hidden risk-adjacent routes canonicalized without hidden API calls",
     "/red-team/results", "/test/attack-lab", "/reports", "/guardrails/dashboard", "/prompt-hardening",
-    "schema 11 connector_authorization verified", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN",
+    "schema 13 production_discovery_execution verified", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN",
+    "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION",
     "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX",
+    "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS",
     "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE",
     "generateHarnessGitHubAppPrivateKey", "github-app-private-key.pem", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE",
     "/api/v1/integrations/{id}/authorize", "/api/v1/integrations/oauth/callback", "assertRejectedConnectorResponse",
@@ -49,12 +51,41 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "same idempotency key + If-Match", "Retry pending integration deletion", "no premature deleted toast/removal",
     "reload revocation receipt remained locked", "live provider revocation NOT RUN",
 		"malformed public 202 response replay", "harness direct-public-API replay",
+    "schema 13 production_discovery_execution verified", "agentsec-worker",
+    "ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL", "ZASP_PROJECTION_RISK_DB_PRINCIPAL",
+    "ZASP_PROJECTION_GRAPH_DB_PRINCIPAL", "ZASP_PROJECTION_SEARCH_DB_PRINCIPAL",
+    "ZASP_WORKER_MODE", "outbox", "discovery", "scheduler", "projection-risk", "projection-graph", "projection-search",
+    "ZASP_DATABASE_AUTHORITY", "zasp_outbox_worker", "zasp_discovery_worker", "zasp_discovery_scheduler",
+    "zasp_projection_risk_worker", "zasp_projection_graph_worker", "zasp_projection_search_worker",
+    "ZASP_WORKER_ID", "ZASP_POLL_INTERVAL", "ZASP_LEASE_DURATION", "ZASP_BATCH_SIZE", "ZASP_SHUTDOWN_TIMEOUT",
+    "/api/v1/integrations/{id}/sync", "/api/v1/integrations/{id}/syncs", "/api/v1/integrations/{id}/syncs/{syncId}",
+    "/api/v1/integrations/{id}/schedule", "/api/v1/integrations/{id}/freshness",
+    "real public manual sync returned 202", "public schedule create/read/delete proven",
+    "public sync history/detail/freshness proven", "Task4 reload preserved authoritative discovery state",
+    "Task4 discovery forensics found no token, credential reference, artifact key, cursor, or worker identity in persistent browser state",
+    "Task4 opaque pagination cursors remained same-origin transport-only data",
+    "integration_version,configuration_digest,requested_scopes",
+    "202 Retry-After window emitted an early integration DELETE",
+    "live AWS/Kubernetes/GitHub/Okta collection and managed SQS/S3/OpenSearch/Neo4j remain NOT RUN",
+    "zero fake collection/projection database completion", "cleanup Task4 workers",
     "ZASP_MIGRATION_DB_PRINCIPAL", "ZASP_DISCOVERY_API_DB_PRINCIPAL", "ZASP_DISCOVERY_WORKER_DB_PRINCIPAL",
     "ZASP_RUNTIME_INGEST_DB_PRINCIPAL", "ZASP_RUNTIME_WORKER_DB_PRINCIPAL", "ZASP_OUTBOX_WORKER_DB_PRINCIPAL", "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL",
     "provisionPostgresPrincipals", "apiDSN", "zasp.production-e2e.test", "--host-resolver-rules", "SIGQUIT",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  const apiEnvironment = source.slice(source.indexOf("const apiEnvironment = {"), source.indexOf("api = startChild(apiBinary"));
+  for (const value of ["HOSTNAME", "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS"]) assert.match(apiEnvironment, new RegExp(value));
+  const outboxBoundary = source.slice(source.indexOf("const outbox = startTask4Worker"), source.indexOf("for (const candidate of", source.indexOf("const outbox = startTask4Worker")));
+  assert.match(outboxBoundary, /waitForChildExit\(outbox, 10_000\)/);
+  assert.match(outboxBoundary, /status: 1, signal: null/);
+  assert.doesNotMatch(outboxBoundary, /assertFailClosedTask4Worker/);
+  const discoveryBrowserBoundary = source.slice(source.indexOf("async function assertTask4BrowserPublicState"), source.indexOf("async function navigateBrowser", source.indexOf("async function assertTask4BrowserPublicState")));
+  assert.equal(discoveryBrowserBoundary.match(/await waitForBrowserText\(cdp, \/Risk projection: unavailable\/\)/g)?.length, 2);
+  assert.equal(discoveryBrowserBoundary.match(/await waitForBrowserText\(cdp, \/No automatic sync schedule\/\)/g)?.length, 2);
+  assert.match(discoveryBrowserBoundary, /const \{ resources, \.\.\.persistentForensics \} = forensics/);
+  assert.match(discoveryBrowserBoundary, /resources\.every\(\(resource\) => new URL\(resource\)\.origin === publicOrigin\)/);
   assert.doesNotMatch(source, /Shown only once/);
   assert.doesNotMatch(source, /"Page\.(?:navigate|reload)"/);
+  assert.doesNotMatch(source, /zasp_execution_(?:finish_job|finish_projection|apply_complete_snapshot)\s*\(/i);
   for (const unsafeControl of ["Enroll sensor", "Create enrollment", "Start bounded run", "waiting_approval", "one-time sensor credential", "Simulate policy", "Decision history"]) {
     const escaped = unsafeControl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     assert.doesNotMatch(source, new RegExp(`(?:clickBrowserText|clickBrowserTextContains|clickBrowserAria)\\([^\\n]*${escaped}`, "i"));
