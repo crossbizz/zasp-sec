@@ -47,6 +47,25 @@ func TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose(t *tes
 	}
 }
 
+func TestComposeRuntimeCoordinatorBindsV15RepositoryAndQueueReadiness(t *testing.T) {
+	steps := &runtimeCoordinatorSteps{}
+	queue, _, _ := runtimeCoordinatorQueue(t, steps)
+	closed := false
+	config := validRuntimeCoordinatorConfig()
+	dependencies, err := composeRuntimeCoordinatorWorkerRuntime(config, readyWorkerDatabase{}, &productionRuntimeQueueDependencies{
+		Queue: queue, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil },
+	})
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("dependencies=%#v err=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Close(); err != nil || !closed {
+		t.Fatalf("close=%v closed=%v", err, closed)
+	}
+}
+
 func TestComposeDiscoveryWorkerRuntimeReadinessGatesQueueConsumption(t *testing.T) {
 	steps := []string{}
 	discovery := &productionDiscoveryDependencies{
@@ -376,6 +395,15 @@ func validDiscoveryRuntimeConfig() workerRuntimeConfig {
 		ParserVersion: "inventory-parser-2026.08.20", ToolVersion: "collector-tool-2026.08.20", DiscoveryRoleARN: "arn:aws:iam::123456789012:role/zasp-production-discovery-worker", DiscoveryTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", DiscoverySecretPrefix: "zasp-production/connectors",
 		AWSCollectorVersion: "aws-collector-v1", KubernetesCollectorVersion: "kubernetes-collector-v1", GitHubCollectorVersion: "github-collector-v1", OktaCollectorVersion: "okta-collector-v1", KubernetesEgressCIDRs: []string{"203.0.113.0/24"},
 		GitHubAppID: "123456", GitHubPrivateKeyReference: "ref:github/app-private-key-0001", OktaClientID: "0oa1234567890abcdef", OktaClientSecretReference: "ref:okta/client-secret-0001", ProviderTimeout: 5 * time.Second, DiscoveryReadinessTimeout: 5 * time.Second,
+	}
+}
+
+func validRuntimeCoordinatorConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeRuntimeCoordinator, PostgresDSN: "postgres://runtime_coordinator@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_runtime_coordinator", WorkerID: "runtime-coordinator-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
+		RuntimeQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-runtime-events", AWSRegion: "us-west-2",
+		RuntimeRoleARN: "arn:aws:iam::123456789012:role/zasp-production-runtime-coordinator", RuntimeTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
 	}
 }
 

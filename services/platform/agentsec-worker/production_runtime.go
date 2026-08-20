@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
 type workerProcessor interface{ RunOnce(context.Context) error }
@@ -101,6 +102,17 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		return dependencies, nil
+	case workerModeRuntimeCoordinator:
+		runtimeQueue, err := newProductionRuntimeQueue(ctx, config)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		dependencies, err := composeRuntimeCoordinatorWorkerRuntime(config, database, runtimeQueue)
+		if err != nil {
+			_ = runtimeQueue.Close()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return dependencies, nil
 	case workerModeProjectionRisk:
 		repository, err := apiserver.NewDiscoveryExecutionRepository(database, apiserver.DiscoveryExecutionAuthorityProjectionRisk)
 		if err != nil {
@@ -129,6 +141,35 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		// keeps the workload and public capability honest.
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
+}
+
+func composeRuntimeCoordinatorWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, runtimeQueue *productionRuntimeQueueDependencies) (workerRuntimeDependencies, error) {
+	if !validWorkerRuntimeConfig(config) || config.Mode != workerModeRuntimeCoordinator || database == nil || runtimeQueue == nil || runtimeQueue.Queue == nil || runtimeQueue.ready == nil || runtimeQueue.close == nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	repository, err := runtimeevent.NewPostgresProductionPipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCoordinator)
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	check := func(ctx context.Context) error {
+		if repository.Ready(ctx) != nil || runtimeQueue.Ready(ctx) != nil {
+			return errRuntimeUnavailable
+		}
+		return nil
+	}
+	ready, err := newBoundedCachedWorkerReadiness(check, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	processor, err := newRuntimeCoordinator(runtimeCoordinatorConfig{
+		Authority: repository, Queue: runtimeQueue.Queue, WorkerID: config.WorkerID,
+		LeaseSeconds: int(config.LeaseDuration / time.Second), VisibilitySeconds: int(config.LeaseDuration / time.Second), BatchSize: min(config.BatchSize, 10),
+		HeartbeatInterval: config.LeaseDuration / 3, NewLeaseToken: newWorkerLeaseToken,
+	})
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: runtimeQueue.Close}, nil
 }
 
 func productionDiscoveryDependenciesConfig(config workerRuntimeConfig) productionDiscoveryDependencyConfig {

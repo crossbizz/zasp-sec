@@ -14,6 +14,7 @@ type workerMode string
 const (
 	workerModeOutbox               workerMode = "outbox"
 	workerModeRuntimeOutbox        workerMode = "runtime-outbox"
+	workerModeRuntimeCoordinator   workerMode = "runtime-coordinator"
 	workerModeDiscovery            workerMode = "discovery"
 	workerModeScheduler            workerMode = "scheduler"
 	workerModeProjectionRisk       workerMode = "projection-risk"
@@ -40,6 +41,8 @@ type workerRuntimeConfig struct {
 	ShutdownTimeout            time.Duration
 	DiscoveryQueueURL          string
 	RuntimeQueueURL            string
+	RuntimeRoleARN             string
+	RuntimeTokenFile           string
 	AWSRegion                  string
 	EvidenceBucket             string
 	EvidenceOwner              string
@@ -125,6 +128,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		Neo4jExpectedPrincipal: getenv("ZASP_NEO4J_EXPECTED_PRINCIPAL"), Neo4jExpectedRole: getenv("ZASP_NEO4J_EXPECTED_ROLE"),
 		ProjectionRoleARN: getenv("ZASP_PROJECTION_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE"), ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"),
 		OutboxRoleARN: getenv("ZASP_OUTBOX_ROLE_ARN"), OutboxTokenFile: getenv("ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE"),
+		RuntimeRoleARN: getenv("ZASP_RUNTIME_ROLE_ARN"), RuntimeTokenFile: getenv("ZASP_RUNTIME_WEB_IDENTITY_TOKEN_FILE"),
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
 	if pollErr != nil || leaseErr != nil || shutdownErr != nil || batchErr != nil || config.Mode == workerModeDiscovery && (providerTimeoutErr != nil || discoveryReadinessTimeoutErr != nil) || !validWorkerRuntimeConfig(config) {
@@ -147,11 +151,12 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 	}
 	wantAuthority := map[workerMode]string{
 		workerModeOutbox: "zasp_outbox_worker", workerModeRuntimeOutbox: "zasp_outbox_worker", workerModeDiscovery: "zasp_discovery_worker", workerModeScheduler: "zasp_discovery_scheduler",
-		workerModeProjectionRisk: "zasp_projection_risk_worker", workerModeProjectionGraph: "zasp_projection_graph_worker", workerModeProjectionSearch: "zasp_projection_search_worker",
+		workerModeRuntimeCoordinator: "zasp_runtime_coordinator",
+		workerModeProjectionRisk:     "zasp_projection_risk_worker", workerModeProjectionGraph: "zasp_projection_graph_worker", workerModeProjectionSearch: "zasp_projection_search_worker",
 	}[config.Mode]
 	return wantAuthority != "" && config.DatabaseAuthority == wantAuthority && workerIdentityPattern.MatchString(config.WorkerID) && validModeDependencies(config) &&
 		config.PollInterval >= 50*time.Millisecond && config.PollInterval <= time.Minute && config.LeaseDuration >= 5*time.Second && config.LeaseDuration <= 15*time.Minute &&
-		config.BatchSize >= 1 && config.BatchSize <= 64 && (config.Mode != workerModeDiscovery || config.BatchSize <= 10) && config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= time.Minute && config.ShutdownTimeout < config.LeaseDuration
+		config.BatchSize >= 1 && config.BatchSize <= 64 && (config.Mode != workerModeDiscovery && config.Mode != workerModeRuntimeCoordinator || config.BatchSize <= 10) && config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= time.Minute && config.ShutdownTimeout < config.LeaseDuration
 }
 
 var (
@@ -170,6 +175,8 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 	switch config.Mode {
 	case workerModeOutbox, workerModeRuntimeOutbox:
 		return validOutboxAWSAuthority(config)
+	case workerModeRuntimeCoordinator:
+		return validRuntimeCoordinatorAWSAuthority(config)
 	case workerModeDiscovery:
 		return validDiscoveryRuntimeAuthority(config)
 	case workerModeProjectionSearch:
@@ -184,6 +191,16 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 	default:
 		return false
 	}
+}
+
+func validRuntimeCoordinatorAWSAuthority(config workerRuntimeConfig) bool {
+	queue, err := url.Parse(config.RuntimeQueueURL)
+	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RuntimeRoleARN)
+	if err != nil || queue == nil || !validSQSURL(config.RuntimeQueueURL) || len(role) != 2 || !workerRegionPattern.MatchString(config.AWSRegion) || config.RuntimeTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || config.DiscoveryQueueURL != "" || config.OutboxRoleARN != "" || config.OutboxTokenFile != "" || config.DiscoveryRoleARN != "" || config.ProjectionRoleARN != "" {
+		return false
+	}
+	parts := strings.Split(strings.TrimPrefix(queue.Path, "/"), "/")
+	return len(parts) == 2 && parts[0] == role[1] && parts[1] == "agentsec-runtime-events" && queue.Hostname() == "sqs."+config.AWSRegion+".amazonaws.com"
 }
 
 func validDiscoveryRuntimeAuthority(config workerRuntimeConfig) bool {
