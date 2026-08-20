@@ -40,7 +40,7 @@ func TestFirstPartyGitHubCompletionReturnsOnlyOpaqueInstallationReference(t *tes
 		return Connection{Reference: "ref:github/install/123456", InstallationID: 123456, AccountLogin: "acme", RepositorySelection: "selected", Permissions: map[string]string{"contents": "read", "metadata": "read"}}, nil
 	})
 	adapter, _ := NewAdapter(Config{ClientID: "Iv1.1234567890abcdef", ClientSecretReference: "ref:github/app-secret-0001", CallbackURL: "https://zasp.example/api/v1/integrations/oauth/callback"}, client, time.Second)
-	connection, err := adapter.Complete(context.Background(), "provider-code", []byte("abcdefghijklmnopqrstuvwxyzABCDEFGH123456789"))
+	connection, err := adapter.Complete(context.Background(), "pid_70000003-0000-4000-8000-000000000003", "provider-code", []byte("abcdefghijklmnopqrstuvwxyzABCDEFGH123456789"))
 	if err != nil || connection.Reference != "ref:github/install/123456" || connection.InstallationID != 123456 {
 		t.Fatalf("connection=%#v err=%v", connection, err)
 	}
@@ -48,7 +48,7 @@ func TestFirstPartyGitHubCompletionReturnsOnlyOpaqueInstallationReference(t *tes
 		return Connection{Reference: "ghp_plaintext", InstallationID: 1, AccountLogin: "acme", RepositorySelection: "all", Permissions: map[string]string{"contents": "write"}}, nil
 	})
 	adapter, _ = NewAdapter(Config{ClientID: "Iv1.1234567890abcdef", ClientSecretReference: "ref:github/app-secret-0001", CallbackURL: "https://zasp.example/api/v1/integrations/oauth/callback"}, client, time.Second)
-	if _, err := adapter.Complete(context.Background(), "provider-code", []byte("abcdefghijklmnopqrstuvwxyzABCDEFGH123456789")); !errors.Is(err, ErrProvider) || err.Error() != ErrProvider.Error() {
+	if _, err := adapter.Complete(context.Background(), "pid_70000003-0000-4000-8000-000000000003", "provider-code", []byte("abcdefghijklmnopqrstuvwxyzABCDEFGH123456789")); !errors.Is(err, ErrProvider) || err.Error() != ErrProvider.Error() {
 		t.Fatalf("hostile provider result=%v", err)
 	}
 }

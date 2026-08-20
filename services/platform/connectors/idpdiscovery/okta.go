@@ -11,6 +11,7 @@ import (
 
 var ErrInvalid = errors.New("Okta connector input rejected")
 var ErrProvider = errors.New("Okta connector provider rejected")
+var ErrOutcomeNotFound = errors.New("Okta connector outcome not found")
 var issuerPattern = regexp.MustCompile(`^https://([a-z0-9][a-z0-9-]{1,61}[a-z0-9])\.okta\.com$`)
 var clientIDPattern = regexp.MustCompile(`^0oa[A-Za-z0-9]{16}$`)
 var referencePattern = regexp.MustCompile(`^ref:okta/[a-z0-9][a-z0-9_./:-]{3,507}$`)
@@ -22,8 +23,8 @@ var requiredScopes = []string{"offline_access", "okta.apps.read", "okta.groups.r
 
 type Config struct{ Issuer, ClientID, ClientSecretReference, CallbackURL string }
 type ExchangeRequest struct {
-	Code, Issuer, ClientID, ClientSecretReference, CallbackURL string
-	PKCEVerifier                                               []byte
+	EffectID, Code, Issuer, ClientID, ClientSecretReference, CallbackURL string
+	PKCEVerifier                                                         []byte
 }
 type Connection struct {
 	Reference, Subject, Tenant string
@@ -31,6 +32,12 @@ type Connection struct {
 }
 type ExchangeClient interface {
 	Exchange(context.Context, ExchangeRequest) (Connection, error)
+}
+type EffectClient interface {
+	ExchangeClient
+	Recover(context.Context, string) (Connection, error)
+	Discard(context.Context, string, bool) error
+	Revoke(context.Context, string, Config) error
 }
 type OktaAdapter struct {
 	config  Config
@@ -61,20 +68,64 @@ func (adapter *OktaAdapter) AuthorizationURL(state, challenge string) (string, e
 	return adapter.config.Issuer + "/oauth2/v1/authorize?" + query.Encode(), nil
 }
 
-func (adapter *OktaAdapter) Complete(ctx context.Context, code string, verifier []byte) (Connection, error) {
-	if adapter == nil || adapter.client == nil || ctx == nil || ctx.Err() != nil || !oauthValuePattern.MatchString(code) || !pkcePattern.Match(verifier) {
+func (adapter *OktaAdapter) Complete(ctx context.Context, effectID, code string, verifier []byte) (Connection, error) {
+	if adapter == nil || adapter.client == nil || ctx == nil || ctx.Err() != nil || !referencePattern.MatchString("ref:okta/effect/"+effectID) || !oauthValuePattern.MatchString(code) || !pkcePattern.Match(verifier) {
 		return Connection{}, ErrInvalid
 	}
 	bounded, cancel := context.WithTimeout(ctx, adapter.timeout)
 	defer cancel()
 	verifierCopy := append([]byte(nil), verifier...)
-	connection, err := adapter.client.Exchange(bounded, ExchangeRequest{Code: code, Issuer: adapter.config.Issuer, ClientID: adapter.config.ClientID, ClientSecretReference: adapter.config.ClientSecretReference, CallbackURL: adapter.config.CallbackURL, PKCEVerifier: verifierCopy})
+	connection, err := adapter.client.Exchange(bounded, ExchangeRequest{EffectID: effectID, Code: code, Issuer: adapter.config.Issuer, ClientID: adapter.config.ClientID, ClientSecretReference: adapter.config.ClientSecretReference, CallbackURL: adapter.config.CallbackURL, PKCEVerifier: verifierCopy})
 	clear(verifierCopy)
 	if err != nil || bounded.Err() != nil || !validConnection(adapter.config, connection) {
 		return Connection{}, ErrProvider
 	}
 	connection.Scopes = append([]string(nil), connection.Scopes...)
 	return connection, nil
+}
+
+func (adapter *OktaAdapter) Recover(ctx context.Context, effectID string) (Connection, error) {
+	client, ok := adapter.client.(EffectClient)
+	if adapter == nil || !ok || ctx == nil || ctx.Err() != nil || !referencePattern.MatchString("ref:okta/effect/"+effectID) {
+		return Connection{}, ErrInvalid
+	}
+	bounded, cancel := context.WithTimeout(ctx, adapter.timeout)
+	defer cancel()
+	connection, err := client.Recover(bounded, effectID)
+	if errors.Is(err, ErrOutcomeNotFound) {
+		return Connection{}, ErrOutcomeNotFound
+	}
+	if err != nil || bounded.Err() != nil || !validConnection(adapter.config, connection) {
+		return Connection{}, ErrProvider
+	}
+	connection.Scopes = append([]string(nil), connection.Scopes...)
+	return connection, nil
+}
+
+func (adapter *OktaAdapter) Discard(ctx context.Context, effectID string, revoke bool) error {
+	client, ok := adapter.client.(EffectClient)
+	if adapter == nil || !ok || ctx == nil || ctx.Err() != nil || !referencePattern.MatchString("ref:okta/effect/"+effectID) {
+		return ErrInvalid
+	}
+	bounded, cancel := context.WithTimeout(ctx, adapter.timeout)
+	defer cancel()
+	if err := client.Discard(bounded, effectID, revoke); err != nil || bounded.Err() != nil {
+		return ErrProvider
+	}
+	return nil
+}
+
+func (adapter *OktaAdapter) Revoke(ctx context.Context, reference string) error {
+	client, ok := adapter.client.(EffectClient)
+	if adapter == nil || !ok || ctx == nil || ctx.Err() != nil || !referencePattern.MatchString(reference) {
+		return ErrInvalid
+	}
+	bounded, cancel := context.WithTimeout(ctx, adapter.timeout)
+	defer cancel()
+	if err := client.Revoke(bounded, reference, adapter.config); err != nil || bounded.Err() != nil {
+		return ErrProvider
+	}
+	return nil
 }
 
 func validConfig(config Config) bool {

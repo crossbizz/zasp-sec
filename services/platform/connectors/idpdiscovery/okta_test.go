@@ -44,7 +44,7 @@ func TestOktaCompletionRequiresExactReadScopesAndOpaqueRefreshReference(t *testi
 		return Connection{Reference: "ref:okta/refresh/subject-0001", Subject: "00u1234567890abcdef", Tenant: "acme.okta.com", Scopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}}, nil
 	})
 	adapter, _ := NewOktaAdapter(Config{Issuer: "https://acme.okta.com", ClientID: "0oa1234567890abcdef", ClientSecretReference: "ref:okta/client-secret-0001", CallbackURL: "https://zasp.example/api/v1/integrations/oauth/callback"}, client, time.Second)
-	connection, err := adapter.Complete(context.Background(), "provider-code", []byte("abcdefghijklmnopqrstuvwxyzABCDEFGH123456789"))
+	connection, err := adapter.Complete(context.Background(), "pid_70000003-0000-4000-8000-000000000003", "provider-code", []byte("abcdefghijklmnopqrstuvwxyzABCDEFGH123456789"))
 	if err != nil || connection.Reference != "ref:okta/refresh/subject-0001" {
 		t.Fatalf("connection=%#v err=%v", connection, err)
 	}
@@ -52,7 +52,7 @@ func TestOktaCompletionRequiresExactReadScopesAndOpaqueRefreshReference(t *testi
 		return Connection{Reference: "raw-refresh-token", Subject: "00u1234567890abcdef", Tenant: "acme.okta.com", Scopes: []string{"okta.users.read"}}, nil
 	})
 	adapter.client = client
-	if _, err := adapter.Complete(context.Background(), "provider-code", []byte("abcdefghijklmnopqrstuvwxyzABCDEFGH123456789")); !errors.Is(err, ErrProvider) || err.Error() != ErrProvider.Error() {
+	if _, err := adapter.Complete(context.Background(), "pid_70000003-0000-4000-8000-000000000003", "provider-code", []byte("abcdefghijklmnopqrstuvwxyzABCDEFGH123456789")); !errors.Is(err, ErrProvider) || err.Error() != ErrProvider.Error() {
 		t.Fatalf("hostile result error=%v", err)
 	}
 }

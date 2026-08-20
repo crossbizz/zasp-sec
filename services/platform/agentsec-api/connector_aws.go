@@ -30,7 +30,7 @@ type secretsManagerAPI interface {
 type connectorSecretsDriver struct{ client secretsManagerAPI }
 
 func (driver *connectorSecretsDriver) Create(ctx context.Context, name, kmsKey string, value []byte) error {
-	if driver == nil || driver.client == nil || ctx == nil || len(value) < 1 || len(value) > 2048 {
+	if driver == nil || driver.client == nil || ctx == nil || len(value) < 1 || len(value) > 16384 {
 		return errRuntimeUnavailable
 	}
 	_, err := driver.client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{Name: aws.String(name), KmsKeyId: aws.String(kmsKey), SecretBinary: append([]byte(nil), value...)})
@@ -57,12 +57,12 @@ func (driver *connectorSecretsDriver) Read(ctx context.Context, name string) ([]
 	}
 	if output.SecretString != nil {
 		value := []byte(*output.SecretString)
-		if len(value) < 1 || len(value) > 2048 {
+		if len(value) < 1 || len(value) > 16384 {
 			return nil, errRuntimeUnavailable
 		}
 		return value, nil
 	}
-	if len(output.SecretBinary) < 1 || len(output.SecretBinary) > 2048 {
+	if len(output.SecretBinary) < 1 || len(output.SecretBinary) > 16384 {
 		return nil, errRuntimeUnavailable
 	}
 	return append([]byte(nil), output.SecretBinary...), nil
@@ -75,6 +75,10 @@ func (driver *connectorSecretsDriver) Delete(ctx context.Context, name string) e
 	force := true
 	_, err := driver.client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{SecretId: aws.String(name), ForceDeleteWithoutRecovery: &force})
 	if err != nil {
+		var missing *secretstypes.ResourceNotFoundException
+		if errors.As(err, &missing) {
+			return nil
+		}
 		return errRuntimeUnavailable
 	}
 	return nil

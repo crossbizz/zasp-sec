@@ -12,6 +12,7 @@ import (
 
 var ErrInvalid = errors.New("GitHub connector input rejected")
 var ErrProvider = errors.New("GitHub connector provider rejected")
+var ErrOutcomeNotFound = errors.New("GitHub connector outcome not found")
 var clientIDPattern = regexp.MustCompile(`^Iv1\.[A-Za-z0-9]{16}$`)
 var referencePattern = regexp.MustCompile(`^ref:github/[a-z0-9][a-z0-9_./:-]{3,507}$`)
 var oauthValuePattern = regexp.MustCompile(`^[A-Za-z0-9._~-]{8,512}$`)
@@ -19,8 +20,8 @@ var pkcePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{43,128}$`)
 
 type Config struct{ ClientID, ClientSecretReference, CallbackURL string }
 type ExchangeRequest struct {
-	Code, ClientID, ClientSecretReference, CallbackURL string
-	PKCEVerifier                                       []byte
+	EffectID, Code, ClientID, ClientSecretReference, CallbackURL string
+	PKCEVerifier                                                 []byte
 }
 type Connection struct {
 	Reference, AccountLogin, RepositorySelection string
@@ -29,6 +30,11 @@ type Connection struct {
 }
 type ExchangeClient interface {
 	Exchange(context.Context, ExchangeRequest) (Connection, error)
+}
+type EffectClient interface {
+	ExchangeClient
+	Recover(context.Context, string) (Connection, error)
+	Discard(context.Context, string, bool) error
 }
 type Adapter struct {
 	config  Config
@@ -57,14 +63,14 @@ func (adapter *Adapter) AuthorizationURL(state, challenge string) (string, error
 	return "https://github.com/login/oauth/authorize?" + query.Encode(), nil
 }
 
-func (adapter *Adapter) Complete(ctx context.Context, code string, verifier []byte) (Connection, error) {
-	if adapter == nil || adapter.client == nil || ctx == nil || ctx.Err() != nil || !oauthValuePattern.MatchString(code) || !pkcePattern.Match(verifier) {
+func (adapter *Adapter) Complete(ctx context.Context, effectID, code string, verifier []byte) (Connection, error) {
+	if adapter == nil || adapter.client == nil || ctx == nil || ctx.Err() != nil || !referencePattern.MatchString("ref:github/effect/"+effectID) || !oauthValuePattern.MatchString(code) || !pkcePattern.Match(verifier) {
 		return Connection{}, ErrInvalid
 	}
 	bounded, cancel := context.WithTimeout(ctx, adapter.timeout)
 	defer cancel()
 	verifierCopy := append([]byte(nil), verifier...)
-	request := ExchangeRequest{Code: code, ClientID: adapter.config.ClientID, ClientSecretReference: adapter.config.ClientSecretReference, CallbackURL: adapter.config.CallbackURL, PKCEVerifier: verifierCopy}
+	request := ExchangeRequest{EffectID: effectID, Code: code, ClientID: adapter.config.ClientID, ClientSecretReference: adapter.config.ClientSecretReference, CallbackURL: adapter.config.CallbackURL, PKCEVerifier: verifierCopy}
 	connection, err := adapter.client.Exchange(bounded, request)
 	clear(verifierCopy)
 	if err != nil || bounded.Err() != nil || !validConnection(connection) {
@@ -72,6 +78,37 @@ func (adapter *Adapter) Complete(ctx context.Context, code string, verifier []by
 	}
 	connection.Permissions = clonePermissions(connection.Permissions)
 	return connection, nil
+}
+
+func (adapter *Adapter) Recover(ctx context.Context, effectID string) (Connection, error) {
+	client, ok := adapter.client.(EffectClient)
+	if adapter == nil || !ok || ctx == nil || ctx.Err() != nil || !referencePattern.MatchString("ref:github/effect/"+effectID) {
+		return Connection{}, ErrInvalid
+	}
+	bounded, cancel := context.WithTimeout(ctx, adapter.timeout)
+	defer cancel()
+	connection, err := client.Recover(bounded, effectID)
+	if errors.Is(err, ErrOutcomeNotFound) {
+		return Connection{}, ErrOutcomeNotFound
+	}
+	if err != nil || bounded.Err() != nil || !validConnection(connection) {
+		return Connection{}, ErrProvider
+	}
+	connection.Permissions = clonePermissions(connection.Permissions)
+	return connection, nil
+}
+
+func (adapter *Adapter) Discard(ctx context.Context, effectID string, revoke bool) error {
+	client, ok := adapter.client.(EffectClient)
+	if adapter == nil || !ok || ctx == nil || ctx.Err() != nil || !referencePattern.MatchString("ref:github/effect/"+effectID) {
+		return ErrInvalid
+	}
+	bounded, cancel := context.WithTimeout(ctx, adapter.timeout)
+	defer cancel()
+	if err := client.Discard(bounded, effectID, revoke); err != nil || bounded.Err() != nil {
+		return ErrProvider
+	}
+	return nil
 }
 
 func validConfig(config Config) bool {

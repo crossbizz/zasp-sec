@@ -15,12 +15,13 @@ import (
 )
 
 type connectorAuthorizationStub struct {
-	started    OAuthStart
-	consumed   OAuthConsumption
-	consumeErr error
-	effect     ConnectorEffectStart
-	completed  OAuthCompletion
-	resolved   ConnectorEffectResolution
+	started     OAuthStart
+	consumed    OAuthConsumption
+	consumeErr  error
+	effect      ConnectorEffectStart
+	completed   OAuthCompletion
+	resolved    ConnectorEffectResolution
+	completeErr error
 }
 
 func (stub *connectorAuthorizationStub) StartOAuth(_ context.Context, _ RequestIdentity, input OAuthStart) (OAuthAttemptRecord, error) {
@@ -43,6 +44,9 @@ func (*connectorAuthorizationStub) PutConnectorCredential(context.Context, domai
 }
 func (stub *connectorAuthorizationStub) CompleteOAuth(_ context.Context, _ domain.Scope, input OAuthCompletion) (OAuthCompletionRecord, error) {
 	stub.completed = input
+	if stub.completeErr != nil {
+		return OAuthCompletionRecord{}, stub.completeErr
+	}
 	return OAuthCompletionRecord{AttemptID: input.AttemptID, ConnectionID: input.ConnectionID, Status: "succeeded", CompletedAt: time.Now().UTC()}, nil
 }
 func (*connectorAuthorizationStub) ClaimReconciliation(context.Context, string, int, int) ([]ConnectorEffectLease, error) {
@@ -79,15 +83,53 @@ func (stub *connectorSecretStub) Consume(_ context.Context, reference string) ([
 type connectorProviderStub struct {
 	state, challenge, code string
 	verifier               []byte
+	beforeComplete         func()
 }
 
 func (stub *connectorProviderStub) AuthorizationURL(state, challenge string) (string, error) {
 	stub.state, stub.challenge = state, challenge
 	return "https://github.com/login/oauth/authorize?state=" + url.QueryEscape(state), nil
 }
-func (stub *connectorProviderStub) Complete(_ context.Context, code string, verifier []byte) (ConnectorOAuthGrant, error) {
+func (stub *connectorProviderStub) Complete(_ context.Context, _ string, code string, verifier []byte) (ConnectorOAuthGrant, error) {
+	if stub.beforeComplete != nil {
+		stub.beforeComplete()
+	}
 	stub.code, stub.verifier = code, append([]byte(nil), verifier...)
 	return ConnectorOAuthGrant{ConnectionReference: "ref:github/installation-0001", ProviderSubject: "installation:123", CredentialClass: "github_installation_reference", Metadata: json.RawMessage(`{"installation_id":123,"scopes":["read:org","repo"]}`)}, nil
+}
+func (*connectorProviderStub) Recover(context.Context, string) (ConnectorOAuthGrant, error) {
+	return ConnectorOAuthGrant{}, ErrConnectorOutcomeNotFound
+}
+func (*connectorProviderStub) Discard(context.Context, string, bool) error { return nil }
+func (*connectorProviderStub) Revoke(context.Context, string) error        { return nil }
+
+func TestConnectorCallbackMarksEffectUnknownBeforeProviderAndRetainsRecoveryAfterPersistenceFailure(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	now := time.Now().UTC()
+	state := strings.Repeat("s", 43)
+	workflow := connectorWorkflowValue("pid_70000001-0000-4000-8000-000000000001", "github")
+	repository := &connectorAuthorizationStub{completeErr: ErrRepositoryUnavailable, consumed: OAuthConsumption{
+		ID: "pid_70000002-0000-4000-8000-000000000002", IntegrationID: "pid_70000001-0000-4000-8000-000000000001", Provider: "github", PrincipalID: identity.PrincipalID.String(), PKCEVerifierReference: "ref:oauth/pkce/attempt-0001", ReturnPath: "/connectors", RequestedScopes: []string{"read:org", "repo"}, ExpiresAt: now.Add(5 * time.Minute), ConsumedAt: now,
+	}}
+	digest := connectorAuthorizationIntentDigest(identity, workflow, repository.consumed.IntegrationID, repository.consumed.ID, "github", map[string]string{}, repository.consumed.RequestedScopes)
+	repository.consumed.RequestDigest = jsonDigest(digest[:])
+	secrets := &connectorSecretStub{reference: repository.consumed.PKCEVerifierReference, material: OAuthSecretMaterial{State: state, Verifier: []byte(strings.Repeat("v", 43))}}
+	providerObservedStatus := ""
+	provider := &connectorProviderStub{beforeComplete: func() { providerObservedStatus = repository.resolved.Status }}
+	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Secrets: secrets, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/integrations/oauth/callback?code=provider-code-0001&state="+state, nil)
+	request.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "browser-session-token-0001"})
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "completeIntegrationOAuthCallback", PathParameters: map[string]string{}}))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusServiceUnavailable || providerObservedStatus != "unknown" || repository.resolved.Status != "unknown" || repository.resolved.ErrorCode != "provider_effect_started" || repository.completed.AttemptID != repository.consumed.ID {
+		t.Fatalf("crash-window callback = %d observed=%q resolution=%#v completion=%#v body=%s", response.Code, providerObservedStatus, repository.resolved, repository.completed, response.Body.String())
+	}
 }
 
 func TestConnectorAuthorizeCreatesStateBoundPKCEAttemptWithoutSecretResponse(t *testing.T) {
@@ -129,13 +171,15 @@ func TestConnectorOAuthCallbackConsumesStateBeforeProviderAndRedirectsSafely(t *
 	now := time.Now().UTC()
 	state := strings.Repeat("s", 43)
 	verifier := []byte(strings.Repeat("v", 43))
-	requestDigest := sha256.Sum256([]byte("authorize request"))
+	workflow := connectorWorkflowValue("pid_70000001-0000-4000-8000-000000000001", "github")
 	repository := &connectorAuthorizationStub{consumed: OAuthConsumption{
-		ID: "pid_70000002-0000-4000-8000-000000000002", IntegrationID: "pid_70000001-0000-4000-8000-000000000001", Provider: "github", PrincipalID: identity.PrincipalID.String(), PKCEVerifierReference: "ref:oauth/pkce/attempt-0001", RequestDigest: jsonDigest(requestDigest[:]), ReturnPath: "/connectors", RequestedScopes: []string{"read:org", "repo"}, ExpiresAt: now.Add(5 * time.Minute), ConsumedAt: now,
+		ID: "pid_70000002-0000-4000-8000-000000000002", IntegrationID: "pid_70000001-0000-4000-8000-000000000001", Provider: "github", PrincipalID: identity.PrincipalID.String(), PKCEVerifierReference: "ref:oauth/pkce/attempt-0001", ReturnPath: "/connectors", RequestedScopes: []string{"read:org", "repo"}, ExpiresAt: now.Add(5 * time.Minute), ConsumedAt: now,
 	}}
+	digest := connectorAuthorizationIntentDigest(identity, workflow, repository.consumed.IntegrationID, repository.consumed.ID, "github", map[string]string{}, repository.consumed.RequestedScopes)
+	repository.consumed.RequestDigest = jsonDigest(digest[:])
 	secrets := &connectorSecretStub{reference: repository.consumed.PKCEVerifierReference, material: OAuthSecretMaterial{State: state, Verifier: verifier}}
 	provider := &connectorProviderStub{}
-	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: connectorWorkflowValue(repository.consumed.IntegrationID, "github")}, Secrets: secrets, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
+	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Secrets: secrets, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,12 +241,14 @@ func TestConnectorCallbackConsumesFixedProviderDenialWithoutExchange(t *testing.
 	identity.CredentialKind = CredentialBrowserSession
 	now := time.Now().UTC()
 	state := strings.Repeat("s", 43)
-	requestDigest := sha256.Sum256([]byte("authorize request"))
+	workflow := connectorWorkflowValue("pid_70000001-0000-4000-8000-000000000001", "github")
 	repository := &connectorAuthorizationStub{consumed: OAuthConsumption{
-		ID: "pid_70000002-0000-4000-8000-000000000002", IntegrationID: "pid_70000001-0000-4000-8000-000000000001", Provider: "github", PrincipalID: identity.PrincipalID.String(), PKCEVerifierReference: "ref:oauth/pkce/attempt-0001", RequestDigest: jsonDigest(requestDigest[:]), ReturnPath: "/connectors", RequestedScopes: []string{"read:org", "repo"}, ExpiresAt: now.Add(5 * time.Minute), ConsumedAt: now,
+		ID: "pid_70000002-0000-4000-8000-000000000002", IntegrationID: "pid_70000001-0000-4000-8000-000000000001", Provider: "github", PrincipalID: identity.PrincipalID.String(), PKCEVerifierReference: "ref:oauth/pkce/attempt-0001", ReturnPath: "/connectors", RequestedScopes: []string{"read:org", "repo"}, ExpiresAt: now.Add(5 * time.Minute), ConsumedAt: now,
 	}}
+	digest := connectorAuthorizationIntentDigest(identity, workflow, repository.consumed.IntegrationID, repository.consumed.ID, "github", map[string]string{}, repository.consumed.RequestedScopes)
+	repository.consumed.RequestDigest = jsonDigest(digest[:])
 	provider := &connectorProviderStub{}
-	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: connectorWorkflowValue(repository.consumed.IntegrationID, "github")}, Secrets: &connectorSecretStub{}, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
+	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Secrets: &connectorSecretStub{}, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,13 +3,16 @@ package apiserver
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -38,8 +41,13 @@ type ConnectorOAuthGrant struct {
 
 type ConnectorOAuthProvider interface {
 	AuthorizationURL(string, string) (string, error)
-	Complete(context.Context, string, []byte) (ConnectorOAuthGrant, error)
+	Complete(context.Context, string, string, []byte) (ConnectorOAuthGrant, error)
+	Recover(context.Context, string) (ConnectorOAuthGrant, error)
+	Discard(context.Context, string, bool) error
+	Revoke(context.Context, string) error
 }
+
+var ErrConnectorOutcomeNotFound = errors.New("connector outcome not found")
 
 type ConnectorOAuthProviderFactory interface {
 	Provider(map[string]string) (ConnectorOAuthProvider, error)
@@ -149,7 +157,7 @@ func (handler *connectorHTTPHandler) authorize(writer http.ResponseWriter, reque
 	}
 	sessionDigest := sha256.Sum256([]byte(cookie.Value))
 	stateDigest := sha256.Sum256([]byte(material.State))
-	requestDigest := sha256.Sum256([]byte(strings.Join([]string{scopeKey(identity.Scope), identity.PrincipalID.String(), integrationID, providerKey, idempotencyKey, strings.Join(definition.RequestedScopes, "\x1e")}, "\x1f")))
+	requestDigest := connectorAuthorizationIntentDigest(identity, workflow, integrationID, attemptID, providerKey, providerConfiguration, definition.RequestedScopes)
 	attempt, err := handler.repository.StartOAuth(request.Context(), identity, OAuthStart{
 		AttemptID: attemptID, IntegrationID: integrationID, Provider: providerKey, SessionDigest: sessionDigest[:], StateDigest: stateDigest[:], PKCEVerifierReference: reference,
 		RequestDigest: requestDigest[:], RequestedScopes: definition.RequestedScopes, ExpiresAt: material.ExpiresAt.UTC(),
@@ -197,9 +205,14 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		return
 	}
 	requestDigest, decodeErr := hex.DecodeString(consumption.RequestDigest)
+	expectedDigest := connectorAuthorizationIntentDigest(identity, workflow, consumption.IntegrationID, consumption.ID, providerKey, providerConfiguration, definition.RequestedScopes)
+	if decodeErr != nil || len(requestDigest) != sha256.Size || subtle.ConstantTimeCompare(requestDigest, expectedDigest[:]) != 1 {
+		writeProductionError(writer, request, ErrRepositoryConflict)
+		return
+	}
 	effectID := connectorDeterministicID(identity.Scope, consumption.ID, "oauth-effect")
 	effect, err := handler.repository.BeginConnectorEffect(request.Context(), identity.Scope, ConnectorEffectStart{ID: effectID, IntegrationID: consumption.IntegrationID, OAuthAttemptID: consumption.ID, Provider: consumption.Provider, Operation: "authorize", IdempotencyKey: "oauth-authorize:" + consumption.ID, RequestDigest: requestDigest})
-	if decodeErr != nil || len(requestDigest) != sha256.Size || err != nil || effect.Status != "pending" && effect.Status != "unknown" {
+	if err != nil || effect.Status != "pending" && effect.Status != "unknown" {
 		writeProductionError(writer, request, firstError(err, ErrRepositoryConflict))
 		return
 	}
@@ -218,10 +231,14 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
-	grant, providerErr := provider.Complete(request.Context(), query.Get("code"), verifier)
+	if _, err = handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "unknown", ErrorCode: "provider_effect_started", Metadata: json.RawMessage(`{}`)}); err != nil {
+		clear(verifier)
+		writeProductionError(writer, request, err)
+		return
+	}
+	grant, providerErr := provider.Complete(request.Context(), effectID, query.Get("code"), verifier)
 	clear(verifier)
 	if providerErr != nil || !validConnectorOAuthGrant(grant, definition.CredentialClass) {
-		_, _ = handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "unknown", ErrorCode: "provider_outcome_unknown", Metadata: json.RawMessage(`{}`)})
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
@@ -235,10 +252,24 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		writeProductionError(writer, request, err)
 		return
 	}
+	_ = provider.Discard(request.Context(), effectID, false)
 	http.Redirect(writer, request, consumption.ReturnPath, http.StatusSeeOther)
 }
 
+func connectorAuthorizationIntentDigest(identity RequestIdentity, workflow WorkflowValue, integrationID, attemptID, provider string, configuration map[string]string, scopes []string) [sha256.Size]byte {
+	return connectorAuthorizationIntentDigestValues(identity.Scope, identity.PrincipalID.String(), workflow, integrationID, attemptID, provider, configuration, scopes)
+}
+
+func connectorAuthorizationIntentDigestValues(scope domain.Scope, principalID string, workflow WorkflowValue, integrationID, attemptID, provider string, configuration map[string]string, scopes []string) [sha256.Size]byte {
+	configurationJSON, _ := json.Marshal(configuration)
+	return sha256.Sum256([]byte(strings.Join([]string{scopeKey(scope), principalID, integrationID, strconv.FormatInt(workflow.Version, 10), attemptID, provider, string(configurationJSON), strings.Join(scopes, "\x1e")}, "\x1f")))
+}
+
 func authorizedOAuthIntegration(value WorkflowValue, expectedID string) (string, map[string]string, bool) {
+	return authorizedOAuthIntegrationStatus(value, expectedID, "configured", "pending_authorization", "active")
+}
+
+func authorizedOAuthIntegrationStatus(value WorkflowValue, expectedID string, allowedStatuses ...string) (string, map[string]string, bool) {
 	if value.Version < 1 || len(value.Body) < 2 || len(value.Body) > 16<<10 {
 		return "", nil, false
 	}
@@ -257,7 +288,7 @@ func authorizedOAuthIntegration(value WorkflowValue, expectedID string) (string,
 		}
 		configuration[key] = value
 	}
-	return provider, configuration, providerOK && statusOK && configurationOK && stringIn(provider, "github", "okta") && stringIn(status, "configured", "pending_authorization", "active")
+	return provider, configuration, providerOK && statusOK && configurationOK && stringIn(provider, "github", "okta") && stringIn(status, allowedStatuses...)
 }
 
 func connectorOAuthProvider(definition ConnectorOAuthProviderDefinition, configuration map[string]string) (ConnectorOAuthProvider, error) {

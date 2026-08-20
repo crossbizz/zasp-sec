@@ -3,10 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
-	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime"
 	"net"
@@ -34,7 +33,10 @@ func (store *connectorProviderSecrets) resolve(ctx context.Context, reference st
 		return nil, errRuntimeUnavailable
 	}
 	value, err := store.driver.Read(ctx, name)
-	if err != nil || len(value) < 8 || len(value) > 2048 {
+	if errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
+		return nil, apiserver.ErrOAuthSecretNotFound
+	}
+	if err != nil || len(value) < 8 || len(value) > 16384 {
 		return nil, errRuntimeUnavailable
 	}
 	return value, nil
@@ -42,7 +44,7 @@ func (store *connectorProviderSecrets) resolve(ctx context.Context, reference st
 
 func (store *connectorProviderSecrets) put(ctx context.Context, reference string, value []byte) error {
 	name, ok := store.name(reference)
-	if !ok || len(value) < 16 || len(value) > 2048 {
+	if !ok || len(value) < 16 || len(value) > 16384 {
 		return errRuntimeUnavailable
 	}
 	if err := store.driver.Create(ctx, name, store.kmsKey, value); err == nil {
@@ -53,6 +55,14 @@ func (store *connectorProviderSecrets) put(ctx context.Context, reference string
 		return errRuntimeUnavailable
 	}
 	return nil
+}
+
+func (store *connectorProviderSecrets) delete(ctx context.Context, reference string) error {
+	name, ok := store.name(reference)
+	if !ok {
+		return errRuntimeUnavailable
+	}
+	return store.driver.Delete(ctx, name)
 }
 
 func (store *connectorProviderSecrets) ready(ctx context.Context, reference string) error {
@@ -77,7 +87,26 @@ type githubExchangeClient struct {
 	secrets *connectorProviderSecrets
 }
 
+type githubEffectManifest struct {
+	ClientID              string `json:"client_id"`
+	ClientSecretReference string `json:"client_secret_reference"`
+}
+
+type githubEffectOutcome struct {
+	Manifest   githubEffectManifest       `json:"manifest"`
+	Connection githubdiscovery.Connection `json:"connection"`
+}
+
 func (client *githubExchangeClient) Exchange(ctx context.Context, request githubdiscovery.ExchangeRequest) (githubdiscovery.Connection, error) {
+	manifestReference, tokenReference, outcomeReference, ok := connectorEffectReferences("github", request.EffectID)
+	if !ok {
+		return githubdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	manifest := githubEffectManifest{ClientID: request.ClientID, ClientSecretReference: request.ClientSecretReference}
+	manifestJSON, _ := json.Marshal(manifest)
+	if err := client.secrets.put(ctx, manifestReference, manifestJSON); err != nil {
+		return githubdiscovery.Connection{}, errRuntimeUnavailable
+	}
 	secret, err := client.secrets.resolve(ctx, request.ClientSecretReference)
 	if err != nil {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
@@ -98,6 +127,10 @@ func (client *githubExchangeClient) Exchange(ctx context.Context, request github
 	if performConnectorJSON(client.http, tokenRequest, &token, 32<<10) != nil || len(token.AccessToken) < 20 || len(token.AccessToken) > 4096 || !strings.EqualFold(token.TokenType, "bearer") {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
+	if err := client.secrets.put(ctx, tokenReference, []byte(token.AccessToken)); err != nil {
+		_ = client.revokeToken(ctx, manifest, token.AccessToken)
+		return githubdiscovery.Connection{}, errRuntimeUnavailable
+	}
 	installationsRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/installations?per_page=2", nil)
 	installationsRequest.Header.Set("Accept", "application/vnd.github+json")
 	installationsRequest.Header.Set("Authorization", "Bearer "+token.AccessToken)
@@ -114,10 +147,87 @@ func (client *githubExchangeClient) Exchange(ctx context.Context, request github
 		} `json:"installations"`
 	}
 	if performConnectorJSON(client.http, installationsRequest, &page, 128<<10) != nil || page.TotalCount != 1 || len(page.Installations) != 1 {
+		_ = client.revokeToken(ctx, manifest, token.AccessToken)
+		_ = client.secrets.delete(ctx, tokenReference)
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
 	installation := page.Installations[0]
-	return githubdiscovery.Connection{Reference: "ref:github/install/" + strconv.FormatInt(installation.ID, 10), InstallationID: installation.ID, AccountLogin: installation.Account.Login, RepositorySelection: installation.RepositorySelection, Permissions: installation.Permissions}, nil
+	connection := githubdiscovery.Connection{Reference: "ref:github/install/" + strconv.FormatInt(installation.ID, 10), InstallationID: installation.ID, AccountLogin: installation.Account.Login, RepositorySelection: installation.RepositorySelection, Permissions: installation.Permissions}
+	outcomeJSON, _ := json.Marshal(githubEffectOutcome{Manifest: manifest, Connection: connection})
+	if err := client.secrets.put(ctx, outcomeReference, outcomeJSON); err != nil || client.revokeToken(ctx, manifest, token.AccessToken) != nil || client.secrets.delete(ctx, tokenReference) != nil {
+		return githubdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	return connection, nil
+}
+
+func (client *githubExchangeClient) Recover(ctx context.Context, effectID string) (githubdiscovery.Connection, error) {
+	manifestReference, tokenReference, outcomeReference, ok := connectorEffectReferences("github", effectID)
+	if !ok {
+		return githubdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	manifest, manifestErr := readGitHubManifest(ctx, client.secrets, manifestReference)
+	if manifestErr != nil {
+		return githubdiscovery.Connection{}, manifestErr
+	}
+	outcomeBytes, err := client.secrets.resolve(ctx, outcomeReference)
+	if errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
+		_ = client.cleanupToken(ctx, manifest, tokenReference)
+		return githubdiscovery.Connection{}, githubdiscovery.ErrOutcomeNotFound
+	}
+	var outcome githubEffectOutcome
+	if err != nil || decodeConnectorSecretJSON(outcomeBytes, &outcome) != nil || outcome.Manifest != manifest {
+		return githubdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	if err := client.cleanupToken(ctx, manifest, tokenReference); err != nil {
+		return githubdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	return outcome.Connection, nil
+}
+
+func (client *githubExchangeClient) Discard(ctx context.Context, effectID string, _ bool) error {
+	manifestReference, tokenReference, outcomeReference, ok := connectorEffectReferences("github", effectID)
+	if !ok {
+		return errRuntimeUnavailable
+	}
+	manifest, err := readGitHubManifest(ctx, client.secrets, manifestReference)
+	if err != nil && !errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
+		return errRuntimeUnavailable
+	}
+	if err == nil && client.cleanupToken(ctx, manifest, tokenReference) != nil {
+		return errRuntimeUnavailable
+	}
+	if deleteConnectorSecret(ctx, client.secrets, outcomeReference) != nil || deleteConnectorSecret(ctx, client.secrets, manifestReference) != nil {
+		return errRuntimeUnavailable
+	}
+	return nil
+}
+
+func (client *githubExchangeClient) cleanupToken(ctx context.Context, manifest githubEffectManifest, reference string) error {
+	token, err := client.secrets.resolve(ctx, reference)
+	if errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
+		return nil
+	}
+	if err != nil || client.revokeToken(ctx, manifest, string(token)) != nil {
+		clear(token)
+		return errRuntimeUnavailable
+	}
+	clear(token)
+	return client.secrets.delete(ctx, reference)
+}
+
+func (client *githubExchangeClient) revokeToken(ctx context.Context, manifest githubEffectManifest, token string) error {
+	secret, err := client.secrets.resolve(ctx, manifest.ClientSecretReference)
+	if err != nil {
+		return errRuntimeUnavailable
+	}
+	payload, _ := json.Marshal(map[string]string{"access_token": token})
+	request, _ := http.NewRequestWithContext(ctx, http.MethodDelete, "https://api.github.com/applications/"+url.PathEscape(manifest.ClientID)+"/token", bytes.NewReader(payload))
+	request.SetBasicAuth(manifest.ClientID, string(secret))
+	clear(secret)
+	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	return performConnectorEmpty(client.http, request)
 }
 
 type oktaExchangeClient struct {
@@ -125,7 +235,28 @@ type oktaExchangeClient struct {
 	secrets *connectorProviderSecrets
 }
 
+type oktaEffectManifest struct {
+	Issuer                string `json:"issuer"`
+	ClientID              string `json:"client_id"`
+	ClientSecretReference string `json:"client_secret_reference"`
+}
+
+type oktaEffectOutcome struct {
+	Manifest   oktaEffectManifest      `json:"manifest"`
+	Connection idpdiscovery.Connection `json:"connection"`
+}
+
 func (client *oktaExchangeClient) Exchange(ctx context.Context, request idpdiscovery.ExchangeRequest) (idpdiscovery.Connection, error) {
+	manifestReference, accessReference, outcomeReference, ok := connectorEffectReferences("okta", request.EffectID)
+	if !ok {
+		return idpdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	refreshReference := "ref:okta/refresh/" + strings.TrimPrefix(request.EffectID, "pid_")
+	manifest := oktaEffectManifest{Issuer: request.Issuer, ClientID: request.ClientID, ClientSecretReference: request.ClientSecretReference}
+	manifestJSON, _ := json.Marshal(manifest)
+	if err := client.secrets.put(ctx, manifestReference, manifestJSON); err != nil {
+		return idpdiscovery.Connection{}, errRuntimeUnavailable
+	}
 	secret, err := client.secrets.resolve(ctx, request.ClientSecretReference)
 	if err != nil {
 		return idpdiscovery.Connection{}, errRuntimeUnavailable
@@ -146,6 +277,11 @@ func (client *oktaExchangeClient) Exchange(ctx context.Context, request idpdisco
 	if performConnectorJSON(client.http, tokenRequest, &token, 64<<10) != nil || len(token.AccessToken) < 20 || len(token.AccessToken) > 4096 || len(token.RefreshToken) < 20 || len(token.RefreshToken) > 4096 || !strings.EqualFold(token.TokenType, "bearer") || token.ExpiresIn < 1 || token.ExpiresIn > 3600 {
 		return idpdiscovery.Connection{}, errRuntimeUnavailable
 	}
+	if client.secrets.put(ctx, accessReference, []byte(token.AccessToken)) != nil || client.secrets.put(ctx, refreshReference, []byte(token.RefreshToken)) != nil {
+		_ = client.revokeToken(ctx, manifest, token.AccessToken, "access_token")
+		_ = client.revokeToken(ctx, manifest, token.RefreshToken, "refresh_token")
+		return idpdiscovery.Connection{}, errRuntimeUnavailable
+	}
 	profileRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, request.Issuer+"/oauth2/v1/userinfo", nil)
 	profileRequest.Header.Set("Accept", "application/json")
 	profileRequest.Header.Set("Authorization", "Bearer "+token.AccessToken)
@@ -153,17 +289,154 @@ func (client *oktaExchangeClient) Exchange(ctx context.Context, request idpdisco
 		Subject string `json:"sub"`
 	}
 	if performConnectorJSON(client.http, profileRequest, &profile, 32<<10) != nil {
-		return idpdiscovery.Connection{}, errRuntimeUnavailable
-	}
-	digest := sha256.Sum256([]byte(token.RefreshToken))
-	reference := "ref:okta/refresh/" + hex.EncodeToString(digest[:16])
-	if err := client.secrets.put(ctx, reference, []byte(token.RefreshToken)); err != nil {
+		_ = client.revokeToken(ctx, manifest, token.AccessToken, "access_token")
+		_ = client.revokeToken(ctx, manifest, token.RefreshToken, "refresh_token")
 		return idpdiscovery.Connection{}, errRuntimeUnavailable
 	}
 	issuer, _ := url.Parse(request.Issuer)
 	scopes := strings.Fields(token.Scope)
 	sort.Strings(scopes)
-	return idpdiscovery.Connection{Reference: reference, Subject: profile.Subject, Tenant: issuer.Hostname(), Scopes: scopes}, nil
+	connection := idpdiscovery.Connection{Reference: refreshReference, Subject: profile.Subject, Tenant: issuer.Hostname(), Scopes: scopes}
+	outcomeJSON, _ := json.Marshal(oktaEffectOutcome{Manifest: manifest, Connection: connection})
+	if client.secrets.put(ctx, outcomeReference, outcomeJSON) != nil || client.revokeToken(ctx, manifest, token.AccessToken, "access_token") != nil || client.secrets.delete(ctx, accessReference) != nil {
+		return idpdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	return connection, nil
+}
+
+func (client *oktaExchangeClient) Recover(ctx context.Context, effectID string) (idpdiscovery.Connection, error) {
+	manifestReference, accessReference, outcomeReference, ok := connectorEffectReferences("okta", effectID)
+	if !ok {
+		return idpdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	manifest, manifestErr := readOktaManifest(ctx, client.secrets, manifestReference)
+	if manifestErr != nil {
+		return idpdiscovery.Connection{}, manifestErr
+	}
+	outcomeBytes, err := client.secrets.resolve(ctx, outcomeReference)
+	if errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
+		_ = client.cleanupToken(ctx, manifest, accessReference, "access_token")
+		_ = client.cleanupToken(ctx, manifest, "ref:okta/refresh/"+strings.TrimPrefix(effectID, "pid_"), "refresh_token")
+		return idpdiscovery.Connection{}, idpdiscovery.ErrOutcomeNotFound
+	}
+	var outcome oktaEffectOutcome
+	if err != nil || decodeConnectorSecretJSON(outcomeBytes, &outcome) != nil || outcome.Manifest != manifest {
+		return idpdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	if client.cleanupToken(ctx, manifest, accessReference, "access_token") != nil {
+		return idpdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	return outcome.Connection, nil
+}
+
+func (client *oktaExchangeClient) Discard(ctx context.Context, effectID string, revoke bool) error {
+	manifestReference, accessReference, outcomeReference, ok := connectorEffectReferences("okta", effectID)
+	if !ok {
+		return errRuntimeUnavailable
+	}
+	manifest, err := readOktaManifest(ctx, client.secrets, manifestReference)
+	if err != nil && !errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
+		return errRuntimeUnavailable
+	}
+	if err == nil {
+		if client.cleanupToken(ctx, manifest, accessReference, "access_token") != nil {
+			return errRuntimeUnavailable
+		}
+		if revoke && client.cleanupToken(ctx, manifest, "ref:okta/refresh/"+strings.TrimPrefix(effectID, "pid_"), "refresh_token") != nil {
+			return errRuntimeUnavailable
+		}
+	}
+	if deleteConnectorSecret(ctx, client.secrets, outcomeReference) != nil || deleteConnectorSecret(ctx, client.secrets, manifestReference) != nil {
+		return errRuntimeUnavailable
+	}
+	return nil
+}
+
+func (client *oktaExchangeClient) Revoke(ctx context.Context, reference string, config idpdiscovery.Config) error {
+	manifest := oktaEffectManifest{Issuer: config.Issuer, ClientID: config.ClientID, ClientSecretReference: config.ClientSecretReference}
+	if client.cleanupToken(ctx, manifest, reference, "refresh_token") != nil {
+		return errRuntimeUnavailable
+	}
+	return nil
+}
+
+func (client *oktaExchangeClient) cleanupToken(ctx context.Context, manifest oktaEffectManifest, reference, hint string) error {
+	token, err := client.secrets.resolve(ctx, reference)
+	if errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
+		return nil
+	}
+	if err != nil || client.revokeToken(ctx, manifest, string(token), hint) != nil {
+		clear(token)
+		return errRuntimeUnavailable
+	}
+	clear(token)
+	return client.secrets.delete(ctx, reference)
+}
+
+func (client *oktaExchangeClient) revokeToken(ctx context.Context, manifest oktaEffectManifest, token, hint string) error {
+	secret, err := client.secrets.resolve(ctx, manifest.ClientSecretReference)
+	if err != nil {
+		return errRuntimeUnavailable
+	}
+	form := url.Values{"token": {token}, "token_type_hint": {hint}}
+	request, _ := http.NewRequestWithContext(ctx, http.MethodPost, manifest.Issuer+"/oauth2/v1/revoke", strings.NewReader(form.Encode()))
+	request.SetBasicAuth(manifest.ClientID, string(secret))
+	clear(secret)
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return performConnectorEmpty(client.http, request)
+}
+
+func connectorEffectReferences(provider, effectID string) (string, string, string, bool) {
+	if !strings.HasPrefix(effectID, "pid_") || len(effectID) != 40 {
+		return "", "", "", false
+	}
+	suffix := strings.TrimPrefix(effectID, "pid_")
+	for _, character := range suffix {
+		if !strings.ContainsRune("0123456789abcdef-", character) {
+			return "", "", "", false
+		}
+	}
+	return "ref:" + provider + "/effect-manifest/" + suffix, "ref:" + provider + "/effect-token/" + suffix, "ref:" + provider + "/effect-outcome/" + suffix, true
+}
+
+func readGitHubManifest(ctx context.Context, store *connectorProviderSecrets, reference string) (githubEffectManifest, error) {
+	value, err := store.resolve(ctx, reference)
+	var result githubEffectManifest
+	if err != nil || decodeConnectorSecretJSON(value, &result) != nil || result.ClientID == "" || !strings.HasPrefix(result.ClientSecretReference, "ref:") {
+		return githubEffectManifest{}, err
+	}
+	return result, nil
+}
+
+func readOktaManifest(ctx context.Context, store *connectorProviderSecrets, reference string) (oktaEffectManifest, error) {
+	value, err := store.resolve(ctx, reference)
+	var result oktaEffectManifest
+	if err != nil || decodeConnectorSecretJSON(value, &result) != nil || result.Issuer == "" || result.ClientID == "" || !strings.HasPrefix(result.ClientSecretReference, "ref:") {
+		return oktaEffectManifest{}, err
+	}
+	return result, nil
+}
+
+func decodeConnectorSecretJSON(value []byte, target any) error {
+	decoder := json.NewDecoder(bytes.NewReader(value))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(target) != nil {
+		return errRuntimeUnavailable
+	}
+	var extra any
+	if decoder.Decode(&extra) != io.EOF {
+		return errRuntimeUnavailable
+	}
+	return nil
+}
+
+func deleteConnectorSecret(ctx context.Context, store *connectorProviderSecrets, reference string) error {
+	if _, err := store.resolve(ctx, reference); errors.Is(err, apiserver.ErrOAuthSecretNotFound) {
+		return nil
+	} else if err != nil {
+		return errRuntimeUnavailable
+	}
+	return store.delete(ctx, reference)
 }
 
 func performConnectorJSON(client *http.Client, request *http.Request, target any, maximum int64) error {
@@ -195,32 +468,89 @@ func performConnectorJSON(client *http.Client, request *http.Request, target any
 	return nil
 }
 
+func performConnectorEmpty(client *http.Client, request *http.Request) error {
+	if client == nil || request == nil {
+		return errRuntimeUnavailable
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return errRuntimeUnavailable
+	}
+	defer response.Body.Close()
+	payload, readErr := io.ReadAll(io.LimitReader(response.Body, 1))
+	if response.StatusCode < 200 || response.StatusCode > 299 || response.Header.Get("Location") != "" || readErr != nil || len(payload) != 0 {
+		return errRuntimeUnavailable
+	}
+	return nil
+}
+
 type githubOAuthProvider struct{ adapter *githubdiscovery.Adapter }
 
 func (provider *githubOAuthProvider) AuthorizationURL(state, challenge string) (string, error) {
 	return provider.adapter.AuthorizationURL(state, challenge)
 }
-func (provider *githubOAuthProvider) Complete(ctx context.Context, code string, verifier []byte) (apiserver.ConnectorOAuthGrant, error) {
-	value, err := provider.adapter.Complete(ctx, code, verifier)
+func (provider *githubOAuthProvider) Complete(ctx context.Context, effectID, code string, verifier []byte) (apiserver.ConnectorOAuthGrant, error) {
+	value, err := provider.adapter.Complete(ctx, effectID, code, verifier)
 	if err != nil {
 		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
 	}
 	metadata, err := json.Marshal(map[string]any{"account_login": value.AccountLogin, "installation_id": value.InstallationID, "permissions": value.Permissions, "repository_selection": value.RepositorySelection})
 	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_installation_reference", Metadata: metadata}, err
 }
+func (provider *githubOAuthProvider) Recover(ctx context.Context, effectID string) (apiserver.ConnectorOAuthGrant, error) {
+	value, err := provider.adapter.Recover(ctx, effectID)
+	if err != nil {
+		if errors.Is(err, githubdiscovery.ErrOutcomeNotFound) {
+			return apiserver.ConnectorOAuthGrant{}, apiserver.ErrConnectorOutcomeNotFound
+		}
+		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
+	}
+	metadata, err := json.Marshal(map[string]any{"account_login": value.AccountLogin, "installation_id": value.InstallationID, "permissions": value.Permissions, "repository_selection": value.RepositorySelection})
+	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_installation_reference", Metadata: metadata}, err
+}
+func (provider *githubOAuthProvider) Discard(ctx context.Context, effectID string, revoke bool) error {
+	if err := provider.adapter.Discard(ctx, effectID, revoke); err != nil {
+		return errRuntimeUnavailable
+	}
+	return nil
+}
+func (*githubOAuthProvider) Revoke(context.Context, string) error { return errRuntimeUnavailable }
 
 type oktaOAuthProvider struct{ adapter *idpdiscovery.OktaAdapter }
 
 func (provider *oktaOAuthProvider) AuthorizationURL(state, challenge string) (string, error) {
 	return provider.adapter.AuthorizationURL(state, challenge)
 }
-func (provider *oktaOAuthProvider) Complete(ctx context.Context, code string, verifier []byte) (apiserver.ConnectorOAuthGrant, error) {
-	value, err := provider.adapter.Complete(ctx, code, verifier)
+func (provider *oktaOAuthProvider) Complete(ctx context.Context, effectID, code string, verifier []byte) (apiserver.ConnectorOAuthGrant, error) {
+	value, err := provider.adapter.Complete(ctx, effectID, code, verifier)
 	if err != nil {
 		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
 	}
 	metadata, err := json.Marshal(map[string]any{"scopes": value.Scopes, "subject": value.Subject, "tenant": value.Tenant})
 	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: value.Subject, CredentialClass: "okta_refresh_reference", Metadata: metadata}, err
+}
+func (provider *oktaOAuthProvider) Recover(ctx context.Context, effectID string) (apiserver.ConnectorOAuthGrant, error) {
+	value, err := provider.adapter.Recover(ctx, effectID)
+	if err != nil {
+		if errors.Is(err, idpdiscovery.ErrOutcomeNotFound) {
+			return apiserver.ConnectorOAuthGrant{}, apiserver.ErrConnectorOutcomeNotFound
+		}
+		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
+	}
+	metadata, err := json.Marshal(map[string]any{"scopes": value.Scopes, "subject": value.Subject, "tenant": value.Tenant})
+	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: value.Subject, CredentialClass: "okta_refresh_reference", Metadata: metadata}, err
+}
+func (provider *oktaOAuthProvider) Discard(ctx context.Context, effectID string, revoke bool) error {
+	if err := provider.adapter.Discard(ctx, effectID, revoke); err != nil {
+		return errRuntimeUnavailable
+	}
+	return nil
+}
+func (provider *oktaOAuthProvider) Revoke(ctx context.Context, reference string) error {
+	if err := provider.adapter.Revoke(ctx, reference); err != nil {
+		return errRuntimeUnavailable
+	}
+	return nil
 }
 
 type oktaOAuthFactory struct {
