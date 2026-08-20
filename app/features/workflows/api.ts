@@ -4,7 +4,11 @@ import {
   decodeConnectorManifestPage,
   decodeFinding,
   decodeIntegration,
+  decodeIntegrationFreshness,
   decodeIntegrationPage,
+  decodeIntegrationSchedule,
+  decodeIntegrationSync,
+  decodeIntegrationSyncPage,
   decodePolicy,
   decodePolicyPage,
   decodePolicyRollout,
@@ -15,7 +19,11 @@ import {
 import type {
   ConnectorManifest,
   Integration,
+  IntegrationFreshness,
   IntegrationInput,
+  IntegrationSchedule,
+  IntegrationScheduleInput,
+  IntegrationSync,
   IntegrationUpdateInput,
   Policy,
   PolicyRollout,
@@ -36,6 +44,10 @@ export type KnownWorkflowMutationPending = Readonly<{
 }> | Readonly<{
   kind: "reference_authorization_conflict";
   integrationID: string;
+}> | Readonly<{
+  kind: "integration_discovery_conflict";
+  integrationID: string;
+  resource: "sync" | "schedule";
 }>;
 export class IntegrationRevocationPending extends Error {
   readonly receipt: WorkflowReceipt<Integration>;
@@ -55,6 +67,17 @@ export class ReferenceAuthorizationConflict extends Error {
     super("Reference authorization requires authoritative conflict reconciliation");
     this.name = "ReferenceAuthorizationConflict";
     this.integrationID = integrationID;
+  }
+}
+export class IntegrationDiscoveryConflict extends Error {
+  readonly integrationID: string;
+  readonly resource: "sync" | "schedule";
+
+  constructor(integrationID: string, resource: "sync" | "schedule") {
+    super("Integration discovery mutation requires authoritative conflict reconciliation");
+    this.name = "IntegrationDiscoveryConflict";
+    this.integrationID = integrationID;
+    this.resource = resource;
   }
 }
 export type RetainedWorkflowMutationController<I> = {
@@ -106,7 +129,7 @@ export function isAmbiguousWorkflowMutationError(error: unknown): boolean {
 }
 
 function isRetainableWorkflowMutationError(error: unknown): boolean {
-  return error instanceof IntegrationRevocationPending || error instanceof ReferenceAuthorizationConflict || isAmbiguousWorkflowMutationError(error);
+  return error instanceof IntegrationRevocationPending || error instanceof ReferenceAuthorizationConflict || error instanceof IntegrationDiscoveryConflict || isAmbiguousWorkflowMutationError(error);
 }
 
 export async function executeWorkflowMutation<T>(send: (attempt: WorkflowMutationAttempt) => Promise<T>, attempt: WorkflowMutationAttempt = createWorkflowMutationAttempt()): Promise<T> {
@@ -135,6 +158,7 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
         (error: unknown) => {
           if (error instanceof IntegrationRevocationPending && pending === active) active.known = knownIntegrationRevocation(error);
           if (error instanceof ReferenceAuthorizationConflict && pending === active) active.known = knownReferenceAuthorizationConflict(error);
+          if (error instanceof IntegrationDiscoveryConflict && pending === active) active.known = knownIntegrationDiscoveryConflict(error);
           if (!isRetainableWorkflowMutationError(error) && pending === active) pending = undefined;
           throw error;
         },
@@ -149,6 +173,7 @@ export function createRetainedWorkflowMutationController<I>(): RetainedWorkflowM
         (error: unknown) => {
           if (error instanceof IntegrationRevocationPending && pending === active) active.known = knownIntegrationRevocation(error);
           if (error instanceof ReferenceAuthorizationConflict && pending === active) active.known = knownReferenceAuthorizationConflict(error);
+          if (error instanceof IntegrationDiscoveryConflict && pending === active) active.known = knownIntegrationDiscoveryConflict(error);
           if (!isRetainableWorkflowMutationError(error) && pending === active) pending = undefined;
           throw error;
         },
@@ -173,6 +198,10 @@ function knownIntegrationRevocation(error: IntegrationRevocationPending): KnownW
 
 function knownReferenceAuthorizationConflict(error: ReferenceAuthorizationConflict): KnownWorkflowMutationPending {
   return Object.freeze({ kind: "reference_authorization_conflict", integrationID: error.integrationID });
+}
+
+function knownIntegrationDiscoveryConflict(error: IntegrationDiscoveryConflict): KnownWorkflowMutationPending {
+  return Object.freeze({ kind: "integration_discovery_conflict", integrationID: error.integrationID, resource: error.resource });
 }
 
 function canonicalFrozenIntent<I>(intent: I): I {
@@ -241,6 +270,43 @@ export function createIntegrationsAPI(client: APIClient) {
       if (integration.value.id !== id) throw new APITransportError("invalid_response", "Integration detail returned a different resource");
       return integration;
     },
+    async getIntegrationFreshness(id: string, signal?: AbortSignal): Promise<Versioned<IntegrationFreshness>> {
+      const result = await client.GET("/api/v1/integrations/{id}/freshness", { params: { path: { id } }, signal });
+      const freshness = requireNoStoreVersioned(result, decodeIntegrationFreshness);
+      if (freshness.value.integration_id !== id || freshness.version !== `"${freshness.value.version}"`) throw new APITransportError("invalid_response", "Integration freshness returned a different resource version");
+      return freshness;
+    },
+    async getIntegrationSchedule(id: string, signal?: AbortSignal): Promise<Versioned<IntegrationSchedule> | null> {
+      try {
+        const result = await client.GET("/api/v1/integrations/{id}/schedule", { params: { path: { id } }, signal });
+        const schedule = requireNoStoreVersioned(result, decodeIntegrationSchedule);
+        if (schedule.value.integration_id !== id || schedule.version !== `"${schedule.value.version}"` || schedule.value.state === "deleted") throw new APITransportError("invalid_response", "Integration schedule returned a different resource version");
+        return schedule;
+      } catch (error) {
+        if (error instanceof APIProductError && error.status === 404 && error.product.code === "not_found") return null;
+        throw error;
+      }
+    },
+    async listIntegrationSyncs(id: string, signal?: AbortSignal): Promise<readonly IntegrationSync[]> {
+      return loadAllWorkflowPages(
+        async (cursor) => {
+          const result = await client.GET("/api/v1/integrations/{id}/syncs", { params: { path: { id }, query: { cursor, limit: 100 } }, signal });
+          if (result.response.headers.get("Cache-Control") !== "no-store") throw new APITransportError("invalid_response", "Integration sync history was cacheable");
+          return result;
+        },
+        (value) => {
+          const page = decodeIntegrationSyncPage(value);
+          if (page.items.some((sync) => sync.integration_id !== id)) throw new Error("schema mismatch");
+          return page;
+        },
+      );
+    },
+    async getIntegrationSync(id: string, syncID: string, signal?: AbortSignal): Promise<Versioned<IntegrationSync>> {
+      const result = await client.GET("/api/v1/integrations/{id}/syncs/{syncId}", { params: { path: { id, syncId: syncID } }, signal });
+      const sync = requireNoStoreVersioned(result, decodeIntegrationSync);
+      if (sync.value.id !== syncID || sync.value.integration_id !== id) throw new APITransportError("invalid_response", "Integration sync detail returned a different resource");
+      return sync;
+    },
     async createIntegration(value: IntegrationInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<Integration>> {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.POST("/api/v1/integrations", { params: { header: workflowMutationHeaders(active) }, body: value }), decodeIntegration), attempt);
     },
@@ -269,6 +335,52 @@ export function createIntegrationsAPI(client: APIClient) {
         }
       }, attempt);
     },
+    async syncIntegration(id: string, integrationVersion: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<IntegrationSync>> {
+      return executeWorkflowMutation(async (active) => {
+        try {
+          const result = await client.POST("/api/v1/integrations/{id}/sync", { params: { path: { id }, header: workflowMutationHeaders(active, integrationVersion) as { "Idempotency-Key": string; "If-Match": string } }, body: {} });
+          const receipt = requireWorkflowReceipt(result, decodeIntegrationSync);
+          if (result.response.status !== 202 || result.response.headers.get("Cache-Control") !== "no-store" || receipt.value.integration_id !== id || receipt.value.trigger_kind !== "manual" || receipt.value.status !== "queued" || receipt.value.attempt !== 0 || receipt.value.discovered_count !== 0 || receipt.value.changed_count !== 0 || receipt.value.removed_count !== 0) {
+            throw new APITransportError("invalid_response", "Integration sync returned invalid durable acceptance metadata");
+          }
+          return receipt;
+        } catch (error) {
+          if (error instanceof APIProductError && error.status === 409) throw new IntegrationDiscoveryConflict(id, "sync");
+          throw error;
+        }
+      }, attempt);
+    },
+    async putIntegrationSchedule(id: string, version: string, value: IntegrationScheduleInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<IntegrationSchedule>> {
+      return executeWorkflowMutation(async (active) => {
+        try {
+          const result = await client.PUT("/api/v1/integrations/{id}/schedule", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: value });
+          const receipt = requireWorkflowReceipt(result, decodeIntegrationSchedule);
+          if (result.response.status !== 200 || result.response.headers.get("Cache-Control") !== "no-store" || receipt.value.integration_id !== id || receipt.value.state !== value.state || receipt.value.cadence_seconds !== value.cadence_seconds || receipt.version !== `"${receipt.value.version}"`) {
+            throw new APITransportError("invalid_response", "Integration schedule returned invalid durable mutation metadata");
+          }
+          requireNextScheduleVersion(version, receipt.version);
+          return receipt;
+        } catch (error) {
+          if (error instanceof APIProductError && error.status === 409) throw new IntegrationDiscoveryConflict(id, "schedule");
+          throw error;
+        }
+      }, attempt);
+    },
+    async deleteIntegrationSchedule(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<void>> {
+      return executeWorkflowMutation(async (active) => {
+        try {
+          const result = await client.DELETE("/api/v1/integrations/{id}/schedule", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } } });
+          if (result.error) requireAPIData<never>(result);
+          if (result.response.status !== 204 || result.data !== undefined || result.response.headers.get("Cache-Control") !== "no-store") throw new APITransportError("invalid_response", "Integration schedule deletion returned invalid durable mutation metadata");
+          const receipt = requireWorkflowEmptyReceipt(result.response);
+          requireNextScheduleVersion(version, receipt.version);
+          return receipt;
+        } catch (error) {
+          if (error instanceof APIProductError && error.status === 409) throw new IntegrationDiscoveryConflict(id, "schedule");
+          throw error;
+        }
+      }, attempt);
+    },
     async deleteIntegration(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<void>> {
       return executeWorkflowMutation(async (active) => requireIntegrationDeletion(await client.DELETE("/api/v1/integrations/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } } }), id), attempt);
     },
@@ -287,6 +399,21 @@ function requireNextWorkflowVersion(previous: string, next: string): void {
   if (!quotedVersion.test(previous) || !quotedVersion.test(next) || !Number.isSafeInteger(previousValue) || !Number.isSafeInteger(nextValue) || nextValue !== previousValue + 1) {
     throw new APITransportError("invalid_response", "Workflow mutation response did not advance the resource by exactly one version");
   }
+}
+
+function requireNextScheduleVersion(previous: string, next: string): void {
+  const scheduleVersion = /^"[0-9]+"$/;
+  const previousValue = Number(previous.slice(1, -1));
+  const nextValue = Number(next.slice(1, -1));
+  if (!scheduleVersion.test(previous) || !quotedVersion.test(next) || !Number.isSafeInteger(previousValue) || !Number.isSafeInteger(nextValue) || nextValue !== previousValue + 1) {
+    throw new APITransportError("invalid_response", "Schedule mutation response did not advance the resource by exactly one version");
+  }
+}
+
+function requireNoStoreVersioned<T>(result: APIResult<unknown>, decode: Decoder<T>): Versioned<T> {
+  const versioned = requireWorkflowVersioned(result, decode);
+  if (result.response.headers.get("Cache-Control") !== "no-store") throw new APITransportError("invalid_response", "Workflow detail response was cacheable");
+  return versioned;
 }
 
 export function createWorkflowRecoveryAPI(client: APIClient, capturedScopeKey = "component-local-scope") {
@@ -318,6 +445,24 @@ export function createWorkflowReceiptReconciler(client: APIClient, capturedScope
   return async (receipt: WorkflowMutationReceipt, signal: AbortSignal): Promise<void> => {
     const expectedVersion = `"${receipt.resource_version}"`;
     switch (receipt.operation as string) {
+      case "syncIntegration": {
+        const intent = receipt.intent as { integration_id: string };
+        const value = requireNoStoreVersioned(await client.GET("/api/v1/integrations/{id}/syncs/{syncId}", { params: { path: { id: intent.integration_id, syncId: receipt.resource_id } }, headers, signal }), decodeIntegrationSync);
+        if (value.value.id !== receipt.resource_id || value.value.integration_id !== intent.integration_id) throw new APITransportError("invalid_response", "Recovered integration sync returned a different resource");
+        requireRecoveredVersion(value.version, expectedVersion);
+        return;
+      }
+      case "putIntegrationSchedule": {
+        const intent = receipt.intent as { integration_id: string };
+        const value = requireNoStoreVersioned(await client.GET("/api/v1/integrations/{id}/schedule", { params: { path: { id: intent.integration_id } }, headers, signal }), decodeIntegrationSchedule);
+        if (value.value.integration_id !== intent.integration_id || value.value.state === "deleted") throw new APITransportError("invalid_response", "Recovered integration schedule returned a different resource");
+        requireRecoveredVersion(value.version, expectedVersion);
+        return;
+      }
+      case "deleteIntegrationSchedule": {
+        const intent = receipt.intent as { integration_id: string };
+        return requireRecoveredDeletion(await client.GET("/api/v1/integrations/{id}/schedule", { params: { path: { id: intent.integration_id } }, headers, signal }));
+      }
       case "createPolicy": case "updatePolicy": case "rolloutPolicy": case "disablePolicy": {
         const value = requireWorkflowVersioned(await client.GET("/api/v1/policies/{id}", { params: { path: { id: receipt.resource_id } }, headers, signal }), decodePolicy);
         requireRecoveredVersion(value.version, expectedVersion);

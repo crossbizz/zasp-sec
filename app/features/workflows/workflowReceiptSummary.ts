@@ -10,6 +10,8 @@ export function workflowReceiptSummary(receipt: WorkflowMutationReceipt): Workfl
   const intent = receipt.intent as { body: Record<string, unknown>; expected_version: number; resource_id: string };
   const result = receipt.result as Record<string, unknown>;
   const operation = receipt.operation as string;
+  if (receipt.resource_kind === "integration_sync") return syncSummary(result);
+  if (receipt.resource_kind === "integration_schedule") return scheduleSummary(operation, receipt.intent as unknown as Record<string, unknown>, result, receipt.resource_version);
   switch (receipt.resource_kind) {
   case "policy":
     return { intent: policyIntent(operation, receipt.resource_id, intent.body), result: policyResult(result, receipt.resource_version) };
@@ -20,6 +22,32 @@ export function workflowReceiptSummary(receipt: WorkflowMutationReceipt): Workfl
   case "finding":
     return { intent: findingIntent(operation, receipt.resource_id, intent.body), result: findingResult(result, receipt.resource_version) };
   }
+}
+
+function syncSummary(result: Record<string, unknown>): WorkflowReceiptSummary {
+  return {
+    intent: [field("Requested change", "Manual inventory sync")],
+    result: [
+      field("Committed status", result.status),
+      field("Discovered", result.discovered_count),
+      field("Changed", result.changed_count),
+      field("Removed", result.removed_count),
+    ],
+  };
+}
+
+function scheduleSummary(operation: string, rawIntent: Record<string, unknown>, result: Record<string, unknown>, version: number): WorkflowReceiptSummary {
+  const intent = rawIntent.body && typeof rawIntent.body === "object" && !Array.isArray(rawIntent.body) ? rawIntent.body as Record<string, unknown> : {};
+  return {
+    intent: operation === "deleteIntegrationSchedule"
+      ? [field("Requested change", "Delete automatic sync schedule")]
+      : [field("Requested schedule", intent.state), field("Requested cadence", secondsLabel(intent.cadence_seconds))],
+    result: [field("Committed state", result.state), field("Committed cadence", secondsLabel(result.cadence_seconds)), field("Time zone", result.time_zone), field("Committed version", version)],
+  };
+}
+
+function secondsLabel(value: unknown): string {
+  return typeof value === "number" && Number.isSafeInteger(value) ? `${value} seconds` : "Unavailable";
 }
 
 function oauthCompletionIntent(intent: Record<string, unknown>): readonly WorkflowReceiptSummaryField[] {
