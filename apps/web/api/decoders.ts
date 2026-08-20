@@ -1,4 +1,4 @@
-import type { AgentSessionPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RelationshipPage, RuntimeDecision, SecurityAgentDefinition, SecurityAgentPage, SecurityAgentTemplate, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
+import type { AgentSessionPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RelationshipPage, RuntimeDecision, SecurityAgentDefinition, SecurityAgentPage, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -9,6 +9,7 @@ const AWS_ROLE_ARN = /^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9+=,.@_/-]{1,128}$/
 const AWS_EXTERNAL_ID_REFERENCE = /^ref:aws\/external-id\/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$/;
 const AWS_REGION = /^[a-z]{2}-[a-z]+-[1-9][0-9]?$/;
 const KUBERNETES_CONNECTION_REFERENCE = /^ref:kubernetes\/connection\/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$/;
+const SENSOR_TOKEN = /^zasp_sensor_v1\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$/;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type Decoder<T> = (value: unknown) => T;
@@ -34,6 +35,47 @@ export function decodeSessionScopePage(value: unknown): SessionScopePage {
   const record = exactRecord(value, ["items"]); const items = array(record.items, 100);
   for (const item of items) decodeSessionScope(item);
   return value as SessionScopePage;
+}
+
+export function decodeSensor(value: unknown): Sensor {
+  const record = exactRecord(value, ["id", "name", "kind", "mode", "state", "version", "token_expires_at", "last_heartbeat_at", "created_at", "updated_at"]);
+  decodeSensorFields(record);
+  return value as Sensor;
+}
+
+export function decodeSensorEnrollment(value: unknown): SensorEnrollment {
+  const record = exactRecord(value, ["id", "name", "kind", "mode", "state", "version", "token_expires_at", "last_heartbeat_at", "created_at", "updated_at", "token"]);
+  decodeSensorFields(record);
+  if (typeof record.token !== "string" || record.token.length !== 81 || !SENSOR_TOKEN.test(record.token) || record.token_expires_at === null || record.state === "revoked") fail();
+  return value as SensorEnrollment;
+}
+
+export function decodeSensorPage(value: unknown): SensorPage {
+  const record = exactRecord(value, ["items", "page_info"]); const items = array(record.items, 100); let prior = "";
+  for (const item of items) { const decoded = decodeSensor(item); if (prior !== "" && decoded.id <= prior) fail(); prior = decoded.id; }
+  decodePageInfo(record.page_info);
+  return value as SensorPage;
+}
+
+export function decodeSensorCoverage(value: unknown, expectedSensorID?: string): SensorCoverage {
+  const record = exactRecord(value, ["sensor_id", "supported", "status", "last_heartbeat", "kernel", "btf", "capabilities", "event_rate", "drops"]);
+  productID(record.sensor_id); if (expectedSensorID !== undefined && record.sensor_id !== expectedSensorID) fail();
+  if (typeof record.supported !== "boolean" || typeof record.btf !== "boolean") fail();
+  enumValue(record.status, ["pending", "healthy", "degraded", "offline", "revoked"]);
+  nullableDateTime(record.last_heartbeat); printableString(record.kernel, 0, 128);
+  boundedInteger(record.event_rate, 0, 1_000_000_000); boundedInteger(record.drops, 0, 1_000_000_000);
+  const capabilities = array(record.capabilities, 32); let prior = "";
+  for (const capability of capabilities) { enumValue(capability, ["file", "network", "process", "runtime", "syscall"]); if ((capability as string) <= prior) fail(); prior = capability as string; }
+  return value as SensorCoverage;
+}
+
+function decodeSensorFields(record: Record<string, unknown>): void {
+  productID(record.id); printableString(record.name, 1, 128); enumValue(record.kind, ["tetragon", "otlp"]); enumValue(record.mode, ["metadata_only", "full"]); enumValue(record.state, ["pending", "active", "degraded", "revoked"]); positiveInteger(record.version);
+  nullableDateTime(record.token_expires_at); nullableDateTime(record.last_heartbeat_at); dateTime(record.created_at); dateTime(record.updated_at);
+  const created = Date.parse(record.created_at as string); const updated = Date.parse(record.updated_at as string);
+  if (updated < created || record.last_heartbeat_at !== null && Date.parse(record.last_heartbeat_at as string) < created) fail();
+  const hasToken = record.token_expires_at !== null;
+  if ((record.state === "revoked") === hasToken || hasToken && Date.parse(record.token_expires_at as string) <= created) fail();
 }
 
 export function decodeInventoryPage(value: unknown): InventoryPage {
@@ -495,6 +537,7 @@ function decodeSessionScope(value: unknown): SessionScope { const record = exact
 function exactRecord(value: unknown, required: readonly string[], optional: readonly string[] = []): Record<string, unknown> { if (!value || typeof value !== "object" || Array.isArray(value)) fail(); const record = value as Record<string, unknown>; const allowed = new Set([...required, ...optional]); if (Object.keys(record).some((key) => !allowed.has(key)) || required.some((key) => !(key in record))) fail(); return record; }
 function array(value: unknown, maximum: number): readonly unknown[] { if (!Array.isArray(value) || value.length > maximum) fail(); return value; }
 function boundedString(value: unknown, minimum: number, maximum: number): asserts value is string { if (typeof value !== "string" || value.length < minimum || value.length > maximum) fail(); }
+function printableString(value: unknown, minimum: number, maximum: number): asserts value is string { boundedString(value, minimum, maximum); if (value.trim() !== value || [...value].some((character) => { const code = character.codePointAt(0) ?? 0; return code < 32 || code >= 127 && code <= 159; })) fail(); }
 function productID(value: unknown): asserts value is string { if (typeof value !== "string" || !PRODUCT_ID.test(value)) fail(); }
 function dateTime(value: unknown): asserts value is string { if (typeof value !== "string" || !DATE_TIME.test(value) || Number.isNaN(Date.parse(value))) fail(); }
 function checksum(value: unknown): asserts value is string { if (typeof value !== "string" || !/^sha256:[0-9a-f]{64}$/.test(value)) fail(); }

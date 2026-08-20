@@ -227,25 +227,25 @@ screens:
         availability: available
       - id: view_sensors
         operation_id: listSensors
-        availability: planned
+        availability: available
       - id: create_sensor_enrollment
         operation_id: createSensorEnrollment
-        availability: planned
+        availability: available
       - id: view_sensor
         operation_id: getSensor
-        availability: planned
+        availability: available
       - id: update_sensor
         operation_id: updateSensor
-        availability: planned
+        availability: available
       - id: delete_sensor
         operation_id: deleteSensor
-        availability: planned
+        availability: available
       - id: rotate_sensor_token
         operation_id: rotateSensorToken
-        availability: planned
+        availability: available
       - id: view_sensor_coverage
         operation_id: getSensorCoverage
-        availability: planned
+        availability: available
   - id: inventory
     label: Inventory
     actions:

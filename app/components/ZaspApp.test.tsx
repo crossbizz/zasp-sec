@@ -292,7 +292,7 @@ describe("Zasp application", () => {
 		for (const label of ["Close modal", "Close", "Cancel", "Save integration"]) expect(screen.getByRole("button", { name: label })).toBeDisabled();
 	});
 
-	it("capability-hides sensor enrollment even when stale server capabilities advertise it", async () => {
+	it("mounts the production sensor surface only when sensor capability is authorized", async () => {
 		window.history.replaceState({}, "", "/integrations/sensors");
 		const requests: string[] = [];
 		const client = createAPIClient({
@@ -306,14 +306,15 @@ describe("Zasp application", () => {
 					permissions: ["view", "manage_workflows"], capabilities: ["inventory.read", "sensors.read", "sensors.write"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 				});
 				if (path === "/api/v1/home/summary") return apiJSON({ agent_count: 0, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false });
+				if (path === "/api/v1/sensors") return apiJSON({ items: [], page_info: { next_cursor: null, has_more: false } }, 200, { "Cache-Control": "no-store" });
 				throw new Error(`unexpected product fetch ${request.method} ${path}`);
 			},
 		});
 		render(<ZaspApp client={client} />);
-		expect(await screen.findByRole("heading", { name: "Security overview" })).toBeVisible();
-		expect(window.location.pathname).toBe("/");
-		expect(screen.queryByRole("link", { name: "Sensors" })).not.toBeInTheDocument();
-		expect(requests).not.toContain("/api/v1/sensors");
+		expect(await screen.findByRole("heading", { name: "Runtime sensors" })).toBeVisible();
+		expect(window.location.pathname).toBe("/integrations/sensors");
+		expect(screen.getByRole("link", { name: "Sensors" })).toHaveAttribute("aria-current", "page");
+		expect(requests).toContain("/api/v1/sensors");
 	});
 
 	it("clears visible workflow state while switching scopes and remounts on the exact new scope", async () => {

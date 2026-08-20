@@ -14,6 +14,7 @@ import { ScopeOnboardingView } from "../features/identity/ScopeOnboardingView";
 import { ProductionRiskView } from "../features/risk/ProductionRiskView";
 import { ProductionSecurityAgentsView } from "../features/securityagents/SecurityAgentsView";
 import { SessionsComplianceView } from "../features/sessions/SessionsComplianceView";
+import { ProductionSensorSurface } from "../features/sensors/ProductionSensorView";
 import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/workflows/ProductionWorkflowViews";
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
 import { Button, LoadingState } from "./ui";
@@ -28,6 +29,7 @@ const productionRoutes = [
   { path: "/exposure/attack-paths", label: "Attack Paths", capability: "attack-paths.read" },
   { path: "/policies", label: "Policies", capability: "policies.read" },
   { path: "/connectors", label: "Integrations", capability: "integrations.read" },
+  { path: "/integrations/sensors", label: "Sensors", capability: "sensors.read" },
   { path: "/protect/security-agents", label: "Security agents", capability: "security-agents.read" },
   { path: "/administration/identity-access", label: "Identity & Access", capability: "identity.manage" },
   { path: "/administration/api-access", label: "API Access", capability: "api-access.manage" },
@@ -46,6 +48,7 @@ function ProductionRouteSurface({ path, navigate }: { path: string; navigate(pat
   if (path === "/violations" || path === "/exposure/attack-paths") return <ProductionRiskView path={path} canWrite={session.hasCapability("findings.write")} />;
   if (path === "/policies") return <ProductionPoliciesView canWrite={session.hasCapability("policies.write")} />;
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} />;
+  if (path === "/integrations/sensors") return <ProductionSensorSurface canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} />;
   if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}><IdentityAccessView /><ScopeOnboardingView client={client} /></IdentityAPIProvider>;
   if (path === "/administration/api-access") return <APIAccessView client={client} />;

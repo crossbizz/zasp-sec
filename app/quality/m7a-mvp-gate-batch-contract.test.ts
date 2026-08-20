@@ -12,8 +12,9 @@ describe("M7A-85 through M7A-101 Security Agent MVP gate", () => {
     for (const operation of ["listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "listSecurityAgentApprovals", "decideSecurityAgentApproval"]) expect(securityAgents).not.toContain(operation);
     const home = read("app/features/agents/AgentSecurityView.tsx");
     const app = read("app/components/ZaspApp.tsx");
+    const productionApp = read("app/components/ZaspProductionApp.tsx");
     expect(app).not.toContain('{ path: "/protect/approvals"');
-    expect(app).not.toContain('{ path: "/integrations/sensors"');
+    expect(productionApp).toContain('{ path: "/integrations/sensors"');
     for (const value of ["Pending approvals", "Needs human", "Failed or inconclusive", "Recent containment", "Stale launch coverage"]) expect(home).toContain(value);
   });
 

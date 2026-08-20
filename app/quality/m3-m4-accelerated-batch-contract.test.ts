@@ -46,7 +46,8 @@ describe("M3 gate and M4 reconciliation accelerated batch", () => {
     expect(sensors).toContain('from "../../../apps/web/api/generated"');
     for (const value of ["Enroll sensor", "Rotate enrollment token", "Delete sensor", "Unsupported kernel", "Copy this token now"]) expect(sensors).toContain(value);
     expect(demoApp).toContain("<SensorView");
-    expect(productionApp).not.toContain("SensorView");
+    expect(productionApp).toContain("ProductionSensorSurface");
+    expect(productionApp).not.toContain("<SensorView");
   });
 
   it("moves exactly the 22-task batch to In progress without a provider claim", async () => {

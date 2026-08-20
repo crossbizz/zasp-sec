@@ -19,13 +19,13 @@ describe("M3 connector and sensor implementation batch", () => {
     expect(manifest).toContain("readOnlyRootFilesystem: true");
   });
 
-  it("keeps all seven sensor operations outside the production contract", async () => {
+  it("publishes all seven sensor operations without credential internals", async () => {
     const openapi = await readFile(resolve(root, "openapi/openapi.yaml"), "utf8");
     const operations = [
       "listSensors", "createSensorEnrollment", "getSensor", "updateSensor",
       "deleteSensor", "rotateSensorToken", "getSensorCoverage",
     ];
-    for (const operation of operations) expect(openapi).not.toContain(`operationId: ${operation}`);
+    for (const operation of operations) expect(openapi).toContain(`operationId: ${operation}`);
     expect(openapi).not.toMatch(/token_hash|raw_credential|nango_connection_id/i);
   });
 
