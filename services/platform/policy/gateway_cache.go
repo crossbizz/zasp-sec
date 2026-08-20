@@ -181,7 +181,9 @@ type GatewayPolicyCache struct {
 	keys       GatewayPolicyKeys
 	binding    GatewayPolicyBinding
 	now        func() time.Time
-	path       string
+	root       *os.Root
+	name       string
+	closed     bool
 	current    *GatewayPolicyEnvelope
 	observedAt time.Time
 }
@@ -194,36 +196,52 @@ func NewGatewayPolicyDiskCache(path string, keys GatewayPolicyKeys, binding Gate
 	if !filepath.IsAbs(path) || filepath.Clean(path) != path || filepath.Base(path) == "." || filepath.Base(path) == string(filepath.Separator) {
 		return nil, ErrGatewayPolicy
 	}
-	cache, err := newGatewayPolicyCache(path, keys, binding, now)
+	cache, err := newGatewayPolicyCache("", keys, binding, now)
 	if err != nil {
 		return nil, err
 	}
-	raw, err := readGatewayPolicyFile(path)
+	root, name, err := openGatewayPolicyRoot(path)
+	if err != nil {
+		return nil, ErrGatewayPolicy
+	}
+	cache.root, cache.name = root, name
+	raw, err := readGatewayPolicyRoot(root, name)
 	if errors.Is(err, os.ErrNotExist) {
 		return cache, nil
 	}
 	if err != nil {
+		_ = cache.Close()
 		return nil, ErrGatewayPolicy
 	}
 	state, err := decodeGatewayPolicyDiskState(bytes.NewReader(raw))
 	if err != nil {
+		_ = cache.Close()
 		return nil, err
 	}
 	nowValue, ok := gatewayNow(cache.now)
 	if !ok || !canonicalGatewayTime(state.ObservedAt) {
+		_ = cache.Close()
 		return nil, ErrGatewayPolicy
 	}
 	effectiveNow := laterGatewayTime(nowValue, state.ObservedAt)
 	verified, err := verifyGatewayPolicyEnvelope(state.Envelope, cache.keys, cache.binding, effectiveNow, true)
 	if err != nil {
+		_ = cache.Close()
 		return nil, err
 	}
 	canonical, err := marshalGatewayPolicyDiskState(verified, state.ObservedAt)
 	if err != nil || !bytes.Equal(raw, canonical) {
+		_ = cache.Close()
 		return nil, ErrGatewayPolicy
 	}
+	if effectiveNow.After(state.ObservedAt) {
+		if err := writeGatewayPolicyRoot(root, name, verified, effectiveNow); err != nil {
+			_ = cache.Close()
+			return nil, err
+		}
+	}
 	cache.current = &verified
-	cache.observedAt = state.ObservedAt
+	cache.observedAt = effectiveNow
 	return cache, nil
 }
 
@@ -239,7 +257,7 @@ func newGatewayPolicyCache(path string, keys GatewayPolicyKeys, binding GatewayP
 	if !ok {
 		return nil, ErrGatewayPolicy
 	}
-	return &GatewayPolicyCache{keys: clonedKeys, binding: binding, now: now, path: path, observedAt: nowValue}, nil
+	return &GatewayPolicyCache{keys: clonedKeys, binding: binding, now: now, observedAt: nowValue}, nil
 }
 
 func (cache *GatewayPolicyCache) Store(envelope GatewayPolicyEnvelope) error {
@@ -252,6 +270,9 @@ func (cache *GatewayPolicyCache) Store(envelope GatewayPolicyEnvelope) error {
 	}
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
+	if cache.closed {
+		return ErrGatewayPolicy
+	}
 	effectiveNow := laterGatewayTime(nowValue, cache.observedAt)
 	verified, err := VerifyGatewayPolicyEnvelope(envelope, cache.keys, cache.binding, effectiveNow)
 	if err != nil {
@@ -265,8 +286,8 @@ func (cache *GatewayPolicyCache) Store(envelope GatewayPolicyEnvelope) error {
 			if !equalGatewayEnvelope(verified, *cache.current) {
 				return ErrGatewayPolicy
 			}
-			if cache.path != "" {
-				if err := writeGatewayPolicyFile(cache.path, verified, effectiveNow); err != nil {
+			if cache.root != nil {
+				if err := writeGatewayPolicyRoot(cache.root, cache.name, verified, effectiveNow); err != nil {
 					return err
 				}
 			}
@@ -277,8 +298,8 @@ func (cache *GatewayPolicyCache) Store(envelope GatewayPolicyEnvelope) error {
 			return ErrGatewayPolicy
 		}
 	}
-	if cache.path != "" {
-		if err := writeGatewayPolicyFile(cache.path, verified, effectiveNow); err != nil {
+	if cache.root != nil {
+		if err := writeGatewayPolicyRoot(cache.root, cache.name, verified, effectiveNow); err != nil {
 			return err
 		}
 	}
@@ -298,6 +319,9 @@ func (cache *GatewayPolicyCache) Current() (GatewayPolicyEnvelope, string, error
 	}
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
+	if cache.closed {
+		return GatewayPolicyEnvelope{}, "", ErrGatewayPolicy
+	}
 	if cache.current == nil {
 		return GatewayPolicyEnvelope{}, "", ErrGatewayPolicy
 	}
@@ -308,8 +332,8 @@ func (cache *GatewayPolicyCache) Current() (GatewayPolicyEnvelope, string, error
 		return GatewayPolicyEnvelope{}, "", err
 	}
 	if effectiveNow.After(cache.observedAt) {
-		if cache.path != "" {
-			if err := writeGatewayPolicyFile(cache.path, verified, effectiveNow); err != nil {
+		if cache.root != nil {
+			if err := writeGatewayPolicyRoot(cache.root, cache.name, verified, effectiveNow); err != nil {
 				return GatewayPolicyEnvelope{}, "", err
 			}
 		}
@@ -322,6 +346,30 @@ func (cache *GatewayPolicyCache) Current() (GatewayPolicyEnvelope, string, error
 		return verified, GatewayPolicyExpiredOpen, nil
 	}
 	return verified, GatewayPolicyExpiredClosed, nil
+}
+
+// Close releases the pinned disk authority. Memory-only caches have no
+// external resource and Close remains idempotent.
+func (cache *GatewayPolicyCache) Close() error {
+	if cache == nil {
+		return nil
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if cache.closed {
+		return nil
+	}
+	cache.closed = true
+	cache.current = nil
+	if cache.root == nil {
+		return nil
+	}
+	err := cache.root.Close()
+	cache.root = nil
+	if err != nil {
+		return ErrGatewayPolicy
+	}
+	return nil
 }
 
 func decodeGatewayPolicyEnvelope(reader io.Reader) (GatewayPolicyEnvelope, error) {
@@ -363,12 +411,10 @@ func marshalGatewayPolicyDiskState(envelope GatewayPolicyEnvelope, observedAt ti
 	return bytesValue, nil
 }
 
-func readGatewayPolicyFile(path string) ([]byte, error) {
-	root, name, err := openGatewayPolicyRoot(path)
-	if err != nil {
+func readGatewayPolicyRoot(root *os.Root, name string) ([]byte, error) {
+	if root == nil || name == "" {
 		return nil, ErrGatewayPolicy
 	}
-	defer root.Close()
 	before, err := root.Lstat(name)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, os.ErrNotExist
@@ -396,16 +442,14 @@ func readGatewayPolicyFile(path string) ([]byte, error) {
 	return raw, nil
 }
 
-func writeGatewayPolicyFile(path string, envelope GatewayPolicyEnvelope, observedAt time.Time) (result error) {
+func writeGatewayPolicyRoot(root *os.Root, name string, envelope GatewayPolicyEnvelope, observedAt time.Time) (result error) {
+	if root == nil || name == "" {
+		return ErrGatewayPolicy
+	}
 	bytesValue, err := marshalGatewayPolicyDiskState(envelope, observedAt)
 	if err != nil {
 		return ErrGatewayPolicy
 	}
-	root, name, err := openGatewayPolicyRoot(path)
-	if err != nil {
-		return ErrGatewayPolicy
-	}
-	defer root.Close()
 	if info, statErr := root.Lstat(name); statErr == nil {
 		if !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 {
 			return ErrGatewayPolicy

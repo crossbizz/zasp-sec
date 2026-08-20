@@ -231,6 +231,34 @@ func TestGatewayPolicyCacheNeverReactivatesExpiredPolicyAfterClockRollbackOrRest
 	}
 }
 
+func TestGatewayPolicyDiskCacheRetainsStartupClockFloorBeforeFirstCurrent(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	clock := gatewayFixtureTime()
+	binding := gatewayFixtureBinding()
+	keys, _ := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
+	path := filepath.Join(gatewayRealTempDir(t), "gateway-policy.json")
+	cache, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return clock })
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := gatewayFixtureEnvelope(t, private, clock, binding, 1, 1, "closed")
+	if err := cache.Store(envelope); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.Close(); err != nil {
+		t.Fatal(err)
+	}
+	clock = envelope.ExpiresAt.Add(time.Second)
+	restored, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return clock })
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock = gatewayFixtureTime()
+	if _, state, err := restored.Current(); err != nil || state != GatewayPolicyExpiredClosed {
+		t.Fatalf("startup floor rollback state=%q err=%v", state, err)
+	}
+}
+
 func TestGatewayPolicyCacheBindsFailureModeToPolicyVersion(t *testing.T) {
 	public, private, _ := ed25519.GenerateKey(rand.Reader)
 	now := gatewayFixtureTime()
@@ -282,6 +310,39 @@ func TestGatewayPolicyDiskCacheRejectsSymlinkedParentAndLeafReplacement(t *testi
 	}
 	if raw, err := os.ReadFile(target); err != nil || string(raw) != "unchanged" {
 		t.Fatalf("symlink target changed: %q err=%v", raw, err)
+	}
+}
+
+func TestGatewayPolicyDiskCachePinsVerifiedParentAcrossRealDirectorySwap(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	now := gatewayFixtureTime()
+	binding := gatewayFixtureBinding()
+	keys, _ := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
+	root := gatewayRealTempDir(t)
+	original := filepath.Join(root, "cache")
+	moved := filepath.Join(root, "cache-original")
+	if err := os.Mkdir(original, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(original, "policy.json")
+	cache, err := NewGatewayPolicyDiskCache(path, keys, binding, func() time.Time { return now })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(original, moved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(original, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.Store(gatewayFixtureEnvelope(t, private, now, binding, 1, 1, "closed")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(moved, "policy.json")); err != nil {
+		t.Fatalf("pinned directory did not receive cache: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("replacement directory received cache: %v", err)
 	}
 }
 
