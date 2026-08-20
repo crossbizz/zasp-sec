@@ -122,6 +122,8 @@ type discoveryCallDatabase struct {
 	responses map[string]json.RawMessage
 	errors    map[string]error
 	schema    string
+	queries   []string
+	arguments [][]any
 }
 
 type blockingDiscoveryPrincipalDatabase struct{}
@@ -151,6 +153,8 @@ func (database *discoveryCallDatabase) SchemaVersion(context.Context) (string, e
 
 func (database *discoveryCallDatabase) QueryJSON(_ context.Context, query string, args ...any) (json.RawMessage, error) {
 	database.query, database.args = query, append([]any(nil), args...)
+	database.queries = append(database.queries, query)
+	database.arguments = append(database.arguments, append([]any(nil), args...))
 	if err := database.errors[query]; err != nil {
 		return nil, err
 	}

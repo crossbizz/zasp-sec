@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -231,7 +232,11 @@ func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t 
 
 	metadata := migrations.ProductionRuntimeDataPlane()
 	if err := runner.UpProductionRuntimeDataPlane(ctx); err != nil {
-		t.Fatalf("v15 migration: %v", err)
+		_, detail := connection.Exec(ctx, metadata.UpSQL())
+		var liveFingerprint string
+		var securityReady bool
+		_ = connection.QueryRow(ctx, `SELECT zasp_runtime_data_plane_live_fingerprint(),zasp_runtime_data_plane_security_ready()`).Scan(&liveFingerprint, &securityReady)
+		t.Fatalf("v15 migration: %v (%v) live=%q expected=%q security=%t", err, detail, liveFingerprint, migrations.ProductionRuntimeDataPlaneSemanticFingerprint(), securityReady)
 	}
 	var live string
 	if err := connection.QueryRow(ctx, `SELECT zasp_runtime_data_plane_live_fingerprint()`).Scan(&live); err != nil {
@@ -378,6 +383,15 @@ func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t 
 	defer correlationConnection.Close(context.Background())
 	projectionConnection := connectRuntimeDataPlanePrincipal(t, ctx, dsn, principalNames[4])
 	defer projectionConnection.Close(context.Background())
+	outboxConnection := connectRuntimeDataPlanePrincipal(t, ctx, dsn, legacyPrincipalNames[4])
+	defer outboxConnection.Close(context.Background())
+	outboxDatabase, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: outboxConnection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repository, err := NewRuntimeOutboxRepository(outboxDatabase); err != nil || repository.Ready(ctx) != nil {
+		t.Fatalf("runtime outbox repository=%v err=%v", repository, err)
+	}
 	var ingestPrincipal string
 	if err := connection.QueryRow(ctx, `SELECT principal_name::text FROM zasp_discovery_principal_bindings WHERE authority_role='zasp_runtime_ingest'`).Scan(&ingestPrincipal); err != nil {
 		t.Fatal(err)
@@ -387,6 +401,19 @@ func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t 
 	var messageDigest []byte
 	if err := connection.QueryRow(ctx, `SELECT payload_digest FROM zasp_discovery_outbox WHERE id=$1`, outboxID).Scan(&messageDigest); err != nil {
 		t.Fatal(err)
+	}
+	var outboxClaim json.RawMessage
+	if err := outboxConnection.QueryRow(ctx, `SELECT zasp_runtime_claim_outbox('runtime-events','runtime-outbox-worker','runtime-outbox-lease-0001',30,1)`).Scan(&outboxClaim); err != nil || !bytes.Contains(outboxClaim, []byte(outboxID)) || bytes.Contains(outboxClaim, locator) || bytes.Contains(outboxClaim, secret) {
+		t.Fatalf("runtime outbox claim=%s err=%v", outboxClaim, err)
+	}
+	if _, err := outboxConnection.Exec(ctx, `SELECT zasp_runtime_heartbeat_outbox('runtime-events','runtime-outbox-worker','runtime-outbox-lease-0001',30,1)`); err != nil {
+		t.Fatalf("runtime outbox heartbeat: %v", err)
+	}
+	if _, err := outboxConnection.Exec(ctx, `SELECT zasp_runtime_ack_outbox('runtime-events',$1,$2,$3,$4,'runtime-outbox-worker','runtime-outbox-lease-0001',$5)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), outboxID, "sha256:"+strings.Repeat("c", 64)); err != nil {
+		t.Fatalf("runtime outbox ack: %v", err)
+	}
+	if _, err := outboxConnection.Exec(ctx, `SELECT zasp_runtime_claim_outbox('discovery-jobs','runtime-outbox-worker','runtime-outbox-lease-0002',30,1)`); err == nil {
+		t.Fatal("runtime outbox claimed discovery topic")
 	}
 	messageID := "runtime-message-v15-0001"
 	var deliveryClaim json.RawMessage
@@ -640,6 +667,10 @@ func TestProductionRuntimeDataPlanePostgresRestoresUnusedLegacyTokenOnDownAndReu
 	if err := runner.DownProductionRuntimeDataPlane(ctx); err != nil {
 		t.Fatalf("unused v15 down: %v", err)
 	}
+	var runtimeOutboxRemoved, runtimeTopicRemoved bool
+	if err := connection.QueryRow(ctx, `SELECT to_regprocedure('zasp_runtime_claim_outbox(text,text,text,integer,integer)') IS NULL,position('runtime-events' IN pg_get_constraintdef((SELECT oid FROM pg_constraint WHERE conrelid='zasp_discovery_outbox_topic_fairness'::regclass AND conname='zasp_discovery_outbox_topic_fairness_topic_check')))=0`).Scan(&runtimeOutboxRemoved, &runtimeTopicRemoved); err != nil || !runtimeOutboxRemoved || !runtimeTopicRemoved {
+		t.Fatalf("runtime outbox down function=%t topic=%t err=%v", runtimeOutboxRemoved, runtimeTopicRemoved, err)
+	}
 	var retainedMemberships int
 	if err := connection.QueryRow(ctx, `SELECT count(*) FROM pg_auth_members membership JOIN pg_roles member_value ON member_value.oid=membership.member JOIN pg_roles granted ON granted.oid=membership.roleid WHERE member_value.rolname=ANY($1) AND granted.rolname LIKE 'zasp_runtime_%'`, principalNames).Scan(&retainedMemberships); err != nil || retainedMemberships != 0 {
 		t.Fatalf("retained runtime memberships=%d err=%v", retainedMemberships, err)
@@ -654,6 +685,10 @@ func TestProductionRuntimeDataPlanePostgresRestoresUnusedLegacyTokenOnDownAndReu
 	}
 	if err := runner.UpProductionRuntimeDataPlane(ctx); err != nil {
 		t.Fatalf("v15 re-up: %v", err)
+	}
+	var runtimeOutboxRestored, runtimeTopicRestored bool
+	if err := connection.QueryRow(ctx, `SELECT to_regprocedure('zasp_runtime_claim_outbox(text,text,text,integer,integer)') IS NOT NULL,position('runtime-events' IN pg_get_constraintdef((SELECT oid FROM pg_constraint WHERE conrelid='zasp_discovery_outbox_topic_fairness'::regclass AND conname='zasp_discovery_outbox_topic_fairness_topic_check')))>0`).Scan(&runtimeOutboxRestored, &runtimeTopicRestored); err != nil || !runtimeOutboxRestored || !runtimeTopicRestored {
+		t.Fatalf("runtime outbox re-up function=%t topic=%t err=%v", runtimeOutboxRestored, runtimeTopicRestored, err)
 	}
 }
 

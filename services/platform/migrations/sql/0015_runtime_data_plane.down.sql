@@ -1,5 +1,5 @@
 DO $runtime_guard$ BEGIN
- IF zasp_runtime_data_plane_live_fingerprint()<>'30382bb2234522539d91ef9d268b4ad93069c137759788c3a2926b3aeff1de9b' OR NOT zasp_runtime_data_plane_security_ready() THEN
+ IF zasp_runtime_data_plane_live_fingerprint()<>'832123377e20d8e9e9db0c1100d933d95e1bfed670c4be1361a537b92102042e' OR NOT zasp_runtime_data_plane_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime data plane semantic drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_runtime_data_plane_state WHERE used_at IS NOT NULL) THEN
@@ -11,6 +11,10 @@ DO $runtime_guard$ BEGIN
   WHERE token_value.format_version IS NOT NULL OR token_value.revoked_at IS DISTINCT FROM transition.transitioned_at
  ) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime legacy token transition drift blocks rollback';END IF;
 END $runtime_guard$;
+
+ALTER TABLE public.zasp_discovery_outbox_topic_fairness
+ DROP CONSTRAINT zasp_discovery_outbox_topic_fairness_topic_check,
+ ADD CONSTRAINT zasp_discovery_outbox_topic_fairness_topic_check CHECK(topic='discovery-jobs');
 
 DO $runtime_principals$
 DECLARE binding record;
@@ -46,6 +50,10 @@ DROP FUNCTION public.zasp_runtime_finish_stage(text,text,text,text,bigint,text,t
 DROP FUNCTION public.zasp_runtime_heartbeat_stage(text,text,text,text,bigint,text,text,integer);
 DROP FUNCTION public.zasp_runtime_claim_stage(text,text,integer,integer);
 DROP FUNCTION public.zasp_runtime_stage_for_session();
+DROP FUNCTION public.zasp_runtime_retry_outbox(text,text,text,text,text,text,text,integer,text);
+DROP FUNCTION public.zasp_runtime_ack_outbox(text,text,text,text,text,text,text,text);
+DROP FUNCTION public.zasp_runtime_heartbeat_outbox(text,text,text,integer,integer);
+DROP FUNCTION public.zasp_runtime_claim_outbox(text,text,text,integer,integer);
 DROP FUNCTION public.zasp_runtime_ack_delivery(text,text,text,text,bigint,text,bytea,text,text,bytea);
 DROP FUNCTION public.zasp_runtime_release_delivery(text,text,text,text,bigint,text,bytea,text,text,text,text);
 DROP FUNCTION public.zasp_runtime_heartbeat_delivery(text,text,text,text,bigint,text,bytea,text,text,integer,integer);
