@@ -83,6 +83,14 @@ func TestLocalSensorProbeRejectsMalformedMetricsAndUnsafeConfig(t *testing.T) {
 	}
 }
 
+func TestParseTetragonDropsIgnoresUnrelatedLabelsWithSpaces(t *testing.T) {
+	t.Parallel()
+	payload := "tetragon_missed_link_probes_total{attach=\"kprobe_multi security_file_permission\",policy=\"zasp-sensitive-file\"} 0\n" + tetragonMetricsFixture()
+	if drops, err := parseTetragonDrops([]byte(payload)); err != nil || drops != 3 {
+		t.Fatalf("parseTetragonDrops = %d, %v", drops, err)
+	}
+}
+
 func tetragonMetricsFixture() string {
 	return "# TYPE tetragon_export_ratelimit_events_dropped_total counter\n" +
 		"tetragon_export_ratelimit_events_dropped_total 0\n" +

@@ -45,6 +45,28 @@ func TestNormalizeTetragonLineProducesClosedRedactedRuntimeEvents(t *testing.T) 
 	}
 }
 
+func TestNormalizeTetragonLineCanonicalizesProtobufNanosecondTimestamps(t *testing.T) {
+	t.Parallel()
+	line := strings.ReplaceAll(tetragonExecFixture(), ".000Z", ".580666032Z")
+	event, err := NormalizeTetragonLine([]byte(line))
+	if err != nil || event.EventTime != "2026-08-20T12:00:00.580Z" {
+		t.Fatalf("NormalizeTetragonLine = %#v, %v", event, err)
+	}
+	normalizer, _ := NewNormalizer(8)
+	if normalized, err := normalizer.Normalize([]byte(line)); err != nil || normalized.EventTime != event.EventTime {
+		t.Fatalf("Normalizer.Normalize = %#v, %v", normalized, err)
+	}
+}
+
+func TestNormalizeTetragonLineAcceptsProductionProcessExitShape(t *testing.T) {
+	t.Parallel()
+	line := `{"process_exit":{"process":` + tetragonProcess() + `,"parent":` + tetragonProcess() + `,"time":"2026-08-20T12:00:01.123456789Z"},"node_name":"node-a","time":"2026-08-20T12:00:01.123456789Z","cluster_name":"cluster-a","node_labels":{}}`
+	event, err := NormalizeTetragonLine([]byte(line))
+	if err != nil || event.Class != "process" || event.Action != "exit" || event.EventTime != "2026-08-20T12:00:01.123Z" || len(event.Content) != 0 {
+		t.Fatalf("NormalizeTetragonLine = %#v, %v", event, err)
+	}
+}
+
 func TestNormalizerCorrelatesBoundedPartialProbeIdentityFromExactExec(t *testing.T) {
 	t.Parallel()
 	normalizer, err := NewNormalizer(128)
@@ -96,7 +118,7 @@ func TestNormalizeTetragonLineRejectsHostileOrUnsupportedProviderOutput(t *testi
 		"unknown root":     strings.Replace(valid, `"time":`, `"token":"secret","time":`, 1),
 		"missing pod":      strings.Replace(valid, `"pod":`, `"not_pod":`, 1),
 		"unsupported":      `{"process_tracepoint":{},"node_name":"node-a","time":"2026-08-20T12:00:00.000Z","cluster_name":"cluster-a","node_labels":{}}`,
-		"bad time":         strings.ReplaceAll(valid, "2026-08-20T12:00:00.000Z", "2026-08-20T12:00:00Z"),
+		"bad time":         strings.ReplaceAll(valid, "2026-08-20T12:00:00.000Z", "2026-08-20T12:00:00.1Z"),
 		"missing identity": strings.Replace(valid, `"uid":"11111111-2222-4333-8444-555555555555"`, `"uid":""`, 1),
 		"secret protocol":  strings.Replace(tetragonNetworkFixture(), `"protocol":"IPPROTO_TCP"`, `"protocol":"super-secret"`, 1),
 	} {
@@ -242,7 +264,7 @@ func tetragonProcess() string {
 }
 
 func tetragonExecFixture() string {
-	return `{"process_exec":{"process":` + tetragonProcess() + `},"node_name":"node-a","time":"2026-08-20T12:00:00.000Z","cluster_name":"cluster-a","node_labels":{}}`
+	return `{"process_exec":{"process":` + tetragonProcess() + `,"parent":` + tetragonProcess() + `},"node_name":"node-a","time":"2026-08-20T12:00:00.000Z","cluster_name":"cluster-a","node_labels":{}}`
 }
 
 func tetragonFileFixture() string {

@@ -16,7 +16,9 @@ tetragon:
     exportFilename: tetragon.log
     exportFilePerm: "644"
     exportAllowList: '{"event_set":["PROCESS_EXEC","PROCESS_EXIT","PROCESS_KPROBE"]}'
-    exportDenyList: '{"health_check":true}'
+    exportDenyList: |-
+      {"health_check":true}
+      {"namespace":["","cilium","kube-system"]}
     fieldFilters: '{"fields":"process.arguments,parent.arguments,ancestors.arguments,process.cwd,parent.cwd,ancestors.cwd","action":"EXCLUDE"}'
     exportFileCompress: false
     exportFileMaxBackups: 4

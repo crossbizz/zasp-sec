@@ -217,6 +217,10 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   assert.equal(one(resources, "ServiceMonitor", "sensor-agent").spec.endpoints[0].path, "/metrics");
   const edgeAlerts = one(resources, "PrometheusRule", "zasp-customer-edge").spec.groups.flatMap(({ rules }) => rules);
   assert.deepEqual(edgeAlerts.map(({ alert }) => alert), ["ZaspSensorAgentNotReady", "ZaspEdgeDaemonSetUnavailable"]);
+  const tracingPolicies = resources.filter(({ kind }) => kind === "TracingPolicy");
+  assert.deepEqual(tracingPolicies.map(({ metadata }) => metadata.name).sort(), ["zasp-network-connect", "zasp-sensitive-file"]);
+  assert.equal(tracingPolicies.every(({ spec }) => JSON.stringify(spec.podSelector) === "{}"), true);
+  assert.equal(tracingPolicies.every(({ spec }) => JSON.stringify(spec.containerSelector) === JSON.stringify({ matchExpressions: [{ key: "name", operator: "Exists" }] })), true);
 
   const tetragon = resources.find(({ kind, spec }) => kind === "DaemonSet" && spec?.template?.spec?.containers?.some(({ name }) => name === "tetragon"));
   assert.ok(tetragon);
@@ -227,6 +231,7 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   assert.equal(tetragonConfig.data["cluster-name"], "zasp-runtime");
   assert.equal(tetragonConfig.data["export-file-perm"], "644");
   assert.equal(tetragonConfig.data["export-file-max-backups"], "4");
+  assert.deepEqual(tetragonConfig.data["export-denylist"].split("\n").sort(), ['{"health_check":true}', '{"namespace":["","cilium","kube-system"]}'].sort());
   assert.equal(tetragonConfig.data["field-filters"], '{"fields":"process.arguments,parent.arguments,ancestors.arguments,process.cwd,parent.cwd,ancestors.cwd","action":"EXCLUDE"}');
   assert.equal(tetragonConfig.data["metrics-label-filter"], "namespace,workload");
   assert.equal(resources.some((resource) => resource.kind === "Deployment" && /tetragon-operator/.test(resource.metadata?.name ?? "")), false);

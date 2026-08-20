@@ -150,19 +150,27 @@ func parseTetragonDrops(payload []byte) (uint64, error) {
 		if len(line) > 16<<10 {
 			return 0, ErrProbe
 		}
+		name := line
+		if index := strings.IndexAny(line, "{ \t"); index >= 0 {
+			name = line[:index]
+		}
+		seen, tracked := targets[name]
+		if !tracked {
+			continue
+		}
 		fields := strings.Fields(line)
 		if len(fields) != 2 {
 			return 0, ErrProbe
 		}
 		token := fields[0]
-		name := token
+		name = token
 		if index := strings.IndexByte(token, '{'); index >= 0 {
 			if !strings.HasSuffix(token, "}") {
 				return 0, ErrProbe
 			}
 			name = token[:index]
 		}
-		seen, tracked := targets[name]
+		seen, tracked = targets[name]
 		if !tracked {
 			continue
 		}

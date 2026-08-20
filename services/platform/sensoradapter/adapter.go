@@ -78,13 +78,13 @@ type providerRoot struct {
 }
 
 type providerExec struct {
-	Process providerProcess `json:"process"`
+	Process providerProcess  `json:"process"`
+	Parent  *providerProcess `json:"parent,omitempty"`
 }
 type providerExit struct {
 	Process providerProcess `json:"process"`
 	Parent  json.RawMessage `json:"parent,omitempty"`
-	Signal  string          `json:"signal,omitempty"`
-	Status  uint32          `json:"status"`
+	Time    string          `json:"time"`
 }
 type providerKprobe struct {
 	Process      providerProcess `json:"process"`
@@ -197,15 +197,19 @@ func decodeProviderRoot(line []byte) (providerRoot, error) {
 	if decodeClosed(line, &root) != nil || !boundedText(root.NodeName, 253) || !boundedText(root.ClusterName, 253) || root.NodeLabels == nil {
 		return providerRoot{}, ErrAdapter
 	}
-	when, err := time.Parse(timestampLayout, root.Time)
-	if err != nil || when.Location() != time.UTC || when.Format(timestampLayout) != root.Time {
+	when, ok := parseProviderTimestamp(root.Time)
+	if !ok {
 		return providerRoot{}, ErrAdapter
 	}
+	root.Time = when.Truncate(time.Millisecond).Format(timestampLayout)
 	kinds := 0
 	if root.ProcessExec != nil {
 		kinds++
 	}
 	if root.ProcessExit != nil {
+		if _, ok := parseProviderTimestamp(root.ProcessExit.Time); !ok {
+			return providerRoot{}, ErrAdapter
+		}
 		kinds++
 	}
 	if root.ProcessKprobe != nil {
@@ -230,7 +234,6 @@ func normalizeProviderRoot(line []byte, root providerRoot) (RuntimeEvent, error)
 	case root.ProcessExit != nil:
 		process = root.ProcessExit.Process
 		class, action = "process", "exit"
-		content["exit_status"] = strconv.FormatUint(uint64(root.ProcessExit.Status), 10)
 	case root.ProcessKprobe != nil:
 		process = root.ProcessKprobe.Process
 		class, action, content, err = normalizeKprobe(root.ProcessKprobe)
@@ -356,16 +359,17 @@ func correlationKey(node string, process providerProcess) (processCorrelationKey
 	if !boundedText(node, 253) || process.PID == 0 {
 		return processCorrelationKey{}, false
 	}
-	startedAt, err := time.Parse(timestampLayout, process.StartTime)
-	if err != nil || startedAt.Format(timestampLayout) != process.StartTime {
+	startedAt, ok := parseProviderTimestamp(process.StartTime)
+	if !ok {
 		return processCorrelationKey{}, false
 	}
-	return processCorrelationKey{node: node, pid: process.PID, startedAt: process.StartTime}, true
+	return processCorrelationKey{node: node, pid: process.PID, startedAt: startedAt.Format(time.RFC3339Nano)}, true
 }
 
 func retainedProcessIdentity(value providerProcess) providerProcess {
+	startedAt, _ := parseProviderTimestamp(value.StartTime)
 	return providerProcess{
-		ExecID: value.ExecID, PID: value.PID, Binary: "correlated", StartTime: value.StartTime,
+		ExecID: value.ExecID, PID: value.PID, Binary: "correlated", StartTime: startedAt.Format(time.RFC3339Nano),
 		Pod: providerPod{Namespace: value.Pod.Namespace, Name: value.Pod.Name, UID: value.Pod.UID,
 			Container: providerContainer{ID: value.Pod.Container.ID, Name: value.Pod.Container.Name}},
 	}
@@ -408,7 +412,36 @@ func validProcessIdentity(value providerProcess) bool {
 	if !boundedText(pod.Namespace, 253) || !boundedText(pod.Name, 253) || !boundedText(pod.UID, 128) || !boundedText(container.ID, 256) || !boundedText(container.Name, 253) || !boundedText(value.Binary, 4096) || !boundedText(value.ExecID, 256) {
 		return false
 	}
+	if _, ok := parseProviderTimestamp(value.StartTime); !ok {
+		return false
+	}
 	return strings.TrimSpace(pod.Namespace) == pod.Namespace && strings.TrimSpace(pod.UID) == pod.UID && strings.TrimSpace(container.ID) == container.ID
+}
+
+func parseProviderTimestamp(value string) (time.Time, bool) {
+	if len(value) < len("2006-01-02T15:04:05Z") || len(value) > len("2006-01-02T15:04:05.000000000Z") || !strings.HasSuffix(value, "Z") {
+		return time.Time{}, false
+	}
+	fractionDigits := 0
+	if dot := strings.LastIndexByte(value, '.'); dot >= 0 {
+		fractionDigits = len(value) - dot - 2
+		if fractionDigits != 3 && fractionDigits != 6 && fractionDigits != 9 {
+			return time.Time{}, false
+		}
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil || parsed.Location() != time.UTC {
+		return time.Time{}, false
+	}
+	layout := "2006-01-02T15:04:05"
+	if fractionDigits > 0 {
+		layout += "." + strings.Repeat("0", fractionDigits)
+	}
+	layout += "Z"
+	if parsed.Format(layout) != value {
+		return time.Time{}, false
+	}
+	return parsed, true
 }
 
 func productIDFromDigest(digest [sha256.Size]byte) (domain.ProductID, error) {

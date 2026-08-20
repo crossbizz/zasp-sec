@@ -381,4 +381,38 @@ spec:
           annotations: { summary: "A customer-edge sensor DaemonSet is unavailable" }
 {{- end }}
 {{- end }}
+{{- if .Values.sensorAgent.enabled }}
+---
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata: { name: zasp-sensitive-file }
+spec:
+  podSelector: {}
+  containerSelector:
+    matchExpressions: [{ key: name, operator: Exists }]
+  kprobes:
+    - call: security_file_permission
+      syscall: false
+      args:
+        - { index: 0, type: file }
+        - { index: 1, type: int }
+      selectors:
+        - matchArgs:
+            - index: 0
+              operator: Prefix
+              values: [/etc, /var/run/secrets, /run/secrets]
+---
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata: { name: zasp-network-connect }
+spec:
+  podSelector: {}
+  containerSelector:
+    matchExpressions: [{ key: name, operator: Exists }]
+  kprobes:
+    - call: tcp_connect
+      syscall: false
+      args:
+        - { index: 0, type: sock }
+{{- end }}
 {{- end }}
