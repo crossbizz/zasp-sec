@@ -44,3 +44,5 @@ yarn-error.log*
 /.superpowers/
 .openai/
 *.tsbuildinfo
+# Local Go build output for the runtime gateway command.
+services/runtime-gateway/runtime-gateway
