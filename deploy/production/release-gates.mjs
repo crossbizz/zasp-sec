@@ -96,8 +96,9 @@ export async function verifyReleaseSources() {
   for (const contract of [
     "ZaspDiscoverySchedulerUnavailable", "ZaspDiscoveryWorkerUnavailable", "ZaspOutboxPublisherUnavailable",
     "ZaspProjectionRiskUnavailable", "ZaspProjectionGraphUnavailable", "ZaspProjectionSearchUnavailable",
-    "ZaspTask4WorkerDependencyNotReady", "ZaspProjectionBacklogAge", "ZaspWorkerLeaseLoss", "ZaspWorkerExhaustion", "ZaspTask4WorkerCapacityExhausted",
-    "zasp_worker_driver_ready", "zasp_worker_projection_backlog_age_seconds", "zasp_worker_lease_loss_total", "zasp_worker_exhaustion_total",
+    "ZaspTask4WorkerDependencyNotReady", "ZaspProjectionRiskDriverNotReady", "ZaspProjectionGraphDriverNotReady", "ZaspProjectionSearchDriverNotReady",
+    "ZaspProjectionBacklogAge", "ZaspWorkerLeaseLoss", "ZaspWorkerExhaustion", "ZaspTask4WorkerCapacityExhausted",
+    "agentsec_ready", "zasp_worker_driver_ready", "zasp_worker_projection_backlog_age_seconds", "zasp_worker_lease_loss_total", "zasp_worker_exhaustion_total",
   ]) if (!monitoring.includes(contract)) throw new Error("worker monitoring gate rejected");
 
   await exec("gitleaks", ["git", "--no-banner", "--redact", "--log-opts=HEAD"], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });

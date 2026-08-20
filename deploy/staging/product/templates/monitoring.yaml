@@ -100,10 +100,25 @@ spec:
           labels: { severity: page }
           annotations: { summary: "Search projection worker is unavailable or absent" }
         - alert: ZaspTask4WorkerDependencyNotReady
-          expr: zasp_worker_driver_ready == 0 or absent(zasp_worker_driver_ready)
+          expr: agentsec_ready{service="agentsec-worker"} == 0
           for: 10m
           labels: { severity: ticket }
           annotations: { summary: "A discovery or projection worker dependency is not ready" }
+        - alert: ZaspProjectionRiskDriverNotReady
+          expr: zasp_worker_driver_ready{service="agentsec-projection-risk"} == 0 or absent(zasp_worker_driver_ready{service="agentsec-projection-risk"})
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "Risk projection driver is not ready or absent" }
+        - alert: ZaspProjectionGraphDriverNotReady
+          expr: zasp_worker_driver_ready{service="agentsec-projection-graph"} == 0 or absent(zasp_worker_driver_ready{service="agentsec-projection-graph"})
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "Graph projection driver is not ready or absent" }
+        - alert: ZaspProjectionSearchDriverNotReady
+          expr: zasp_worker_driver_ready{service="agentsec-projection-search"} == 0 or absent(zasp_worker_driver_ready{service="agentsec-projection-search"})
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "Search projection driver is not ready or absent" }
         - alert: ZaspProjectionBacklogAge
           expr: max(zasp_worker_projection_backlog_age_seconds) > 300
           for: 10m

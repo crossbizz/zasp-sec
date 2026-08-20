@@ -410,13 +410,21 @@ test("release renders read-only synthetic and exact SLO budgets without credenti
     assert.match(availability.expr, /absent\(/);
   }
   for (const [alert, metric] of [
-    ["ZaspTask4WorkerDependencyNotReady", "zasp_worker_driver_ready"],
+    ["ZaspTask4WorkerDependencyNotReady", 'agentsec_ready{service="agentsec-worker"} == 0'],
     ["ZaspProjectionBacklogAge", "zasp_worker_projection_backlog_age_seconds"],
     ["ZaspWorkerLeaseLoss", "zasp_worker_lease_loss_total"],
     ["ZaspWorkerExhaustion", "zasp_worker_exhaustion_total"],
   ]) {
     const rule = rules.spec.groups.flatMap(({ rules: groupRules }) => groupRules).find((candidate) => candidate.alert === alert);
-    assert.match(rule.expr, new RegExp(metric));
+    assert.match(rule.expr, new RegExp(metric.replace(/[{}]/g, "\\$&")));
+  }
+  for (const [alert, service] of [
+    ["ZaspProjectionRiskDriverNotReady", "agentsec-projection-risk"],
+    ["ZaspProjectionGraphDriverNotReady", "agentsec-projection-graph"],
+    ["ZaspProjectionSearchDriverNotReady", "agentsec-projection-search"],
+  ]) {
+    const rule = rules.spec.groups.flatMap(({ rules: groupRules }) => groupRules).find((candidate) => candidate.alert === alert);
+    assert.equal(rule.expr, `zasp_worker_driver_ready{service="${service}"} == 0 or absent(zasp_worker_driver_ready{service="${service}"})`);
   }
 });
 
