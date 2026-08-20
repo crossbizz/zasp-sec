@@ -361,11 +361,11 @@ func (processor *projectionProcessor) RunOnce(ctx context.Context) error {
 		lease := lease
 		processor.config.Metrics.addInflight(1)
 		go func() {
-			defer processor.config.Metrics.addInflight(-1)
 			processErr := processor.process(ctx, lease, leaseToken)
 			if processErr != nil {
 				processor.config.Metrics.observeFailure()
 			}
+			processor.config.Metrics.addInflight(-1)
 			results <- processErr
 		}()
 	}
