@@ -144,6 +144,52 @@ variable "github_app_id" {
   }
 }
 
+variable "discovery_implementation_versions" {
+  description = "Immutable production implementation identities fenced against every hydrated discovery job."
+  type = object({
+    parser               = string
+    tool                 = string
+    aws_collector        = string
+    kubernetes_collector = string
+    github_collector     = string
+    okta_collector       = string
+  })
+  default = {
+    parser               = "inventory-parser-2026.08.20"
+    tool                 = "collector-tool-2026.08.20"
+    aws_collector        = "aws-collector-2026.08.20"
+    kubernetes_collector = "kubernetes-collector-2026.08.20"
+    github_collector     = "github-collector-2026.08.20"
+    okta_collector       = "okta-collector-2026.08.20"
+  }
+  validation {
+    condition = alltrue([
+      for version in values(var.discovery_implementation_versions) : can(regex("^[a-z][a-z0-9_.-]{1,63}$", version)) && !contains(["parser-v1", "tool-v1"], version)
+    ])
+    error_message = "discovery_implementation_versions must contain six exact bounded release identities."
+  }
+}
+
+variable "neo4j_endpoint" {
+  description = "Verified-TLS production Neo4j endpoint; credentials are resolved by reference at runtime."
+  type        = string
+  default     = "neo4j+s://neo4j.internal.example:7687"
+  validation {
+    condition     = can(regex("^neo4j\\+s://[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9]):7687$", var.neo4j_endpoint))
+    error_message = "neo4j_endpoint must be one canonical neo4j+s DNS endpoint on port 7687."
+  }
+}
+
+variable "neo4j_endpoint_cidr" {
+  description = "Canonical private CIDR containing every resolved Neo4j endpoint address."
+  type        = string
+  default     = "10.55.0.0/24"
+  validation {
+    condition     = can(cidrhost(var.neo4j_endpoint_cidr, 0)) && "${cidrhost(var.neo4j_endpoint_cidr, 0)}/${split("/", var.neo4j_endpoint_cidr)[1]}" == var.neo4j_endpoint_cidr && var.neo4j_endpoint_cidr != "0.0.0.0/0" && var.neo4j_endpoint_cidr != "::/0"
+    error_message = "neo4j_endpoint_cidr must be one canonical non-global CIDR."
+  }
+}
+
 variable "aws_reference_role_prefixes" {
   description = "Canonical customer role path prefixes accepted by the AWS reference authorization runtime across configured accounts."
   type        = set(string)

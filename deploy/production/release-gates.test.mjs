@@ -83,6 +83,7 @@ test("release sources contain truthful runbooks, canary, SBOM/license/image/secr
   });
   assert.throws(() => validateGoSpdxDocument({ ...result.goSpdx, creationInfo: { ...result.goSpdx.creationInfo, created: "2026-08-19T12:34:56.123Z" } }), /Go SBOM gate rejected/);
   assert.equal(result.requiredCI, true);
+  assert.equal(result.task4Deployment, true);
 });
 
 function securityHeaders(extra) {

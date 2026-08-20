@@ -79,6 +79,32 @@ output "migration_role_arn" {
 output "worker_role_arn" {
   value = aws_iam_role.worker.arn
 }
+output "discovery_runtime_config" {
+  description = "Non-secret production discovery authority and immutable implementation fence."
+  value = {
+    ZASP_DISCOVERY_QUEUE_URL                    = aws_sqs_queue.work["discovery-jobs"].id
+    ZASP_AWS_REGION                             = var.region
+    ZASP_EVIDENCE_BUCKET                        = aws_s3_bucket.evidence.bucket
+    ZASP_EVIDENCE_BUCKET_OWNER                  = var.account_id
+    ZASP_EVIDENCE_KMS_KEY_ARN                   = aws_kms_key.staging.arn
+    ZASP_DISCOVERY_ROLE_ARN                     = aws_iam_role.worker.arn
+    ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE      = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+    ZASP_DISCOVERY_SECRET_PREFIX                = local.connector_secret_root
+    ZASP_DISCOVERY_AWS_COLLECTOR_VERSION        = var.discovery_implementation_versions.aws_collector
+    ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION = var.discovery_implementation_versions.kubernetes_collector
+    ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION     = var.discovery_implementation_versions.github_collector
+    ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION       = var.discovery_implementation_versions.okta_collector
+    ZASP_DISCOVERY_PARSER_VERSION               = var.discovery_implementation_versions.parser
+    ZASP_DISCOVERY_TOOL_VERSION                 = var.discovery_implementation_versions.tool
+    ZASP_KUBERNETES_EGRESS_CIDRS                = join(",", var.kubernetes_connector_egress_cidrs)
+    ZASP_GITHUB_APP_ID                          = var.github_app_id
+    ZASP_GITHUB_PRIVATE_KEY_REFERENCE           = "ref:github/app-private-key"
+    ZASP_OKTA_CLIENT_ID                         = var.connector_client_ids.okta
+    ZASP_OKTA_CLIENT_SECRET_REFERENCE           = "ref:okta/client-secret"
+    ZASP_PROVIDER_TIMEOUT                       = "5s"
+    ZASP_DISCOVERY_READINESS_TIMEOUT            = "5s"
+  }
+}
 output "scheduler_role_arn" {
   value = aws_iam_role.scheduler.arn
 }
@@ -97,6 +123,17 @@ output "outbox_runtime_config" {
 output "projection_search_role_arn" {
   value = aws_iam_role.projection_search.arn
 }
+output "projection_search_init_authority" {
+  description = "Exact one-shot OpenSearch mapping and immutable schema-marker authority."
+  value = {
+    ZASP_AWS_REGION                              = var.region
+    ZASP_PROJECTION_INIT_ROLE_ARN                = aws_iam_role.projection_search_init.arn
+    ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+    ZASP_PROJECTION_INIT_TIMEOUT                 = "20s"
+    ZASP_OPENSEARCH_ENDPOINT                     = "https://${aws_opensearch_domain.events.endpoint}"
+    ZASP_OPENSEARCH_INDEX                        = "zasp-inventory-v1"
+  }
+}
 output "projection_search_runtime_config" {
   description = "Non-secret, explicit production search projection authority."
   value = {
@@ -105,6 +142,39 @@ output "projection_search_runtime_config" {
     ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
     ZASP_OPENSEARCH_ENDPOINT                = "https://${aws_opensearch_domain.events.endpoint}"
     ZASP_OPENSEARCH_INDEX                   = "zasp-inventory-v1"
+  }
+}
+output "projection_risk_role_arn" {
+  value = aws_iam_role.projection_risk.arn
+}
+output "projection_graph_role_arn" {
+  value = aws_iam_role.projection_graph.arn
+}
+output "projection_graph_runtime_config" {
+  description = "Non-secret graph projection authority; the Neo4j credential remains reference-only."
+  value = {
+    ZASP_AWS_REGION                         = var.region
+    ZASP_PROJECTION_ROLE_ARN                = aws_iam_role.projection_graph.arn
+    ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+    ZASP_PROJECTION_SECRET_PREFIX           = local.projection_secret_root
+    ZASP_NEO4J_URI                          = var.neo4j_endpoint
+    ZASP_NEO4J_CREDENTIAL_REFERENCE         = "ref:neo4j/auth/runtime"
+    ZASP_NEO4J_EXPECTED_PRINCIPAL           = "zasp_projection_runtime"
+    ZASP_NEO4J_EXPECTED_ROLE                = "publisher"
+    ZASP_NEO4J_ENDPOINT_CIDR                = var.neo4j_endpoint_cidr
+  }
+}
+output "projection_graph_init_authority" {
+  description = "Reference-only one-shot Neo4j constraint authority; no credential value is exported."
+  value = {
+    ZASP_AWS_REGION                              = var.region
+    ZASP_PROJECTION_INIT_ROLE_ARN                = aws_iam_role.projection_graph_init.arn
+    ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+    ZASP_PROJECTION_INIT_TIMEOUT                 = "20s"
+    ZASP_PROJECTION_SECRET_PREFIX                = local.projection_secret_root
+    ZASP_NEO4J_URI                               = var.neo4j_endpoint
+    ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE       = "ref:neo4j/auth/schema"
+    credential_secret_arn                        = aws_secretsmanager_secret.neo4j_projection_schema.arn
   }
 }
 output "canary_secret_sync_role_arn" {

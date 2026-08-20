@@ -1,5 +1,5 @@
 {{- if ne .Values.profile "customer_edge" }}
-{{- range $name := list "web" "agentsec-api" "agentsec-discovery-scheduler" "agentsec-projection-search" "agentsec-outbox-publisher" }}
+{{- range $name := list "web" "agentsec-api" "agentsec-discovery-scheduler" "agentsec-discovery-worker" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" "agentsec-outbox-publisher" }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -7,6 +7,54 @@ metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, ap
 spec:
   minAvailable: 1
   selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
+{{- end }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: agentsec-discovery-worker, labels: { app.kubernetes.io/name: agentsec-discovery-worker, app.kubernetes.io/part-of: zasp } }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: agentsec-discovery-worker }
+  minReplicas: 2
+  maxReplicas: 10
+  behavior:
+    scaleUp: { stabilizationWindowSeconds: 60, policies: [{ type: Percent, value: 100, periodSeconds: 60 }] }
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Percent, value: 25, periodSeconds: 60 }] }
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+{{- range $name := list "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $name }} }
+  minReplicas: 2
+  maxReplicas: 10
+  behavior:
+    scaleUp: { stabilizationWindowSeconds: 60, policies: [{ type: Percent, value: 100, periodSeconds: 60 }] }
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Percent, value: 25, periodSeconds: 60 }] }
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+{{- end }}
+{{- range $name := list "agentsec-discovery-scheduler" "agentsec-outbox-publisher" }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $name }} }
+  minReplicas: 2
+  maxReplicas: 6
+  behavior:
+    scaleUp: { stabilizationWindowSeconds: 60, policies: [{ type: Percent, value: 100, periodSeconds: 60 }] }
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Percent, value: 25, periodSeconds: 60 }] }
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
 {{- end }}
 ---
 apiVersion: networking.k8s.io/v1
@@ -51,6 +99,40 @@ kind: NetworkPolicy
 metadata: { name: internal-monitoring, labels: { app.kubernetes.io/part-of: zasp } }
 spec:
   podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: projection-monitoring, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [agentsec-projection-risk, agentsec-projection-graph, agentsec-projection-search] }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: task4-worker-monitoring, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [agentsec-discovery-scheduler, agentsec-outbox-publisher] }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: discovery-worker-monitoring, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } }
   policyTypes: [Ingress]
   ingress:
     - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
@@ -112,6 +194,26 @@ spec:
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
+metadata:
+  name: discovery-worker-dependencies
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    zasp.io/network-policy-boundary: native-cidr-snapshot
+    zasp.io/endpoint-groups: aws-sts-sqs-s3-kms-secretsmanager,github-api,okta-tenant,kubernetes-customer-api
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+      {{- range $cidr := concat (required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws) (required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github) (required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta) (required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes) }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
 metadata: { name: projection-search-dependencies, labels: { app.kubernetes.io/part-of: zasp } }
 spec:
   podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-projection-search } }
@@ -120,6 +222,38 @@ spec:
     - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 5432 }]
     - to: [{ ipBlock: { cidr: {{ required "network.opensearchCIDR is required" .Values.network.opensearchCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 443 }]
+    - to:
+      {{- range $cidr := required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: projection-risk-database, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-projection-risk } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: projection-graph-dependencies, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-projection-graph } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to: [{ ipBlock: { cidr: {{ required "network.neo4jCIDR is required" .Values.network.neo4jCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 7687 }]
+    - to:
+      {{- range $cidr := required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
       ports: [{ protocol: TCP, port: 443 }]
 ---
 apiVersion: networking.k8s.io/v1

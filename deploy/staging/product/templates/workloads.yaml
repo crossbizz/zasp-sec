@@ -188,6 +188,202 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: agentsec-discovery-worker
+  labels: { app.kubernetes.io/name: agentsec-discovery-worker, app.kubernetes.io/part-of: zasp }
+spec:
+  replicas: {{ .Values.replicas.discoveryWorker }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-discovery-worker, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.worker.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.global.terminationGracePeriodSeconds }}
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker } } }
+      containers:
+        - name: discovery-worker
+          image: {{ required "global.productImages.agentsecWorker must be an immutable digest" .Values.global.productImages.agentsecWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-discovery-worker/postgres-dsn)"; exec /app/agentsec-worker']
+          ports: [{ name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_WORKER_MODE, value: "discovery" }
+            - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_discovery_worker" }
+            - name: ZASP_WORKER_ID
+              valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
+            - { name: ZASP_POLL_INTERVAL, value: "1s" }
+            - { name: ZASP_LEASE_DURATION, value: "30s" }
+            - { name: ZASP_BATCH_SIZE, value: "8" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
+            - { name: ZASP_DISCOVERY_QUEUE_URL, value: {{ required "discovery.queueURL is required" .Values.discovery.queueURL | quote }} }
+            - { name: ZASP_AWS_REGION, value: {{ required "discovery.awsRegion is required" .Values.discovery.awsRegion | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET, value: {{ required "discovery.evidenceBucket is required" .Values.discovery.evidenceBucket | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET_OWNER, value: {{ required "discovery.evidenceBucketOwner is required" .Values.discovery.evidenceBucketOwner | quote }} }
+            - { name: ZASP_EVIDENCE_KMS_KEY_ARN, value: {{ required "discovery.evidenceKMSKeyArn is required" .Values.discovery.evidenceKMSKeyArn | quote }} }
+            - { name: ZASP_DISCOVERY_ROLE_ARN, value: {{ required "discovery.roleArn is required" .Values.discovery.roleArn | quote }} }
+            - { name: ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE, value: {{ required "discovery.webIdentityTokenFile is required" .Values.discovery.webIdentityTokenFile | quote }} }
+            - { name: ZASP_DISCOVERY_SECRET_PREFIX, value: {{ required "discovery.secretPrefix is required" .Values.discovery.secretPrefix | quote }} }
+            - { name: ZASP_DISCOVERY_AWS_COLLECTOR_VERSION, value: {{ required "discovery.awsCollectorVersion is required" .Values.discovery.awsCollectorVersion | quote }} }
+            - { name: ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION, value: {{ required "discovery.kubernetesCollectorVersion is required" .Values.discovery.kubernetesCollectorVersion | quote }} }
+            - { name: ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION, value: {{ required "discovery.githubCollectorVersion is required" .Values.discovery.githubCollectorVersion | quote }} }
+            - { name: ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION, value: {{ required "discovery.oktaCollectorVersion is required" .Values.discovery.oktaCollectorVersion | quote }} }
+            - { name: ZASP_DISCOVERY_PARSER_VERSION, value: {{ required "discovery.parserVersion is required" .Values.discovery.parserVersion | quote }} }
+            - { name: ZASP_DISCOVERY_TOOL_VERSION, value: {{ required "discovery.toolVersion is required" .Values.discovery.toolVersion | quote }} }
+            - { name: ZASP_KUBERNETES_EGRESS_CIDRS, value: {{ join "," (required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes) | quote }} }
+            - { name: ZASP_GITHUB_APP_ID, value: {{ required "discovery.githubAppID is required" .Values.discovery.githubAppID | quote }} }
+            - { name: ZASP_GITHUB_PRIVATE_KEY_REFERENCE, value: {{ required "discovery.githubPrivateKeyReference is required" .Values.discovery.githubPrivateKeyReference | quote }} }
+            - { name: ZASP_OKTA_CLIENT_ID, value: {{ required "discovery.oktaClientID is required" .Values.discovery.oktaClientID | quote }} }
+            - { name: ZASP_OKTA_CLIENT_SECRET_REFERENCE, value: {{ required "discovery.oktaClientSecretReference is required" .Values.discovery.oktaClientSecretReference | quote }} }
+            - { name: ZASP_PROVIDER_TIMEOUT, value: {{ required "discovery.providerTimeout is required" .Values.discovery.providerTimeout | quote }} }
+            - { name: ZASP_DISCOVERY_READINESS_TIMEOUT, value: {{ required "discovery.readinessTimeout is required" .Values.discovery.readinessTimeout | quote }} }
+          volumeMounts:
+            - { name: discovery-worker-secrets, mountPath: /var/run/secrets/zasp-discovery-worker, readOnly: true }
+            - { name: discovery-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+      volumes:
+        - name: discovery-worker-secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.workerProviderClassName | quote }} } }
+        - name: discovery-web-identity
+          projected:
+            defaultMode: 256
+            sources:
+              - serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentsec-projection-risk
+  labels: { app.kubernetes.io/name: agentsec-projection-risk, app.kubernetes.io/part-of: zasp }
+spec:
+  replicas: {{ .Values.replicas.projectionRisk }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-projection-risk } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-projection-risk, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.projectionRisk.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.global.terminationGracePeriodSeconds }}
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-projection-risk } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-projection-risk } } }
+      containers:
+        - name: projection-risk
+          image: {{ required "global.productImages.agentsecWorker must be an immutable digest" .Values.global.productImages.agentsecWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-projection-risk/postgres-dsn)"; exec /app/agentsec-worker']
+          ports: [{ name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_WORKER_MODE, value: "projection-risk" }
+            - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_projection_risk_worker" }
+            - name: ZASP_WORKER_ID
+              valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
+            - { name: ZASP_POLL_INTERVAL, value: "1s" }
+            - { name: ZASP_LEASE_DURATION, value: "30s" }
+            - { name: ZASP_BATCH_SIZE, value: "8" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
+          volumeMounts: [{ name: projection-risk-secrets, mountPath: /var/run/secrets/zasp-projection-risk, readOnly: true }]
+      volumes:
+        - name: projection-risk-secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.projectionRiskProviderClassName | quote }} } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentsec-projection-graph
+  labels: { app.kubernetes.io/name: agentsec-projection-graph, app.kubernetes.io/part-of: zasp }
+spec:
+  replicas: {{ .Values.replicas.projectionGraph }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-projection-graph } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-projection-graph, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.projectionGraph.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.global.terminationGracePeriodSeconds }}
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-projection-graph } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-projection-graph } } }
+      containers:
+        - name: projection-graph
+          image: {{ required "global.productImages.agentsecWorker must be an immutable digest" .Values.global.productImages.agentsecWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-projection-graph/postgres-dsn)"; exec /app/agentsec-worker']
+          ports: [{ name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_WORKER_MODE, value: "projection-graph" }
+            - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_projection_graph_worker" }
+            - name: ZASP_WORKER_ID
+              valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
+            - { name: ZASP_POLL_INTERVAL, value: "1s" }
+            - { name: ZASP_LEASE_DURATION, value: "30s" }
+            - { name: ZASP_BATCH_SIZE, value: "8" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
+            - { name: ZASP_AWS_REGION, value: {{ required "projectionGraph.awsRegion is required" .Values.projectionGraph.awsRegion | quote }} }
+            - { name: ZASP_PROJECTION_ROLE_ARN, value: {{ required "projectionGraph.roleArn is required" .Values.projectionGraph.roleArn | quote }} }
+            - { name: ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE, value: {{ required "projectionGraph.webIdentityTokenFile is required" .Values.projectionGraph.webIdentityTokenFile | quote }} }
+            - { name: ZASP_PROJECTION_SECRET_PREFIX, value: {{ required "projectionGraph.secretPrefix is required" .Values.projectionGraph.secretPrefix | quote }} }
+            - { name: ZASP_NEO4J_URI, value: {{ required "projectionGraph.endpoint is required" .Values.projectionGraph.endpoint | quote }} }
+            - { name: ZASP_NEO4J_CREDENTIAL_REFERENCE, value: {{ required "projectionGraph.credentialReference is required" .Values.projectionGraph.credentialReference | quote }} }
+            - { name: ZASP_NEO4J_EXPECTED_PRINCIPAL, value: {{ required "projectionGraph.expectedPrincipal is required" .Values.projectionGraph.expectedPrincipal | quote }} }
+            - { name: ZASP_NEO4J_EXPECTED_ROLE, value: {{ required "projectionGraph.expectedRole is required" .Values.projectionGraph.expectedRole | quote }} }
+          volumeMounts:
+            - { name: projection-graph-secrets, mountPath: /var/run/secrets/zasp-projection-graph, readOnly: true }
+            - { name: projection-graph-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+      volumes:
+        - name: projection-graph-secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.projectionGraphProviderClassName | quote }} } }
+        - name: projection-graph-web-identity
+          projected:
+            defaultMode: 256
+            sources:
+              - serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: agentsec-projection-search
   labels: { app.kubernetes.io/name: agentsec-projection-search, app.kubernetes.io/part-of: zasp }
 spec:

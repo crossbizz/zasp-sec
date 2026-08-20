@@ -60,6 +60,7 @@ locals {
   }
   connector_secret_root   = "${var.cluster_name}/connectors"
   connector_secret_prefix = "${local.connector_secret_root}/oauth"
+  projection_secret_root  = "${var.cluster_name}/projection"
   connector_provider_secret_names = {
     github_client_secret = {
       name             = "${local.connector_secret_root}/github/client-secret"
@@ -303,6 +304,20 @@ resource "aws_secretsmanager_secret" "connector_reference" {
   tags                    = { CredentialClass = each.value.credential_class }
 }
 
+resource "aws_secretsmanager_secret" "neo4j_projection_runtime" {
+  name                    = "${local.projection_secret_root}/neo4j/auth/runtime"
+  kms_key_id              = aws_kms_key.staging.arn
+  recovery_window_in_days = 30
+  tags                    = { CredentialClass = "neo4j_projection_runtime_basic", ExpectedPrincipal = "zasp_projection_runtime", ExpectedRole = "publisher" }
+}
+
+resource "aws_secretsmanager_secret" "neo4j_projection_schema" {
+  name                    = "${local.projection_secret_root}/neo4j/auth/schema"
+  kms_key_id              = aws_kms_key.staging.arn
+  recovery_window_in_days = 30
+  tags                    = { CredentialClass = "neo4j_projection_schema_basic", Authority = "projection-graph-init" }
+}
+
 resource "aws_sqs_queue" "dead_letter" {
   for_each = local.queue_contract
 
@@ -533,11 +548,65 @@ resource "aws_iam_role" "worker" {
 }
 
 resource "aws_iam_role_policy" "worker" {
-  name = "${var.cluster_name}-discovery-worker-secret"
+  name = "${var.cluster_name}-discovery-worker"
   role = aws_iam_role.worker.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
     { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-worker-dsn"].arn },
     { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" } } },
+    { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = concat([
+      aws_secretsmanager_secret.connector_provider["github_app_private_key"].arn,
+      aws_secretsmanager_secret.connector_provider["okta_client_secret"].arn,
+    ], [for secret in aws_secretsmanager_secret.connector_reference : secret.arn]) },
+    { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = ["arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/refresh/*"] },
+    {
+      Effect   = "Allow"
+      Action   = ["kms:Decrypt"]
+      Resource = aws_kms_key.connector_oauth.arn
+      Condition = { StringEquals = {
+        "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:SecretARN" = concat([
+          aws_secretsmanager_secret.connector_provider["github_app_private_key"].arn,
+          aws_secretsmanager_secret.connector_provider["okta_client_secret"].arn,
+        ], [for secret in aws_secretsmanager_secret.connector_reference : secret.arn])
+      } }
+    },
+    {
+      Effect   = "Allow"
+      Action   = ["kms:Decrypt"]
+      Resource = aws_kms_key.connector_oauth.arn
+      Condition = {
+        StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" }
+        StringLike   = { "kms:EncryptionContext:SecretARN" = "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/refresh/*" }
+      }
+    },
+    { Effect = "Allow", Action = ["sts:AssumeRole"], Resource = var.aws_reference_role_arns },
+    { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },
+    { Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.work["discovery-jobs"].arn },
+    {
+      Effect   = "Allow"
+      Action   = ["s3:ListBucket", "s3:GetBucketVersioning", "s3:GetEncryptionConfiguration"]
+      Resource = aws_s3_bucket.evidence.arn
+    },
+    { Effect = "Allow", Action = ["s3:PutObject", "s3:GetObject", "s3:GetObjectVersion"], Resource = "${aws_s3_bucket.evidence.arn}/organizations/*" },
+    {
+      Effect   = "Allow"
+      Action   = ["kms:GenerateDataKey", "kms:Decrypt"]
+      Resource = aws_kms_key.staging.arn
+      Condition = {
+        StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" }
+        StringLike   = { "kms:EncryptionContext:aws:s3:arn" = "${aws_s3_bucket.evidence.arn}/organizations/*" }
+      }
+    },
+    {
+      Effect   = "Allow"
+      Action   = ["kms:Decrypt"]
+      Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                    = "sqs.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:aws:sqs:arn" = aws_sqs_queue.work["discovery-jobs"].arn
+      } }
+    },
+    { Effect = "Allow", Action = ["kms:DescribeKey"], Resource = aws_kms_key.staging.arn },
   ] })
 }
 
@@ -601,6 +670,95 @@ resource "aws_iam_role_policy" "outbox" {
   ] })
 }
 
+resource "aws_iam_role" "projection_risk" {
+  name = "${var.cluster_name}-projection-risk"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:zasp-projection-risk"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "projection_risk" {
+  name = "${var.cluster_name}-projection-risk"
+  role = aws_iam_role.projection_risk.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-projection-risk-dsn"].arn },
+    {
+      Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product["postgres-projection-risk-dsn"].arn
+      } }
+    },
+  ] })
+}
+
+resource "aws_iam_role" "projection_graph" {
+  name = "${var.cluster_name}-projection-graph"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:zasp-projection-graph"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "projection_graph" {
+  name = "${var.cluster_name}-projection-graph"
+  role = aws_iam_role.projection_graph.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = [aws_secretsmanager_secret.product["postgres-projection-graph-dsn"].arn, aws_secretsmanager_secret.neo4j_projection_runtime.arn] },
+    {
+      Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:SecretARN" = [aws_secretsmanager_secret.product["postgres-projection-graph-dsn"].arn, aws_secretsmanager_secret.neo4j_projection_runtime.arn]
+      } }
+    },
+    { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },
+  ] })
+}
+
+resource "aws_iam_role" "projection_graph_init" {
+  name = "${var.cluster_name}-projection-graph-init"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:agentsec-projection-graph-init"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "projection_graph_init" {
+  name = "${var.cluster_name}-projection-graph-init"
+  role = aws_iam_role.projection_graph_init.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.neo4j_projection_schema.arn },
+    {
+      Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.neo4j_projection_schema.arn
+      } }
+    },
+    { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },
+  ] })
+}
+
 resource "aws_iam_role" "projection_search" {
   name = "${var.cluster_name}-projection-search"
   assume_role_policy = jsonencode({
@@ -627,7 +785,49 @@ resource "aws_iam_role_policy" "projection_search" {
         "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product["postgres-projection-search-dsn"].arn
       } }
     },
-    { Effect = "Allow", Action = ["es:ESHttpGet", "es:ESHttpPost", "es:ESHttpPut"], Resource = "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/*" },
+    { Effect = "Allow", Action = ["es:ESHttpGet"], Resource = [
+      "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_mapping",
+      "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_doc/_zasp_schema_v1",
+      "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_doc/active_*",
+    ] },
+    { Effect = "Allow", Action = ["es:ESHttpPost"], Resource = [
+      "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_bulk",
+      "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_mget",
+      "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_search",
+      "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_delete_by_query",
+    ] },
+    { Effect = "Allow", Action = ["es:ESHttpPut"], Resource = "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_doc/active_*" },
+    { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },
+  ] })
+}
+
+resource "aws_iam_role" "projection_search_init" {
+  name = "${var.cluster_name}-projection-search-init"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:agentsec-projection-search-init"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "projection_search_init" {
+  name = "${var.cluster_name}-projection-search-init"
+  role = aws_iam_role.projection_search_init.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["es:ESHttpGet"], Resource = [
+      "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_mapping",
+      "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_doc/_zasp_schema_v1",
+    ] },
+    { Effect = "Allow", Action = ["es:ESHttpPut"], Resource = [
+      "${aws_opensearch_domain.events.arn}/zasp-inventory-v1",
+      "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_doc/_zasp_schema_v1",
+    ] },
+    { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },
   ] })
 }
 

@@ -55,7 +55,7 @@ export async function verifyReleaseSources() {
 
   const requiredDocs = ["production-deployment.md", "backup-restore-rollback.md", "observability-and-canaries.md", "authentication-and-support.md", "supported-workflows.md"];
   const docs = await Promise.all(requiredDocs.map((name) => source(`docs/operations/${name}`)));
-  for (const phrase of ["schema v9", "Do not run `agentsec-migrate down`", "correlation ID", "must not ask", "not supported production workflows"]) {
+  for (const phrase of ["schema v13", "Do not run `agentsec-migrate down`", "correlation ID", "must not ask", "not supported production workflows"]) {
     if (!docs.some((document) => document.includes(phrase))) throw new Error("documentation gate rejected");
   }
 
@@ -84,9 +84,16 @@ export async function verifyReleaseSources() {
   const combined = sensitiveSources.join("\n");
   if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|AKIA[0-9A-Z]{16}|sk_live_[A-Za-z0-9]{16,}/.test(combined) || !sensitiveSources[0].includes(".env") || !sensitiveSources[5].includes("secretsmanager") || !sensitiveSources[6].includes("/var/run/secrets/zasp")) throw new Error("secret gate rejected");
   const terraform = await source("deploy/staging/main.tf");
-  for (const contract of ["system:serviceaccount:agentsec:agentsec-api", "system:serviceaccount:agentsec:zasp-discovery-worker", "system:serviceaccount:agentsec:zasp-discovery-scheduler", "system:serviceaccount:agentsec:zasp-outbox-publisher", "system:serviceaccount:agentsec:agentsec-migration", "system:serviceaccount:agentsec:agentsec-canary-secret-sync", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "sqs:SendMessage", "discovery-jobs", "canary-read-token", "token-reveal-key", "stytch-secret", "postgres-api-dsn", "postgres-worker-dsn", "postgres-outbox-worker-dsn", "postgres-scheduler-dsn", "postgres-migration-dsn"]) {
+  for (const contract of ["system:serviceaccount:agentsec:agentsec-api", "system:serviceaccount:agentsec:zasp-discovery-worker", "system:serviceaccount:agentsec:zasp-discovery-scheduler", "system:serviceaccount:agentsec:zasp-outbox-publisher", "system:serviceaccount:agentsec:zasp-projection-risk", "system:serviceaccount:agentsec:zasp-projection-graph", "system:serviceaccount:agentsec:zasp-projection-search", "system:serviceaccount:agentsec:agentsec-projection-graph-init", "system:serviceaccount:agentsec:agentsec-projection-search-init", "system:serviceaccount:agentsec:agentsec-migration", "system:serviceaccount:agentsec:agentsec-canary-secret-sync", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "sqs:SendMessage", "sqs:ReceiveMessage", "s3:PutObject", "discovery-jobs", "zasp-inventory-v1/_mapping", "_zasp_schema_v1", "neo4j/auth/runtime", "neo4j/auth/schema", "canary-read-token", "token-reveal-key", "stytch-secret", "postgres-api-dsn", "postgres-worker-dsn", "postgres-outbox-worker-dsn", "postgres-scheduler-dsn", "postgres-projection-risk-dsn", "postgres-projection-graph-dsn", "postgres-projection-search-dsn", "postgres-migration-dsn"]) {
     if (!terraform.includes(contract)) throw new Error("secret identity gate rejected");
   }
+  const [workloads, projectionInit, resilience] = await Promise.all([
+    source("deploy/staging/product/templates/workloads.yaml"), source("deploy/staging/product/templates/projection-init.yaml"), source("deploy/staging/product/templates/resilience.yaml"),
+  ]);
+  for (const contract of ["ZASP_WORKER_MODE", "projection-risk", "projection-graph", "projection-search", "ZASP_NEO4J_EXPECTED_PRINCIPAL", "ZASP_NEO4J_EXPECTED_ROLE"]) if (!workloads.includes(contract)) throw new Error("worker deployment gate rejected");
+  for (const contract of ["projection-search-init", "projection-graph-init", "ZASP_PROJECTION_INIT_ROLE_ARN", "ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE", "ZASP_PROJECTION_INIT_TIMEOUT", "ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE", "ZASP_OPENSEARCH_INDEX", 'helm.sh/hook-weight: "-7"']) if (!projectionInit.includes(contract)) throw new Error("projection init gate rejected");
+  for (const contract of ["agentsec-discovery-worker", "agentsec-projection-risk", "agentsec-projection-graph", "agentsec-projection-search", "HorizontalPodAutoscaler", "PodDisruptionBudget", "default-deny"]) if (!resilience.includes(contract)) throw new Error("worker resilience gate rejected");
+  for (const contract of ["ZaspDiscoveryWorkerUnavailable", "ZaspProjectionWorkersUnavailable", "ZaspTask4ControlWorkersUnavailable", "ZaspTask4WorkerDependencyNotReady", "ZaspTask4WorkerCapacityExhausted"]) if (!monitoring.includes(contract)) throw new Error("worker monitoring gate rejected");
 
   await exec("gitleaks", ["git", "--no-banner", "--redact", "--log-opts=HEAD"], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   const workflow = await source(".github/workflows/runnable-ui.yml");
@@ -96,7 +103,7 @@ export async function verifyReleaseSources() {
   const imageReferences = new Set(definitions.flatMap((definition) => [...definition.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1])));
   if (imageReferences.size !== 3 || [...imageReferences].some((reference) => !/@sha256:[0-9a-f]{64}$/.test(reference))) throw new Error("image definition gate rejected");
 
-  return deepFreeze({ canary: true, documentation: true, imageDefinitions: imageReferences.size, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, goSpdx, requiredCI: true });
+  return deepFreeze({ canary: true, documentation: true, imageDefinitions: imageReferences.size, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, goSpdx, requiredCI: true, task4Deployment: true });
 }
 
 async function goSourceSBOM() {

@@ -18,7 +18,10 @@ global:
 replicas:
   web: 3
   agentsecApi: 3
+  discoveryWorker: 2
   discoveryScheduler: 2
+  projectionRisk: 2
+  projectionGraph: 2
   projectionSearch: 2
   outboxPublisher: 2
 ingress:
@@ -31,6 +34,8 @@ secrets:
   migrationProviderClassName: zasp-production-migration-secrets
   workerProviderClassName: zasp-production-worker-secrets
   schedulerProviderClassName: zasp-production-scheduler-secrets
+  projectionRiskProviderClassName: zasp-production-projection-risk-secrets
+  projectionGraphProviderClassName: zasp-production-projection-graph-secrets
   projectionSearchProviderClassName: zasp-production-projection-search-secrets
   outboxProviderClassName: zasp-production-outbox-secrets
   canaryProviderClassName: zasp-production-canary-secrets
@@ -39,6 +44,8 @@ secrets:
   migrationPostgresDSNObjectName: ""
   workerPostgresDSNObjectName: ""
   schedulerPostgresDSNObjectName: ""
+  projectionRiskPostgresDSNObjectName: ""
+  projectionGraphPostgresDSNObjectName: ""
   projectionSearchPostgresDSNObjectName: ""
   outboxPostgresDSNObjectName: ""
   stytchProjectIDObjectName: ""
@@ -65,12 +72,46 @@ connectors:
 discovery:
   parserVersion: ""
   toolVersion: ""
+  awsCollectorVersion: ""
+  kubernetesCollectorVersion: ""
+  githubCollectorVersion: ""
+  oktaCollectorVersion: ""
+  awsRegion: ""
+  queueURL: ""
+  roleArn: ""
+  webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+  secretPrefix: ""
+  evidenceBucket: ""
+  evidenceBucketOwner: ""
+  evidenceKMSKeyArn: ""
+  githubAppID: ""
+  githubPrivateKeyReference: ""
+  oktaClientID: ""
+  oktaClientSecretReference: ""
+  providerTimeout: 5s
+  readinessTimeout: 5s
 projectionSearch:
   awsRegion: ""
   endpoint: ""
   index: zasp-inventory-v1
   roleArn: ""
   webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+  initRoleArn: ""
+  initTimeout: 20s
+projectionRisk:
+  roleArn: ""
+projectionGraph:
+  awsRegion: ""
+  endpoint: ""
+  credentialReference: ""
+  schemaCredentialReference: ""
+  secretPrefix: ""
+  roleArn: ""
+  webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+  initRoleArn: ""
+  initTimeout: 20s
+  expectedPrincipal: ""
+  expectedRole: ""
 outbox:
   awsRegion: ""
   queueURL: ""
@@ -108,6 +149,18 @@ serviceAccounts:
   projectionSearch:
     name: zasp-projection-search
     roleArn: ""
+  projectionRisk:
+    name: zasp-projection-risk
+    roleArn: ""
+  projectionGraph:
+    name: zasp-projection-graph
+    roleArn: ""
+  projectionGraphInit:
+    name: agentsec-projection-graph-init
+    roleArn: ""
+  projectionSearchInit:
+    name: agentsec-projection-search-init
+    roleArn: ""
   outbox:
     name: zasp-outbox-publisher
     roleArn: ""
@@ -122,6 +175,7 @@ network:
   ingressNamespace: ingress-nginx
   postgresCIDR: ""
   opensearchCIDR: ""
+  neo4jCIDR: ""
   outboxEgressCIDRs: []
   stytchCIDR: ""
   canaryCIDR: ""

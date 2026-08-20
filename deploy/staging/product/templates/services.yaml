@@ -37,6 +37,24 @@ automountServiceAccountToken: false
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  name: {{ .Values.serviceAccounts.projectionRisk.name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    eks.amazonaws.com/role-arn: {{ required "serviceAccounts.projectionRisk.roleArn is required" .Values.serviceAccounts.projectionRisk.roleArn | quote }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.serviceAccounts.projectionGraph.name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    eks.amazonaws.com/role-arn: {{ required "serviceAccounts.projectionGraph.roleArn is required" .Values.serviceAccounts.projectionGraph.roleArn | quote }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
   name: {{ .Values.serviceAccounts.outbox.name }}
   labels: { app.kubernetes.io/part-of: zasp }
   annotations:
@@ -79,4 +97,26 @@ spec:
   ports:
     - { name: product, port: 8080, targetPort: product, protocol: TCP }
     - { name: internal, port: 8081, targetPort: internal, protocol: TCP }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agentsec-discovery-worker
+  labels: { app.kubernetes.io/name: agentsec-discovery-worker, app.kubernetes.io/part-of: zasp }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: agentsec-discovery-worker }
+  ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+{{- range $name := list "agentsec-discovery-scheduler" "agentsec-outbox-publisher" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: {{ $name }} }
+  ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+{{- end }}
 {{- end }}

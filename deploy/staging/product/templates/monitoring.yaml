@@ -10,6 +10,30 @@ spec:
   namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
   endpoints:
     - { port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }
+{{- range $name := list "agentsec-discovery-scheduler" "agentsec-outbox-publisher" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $name }}
+  labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+  namespaceSelector: { matchNames: [{{ $.Release.Namespace | quote }}] }
+  endpoints:
+    - { port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }
+{{- end }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: agentsec-discovery-worker
+  labels: { app.kubernetes.io/name: agentsec-discovery-worker, app.kubernetes.io/part-of: zasp }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-worker, app.kubernetes.io/part-of: zasp } }
+  namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
+  endpoints:
+    - { port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -45,4 +69,29 @@ spec:
           for: 5m
           labels: { severity: page }
           annotations: { summary: "Zasp API workload is unavailable or absent" }
+        - alert: ZaspDiscoveryWorkerUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-discovery-worker"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-discovery-worker"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "Discovery worker is unavailable or absent" }
+        - alert: ZaspProjectionWorkersUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment=~"agentsec-projection-(risk|graph|search)"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment=~"agentsec-projection-(risk|graph|search)"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "A projection worker is unavailable or absent" }
+        - alert: ZaspTask4ControlWorkersUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment=~"agentsec-(discovery-scheduler|outbox-publisher)"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment=~"agentsec-(discovery-scheduler|outbox-publisher)"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "The discovery scheduler or outbox publisher is unavailable or absent" }
+        - alert: ZaspTask4WorkerDependencyNotReady
+          expr: min by (pod) (agentsec_ready{service="agentsec-worker"}) == 0
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "A discovery or projection worker dependency is not ready" }
+        - alert: ZaspTask4WorkerCapacityExhausted
+          expr: kube_horizontalpodautoscaler_status_current_replicas{namespace="{{ .Release.Namespace }}",horizontalpodautoscaler=~"agentsec-(discovery-(scheduler|worker)|outbox-publisher|projection-(risk|graph|search))"} >= kube_horizontalpodautoscaler_spec_max_replicas{namespace="{{ .Release.Namespace }}",horizontalpodautoscaler=~"agentsec-(discovery-(scheduler|worker)|outbox-publisher|projection-(risk|graph|search))"}
+          for: 15m
+          labels: { severity: ticket }
+          annotations: { summary: "A discovery or projection worker is at its replica ceiling" }
 {{- end }}

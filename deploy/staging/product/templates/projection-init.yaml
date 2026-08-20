@@ -1,0 +1,122 @@
+{{- if ne .Values.profile "customer_edge" }}
+{{- $root := . -}}
+{{- range $init := list
+  (dict "name" "agentsec-projection-graph-init" "serviceAccount" .Values.serviceAccounts.projectionGraphInit)
+  (dict "name" "agentsec-projection-search-init" "serviceAccount" .Values.serviceAccounts.projectionSearchInit)
+}}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .serviceAccount.name }}
+  labels: { app.kubernetes.io/name: {{ .name }}, app.kubernetes.io/part-of: zasp }
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-9"
+    helm.sh/hook-delete-policy: before-hook-creation
+    eks.amazonaws.com/role-arn: {{ required (printf "serviceAccounts.%s.roleArn is required" .name) .serviceAccount.roleArn | quote }}
+automountServiceAccountToken: false
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agentsec-projection-search-init
+  labels: { app.kubernetes.io/name: agentsec-projection-search-init, app.kubernetes.io/part-of: zasp }
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-8"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-projection-search-init } }
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+    - to: [{ ipBlock: { cidr: {{ required "network.opensearchCIDR is required" .Values.network.opensearchCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 443 }]
+    - to:
+      {{- range $cidr := required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agentsec-projection-graph-init
+  labels: { app.kubernetes.io/name: agentsec-projection-graph-init, app.kubernetes.io/part-of: zasp }
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-8"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-projection-graph-init } }
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+    - to: [{ ipBlock: { cidr: {{ required "network.neo4jCIDR is required" .Values.network.neo4jCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 7687 }]
+    - to:
+      {{- range $cidr := required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+{{- range $init := list
+  (dict "name" "agentsec-projection-graph-init" "mode" "projection-graph-init" "serviceAccount" .Values.serviceAccounts.projectionGraphInit "roleArn" .Values.projectionGraph.initRoleArn "timeout" .Values.projectionGraph.initTimeout "awsRegion" .Values.projectionGraph.awsRegion)
+  (dict "name" "agentsec-projection-search-init" "mode" "projection-search-init" "serviceAccount" .Values.serviceAccounts.projectionSearchInit "roleArn" .Values.projectionSearch.initRoleArn "timeout" .Values.projectionSearch.initTimeout "awsRegion" .Values.projectionSearch.awsRegion)
+}}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .name }}-v1
+  labels: { app.kubernetes.io/name: {{ .name }}, app.kubernetes.io/part-of: zasp }
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-7"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 60
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata: { labels: { app.kubernetes.io/name: {{ .name }}, app.kubernetes.io/part-of: zasp } }
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ .serviceAccount.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: projection-init
+          image: {{ required "global.productImages.agentsecWorker must be an immutable digest" $root.Values.global.productImages.agentsecWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/app/agentsec-worker"]
+          env:
+            - { name: ZASP_WORKER_MODE, value: {{ .mode | quote }} }
+            - { name: ZASP_AWS_REGION, value: {{ required "projection init AWS region is required" .awsRegion | quote }} }
+            - { name: ZASP_PROJECTION_INIT_ROLE_ARN, value: {{ required "projection init role is required" .roleArn | quote }} }
+            - { name: ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE, value: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" }
+            - { name: ZASP_PROJECTION_INIT_TIMEOUT, value: {{ required "projection init timeout is required" .timeout | quote }} }
+            {{- if eq .mode "projection-search-init" }}
+            - { name: ZASP_OPENSEARCH_ENDPOINT, value: {{ required "projectionSearch.endpoint is required" $root.Values.projectionSearch.endpoint | quote }} }
+            - { name: ZASP_OPENSEARCH_INDEX, value: {{ required "projectionSearch.index is required" $root.Values.projectionSearch.index | quote }} }
+            {{- else }}
+            - { name: ZASP_PROJECTION_SECRET_PREFIX, value: {{ required "projectionGraph.secretPrefix is required" $root.Values.projectionGraph.secretPrefix | quote }} }
+            - { name: ZASP_NEO4J_URI, value: {{ required "projectionGraph.endpoint is required" $root.Values.projectionGraph.endpoint | quote }} }
+            - { name: ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE, value: {{ required "projectionGraph.schemaCredentialReference is required" $root.Values.projectionGraph.schemaCredentialReference | quote }} }
+            {{- end }}
+          resources: { requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 32Mi }, limits: { cpu: 500m, memory: 256Mi, ephemeral-storage: 128Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          volumeMounts:
+            - { name: projection-init-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+      volumes:
+        - name: projection-init-web-identity
+          projected:
+            defaultMode: 256
+            sources:
+              - serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token }
+{{- end }}
+{{- end }}

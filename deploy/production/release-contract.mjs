@@ -13,8 +13,14 @@ const digestPattern = /^[a-z0-9][a-z0-9./_-]*(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-
 const hostPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const namePattern = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
 const imageNames = Object.freeze(["web", "agentsecApi", "agentsecWorker"]);
-const discoveryKeys = Object.freeze(["parserVersion", "toolVersion"]);
-const projectionSearchKeys = Object.freeze(["awsRegion", "endpoint", "index", "roleArn", "webIdentityTokenFile"]);
+const discoveryKeys = Object.freeze([
+  "parserVersion", "toolVersion", "awsCollectorVersion", "kubernetesCollectorVersion", "githubCollectorVersion", "oktaCollectorVersion",
+  "awsRegion", "queueURL", "roleArn", "webIdentityTokenFile", "secretPrefix", "evidenceBucket", "evidenceBucketOwner", "evidenceKMSKeyArn",
+  "githubAppID", "githubPrivateKeyReference", "oktaClientID", "oktaClientSecretReference", "providerTimeout", "readinessTimeout",
+]);
+const projectionSearchKeys = Object.freeze(["awsRegion", "endpoint", "index", "roleArn", "webIdentityTokenFile", "initRoleArn"]);
+const projectionRiskKeys = Object.freeze(["roleArn"]);
+const projectionGraphKeys = Object.freeze(["awsRegion", "endpoint", "endpointCIDR", "credentialReference", "schemaCredentialReference", "secretPrefix", "roleArn", "webIdentityTokenFile", "initRoleArn", "expectedPrincipal", "expectedRole"]);
 const outboxKeys = Object.freeze(["awsRegion", "queueURL", "roleArn", "webIdentityTokenFile", "egressCIDRs"]);
 const connectorKeys = Object.freeze(["awsRegion", "roleArn", "awsCustomerRolePrefixes", "awsCustomerRoleARNs", "webIdentityTokenFile", "kmsKeyArn", "secretPrefix", "githubClientID", "githubClientSecretReference", "githubAppID", "githubPrivateKeyReference", "oktaClientID", "oktaClientSecretReference"]);
 const connectorEgressKeys = Object.freeze(["aws", "github", "okta", "kubernetes"]);
@@ -48,9 +54,13 @@ export async function renderRelease(value) {
     ["global.trustedProxyCIDRs[0]", "10.20.0.0/16"],
     ["serviceAccounts.api.roleArn", "arn:aws:iam::123456789012:role/zasp-production-api"],
     ["serviceAccounts.migration.roleArn", "arn:aws:iam::123456789012:role/zasp-production-migration"],
-    ["serviceAccounts.worker.roleArn", "arn:aws:iam::123456789012:role/zasp-production-worker"],
+    ["serviceAccounts.worker.roleArn", value.discovery.roleArn],
     ["serviceAccounts.scheduler.roleArn", "arn:aws:iam::123456789012:role/zasp-production-discovery-scheduler"],
+    ["serviceAccounts.projectionRisk.roleArn", value.projectionRisk.roleArn],
+    ["serviceAccounts.projectionGraph.roleArn", value.projectionGraph.roleArn],
+    ["serviceAccounts.projectionGraphInit.roleArn", value.projectionGraph.initRoleArn],
     ["serviceAccounts.projectionSearch.roleArn", value.projectionSearch.roleArn],
+    ["serviceAccounts.projectionSearchInit.roleArn", value.projectionSearch.initRoleArn],
     ["serviceAccounts.outbox.roleArn", value.outbox.roleArn],
     ["serviceAccounts.canarySecretSync.roleArn", "arn:aws:iam::123456789012:role/zasp-production-canary-sync"],
     ["ingress.host", value.host], ["ingress.tlsSecretName", value.tlsSecretName],
@@ -58,6 +68,8 @@ export async function renderRelease(value) {
     ["secrets.apiPostgresDSNObjectName", "zasp/production/postgres-api-dsn"],
     ["secrets.workerPostgresDSNObjectName", "zasp/production/postgres-worker-dsn"],
     ["secrets.schedulerPostgresDSNObjectName", "zasp/production/postgres-scheduler-dsn"],
+    ["secrets.projectionRiskPostgresDSNObjectName", "zasp/production/postgres-projection-risk-dsn"],
+    ["secrets.projectionGraphPostgresDSNObjectName", "zasp/production/postgres-projection-graph-dsn"],
     ["secrets.projectionSearchPostgresDSNObjectName", "zasp/production/postgres-projection-search-dsn"],
     ["secrets.outboxPostgresDSNObjectName", "zasp/production/postgres-outbox-worker-dsn"],
     ["secrets.migrationPostgresDSNObjectName", "zasp/production/postgres-migration-dsn"],
@@ -81,17 +93,48 @@ export async function renderRelease(value) {
     ["databasePrincipals.projectionSearch", "zasp_projection_search_runtime"],
     ["discovery.parserVersion", value.discovery.parserVersion],
     ["discovery.toolVersion", value.discovery.toolVersion],
+    ["discovery.awsCollectorVersion", value.discovery.awsCollectorVersion],
+    ["discovery.kubernetesCollectorVersion", value.discovery.kubernetesCollectorVersion],
+    ["discovery.githubCollectorVersion", value.discovery.githubCollectorVersion],
+    ["discovery.oktaCollectorVersion", value.discovery.oktaCollectorVersion],
+    ["discovery.awsRegion", value.discovery.awsRegion],
+    ["discovery.queueURL", value.discovery.queueURL],
+    ["discovery.roleArn", value.discovery.roleArn],
+    ["discovery.webIdentityTokenFile", value.discovery.webIdentityTokenFile],
+    ["discovery.secretPrefix", value.discovery.secretPrefix],
+    ["discovery.evidenceBucket", value.discovery.evidenceBucket],
+    ["discovery.evidenceBucketOwner", value.discovery.evidenceBucketOwner],
+    ["discovery.evidenceKMSKeyArn", value.discovery.evidenceKMSKeyArn],
+    ["discovery.githubAppID", value.discovery.githubAppID],
+    ["discovery.githubPrivateKeyReference", value.discovery.githubPrivateKeyReference],
+    ["discovery.oktaClientID", value.discovery.oktaClientID],
+    ["discovery.oktaClientSecretReference", value.discovery.oktaClientSecretReference],
+    ["discovery.providerTimeout", value.discovery.providerTimeout],
+    ["discovery.readinessTimeout", value.discovery.readinessTimeout],
+    ["projectionRisk.roleArn", value.projectionRisk.roleArn],
+    ["projectionGraph.awsRegion", value.projectionGraph.awsRegion],
+    ["projectionGraph.endpoint", value.projectionGraph.endpoint],
+    ["projectionGraph.credentialReference", value.projectionGraph.credentialReference],
+    ["projectionGraph.schemaCredentialReference", value.projectionGraph.schemaCredentialReference],
+    ["projectionGraph.secretPrefix", value.projectionGraph.secretPrefix],
+    ["projectionGraph.roleArn", value.projectionGraph.roleArn],
+    ["projectionGraph.webIdentityTokenFile", value.projectionGraph.webIdentityTokenFile],
+    ["projectionGraph.initRoleArn", value.projectionGraph.initRoleArn],
+    ["projectionGraph.expectedPrincipal", value.projectionGraph.expectedPrincipal],
+    ["projectionGraph.expectedRole", value.projectionGraph.expectedRole],
     ["projectionSearch.awsRegion", value.projectionSearch.awsRegion],
     ["projectionSearch.endpoint", value.projectionSearch.endpoint],
     ["projectionSearch.index", value.projectionSearch.index],
     ["projectionSearch.roleArn", value.projectionSearch.roleArn],
     ["projectionSearch.webIdentityTokenFile", value.projectionSearch.webIdentityTokenFile],
+    ["projectionSearch.initRoleArn", value.projectionSearch.initRoleArn],
     ["outbox.awsRegion", value.outbox.awsRegion],
     ["outbox.queueURL", value.outbox.queueURL],
     ["outbox.roleArn", value.outbox.roleArn],
     ["outbox.webIdentityTokenFile", value.outbox.webIdentityTokenFile],
     ...value.outbox.egressCIDRs.map((cidr, index) => [`network.outboxEgressCIDRs[${index}]`, cidr]),
     ["network.postgresCIDR", "10.30.0.0/24"], ["network.stytchCIDR", "10.40.0.0/24"], ["network.opensearchCIDR", "10.50.0.0/24"],
+    ["network.neo4jCIDR", value.projectionGraph.endpointCIDR],
     ["network.canaryCIDR", "10.60.0.0/24"],
     ["connectors.awsRegion", value.connectors.awsRegion],
     ["connectors.roleArn", value.connectors.roleArn],
@@ -128,16 +171,33 @@ export async function renderRelease(value) {
 }
 
 function validRelease(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "projectionSearch", "outbox", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
   if (!hostPattern.test(value.host) || !namePattern.test(value.tlsSecretName) || !namePattern.test(value.secretProviderClass)) return false;
   if (!value.images || typeof value.images !== "object" || Array.isArray(value.images) || Object.keys(value.images).sort().join("\0") !== [...imageNames].sort().join("\0")) return false;
   if (!imageNames.every((name) => digestPattern.test(value.images[name]))) return false;
   if (!value.discovery || typeof value.discovery !== "object" || Array.isArray(value.discovery) || Object.keys(value.discovery).sort().join("\0") !== [...discoveryKeys].sort().join("\0")) return false;
-  if (!discoveryKeys.every((name) => /^[a-z][a-z0-9_.-]{1,63}$/.test(value.discovery[name])) || Object.values(value.discovery).some((version) => version === "parser-v1" || version === "tool-v1")) return false;
+  for (const name of ["parserVersion", "toolVersion", "awsCollectorVersion", "kubernetesCollectorVersion", "githubCollectorVersion", "oktaCollectorVersion"]) {
+    if (!/^[a-z][a-z0-9_.-]{1,63}$/.test(value.discovery[name]) || value.discovery[name] === "parser-v1" || value.discovery[name] === "tool-v1") return false;
+  }
+  const discoveryRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-discovery-worker$/.exec(value.discovery.roleArn);
+  const discoveryQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-discovery-jobs$/.exec(value.discovery.queueURL);
+  const discoveryKMS = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.discovery.evidenceKMSKeyArn);
+  if (!discoveryRole || !discoveryQueue || !discoveryKMS || value.discovery.awsRegion !== discoveryQueue[1] || value.discovery.awsRegion !== discoveryKMS[1] || discoveryRole[1] !== discoveryQueue[2] || discoveryRole[1] !== discoveryKMS[2] || discoveryRole[1] !== value.discovery.evidenceBucketOwner) return false;
+  if (!namePattern.test(value.discovery.evidenceBucket) || value.discovery.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.discovery.secretPrefix !== "zasp-production/connectors" || value.discovery.providerTimeout !== "5s" || value.discovery.readinessTimeout !== "5s") return false;
   if (!value.projectionSearch || typeof value.projectionSearch !== "object" || Array.isArray(value.projectionSearch) || Object.keys(value.projectionSearch).sort().join("\0") !== [...projectionSearchKeys].sort().join("\0")) return false;
   const searchRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-projection-search$/.exec(value.projectionSearch.roleArn);
+  const searchInitRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-projection-search-init$/.exec(value.projectionSearch.initRoleArn);
   const searchEndpoint = /^https:\/\/(?:search|vpc)-[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.es\.amazonaws\.com$/.exec(value.projectionSearch.endpoint);
-  if (!searchRole || !searchEndpoint || value.projectionSearch.awsRegion !== searchEndpoint[1] || value.projectionSearch.index !== "zasp-inventory-v1" || value.projectionSearch.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token") return false;
+  if (!searchRole || !searchInitRole || searchRole[1] !== searchInitRole[1] || !searchEndpoint || value.projectionSearch.awsRegion !== searchEndpoint[1] || value.projectionSearch.index !== "zasp-inventory-v1" || value.projectionSearch.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token") return false;
+  if (!value.projectionRisk || typeof value.projectionRisk !== "object" || Array.isArray(value.projectionRisk) || Object.keys(value.projectionRisk).sort().join("\0") !== [...projectionRiskKeys].sort().join("\0")) return false;
+  const riskRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-projection-risk$/.exec(value.projectionRisk.roleArn);
+  if (!riskRole || riskRole[1] !== searchRole[1]) return false;
+  if (!value.projectionGraph || typeof value.projectionGraph !== "object" || Array.isArray(value.projectionGraph) || Object.keys(value.projectionGraph).sort().join("\0") !== [...projectionGraphKeys].sort().join("\0")) return false;
+  const graphRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-projection-graph$/.exec(value.projectionGraph.roleArn);
+  const graphInitRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-projection-graph-init$/.exec(value.projectionGraph.initRoleArn);
+  const graphEndpoint = /^neo4j\+s:\/\/[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9]):7687$/.exec(value.projectionGraph.endpoint);
+  if (!graphRole || !graphInitRole || !graphEndpoint || graphRole[1] !== graphInitRole[1] || graphRole[1] !== searchRole[1]) return false;
+  if (value.projectionGraph.awsRegion !== value.projectionSearch.awsRegion || value.projectionGraph.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.projectionGraph.secretPrefix !== "zasp-production/projection" || value.projectionGraph.credentialReference !== "ref:neo4j/auth/runtime" || value.projectionGraph.schemaCredentialReference !== "ref:neo4j/auth/schema" || value.projectionGraph.expectedPrincipal !== "zasp_projection_runtime" || value.projectionGraph.expectedRole !== "publisher" || !validCIDRList([value.projectionGraph.endpointCIDR])) return false;
   if (!value.outbox || typeof value.outbox !== "object" || Array.isArray(value.outbox) || Object.keys(value.outbox).sort().join("\0") !== [...outboxKeys].sort().join("\0")) return false;
   const outboxRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-outbox$/.exec(value.outbox.roleArn);
   const outboxQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-discovery-jobs$/.exec(value.outbox.queueURL);
@@ -151,6 +211,7 @@ function validRelease(value) {
   if (value.connectors.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.connectors.secretPrefix !== "zasp-production/connectors/oauth") return false;
   if (!/^Iv1\.[A-Za-z0-9]{16}$/.test(value.connectors.githubClientID) || value.connectors.githubClientSecretReference !== "ref:github/client-secret" || !/^[1-9][0-9]{0,15}$/.test(value.connectors.githubAppID) || value.connectors.githubPrivateKeyReference !== "ref:github/app-private-key") return false;
   if (!/^0oa[A-Za-z0-9]{16}$/.test(value.connectors.oktaClientID) || value.connectors.oktaClientSecretReference !== "ref:okta/client-secret") return false;
+  if (value.discovery.githubAppID !== value.connectors.githubAppID || value.discovery.githubPrivateKeyReference !== value.connectors.githubPrivateKeyReference || value.discovery.oktaClientID !== value.connectors.oktaClientID || value.discovery.oktaClientSecretReference !== value.connectors.oktaClientSecretReference) return false;
   if (!value.connectorEgressCIDRs || typeof value.connectorEgressCIDRs !== "object" || Array.isArray(value.connectorEgressCIDRs) || Object.keys(value.connectorEgressCIDRs).sort().join("\0") !== [...connectorEgressKeys].sort().join("\0")) return false;
   return connectorEgressKeys.every((provider) => validCIDRList(value.connectorEgressCIDRs[provider]));
 }
