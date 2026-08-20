@@ -49,6 +49,8 @@ type workerRuntimeConfig struct {
 	ProjectionRoleARN      string
 	ProjectionTokenFile    string
 	ProjectionSecretPrefix string
+	OutboxRoleARN          string
+	OutboxTokenFile        string
 }
 
 func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, error) {
@@ -67,6 +69,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		EvidenceKMSKeyARN: getenv("ZASP_EVIDENCE_KMS_KEY_ARN"), ParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), ToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
 		OpenSearchURL: getenv("ZASP_OPENSEARCH_ENDPOINT"), OpenSearchIndex: getenv("ZASP_OPENSEARCH_INDEX"), Neo4jURI: getenv("ZASP_NEO4J_URI"), Neo4jCredential: getenv("ZASP_NEO4J_CREDENTIAL_REFERENCE"),
 		ProjectionRoleARN: getenv("ZASP_PROJECTION_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE"), ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"),
+		OutboxRoleARN: getenv("ZASP_OUTBOX_ROLE_ARN"), OutboxTokenFile: getenv("ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE"),
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
 	if pollErr != nil || leaseErr != nil || shutdownErr != nil || batchErr != nil || !validWorkerRuntimeConfig(config) {
@@ -103,7 +106,7 @@ var (
 func validModeDependencies(config workerRuntimeConfig) bool {
 	switch config.Mode {
 	case workerModeOutbox:
-		return validSQSURL(config.DiscoveryQueueURL)
+		return validOutboxAWSAuthority(config)
 	case workerModeDiscovery:
 		return validSQSURL(config.DiscoveryQueueURL) && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && workerKMSPattern.MatchString(config.EvidenceKMSKeyARN) && workerVersionPattern.MatchString(config.ParserVersion) && workerVersionPattern.MatchString(config.ToolVersion)
 	case workerModeProjectionSearch:
@@ -118,6 +121,16 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 	default:
 		return false
 	}
+}
+
+func validOutboxAWSAuthority(config workerRuntimeConfig) bool {
+	queue, err := url.Parse(config.DiscoveryQueueURL)
+	if err != nil || !validSQSURL(config.DiscoveryQueueURL) || !workerRegionPattern.MatchString(config.AWSRegion) || !workerProjectionRolePattern.MatchString(config.OutboxRoleARN) || config.OutboxTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" {
+		return false
+	}
+	queueParts := strings.Split(strings.TrimPrefix(queue.Path, "/"), "/")
+	roleParts := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/`).FindStringSubmatch(config.OutboxRoleARN)
+	return len(queueParts) == 2 && len(roleParts) == 2 && queueParts[0] == roleParts[1] && queueParts[1] == "agentsec-discovery-jobs" && queue.Hostname() == "sqs."+config.AWSRegion+".amazonaws.com"
 }
 
 func validProjectionAWSAuthority(config workerRuntimeConfig) bool {

@@ -30,6 +30,23 @@ func TestComposeWorkerRuntimeMountsOnlyProductionReadyModes(t *testing.T) {
 	}
 }
 
+func TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority(t *testing.T) {
+	t.Parallel()
+	config := validSchedulerRuntimeConfig()
+	config.Mode, config.DatabaseAuthority, config.WorkerID = workerModeOutbox, "zasp_outbox_worker", "outbox-01"
+	config.DiscoveryQueueURL = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs"
+	config.AWSRegion = "us-west-2"
+	config.OutboxRoleARN = "arn:aws:iam::123456789012:role/zasp-production-outbox"
+	config.OutboxTokenFile = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+	dependencies, err := composeOutboxWorkerRuntime(config, readyWorkerDatabase{}, &recordingOutboxPublisher{})
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("outbox dependencies=%#v err=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatalf("outbox readiness = %v", err)
+	}
+}
+
 func TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority(t *testing.T) {
 	t.Parallel()
 	config := validSchedulerRuntimeConfig()

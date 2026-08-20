@@ -77,8 +77,9 @@ func TestWorkerRuntimeConfigRequiresOnlyModeOwnedDependencies(t *testing.T) {
 	base := map[string]string{
 		"ZASP_POSTGRES_DSN": "postgres://worker@postgres.internal/zasp?sslmode=verify-full", "ZASP_WORKER_ID": "worker-01",
 		"ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "30s", "ZASP_BATCH_SIZE": "8", "ZASP_SHUTDOWN_TIMEOUT": "20s",
-		"ZASP_DISCOVERY_QUEUE_URL": "https://sqs.us-west-2.amazonaws.com/123456789012/zasp-background",
+		"ZASP_DISCOVERY_QUEUE_URL": "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs",
 		"ZASP_AWS_REGION":          "us-west-2", "ZASP_EVIDENCE_BUCKET": "zasp-production-evidence", "ZASP_EVIDENCE_BUCKET_OWNER": "123456789012",
+		"ZASP_OUTBOX_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-outbox", "ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
 		"ZASP_EVIDENCE_KMS_KEY_ARN":     "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
 		"ZASP_DISCOVERY_PARSER_VERSION": "parser-v1", "ZASP_DISCOVERY_TOOL_VERSION": "tool-v1",
 		"ZASP_OPENSEARCH_ENDPOINT": "https://vpc-zasp.us-west-2.es.amazonaws.com", "ZASP_OPENSEARCH_INDEX": "zasp-inventory-v1",
@@ -104,6 +105,38 @@ func TestWorkerRuntimeConfigRequiresOnlyModeOwnedDependencies(t *testing.T) {
 		if _, err := loadWorkerRuntimeConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
 			t.Fatalf("%s missing %s error = %v", test.mode, test.remove, err)
 		}
+	}
+}
+
+func TestOutboxRuntimeRejectsAmbientOrDriftedQueueAuthority(t *testing.T) {
+	t.Parallel()
+	base := map[string]string{
+		"ZASP_WORKER_MODE": "outbox", "ZASP_POSTGRES_DSN": "postgres://outbox@postgres.internal/zasp?sslmode=verify-full",
+		"ZASP_DATABASE_AUTHORITY": "zasp_outbox_worker", "ZASP_WORKER_ID": "outbox-01", "ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "30s", "ZASP_BATCH_SIZE": "10", "ZASP_SHUTDOWN_TIMEOUT": "20s",
+		"ZASP_DISCOVERY_QUEUE_URL": "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs", "ZASP_AWS_REGION": "us-west-2",
+		"ZASP_OUTBOX_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-outbox", "ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+	}
+	if _, err := loadWorkerRuntimeConfig(mapLookup(base)); err != nil {
+		t.Fatalf("valid outbox config error = %v", err)
+	}
+	for name, mutate := range map[string]func(map[string]string){
+		"missing role":  func(values map[string]string) { delete(values, "ZASP_OUTBOX_ROLE_ARN") },
+		"ambient token": func(values map[string]string) { delete(values, "ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE") },
+		"region drift":  func(values map[string]string) { values["ZASP_AWS_REGION"] = "us-east-1" },
+		"account drift": func(values map[string]string) {
+			values["ZASP_OUTBOX_ROLE_ARN"] = "arn:aws:iam::210987654321:role/zasp-production-outbox"
+		},
+		"wrong queue": func(values map[string]string) {
+			values["ZASP_DISCOVERY_QUEUE_URL"] = "https://sqs.us-west-2.amazonaws.com/123456789012/runtime-events"
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			values := cloneStringMap(base)
+			mutate(values)
+			if _, err := loadWorkerRuntimeConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
+				t.Fatalf("error = %v, want errWorkerConfiguration", err)
+			}
+		})
 	}
 }
 

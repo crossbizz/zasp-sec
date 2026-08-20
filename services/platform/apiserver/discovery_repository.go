@@ -133,8 +133,9 @@ type RuntimeAuthorityRepository interface {
 }
 
 type DiscoveryRepository struct {
-	database JSONDatabase
-	schema   string
+	database  JSONDatabase
+	schema    string
+	authority string
 }
 
 func newDiscoveryRepositoryUnchecked(database JSONDatabase) (*DiscoveryRepository, error) {
@@ -194,7 +195,24 @@ func newDiscoveryRepositoryForAuthority(database JSONDatabase, authority string,
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return nil, ErrRepositoryConfiguration
 	}
+	repository.authority = authority
 	return repository, nil
+}
+
+func (repository *DiscoveryRepository) Ready(ctx context.Context) error {
+	if !validDiscoveryRepository(repository, ctx) || repository.authority == "" {
+		return ErrRepositoryUnavailable
+	}
+	candidate, err := newDiscoveryRepositoryWithContext(ctx, repository.database)
+	if err != nil || candidate.schema != repository.schema {
+		return ErrRepositoryUnavailable
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryPrincipalReadySQL, repository.authority)
+	var ready bool
+	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
+		return ErrRepositoryUnavailable
+	}
+	return nil
 }
 
 type IntegrationCreate struct {

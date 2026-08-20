@@ -66,6 +66,25 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	switch config.Mode {
+	case workerModeOutbox:
+		publisher, err := newProductionOutboxPublisher(ctx, config)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		dependencies, err := composeOutboxWorkerRuntime(config, database, publisher.publisher)
+		if err != nil {
+			_ = publisher.close()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		repositoryReady := dependencies.Ready
+		dependencies.Ready = func(readyCtx context.Context) error {
+			if repositoryReady(readyCtx) != nil || publisher.ready(readyCtx) != nil {
+				return errRuntimeUnavailable
+			}
+			return nil
+		}
+		dependencies.Close = publisher.close
+		return dependencies, nil
 	case workerModeScheduler:
 		repository, err := apiserver.NewDiscoveryExecutionRepository(database, apiserver.DiscoveryExecutionAuthorityScheduler)
 		if err != nil {
@@ -94,6 +113,24 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		// keeps the workload and public capability honest.
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
+}
+
+func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, publisher outboxPublisher) (workerRuntimeDependencies, error) {
+	if !validWorkerRuntimeConfig(config) || database == nil || publisher == nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	repository, err := apiserver.NewDiscoveryRepositoryForAuthority(database, apiserver.DiscoveryDatabaseAuthorityOutbox)
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	processor, err := newOutboxProcessor(outboxProcessorConfig{
+		Authority: repository, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: config.WorkerID,
+		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: min(config.BatchSize, 10), RetrySeconds: int(config.LeaseDuration / time.Second), NewLeaseToken: newWorkerLeaseToken,
+	})
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	return workerRuntimeDependencies{Processor: processor, Ready: repository.Ready, Close: func() error { return nil }}, nil
 }
 
 func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, projector productionProjectionProjector) (workerRuntimeDependencies, error) {
