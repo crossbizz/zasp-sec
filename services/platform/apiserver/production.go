@@ -94,7 +94,7 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
 	workflowSurface := http.Handler(workflow)
-	if repository.schema == DiscoveryExecutionSchemaVersion {
+	if isDiscoveryExecutionSchema(repository.schema) {
 		if !executionVersionPattern.MatchString(cookie.DiscoveryParserVersion) || !executionVersionPattern.MatchString(cookie.DiscoveryToolVersion) {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
@@ -111,6 +111,18 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
 	}
+	inventorySurface := http.Handler(&coreHTTPHandler{repository: repository, boundary: inventoryDependency})
+	if repository.schema == TypedInventorySchemaVersion {
+		inventoryRepository, inventoryErr := NewPostgresInventoryRepository(repository.database)
+		if inventoryErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		inventoryHandler, inventoryErr := newInventoryHTTPHandler(inventoryRepository, cookie.WorkflowSigningKey)
+		if inventoryErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		inventorySurface = inventoryHandler
+	}
 	risk, err := newRiskHTTPHandler(repository, cookie.WorkflowSigningKey, cookie.Clock)
 	if err != nil {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
@@ -123,7 +135,7 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 	return Dependencies{
 		Session:   session,
 		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
-		Inventory: &coreHTTPHandler{repository: repository, boundary: inventoryDependency},
+		Inventory: inventorySurface,
 		Risk:      risk,
 		Workflow:  workflowSurface,
 		Connector: connector,
@@ -1017,6 +1029,8 @@ func productionOperation(request *http.Request, boundary dependencyKind) (string
 	id := routed.PathParameters["id"]
 	if boundary == inventoryDependency {
 		switch routed.OperationID {
+		case "getHomeSummary":
+			return "home", false, http.StatusOK, nil
 		case "listAgents":
 			return "agents", false, http.StatusOK, nil
 		case "getAgent":
@@ -1042,9 +1056,6 @@ func productionOperation(request *http.Request, boundary dependencyKind) (string
 		case "getAsset":
 			return "asset:" + id, false, http.StatusOK, nil
 		}
-	}
-	if boundary == riskDependency && routed.OperationID == "getHomeSummary" {
-		return "home", false, http.StatusOK, nil
 	}
 	return "", false, 0, ErrRepositoryNotFound
 }

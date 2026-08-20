@@ -59,10 +59,10 @@ func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	version, err := database.SchemaVersion(ctx)
-	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion && version != ConnectorSchemaVersion && version != ReferenceSchemaVersion && version != DiscoveryExecutionSchemaVersion {
+	if err != nil || !supportedProductSchema(version) {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &PostgresRepository{database: database, schema: version, connectorWorkflows: version == ConnectorSchemaVersion || version == ReferenceSchemaVersion || version == DiscoveryExecutionSchemaVersion}, nil
+	return &PostgresRepository{database: database, schema: version, connectorWorkflows: version == ConnectorSchemaVersion || version == ReferenceSchemaVersion || isDiscoveryExecutionSchema(version)}, nil
 }
 
 func (repository *PostgresRepository) Ready(ctx context.Context) error {
@@ -70,7 +70,7 @@ func (repository *PostgresRepository) Ready(ctx context.Context) error {
 		return ErrRepositoryUnavailable
 	}
 	version, err := repository.database.SchemaVersion(ctx)
-	if err != nil || version != CoreSchemaVersion && version != DiscoverySchemaVersion && version != ConnectorSchemaVersion && version != ReferenceSchemaVersion && version != DiscoveryExecutionSchemaVersion || repository.schema != "" && version != repository.schema {
+	if err != nil || !supportedProductSchema(version) || repository.schema != "" && version != repository.schema {
 		return ErrRepositoryUnavailable
 	}
 	if _, err := repository.CleanupExpiredWorkflowMutationReceipts(ctx, 1000); err != nil {
@@ -80,6 +80,14 @@ func (repository *PostgresRepository) Ready(ctx context.Context) error {
 		return ErrRepositoryUnavailable
 	}
 	return nil
+}
+
+func supportedProductSchema(version string) bool {
+	return version == CoreSchemaVersion || version == DiscoverySchemaVersion || version == ConnectorSchemaVersion || version == ReferenceSchemaVersion || isDiscoveryExecutionSchema(version)
+}
+
+func isDiscoveryExecutionSchema(version string) bool {
+	return version == DiscoveryExecutionSchemaVersion || version == TypedInventorySchemaVersion
 }
 
 func (repository *PostgresRepository) Authenticate(ctx context.Context, credential Credential) (RequestIdentity, error) {

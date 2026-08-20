@@ -1,5 +1,5 @@
 DO $semantic_guard$ BEGIN
- IF zasp_inventory_live_fingerprint()<>'0687bb9714159f30f1cd41a536a30f9bb37e4d6ae5e3fb2979ba8bbd57a72c47' OR NOT zasp_inventory_security_ready() THEN
+ IF zasp_inventory_live_fingerprint()<>'e0b088a7d3b779da2b76121f5718382b8cec5039bacfc85893b812083fe75c5f' OR NOT zasp_inventory_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='typed inventory semantic drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_inventory_cutover_state WHERE phase='cutover') THEN
@@ -23,6 +23,12 @@ DROP FUNCTION zasp_inventory_equivalence_scope(text,text,text);
 DROP FUNCTION zasp_core_inventory_cutover(text,text,text,bytea);
 
 DROP FUNCTION zasp_inventory_readiness(text,text);
+DROP FUNCTION zasp_inventory_home_summary(text,text,text);
+DROP FUNCTION zasp_inventory_agent_sessions_page(text,text,text,text,text,integer);
+DROP FUNCTION zasp_inventory_agent_relationships_page(text,text,text,text,text,integer);
+DROP FUNCTION zasp_inventory_agent_capabilities_page(text,text,text,text,text,integer);
+DROP FUNCTION zasp_inventory_detail(text,text,text,text,text);
+DROP FUNCTION zasp_inventory_page(text,text,text,text,text,integer);
 DROP FUNCTION zasp_inventory_compat_read(text,text,text,text);
 DROP FUNCTION zasp_inventory_backfill_scope(text,text,text);
 DROP FUNCTION zasp_inventory_security_ready();
@@ -86,6 +92,11 @@ ALTER TABLE zasp_inventory_entities
  DROP COLUMN confidence_basis_points,
  DROP COLUMN product_kind;
 DELETE FROM zasp_schema_metadata WHERE key IN('typed_inventory_cutover_fingerprint','typed_inventory_rule_catalog_digest');
+
+DO $schema_marker$ BEGIN
+ UPDATE zasp_schema_metadata SET value='production-discovery-execution-v1' WHERE key='production_core_schema' AND value='typed-inventory-cutover-v1';
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='typed inventory schema marker drift';END IF;
+END $schema_marker$;
 
 DO $role_cleanup$ DECLARE role_value record;marker_prefix text:=format('zasp-managed:typed-inventory-cutover-v1:database:%s:',(SELECT oid FROM pg_database WHERE datname=current_database()));BEGIN
  SELECT role.oid,shobj_description(role.oid,'pg_authid') marker INTO role_value FROM pg_roles role WHERE role.rolname='zasp_inventory_authority';

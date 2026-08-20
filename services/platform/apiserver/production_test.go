@@ -223,7 +223,7 @@ func TestProductionProviderFailureReturnsRetryableErrorWithoutFixtureFallback(t 
 	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, fixtureRequestIdentity(t)))
 	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "getHomeSummary", PathParameters: map[string]string{}}))
 	response := httptest.NewRecorder()
-	(&coreHTTPHandler{repository: unavailableCoreRepository{}, boundary: riskDependency}).ServeHTTP(response, request)
+	(&coreHTTPHandler{repository: unavailableCoreRepository{}, boundary: inventoryDependency}).ServeHTTP(response, request)
 	if response.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
@@ -324,6 +324,35 @@ func TestProductionHandlersMountDiscoveryLifecycleAtV13(t *testing.T) {
 	policy.DiscoveryParserVersion = ""
 	if _, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return SessionGrant{}, nil }), http.NotFoundHandler(), policy); !errors.Is(err, ErrRepositoryConfiguration) {
 		t.Fatalf("missing parser version error=%v", err)
+	}
+}
+
+func TestProductionHandlersUseTypedInventoryAtV14(t *testing.T) {
+	database := &discoveryCallDatabase{schema: TypedInventorySchemaVersion, responses: map[string]json.RawMessage{
+		postgresInventoryReadinessSQL:      json.RawMessage(`true`),
+		postgresDiscoveryPrincipalReadySQL: json.RawMessage(`true`),
+	}}
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handlers, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return SessionGrant{}, nil }), http.NotFoundHandler(), fixtureCookiePolicy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := handlers.Inventory.(*inventoryHTTPHandler); !ok {
+		t.Fatalf("inventory handler = %T", handlers.Inventory)
+	}
+	definitions := map[string]dependencyKind{}
+	for _, operation := range coreOperations {
+		definitions[operation.OperationID] = operation.dependency
+	}
+	if definitions["getHomeSummary"] != inventoryDependency {
+		t.Fatalf("home dependency = %v", definitions["getHomeSummary"])
+	}
+	database.responses[postgresInventoryReadinessSQL] = json.RawMessage(`false`)
+	if _, _, err := NewProductionHandlers(repository, CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return SessionGrant{}, nil }), http.NotFoundHandler(), fixtureCookiePolicy()); !errors.Is(err, ErrRepositoryConfiguration) {
+		t.Fatalf("false inventory readiness error=%v", err)
 	}
 }
 

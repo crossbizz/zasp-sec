@@ -225,12 +225,14 @@ func newDiscoveryRepositoryWithContext(ctx context.Context, database JSONDatabas
 		return nil, ErrRepositoryConfiguration
 	}
 	version, err := database.SchemaVersion(ctx)
-	if err != nil || version != DiscoverySchemaVersion && version != ConnectorSchemaVersion && version != ReferenceSchemaVersion && version != DiscoveryExecutionSchemaVersion {
+	if err != nil || version != DiscoverySchemaVersion && version != ConnectorSchemaVersion && version != ReferenceSchemaVersion && !isDiscoveryExecutionSchema(version) {
 		return nil, ErrRepositoryConfiguration
 	}
 	readySQL, checksum, fingerprint := postgresDiscoveryReadySQL, migrations.ProductionDiscovery().Checksum(), migrations.ProductionDiscoverySemanticFingerprint()
 	if version == ConnectorSchemaVersion || version == ReferenceSchemaVersion {
 		readySQL, checksum, fingerprint = postgresConnectorReadySQL, migrations.ConnectorAuthorization().Checksum(), migrations.ConnectorAuthorizationSemanticFingerprint()
+	} else if version == TypedInventorySchemaVersion {
+		readySQL, checksum, fingerprint = postgresInventoryReadinessSQL, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint()
 	} else if version == DiscoveryExecutionSchemaVersion {
 		readySQL, checksum, fingerprint = postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()
 	}
@@ -291,7 +293,7 @@ func (repository *DiscoveryRepository) Ready(ctx context.Context) error {
 	if !validDiscoveryRepository(repository, ctx) || repository.authority == "" {
 		return ErrRepositoryUnavailable
 	}
-	if repository.schema == DiscoveryExecutionSchemaVersion && repository.authority == DiscoveryDatabaseAuthorityOutbox {
+	if isDiscoveryExecutionSchema(repository.schema) && repository.authority == DiscoveryDatabaseAuthorityOutbox {
 		if !discoveryExecutionReady(ctx, repository.database) {
 			return ErrRepositoryUnavailable
 		}
@@ -585,7 +587,7 @@ func (repository *DiscoveryRepository) RequestDiscoverySync(ctx context.Context,
 		return SyncRequestResult{}, ErrRepositoryOperation
 	}
 	statement := postgresDiscoveryRequestSyncSQL
-	if repository.schema == DiscoveryExecutionSchemaVersion {
+	if isDiscoveryExecutionSchema(repository.schema) {
 		statement = postgresExecutionRequestSyncSQL
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IntegrationID, input.SyncID, input.JobID, input.OutboxID, input.IdempotencyKey, input.RequestDigest, input.TriggerKind, input.ParserVersion, input.ToolVersion)

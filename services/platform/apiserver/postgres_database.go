@@ -110,6 +110,13 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = 'production-d
   AND zasp_execution_readiness($1, $2)
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 13)`
 
+const postgresTypedInventorySchemaVersionSQL = `SELECT metadata.value
+FROM zasp_schema_metadata AS metadata
+JOIN zasp_schema_versions AS release ON release.version = 14 AND release.name = 'typed_inventory_cutover'
+WHERE metadata.key = 'production_core_schema' AND metadata.value = 'typed-inventory-cutover-v1'
+  AND zasp_inventory_readiness($1, $2)
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 14)`
+
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
 func expectedCoreSchemaFingerprint() string {
 	return migrations.ProductionRiskProjectionSemanticFingerprint()
@@ -131,6 +138,12 @@ func expectedDiscoveryExecutionSchemaChecksum() string {
 }
 func expectedDiscoveryExecutionSchemaFingerprint() string {
 	return migrations.ProductionDiscoveryExecutionSemanticFingerprint()
+}
+func expectedTypedInventorySchemaChecksum() string {
+	return migrations.ProductionTypedInventoryCutover().Checksum()
+}
+func expectedTypedInventorySchemaFingerprint() string {
+	return migrations.ProductionTypedInventoryCutoverSemanticFingerprint()
 }
 
 type PostgresRow interface{ Scan(...any) error }
@@ -168,7 +181,11 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", classifyPostgresError(err)
 	}
 	var version string
-	if marker == DiscoveryExecutionSchemaVersion {
+	if marker == TypedInventorySchemaVersion {
+		if err := database.driver.QueryRow(ctx, postgresTypedInventorySchemaVersionSQL, expectedTypedInventorySchemaChecksum(), expectedTypedInventorySchemaFingerprint()).Scan(&version); err != nil {
+			return "", classifyPostgresError(err)
+		}
+	} else if marker == DiscoveryExecutionSchemaVersion {
 		if err := database.driver.QueryRow(ctx, postgresDiscoveryExecutionSchemaVersionSQL, expectedDiscoveryExecutionSchemaChecksum(), expectedDiscoveryExecutionSchemaFingerprint()).Scan(&version); err != nil {
 			return "", classifyPostgresError(err)
 		}

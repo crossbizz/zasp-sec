@@ -349,7 +349,7 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		{method: "POST", path: "/api/v1/session/callback", body: "session"},
 		{method: "POST", path: "/api/v1/session/sign-out", body: "session"},
 		{method: "GET", path: "/api/v1/me", body: "identity"},
-		{method: "GET", path: "/api/v1/home/summary", body: "risk"},
+		{method: "GET", path: "/api/v1/home/summary", body: "inventory"},
 		{method: "GET", path: "/api/v1/agents", body: "inventory"},
 		{method: "GET", path: "/api/v1/agents/pid_20000001-0000-4000-8000-000000000001", body: "inventory"},
 		{method: "GET", path: "/api/v1/tools", body: "inventory"},

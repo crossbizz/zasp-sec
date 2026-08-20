@@ -45,7 +45,7 @@ func NewReferenceAuthorizationRepository(database JSONDatabase) (*ReferenceAutho
 		return nil, ErrRepositoryConfiguration
 	}
 	version, err := database.SchemaVersion(context.Background())
-	if err != nil || version != ReferenceSchemaVersion && version != DiscoveryExecutionSchemaVersion {
+	if err != nil || version != ReferenceSchemaVersion && !isDiscoveryExecutionSchema(version) {
 		return nil, ErrRepositoryConfiguration
 	}
 	repository := &ReferenceAuthorizationRepository{database: database}
@@ -60,11 +60,13 @@ func (repository *ReferenceAuthorizationRepository) Ready(ctx context.Context) e
 		return ErrRepositoryUnavailable
 	}
 	version, err := repository.database.SchemaVersion(ctx)
-	if err != nil || version != ReferenceSchemaVersion && version != DiscoveryExecutionSchemaVersion {
+	if err != nil || version != ReferenceSchemaVersion && !isDiscoveryExecutionSchema(version) {
 		return ErrRepositoryUnavailable
 	}
 	readySQL, checksum, fingerprint := postgresReferenceAuthorizationReadySQL, migrations.ReferenceAuthorization().Checksum(), migrations.ReferenceAuthorizationSemanticFingerprint()
-	if version == DiscoveryExecutionSchemaVersion {
+	if version == TypedInventorySchemaVersion {
+		readySQL, checksum, fingerprint = postgresInventoryReadinessSQL, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint()
+	} else if version == DiscoveryExecutionSchemaVersion {
 		readySQL, checksum, fingerprint = postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()
 	}
 	payload, err := repository.database.QueryJSON(ctx, readySQL, checksum, fingerprint)
@@ -105,7 +107,7 @@ func (repository *ReferenceAuthorizationRepository) Complete(ctx context.Context
 		return WorkflowMutationResult{}, ErrRepositoryOperation
 	}
 	version, _ := repository.database.SchemaVersion(ctx)
-	if !validReferenceAuthorizationCompletion(input, version == DiscoveryExecutionSchemaVersion) {
+	if !validReferenceAuthorizationCompletion(input, isDiscoveryExecutionSchema(version)) {
 		return WorkflowMutationResult{}, ErrRepositoryOperation
 	}
 	args := []any{
@@ -114,7 +116,7 @@ func (repository *ReferenceAuthorizationRepository) Complete(ctx context.Context
 		input.Configuration, input.Intent, input.AuditID, input.CorrelationID, input.ReceiptID,
 	}
 	statement := postgresCompleteReferenceAuthorizationSQL
-	if version == DiscoveryExecutionSchemaVersion {
+	if isDiscoveryExecutionSchema(version) {
 		statement = postgresExecutionCompleteReferenceSQL
 		args = append(args, input.SubjectKind, input.SubjectID)
 	}

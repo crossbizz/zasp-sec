@@ -333,7 +333,7 @@ func (repository *DiscoveryRepository) GetIntegrationFreshness(ctx context.Conte
 }
 
 func validDiscoveryPublicRepository(repository *DiscoveryRepository, ctx context.Context) bool {
-	return repository != nil && repository.schema == DiscoveryExecutionSchemaVersion && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil
+	return repository != nil && isDiscoveryExecutionSchema(repository.schema) && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil
 }
 
 func validPublicSyncRequest(value PublicSyncRequest) bool {

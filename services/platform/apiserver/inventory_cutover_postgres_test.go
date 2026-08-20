@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
@@ -114,6 +116,30 @@ func TestProductionTypedInventoryCutoverPostgresAppliesExactTypedSnapshot(t *tes
 	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_cutover_scope($1,$2,$3)->>'phase'`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&phase); err != nil || phase != "cutover" {
 		t.Fatalf("typed cutover = (%s, %v)", phase, err)
 	}
+	inventoryRepository, err := NewPostgresInventoryRepository(database)
+	if err != nil {
+		t.Fatalf("typed repository: %v", err)
+	}
+	page, err := inventoryRepository.ListInventoryPage(ctx, scope, InventoryKindAsset, "", 100)
+	if err != nil || len(page.Items) != 1 || page.Items[0].ID != entityID || page.NextKey != "" || page.Items[0].EvidenceID != evidenceID || page.Items[0].ConfidenceBasisPoints != 9000 {
+		t.Fatalf("typed page = %#v / %v", page, err)
+	}
+	parsedEntityID, _ := domain.ParseProductID(entityID)
+	detail, err := inventoryRepository.GetInventory(ctx, scope, parsedEntityID, InventoryKindAsset)
+	if err != nil || detail.Summary.ID != entityID || len(detail.Sources) != 1 || !detail.Sources[0].Winning || detail.Sources[0].SourceIdentifier == "123456789012" || len(detail.Evidence) != 1 || detail.Evidence[0].ID != evidenceID {
+		t.Fatalf("typed detail = %#v / %v", detail, err)
+	}
+	if _, err := connection.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
+		t.Fatal(err)
+	}
+	var apiPayload []byte
+	apiErr := connection.QueryRow(ctx, `SELECT zasp_inventory_detail($1,$2,$3,$4,'asset')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), entityID).Scan(&apiPayload)
+	if _, err := connection.Exec(ctx, `RESET ROLE`); err != nil {
+		t.Fatal(err)
+	}
+	if apiErr != nil || !json.Valid(apiPayload) || bytes.Contains(apiPayload, []byte("123456789012")) || bytes.Contains(apiPayload, []byte("s3://")) {
+		t.Fatalf("api typed detail = %s / %v", apiPayload, apiErr)
+	}
 	var compatibility json.RawMessage
 	if err := connection.QueryRow(ctx, `SELECT zasp_core_read($1,$2,$3,$4)`, "asset:"+entityID, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&compatibility); err != nil || !json.Valid(compatibility) || !strings.Contains(string(compatibility), entityID) {
 		t.Fatalf("typed compatibility = (%s, %v)", compatibility, err)
@@ -166,6 +192,141 @@ func TestProductionTypedInventoryCutoverPostgresInstallsExactRuleAndIdentityAuth
 	}
 	if ruleDigest != "a2ac63a7fc968b0c0c883a999418e1eb14c2d8de3ffe62e95717b7dea6133c52" || liveFingerprint != migrations.ProductionTypedInventoryCutoverSemanticFingerprint() || !ready {
 		t.Fatalf("typed readiness digest=%s live=%s ready=%v", ruleDigest, liveFingerprint, ready)
+	}
+}
+
+func TestInventoryRepositoryPostgresPaginatesOneThousandTwoTypedAgents(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(context.Background())
+	runner := migrateToTypedInventoryCutover(t, ctx, connection)
+	_ = runner
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	discovery, err := newDiscoveryRepositoryUnchecked(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	scope := identity.Scope
+	observed := time.Now().UTC().Truncate(time.Second).Add(-time.Minute)
+	seedAuthority := func(sequence int) {
+		integrationID := fmt.Sprintf("pid_76%06x-0000-4000-8000-%012x", sequence, sequence)
+		syncID := fmt.Sprintf("pid_77%06x-0000-4000-8000-%012x", sequence, sequence)
+		snapshotID := fmt.Sprintf("pid_78%06x-0000-4000-8000-%012x", sequence, sequence)
+		if _, err := discovery.CreateIntegration(ctx, identity, IntegrationCreate{ID: integrationID, Kind: "kubernetes", ConnectorVersion: "1.0.0", DisplayName: fmt.Sprintf("Kubernetes %d", sequence), Configuration: json.RawMessage(`{}`)}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := discovery.TransitionIntegration(ctx, scope, IntegrationTransition{ID: integrationID, ExpectedVersion: 1, State: "active"}); err != nil {
+			t.Fatal(err)
+		}
+		requestDigest := sha256.Sum256([]byte(fmt.Sprintf("typed-inventory-page-%d", sequence)))
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_syncs(organization_id,workspace_id,environment_id,id,integration_id,idempotency_key,request_digest,trigger_kind,principal_id,parser_version,tool_version) VALUES($1,$2,$3,$4,$5,$6,$7,'manual',$8,'parser_v1','tool_v1')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), syncID, integrationID, fmt.Sprintf("typed-inventory-page-%04d", sequence), requestDigest[:], identity.PrincipalID.String()); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_snapshots(organization_id,workspace_id,environment_id,id,integration_id,sync_id,generation,source,manifest_reference,manifest_checksum,state,candidate_digest,apply_result,complete,is_last_good,collected_at,committed_at) VALUES($1,$2,$3,$4,$5,$6,1,'kubernetes',$7,$8,'complete',$8,'{}'::jsonb,true,true,$9,$9)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), snapshotID, integrationID, syncID, fmt.Sprintf("s3://zasp-evidence/typed/manifest-%d.json", sequence), bytes32(byte(sequence)), observed); err != nil {
+			t.Fatalf("snapshot %d: %v", sequence, err)
+		}
+	}
+	seedAuthority(1)
+	seedAuthority(2)
+	organizationID := scope.OrganizationID().String()
+	workspaceID := scope.WorkspaceID().String()
+	environmentID := scope.EnvironmentID().String()
+	if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_inventory_entities(
+ organization_id,workspace_id,environment_id,id,kind,display_name,stable_fields,state,first_seen_at,last_seen_at,version,
+ product_kind,confidence_basis_points,winning_evidence_id,winning_snapshot_id,winning_generation,observed_at,fresh_until,projection_version,
+ winning_integration_id,winning_provider,winning_source,winning_source_native_id,winning_identity_rule,winning_source_projection)
+SELECT $1,$2,$3,
+ format('pid_81%s-0000-4000-8000-%s',lpad(to_hex(item),6,'0'),lpad(to_hex(item),12,'0')),
+ 'agent',format('Agent %s',lpad(item::text,4,'0')),'{}'::jsonb,'active',$4,$4,1,
+ 'agent',9500,format('pid_91%s-0000-4000-8000-%s',lpad(to_hex(item),6,'0'),lpad(to_hex(item),12,'0')),
+ format('pid_78%s-0000-4000-8000-%s',lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),6,'0'),lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),12,'0')),
+ 1,$4,$5,1,
+ format('pid_76%s-0000-4000-8000-%s',lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),6,'0'),lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),12,'0')),
+ 'kubernetes','kubernetes',format('agent-%s',lpad(item::text,4,'0')),1,1
+FROM generate_series(1,1002) item`, organizationID, workspaceID, environmentID, observed, observed.Add(15*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_inventory_evidence(
+ organization_id,workspace_id,environment_id,id,integration_id,snapshot_id,entity_id,object_reference,checksum,media_type,schema_version,parser_version,collected_at,
+ source,generation,artifact_reference,artifact_key,artifact_version_id,size_bytes,tool_version)
+SELECT $1,$2,$3,
+ format('pid_91%s-0000-4000-8000-%s',lpad(to_hex(item),6,'0'),lpad(to_hex(item),12,'0')),
+ format('pid_76%s-0000-4000-8000-%s',lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),6,'0'),lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),12,'0')),
+ format('pid_78%s-0000-4000-8000-%s',lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),6,'0'),lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),12,'0')),
+ format('pid_81%s-0000-4000-8000-%s',lpad(to_hex(item),6,'0'),lpad(to_hex(item),12,'0')),
+ format('s3://zasp-evidence/typed/pages/%s.json',lpad(item::text,4,'0')),digest(convert_to(item::text,'UTF8'),'sha256'),
+ 'application/json','raw_v1','parser_v1',$4,'kubernetes',1,'pid_79999999-0000-4000-8000-000000000999',
+ format('typed/pages/%s.json',lpad(item::text,4,'0')),format('version-%s',lpad(item::text,4,'0')),128,'tool_v1'
+FROM generate_series(1,1002) item`, organizationID, workspaceID, environmentID, observed); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_inventory_source_observations(
+ organization_id,workspace_id,environment_id,integration_id,source,entity_id,source_native_id,snapshot_id,source_state,attributes,first_seen_at,last_seen_at,
+ provider,source_kind,display_name,stable_fields,identity_namespace,product_kind,generation,content_digest,evidence_id,confidence_basis_points,observed_at,fresh_until,
+ identity_rule_version,identity_priority,source_projection_version)
+SELECT $1,$2,$3,
+ format('pid_76%s-0000-4000-8000-%s',lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),6,'0'),lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),12,'0')),
+ 'kubernetes',format('pid_81%s-0000-4000-8000-%s',lpad(to_hex(item),6,'0'),lpad(to_hex(item),12,'0')),
+ format('agent-%s',lpad(item::text,4,'0')),
+ format('pid_78%s-0000-4000-8000-%s',lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),6,'0'),lpad(to_hex(CASE WHEN item<=1000 THEN 1 ELSE 2 END),12,'0')),
+ 'present','{}'::jsonb,$4,$4,'kubernetes','kubernetes_agent',format('Agent %s',lpad(item::text,4,'0')),'{}'::jsonb,'kubernetes_agent','agent',1,
+ digest(convert_to(format('typed-agent-%s',item),'UTF8'),'sha256'),
+ format('pid_91%s-0000-4000-8000-%s',lpad(to_hex(item),6,'0'),lpad(to_hex(item),12,'0')),
+ 9500,$4,$5,1,80,1
+FROM generate_series(1,1002) item`, organizationID, workspaceID, environmentID, observed, observed.Add(15*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `SELECT zasp_inventory_advance_scope($1,$2,$3,'expanded',NULL,NULL)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `SELECT zasp_inventory_advance_scope($1,$2,$3,'backfilled',NULL,NULL)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()); err != nil {
+		t.Fatal(err)
+	}
+	digest := bytes32(99)
+	if _, err := connection.Exec(ctx, `SELECT zasp_inventory_advance_scope($1,$2,$3,'equivalent',$4,$4)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), digest); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `SELECT zasp_inventory_advance_scope($1,$2,$3,'cutover',$4,$4)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), digest); err != nil {
+		t.Fatal(err)
+	}
+	repository, err := NewPostgresInventoryRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, pages, total := "", 0, 0
+	seen := map[string]struct{}{}
+	for {
+		page, pageErr := repository.ListInventoryPage(ctx, scope, InventoryKindAgent, after, 100)
+		if pageErr != nil {
+			t.Fatalf("page %d after=%q: %v", pages, after, pageErr)
+		}
+		pages++
+		for _, item := range page.Items {
+			if _, duplicate := seen[item.ID]; duplicate {
+				t.Fatalf("duplicate %s", item.ID)
+			}
+			seen[item.ID] = struct{}{}
+		}
+		total += len(page.Items)
+		if page.NextKey == "" {
+			break
+		}
+		after = page.NextKey
+	}
+	if total != 1002 || pages != 11 || len(seen) != 1002 {
+		t.Fatalf("pagination total=%d pages=%d unique=%d", total, pages, len(seen))
 	}
 }
 
