@@ -82,6 +82,28 @@ func TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority(t *testing.T) {
 	}
 }
 
+func TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic(t *testing.T) {
+	t.Parallel()
+	config := validSchedulerRuntimeConfig()
+	config.Mode, config.DatabaseAuthority, config.WorkerID = workerModeRuntimeOutbox, "zasp_outbox_worker", "runtime-outbox-01"
+	config.RuntimeQueueURL = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-runtime-events"
+	config.AWSRegion = "us-west-2"
+	config.OutboxRoleARN = "arn:aws:iam::123456789012:role/zasp-production-runtime-outbox"
+	config.OutboxTokenFile = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+	database := readyWorkerDatabase{}
+	dependencies, err := composeOutboxWorkerRuntime(config, database, &recordingOutboxPublisher{}, readyOutboxDependency)
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("runtime outbox dependencies=%#v err=%v", dependencies, err)
+	}
+	processor, ok := dependencies.Processor.(*outboxProcessor)
+	if !ok || processor.config.Topic != runtimeOutboxTopic {
+		t.Fatalf("runtime processor=%T topic=%q", dependencies.Processor, processor.config.Topic)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatalf("runtime outbox readiness=%v", err)
+	}
+}
+
 func TestComposeOutboxWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts(t *testing.T) {
 	config := validSchedulerRuntimeConfig()
 	config.Mode, config.DatabaseAuthority, config.WorkerID = workerModeOutbox, "zasp_outbox_worker", "outbox-01"
@@ -362,7 +384,11 @@ type readyWorkerDatabase struct{}
 func (readyWorkerDatabase) SchemaVersion(context.Context) (string, error) {
 	return "production-discovery-execution-v1", nil
 }
-func (readyWorkerDatabase) QueryJSON(_ context.Context, _ string, _ ...any) (json.RawMessage, error) {
+
+func (readyWorkerDatabase) QueryJSON(_ context.Context, statement string, _ ...any) (json.RawMessage, error) {
+	if strings.Contains(statement, "zasp_runtime_data_plane_readiness") {
+		return json.RawMessage(`{"ready":true}`), nil
+	}
 	return json.RawMessage(`true`), nil
 }
 func (readyWorkerDatabase) Exec(context.Context, string, ...any) error { return nil }
@@ -383,6 +409,9 @@ func (database *driftingWorkerDatabase) QueryJSON(_ context.Context, statement s
 	database.statements = append(database.statements, statement)
 	if database.drifted {
 		return json.RawMessage(`false`), nil
+	}
+	if strings.Contains(statement, "zasp_runtime_data_plane_readiness") {
+		return json.RawMessage(`{"ready":true}`), nil
 	}
 	return json.RawMessage(`true`), nil
 }

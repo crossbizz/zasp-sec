@@ -228,6 +228,39 @@ func TestOutboxRuntimeRejectsAmbientOrDriftedQueueAuthority(t *testing.T) {
 	}
 }
 
+func TestRuntimeOutboxRequiresDistinctExactQueueAuthority(t *testing.T) {
+	t.Parallel()
+	base := map[string]string{
+		"ZASP_WORKER_MODE": "runtime-outbox", "ZASP_POSTGRES_DSN": "postgres://runtime_outbox@postgres.internal/zasp?sslmode=verify-full",
+		"ZASP_DATABASE_AUTHORITY": "zasp_outbox_worker", "ZASP_WORKER_ID": "runtime-outbox-01", "ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "30s", "ZASP_BATCH_SIZE": "10", "ZASP_SHUTDOWN_TIMEOUT": "20s",
+		"ZASP_RUNTIME_QUEUE_URL": "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-runtime-events", "ZASP_AWS_REGION": "us-west-2",
+		"ZASP_OUTBOX_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-runtime-outbox", "ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+	}
+	config, err := loadWorkerRuntimeConfig(mapLookup(base))
+	if err != nil || config.Mode != workerModeRuntimeOutbox || config.RuntimeQueueURL != base["ZASP_RUNTIME_QUEUE_URL"] {
+		t.Fatalf("runtime outbox config=%#v err=%v", config, err)
+	}
+	for name, mutate := range map[string]func(map[string]string){
+		"discovery queue": func(values map[string]string) {
+			values["ZASP_DISCOVERY_QUEUE_URL"] = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs"
+		},
+		"wrong name": func(values map[string]string) {
+			values["ZASP_RUNTIME_QUEUE_URL"] = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs"
+		},
+		"wrong account": func(values map[string]string) {
+			values["ZASP_OUTBOX_ROLE_ARN"] = "arn:aws:iam::210987654321:role/zasp-production-runtime-outbox"
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			values := cloneStringMap(base)
+			mutate(values)
+			if _, err := loadWorkerRuntimeConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
+				t.Fatalf("error=%v", err)
+			}
+		})
+	}
+}
+
 func TestProjectionRuntimeRejectsAmbientOrDriftedProductionAuthority(t *testing.T) {
 	t.Parallel()
 	base := map[string]string{

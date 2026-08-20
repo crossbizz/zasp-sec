@@ -38,10 +38,11 @@ type outboxWebIdentityProvider struct {
 	roleARN   string
 	tokenFile string
 	timeout   time.Duration
+	session   string
 }
 
 func (provider *outboxWebIdentityProvider) Retrieve(ctx context.Context) (aws.Credentials, error) {
-	if provider == nil || provider.client == nil || ctx == nil || ctx.Err() != nil || !workerProjectionRolePattern.MatchString(provider.roleARN) || provider.tokenFile == "" || provider.timeout < time.Second || provider.timeout > 30*time.Second {
+	if provider == nil || provider.client == nil || ctx == nil || ctx.Err() != nil || !workerProjectionRolePattern.MatchString(provider.roleARN) || provider.tokenFile == "" || provider.timeout < time.Second || provider.timeout > 30*time.Second || provider.session != "" && provider.session != "zasp-outbox-worker" && provider.session != "zasp-runtime-outbox-worker" {
 		return aws.Credentials{}, errRuntimeUnavailable
 	}
 	file, err := os.Open(provider.tokenFile)
@@ -57,8 +58,12 @@ func (provider *outboxWebIdentityProvider) Retrieve(ctx context.Context) (aws.Cr
 	bounded, cancel := context.WithTimeout(ctx, provider.timeout)
 	defer cancel()
 	duration := int32(900)
+	session := provider.session
+	if session == "" {
+		session = "zasp-outbox-worker"
+	}
 	result, assumeErr := provider.client.AssumeRoleWithWebIdentity(bounded, &sts.AssumeRoleWithWebIdentityInput{
-		RoleArn: aws.String(provider.roleARN), RoleSessionName: aws.String("zasp-outbox-worker"), WebIdentityToken: aws.String(string(token)), DurationSeconds: &duration,
+		RoleArn: aws.String(provider.roleARN), RoleSessionName: aws.String(session), WebIdentityToken: aws.String(string(token)), DurationSeconds: &duration,
 	})
 	clear(token)
 	if assumeErr != nil || result == nil || result.Credentials == nil || result.Credentials.AccessKeyId == nil || result.Credentials.SecretAccessKey == nil || result.Credentials.SessionToken == nil || result.Credentials.Expiration == nil || !result.Credentials.Expiration.After(time.Now().Add(time.Minute)) {
@@ -114,7 +119,11 @@ func newProductionOutboxPublisher(ctx context.Context, config workerRuntimeConfi
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: minDuration(config.LeaseDuration/3, 30*time.Second), MaxResponseHeaderBytes: 1 << 20}
 	client := &http.Client{Transport: transport, Timeout: minDuration(config.LeaseDuration/3, 30*time.Second), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	base := aws.Config{Region: config.AWSRegion, HTTPClient: client, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
-	provider := &outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.OutboxRoleARN, tokenFile: config.OutboxTokenFile, timeout: minDuration(config.LeaseDuration/3, 30*time.Second)}
+	session := "zasp-outbox-worker"
+	if config.Mode == workerModeRuntimeOutbox {
+		session = "zasp-runtime-outbox-worker"
+	}
+	provider := &outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.OutboxRoleARN, tokenFile: config.OutboxTokenFile, timeout: minDuration(config.LeaseDuration/3, 30*time.Second), session: session}
 	credentials := aws.NewCredentialsCache(provider)
 	if _, err := credentials.Retrieve(ctx); err != nil {
 		transport.CloseIdleConnections()
@@ -140,7 +149,12 @@ func newProductionOutboxPublisher(ctx context.Context, config workerRuntimeConfi
 		transport.CloseIdleConnections()
 		return productionOutboxPublisher{}, errRuntimeUnavailable
 	}
-	driver, err := sqsdriver.New(sqsClient, sqsdriver.Config{QueueURL: config.DiscoveryQueueURL, ReceiveWaitSeconds: 0, VisibilityTimeoutSeconds: int32(config.LeaseDuration / time.Second), MaximumReceiveCount: 5})
+	queueURL, _, ok := outboxQueueAuthority(config)
+	if !ok {
+		transport.CloseIdleConnections()
+		return productionOutboxPublisher{}, errRuntimeUnavailable
+	}
+	driver, err := sqsdriver.New(sqsClient, sqsdriver.Config{QueueURL: queueURL, ReceiveWaitSeconds: 0, VisibilityTimeoutSeconds: int32(config.LeaseDuration / time.Second), MaximumReceiveCount: 5})
 	if err != nil {
 		transport.CloseIdleConnections()
 		return productionOutboxPublisher{}, errRuntimeUnavailable
@@ -164,11 +178,15 @@ func outboxQueueReady(ctx context.Context, api outboxQueueReadinessAPI, config w
 	if ctx == nil || ctx.Err() != nil || api == nil || !validOutboxAWSAuthority(config) {
 		return errRuntimeUnavailable
 	}
-	output, err := api.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{QueueUrl: aws.String(config.DiscoveryQueueURL), AttributeNames: []sqstypes.QueueAttributeName{sqstypes.QueueAttributeNameQueueArn, sqstypes.QueueAttributeNameRedrivePolicy}})
+	queueURL, queueName, ok := outboxQueueAuthority(config)
+	if !ok {
+		return errRuntimeUnavailable
+	}
+	output, err := api.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{QueueUrl: aws.String(queueURL), AttributeNames: []sqstypes.QueueAttributeName{sqstypes.QueueAttributeNameQueueArn, sqstypes.QueueAttributeNameRedrivePolicy}})
 	if err != nil || output == nil || len(output.Attributes) != 2 {
 		return errRuntimeUnavailable
 	}
-	parsed, parseErr := url.Parse(config.DiscoveryQueueURL)
+	parsed, parseErr := url.Parse(queueURL)
 	if parseErr != nil || parsed == nil {
 		return errRuntimeUnavailable
 	}
@@ -176,7 +194,7 @@ func outboxQueueReady(ctx context.Context, api outboxQueueReadinessAPI, config w
 	if len(parts) != 2 {
 		return errRuntimeUnavailable
 	}
-	queueARN := "arn:aws:sqs:" + config.AWSRegion + ":" + parts[0] + ":agentsec-discovery-jobs"
+	queueARN := "arn:aws:sqs:" + config.AWSRegion + ":" + parts[0] + ":" + queueName
 	if output.Attributes[string(sqstypes.QueueAttributeNameQueueArn)] != queueARN {
 		return errRuntimeUnavailable
 	}

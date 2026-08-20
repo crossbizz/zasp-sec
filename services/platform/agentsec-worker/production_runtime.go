@@ -68,7 +68,7 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	switch config.Mode {
-	case workerModeOutbox:
+	case workerModeOutbox, workerModeRuntimeOutbox:
 		publisher, err := newProductionOutboxPublisher(ctx, config)
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
@@ -171,10 +171,18 @@ func composeDiscoveryWorkerRuntime(config workerRuntimeConfig, database apiserve
 }
 
 func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, publisher outboxPublisher, publisherReady func(context.Context) error) (workerRuntimeDependencies, error) {
-	if !validWorkerRuntimeConfig(config) || database == nil || publisher == nil || publisherReady == nil {
+	if !validWorkerRuntimeConfig(config) || config.Mode != workerModeOutbox && config.Mode != workerModeRuntimeOutbox || database == nil || publisher == nil || publisherReady == nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	repository, err := apiserver.NewDiscoveryExecutionOutboxRepository(database)
+	var repository productionOutboxAuthority
+	var err error
+	topic := discoveryOutboxTopic
+	if config.Mode == workerModeRuntimeOutbox {
+		repository, err = apiserver.NewRuntimeOutboxRepository(database)
+		topic = runtimeOutboxTopic
+	} else {
+		repository, err = apiserver.NewDiscoveryExecutionOutboxRepository(database)
+	}
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -189,13 +197,18 @@ func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.J
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	processor, err := newOutboxProcessor(outboxProcessorConfig{
-		Authority: repository, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: config.WorkerID,
+		Authority: repository, Publisher: publisher, Topic: topic, WorkerID: config.WorkerID,
 		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: min(config.BatchSize, 10), RetrySeconds: int(config.LeaseDuration / time.Second), NewLeaseToken: newWorkerLeaseToken, Ready: ready,
 	})
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	return workerRuntimeDependencies{Processor: processor, Ready: ready, Close: func() error { return nil }}, nil
+}
+
+type productionOutboxAuthority interface {
+	outboxAuthority
+	Ready(context.Context) error
 }
 
 type readinessGatedWorkerProcessor struct {

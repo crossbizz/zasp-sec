@@ -13,6 +13,7 @@ type workerMode string
 
 const (
 	workerModeOutbox               workerMode = "outbox"
+	workerModeRuntimeOutbox        workerMode = "runtime-outbox"
 	workerModeDiscovery            workerMode = "discovery"
 	workerModeScheduler            workerMode = "scheduler"
 	workerModeProjectionRisk       workerMode = "projection-risk"
@@ -38,6 +39,7 @@ type workerRuntimeConfig struct {
 	BatchSize                  int
 	ShutdownTimeout            time.Duration
 	DiscoveryQueueURL          string
+	RuntimeQueueURL            string
 	AWSRegion                  string
 	EvidenceBucket             string
 	EvidenceOwner              string
@@ -113,7 +115,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		Mode: workerMode(getenv("ZASP_WORKER_MODE")), PostgresDSN: getenv("ZASP_POSTGRES_DSN"),
 		DatabaseAuthority: getenv("ZASP_DATABASE_AUTHORITY"), WorkerID: getenv("ZASP_WORKER_ID"),
 		PollInterval: poll, LeaseDuration: lease, BatchSize: batch, ShutdownTimeout: shutdown,
-		DiscoveryQueueURL: getenv("ZASP_DISCOVERY_QUEUE_URL"), AWSRegion: getenv("ZASP_AWS_REGION"), EvidenceBucket: getenv("ZASP_EVIDENCE_BUCKET"), EvidenceOwner: getenv("ZASP_EVIDENCE_BUCKET_OWNER"),
+		DiscoveryQueueURL: getenv("ZASP_DISCOVERY_QUEUE_URL"), RuntimeQueueURL: getenv("ZASP_RUNTIME_QUEUE_URL"), AWSRegion: getenv("ZASP_AWS_REGION"), EvidenceBucket: getenv("ZASP_EVIDENCE_BUCKET"), EvidenceOwner: getenv("ZASP_EVIDENCE_BUCKET_OWNER"),
 		EvidenceKMSKeyARN: getenv("ZASP_EVIDENCE_KMS_KEY_ARN"), ParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), ToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
 		DiscoveryRoleARN: getenv("ZASP_DISCOVERY_ROLE_ARN"), DiscoveryTokenFile: getenv("ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE"), DiscoverySecretPrefix: getenv("ZASP_DISCOVERY_SECRET_PREFIX"),
 		AWSCollectorVersion: getenv("ZASP_DISCOVERY_AWS_COLLECTOR_VERSION"), KubernetesCollectorVersion: getenv("ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION"), GitHubCollectorVersion: getenv("ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION"), OktaCollectorVersion: getenv("ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION"),
@@ -144,7 +146,7 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 		return false
 	}
 	wantAuthority := map[workerMode]string{
-		workerModeOutbox: "zasp_outbox_worker", workerModeDiscovery: "zasp_discovery_worker", workerModeScheduler: "zasp_discovery_scheduler",
+		workerModeOutbox: "zasp_outbox_worker", workerModeRuntimeOutbox: "zasp_outbox_worker", workerModeDiscovery: "zasp_discovery_worker", workerModeScheduler: "zasp_discovery_scheduler",
 		workerModeProjectionRisk: "zasp_projection_risk_worker", workerModeProjectionGraph: "zasp_projection_graph_worker", workerModeProjectionSearch: "zasp_projection_search_worker",
 	}[config.Mode]
 	return wantAuthority != "" && config.DatabaseAuthority == wantAuthority && workerIdentityPattern.MatchString(config.WorkerID) && validModeDependencies(config) &&
@@ -166,7 +168,7 @@ var (
 
 func validModeDependencies(config workerRuntimeConfig) bool {
 	switch config.Mode {
-	case workerModeOutbox:
+	case workerModeOutbox, workerModeRuntimeOutbox:
 		return validOutboxAWSAuthority(config)
 	case workerModeDiscovery:
 		return validDiscoveryRuntimeAuthority(config)
@@ -211,13 +213,25 @@ func validDiscoveryRuntimeAuthority(config workerRuntimeConfig) bool {
 }
 
 func validOutboxAWSAuthority(config workerRuntimeConfig) bool {
-	queue, err := url.Parse(config.DiscoveryQueueURL)
-	if err != nil || !validSQSURL(config.DiscoveryQueueURL) || !workerRegionPattern.MatchString(config.AWSRegion) || !workerProjectionRolePattern.MatchString(config.OutboxRoleARN) || config.OutboxTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" {
+	queueURL, queueName, ok := outboxQueueAuthority(config)
+	queue, err := url.Parse(queueURL)
+	if !ok || err != nil || !validSQSURL(queueURL) || !workerRegionPattern.MatchString(config.AWSRegion) || !workerProjectionRolePattern.MatchString(config.OutboxRoleARN) || config.OutboxTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" {
 		return false
 	}
 	queueParts := strings.Split(strings.TrimPrefix(queue.Path, "/"), "/")
 	roleParts := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/`).FindStringSubmatch(config.OutboxRoleARN)
-	return len(queueParts) == 2 && len(roleParts) == 2 && queueParts[0] == roleParts[1] && queueParts[1] == "agentsec-discovery-jobs" && queue.Hostname() == "sqs."+config.AWSRegion+".amazonaws.com"
+	return len(queueParts) == 2 && len(roleParts) == 2 && queueParts[0] == roleParts[1] && queueParts[1] == queueName && queue.Hostname() == "sqs."+config.AWSRegion+".amazonaws.com"
+}
+
+func outboxQueueAuthority(config workerRuntimeConfig) (string, string, bool) {
+	switch config.Mode {
+	case workerModeOutbox:
+		return config.DiscoveryQueueURL, "agentsec-discovery-jobs", config.RuntimeQueueURL == ""
+	case workerModeRuntimeOutbox:
+		return config.RuntimeQueueURL, "agentsec-runtime-events", config.DiscoveryQueueURL == ""
+	default:
+		return "", "", false
+	}
 }
 
 func validProjectionAWSAuthority(config workerRuntimeConfig) bool {

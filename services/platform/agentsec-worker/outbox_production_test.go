@@ -59,6 +59,26 @@ func TestOutboxQueueReadinessBindsExactARNAndRedrivePolicy(t *testing.T) {
 	}
 }
 
+func TestRuntimeOutboxQueueReadinessBindsExactRuntimeARN(t *testing.T) {
+	t.Parallel()
+	config := validSchedulerRuntimeConfig()
+	config.Mode, config.DatabaseAuthority = workerModeRuntimeOutbox, "zasp_outbox_worker"
+	config.RuntimeQueueURL = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-runtime-events"
+	config.AWSRegion = "us-west-2"
+	config.OutboxRoleARN = "arn:aws:iam::123456789012:role/zasp-production-runtime-outbox"
+	config.OutboxTokenFile = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+	api := &outboxQueueReadinessStub{output: &sqs.GetQueueAttributesOutput{Attributes: map[string]string{
+		string(sqstypes.QueueAttributeNameQueueArn):      "arn:aws:sqs:us-west-2:123456789012:agentsec-runtime-events",
+		string(sqstypes.QueueAttributeNameRedrivePolicy): `{"deadLetterTargetArn":"arn:aws:sqs:us-west-2:123456789012:agentsec-runtime-events-dlq","maxReceiveCount":"5"}`,
+	}}}
+	if err := outboxQueueReady(context.Background(), api, config); err != nil {
+		t.Fatalf("runtime outbox readiness=%v", err)
+	}
+	if api.input == nil || aws.ToString(api.input.QueueUrl) != config.RuntimeQueueURL {
+		t.Fatalf("runtime queue input=%#v", api.input)
+	}
+}
+
 func TestOutboxReadinessCachesSuccessfulLiveCheckAcrossEmptyPolls(t *testing.T) {
 	calls := 0
 	readiness, err := newCachedOutboxReadiness(func(context.Context) error {
