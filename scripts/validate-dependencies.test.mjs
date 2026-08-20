@@ -51,6 +51,7 @@ const awsDependencies = [
   ["github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2"],
   ["github.com/aws/aws-sdk-go-v2/service/secretsmanager", "v1.44.6"],
   ["github.com/aws/aws-sdk-go-v2/service/sqs", "v1.46.6"],
+  ["github.com/aws/aws-sdk-go-v2/service/sts", "v1.41.6"],
 ].map(([name, version]) => ({
   ecosystem: "go",
   manifest: "services/platform/go.mod",
@@ -143,10 +144,10 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 9, dependencies: 13 });
+  assert.deepEqual(validate(), { manifests: 9, dependencies: 14 });
 });
 
-test("binds the exact six AWS SDK product dependencies", async (t) => {
+test("binds the exact seven AWS SDK product dependencies", async (t) => {
   assert.deepEqual(
     lockFixture().dependencies.filter(({ name }) => name.startsWith("github.com/aws/aws-sdk-go-v2")),
     awsDependencies,
@@ -170,7 +171,7 @@ test("binds the exact six AWS SDK product dependencies", async (t) => {
     const files = filesFixture();
     files["services/platform/go.mod"] = files["services/platform/go.mod"].replace(
       "\n)",
-      "\n\tgithub.com/aws/aws-sdk-go-v2/service/sts v1.41.3\n)",
+      "\n\tgithub.com/aws/aws-sdk-go-v2/service/sns v1.39.3\n)",
     );
     assert.throws(() => validate(lockFixture(), files));
   });
@@ -336,7 +337,7 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 9, dependencies: 15 });
+  assert.deepEqual(validate(lock, files), { manifests: 9, dependencies: 16 });
 });
 
 test("accepts only the exact repository-owned health module replacement outside the third-party lock", async (t) => {
@@ -372,7 +373,7 @@ test("accepts only the exact repository-owned health module replacement outside 
     return files;
   }
 
-  assert.deepEqual(validate(lockFixture(), internalFiles()), { manifests: 9, dependencies: 13 });
+  assert.deepEqual(validate(lockFixture(), internalFiles()), { manifests: 9, dependencies: 14 });
 
   for (const [name, mutate] of [
     ["missing replacement", (files) => {
