@@ -88,12 +88,13 @@ func (reconciler *ConnectorReconciler) reconcileOnce(ctx context.Context) error 
 	if err != nil {
 		return err
 	}
+	var result error
 	for _, lease := range leases {
 		if err := reconciler.reconcileLease(ctx, lease); err != nil {
-			return err
+			result = errors.Join(result, err)
 		}
 	}
-	return nil
+	return result
 }
 
 func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease ConnectorEffectLease) error {
@@ -127,7 +128,10 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 		if lease.Attempt >= 100 {
 			return reconciler.failAfterCleanup(ctx, lease, provider, "reconciliation_exhausted")
 		}
-		return recoverErr
+		if recoverErr != nil {
+			return recoverErr
+		}
+		return ErrRepositoryUnavailable
 	}
 	completion := OAuthCompletion{AttemptID: lease.OAuthAttemptID, EffectID: lease.ID, ConnectionID: connectorDeterministicID(scope, lease.OAuthAttemptID, "connection"), ConnectionReference: grant.ConnectionReference, ProviderSubject: grant.ProviderSubject, CredentialID: connectorDeterministicID(scope, lease.OAuthAttemptID, "credential"), CredentialClass: grant.CredentialClass, Metadata: grant.Metadata}
 	if _, err := reconciler.repository.CompleteOAuthReconciliation(ctx, lease, completion); err != nil {

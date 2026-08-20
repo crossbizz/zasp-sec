@@ -11,10 +11,12 @@ import (
 )
 
 type connectorReconciliationRepositoryStub struct {
-	lease      ConnectorEffectLease
-	completed  OAuthCompletion
-	revoked    bool
-	failedCode string
+	lease         ConnectorEffectLease
+	leases        []ConnectorEffectLease
+	completed     OAuthCompletion
+	completeCount int
+	revoked       bool
+	failedCode    string
 }
 
 func (stub *connectorReconciliationRepositoryStub) CompleteConnectorRevocation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
@@ -23,6 +25,9 @@ func (stub *connectorReconciliationRepositoryStub) CompleteConnectorRevocation(c
 }
 
 func (stub *connectorReconciliationRepositoryStub) ClaimReconciliation(context.Context, string, int, int) ([]ConnectorEffectLease, error) {
+	if stub.leases != nil {
+		return append([]ConnectorEffectLease(nil), stub.leases...), nil
+	}
 	if stub.lease.ID == "" {
 		return []ConnectorEffectLease{}, nil
 	}
@@ -30,6 +35,7 @@ func (stub *connectorReconciliationRepositoryStub) ClaimReconciliation(context.C
 }
 func (stub *connectorReconciliationRepositoryStub) CompleteOAuthReconciliation(_ context.Context, _ ConnectorEffectLease, completion OAuthCompletion) (OAuthCompletionRecord, error) {
 	stub.completed = completion
+	stub.completeCount++
 	return OAuthCompletionRecord{AttemptID: completion.AttemptID, ConnectionID: completion.ConnectionID, Status: "succeeded", CompletedAt: time.Now().UTC()}, nil
 }
 func (stub *connectorReconciliationRepositoryStub) FailConnectorReconciliation(_ context.Context, _ ConnectorEffectLease, code string) (ConnectorEffectTransition, error) {
@@ -40,6 +46,7 @@ func (stub *connectorReconciliationRepositoryStub) FailConnectorReconciliation(_
 type connectorRecoveryProvider struct {
 	grant                  ConnectorOAuthGrant
 	recoverErr             error
+	recoverErrors          []error
 	completeCalls          int
 	recoverCalls           int
 	discardCalls           int
@@ -55,6 +62,9 @@ func (provider *connectorRecoveryProvider) Complete(context.Context, string, str
 }
 func (provider *connectorRecoveryProvider) Recover(context.Context, string) (ConnectorOAuthGrant, error) {
 	provider.recoverCalls++
+	if provider.recoverCalls <= len(provider.recoverErrors) {
+		return provider.grant, provider.recoverErrors[provider.recoverCalls-1]
+	}
 	return provider.grant, provider.recoverErr
 }
 func (provider *connectorRecoveryProvider) Discard(_ context.Context, _ string, revoke bool) error {
@@ -103,6 +113,26 @@ func TestConnectorReconcilerRecoversDurableOutcomeWithoutRepeatingProviderEffect
 	}
 	if provider.completeCalls != 0 || !provider.discardRequestedRevoke || repository.failedCode != "provider_outcome_unrecoverable" || repository.completed.AttemptID != "" {
 		t.Fatalf("missing outcome cleanup provider=%#v completed=%#v failed=%q", provider, repository.completed, repository.failedCode)
+	}
+}
+
+func TestConnectorReconcilerDrainsClaimAfterOneProviderFailure(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_70000001-0000-4000-8000-000000000001"
+	workflow := connectorWorkflowValue(integrationID, "github")
+	makeLease := func(attemptID, effectID string) ConnectorEffectLease {
+		digest := connectorAuthorizationIntentDigestValues(identity.Scope, identity.PrincipalID.String(), workflow, integrationID, attemptID, "github", map[string]string{}, []string{"read:org", "repo"})
+		return ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: effectID, IntegrationID: integrationID, OAuthAttemptID: attemptID, PrincipalID: identity.PrincipalID.String(), RequestedScopes: []string{"read:org", "repo"}, Provider: "github", Operation: "authorize", IdempotencyKey: "oauth-authorize:" + attemptID, RequestDigest: hex.EncodeToString(digest[:]), Attempt: 1, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute)}
+	}
+	repository := &connectorReconciliationRepositoryStub{leases: []ConnectorEffectLease{
+		makeLease("pid_70000002-0000-4000-8000-000000000002", "pid_70000003-0000-4000-8000-000000000003"),
+		makeLease("pid_70000004-0000-4000-8000-000000000004", "pid_70000005-0000-4000-8000-000000000005"),
+	}}
+	provider := &connectorRecoveryProvider{grant: ConnectorOAuthGrant{ConnectionReference: "ref:github/install/123456", ProviderSubject: "installation:123456", CredentialClass: "github_installation_reference", Metadata: json.RawMessage(`{"installation_id":123456}`)}, recoverErrors: []error{errors.New("first provider unavailable"), nil}}
+	registry, _ := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, nil)
+	reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Registry: registry, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 10, Interval: time.Second})
+	if err := reconciler.reconcileOnce(context.Background()); err == nil || provider.recoverCalls != 2 || repository.completeCount != 1 || repository.completed.AttemptID != "pid_70000004-0000-4000-8000-000000000004" {
+		t.Fatalf("drained claim err=%v recover_calls=%d completions=%d last=%#v", err, provider.recoverCalls, repository.completeCount, repository.completed)
 	}
 }
 
