@@ -267,7 +267,10 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	}
 	completion := OAuthCompletion{AttemptID: lease.OAuthAttemptID, EffectID: lease.ID, ConnectionID: connectorDeterministicID(scope, lease.OAuthAttemptID, "connection"), ConnectionReference: grant.ConnectionReference, ProviderSubject: grant.ProviderSubject, CredentialID: connectorDeterministicID(scope, lease.OAuthAttemptID, "credential"), CredentialClass: grant.CredentialClass, Metadata: grant.Metadata}
 	if _, err := reconciler.repository.CompleteOAuthReconciliation(finalizationContext, lease, completion); err != nil {
-		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_outcome_ambiguous", err)
+		// Completion may have committed before its response was lost. Preserve the
+		// leased row until expiry so the database recovery authority can inspect
+		// whether it is still provider_effect_started or already cleanup_pending.
+		return err
 	}
 	if err := provider.Discard(providerContext, lease.ID, false); err != nil {
 		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", err)

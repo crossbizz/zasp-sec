@@ -512,7 +512,7 @@ func TestConnectorReconcilerQuarantinesFinalAttemptCleanupAndRevocationFailures(
 	}
 }
 
-func TestConnectorReconcilerQuarantinesEveryFinalAttemptFinalizationFailure(t *testing.T) {
+func TestConnectorReconcilerDefersAmbiguousCompletionAndQuarantinesOtherFinalAttemptFailures(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	integrationID := "pid_70000001-0000-4000-8000-000000000001"
 	attemptID := "pid_70000002-0000-4000-8000-000000000002"
@@ -538,7 +538,13 @@ func TestConnectorReconcilerQuarantinesEveryFinalAttemptFinalizationFailure(t *t
 
 	t.Run("oauth completion", func(t *testing.T) {
 		repository := &connectorReconciliationRepositoryStub{completeOAuthErr: errors.New("completion unavailable")}
-		run(t, repository, &connectorRecoveryProvider{grant: grant}, base, workflow, "provider_outcome_ambiguous")
+		repository.lease = base
+		provider := &connectorRecoveryProvider{grant: grant}
+		registry, _ := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, nil)
+		reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 10, Interval: time.Second})
+		if err := reconciler.reconcileOnce(context.Background()); err == nil || repository.quarantined != "" {
+			t.Fatalf("ambiguous completion must defer state inspection until lease recovery: err=%v quarantine=%q", err, repository.quarantined)
+		}
 	})
 	t.Run("post completion discard", func(t *testing.T) {
 		repository := &connectorReconciliationRepositoryStub{}

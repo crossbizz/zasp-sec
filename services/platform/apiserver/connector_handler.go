@@ -139,10 +139,9 @@ func (handler *connectorHTTPHandler) remediateQuarantine(writer http.ResponseWri
 		}
 		return
 	}
-	workflow, workflowErr := handler.workflows.GetWorkflow(request.Context(), identity.Scope, "integration", integrationID)
 	intent, intentErr := json.Marshal(map[string]any{"resource_id": integrationID, "expected_version": expectedVersion, "body": map[string]any{"acknowledgement": input.Acknowledgement}})
-	if workflowErr != nil || intentErr != nil {
-		writeProductionError(writer, request, firstError(workflowErr, ErrRepositoryUnavailable))
+	if intentErr != nil {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
 	if replay, replayed, replayErr := handler.repository.ReplayConnectorQuarantine(request.Context(), identity, integrationID, idempotencyKey, expectedVersion, intent); replayErr != nil {
@@ -153,6 +152,11 @@ func (handler *connectorHTTPHandler) remediateQuarantine(writer http.ResponseWri
 		writer.Header().Set("X-Audit-ID", replay.AuditID)
 		writer.Header().Set("X-Mutation-Receipt-ID", replay.ReceiptID)
 		writeProductionResponse(writer, request, http.StatusOK, replay.Body, nil)
+		return
+	}
+	workflow, workflowErr := handler.workflows.GetWorkflow(request.Context(), identity.Scope, "integration", integrationID)
+	if workflowErr != nil {
+		writeProductionError(writer, request, workflowErr)
 		return
 	}
 	quarantine, err := handler.repository.GetConnectorQuarantine(request.Context(), identity.Scope, integrationID)

@@ -895,9 +895,14 @@ func TestConnectorAuthorizationPostgresExpiredFinalAttemptRecoveryIsOperationAwa
 		}
 		got[operation+":"+code]++
 	}
-	for _, test := range tests {
+	for index, test := range tests {
 		if got[test.operation+":"+test.wantCode] != 1 {
 			t.Fatalf("operation-aware quarantine=%#v missing %s/%s", got, test.operation, test.wantCode)
+		}
+		integrationID := fmt.Sprintf("pid_72440%03d-0000-4000-8000-%012d", index+1, index+1)
+		quarantine, quarantineErr := connectors.GetConnectorQuarantine(ctx, identity.Scope, integrationID)
+		if quarantineErr != nil || quarantine.Reason != test.wantCode || quarantine.ConnectionReference != test.reference {
+			t.Fatalf("operation-aware quarantine lookup for %s = %#v, %v", test.wantCode, quarantine, quarantineErr)
 		}
 	}
 	var degraded, audited int
@@ -1049,7 +1054,19 @@ func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousand
 	}
 	defer connection.Exec(context.Background(), `RESET enable_seqscan`)
 	var candidatePlan, activePlan []byte
-	if err := connection.QueryRow(ctx, `EXPLAIN (FORMAT JSON) SELECT id FROM zasp_connector_effects WHERE provider='github' AND operation='bind' AND status='unknown' AND attempt<100 AND available_at<=transaction_timestamp() ORDER BY available_at,updated_at,id LIMIT 1`).Scan(&candidatePlan); err != nil {
+	if err := connection.QueryRow(ctx, `EXPLAIN (FORMAT JSON)
+	 WITH ranked AS (
+	   SELECT organization_id,workspace_id,environment_id,id,updated_at,row_number() OVER(PARTITION BY provider,operation ORDER BY updated_at,id) lane_rank
+	   FROM zasp_connector_effects effect
+	   WHERE status='unknown' AND attempt<100 AND available_at<=transaction_timestamp() AND updated_at<=transaction_timestamp()-interval '15 seconds'
+	     AND (lease_expires_at IS NULL OR lease_expires_at<=transaction_timestamp())
+	     AND NOT EXISTS(SELECT 1 FROM zasp_connector_effects live WHERE live.provider=effect.provider AND live.operation=effect.operation AND live.status='unknown' AND live.lease_expires_at>transaction_timestamp())
+	     AND (operation<>'pkce_cleanup' OR oauth_attempt_id IS NULL OR NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.oauth_attempt_id) AND attempt.status='consuming'))
+	 ), fair AS (
+	   SELECT ranked.*,row_number() OVER(PARTITION BY organization_id,workspace_id,environment_id ORDER BY updated_at,id) organization_rank FROM ranked WHERE lane_rank=1
+	 )
+	 SELECT effect.id FROM zasp_connector_effects effect JOIN fair ON (fair.organization_id,fair.workspace_id,fair.environment_id,fair.id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)
+	 ORDER BY fair.organization_rank,effect.updated_at,effect.id LIMIT 25`).Scan(&candidatePlan); err != nil {
 		t.Fatal(err)
 	}
 	if err := connection.QueryRow(ctx, `EXPLAIN (FORMAT JSON) SELECT 1 FROM zasp_connector_effects WHERE provider='github' AND operation='bind' AND status='unknown' AND lease_expires_at>transaction_timestamp() LIMIT 1`).Scan(&activePlan); err != nil {

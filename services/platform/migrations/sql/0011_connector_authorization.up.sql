@@ -95,8 +95,7 @@ CREATE TABLE "public"."zasp_connector_effects" (
   CHECK(status NOT IN ('succeeded','reconciled') OR operation='pkce_cleanup' AND connection_reference IS NOT NULL AND last_error_code IS NULL OR (connection_reference IS NOT NULL AND provider_subject IS NOT NULL AND last_error_code IS NULL)),
   CHECK(status<>'failed' OR last_error_code IS NOT NULL)
 );
-CREATE INDEX zasp_connector_effect_reconcile_idx ON zasp_connector_effects(updated_at,id) WHERE status='unknown';
-CREATE INDEX zasp_connector_effect_candidate_lane_idx ON zasp_connector_effects(provider,operation,available_at,updated_at,id,organization_id,workspace_id,environment_id) WHERE status='unknown' AND attempt<100;
+CREATE INDEX zasp_connector_effect_candidate_lane_idx ON zasp_connector_effects(updated_at,id,provider,operation) INCLUDE(available_at,organization_id,workspace_id,environment_id) WHERE status='unknown' AND attempt<100;
 CREATE INDEX zasp_connector_effect_active_lane_idx ON zasp_connector_effects(provider,operation,lease_expires_at) WHERE status='unknown' AND lease_expires_at IS NOT NULL;
 CREATE INDEX zasp_connector_effect_final_recovery_idx ON zasp_connector_effects(lease_expires_at,id) WHERE status='unknown' AND attempt=100;
 
@@ -687,7 +686,7 @@ DO $risk_migration$ DECLARE definition text; BEGIN
  EXECUTE definition;
 END $risk_migration$;
 
-INSERT INTO zasp_schema_metadata(key,value) VALUES ('connector_authorization_fingerprint', '2626f2629c086e7b53484cb3cfa66d64cfe00fb83f004df841ad2bf88eedebfc');
+INSERT INTO zasp_schema_metadata(key,value) VALUES ('connector_authorization_fingerprint', '7a5ee4879c38afd2f89d344dbe30edbd1fafdab7917e058845297bfe8d4ddec2');
 UPDATE zasp_schema_metadata SET value='a3ee9cb3bfd3e6ed0d37399817432ec9ebdc4e4a66b778d2e1b79c62f99a65f9' WHERE key='production_discovery_fingerprint' AND EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_discovery_release_fingerprint');
 DELETE FROM zasp_schema_metadata WHERE key='production_discovery_release_fingerprint';
 UPDATE zasp_schema_metadata SET value='connector-authorization-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='production-discovery-v1';

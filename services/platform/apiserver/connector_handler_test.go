@@ -106,10 +106,13 @@ func (*connectorAuthorizationStub) RecoverExpiredFinalAttempts(context.Context, 
 	return 0, nil
 }
 
-type connectorWorkflowStub struct{ value WorkflowValue }
+type connectorWorkflowStub struct {
+	value WorkflowValue
+	err   error
+}
 
 func (stub connectorWorkflowStub) GetWorkflow(context.Context, domain.Scope, string, string) (WorkflowValue, error) {
-	return stub.value, nil
+	return stub.value, stub.err
 }
 
 type connectorSecretStub struct {
@@ -492,8 +495,7 @@ func TestConnectorQuarantineRemediationLostResponseReplaysBeforeHistoricalLookup
 	integrationID := "pid_70000001-0000-4000-8000-000000000001"
 	replay := WorkflowMutationResult{WorkflowValue: WorkflowValue{Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","status":"pending_authorization"}`), Version: 3}, AuditID: "pid_70000006-0000-4000-8000-000000000006", CorrelationID: "pid_70000007-0000-4000-8000-000000000007", ReceiptID: "pid_70000008-0000-4000-8000-000000000008", Replayed: true}
 	repository := &connectorAuthorizationStub{quarantineReplayed: true, quarantineReplay: replay}
-	workflow := WorkflowValue{Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"GitHub","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:01:00Z"}`), Version: 3}
-	handler, _ := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Secrets: &connectorSecretStub{}, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: &connectorProviderStub{}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
+	handler, _ := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{err: ErrRepositoryNotFound}, Secrets: &connectorSecretStub{}, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: &connectorProviderStub{}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
 	request := httptest.NewRequest(http.MethodPost, "https://app.zasp.test/api/v1/integrations/"+integrationID+"/authorization-remediation", strings.NewReader(`{"acknowledgement":"provider_grant_revoked_manually"}`))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Idempotency-Key", "idem-quarantine-remediation-0001")
