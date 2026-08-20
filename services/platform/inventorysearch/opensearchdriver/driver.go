@@ -159,7 +159,10 @@ func (driver *Driver) request(ctx context.Context, method, path, contentType str
 		return response{}, inventorysearch.ErrDenied
 	}
 	payloadDigest := sha256.Sum256(body)
-	if err := signRequest(driver.signer, ctx, credentials, request, hex.EncodeToString(payloadDigest[:]), driver.config.Region, now); err != nil {
+	if err := signRequest(driver.signer, ctx, credentials, request, hex.EncodeToString(payloadDigest[:]), driver.config.Region, now); err != nil || ctx.Err() != nil {
+		if ctx.Err() != nil {
+			return response{}, inventorysearch.ErrCanceled
+		}
 		return response{}, inventorysearch.ErrDenied
 	}
 	returned, err := doRequest(driver.client, request)
@@ -178,6 +181,9 @@ func (driver *Driver) request(ctx context.Context, method, path, contentType str
 	if readErr != nil || len(raw) > driver.config.MaximumResponseBytes {
 		if mutation {
 			return response{}, inventorysearch.ErrUnknownOutcome
+		}
+		if ctx.Err() != nil {
+			return response{}, inventorysearch.ErrCanceled
 		}
 		return response{}, inventorysearch.ErrRetryable
 	}

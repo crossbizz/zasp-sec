@@ -308,11 +308,18 @@ func (driver *Driver) DiscardStage(ctx context.Context, input inventorysearch.Dr
 			ids = append(ids, id)
 		}
 	}
-	if len(ids) == 0 {
-		return driver.finishDiscard(ctx, input, 0, true)
+	boundIDs, bindErr := driver.bindDiscardCandidates(ctx, input.CandidateSnapshot, ids)
+	if bindErr != nil {
+		return inventorysearch.DriverDiscarded{}, bindErr
+	}
+	if fenceErr := driver.verifyDiscardFence(ctx, input, false); fenceErr != nil {
+		return inventorysearch.DriverDiscarded{}, fenceErr
+	}
+	if len(boundIDs) == 0 {
+		return discardedResult(input, 0, true), nil
 	}
 	var body bytes.Buffer
-	for _, id := range ids {
+	for _, id := range boundIDs {
 		action, err := json.Marshal(bulkAction{Delete: &bulkActionTarget{Index: indexName, ID: id}})
 		if err != nil || body.Len()+len(action)+1 > driver.config.MaximumRequestBytes {
 			return inventorysearch.DriverDiscarded{}, inventorysearch.ErrUnknownOutcome
@@ -326,11 +333,13 @@ func (driver *Driver) DiscardStage(ctx context.Context, input inventorysearch.Dr
 		return inventorysearch.DriverDiscarded{}, inventorysearch.ErrUnknownOutcome
 	}
 	var response bulkDeleteResponse
-	if decodeExact(result.body, &response) != nil || response.Errors || response.Took < 0 || len(response.Items) != len(ids) {
+	if decodeExact(result.body, &response) != nil || response.Errors || response.Took < 0 || len(response.Items) != len(boundIDs) {
 		return inventorysearch.DriverDiscarded{}, inventorysearch.ErrUnknownOutcome
 	}
 	for index, item := range response.Items {
-		if item.Delete.Index != indexName || item.Delete.ID != ids[index] || item.Delete.Error != nil || item.Delete.Status != http.StatusOK && item.Delete.Status != http.StatusNotFound || item.Delete.Result != "deleted" && item.Delete.Result != "not_found" {
+		if item.Delete.Index != indexName || item.Delete.ID != boundIDs[index] || item.Delete.Error != nil ||
+			(item.Delete.Status != http.StatusOK && item.Delete.Status != http.StatusNotFound) ||
+			(item.Delete.Result != "deleted" && item.Delete.Result != "not_found") || !validMutationMetadata(item.Delete) {
 			return inventorysearch.DriverDiscarded{}, inventorysearch.ErrUnknownOutcome
 		}
 	}
@@ -346,15 +355,72 @@ func (driver *Driver) DiscardStage(ctx context.Context, input inventorysearch.Dr
 }
 
 func (driver *Driver) finishDiscard(ctx context.Context, input inventorysearch.DriverDiscard, removed int, replayed bool) (inventorysearch.DriverDiscarded, error) {
+	if err := driver.verifyDiscardFence(ctx, input, true); err != nil {
+		return inventorysearch.DriverDiscarded{}, err
+	}
+	return discardedResult(input, removed, replayed), nil
+}
+
+func (driver *Driver) verifyDiscardFence(ctx context.Context, input inventorysearch.DriverDiscard, mutationPossible bool) error {
 	current, found, err := driver.readMarker(ctx, input.ExpectedActiveSnapshot)
-	if err != nil || !found {
-		return inventorysearch.DriverDiscarded{}, inventorysearch.ErrUnknownOutcome
+	if err != nil {
+		if !mutationPossible {
+			return err
+		}
+		return inventorysearch.ErrUnknownOutcome
+	}
+	if !found {
+		return inventorysearch.ErrUnknownOutcome
 	}
 	active, ok := snapshotFromMarker(current.Source)
 	if !ok || active != input.ExpectedActiveSnapshot || !reflect.DeepEqual(current.Source.DocumentIDs, input.ExpectedActiveDocumentIDs) {
-		return inventorysearch.DriverDiscarded{}, inventorysearch.ErrStale
+		return inventorysearch.ErrStale
 	}
-	return discardedResult(input, removed, replayed), nil
+	return nil
+}
+
+func (driver *Driver) bindDiscardCandidates(ctx context.Context, snapshot inventorysearch.DriverSnapshot, ids []string) ([]string, error) {
+	if len(ids) == 0 {
+		return []string{}, nil
+	}
+	body, err := json.Marshal(multiGetRequest{IDs: ids})
+	if err != nil || len(body) > driver.config.MaximumRequestBytes {
+		return nil, inventorysearch.ErrRejected
+	}
+	result, requestErr := driver.request(ctx, http.MethodPost, "/"+indexName+"/_mget", "application/json", body, false)
+	if requestErr != nil {
+		return nil, requestErr
+	}
+	if classified := classifyStatus(result.status, false); classified != nil {
+		return nil, classified
+	}
+	var response multiGetResponse
+	if decodeExact(result.body, &response) != nil || len(response.Documents) != len(ids) {
+		return nil, inventorysearch.ErrDrift
+	}
+	bound := make([]string, 0, len(ids))
+	for index, record := range response.Documents {
+		if record.Index != indexName || record.ID != ids[index] {
+			return nil, inventorysearch.ErrDrift
+		}
+		if !record.Found {
+			if record.Version != 0 || record.Sequence != 0 || record.PrimaryTerm != 0 || !reflect.DeepEqual(record.Source, storedDocument{}) {
+				return nil, inventorysearch.ErrDrift
+			}
+			continue
+		}
+		document, valid := driverFromStored(record.Source)
+		if !valid || record.Version < 1 || record.Sequence < 0 || record.PrimaryTerm < 1 || document.Snapshot != snapshot || document.DocumentID != ids[index] {
+			return nil, inventorysearch.ErrDrift
+		}
+		bound = append(bound, ids[index])
+	}
+	return bound, nil
+}
+
+func validMutationMetadata(value bulkItemResult) bool {
+	return value.Sequence >= 0 && value.PrimaryTerm >= 1 && value.Shards.Total >= 1 &&
+		value.Shards.Successful == value.Shards.Total && value.Shards.Failed == 0
 }
 
 func validActivation(input inventorysearch.DriverActivation) bool {

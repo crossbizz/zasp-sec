@@ -61,6 +61,20 @@ func (panicCredentialProvider) Retrieve(context.Context) (aws.Credentials, error
 	panic("credential secret panic")
 }
 
+type errorReadCloser struct {
+	read func()
+}
+
+func (reader *errorReadCloser) Read([]byte) (int, error) {
+	if reader.read != nil {
+		reader.read()
+		reader.read = nil
+	}
+	return 0, errors.New("response detail must not escape")
+}
+
+func (*errorReadCloser) Close() error { return nil }
+
 func TestNewRequiresExplicitAWSAuthorityAndBuildsStrictTLSClient(t *testing.T) {
 	t.Parallel()
 
@@ -166,6 +180,26 @@ func TestStageLostAcknowledgementReconcilesExactContentAndRejectsDrift(t *testin
 	}
 }
 
+func TestProductionBulkAndMultiGetMetadataDecodeStrictly(t *testing.T) {
+	t.Parallel()
+
+	input := fixtureStage()
+	driver := mustTestDriver(t, &credentialProvider{}, &recordingSigner{}, sequenceDoer(t,
+		httpResponse(http.StatusOK, bulkCreateResponse(input)), nil,
+	), fixedClock)
+	if result, err := driver.Stage(context.Background(), input); err != nil || result.Replayed {
+		t.Fatalf("Stage(production metadata) = %#v, %v", result, err)
+	}
+
+	driver = mustTestDriver(t, &credentialProvider{}, &recordingSigner{}, sequenceDoer(t,
+		nil, errors.New("lost bulk acknowledgement"),
+		httpResponse(http.StatusOK, exactMGetResponse(input)), nil,
+	), fixedClock)
+	if result, err := driver.Stage(context.Background(), input); err != nil || !result.Replayed {
+		t.Fatalf("Stage(production mget metadata) = %#v, %v", result, err)
+	}
+}
+
 func TestStageRejectsSecretAndNestedAttributesBeforeAWSOrHTTP(t *testing.T) {
 	t.Parallel()
 
@@ -261,12 +295,19 @@ func TestDiscardStageIsCurrentFencedAndPreservesActiveIDs(t *testing.T) {
 		case 1:
 			return httpResponse(http.StatusOK, markerResponse(active)), nil
 		case 2:
+			if request.Method != http.MethodPost || !strings.HasSuffix(request.URL.Path, "/_mget") {
+				t.Fatalf("candidate binding request = %s %s", request.Method, request.URL)
+			}
+			return httpResponse(http.StatusOK, exactMGetResponse(fixtureStage())), nil
+		case 3:
+			return httpResponse(http.StatusOK, markerResponse(active)), nil
+		case 4:
 			body, _ := io.ReadAll(request.Body)
 			if request.Method != http.MethodPost || !strings.HasSuffix(request.URL.Path, "/_bulk") || strings.Contains(string(body), active.DocumentIDs[0]) {
 				t.Fatalf("discard request = %s %s body=%s", request.Method, request.URL, body)
 			}
 			return httpResponse(http.StatusOK, bulkDeleteResponseBody(candidate.DocumentIDs)), nil
-		case 3:
+		case 5:
 			return httpResponse(http.StatusOK, markerResponse(active)), nil
 		default:
 			t.Fatalf("unexpected request %d", requests)
@@ -285,11 +326,43 @@ func TestDiscardStageIsCurrentFencedAndPreservesActiveIDs(t *testing.T) {
 	}
 	driver = mustTestDriver(t, &credentialProvider{}, &recordingSigner{}, sequenceDoer(t,
 		httpResponse(http.StatusOK, markerResponse(active)), nil,
+		httpResponse(http.StatusOK, exactMGetResponse(fixtureStage())), nil,
+		httpResponse(http.StatusOK, markerResponse(active)), nil,
 		httpResponse(http.StatusOK, bulkDeleteResponseBody(candidate.DocumentIDs)), nil,
 		httpResponse(http.StatusOK, markerResponse(changed)), nil,
 	), fixedClock)
 	if _, err := driver.DiscardStage(context.Background(), input); !errors.Is(err, inventorysearch.ErrStale) {
 		t.Fatalf("DiscardStage(active advanced after delete) error = %v", err)
+	}
+}
+
+func TestDiscardStageBindsCandidateDocumentsAndReconcilesMissingReplay(t *testing.T) {
+	t.Parallel()
+
+	candidate := fixtureActivation()
+	active := newerActivation(candidate)
+	input := inventorysearch.DriverDiscard{CandidateSnapshot: candidate.Snapshot, CandidateDocumentIDs: append([]string(nil), candidate.DocumentIDs...), ExpectedActiveSnapshot: active.Snapshot, ExpectedActiveDocumentIDs: append([]string(nil), active.DocumentIDs...)}
+	foreignStage := fixtureStage()
+	foreignStage.Snapshot = active.Snapshot
+	for index := range foreignStage.Documents {
+		foreignStage.Documents[index].Snapshot = active.Snapshot
+	}
+	driver := mustTestDriver(t, &credentialProvider{}, &recordingSigner{}, sequenceDoer(t,
+		httpResponse(http.StatusOK, markerResponse(active)), nil,
+		httpResponse(http.StatusOK, mgetResponse(foreignStage.Documents)), nil,
+	), fixedClock)
+	if result, err := driver.DiscardStage(context.Background(), input); !errors.Is(err, inventorysearch.ErrDrift) || !reflect.DeepEqual(result, inventorysearch.DriverDiscarded{}) {
+		t.Fatalf("DiscardStage(foreign candidate) = %#v, %v", result, err)
+	}
+
+	driver = mustTestDriver(t, &credentialProvider{}, &recordingSigner{}, sequenceDoer(t,
+		httpResponse(http.StatusOK, markerResponse(active)), nil,
+		httpResponse(http.StatusOK, missingMGetResponse(candidate.DocumentIDs)), nil,
+		httpResponse(http.StatusOK, markerResponse(active)), nil,
+	), fixedClock)
+	result, err := driver.DiscardStage(context.Background(), input)
+	if err != nil || result.Removed != 0 || !result.Replayed || result.CandidateSnapshot != candidate.Snapshot || result.ActiveSnapshot != active.Snapshot {
+		t.Fatalf("DiscardStage(missing replay) = %#v, %v", result, err)
 	}
 }
 
@@ -400,6 +473,25 @@ func TestDriverBoundsCancellationAndAuthorityFailuresAreStableAndDoNotRetry(t *t
 		t.Fatalf("Search(canceled) error=%v authority=%d/%d doer=%d", err, credentials.calls.Load(), signer.calls.Load(), doerCalls)
 	}
 
+	signingContext, cancelSigning := context.WithCancel(context.Background())
+	driver = mustTestDriver(t, &credentialProvider{}, &recordingSigner{check: func(context.Context, aws.Credentials, *http.Request, string, string, string, time.Time) {
+		cancelSigning()
+	}}, doerFunc(func(*http.Request) (*http.Response, error) {
+		t.Fatal("HTTP after signing cancellation")
+		return nil, nil
+	}), fixedClock)
+	if _, err := driver.Search(signingContext, query); !errors.Is(err, inventorysearch.ErrCanceled) {
+		t.Fatalf("Search(signing canceled) error = %v", err)
+	}
+
+	readContext, cancelRead := context.WithCancel(context.Background())
+	driver = mustTestDriver(t, &credentialProvider{}, &recordingSigner{}, doerFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: &errorReadCloser{read: cancelRead}}, nil
+	}), fixedClock)
+	if _, err := driver.Search(readContext, query); !errors.Is(err, inventorysearch.ErrCanceled) {
+		t.Fatalf("Search(response read canceled) error = %v", err)
+	}
+
 	denied := &credentialProvider{err: errors.New("SecretAccessKey=must-not-escape")}
 	driver = mustTestDriver(t, denied, &recordingSigner{}, doerFunc(func(*http.Request) (*http.Response, error) { t.Fatal("HTTP after credential denial"); return nil, nil }), fixedClock)
 	if _, err := driver.Search(context.Background(), query); !errors.Is(err, inventorysearch.ErrDenied) || strings.Contains(err.Error(), "SecretAccessKey") {
@@ -493,7 +585,7 @@ func expectedBulkBody(input inventorysearch.DriverStage) string {
 func bulkCreateResponse(input inventorysearch.DriverStage) string {
 	items := make([]string, len(input.Documents))
 	for index, document := range input.Documents {
-		items[index] = fmt.Sprintf(`{"create":{"_index":%q,"_id":%q,"_version":1,"result":"created","status":201}}`, indexName, document.DocumentID)
+		items[index] = fmt.Sprintf(`{"create":{"_index":%q,"_id":%q,"_version":1,"result":"created","_shards":{"total":2,"successful":2,"failed":0},"_seq_no":%d,"_primary_term":1,"status":201,"forced_refresh":true}}`, indexName, document.DocumentID, index)
 	}
 	return fmt.Sprintf(`{"errors":false,"took":3,"items":[%s]}`, strings.Join(items, ","))
 }
@@ -514,7 +606,15 @@ func mgetResponse(documents []inventorysearch.DriverDocument) string {
 	items := make([]string, len(documents))
 	for index, document := range documents {
 		source, _ := json.Marshal(storedFromDriver(document))
-		items[index] = fmt.Sprintf(`{"_index":%q,"_id":%q,"_version":1,"found":true,"_source":%s}`, indexName, document.DocumentID, source)
+		items[index] = fmt.Sprintf(`{"_index":%q,"_id":%q,"_version":1,"_seq_no":%d,"_primary_term":1,"found":true,"_source":%s}`, indexName, document.DocumentID, index, source)
+	}
+	return fmt.Sprintf(`{"docs":[%s]}`, strings.Join(items, ","))
+}
+
+func missingMGetResponse(ids []string) string {
+	items := make([]string, len(ids))
+	for index, id := range ids {
+		items[index] = fmt.Sprintf(`{"_index":%q,"_id":%q,"found":false}`, indexName, id)
 	}
 	return fmt.Sprintf(`{"docs":[%s]}`, strings.Join(items, ","))
 }
@@ -531,7 +631,7 @@ func indexWriteResponse(snapshot inventorysearch.DriverSnapshot, result string) 
 func bulkDeleteResponseBody(ids []string) string {
 	items := make([]string, len(ids))
 	for index, id := range ids {
-		items[index] = fmt.Sprintf(`{"delete":{"_index":%q,"_id":%q,"_version":2,"result":"deleted","status":200}}`, indexName, id)
+		items[index] = fmt.Sprintf(`{"delete":{"_index":%q,"_id":%q,"_version":2,"result":"deleted","_shards":{"total":2,"successful":2,"failed":0},"_seq_no":%d,"_primary_term":1,"status":200,"forced_refresh":false}}`, indexName, id, index+10)
 	}
 	return fmt.Sprintf(`{"errors":false,"took":2,"items":[%s]}`, strings.Join(items, ","))
 }

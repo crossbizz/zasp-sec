@@ -73,14 +73,16 @@ type bulkItem struct {
 }
 
 type bulkItemResult struct {
-	Index       string     `json:"_index"`
-	ID          string     `json:"_id"`
-	Version     int        `json:"_version,omitempty"`
-	Result      string     `json:"result,omitempty"`
-	Status      int        `json:"status"`
-	Sequence    int64      `json:"_seq_no,omitempty"`
-	PrimaryTerm int64      `json:"_primary_term,omitempty"`
-	Error       *bulkError `json:"error,omitempty"`
+	Index         string         `json:"_index"`
+	ID            string         `json:"_id"`
+	Version       int            `json:"_version,omitempty"`
+	Result        string         `json:"result,omitempty"`
+	Status        int            `json:"status"`
+	Sequence      int64          `json:"_seq_no,omitempty"`
+	PrimaryTerm   int64          `json:"_primary_term,omitempty"`
+	Shards        responseShards `json:"_shards,omitempty"`
+	ForcedRefresh *bool          `json:"forced_refresh,omitempty"`
+	Error         *bulkError     `json:"error,omitempty"`
 }
 
 type bulkError struct {
@@ -97,11 +99,13 @@ type multiGetResponse struct {
 }
 
 type multiGetDocument struct {
-	Index   string         `json:"_index"`
-	ID      string         `json:"_id"`
-	Version int            `json:"_version,omitempty"`
-	Found   bool           `json:"found"`
-	Source  storedDocument `json:"_source,omitempty"`
+	Index       string         `json:"_index"`
+	ID          string         `json:"_id"`
+	Version     int            `json:"_version,omitempty"`
+	Sequence    int64          `json:"_seq_no,omitempty"`
+	PrimaryTerm int64          `json:"_primary_term,omitempty"`
+	Found       bool           `json:"found"`
+	Source      storedDocument `json:"_source,omitempty"`
 }
 
 func (driver *Driver) Stage(ctx context.Context, input inventorysearch.DriverStage) (inventorysearch.DriverStaged, error) {
@@ -145,7 +149,7 @@ func (driver *Driver) Stage(ctx context.Context, input inventorysearch.DriverSta
 		}
 		switch value.Status {
 		case http.StatusCreated:
-			if value.Error != nil || value.Version != 1 || value.Result != "created" {
+			if value.Error != nil || value.Version != 1 || value.Result != "created" || !validMutationMetadata(value) {
 				needsReconcile = true
 			}
 		case http.StatusConflict:
@@ -187,7 +191,7 @@ func (driver *Driver) reconcileStage(ctx context.Context, input inventorysearch.
 		if document.Index != indexName || document.ID != ids[index] || !document.Found {
 			return inventorysearch.DriverStaged{}, inventorysearch.ErrUnknownOutcome
 		}
-		if document.Version < 1 || !reflect.DeepEqual(document.Source, expected[index]) {
+		if document.Version < 1 || document.Sequence < 0 || document.PrimaryTerm < 1 || !reflect.DeepEqual(document.Source, expected[index]) {
 			return inventorysearch.DriverStaged{}, inventorysearch.ErrDrift
 		}
 	}
