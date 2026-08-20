@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -23,13 +24,14 @@ const (
 )
 
 var (
-	ErrConfiguration = errors.New("job queue configuration rejected")
-	ErrJob           = errors.New("job rejected")
-	ErrPublish       = errors.New("job publish failed")
-	ErrConsume       = errors.New("job consume failed")
-	ErrAcknowledge   = errors.New("job acknowledge failed")
-	ErrVisibility    = errors.New("job visibility renewal failed")
-	kindPattern      = regexp.MustCompile(`^[a-z][a-z0-9._-]{0,62}$`)
+	ErrConfiguration         = errors.New("job queue configuration rejected")
+	ErrJob                   = errors.New("job rejected")
+	ErrPublish               = errors.New("job publish failed")
+	ErrConsume               = errors.New("job consume failed")
+	ErrAcknowledge           = errors.New("job acknowledge failed")
+	ErrVisibility            = errors.New("job visibility renewal failed")
+	kindPattern              = regexp.MustCompile(`^[a-z][a-z0-9._-]{0,62}$`)
+	providerMessageIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/+=@-]{0,255}$`)
 )
 
 type Config struct {
@@ -165,7 +167,11 @@ func (queue *Queue) PublishBatch(ctx context.Context, jobs []Job) (result Publis
 	}
 	byJob := make(map[domain.ProductID]string, len(published))
 	for _, acknowledgement := range published {
-		byJob[acknowledgement.JobID] = acknowledgement.MessageID
+		providerAck, ok := CanonicalProviderAcknowledgement(acknowledgement.MessageID)
+		if !ok {
+			return PublishResult{}, ErrPublish
+		}
+		byJob[acknowledgement.JobID] = providerAck
 	}
 	jobIDs := make([]domain.ProductID, len(messages))
 	acknowledgements := make([]PublishAcknowledgement, len(messages))
@@ -174,6 +180,17 @@ func (queue *Queue) PublishBatch(ctx context.Context, jobs []Job) (result Publis
 		acknowledgements[index] = PublishAcknowledgement{JobID: message.JobID, ProviderAck: byJob[message.JobID]}
 	}
 	return PublishResult{JobIDs: jobIDs, Acknowledgements: acknowledgements}, nil
+}
+
+// CanonicalProviderAcknowledgement produces the stable, bounded value that may
+// cross from a queue provider response into durable outbox state. The provider's
+// opaque message identifier is never returned or persisted verbatim.
+func CanonicalProviderAcknowledgement(messageID string) (string, bool) {
+	if !providerMessageIDPattern.MatchString(messageID) {
+		return "", false
+	}
+	digest := sha256.Sum256([]byte(messageID))
+	return "sha256:" + hex.EncodeToString(digest[:]), true
 }
 
 func (queue *Queue) ConsumeBatch(ctx context.Context, maximum int) (deliveries []Delivery, resultErr error) {
@@ -430,7 +447,7 @@ func exactPublished(published []DriverPublished, messages []DriverMessage) bool 
 	seenMessageIDs := make(map[string]struct{}, len(published))
 	for _, result := range published {
 		jobID, exists := expected[result.EntryID]
-		if !exists || result.JobID != jobID || result.MessageID == "" {
+		if !exists || result.JobID != jobID || !providerMessageIDPattern.MatchString(result.MessageID) {
 			return false
 		}
 		if _, duplicate := seen[result.EntryID]; duplicate {

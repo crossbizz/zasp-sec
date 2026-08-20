@@ -279,6 +279,14 @@ func TestPublishRequiresExactFullDriverSuccess(t *testing.T) {
 		{name: "foreign entry", mutate: func(results []DriverPublished) []DriverPublished { results[0].EntryID = "foreign"; return results }},
 		{name: "foreign job", mutate: func(results []DriverPublished) []DriverPublished { results[0].JobID = jobs[1].JobID; return results }},
 		{name: "missing message id", mutate: func(results []DriverPublished) []DriverPublished { results[0].MessageID = ""; return results }},
+		{name: "oversized message id", mutate: func(results []DriverPublished) []DriverPublished {
+			results[0].MessageID = strings.Repeat("a", 257)
+			return results
+		}},
+		{name: "control message id", mutate: func(results []DriverPublished) []DriverPublished {
+			results[0].MessageID = "provider\nsecret"
+			return results
+		}},
 		{name: "duplicate message id", mutate: func(results []DriverPublished) []DriverPublished {
 			results[1].MessageID = results[0].MessageID
 			return results
@@ -307,8 +315,27 @@ func TestPublishRequiresExactFullDriverSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unordered exact success error = %v", err)
 	}
-	if len(result.Acknowledgements) != len(jobs) || result.Acknowledgements[0].JobID != jobs[0].JobID || result.Acknowledgements[0].ProviderAck != "message-0" || result.Acknowledgements[1].JobID != jobs[1].JobID || result.Acknowledgements[1].ProviderAck != "message-1" {
+	firstAck, _ := CanonicalProviderAcknowledgement("message-0")
+	secondAck, _ := CanonicalProviderAcknowledgement("message-1")
+	if len(result.Acknowledgements) != len(jobs) || result.Acknowledgements[0].JobID != jobs[0].JobID || result.Acknowledgements[0].ProviderAck != firstAck || result.Acknowledgements[1].JobID != jobs[1].JobID || result.Acknowledgements[1].ProviderAck != secondAck {
 		t.Fatalf("publish acknowledgements drifted: %#v", result.Acknowledgements)
+	}
+}
+
+func TestCanonicalProviderAcknowledgementNeverExposesProviderText(t *testing.T) {
+	t.Parallel()
+	providerValue := "AKIAIOSFODNN7EXAMPLE"
+	acknowledgement, ok := CanonicalProviderAcknowledgement(providerValue)
+	if !ok || acknowledgement != "sha256:1a5d44a2dca19669d72edf4c4f1c27c4c1ca4b4408fbb17f6ce4ad452d78ddb3" {
+		t.Fatalf("acknowledgement = %q, %v", acknowledgement, ok)
+	}
+	if strings.Contains(acknowledgement, providerValue) {
+		t.Fatalf("provider value exposed in acknowledgement: %q", acknowledgement)
+	}
+	for _, invalid := range []string{"", " leading", "trailing ", "line\nbreak", strings.Repeat("a", 257), string([]byte{0xff})} {
+		if value, ok := CanonicalProviderAcknowledgement(invalid); ok || value != "" {
+			t.Fatalf("invalid provider message ID accepted: %q => %q", invalid, value)
+		}
 	}
 }
 

@@ -253,6 +253,25 @@ func TestPublishBatchTreatsMalformedOrForeignResponseAsUnknownOutcome(t *testing
 	}
 }
 
+func TestPublishBatchRejectsUnsafeProviderMessageIDsWithoutEcho(t *testing.T) {
+	t.Parallel()
+
+	message := fixtureMessage(t, "pid_40000000-0000-4000-8000-000000000004", `{"action":"scan"}`)
+	for _, hostile := range []string{strings.Repeat("a", 257), "provider\nsecret", " AKIAIOSFODNN7EXAMPLE "} {
+		hostile := hostile
+		t.Run(fmt.Sprintf("length-%d", len(hostile)), func(t *testing.T) {
+			client := &stubClient{send: func(context.Context, *sqs.SendMessageBatchInput, ...func(*sqs.Options)) (*sqs.SendMessageBatchOutput, error) {
+				return &sqs.SendMessageBatchOutput{Successful: []types.SendMessageBatchResultEntry{{Id: aws.String(message.EntryID), MessageId: aws.String(hostile), MD5OfMessageBody: aws.String(md5Body(message.Body))}}}, nil
+			}}
+			driver := mustDriver(t, client)
+			published, err := driver.PublishBatch(context.Background(), []jobqueue.DriverMessage{message})
+			if len(published) != 0 || !errors.Is(err, ErrUnknownOutcome) || strings.Contains(fmt.Sprint(err), hostile) {
+				t.Fatalf("hostile message ID result=%#v err=%q", published, err)
+			}
+		})
+	}
+}
+
 func TestConsumeBatchValidatesCanonicalEnvelopeAndClassifiesFinalDLQAttempt(t *testing.T) {
 	t.Parallel()
 

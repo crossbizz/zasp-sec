@@ -114,7 +114,8 @@ func validateSendOutput(messages []jobqueue.DriverMessage, byID map[string]jobqu
 		id := aws.ToString(success.Id)
 		message, exists := byID[id]
 		messageID := aws.ToString(success.MessageId)
-		if !exists || id == "" || messageID == "" || aws.ToString(success.MD5OfMessageBody) != md5Body(message.Body) {
+		_, validProviderAcknowledgement := jobqueue.CanonicalProviderAcknowledgement(messageID)
+		if !exists || id == "" || !validProviderAcknowledgement || aws.ToString(success.MD5OfMessageBody) != md5Body(message.Body) {
 			malformed = true
 			continue
 		}
