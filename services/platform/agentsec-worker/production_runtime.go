@@ -210,7 +210,7 @@ type boundedCachedWorkerReadiness struct {
 }
 
 func newBoundedCachedWorkerReadiness(check func(context.Context) error, timeout, ttl time.Duration) (func(context.Context) error, error) {
-	if check == nil || timeout < 100*time.Millisecond || timeout > 30*time.Second || ttl < 10*time.Millisecond || ttl > time.Second {
+	if check == nil || timeout < 100*time.Millisecond || timeout > 30*time.Second || ttl < 10*time.Millisecond || ttl > time.Minute {
 		return nil, errRuntimeUnavailable
 	}
 	readiness := &boundedCachedWorkerReadiness{check: check, timeout: timeout, ttl: ttl, now: time.Now}
@@ -223,6 +223,9 @@ func (readiness *boundedCachedWorkerReadiness) Ready(ctx context.Context) error 
 	}
 	readiness.mu.Lock()
 	defer readiness.mu.Unlock()
+	if ctx.Err() != nil {
+		return errRuntimeUnavailable
+	}
 	now := readiness.now()
 	elapsed := now.Sub(readiness.checkedAt)
 	if readiness.ready && elapsed >= 0 && elapsed < readiness.ttl {
@@ -239,8 +242,8 @@ func (readiness *boundedCachedWorkerReadiness) Ready(ctx context.Context) error 
 	return nil
 }
 
-func workerReadinessCacheTTL(pollInterval time.Duration) time.Duration {
-	return minDuration(maxDuration(pollInterval/2, 10*time.Millisecond), time.Second)
+func workerReadinessCacheTTL(time.Duration) time.Duration {
+	return 30 * time.Second
 }
 
 func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, projector productionProjectionProjector) (workerRuntimeDependencies, error) {

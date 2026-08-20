@@ -109,6 +109,38 @@ func TestComposeOutboxWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts(t *testi
 	}
 }
 
+func TestWorkerReadinessCachesEmptyPollsThenFailsClosedAfterExpiry(t *testing.T) {
+	now := time.Now()
+	drifted := false
+	calls := 0
+	readiness := &boundedCachedWorkerReadiness{
+		check: func(context.Context) error {
+			calls++
+			if drifted {
+				return errRuntimeUnavailable
+			}
+			return nil
+		},
+		timeout: time.Second, ttl: workerReadinessCacheTTL(time.Second), now: func() time.Time { return now },
+	}
+	if readiness.ttl != 30*time.Second {
+		t.Fatalf("readiness TTL = %s", readiness.ttl)
+	}
+	for index := 0; index < 100; index++ {
+		if err := readiness.Ready(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("100 empty polls performed %d live checks", calls)
+	}
+	drifted = true
+	now = now.Add(readiness.ttl + time.Nanosecond)
+	if err := readiness.Ready(context.Background()); !errors.Is(err, errRuntimeUnavailable) || calls != 2 {
+		t.Fatalf("expired drift error=%v calls=%d", err, calls)
+	}
+}
+
 func TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority(t *testing.T) {
 	t.Parallel()
 	config := validSchedulerRuntimeConfig()
