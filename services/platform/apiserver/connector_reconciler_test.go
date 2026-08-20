@@ -6,11 +6,77 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
+type connectorConcurrentRepositoryStub struct {
+	leases    []ConnectorEffectLease
+	completed chan string
+	mu        sync.Mutex
+}
+
+func (stub *connectorConcurrentRepositoryStub) ClaimReconciliation(context.Context, string, int, int) ([]ConnectorEffectLease, error) {
+	return append([]ConnectorEffectLease(nil), stub.leases...), nil
+}
+func (*connectorConcurrentRepositoryStub) CompleteOAuthReconciliation(context.Context, ConnectorEffectLease, OAuthCompletion) (OAuthCompletionRecord, error) {
+	return OAuthCompletionRecord{}, nil
+}
+func (*connectorConcurrentRepositoryStub) CompleteConnectorCleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	return ConnectorEffectTransition{}, nil
+}
+func (*connectorConcurrentRepositoryStub) CompletePKCECleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	return ConnectorEffectTransition{}, nil
+}
+func (*connectorConcurrentRepositoryStub) QuarantineConnectorReconciliation(context.Context, ConnectorEffectLease, string) (ConnectorEffectTransition, error) {
+	return ConnectorEffectTransition{}, nil
+}
+func (*connectorConcurrentRepositoryStub) FailConnectorReconciliation(context.Context, ConnectorEffectLease, string) (ConnectorEffectTransition, error) {
+	return ConnectorEffectTransition{}, nil
+}
+func (stub *connectorConcurrentRepositoryStub) CompleteConnectorRevocation(_ context.Context, lease ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	stub.completed <- lease.ID
+	return ConnectorEffectTransition{ID: lease.ID, Status: "reconciled", Attempt: lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
+}
+
+type connectorWorkflowMapStub map[string]WorkflowValue
+
+func (stub connectorWorkflowMapStub) GetWorkflow(_ context.Context, _ domain.Scope, _ string, id string) (WorkflowValue, error) {
+	value, ok := stub[id]
+	if !ok {
+		return WorkflowValue{}, ErrRepositoryNotFound
+	}
+	return value, nil
+}
+
+type connectorDelayedRevocationProvider struct{ delay time.Duration }
+
+func (*connectorDelayedRevocationProvider) AuthorizationURL(string, string) (string, error) {
+	return "", nil
+}
+func (*connectorDelayedRevocationProvider) Complete(context.Context, string, string, []byte) (ConnectorOAuthGrant, error) {
+	return ConnectorOAuthGrant{}, errors.New("unexpected complete")
+}
+func (*connectorDelayedRevocationProvider) Recover(context.Context, string) (ConnectorOAuthGrant, error) {
+	return ConnectorOAuthGrant{}, errors.New("unexpected recover")
+}
+func (*connectorDelayedRevocationProvider) Discard(context.Context, string, bool) error {
+	return errors.New("unexpected discard")
+}
+func (provider *connectorDelayedRevocationProvider) Revoke(ctx context.Context, _ string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(provider.delay):
+		return nil
+	}
+}
+
 type connectorReconciliationRepositoryStub struct {
+	mu            sync.Mutex
 	lease         ConnectorEffectLease
 	leases        []ConnectorEffectLease
 	completed     OAuthCompletion
@@ -23,24 +89,34 @@ type connectorReconciliationRepositoryStub struct {
 }
 
 func (stub *connectorReconciliationRepositoryStub) CompleteConnectorCleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
 	stub.cleanupCount++
 	return ConnectorEffectTransition{ID: stub.lease.ID, Status: "reconciled", Attempt: stub.lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
 }
 func (stub *connectorReconciliationRepositoryStub) CompletePKCECleanupReconciliation(_ context.Context, lease ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
 	stub.cleanupCount++
 	return ConnectorEffectTransition{ID: lease.ID, Status: "reconciled", Attempt: lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
 }
 func (stub *connectorReconciliationRepositoryStub) QuarantineConnectorReconciliation(_ context.Context, _ ConnectorEffectLease, code string) (ConnectorEffectTransition, error) {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
 	stub.quarantined = code
 	return ConnectorEffectTransition{ID: stub.lease.ID, Status: "unknown", Attempt: stub.lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
 }
 
 func (stub *connectorReconciliationRepositoryStub) CompleteConnectorRevocation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
 	stub.revoked = true
 	return ConnectorEffectTransition{ID: stub.lease.ID, Status: "reconciled", Attempt: stub.lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
 }
 
 func (stub *connectorReconciliationRepositoryStub) ClaimReconciliation(context.Context, string, int, int) ([]ConnectorEffectLease, error) {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
 	stub.claimCount++
 	if stub.leases != nil {
 		return append([]ConnectorEffectLease(nil), stub.leases...), nil
@@ -69,16 +145,21 @@ func TestConnectorReconcilerProviderFailuresDoNotBackOffGlobalClaims(t *testing.
 	}
 }
 func (stub *connectorReconciliationRepositoryStub) CompleteOAuthReconciliation(_ context.Context, _ ConnectorEffectLease, completion OAuthCompletion) (OAuthCompletionRecord, error) {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
 	stub.completed = completion
 	stub.completeCount++
 	return OAuthCompletionRecord{AttemptID: completion.AttemptID, ConnectionID: completion.ConnectionID, Status: "succeeded", CompletedAt: time.Now().UTC()}, nil
 }
 func (stub *connectorReconciliationRepositoryStub) FailConnectorReconciliation(_ context.Context, _ ConnectorEffectLease, code string) (ConnectorEffectTransition, error) {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
 	stub.failedCode = code
 	return ConnectorEffectTransition{ID: stub.lease.ID, Status: "failed", Attempt: stub.lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
 }
 
 type connectorRecoveryProvider struct {
+	mu                     sync.Mutex
 	grant                  ConnectorOAuthGrant
 	recoverErr             error
 	recoverErrors          []error
@@ -92,10 +173,14 @@ type connectorRecoveryProvider struct {
 
 func (*connectorRecoveryProvider) AuthorizationURL(string, string) (string, error) { return "", nil }
 func (provider *connectorRecoveryProvider) Complete(context.Context, string, string, []byte) (ConnectorOAuthGrant, error) {
+	provider.mu.Lock()
+	defer provider.mu.Unlock()
 	provider.completeCalls++
 	return ConnectorOAuthGrant{}, errors.New("exchange must not repeat")
 }
 func (provider *connectorRecoveryProvider) Recover(context.Context, string) (ConnectorOAuthGrant, error) {
+	provider.mu.Lock()
+	defer provider.mu.Unlock()
 	provider.recoverCalls++
 	if provider.recoverCalls <= len(provider.recoverErrors) {
 		return provider.grant, provider.recoverErrors[provider.recoverCalls-1]
@@ -103,11 +188,15 @@ func (provider *connectorRecoveryProvider) Recover(context.Context, string) (Con
 	return provider.grant, provider.recoverErr
 }
 func (provider *connectorRecoveryProvider) Discard(_ context.Context, _ string, revoke bool) error {
+	provider.mu.Lock()
+	defer provider.mu.Unlock()
 	provider.discardCalls++
 	provider.discardRequestedRevoke = revoke
 	return nil
 }
 func (provider *connectorRecoveryProvider) Revoke(context.Context, string) error {
+	provider.mu.Lock()
+	defer provider.mu.Unlock()
 	provider.revokeCalls++
 	return provider.revokeErr
 }
@@ -213,6 +302,8 @@ type connectorRecoveryProviderWithDiscardError struct {
 }
 
 func (provider *connectorRecoveryProviderWithDiscardError) Discard(context.Context, string, bool) error {
+	provider.mu.Lock()
+	defer provider.mu.Unlock()
 	provider.discardCalls++
 	return provider.discardErr
 }
@@ -249,6 +340,93 @@ func TestConnectorReconcilerDrainsClaimAfterOneProviderFailure(t *testing.T) {
 	reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 10, Interval: time.Second})
 	if err := reconciler.reconcileOnce(context.Background()); err == nil || provider.recoverCalls != 2 || repository.completeCount != 1 || repository.completed.AttemptID != "pid_70000004-0000-4000-8000-000000000004" {
 		t.Fatalf("drained claim err=%v recover_calls=%d completions=%d last=%#v", err, provider.recoverCalls, repository.completeCount, repository.completed)
+	}
+}
+
+func TestConnectorReconcilerProcessesSlowProvidersWithoutStarvingOtherLeases(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	githubID := "pid_70000001-0000-4000-8000-000000000001"
+	oktaID := "pid_70000002-0000-4000-8000-000000000002"
+	githubWorkflow := connectorWorkflowValue(githubID, "github")
+	oktaWorkflow := connectorWorkflowValue(oktaID, "okta")
+	for _, workflow := range []*WorkflowValue{&githubWorkflow, &oktaWorkflow} {
+		var body map[string]any
+		if err := json.Unmarshal(workflow.Body, &body); err != nil {
+			t.Fatal(err)
+		}
+		body["status"] = "revoking"
+		workflow.Body, _ = json.Marshal(body)
+	}
+	lease := func(id, integrationID, provider, reference string) ConnectorEffectLease {
+		return ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: id, IntegrationID: integrationID, Provider: provider, Operation: "revoke", IdempotencyKey: "delete-" + id, RequestDigest: hex.EncodeToString(make([]byte, sha256.Size)), ConnectionReference: reference, Attempt: 1, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute)}
+	}
+	repository := &connectorConcurrentRepositoryStub{leases: []ConnectorEffectLease{
+		lease("pid_70000003-0000-4000-8000-000000000003", githubID, "github", "ref:github/installation/123456"),
+		lease("pid_70000004-0000-4000-8000-000000000004", oktaID, "okta", "ref:okta/refresh/70000004-0000-4000-8000-000000000004"),
+	}, completed: make(chan string, 2)}
+	registry, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{
+		"github": {Provider: &connectorDelayedRevocationProvider{delay: 250 * time.Millisecond}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"},
+		"okta":   {Provider: &connectorDelayedRevocationProvider{}, RequestedScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, CredentialClass: "okta_refresh_reference"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reconciler, err := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowMapStub{githubID: githubWorkflow, oktaID: oktaWorkflow}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 10, Interval: time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- reconciler.reconcileOnce(context.Background()) }()
+	select {
+	case completed := <-repository.completed:
+		if completed != "pid_70000004-0000-4000-8000-000000000004" {
+			t.Fatalf("slow provider completed before fast provider: %s", completed)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("fast Okta reconciliation was starved behind slow GitHub reconciliation")
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}
+
+type connectorDeadlineRepositoryStub struct {
+	connectorReconciliationRepositoryStub
+	quarantineContextErr error
+}
+
+func (stub *connectorDeadlineRepositoryStub) QuarantineConnectorReconciliation(ctx context.Context, lease ConnectorEffectLease, code string) (ConnectorEffectTransition, error) {
+	stub.quarantineContextErr = ctx.Err()
+	return stub.connectorReconciliationRepositoryStub.QuarantineConnectorReconciliation(ctx, lease, code)
+}
+
+type connectorDeadlineProvider struct{}
+
+func (*connectorDeadlineProvider) AuthorizationURL(string, string) (string, error) { return "", nil }
+func (*connectorDeadlineProvider) Complete(context.Context, string, string, []byte) (ConnectorOAuthGrant, error) {
+	return ConnectorOAuthGrant{}, errors.New("unexpected complete")
+}
+func (*connectorDeadlineProvider) Recover(ctx context.Context, _ string) (ConnectorOAuthGrant, error) {
+	<-ctx.Done()
+	return ConnectorOAuthGrant{}, ErrConnectorOutcomeNotFound
+}
+func (*connectorDeadlineProvider) Discard(context.Context, string, bool) error { return nil }
+func (*connectorDeadlineProvider) Revoke(context.Context, string) error        { return nil }
+
+func TestConnectorReconcilerReservesLiveLeaseTimeForFinalAttemptQuarantine(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_70000001-0000-4000-8000-000000000001"
+	attemptID := "pid_70000002-0000-4000-8000-000000000002"
+	workflow := connectorWorkflowValue(integrationID, "github")
+	digest := connectorAuthorizationIntentDigestValues(identity.Scope, identity.PrincipalID.String(), workflow, integrationID, attemptID, "github", map[string]string{}, []string{"read:org", "repo"})
+	repository := &connectorDeadlineRepositoryStub{connectorReconciliationRepositoryStub: connectorReconciliationRepositoryStub{lease: ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: "pid_70000003-0000-4000-8000-000000000003", IntegrationID: integrationID, OAuthAttemptID: attemptID, PrincipalID: identity.PrincipalID.String(), RequestedScopes: []string{"read:org", "repo"}, Provider: "github", Operation: "authorize", IdempotencyKey: "oauth-authorize:" + attemptID, RequestDigest: hex.EncodeToString(digest[:]), Attempt: 100, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Second)}}}
+	registry, _ := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"github": {Provider: &connectorDeadlineProvider{}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, nil)
+	reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 10, Interval: time.Second})
+	if err := reconciler.reconcileOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if repository.quarantined != "provider_outcome_ambiguous" || repository.quarantineContextErr != nil {
+		t.Fatalf("finalization used expired provider context: quarantine=%q context_err=%v", repository.quarantined, repository.quarantineContextErr)
 	}
 }
 

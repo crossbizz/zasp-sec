@@ -409,6 +409,11 @@ resource "aws_iam_role_policy" "api_connectors" {
     Version = "2012-10-17"
     Statement = [
       {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = [for secret in aws_secretsmanager_secret.connector_provider : secret.arn]
+      },
+      {
         Effect = "Allow"
         Action = [
           "secretsmanager:CreateSecret",
@@ -417,8 +422,14 @@ resource "aws_iam_role_policy" "api_connectors" {
         ]
         Resource = [
           "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_prefix}/*",
-          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/github/*",
-          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/*",
+          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/github/effect-manifest/*",
+          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/github/effect-outcome/*",
+          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/github/revoked-installation/*",
+          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/effect-manifest/*",
+          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/effect-access/*",
+          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/effect-outcome/*",
+          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/refresh/*",
+          "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/revoked-refresh/*",
         ]
       },
       {

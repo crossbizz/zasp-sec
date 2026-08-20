@@ -53,7 +53,7 @@ func TestConnectorRepositoryStartsAndConsumesBoundOAuthWithoutSecretBytes(t *tes
 	if err != nil || started.ID != input.AttemptID || started.Provider != "github" || started.CreatedAt.Location() != time.UTC {
 		t.Fatalf("start OAuth = %#v, %v", started, err)
 	}
-	wantArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.AttemptID, input.IntegrationID, input.Provider, identity.PrincipalID.String(), input.SessionDigest, input.StateDigest, input.PKCEVerifierReference, input.RequestDigest, `["read:org"]`, input.ExpiresAt, input.IntegrationVersion, input.Configuration}
+	wantArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.AttemptID, input.IntegrationID, input.Provider, identity.PrincipalID.String(), input.SessionDigest, input.StateDigest, input.PKCEVerifierReference, input.RequestDigest, `["read:org"]`, input.ExpiresAt, input.IntegrationVersion, input.Configuration, connectorDeterministicID(identity.Scope, input.AttemptID, "pkce-cleanup"), connectorDeterministicID(identity.Scope, input.AttemptID, "oauth-effect")}
 	if database.query != postgresConnectorStartOAuthSQL || !reflect.DeepEqual(database.args, wantArgs) {
 		t.Fatalf("start query/args = %q/%#v", database.query, database.args)
 	}

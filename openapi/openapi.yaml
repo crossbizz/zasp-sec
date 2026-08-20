@@ -859,7 +859,7 @@ paths:
     post:
       operationId: remediateIntegrationAuthorization
       summary: Acknowledge external cleanup of a quarantined authorization
-      description: State-only operator acknowledgement after independently verifying that an ambiguous provider grant is absent or manually revoked. This operation performs no provider or secret action.
+      description: Operator acknowledgement after independently verifying that an ambiguous provider grant is absent or manually revoked. Before the audited database transition, the service idempotently deletes only deterministic local PKCE or OAuth-effect artifacts that can exist for the quarantined operation; it never performs a provider mutation.
       security:
         - BrowserSession: []
           BrowserExpectedScope: []

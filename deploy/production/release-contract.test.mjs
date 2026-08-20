@@ -287,11 +287,20 @@ test("terraform isolates connector secret mutation behind one API-only web-ident
   const policyStart = terraform.indexOf('resource "aws_iam_role_policy" "api_connectors"');
   const policy = terraform.slice(policyStart, terraform.indexOf("\nresource ", policyStart + 1));
   const actions = [...policy.matchAll(/Action\s*=\s*\[([\s\S]*?)\]/g)].flatMap(([, list]) => [...list.matchAll(/"([^"]+)"/g)].map(([, action]) => action)).sort();
-  assert.deepEqual(actions, ["kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:GetSecretValue"].sort());
+  assert.deepEqual(actions, ["kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue"].sort());
+  assert.match(policy, /Action\s*=\s*\["secretsmanager:GetSecretValue"\][\s\S]*?Resource\s*=\s*\[for secret in aws_secretsmanager_secret\.connector_provider : secret\.arn\]/);
+  assert.doesNotMatch(policy, /secret:\$\{local\.connector_secret_root\}\/github\/\*/);
+  assert.doesNotMatch(policy, /secret:\$\{local\.connector_secret_root\}\/okta\/\*/);
   for (const namespace of [
     "secret:${local.connector_secret_prefix}/*",
-    "secret:${local.connector_secret_root}/github/*",
-    "secret:${local.connector_secret_root}/okta/*",
+    "secret:${local.connector_secret_root}/github/effect-manifest/*",
+    "secret:${local.connector_secret_root}/github/effect-outcome/*",
+    "secret:${local.connector_secret_root}/github/revoked-installation/*",
+    "secret:${local.connector_secret_root}/okta/effect-manifest/*",
+    "secret:${local.connector_secret_root}/okta/effect-access/*",
+    "secret:${local.connector_secret_root}/okta/effect-outcome/*",
+    "secret:${local.connector_secret_root}/okta/refresh/*",
+    "secret:${local.connector_secret_root}/okta/revoked-refresh/*",
   ]) assert.match(policy, new RegExp(namespace.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(policy, /aws_kms_key\.connector_oauth\.arn/);
   assert.match(terraform, /connector_secret_root\s*=\s*"\$\{var\.cluster_name\}\/connectors"/);

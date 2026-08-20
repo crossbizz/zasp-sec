@@ -147,16 +147,27 @@ func (handler *connectorHTTPHandler) remediateQuarantine(writer http.ResponseWri
 	workflow, workflowErr := handler.workflows.GetWorkflow(request.Context(), identity.Scope, "integration", integrationID)
 	providerKey, providerConfiguration, workflowOK := authorizedOAuthIntegrationStatus(workflow, integrationID, "degraded", "pending_authorization", "active", "revoking")
 	definition, ready := handler.registry.Provider(request.Context(), providerKey)
-	provider, providerErr := connectorOAuthProvider(definition, providerConfiguration)
-	cleanupErr := providerErr
-	if workflowErr == nil && workflowOK && ready && providerKey == quarantine.Provider && providerErr == nil {
-		if quarantine.Operation == "pkce_cleanup" {
+	cleanupErr := error(nil)
+	if workflowErr == nil && workflowOK && providerKey == quarantine.Provider {
+		switch quarantine.Operation {
+		case "pkce_cleanup":
 			cleanupErr = handler.secrets.Delete(request.Context(), quarantine.ConnectionReference)
-		} else {
-			cleanupErr = provider.Discard(request.Context(), quarantine.ID, false)
+		case "authorize":
+			provider, providerErr := connectorOAuthProvider(definition, providerConfiguration)
+			if !ready || providerErr != nil {
+				cleanupErr = ErrRepositoryUnavailable
+			} else {
+				cleanupErr = provider.Discard(request.Context(), quarantine.ID, false)
+			}
+		case "revoke":
+			// Revocation effects have no OAuth attempt manifest. The operator's
+			// acknowledgement is the external cleanup authority; the durable
+			// effect is reset for an idempotent provider replay.
+		default:
+			cleanupErr = ErrRepositoryUnavailable
 		}
 	}
-	if workflowErr != nil || !workflowOK || !ready || providerKey != quarantine.Provider || cleanupErr != nil {
+	if workflowErr != nil || !workflowOK || providerKey != quarantine.Provider || cleanupErr != nil {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
@@ -234,15 +245,14 @@ func (handler *connectorHTTPHandler) authorize(writer http.ResponseWriter, reque
 		writeProductionError(writer, request, err)
 		return
 	}
-	if _, err := handler.repository.StagePKCECleanup(request.Context(), identity.Scope, PKCECleanupStage{ID: cleanupID, IntegrationID: integrationID, OAuthAttemptID: attempt.ID, Provider: providerKey, Reference: reference, RequestDigest: requestDigest[:], AvailableAt: attempt.ExpiresAt.UTC(), Reason: "oauth_attempt_expiry"}); err != nil {
-		_ = handler.secrets.Delete(request.Context(), reference)
-		writeProductionError(writer, request, err)
-		return
-	}
 	challengeDigest := sha256.Sum256(material.Verifier)
 	challenge := rawURLBase64(challengeDigest[:])
 	target, err := provider.AuthorizationURL(material.State, challenge)
 	if err != nil || !validConnectorAuthorizationTarget(target, material.State) {
+		if _, activateErr := handler.repository.ActivatePKCECleanup(request.Context(), identity.Scope, cleanupID); activateErr != nil {
+			writeProductionError(writer, request, activateErr)
+			return
+		}
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
@@ -266,11 +276,10 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		return
 	}
 	requestDigest, decodeErr := hex.DecodeString(consumption.RequestDigest)
-	effectID := connectorDeterministicID(identity.Scope, consumption.ID, "oauth-effect")
+	effectID := consumption.EffectID
 	pkceCleanupID := connectorDeterministicID(identity.Scope, consumption.ID, "pkce-cleanup")
-	effect, err := handler.repository.BeginConnectorEffect(request.Context(), identity.Scope, ConnectorEffectStart{ID: effectID, IntegrationID: consumption.IntegrationID, OAuthAttemptID: consumption.ID, Provider: consumption.Provider, Operation: "authorize", IdempotencyKey: "oauth-authorize:" + consumption.ID, RequestDigest: requestDigest})
-	if decodeErr != nil || len(requestDigest) != sha256.Size || err != nil || effect.Status != "pending" && effect.Status != "unknown" {
-		writeProductionError(writer, request, firstError(err, ErrRepositoryConflict))
+	if decodeErr != nil || len(requestDigest) != sha256.Size || !validProductID(effectID) {
+		writeProductionError(writer, request, ErrRepositoryConflict)
 		return
 	}
 	rejectConsumed := func(reason string) error {
@@ -332,11 +341,6 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		return
 	}
 	if _, err := handler.repository.CompletePKCECleanup(request.Context(), identity.Scope, pkceCleanupID); err != nil {
-		clear(verifier)
-		writeProductionError(writer, request, err)
-		return
-	}
-	if _, err = handler.repository.ResolveConnectorEffect(request.Context(), identity.Scope, ConnectorEffectResolution{ID: effectID, Status: "unknown", ErrorCode: "provider_effect_started", Metadata: json.RawMessage(`{}`)}); err != nil {
 		clear(verifier)
 		writeProductionError(writer, request, err)
 		return

@@ -16,7 +16,7 @@ import (
 
 const (
 	postgresConnectorReadySQL                  = `SELECT to_jsonb(zasp_connector_readiness($1,$2))`
-	postgresConnectorStartOAuthSQL             = `SELECT zasp_connector_start_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15::jsonb)`
+	postgresConnectorStartOAuthSQL             = `SELECT zasp_connector_start_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15::jsonb,$16,$17)`
 	postgresConnectorConsumeOAuthSQL           = `SELECT zasp_connector_consume_oauth($1,$2,$3,$4,$5,$6)`
 	postgresConnectorBeginEffectSQL            = `SELECT zasp_connector_begin_effect($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	postgresConnectorStagePKCECleanupSQL       = `SELECT zasp_connector_stage_pkce_cleanup($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
@@ -118,7 +118,9 @@ func (repository *ConnectorRepository) StartOAuth(ctx context.Context, identity 
 		return OAuthAttemptRecord{}, ErrRepositoryOperation
 	}
 	scopes, _ := json.Marshal(input.RequestedScopes)
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorStartOAuthSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.AttemptID, input.IntegrationID, input.Provider, identity.PrincipalID.String(), input.SessionDigest, input.StateDigest, input.PKCEVerifierReference, input.RequestDigest, string(scopes), input.ExpiresAt, input.IntegrationVersion, input.Configuration)
+	cleanupID := connectorDeterministicID(identity.Scope, input.AttemptID, "pkce-cleanup")
+	authorizeID := connectorDeterministicID(identity.Scope, input.AttemptID, "oauth-effect")
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorStartOAuthSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.AttemptID, input.IntegrationID, input.Provider, identity.PrincipalID.String(), input.SessionDigest, input.StateDigest, input.PKCEVerifierReference, input.RequestDigest, string(scopes), input.ExpiresAt, input.IntegrationVersion, input.Configuration, cleanupID, authorizeID)
 	if err != nil {
 		return OAuthAttemptRecord{}, discoveryProviderError(err)
 	}
@@ -133,6 +135,7 @@ func (repository *ConnectorRepository) StartOAuth(ctx context.Context, identity 
 type OAuthConsumption struct {
 	ID                    string    `json:"id"`
 	IntegrationID         string    `json:"integration_id"`
+	EffectID              string    `json:"effect_id"`
 	Provider              string    `json:"provider"`
 	PrincipalID           string    `json:"principal_id"`
 	PKCEVerifierReference string    `json:"pkce_verifier_reference"`
@@ -156,7 +159,7 @@ func (repository *ConnectorRepository) ConsumeOAuth(ctx context.Context, identit
 		return OAuthConsumption{}, ErrRepositoryUnavailable
 	}
 	decodedDigest, digestErr := hex.DecodeString(result.RequestDigest)
-	if digestErr != nil || len(decodedDigest) != 32 || !validProductID(result.ID) || !validProductID(result.IntegrationID) || result.PrincipalID != identity.PrincipalID.String() || !validOAuthProvider(result.Provider) || !validOpaqueReference(result.PKCEVerifierReference) || result.ReturnPath != "/connectors" || !validConnectorScopes(result.RequestedScopes) || !result.ExpiresAt.After(time.Now()) || !validPastServerTime(result.ConsumedAt) {
+	if digestErr != nil || len(decodedDigest) != 32 || !validProductID(result.ID) || !validProductID(result.IntegrationID) || !validProductID(result.EffectID) || result.PrincipalID != identity.PrincipalID.String() || !validOAuthProvider(result.Provider) || !validOpaqueReference(result.PKCEVerifierReference) || result.ReturnPath != "/connectors" || !validConnectorScopes(result.RequestedScopes) || !result.ExpiresAt.After(time.Now()) || !validPastServerTime(result.ConsumedAt) {
 		return OAuthConsumption{}, ErrRepositoryUnavailable
 	}
 	result.ExpiresAt, result.ConsumedAt = result.ExpiresAt.UTC(), result.ConsumedAt.UTC()
