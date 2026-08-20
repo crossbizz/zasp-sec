@@ -173,6 +173,10 @@ func TestConnectorOAuthOperationsHaveExactBrowserSecurity(t *testing.T) {
 	if !ok || authorize.Method != http.MethodPost || authorize.Pattern != "/api/v1/integrations/{id}/authorize" || authorize.Permission != "manage_workflows" || !equalStrings(authorize.Security, []string{"BrowserExpectedScope", "BrowserSession"}) {
 		t.Fatalf("authorize definition = %#v, exists=%v", authorize, ok)
 	}
+	remediation, ok := definitions["remediateIntegrationAuthorization"]
+	if !ok || remediation.Method != http.MethodPost || remediation.Pattern != "/api/v1/integrations/{id}/authorization-remediation" || remediation.Permission != "manage_workflows" || !equalStrings(remediation.Security, []string{"BrowserExpectedScope", "BrowserSession"}) {
+		t.Fatalf("remediation definition = %#v, exists=%v", remediation, ok)
+	}
 	callback, ok := definitions["completeIntegrationOAuthCallback"]
 	if !ok || callback.Method != http.MethodGet || callback.Pattern != "/api/v1/integrations/oauth/callback" || callback.Permission != "manage_workflows" || !equalStrings(callback.Security, []string{"BrowserSession"}) {
 		t.Fatalf("callback definition = %#v, exists=%v", callback, ok)

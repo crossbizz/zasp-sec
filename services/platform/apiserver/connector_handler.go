@@ -115,11 +115,56 @@ func (handler *connectorHTTPHandler) ServeHTTP(writer http.ResponseWriter, reque
 	switch routed.OperationID {
 	case "authorizeIntegration":
 		handler.authorize(writer, request, identity, routed.PathParameters["id"])
+	case "remediateIntegrationAuthorization":
+		handler.remediateQuarantine(writer, request, identity, routed.PathParameters["id"])
 	case "completeIntegrationOAuthCallback":
 		handler.callback(writer, request, identity)
 	default:
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 	}
+}
+
+func (handler *connectorHTTPHandler) remediateQuarantine(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, integrationID string) {
+	var input struct {
+		EffectID        string `json:"effect_id"`
+		Acknowledgement string `json:"acknowledgement"`
+	}
+	idempotencyKey := request.Header.Get("Idempotency-Key")
+	expectedVersion, versionErr := parseVersion(request.Header.Get("If-Match"))
+	if request.Method != http.MethodPost || !identity.FreshAuthenticated || !validProductID(integrationID) || versionErr != nil || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) || decodeProductionJSON(request, &input) != nil || !validProductID(input.EffectID) || !stringIn(input.Acknowledgement, "provider_grant_revoked_manually", "provider_grant_verified_absent") {
+		if !identity.FreshAuthenticated {
+			writeWorkflowMutationError(writer, request, ErrRepositoryAuthorization)
+		} else {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+		}
+		return
+	}
+	workflow, err := handler.workflows.GetWorkflow(request.Context(), identity.Scope, "integration", integrationID)
+	var body map[string]any
+	if err != nil || workflow.Version != expectedVersion || json.Unmarshal(workflow.Body, &body) != nil || body["id"] != integrationID || body["status"] != "degraded" {
+		writeProductionError(writer, request, firstError(err, ErrRepositoryConflict))
+		return
+	}
+	body["status"] = "pending_authorization"
+	body["updated_at"] = handler.now().UTC().Format(time.RFC3339Nano)
+	remediationBody, bodyErr := json.Marshal(body)
+	intent, intentErr := json.Marshal(map[string]any{"resource_id": integrationID, "expected_version": expectedVersion, "body": map[string]any{"effect_id": input.EffectID, "acknowledgement": input.Acknowledgement}})
+	auditID, auditErr := newWorkflowProductID()
+	receiptID, receiptErr := newWorkflowProductID()
+	correlationID := correlationIDFromContext(request.Context())
+	if bodyErr != nil || intentErr != nil || auditErr != nil || receiptErr != nil || !validProductID(correlationID) {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	result, err := handler.repository.RemediateConnectorQuarantine(request.Context(), identity, ConnectorQuarantineRemediation{EffectID: input.EffectID, IntegrationID: integrationID, Acknowledgement: input.Acknowledgement, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, Intent: intent, Body: remediationBody, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID})
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	writer.Header().Set("ETag", quoteVersion(result.Version))
+	writer.Header().Set("X-Audit-ID", result.AuditID)
+	writer.Header().Set("X-Mutation-Receipt-ID", result.ReceiptID)
+	writeProductionResponse(writer, request, http.StatusOK, result.Body, nil)
 }
 
 func (handler *connectorHTTPHandler) authorize(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, integrationID string) {

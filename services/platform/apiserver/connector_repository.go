@@ -28,6 +28,7 @@ const (
 	postgresConnectorCompleteRevocationSQL     = `SELECT zasp_connector_complete_revocation($1,$2,$3,$4,$5,$6)`
 	postgresConnectorCompleteCleanupSQL        = `SELECT zasp_connector_complete_cleanup($1,$2,$3,$4)`
 	postgresConnectorQuarantineSQL             = `SELECT zasp_connector_quarantine_reconciliation($1,$2,$3,$4,$5,$6,$7)`
+	postgresConnectorRemediateQuarantineSQL    = `SELECT zasp_connector_remediate_quarantine($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14)`
 )
 
 var connectorScopePattern = regexp.MustCompile(`^[A-Za-z0-9:_./-]{1,128}$`)
@@ -42,6 +43,7 @@ type ConnectorAuthorizationRepository interface {
 	PutConnectorCredential(context.Context, domain.Scope, ConnectorCredentialPut) (ConnectorCredentialRecord, error)
 	CompleteOAuth(context.Context, domain.Scope, OAuthCompletion) (OAuthCompletionRecord, error)
 	CompleteConnectorCleanup(context.Context, domain.Scope, string) (ConnectorEffectTransition, error)
+	RemediateConnectorQuarantine(context.Context, RequestIdentity, ConnectorQuarantineRemediation) (WorkflowMutationResult, error)
 }
 
 type ConnectorRepository struct{ database JSONDatabase }
@@ -414,6 +416,29 @@ func (repository *ConnectorRepository) QuarantineConnectorReconciliation(ctx con
 		return ConnectorEffectTransition{}, discoveryProviderError(err)
 	}
 	return decodeConnectorTransition(payload, lease.ID, "unknown", lease.Attempt)
+}
+
+type ConnectorQuarantineRemediation struct {
+	EffectID, IntegrationID, Acknowledgement, IdempotencyKey string
+	ExpectedVersion                                          int64
+	Intent, Body                                             json.RawMessage
+	AuditID, CorrelationID, ReceiptID                        string
+}
+
+func (repository *ConnectorRepository) RemediateConnectorQuarantine(ctx context.Context, identity RequestIdentity, input ConnectorQuarantineRemediation) (WorkflowMutationResult, error) {
+	if !validConnectorRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validProductID(input.EffectID) || !validProductID(input.IntegrationID) || !stringIn(input.Acknowledgement, "provider_grant_revoked_manually", "provider_grant_verified_absent") || len(input.IdempotencyKey) < 16 || len(input.IdempotencyKey) > 128 || !workflowKeyPattern.MatchString(input.IdempotencyKey) || input.ExpectedVersion < 1 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || !validJSONObjectBody(input.Intent) || !validJSONObjectBody(input.Body) {
+		return WorkflowMutationResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorRemediateQuarantineSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.EffectID, input.IntegrationID, identity.PrincipalID.String(), input.Acknowledgement, input.IdempotencyKey, input.ExpectedVersion, input.Intent, input.Body, input.AuditID, input.CorrelationID, input.ReceiptID)
+	if err != nil {
+		return WorkflowMutationResult{}, discoveryProviderError(err)
+	}
+	var result WorkflowMutationResult
+	mutation := WorkflowMutation{Action: "update", Kind: "integration", ID: input.IntegrationID, Operation: "remediateIntegrationAuthorization", IdempotencyKey: input.IdempotencyKey, ExpectedVersion: input.ExpectedVersion, Intent: input.Intent, Body: input.Body, AuditID: input.AuditID, CorrelationID: input.CorrelationID, ReceiptID: input.ReceiptID}
+	if json.Unmarshal(payload, &result) != nil || result.Version < 1 || result.SecretGeneration < 0 || !validJSONObjectBody(result.Body) || !validMutationResultIDs(result, mutation) {
+		return WorkflowMutationResult{}, ErrRepositoryUnavailable
+	}
+	return result, nil
 }
 
 func validConnectorLease(lease ConnectorEffectLease) bool {

@@ -850,6 +850,42 @@ paths:
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/authorization-remediation:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    post:
+      operationId: remediateIntegrationAuthorization
+      summary: Acknowledge external cleanup of a quarantined authorization
+      description: State-only operator acknowledgement after independently verifying that an ambiguous provider grant is absent or manually revoked. This operation performs no provider or secret action.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IntegrationAuthorizationRemediationInput' }
+      responses:
+        '200':
+          description: Quarantine cleared after a durable audited acknowledgement.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Integration' }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/agents:
     get:
       operationId: listAgents
@@ -1477,7 +1513,7 @@ components:
       required: [id, operation, idempotency_key, intent, result, resource_kind, resource_id, resource_version, audit_id, correlation_id, created_at, expires_at]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
-        operation: { type: string, enum: [createPolicy, updatePolicy, deletePolicy, rolloutPolicy, disablePolicy, createIntegration, updateIntegration, deleteIntegration, createSecurityAgent, updateSecurityAgent, deleteSecurityAgent, updateFinding, acceptFindingRisk] }
+        operation: { type: string, enum: [createPolicy, updatePolicy, deletePolicy, rolloutPolicy, disablePolicy, createIntegration, updateIntegration, deleteIntegration, remediateIntegrationAuthorization, createSecurityAgent, updateSecurityAgent, deleteSecurityAgent, updateFinding, acceptFindingRisk] }
         idempotency_key: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
         intent: { $ref: '#/components/schemas/WorkflowMutationIntent' }
         result:
@@ -1507,6 +1543,7 @@ components:
             - { $ref: '#/components/schemas/EmptyInput' }
             - { $ref: '#/components/schemas/IntegrationInput' }
             - { $ref: '#/components/schemas/IntegrationUpdateInput' }
+            - { $ref: '#/components/schemas/IntegrationAuthorizationRemediationInput' }
             - { $ref: '#/components/schemas/SecurityAgentInput' }
             - { $ref: '#/components/schemas/SecurityAgentDefinition' }
             - { $ref: '#/components/schemas/FindingUpdateInput' }
@@ -2655,6 +2692,15 @@ components:
           pattern: '^https://'
           description: Provider authorization target containing opaque state but no provider credential or product secret.
         expires_at: { type: string, format: date-time }
+    IntegrationAuthorizationRemediationInput:
+      type: object
+      additionalProperties: false
+      required: [effect_id, acknowledgement]
+      properties:
+        effect_id: { $ref: '#/components/schemas/ProductID' }
+        acknowledgement:
+          type: string
+          enum: [provider_grant_revoked_manually, provider_grant_verified_absent]
     IntegrationInput:
       type: object
       additionalProperties: false

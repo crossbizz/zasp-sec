@@ -597,6 +597,28 @@ export type paths = {
         readonly patch: operations["updateIntegration"];
         readonly trace?: never;
     };
+    readonly "/api/v1/integrations/{id}/authorization-remediation": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Acknowledge external cleanup of a quarantined authorization
+         * @description State-only operator acknowledgement after independently verifying that an ambiguous provider grant is absent or manually revoked. This operation performs no provider or secret action.
+         */
+        readonly post: operations["remediateIntegrationAuthorization"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/integrations/{id}/authorize": {
         readonly parameters: {
             readonly query?: never;
@@ -1620,6 +1642,11 @@ export type components = {
             /** Format: date-time */
             readonly expires_at: string;
         };
+        readonly IntegrationAuthorizationRemediationInput: {
+            /** @enum {string} */
+            readonly acknowledgement: "provider_grant_revoked_manually" | "provider_grant_verified_absent";
+            readonly effect_id: components["schemas"]["ProductID"];
+        };
         readonly IntegrationCatalogPage: {
             readonly items: readonly components["schemas"]["ConnectorManifest"][];
         };
@@ -2180,7 +2207,7 @@ export type components = {
             readonly items: readonly components["schemas"]["TestRun"][];
         };
         readonly WorkflowMutationIntent: {
-            readonly body: components["schemas"]["Policy"] | components["schemas"]["PolicyRolloutInput"] | components["schemas"]["EmptyInput"] | components["schemas"]["IntegrationInput"] | components["schemas"]["IntegrationUpdateInput"] | components["schemas"]["SecurityAgentInput"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["FindingUpdateInput"] | components["schemas"]["FindingAcceptanceInput"];
+            readonly body: components["schemas"]["Policy"] | components["schemas"]["PolicyRolloutInput"] | components["schemas"]["EmptyInput"] | components["schemas"]["IntegrationInput"] | components["schemas"]["IntegrationUpdateInput"] | components["schemas"]["IntegrationAuthorizationRemediationInput"] | components["schemas"]["SecurityAgentInput"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["FindingUpdateInput"] | components["schemas"]["FindingAcceptanceInput"];
             readonly expected_version: number;
             readonly resource_id: string;
         };
@@ -2195,7 +2222,7 @@ export type components = {
             readonly idempotency_key: string;
             readonly intent: components["schemas"]["WorkflowMutationIntent"];
             /** @enum {string} */
-            readonly operation: "createPolicy" | "updatePolicy" | "deletePolicy" | "rolloutPolicy" | "disablePolicy" | "createIntegration" | "updateIntegration" | "deleteIntegration" | "createSecurityAgent" | "updateSecurityAgent" | "deleteSecurityAgent" | "updateFinding" | "acceptFindingRisk";
+            readonly operation: "createPolicy" | "updatePolicy" | "deletePolicy" | "rolloutPolicy" | "disablePolicy" | "createIntegration" | "updateIntegration" | "deleteIntegration" | "remediateIntegrationAuthorization" | "createSecurityAgent" | "updateSecurityAgent" | "deleteSecurityAgent" | "updateFinding" | "acceptFindingRisk";
             readonly resource_id: string;
             /** @enum {string} */
             readonly resource_kind: "policy" | "integration" | "security_agent" | "finding";
@@ -2328,6 +2355,7 @@ export type GroupMappingPage = components['schemas']['GroupMappingPage'];
 export type HomeSummary = components['schemas']['HomeSummary'];
 export type Integration = components['schemas']['Integration'];
 export type IntegrationAuthorization = components['schemas']['IntegrationAuthorization'];
+export type IntegrationAuthorizationRemediationInput = components['schemas']['IntegrationAuthorizationRemediationInput'];
 export type IntegrationCatalogPage = components['schemas']['IntegrationCatalogPage'];
 export type IntegrationConfiguration = components['schemas']['IntegrationConfiguration'];
 export type IntegrationInput = components['schemas']['IntegrationInput'];
@@ -3543,6 +3571,50 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly remediateIntegrationAuthorization: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for an approval decision. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["IntegrationAuthorizationRemediationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Quarantine cleared after a durable audited acknowledgement. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Integration"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

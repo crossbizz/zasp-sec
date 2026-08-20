@@ -21,7 +21,7 @@ const agent = {
 
 function receipt(operation: string) {
   const kind = operation.includes("Integration") ? "integration" : operation.includes("SecurityAgent") ? "security_agent" : "policy";
-  const result = kind === "integration" ? integration : kind === "security_agent" ? agent
+  const result = operation === "remediateIntegrationAuthorization" ? { ...integration, status: "pending_authorization" } : kind === "integration" ? integration : kind === "security_agent" ? agent
     : operation === "rolloutPolicy" ? { ...policy, rollout: "monitor" }
     : operation === "disablePolicy" ? { ...policy, rollout: "disabled" } : policy;
   const resourceID = result.id;
@@ -31,6 +31,7 @@ function receipt(operation: string) {
   if (operation === "rolloutPolicy") body = { state: "monitor", target_id: "pid_10000003-0000-4000-8000-000000000003" };
   if (operation === "createIntegration") body = { connector_key: integration.connector_key, name: integration.name, configuration: integration.configuration };
   if (operation === "updateIntegration") body = { name: integration.name, configuration: integration.configuration };
+  if (operation === "remediateIntegrationAuthorization") body = { effect_id: "pid_20000003-0000-4000-8000-000000000003", acknowledgement: "provider_grant_revoked_manually" };
   if (operation === "createSecurityAgent") body = Object.fromEntries(Object.entries(agent).filter(([key]) => key !== "id"));
   if (operation === "updateSecurityAgent") body = agent;
   return {
@@ -47,7 +48,7 @@ function receipt(operation: string) {
 describe("workflow mutation receipt decoder", () => {
   it.each([
     "createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
-    "createIntegration", "updateIntegration", "deleteIntegration",
+    "createIntegration", "updateIntegration", "deleteIntegration", "remediateIntegrationAuthorization",
     "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
   ])("accepts an exact %s intent and authoritative result", (operation) => {
     expect(decodeWorkflowMutationReceipt(receipt(operation))).toEqual(receipt(operation));

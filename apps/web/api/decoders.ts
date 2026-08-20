@@ -130,7 +130,7 @@ export function decodeWorkflowMutationReceipt(value: unknown): WorkflowMutationR
   const record = exactRecord(value, ["id", "operation", "idempotency_key", "intent", "result", "resource_kind", "resource_id", "resource_version", "audit_id", "correlation_id", "created_at", "expires_at"]);
   productID(record.id);
   if (typeof record.idempotency_key !== "string" || !IDEMPOTENCY_KEY.test(record.idempotency_key)) fail();
-  enumValue(record.operation, ["createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy", "createIntegration", "updateIntegration", "deleteIntegration", "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "updateFinding", "acceptFindingRisk"]);
+  enumValue(record.operation, ["createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy", "createIntegration", "updateIntegration", "deleteIntegration", "remediateIntegrationAuthorization", "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "updateFinding", "acceptFindingRisk"]);
   enumValue(record.resource_kind, ["policy", "integration", "security_agent", "finding"]);
   if (typeof record.resource_id !== "string" || !workflowResourceID(record.resource_kind, record.resource_id)) fail();
   positiveInteger(record.resource_version);
@@ -219,6 +219,7 @@ function decodePolicyReceiptIntent(operation: string, body: unknown, result: Pol
 
 function decodeIntegrationReceiptIntent(operation: string, body: unknown, result: Integration): void {
   if (operation === "deleteIntegration") { emptyRecord(body); return; }
+  if (operation === "remediateIntegrationAuthorization") { const input = exactRecord(body, ["effect_id", "acknowledgement"]); productID(input.effect_id); enumValue(input.acknowledgement, ["provider_grant_revoked_manually", "provider_grant_verified_absent"]); if (result.status !== "pending_authorization") fail(); return; }
   if (operation !== "createIntegration" && operation !== "updateIntegration") fail();
   const required = operation === "createIntegration" ? ["connector_key", "name", "configuration"] : ["name", "configuration"];
   const input = exactRecord(body, required);

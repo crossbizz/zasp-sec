@@ -354,12 +354,14 @@ describe("production workflow concurrency contract", () => {
     const creates = new Set(["createIntegration", "createSensorEnrollment", "createPolicy", "createSecurityAgent", "runSecurityAgent"]);
     const durableReceiptMutations = new Set([
       "createIntegration", "updateIntegration", "deleteIntegration",
+	  "remediateIntegrationAuthorization",
       "createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
       "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
       "updateFinding", "acceptFindingRisk",
     ]);
     const operations = [
       "createIntegration", "updateIntegration", "deleteIntegration",
+	  "remediateIntegrationAuthorization",
       "createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
       "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
       "updateFinding", "acceptFindingRisk",
@@ -447,6 +449,7 @@ describe("production workflow concurrency contract", () => {
       { $ref: "#/components/schemas/EmptyInput" },
       { $ref: "#/components/schemas/IntegrationInput" },
       { $ref: "#/components/schemas/IntegrationUpdateInput" },
+      { $ref: "#/components/schemas/IntegrationAuthorizationRemediationInput" },
       { $ref: "#/components/schemas/SecurityAgentInput" },
       { $ref: "#/components/schemas/SecurityAgentDefinition" },
       { $ref: "#/components/schemas/FindingUpdateInput" },
@@ -461,8 +464,8 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 82);
-    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "completeIntegrationOAuthCallback"]) {
+    assert.equal(operations.size, 83);
+    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [

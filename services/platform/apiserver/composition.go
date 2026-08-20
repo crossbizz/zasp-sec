@@ -117,6 +117,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"PATCH", "/api/v1/integrations/{id}", "updateIntegration", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"DELETE", "/api/v1/integrations/{id}", "deleteIntegration", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/integrations/{id}/authorize", "authorizeIntegration", "manage_workflows", []string{"BrowserSession"}}, connectorDependency},
+	{OperationDefinition{"POST", "/api/v1/integrations/{id}/authorization-remediation", "remediateIntegrationAuthorization", "manage_workflows", []string{"BrowserSession"}}, connectorDependency},
 	{OperationDefinition{"GET", "/api/v1/integrations/oauth/callback", "completeIntegrationOAuthCallback", "manage_workflows", []string{"BrowserSession"}}, connectorDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agent-templates", "listSecurityAgentTemplates", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agents", "listSecurityAgents", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
@@ -196,7 +197,7 @@ func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
 	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
 		"updateMemberRole", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
-		"revokeSession", "updateDataControls", "authorizeIntegration":
+		"revokeSession", "updateDataControls", "authorizeIntegration", "remediateIntegrationAuthorization":
 		return true
 	default:
 		return false

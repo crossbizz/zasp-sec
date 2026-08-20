@@ -410,6 +410,25 @@ func TestConnectorAuthorizationPostgresAmbiguousProviderOutcomeIsPermanentlyQuar
 	if err != nil || json.Unmarshal(workflow.Body, &quarantinedBody) != nil || workflow.Version != 2 || quarantinedBody["status"] != "degraded" {
 		t.Fatalf("operator-visible quarantined workflow = %#v body=%v, %v", workflow, quarantinedBody, err)
 	}
+	quarantinedBody["status"] = "pending_authorization"
+	quarantinedBody["updated_at"] = "2026-08-19T00:02:00Z"
+	remediationBody, _ := json.Marshal(quarantinedBody)
+	remediation := ConnectorQuarantineRemediation{EffectID: effectID, IntegrationID: integrationID, Acknowledgement: "provider_grant_revoked_manually", IdempotencyKey: "idem-quarantine-remediation-0001", ExpectedVersion: 2, Intent: json.RawMessage(`{"body":{"acknowledgement":"provider_grant_revoked_manually","effect_id":"` + effectID + `"},"expected_version":2,"resource_id":"` + integrationID + `"}`), Body: remediationBody, AuditID: "pid_72000008-0000-4000-8000-000000000008", CorrelationID: "pid_72000009-0000-4000-8000-000000000009", ReceiptID: "pid_72000010-0000-4000-8000-000000000010"}
+	remediated, err := connectorRepository.RemediateConnectorQuarantine(ctx, identity, remediation)
+	var remediatedBody map[string]any
+	if err != nil || json.Unmarshal(remediated.Body, &remediatedBody) != nil || remediatedBody["status"] != "pending_authorization" || remediated.Version != 3 || remediated.ReceiptID != remediation.ReceiptID {
+		t.Fatalf("explicit quarantine remediation = %#v, %v", remediated, err)
+	}
+	if replay, err := connectorRepository.RemediateConnectorQuarantine(ctx, identity, remediation); err != nil || !replay.Replayed || replay.Version != remediated.Version || replay.ReceiptID != remediated.ReceiptID {
+		t.Fatalf("quarantine remediation replay = %#v, %v; first=%#v", replay, err, remediated)
+	}
+	remediation.Acknowledgement = "provider_grant_verified_absent"
+	if _, err := connectorRepository.RemediateConnectorQuarantine(ctx, identity, remediation); !errors.Is(err, ErrRepositoryConflict) {
+		t.Fatalf("changed quarantine remediation = %v, want conflict", err)
+	}
+	if _, err := connectorRepository.StartOAuth(ctx, identity, OAuthStart{AttemptID: "pid_72000007-0000-4000-8000-000000000007", IntegrationID: integrationID, Provider: "github", PKCEVerifierReference: "ref:oauth/pkce/blocked", SessionDigest: second[:], StateDigest: second[:], RequestDigest: second[:], RequestedScopes: []string{"read:org"}, ExpiresAt: time.Now().UTC().Add(5 * time.Minute)}); err != nil {
+		t.Fatalf("fresh authorization after explicit remediation = %v", err)
+	}
 }
 
 func TestConnectorAuthorizationPostgresLegacyWebhookReferenceBridgeRejectsInlineSecretsAtomically(t *testing.T) {
