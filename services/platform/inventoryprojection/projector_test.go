@@ -24,6 +24,12 @@ func TestProjectRequiresExplicitProviderAwareIdentityBindings(t *testing.T) {
 	if _, err := Project([]Observation{aws, conflict}); err == nil {
 		t.Fatal("one exact provider/source identity bound to two canonical IDs")
 	}
+	kindDrift := aws
+	kindDrift.Binding.Kind = KindAgent
+	kindDrift.Binding.CanonicalID = projectionID(t, 98)
+	if _, err := Project([]Observation{aws, kindDrift}); err == nil {
+		t.Fatal("one reviewed namespace identity drifted across kind and canonical ID")
+	}
 
 	wrongScope := aws
 	wrongScope.Binding.Scope = projectionScope(t, 30)

@@ -295,7 +295,7 @@ func lessObservation(left, right Observation) bool {
 }
 
 func bindingKey(value IdentityBinding) string {
-	return strings.Join([]string{scopeKey(value.Scope), value.IntegrationID.String(), value.Provider, value.Source, string(value.Kind), value.Namespace, value.SourceNativeID}, "\x1f")
+	return strings.Join([]string{scopeKey(value.Scope), value.IntegrationID.String(), value.Provider, value.Source, value.Namespace, value.SourceNativeID}, "\x1f")
 }
 
 func scopedEntityKey(scope domain.Scope, id domain.ProductID) string {
