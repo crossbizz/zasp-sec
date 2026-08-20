@@ -249,7 +249,38 @@ func validWorkflowMutationReceipt(value WorkflowMutationReceipt) bool {
 		return false
 	}
 	operationKind, _, _, validOperation := workflowMutationTarget(value.Operation)
-	return validOperation && operationKind == value.ResourceKind && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && workflowKeyPattern.MatchString(value.IdempotencyKey) && validJSONObjectBody(value.Intent) && !containsSensitiveWorkflowField(value.Intent) && validJSONObjectBody(value.Result) && !containsSensitiveWorkflowField(value.Result) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour))
+	return validOperation && operationKind == value.ResourceKind && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && workflowKeyPattern.MatchString(value.IdempotencyKey) && validJSONObjectBody(value.Intent) && !containsSensitiveWorkflowField(value.Intent) && validJSONObjectBody(value.Result) && !containsSensitiveWorkflowField(value.Result) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour)) && validIntegrationWorkflowReceiptResult(value)
+}
+
+func validIntegrationWorkflowReceiptResult(value WorkflowMutationReceipt) bool {
+	if !stringIn(value.Operation, "createIntegration", "updateIntegration", "deleteIntegration") {
+		return true
+	}
+	if value.Operation == "deleteIntegration" {
+		var result struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+		}
+		return exactJSONFields(value.Result, "id", "status") && decodeStrictDiscovery(value.Result, &result) == nil && result.ID == value.ResourceID && result.Status == "deleted"
+	}
+	var result struct {
+		ID            string            `json:"id"`
+		ConnectorKey  string            `json:"connector_key"`
+		Name          string            `json:"name"`
+		Configuration map[string]string `json:"configuration"`
+		Status        string            `json:"status"`
+		CreatedAt     time.Time         `json:"created_at"`
+		UpdatedAt     time.Time         `json:"updated_at"`
+	}
+	if !exactJSONFields(value.Result, "connector_key", "configuration", "created_at", "id", "name", "status", "updated_at") || decodeStrictDiscovery(value.Result, &result) != nil || result.ID != value.ResourceID || len(result.ConnectorKey) < 1 || len(result.ConnectorKey) > 63 || len(result.Name) < 1 || len(result.Name) > 128 || len(result.Configuration) < 1 || len(result.Configuration) > 16 || !stringIn(result.Status, "configured", "pending_authorization", "active", "degraded", "revoking") || result.CreatedAt.IsZero() || result.UpdatedAt.Before(result.CreatedAt) {
+		return false
+	}
+	for key, item := range result.Configuration {
+		if len(key) < 1 || len(key) > 128 || len(item) < 1 || len(item) > 2048 {
+			return false
+		}
+	}
+	return true
 }
 
 func validDiscoveryWorkflowReceipt(value WorkflowMutationReceipt, identity RequestIdentity) bool {

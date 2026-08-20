@@ -1822,6 +1822,11 @@ export type components = {
         readonly IntegrationConfiguration: {
             readonly [key: string]: string;
         };
+        readonly IntegrationDeletionReceiptResult: {
+            readonly id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly status: "deleted";
+        };
         readonly IntegrationFreshness: {
             readonly integration_id: components["schemas"]["ProductID"];
             readonly last_good: components["schemas"]["IntegrationLastGoodSnapshot"] | null;
@@ -2489,7 +2494,7 @@ export type components = {
             /** @enum {string} */
             readonly resource_kind: "policy" | "integration" | "security_agent" | "finding";
             readonly resource_version: number;
-            readonly result: components["schemas"]["Policy"] | components["schemas"]["Integration"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["Finding"];
+            readonly result: components["schemas"]["Policy"] | components["schemas"]["Integration"] | components["schemas"]["IntegrationDeletionReceiptResult"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["Finding"];
         };
         readonly SyncIntegrationReceiptIntent: {
             readonly body: components["schemas"]["EmptyInput"];
@@ -2704,6 +2709,7 @@ export type IntegrationAuthorization = components['schemas']['IntegrationAuthori
 export type IntegrationAuthorizationRemediationInput = components['schemas']['IntegrationAuthorizationRemediationInput'];
 export type IntegrationCatalogPage = components['schemas']['IntegrationCatalogPage'];
 export type IntegrationConfiguration = components['schemas']['IntegrationConfiguration'];
+export type IntegrationDeletionReceiptResult = components['schemas']['IntegrationDeletionReceiptResult'];
 export type IntegrationFreshness = components['schemas']['IntegrationFreshness'];
 export type IntegrationInput = components['schemas']['IntegrationInput'];
 export type IntegrationLastGoodSnapshot = components['schemas']['IntegrationLastGoodSnapshot'];

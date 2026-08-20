@@ -32,6 +32,19 @@ describe("truthful workflow receipt summary", () => {
     expect(serialized).not.toContain("secret_ref_1234");
   });
 
+  it("summarizes a terminal integration deletion receipt without assuming a live integration", () => {
+    const integrationID = "pid_20000001-0000-4000-8000-000000000001";
+    const receipt = { ...base, operation: "deleteIntegration", intent: { body: {}, expected_version: 1, resource_id: integrationID }, result: { id: integrationID, status: "deleted" }, resource_kind: "integration", resource_id: integrationID } as WorkflowMutationReceipt;
+    expect(workflowReceiptSummary(receipt)).toEqual({
+      intent: [{ label: "Requested change", value: `Delete ${integrationID}` }],
+      result: [
+        { label: "Committed resource", value: integrationID },
+        { label: "Committed status", value: "deleted" },
+        { label: "Committed version", value: "2" },
+      ],
+    });
+  });
+
 	it("summarizes reference authorization intent without rendering any reference value", () => {
 		const configuration = { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" };
 		const result = { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "aws", name: "AWS", configuration, status: "active", created_at: "2026-08-18T12:00:00Z", updated_at: "2026-08-18T12:00:00Z" };

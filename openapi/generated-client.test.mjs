@@ -171,6 +171,8 @@ test("exports the Task 4 collection API and launch authorization methods without
   assert.match(generated, /readonly operation: "syncIntegration"/);
   assert.match(generated, /readonly operation: "putIntegrationSchedule"/);
   assert.match(generated, /readonly operation: "deleteIntegrationSchedule"/);
+  assert.match(generated, /readonly IntegrationDeletionReceiptResult: \{[\s\S]*readonly id: components\["schemas"\]\["ProductID"\][\s\S]*readonly status: "deleted"/);
+  assert.match(generated, /readonly result: components\["schemas"\]\["Policy"\] \| components\["schemas"\]\["Integration"\] \| components\["schemas"\]\["IntegrationDeletionReceiptResult"\] \| components\["schemas"\]\["SecurityAgentDefinition"\] \| components\["schemas"\]\["Finding"\]/);
   assert.match(generated, /readonly resource_kind: "integration_sync"/);
   assert.match(generated, /readonly status: components\["schemas"\]\["IntegrationSyncStatus"\]/);
   assert.match(generated, /readonly projections: components\["schemas"\]\["IntegrationProjectionStatuses"\]/);

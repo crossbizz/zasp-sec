@@ -31,6 +31,7 @@ function receipt(operation: string): MutableReceipt {
   const result = operation === "remediateIntegrationAuthorization" ? { ...integration, status: "pending_authorization" }
     : operation === "completeIntegrationOAuth" ? { ...integration, connector_key: "github", configuration: { installation_reference: "ref:github/installation/customer-0001" }, status: "active" }
     : operation === "completeIntegrationReferenceAuthorization" ? { ...integration, connector_key: "aws", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" }, status: "active" }
+    : operation === "deleteIntegration" ? { id: integration.id, status: "deleted" }
     : kind === "integration" ? integration : kind === "security_agent" ? agent
     : operation === "rolloutPolicy" ? { ...policy, rollout: "monitor" }
     : operation === "disablePolicy" ? { ...policy, rollout: "disabled" } : policy;
@@ -69,6 +70,25 @@ describe("workflow mutation receipt decoder", () => {
     "createSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
   ])("accepts an exact %s intent and authoritative result", (operation) => {
     expect(decodeWorkflowMutationReceipt(receipt(operation), operation === "completeIntegrationReferenceAuthorization" ? expectedScope : undefined)).toEqual(receipt(operation));
+  });
+
+  it.each([
+    ["full Integration for deleteIntegration", integration],
+    ["extra terminal field", { id: integration.id, status: "deleted", connector_key: "github" }],
+    ["wrong terminal status", { id: integration.id, status: "revoked" }],
+    ["wrong terminal identity", { id: "pid_20000001-0000-4000-8000-000000000099", status: "deleted" }],
+  ])("rejects %s", (_name, result) => {
+    const value = receipt("deleteIntegration");
+    value.result = result;
+    expect(() => decodeWorkflowMutationReceipt(value)).toThrow("schema mismatch");
+  });
+
+  it("rejects an integration deletion tombstone for create or update", () => {
+    for (const operation of ["createIntegration", "updateIntegration"]) {
+      const value = receipt(operation);
+      value.result = { id: integration.id, status: "deleted" };
+      expect(() => decodeWorkflowMutationReceipt(value)).toThrow("schema mismatch");
+    }
   });
 
 	it("accepts an exact Kubernetes reference authorization intent", () => {

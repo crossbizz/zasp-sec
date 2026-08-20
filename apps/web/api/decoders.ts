@@ -300,6 +300,12 @@ function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourc
     return;
   }
   if (kind === "integration") {
+    if (operation === "deleteIntegration") {
+      const result = exactRecord(resultValue, ["id", "status"]);
+      productID(result.id); enumValue(result.status, ["deleted"]); emptyRecord(intent.body);
+      if (result.id !== resourceID) fail();
+      return;
+    }
     decodeIntegration(resultValue);
     if ((resultValue as Integration).id !== resourceID) fail();
     decodeIntegrationReceiptIntent(operation as string, intent.body, resultValue as Integration);
@@ -354,7 +360,6 @@ function decodePolicyReceiptIntent(operation: string, body: unknown, result: Pol
 }
 
 function decodeIntegrationReceiptIntent(operation: string, body: unknown, result: Integration): void {
-  if (operation === "deleteIntegration") { emptyRecord(body); return; }
   if (operation === "remediateIntegrationAuthorization") { const input = exactRecord(body, ["acknowledgement"]); enumValue(input.acknowledgement, ["provider_grant_revoked_manually", "provider_grant_verified_absent"]); enumValue(result.status, ["pending_authorization", "active", "revoking"]); return; }
   if (operation !== "createIntegration" && operation !== "updateIntegration") fail();
   const required = operation === "createIntegration" ? ["connector_key", "name", "configuration"] : ["name", "configuration"];

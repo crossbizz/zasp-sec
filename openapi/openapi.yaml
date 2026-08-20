@@ -1755,6 +1755,7 @@ components:
           oneOf:
             - { $ref: '#/components/schemas/Policy' }
             - { $ref: '#/components/schemas/Integration' }
+            - { $ref: '#/components/schemas/IntegrationDeletionReceiptResult' }
             - { $ref: '#/components/schemas/SecurityAgentDefinition' }
             - { $ref: '#/components/schemas/Finding' }
         resource_kind: { type: string, enum: [policy, integration, security_agent, finding] }
@@ -3133,6 +3134,13 @@ components:
         status: { $ref: '#/components/schemas/IntegrationStatus' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+    IntegrationDeletionReceiptResult:
+      type: object
+      additionalProperties: false
+      required: [id, status]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        status: { type: string, const: deleted }
     IntegrationPage:
       type: object
       additionalProperties: false

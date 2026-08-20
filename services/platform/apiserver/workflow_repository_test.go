@@ -218,6 +218,69 @@ func TestWorkflowRepositoryListsOAuthAndRemediationReceipts(t *testing.T) {
 	}
 }
 
+func TestWorkflowRepositoryBindsIntegrationReceiptResultsToOperation(t *testing.T) {
+	const integrationID = "pid_74000001-0000-4000-8000-000000000001"
+	const fullIntegration = `{"id":"` + integrationID + `","connector_key":"github","name":"GitHub","configuration":{"installation_reference":"ref:github/installation/customer-0001"},"status":"active","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:01:00Z"}`
+	base := WorkflowMutationReceipt{ID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc", IdempotencyKey: "integration-receipt-0001", ResourceKind: "integration", ResourceID: integrationID, ResourceVersion: 2, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", CreatedAt: time.Date(2026, 8, 19, 0, 1, 0, 0, time.UTC), ExpiresAt: time.Date(2026, 8, 26, 0, 1, 0, 0, time.UTC)}
+	valid := []WorkflowMutationReceipt{
+		func() WorkflowMutationReceipt {
+			value := base
+			value.Operation = "createIntegration"
+			value.Intent = json.RawMessage(`{"body":{"connector_key":"github","name":"GitHub","configuration":{"installation_reference":"ref:github/installation/customer-0001"}},"expected_version":0,"resource_id":""}`)
+			value.Result = json.RawMessage(fullIntegration)
+			value.ResourceVersion = 1
+			return value
+		}(),
+		func() WorkflowMutationReceipt {
+			value := base
+			value.Operation = "updateIntegration"
+			value.Intent = json.RawMessage(`{"body":{"name":"GitHub","configuration":{"installation_reference":"ref:github/installation/customer-0001"}},"expected_version":1,"resource_id":"` + integrationID + `"}`)
+			value.Result = json.RawMessage(fullIntegration)
+			return value
+		}(),
+		func() WorkflowMutationReceipt {
+			value := base
+			value.Operation = "deleteIntegration"
+			value.Intent = json.RawMessage(`{"body":{},"expected_version":1,"resource_id":"` + integrationID + `"}`)
+			value.Result = json.RawMessage(`{"id":"` + integrationID + `","status":"deleted"}`)
+			return value
+		}(),
+	}
+	for _, receipt := range valid {
+		if !validWorkflowMutationReceipt(receipt) {
+			t.Fatalf("valid %s receipt rejected", receipt.Operation)
+		}
+	}
+	for name, mutate := range map[string]func(*WorkflowMutationReceipt){
+		"delete full integration": func(value *WorkflowMutationReceipt) { value.Result = json.RawMessage(fullIntegration) },
+		"delete extra field": func(value *WorkflowMutationReceipt) {
+			value.Result = json.RawMessage(`{"id":"` + integrationID + `","status":"deleted","provider":"github"}`)
+		},
+		"delete wrong id": func(value *WorkflowMutationReceipt) {
+			value.Result = json.RawMessage(`{"id":"pid_74000001-0000-4000-8000-000000000099","status":"deleted"}`)
+		},
+		"create tombstone": func(value *WorkflowMutationReceipt) {
+			value.Operation = "createIntegration"
+			value.Intent = json.RawMessage(`{"body":{"connector_key":"github","name":"GitHub","configuration":{"installation_reference":"ref:github/installation/customer-0001"}},"expected_version":0,"resource_id":""}`)
+			value.Result = json.RawMessage(`{"id":"` + integrationID + `","status":"deleted"}`)
+			value.ResourceVersion = 1
+		},
+		"update tombstone": func(value *WorkflowMutationReceipt) {
+			value.Operation = "updateIntegration"
+			value.Intent = json.RawMessage(`{"body":{"name":"GitHub","configuration":{"installation_reference":"ref:github/installation/customer-0001"}},"expected_version":1,"resource_id":"` + integrationID + `"}`)
+			value.Result = json.RawMessage(`{"id":"` + integrationID + `","status":"deleted"}`)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			value := valid[2]
+			mutate(&value)
+			if validWorkflowMutationReceipt(value) {
+				t.Fatal("hostile integration receipt accepted")
+			}
+		})
+	}
+}
+
 func TestWorkflowRepositoryAcceptsDiscoveryLifecycleReceipts(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	integrationID := "pid_82000001-0000-4000-8000-000000000001"

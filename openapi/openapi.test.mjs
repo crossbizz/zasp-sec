@@ -482,9 +482,15 @@ describe("production workflow concurrency contract", () => {
     assert.deepEqual(receipt.properties.result.oneOf, [
       { $ref: "#/components/schemas/Policy" },
       { $ref: "#/components/schemas/Integration" },
+      { $ref: "#/components/schemas/IntegrationDeletionReceiptResult" },
       { $ref: "#/components/schemas/SecurityAgentDefinition" },
       { $ref: "#/components/schemas/Finding" },
     ]);
+    const integrationDeletion = document.components.schemas.IntegrationDeletionReceiptResult;
+    assert.equal(integrationDeletion.additionalProperties, false);
+    assert.deepEqual(integrationDeletion.required, ["id", "status"]);
+    assert.deepEqual(integrationDeletion.properties.id, { $ref: "#/components/schemas/ProductID" });
+    assert.deepEqual(integrationDeletion.properties.status, { type: "string", const: "deleted" });
     const intent = document.components.schemas.WorkflowMutationIntent;
     assert.equal(intent.additionalProperties, false);
     assert.deepEqual(intent.required, ["resource_id", "expected_version", "body"]);
