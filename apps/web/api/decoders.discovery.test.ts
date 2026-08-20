@@ -67,6 +67,13 @@ describe("production discovery response decoders", () => {
   });
 
   it.each([
+    ["initial queue", { ...sync, status: "queued", attempt: 0, started_at: null, completed_at: null, discovered_count: 0, changed_count: 0, removed_count: 0, snapshot_id: null, last_error_code: null, retry_at: null }],
+    ["retry queue", { ...sync, status: "queued", attempt: 2, completed_at: null, snapshot_id: null, last_error_code: "rate_limited", retry_at: "2026-08-19T00:00:03Z" }],
+  ])("accepts the canonical %s sync tuple", (_name, value) => {
+    expect(decodeIntegrationSync(value)).toEqual(value);
+  });
+
+  it.each([
     ["pending retry", { state: "pending", snapshot_id: snapshotID, completed_at: null, last_error_code: "retryable" }],
     ["cancelled degradation", { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "cancelled" }],
     ["succeeded-binding mismatch", { state: "degraded", snapshot_id: snapshotID, completed_at: null, last_error_code: "outcome_unknown" }],
@@ -80,6 +87,11 @@ describe("production discovery response decoders", () => {
     ["invalid attempt", { ...sync, attempt: 101 }],
     ["completion before request", { ...sync, completed_at: "2026-08-18T23:59:59Z" }],
     ["queued sync with committed snapshot", { ...sync, status: "queued", started_at: null, completed_at: null, snapshot_id: snapshotID }],
+    ["initial queue with retry state", { ...sync, status: "queued", attempt: 0, completed_at: null, snapshot_id: null, last_error_code: "retryable", retry_at: "2026-08-19T00:00:03Z" }],
+    ["retry queue without start", { ...sync, status: "queued", attempt: 2, started_at: null, completed_at: null, snapshot_id: null, last_error_code: "retryable", retry_at: "2026-08-19T00:00:03Z" }],
+    ["retry queue without stable error", { ...sync, status: "queued", attempt: 2, completed_at: null, snapshot_id: null, last_error_code: null, retry_at: "2026-08-19T00:00:03Z" }],
+    ["retry queue without retry time", { ...sync, status: "queued", attempt: 2, completed_at: null, snapshot_id: null, last_error_code: "retryable", retry_at: null }],
+    ["retry queue with completion", { ...sync, status: "queued", attempt: 2, snapshot_id: null, last_error_code: "retryable", retry_at: "2026-08-19T00:00:03Z" }],
     ["foreign failure code", { ...sync, status: "failed", snapshot_id: null, last_error_code: "provider_stack_trace" }],
   ])("rejects %s", (_name, value) => {
     expect(() => decodeIntegrationSync(value)).toThrow("schema mismatch");

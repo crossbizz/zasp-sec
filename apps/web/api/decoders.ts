@@ -168,7 +168,14 @@ export function decodeIntegrationSync(value: unknown): IntegrationSync {
   const completed = record.completed_at === null ? null : Date.parse(record.completed_at as string);
   const retry = record.retry_at === null ? null : Date.parse(record.retry_at as string);
   if (started !== null && started < requested || completed !== null && (completed < requested || started !== null && completed < started) || retry !== null && retry < requested) fail();
-  if (record.status === "queued" && (started !== null || completed !== null || record.snapshot_id !== null || record.last_error_code !== null || retry !== null)) fail();
+  if (record.status === "queued") {
+    if (completed !== null || record.snapshot_id !== null) fail();
+    if (record.attempt === 0) {
+      if (started !== null || record.last_error_code !== null || retry !== null) fail();
+    } else if (started === null || record.last_error_code === null || retry === null) {
+      fail();
+    }
+  }
   if (record.status === "running" && (started === null || completed !== null || record.snapshot_id !== null || record.last_error_code !== null || retry !== null)) fail();
   if (record.status === "succeeded" && (started === null || completed === null || record.snapshot_id === null || record.last_error_code !== null || retry !== null)) fail();
   if ((record.status === "failed" || record.status === "cancelled") && (started === null || completed === null || record.last_error_code === null || record.snapshot_id !== null)) fail();
