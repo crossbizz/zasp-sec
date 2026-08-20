@@ -216,9 +216,17 @@ function decodeIntegrationProjectionStatus(value: unknown): void {
   if (record.snapshot_id !== null) productID(record.snapshot_id);
   nullableDateTime(record.completed_at);
   if (record.last_error_code !== null) enumValue(record.last_error_code, COLLECTION_FAILURE_CODES);
-  if (record.state === "current" && (record.snapshot_id === null || record.completed_at === null || record.last_error_code !== null)) fail();
-  if (record.state === "pending" && (record.snapshot_id === null || record.completed_at !== null || record.last_error_code !== null)) fail();
-  if ((record.state === "degraded" || record.state === "unavailable") && record.last_error_code === null) fail();
+  if (record.state === "current") {
+    if (record.snapshot_id === null || record.completed_at === null || record.last_error_code !== null) fail();
+  } else if (record.state === "pending") {
+    if (record.snapshot_id === null || record.completed_at !== null || (record.last_error_code !== null && record.last_error_code !== "retryable")) fail();
+  } else if (record.state === "degraded") {
+    const terminal = record.completed_at !== null && (record.last_error_code === "terminal" || record.last_error_code === "cancelled");
+    const bindingMismatch = record.completed_at === null && record.last_error_code === "outcome_unknown";
+    if (record.snapshot_id === null || (!terminal && !bindingMismatch)) fail();
+  } else if (record.snapshot_id !== null || record.completed_at !== null || record.last_error_code !== null) {
+    fail();
+  }
 }
 
 export function decodeSecurityAgentDefinition(value: unknown): SecurityAgentDefinition { const record = exactRecord(value, ["id", "name", "trigger_kind", "trigger_source", "environment_ids", "autonomy", "max_steps", "max_duration_seconds", "temporary_policy_seconds", "ai_token_budget", "concurrency_limit", "allowed_actions", "verification_kind", "definition_version", "enabled"]); productID(record.id); boundedString(record.name, 1, 256); enumValue(record.trigger_kind, ["finding", "attack_path", "runtime_decision"]); boundedString(record.trigger_source, 1, 64); productIDArray(record.environment_ids, 100); enumValue(record.autonomy, ["supervised", "autonomous"]); boundedInteger(record.max_steps, 1, 100); boundedInteger(record.max_duration_seconds, 1, 86400); boundedInteger(record.temporary_policy_seconds, 1, 86400); boundedInteger(record.ai_token_budget, 1, 12000); boundedInteger(record.concurrency_limit, 1, 10); positiveInteger(record.definition_version); stringArray(record.allowed_actions, 32, 128, 1); boundedString(record.verification_kind, 1, 64); if (typeof record.enabled !== "boolean") fail(); return value as SecurityAgentDefinition; }

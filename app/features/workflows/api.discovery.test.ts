@@ -24,7 +24,7 @@ const freshness: IntegrationFreshness = {
   projections: {
     risk: { state: "current", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: null },
     graph: { state: "pending", snapshot_id: snapshotID, completed_at: null, last_error_code: null },
-    search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "retryable" },
+    search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "terminal" },
   }, updated_at: "2026-08-19T00:00:04Z",
 };
 

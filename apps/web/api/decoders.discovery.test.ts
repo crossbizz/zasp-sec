@@ -53,7 +53,7 @@ const freshness = {
   projections: {
     risk: { state: "current", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: null },
     graph: { state: "pending", snapshot_id: snapshotID, completed_at: null, last_error_code: null },
-    search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "retryable" },
+    search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "terminal" },
   },
   updated_at: "2026-08-19T00:00:04Z",
 } as const;
@@ -64,6 +64,15 @@ describe("production discovery response decoders", () => {
     expect(decodeIntegrationSyncPage({ items: [sync], page_info: { next_cursor: null, has_more: false } })).toEqual({ items: [sync], page_info: { next_cursor: null, has_more: false } });
     expect(decodeIntegrationSchedule(schedule)).toEqual(schedule);
     expect(decodeIntegrationFreshness(freshness)).toEqual(freshness);
+  });
+
+  it.each([
+    ["pending retry", { state: "pending", snapshot_id: snapshotID, completed_at: null, last_error_code: "retryable" }],
+    ["cancelled degradation", { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "cancelled" }],
+    ["succeeded-binding mismatch", { state: "degraded", snapshot_id: snapshotID, completed_at: null, last_error_code: "outcome_unknown" }],
+    ["unavailable projection", { state: "unavailable", snapshot_id: null, completed_at: null, last_error_code: null }],
+  ])("accepts the canonical %s projection state", (_name, projection) => {
+    expect(decodeIntegrationFreshness({ ...freshness, projections: { ...freshness.projections, graph: projection } }).projections.graph).toEqual(projection);
   });
 
   it.each([
@@ -89,6 +98,14 @@ describe("production discovery response decoders", () => {
     ["foreign latest sync", { ...freshness, latest_sync: { ...sync, integration_id: "pid_20000009-0000-4000-8000-000000000009" } }],
     ["collapsed projection shape", { ...freshness, projections: { state: "current" } }],
     ["current projection without completion", { ...freshness, projections: { ...freshness.projections, risk: { ...freshness.projections.risk, completed_at: null } } }],
+    ["pending projection without snapshot", { ...freshness, projections: { ...freshness.projections, graph: { state: "pending", snapshot_id: null, completed_at: null, last_error_code: null } } }],
+    ["pending projection with completion", { ...freshness, projections: { ...freshness.projections, graph: { state: "pending", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: null } } }],
+    ["pending projection with terminal error", { ...freshness, projections: { ...freshness.projections, graph: { state: "pending", snapshot_id: snapshotID, completed_at: null, last_error_code: "terminal" } } }],
+    ["degraded retry projection", { ...freshness, projections: { ...freshness.projections, search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "retryable" } } }],
+    ["degraded terminal projection without completion", { ...freshness, projections: { ...freshness.projections, search: { state: "degraded", snapshot_id: snapshotID, completed_at: null, last_error_code: "terminal" } } }],
+    ["degraded mismatch projection with completion", { ...freshness, projections: { ...freshness.projections, search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "outcome_unknown" } } }],
+    ["unavailable projection with snapshot", { ...freshness, projections: { ...freshness.projections, search: { state: "unavailable", snapshot_id: snapshotID, completed_at: null, last_error_code: null } } }],
+    ["unavailable projection with error", { ...freshness, projections: { ...freshness.projections, search: { state: "unavailable", snapshot_id: null, completed_at: null, last_error_code: "terminal" } } }],
     ["internal projection error", { ...freshness, projections: { ...freshness.projections, search: { ...freshness.projections.search, last_error_code: "opensearch_index_failed" } } }],
     ["extra freshness member", { ...freshness, outbox_id: syncID }],
   ])("rejects %s", (_name, value) => {
