@@ -613,7 +613,7 @@ func (provider *githubOAuthProvider) Complete(ctx context.Context, effectID, cod
 		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
 	}
 	metadata, err := json.Marshal(map[string]any{"account_login": value.AccountLogin, "installation_id": value.InstallationID, "permissions": value.Permissions, "repository_selection": value.RepositorySelection})
-	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_installation_reference", Metadata: metadata}, err
+	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_oauth_grant_reference", Metadata: metadata}, err
 }
 func (provider *githubOAuthProvider) Recover(ctx context.Context, effectID string) (apiserver.ConnectorOAuthGrant, error) {
 	value, err := provider.adapter.Recover(ctx, effectID)
@@ -624,7 +624,7 @@ func (provider *githubOAuthProvider) Recover(ctx context.Context, effectID strin
 		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
 	}
 	metadata, err := json.Marshal(map[string]any{"account_login": value.AccountLogin, "installation_id": value.InstallationID, "permissions": value.Permissions, "repository_selection": value.RepositorySelection})
-	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_installation_reference", Metadata: metadata}, err
+	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_oauth_grant_reference", Metadata: metadata}, err
 }
 func (provider *githubOAuthProvider) Discard(ctx context.Context, effectID string, revoke bool) error {
 	if err := provider.adapter.Discard(ctx, effectID, revoke); err != nil {

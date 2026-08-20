@@ -58,8 +58,9 @@ func (reconciler *ConnectorReconciler) Run(ctx context.Context) error {
 	}
 	delay := reconciler.interval
 	for {
-		if err := reconciler.reconcileOnce(ctx); err != nil {
-			reconciler.ready.Store(false)
+		claimHealthy, err := reconciler.reconcileBatch(ctx)
+		if err != nil {
+			reconciler.ready.Store(claimHealthy)
 			if delay < 30*time.Second {
 				delay *= 2
 				if delay > 30*time.Second {
@@ -83,12 +84,17 @@ func (reconciler *ConnectorReconciler) Run(ctx context.Context) error {
 }
 
 func (reconciler *ConnectorReconciler) reconcileOnce(ctx context.Context) error {
+	_, err := reconciler.reconcileBatch(ctx)
+	return err
+}
+
+func (reconciler *ConnectorReconciler) reconcileBatch(ctx context.Context) (bool, error) {
 	if reconciler == nil || ctx == nil || ctx.Err() != nil {
-		return ErrRepositoryOperation
+		return false, ErrRepositoryOperation
 	}
 	leases, err := reconciler.repository.ClaimReconciliation(ctx, reconciler.owner, reconciler.leaseSeconds, reconciler.limit)
 	if err != nil {
-		return err
+		return false, err
 	}
 	var result error
 	for _, lease := range leases {
@@ -96,12 +102,18 @@ func (reconciler *ConnectorReconciler) reconcileOnce(ctx context.Context) error 
 			result = errors.Join(result, err)
 		}
 	}
-	return result
+	return true, result
 }
 
 func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease ConnectorEffectLease) error {
+	providerDeadline := lease.LeaseExpiresAt.Add(-2 * time.Second)
+	if !providerDeadline.After(time.Now()) {
+		return ErrRepositoryConflict
+	}
+	providerContext, cancel := context.WithDeadline(ctx, providerDeadline)
+	defer cancel()
 	if lease.Operation == "revoke" {
-		return reconciler.reconcileRevocation(ctx, lease)
+		return reconciler.reconcileRevocation(providerContext, lease)
 	}
 	if lease.Operation != "authorize" {
 		return reconciler.failAfterCleanup(ctx, lease, nil, "unsupported_reconciliation")
@@ -110,40 +122,40 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	if err != nil {
 		return err
 	}
-	workflow, err := reconciler.workflows.GetWorkflow(ctx, scope, "integration", lease.IntegrationID)
+	workflow, err := reconciler.workflows.GetWorkflow(providerContext, scope, "integration", lease.IntegrationID)
 	providerKey, configuration, valid := authorizedOAuthIntegration(workflow, lease.IntegrationID)
-	definition, ready := reconciler.registry.Provider(ctx, providerKey)
+	definition, ready := reconciler.registry.Provider(providerContext, providerKey)
 	if lease.LastErrorCode == "cleanup_pending" {
 		provider, providerErr := connectorOAuthProvider(definition, configuration)
 		if err != nil || !valid || !ready || providerKey != lease.Provider || providerErr != nil {
 			return ErrRepositoryUnavailable
 		}
-		if err := provider.Discard(ctx, lease.ID, false); err != nil {
+		if err := provider.Discard(providerContext, lease.ID, false); err != nil {
 			return err
 		}
-		_, err = reconciler.repository.CompleteConnectorCleanupReconciliation(ctx, lease)
+		_, err = reconciler.repository.CompleteConnectorCleanupReconciliation(providerContext, lease)
 		return err
 	}
 	if err != nil || !valid || !ready || providerKey != lease.Provider || !equalStringSet(definition.RequestedScopes, lease.RequestedScopes) {
-		return reconciler.failAfterCleanup(ctx, lease, nil, "authorization_intent_changed")
+		return reconciler.failAfterCleanup(providerContext, lease, nil, "authorization_intent_changed")
 	}
 	expected := connectorAuthorizationIntentDigestValues(scope, lease.PrincipalID, workflow, lease.IntegrationID, lease.OAuthAttemptID, lease.Provider, configuration, definition.RequestedScopes)
 	actual, decodeErr := hex.DecodeString(lease.RequestDigest)
 	provider, providerErr := connectorOAuthProvider(definition, configuration)
 	if decodeErr != nil || subtle.ConstantTimeCompare(actual, expected[:]) != 1 || providerErr != nil {
-		return reconciler.failAfterCleanup(ctx, lease, provider, "authorization_intent_changed")
+		return reconciler.failAfterCleanup(providerContext, lease, provider, "authorization_intent_changed")
 	}
-	grant, recoverErr := provider.Recover(ctx, lease.ID)
+	grant, recoverErr := provider.Recover(providerContext, lease.ID)
 	if errors.Is(recoverErr, ErrConnectorOutcomeNotFound) {
 		if lease.Attempt < 100 {
 			return recoverErr
 		}
-		_, err := reconciler.repository.QuarantineConnectorReconciliation(ctx, lease, "provider_outcome_ambiguous")
+		_, err := reconciler.repository.QuarantineConnectorReconciliation(providerContext, lease, "provider_outcome_ambiguous")
 		return err
 	}
 	if recoverErr != nil || !validConnectorOAuthGrant(grant, definition.CredentialClass) {
 		if lease.Attempt >= 100 {
-			return reconciler.failAfterCleanup(ctx, lease, provider, "reconciliation_exhausted")
+			return reconciler.failAfterCleanup(providerContext, lease, provider, "reconciliation_exhausted")
 		}
 		if recoverErr != nil {
 			return recoverErr
@@ -151,13 +163,13 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 		return ErrRepositoryUnavailable
 	}
 	completion := OAuthCompletion{AttemptID: lease.OAuthAttemptID, EffectID: lease.ID, ConnectionID: connectorDeterministicID(scope, lease.OAuthAttemptID, "connection"), ConnectionReference: grant.ConnectionReference, ProviderSubject: grant.ProviderSubject, CredentialID: connectorDeterministicID(scope, lease.OAuthAttemptID, "credential"), CredentialClass: grant.CredentialClass, Metadata: grant.Metadata}
-	if _, err := reconciler.repository.CompleteOAuthReconciliation(ctx, lease, completion); err != nil {
+	if _, err := reconciler.repository.CompleteOAuthReconciliation(providerContext, lease, completion); err != nil {
 		return err
 	}
-	if err := provider.Discard(ctx, lease.ID, false); err != nil {
+	if err := provider.Discard(providerContext, lease.ID, false); err != nil {
 		return err
 	}
-	_, err = reconciler.repository.CompleteConnectorCleanupReconciliation(ctx, lease)
+	_, err = reconciler.repository.CompleteConnectorCleanupReconciliation(providerContext, lease)
 	return err
 }
 

@@ -47,13 +47,13 @@ func TestConnectorRepositoryStartsAndConsumesBoundOAuthWithoutSecretBytes(t *tes
 	input := OAuthStart{
 		AttemptID: "pid_70000002-0000-4000-8000-000000000002", IntegrationID: "pid_70000001-0000-4000-8000-000000000001",
 		Provider: "github", SessionDigest: sessionDigest[:], StateDigest: stateDigest[:], PKCEVerifierReference: "ref:oauth/pkce/attempt-0001",
-		RequestDigest: requestDigest[:], RequestedScopes: []string{"read:org"}, ExpiresAt: now.Add(10 * time.Minute),
+		RequestDigest: requestDigest[:], RequestedScopes: []string{"read:org"}, ExpiresAt: now.Add(10 * time.Minute), IntegrationVersion: 1, Configuration: json.RawMessage(`{}`),
 	}
 	started, err := repository.StartOAuth(context.Background(), identity, input)
 	if err != nil || started.ID != input.AttemptID || started.Provider != "github" || started.CreatedAt.Location() != time.UTC {
 		t.Fatalf("start OAuth = %#v, %v", started, err)
 	}
-	wantArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.AttemptID, input.IntegrationID, input.Provider, identity.PrincipalID.String(), input.SessionDigest, input.StateDigest, input.PKCEVerifierReference, input.RequestDigest, `["read:org"]`, input.ExpiresAt}
+	wantArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.AttemptID, input.IntegrationID, input.Provider, identity.PrincipalID.String(), input.SessionDigest, input.StateDigest, input.PKCEVerifierReference, input.RequestDigest, `["read:org"]`, input.ExpiresAt, input.IntegrationVersion, input.Configuration}
 	if database.query != postgresConnectorStartOAuthSQL || !reflect.DeepEqual(database.args, wantArgs) {
 		t.Fatalf("start query/args = %q/%#v", database.query, database.args)
 	}

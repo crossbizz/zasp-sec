@@ -25,7 +25,7 @@ func NewConnectorProviderRegistry(providers map[string]ConnectorOAuthProviderDef
 	registry := &ConnectorProviderRegistry{providers: make(map[string]ConnectorOAuthProviderDefinition, len(providers)), checks: make(map[string]ConnectorCapabilityCheck, len(providers))}
 	for key, definition := range providers {
 		manifest, launchReady := launchRegistry.FirstParty(key)
-		if !launchReady || !manifest.AuthorizationReady || !stringIn(key, "github", "okta") || nilInterface(definition.Provider) == nilInterface(definition.Factory) || !validConnectorScopes(definition.RequestedScopes) || key == "github" && definition.CredentialClass != "github_installation_reference" || key == "okta" && definition.CredentialClass != "okta_refresh_reference" {
+		if !launchReady || !manifest.AuthorizationReady || !stringIn(key, "github", "okta") || nilInterface(definition.Provider) == nilInterface(definition.Factory) || !validConnectorScopes(definition.RequestedScopes) || key == "github" && definition.CredentialClass != "github_oauth_grant_reference" || key == "okta" && definition.CredentialClass != "okta_refresh_reference" {
 			return nil, ErrRepositoryConfiguration
 		}
 		check, hasCheck := checks[key]

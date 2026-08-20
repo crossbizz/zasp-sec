@@ -203,9 +203,14 @@ func (handler *connectorHTTPHandler) authorize(writer http.ResponseWriter, reque
 	sessionDigest := sha256.Sum256([]byte(cookie.Value))
 	stateDigest := sha256.Sum256([]byte(material.State))
 	requestDigest := connectorAuthorizationIntentDigest(identity, workflow, integrationID, attemptID, providerKey, providerConfiguration, definition.RequestedScopes)
+	configurationJSON, configurationErr := json.Marshal(providerConfiguration)
+	if configurationErr != nil {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
 	attempt, err := handler.repository.StartOAuth(request.Context(), identity, OAuthStart{
 		AttemptID: attemptID, IntegrationID: integrationID, Provider: providerKey, SessionDigest: sessionDigest[:], StateDigest: stateDigest[:], PKCEVerifierReference: reference,
-		RequestDigest: requestDigest[:], RequestedScopes: definition.RequestedScopes, ExpiresAt: material.ExpiresAt.UTC(),
+		RequestDigest: requestDigest[:], RequestedScopes: definition.RequestedScopes, ExpiresAt: material.ExpiresAt.UTC(), IntegrationVersion: workflow.Version, Configuration: configurationJSON,
 	})
 	if err != nil {
 		writeProductionError(writer, request, err)
