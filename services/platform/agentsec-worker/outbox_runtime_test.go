@@ -97,6 +97,8 @@ func TestOutboxProcessorRejectsForeignTopicAndScopeBeforePublish(t *testing.T) {
 	}
 	body["organization_id"] = "pid_89999999-0000-4000-8000-000000000099"
 	event.Payload, _ = json.Marshal(body)
+	foreignScopeDigest := sha256.Sum256(event.Payload)
+	event.PayloadDigest = foreignScopeDigest[:]
 	authority.events = []apiserver.DiscoveryOutboxEvent{event}
 	if err := processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) {
 		t.Fatalf("foreign scope error = %v", err)
