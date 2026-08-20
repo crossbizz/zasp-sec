@@ -347,6 +347,12 @@ type connectorRecoveryProvider struct {
 	revokeErr              error
 }
 
+type connectorUnavailableFactory struct{}
+
+func (*connectorUnavailableFactory) Provider(map[string]string) (ConnectorOAuthProvider, error) {
+	return nil, ErrRepositoryUnavailable
+}
+
 func (*connectorRecoveryProvider) AuthorizationURL(string, string) (string, error) { return "", nil }
 func (provider *connectorRecoveryProvider) Complete(context.Context, string, string, []byte) (ConnectorOAuthGrant, error) {
 	provider.mu.Lock()
@@ -825,5 +831,24 @@ func TestConnectorReconcilerRejectsChangedAuthorizationIntentAndRunCancels(t *te
 	cancel()
 	if err := <-done; !errors.Is(err, context.Canceled) || !reconciler.Ready() {
 		t.Fatalf("cancelled worker err=%v ready=%v", err, reconciler.Ready())
+	}
+}
+
+func TestConnectorReconcilerNeverFailsUnknownEffectWithoutPositiveProviderCleanup(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_70800001-0000-4000-8000-000000000001"
+	attemptID := "pid_70800002-0000-4000-8000-000000000002"
+	workflow := connectorWorkflowValue(integrationID, "okta")
+	digest := sha256.Sum256([]byte("changed-okta-configuration"))
+	lease := ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: "pid_70800003-0000-4000-8000-000000000003", IntegrationID: integrationID, OAuthAttemptID: attemptID, PrincipalID: identity.PrincipalID.String(), RequestedScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, Provider: "okta", Operation: "authorize", IdempotencyKey: "okta-configuration-drift-0001", RequestDigest: hex.EncodeToString(digest[:]), Attempt: 99, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute)}
+	repository := &connectorReconciliationRepositoryStub{lease: lease}
+	registry, _ := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"okta": {Factory: &connectorUnavailableFactory{}, RequestedScopes: lease.RequestedScopes, CredentialClass: "okta_refresh_reference"}}, nil)
+	reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 1, Interval: time.Second})
+	if err := reconciler.reconcileOnce(context.Background()); err == nil || repository.failedCode != "" || repository.quarantined != "" {
+		t.Fatalf("unavailable cleanup authority attempt99 err=%v failed=%q quarantine=%q", err, repository.failedCode, repository.quarantined)
+	}
+	repository.lease.Attempt = 100
+	if err := reconciler.reconcileOnce(context.Background()); err != nil || repository.failedCode != "" || repository.quarantined != "provider_outcome_ambiguous" {
+		t.Fatalf("unavailable cleanup authority attempt100 err=%v failed=%q quarantine=%q", err, repository.failedCode, repository.quarantined)
 	}
 }

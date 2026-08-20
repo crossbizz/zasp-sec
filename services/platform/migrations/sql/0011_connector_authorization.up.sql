@@ -95,9 +95,32 @@ CREATE TABLE "public"."zasp_connector_effects" (
   CHECK(status NOT IN ('succeeded','reconciled') OR operation='pkce_cleanup' AND connection_reference IS NOT NULL AND last_error_code IS NULL OR (connection_reference IS NOT NULL AND provider_subject IS NOT NULL AND last_error_code IS NULL)),
   CHECK(status<>'failed' OR last_error_code IS NOT NULL)
 );
-CREATE INDEX zasp_connector_effect_candidate_lane_idx ON zasp_connector_effects(updated_at,id,provider,operation) INCLUDE(available_at,organization_id,workspace_id,environment_id) WHERE status='unknown' AND attempt<100;
 CREATE INDEX zasp_connector_effect_active_lane_idx ON zasp_connector_effects(provider,operation,lease_expires_at) WHERE status='unknown' AND lease_expires_at IS NOT NULL;
 CREATE INDEX zasp_connector_effect_final_recovery_idx ON zasp_connector_effects(lease_expires_at,id) WHERE status='unknown' AND attempt=100;
+
+CREATE TABLE "public"."zasp_connector_effect_lane_scopes" (
+  provider text NOT NULL CHECK(zasp_connector_provider_valid(provider)),
+  operation text NOT NULL CHECK(operation IN ('authorize','bind','test','rotate','revoke','pkce_cleanup','nango_connect')),
+  organization_id text NOT NULL CHECK(zasp_valid_product_id(organization_id)),
+  workspace_id text NOT NULL CHECK(zasp_valid_product_id(workspace_id)),
+  environment_id text NOT NULL CHECK(zasp_valid_product_id(environment_id)),
+  created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+  PRIMARY KEY(provider,operation,organization_id,workspace_id,environment_id)
+);
+
+CREATE FUNCTION "public"."zasp_connector_register_effect_lane_scopes"() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO zasp_connector_effect_lane_scopes(provider,operation,organization_id,workspace_id,environment_id)
+  SELECT DISTINCT provider,operation,organization_id,workspace_id,environment_id FROM new_connector_effects
+  ON CONFLICT(provider,operation,organization_id,workspace_id,environment_id) DO NOTHING;
+  RETURN NULL;
+END $$;
+CREATE TRIGGER zasp_connector_effect_lane_scopes_insert AFTER INSERT ON zasp_connector_effects
+REFERENCING NEW TABLE AS new_connector_effects FOR EACH STATEMENT EXECUTE FUNCTION zasp_connector_register_effect_lane_scopes();
+
+CREATE INDEX zasp_connector_effect_candidate_lane_idx ON zasp_connector_effects(organization_id,workspace_id,environment_id,provider,operation,updated_at,id)
+INCLUDE(available_at,lease_expires_at,oauth_attempt_id) WHERE status='unknown' AND attempt<100;
 
 CREATE TABLE "public"."zasp_connector_credentials" (
   organization_id text NOT NULL, workspace_id text NOT NULL, environment_id text NOT NULL,
@@ -358,8 +381,8 @@ BEGIN
 	PERFORM pg_advisory_xact_lock(742516322);
 	SELECT GREATEST(0,LEAST(limit_value,100-count(*)::integer)) INTO available_slots FROM zasp_connector_effects WHERE status='unknown' AND lease_expires_at>transaction_timestamp();
 	IF available_slots=0 THEN RETURN jsonb_build_object('items','[]'::jsonb); END IF;
-  WITH ranked AS (SELECT organization_id,workspace_id,environment_id,id,updated_at,row_number() OVER(PARTITION BY provider,operation ORDER BY updated_at,id) lane_rank FROM zasp_connector_effects effect WHERE status='unknown' AND attempt<100 AND available_at<=transaction_timestamp() AND updated_at<=transaction_timestamp()-interval '15 seconds' AND (lease_expires_at IS NULL OR lease_expires_at<=transaction_timestamp()) AND NOT EXISTS(SELECT 1 FROM zasp_connector_effects live WHERE live.provider=effect.provider AND live.operation=effect.operation AND live.status='unknown' AND live.lease_expires_at>transaction_timestamp()) AND (operation<>'pkce_cleanup' OR oauth_attempt_id IS NULL OR NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.oauth_attempt_id) AND attempt.status='consuming'))),
-  fair AS (SELECT ranked.*,row_number() OVER(PARTITION BY organization_id,workspace_id,environment_id ORDER BY updated_at,id) organization_rank FROM ranked WHERE lane_rank=1),
+  WITH candidates AS (SELECT effect.organization_id,effect.workspace_id,effect.environment_id,effect.id,effect.updated_at FROM zasp_connector_effect_lane_scopes lane CROSS JOIN LATERAL (SELECT candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id,candidate.updated_at FROM zasp_connector_effects candidate WHERE candidate.provider=lane.provider AND candidate.operation=lane.operation AND candidate.organization_id=lane.organization_id AND candidate.workspace_id=lane.workspace_id AND candidate.environment_id=lane.environment_id AND candidate.status='unknown' AND candidate.attempt<100 AND candidate.available_at<=transaction_timestamp() AND candidate.updated_at<=transaction_timestamp()-interval '15 seconds' AND (candidate.lease_expires_at IS NULL OR candidate.lease_expires_at<=transaction_timestamp()) AND NOT EXISTS(SELECT 1 FROM zasp_connector_effects live WHERE live.provider=candidate.provider AND live.operation=candidate.operation AND live.status='unknown' AND live.lease_expires_at>transaction_timestamp()) AND (candidate.operation<>'pkce_cleanup' OR candidate.oauth_attempt_id IS NULL OR NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.oauth_attempt_id) AND attempt.status='consuming')) ORDER BY candidate.updated_at,candidate.id LIMIT 1) effect),
+  fair AS (SELECT candidates.*,row_number() OVER(PARTITION BY organization_id,workspace_id,environment_id ORDER BY updated_at,id) organization_rank FROM candidates),
   selected AS (SELECT effect.organization_id,effect.workspace_id,effect.environment_id,effect.id FROM zasp_connector_effects effect JOIN fair ON (fair.organization_id,fair.workspace_id,fair.environment_id,fair.id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id) ORDER BY fair.organization_rank,effect.updated_at,effect.id FOR UPDATE OF effect SKIP LOCKED LIMIT available_slots),
   updated AS (UPDATE zasp_connector_effects effect SET attempt=effect.attempt+1,lease_owner=owner_value,lease_token=encode(gen_random_bytes(32),'hex'),lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds),updated_at=transaction_timestamp() FROM selected WHERE (effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)=(selected.organization_id,selected.workspace_id,selected.environment_id,selected.id) RETURNING effect.*)
 	  SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'id',id,'integration_id',integration_id,'oauth_attempt_id',oauth_attempt_id,'principal_id',(SELECT principal_id FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(updated.organization_id,updated.workspace_id,updated.environment_id,updated.oauth_attempt_id)),'requested_scopes',(SELECT requested_scopes FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(updated.organization_id,updated.workspace_id,updated.environment_id,updated.oauth_attempt_id)),'provider',provider,'operation',operation,'connection_reference',connection_reference,'idempotency_key',idempotency_key,'request_digest',encode(request_digest,'hex'),'last_error_code',last_error_code,'attempt',attempt,'lease_owner',lease_owner,'lease_token',lease_token,'lease_expires_at',lease_expires_at) ORDER BY updated_at,id),'[]'::jsonb)) INTO result_value FROM updated;
@@ -600,7 +623,7 @@ BEGIN
 END $$;
 
 DO $rls$ DECLARE table_name text; BEGIN
-  FOREACH table_name IN ARRAY ARRAY['zasp_connector_oauth_attempts','zasp_connector_effects','zasp_connector_credentials','zasp_connector_audit'] LOOP
+  FOREACH table_name IN ARRAY ARRAY['zasp_connector_oauth_attempts','zasp_connector_effects','zasp_connector_effect_lane_scopes','zasp_connector_credentials','zasp_connector_audit'] LOOP
     EXECUTE format('ALTER TABLE public.%I OWNER TO zasp_discovery_authority',table_name); EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',table_name); EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',table_name);
     EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway',table_name); EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON public.%I TO zasp_discovery_authority',table_name);
     EXECUTE format('CREATE POLICY %I ON public.%I TO zasp_discovery_authority USING (true) WITH CHECK (true)',table_name||'_authority',table_name);
@@ -644,7 +667,7 @@ CREATE FUNCTION "public"."zasp_connector_security_ready"() RETURNS boolean LANGU
    ]::text[]) value ORDER BY value)
  )
  SELECT zasp_discovery_security_ready()
- AND NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname=ANY(ARRAY['zasp_connector_oauth_attempts','zasp_connector_effects','zasp_connector_credentials','zasp_connector_audit']) AND (c.relowner<>(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') OR NOT c.relrowsecurity OR NOT c.relforcerowsecurity OR (SELECT count(*) FROM pg_policy p WHERE p.polrelid=c.oid)<>1 OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(c.relacl,acldefault('r',c.relowner))) a WHERE a.grantee<>c.relowner)))
+ AND NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname=ANY(ARRAY['zasp_connector_oauth_attempts','zasp_connector_effects','zasp_connector_effect_lane_scopes','zasp_connector_credentials','zasp_connector_audit']) AND (c.relowner<>(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') OR NOT c.relrowsecurity OR NOT c.relforcerowsecurity OR (SELECT count(*) FROM pg_policy p WHERE p.polrelid=c.oid)<>1 OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(c.relacl,acldefault('r',c.relowner))) a WHERE a.grantee<>c.relowner)))
  AND NOT EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname LIKE 'zasp_connector_%' AND (p.proowner<>(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') OR NOT p.prosecdef OR NOT COALESCE(p.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a WHERE a.privilege_type='EXECUTE' AND a.grantee NOT IN(p.proowner,(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_api'),(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_worker')))))
  AND (SELECT COALESCE(array_agg(p.proname||'('||replace(oidvectortypes(p.proargtypes),', ',',')||')' ORDER BY p.proname||'('||replace(oidvectortypes(p.proargtypes),', ',',')||')'),'{}'::text[]) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a WHERE n.nspname='public' AND p.proname LIKE 'zasp_connector_%' AND a.privilege_type='EXECUTE' AND a.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_api'))=(SELECT api_functions FROM expected)
  AND (SELECT COALESCE(array_agg(p.proname||'('||replace(oidvectortypes(p.proargtypes),', ',',')||')' ORDER BY p.proname||'('||replace(oidvectortypes(p.proargtypes),', ',',')||')'),'{}'::text[]) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a WHERE n.nspname='public' AND p.proname LIKE 'zasp_connector_%' AND a.privilege_type='EXECUTE' AND a.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_worker'))=(SELECT worker_functions FROM expected)
@@ -686,7 +709,7 @@ DO $risk_migration$ DECLARE definition text; BEGIN
  EXECUTE definition;
 END $risk_migration$;
 
-INSERT INTO zasp_schema_metadata(key,value) VALUES ('connector_authorization_fingerprint', '7a5ee4879c38afd2f89d344dbe30edbd1fafdab7917e058845297bfe8d4ddec2');
+INSERT INTO zasp_schema_metadata(key,value) VALUES ('connector_authorization_fingerprint', '6155572ea2a7ba360ae370cd6985c2abe5830be7982ace987328cecafbc11d3b');
 UPDATE zasp_schema_metadata SET value='a3ee9cb3bfd3e6ed0d37399817432ec9ebdc4e4a66b778d2e1b79c62f99a65f9' WHERE key='production_discovery_fingerprint' AND EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_discovery_release_fingerprint');
 DELETE FROM zasp_schema_metadata WHERE key='production_discovery_release_fingerprint';
 UPDATE zasp_schema_metadata SET value='connector-authorization-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='production-discovery-v1';

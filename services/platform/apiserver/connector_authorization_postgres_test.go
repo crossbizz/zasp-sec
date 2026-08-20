@@ -1046,6 +1046,11 @@ func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousand
 	 FROM (SELECT ordinal,md5(ordinal::text) hash FROM generate_series(1,100000) ordinal) generated`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,attempt,available_at,updated_at)
+	 SELECT $1,$2,$3,'pid_'||substr(hash,1,8)||'-'||substr(hash,9,4)||'-4'||substr(hash,14,3)||'-8'||substr(hash,18,3)||'-'||substr(hash,21,12),$4,'nango:lane'||lpad(ordinal::text,3,'0'),'bind','index-lane-'||lpad(ordinal::text,10,'0'),digest(('lane'||ordinal)::text,'sha256'),'unknown',0,transaction_timestamp()-interval '1 minute',transaction_timestamp()-interval '1 minute'
+	 FROM (SELECT ordinal,md5('lane'||ordinal::text) hash FROM generate_series(1,100) ordinal) generated`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := connection.Exec(ctx, `ANALYZE zasp_connector_effects`); err != nil {
 		t.Fatal(err)
 	}
@@ -1054,16 +1059,21 @@ func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousand
 	}
 	defer connection.Exec(context.Background(), `RESET enable_seqscan`)
 	var candidatePlan, activePlan []byte
-	if err := connection.QueryRow(ctx, `EXPLAIN (FORMAT JSON)
-	 WITH ranked AS (
-	   SELECT organization_id,workspace_id,environment_id,id,updated_at,row_number() OVER(PARTITION BY provider,operation ORDER BY updated_at,id) lane_rank
-	   FROM zasp_connector_effects effect
-	   WHERE status='unknown' AND attempt<100 AND available_at<=transaction_timestamp() AND updated_at<=transaction_timestamp()-interval '15 seconds'
-	     AND (lease_expires_at IS NULL OR lease_expires_at<=transaction_timestamp())
-	     AND NOT EXISTS(SELECT 1 FROM zasp_connector_effects live WHERE live.provider=effect.provider AND live.operation=effect.operation AND live.status='unknown' AND live.lease_expires_at>transaction_timestamp())
-	     AND (operation<>'pkce_cleanup' OR oauth_attempt_id IS NULL OR NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.oauth_attempt_id) AND attempt.status='consuming'))
+	if err := connection.QueryRow(ctx, `EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON)
+	 WITH candidates AS (
+	   SELECT effect.organization_id,effect.workspace_id,effect.environment_id,effect.id,effect.updated_at
+	   FROM zasp_connector_effect_lane_scopes lane CROSS JOIN LATERAL (
+	     SELECT candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id,candidate.updated_at
+	     FROM zasp_connector_effects candidate
+	     WHERE candidate.provider=lane.provider AND candidate.operation=lane.operation AND candidate.organization_id=lane.organization_id AND candidate.workspace_id=lane.workspace_id AND candidate.environment_id=lane.environment_id
+	       AND candidate.status='unknown' AND candidate.attempt<100 AND candidate.available_at<=transaction_timestamp() AND candidate.updated_at<=transaction_timestamp()-interval '15 seconds'
+	       AND (candidate.lease_expires_at IS NULL OR candidate.lease_expires_at<=transaction_timestamp())
+	       AND NOT EXISTS(SELECT 1 FROM zasp_connector_effects live WHERE live.provider=candidate.provider AND live.operation=candidate.operation AND live.status='unknown' AND live.lease_expires_at>transaction_timestamp())
+	       AND (candidate.operation<>'pkce_cleanup' OR candidate.oauth_attempt_id IS NULL OR NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.oauth_attempt_id) AND attempt.status='consuming'))
+	     ORDER BY candidate.updated_at,candidate.id LIMIT 1
+	   ) effect
 	 ), fair AS (
-	   SELECT ranked.*,row_number() OVER(PARTITION BY organization_id,workspace_id,environment_id ORDER BY updated_at,id) organization_rank FROM ranked WHERE lane_rank=1
+	   SELECT candidates.*,row_number() OVER(PARTITION BY organization_id,workspace_id,environment_id ORDER BY updated_at,id) organization_rank FROM candidates
 	 )
 	 SELECT effect.id FROM zasp_connector_effects effect JOIN fair ON (fair.organization_id,fair.workspace_id,fair.environment_id,fair.id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)
 	 ORDER BY fair.organization_rank,effect.updated_at,effect.id LIMIT 25`).Scan(&candidatePlan); err != nil {
@@ -1075,6 +1085,34 @@ func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousand
 	if !strings.Contains(string(candidatePlan), "zasp_connector_effect_candidate_lane_idx") || !strings.Contains(string(activePlan), "zasp_connector_effect_active_lane_idx") {
 		t.Fatalf("reconciliation plans candidate=%s active=%s", candidatePlan, activePlan)
 	}
+	var decodedPlan any
+	if json.Unmarshal(candidatePlan, &decodedPlan) != nil || maxJSONPlanMetric(decodedPlan, "Actual Rows") > 256 || maxJSONPlanMetric(decodedPlan, "Shared Read Blocks") > 2048 || maxJSONPlanMetric(decodedPlan, "Temp Written Blocks") != 0 || strings.Contains(string(candidatePlan), `"Sort Method": "external`) {
+		t.Fatalf("unbounded reconciliation candidate plan=%s", candidatePlan)
+	}
+}
+
+func maxJSONPlanMetric(value any, key string) float64 {
+	maximum := float64(0)
+	switch typed := value.(type) {
+	case map[string]any:
+		for candidate, child := range typed {
+			if candidate == key {
+				if number, ok := child.(float64); ok && number > maximum {
+					maximum = number
+				}
+			}
+			if nested := maxJSONPlanMetric(child, key); nested > maximum {
+				maximum = nested
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if nested := maxJSONPlanMetric(child, key); nested > maximum {
+				maximum = nested
+			}
+		}
+	}
+	return maximum
 }
 
 func TestConnectorAuthorizationPostgresCompletionRejectsChangedStoredIntentAtomically(t *testing.T) {

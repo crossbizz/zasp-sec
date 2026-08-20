@@ -335,10 +335,11 @@ func (reconciler *ConnectorReconciler) failAfterCleanup(providerContext, finaliz
 			}
 		}
 	}
-	if provider != nil {
-		if err := provider.Discard(providerContext, lease.ID, true); err != nil {
-			return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", err)
-		}
+	if provider == nil {
+		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_outcome_ambiguous", ErrRepositoryUnavailable)
+	}
+	if err := provider.Discard(providerContext, lease.ID, true); err != nil {
+		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", err)
 	}
 	_, err := reconciler.repository.FailConnectorReconciliation(finalizationContext, lease, reason)
 	return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_outcome_ambiguous", err)
