@@ -125,6 +125,9 @@ var connectorUpSQL string
 //go:embed sql/0011_connector_authorization.down.sql
 var connectorDownSQL string
 
+//go:embed sql/0011_v10_rollback_normalization.sql
+var connectorV10RollbackNormalizationSQL string
+
 type Metadata struct {
 	version  int64
 	name     string
@@ -920,6 +923,9 @@ func (runner *Runner) DownProductionDiscovery(ctx context.Context) error {
 		if err != nil || !present {
 			return ErrInvalidState
 		}
+		if err := transaction.Exec(ctx, lockWorkflowMutationsSQL); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
 		if err := transaction.Exec(ctx, lockDiscoverySQL); err != nil {
 			return fixedDatabaseError(ctx, err)
 		}
@@ -928,6 +934,9 @@ func (runner *Runner) DownProductionDiscovery(ctx context.Context) error {
 		}
 		if err := readProductionDiscoveryState(ctx, transaction); err != nil {
 			return err
+		}
+		if err := transaction.Exec(ctx, strings.TrimSpace(connectorV10RollbackNormalizationSQL)); err != nil {
+			return fixedDatabaseError(ctx, err)
 		}
 		metadata := ProductionDiscovery()
 		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
