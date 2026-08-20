@@ -25,7 +25,13 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 )
 
-const discoveryCredentialEnvelopeVersion = "discovery_credential_v1"
+const (
+	discoveryCredentialEnvelopeVersion = "discovery_credential_v1"
+	// Static Kubernetes bearer material has no provider expiry. Keep its
+	// in-memory envelope valid beyond the contract's 15-minute collection bound
+	// while still forcing regular re-resolution and zeroization.
+	discoveryStaticCredentialTTL = 20 * time.Minute
+)
 
 var (
 	errDiscoveryCredentialUnavailable = errors.New("discovery credential unavailable")
@@ -216,7 +222,7 @@ func (resolver *productionDiscoveryCredentialResolver) resolveKubernetes(ctx con
 		clear(token)
 		return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, tokenErr)
 	}
-	expiresAt := now.Add(10 * time.Minute).UTC()
+	expiresAt := now.Add(discoveryStaticCredentialTTL).UTC()
 	if !expiresAt.After(now) {
 		clear(caBundle)
 		clear(token)
