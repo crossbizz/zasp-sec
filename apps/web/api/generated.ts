@@ -1400,6 +1400,20 @@ export type components = {
             readonly status: "ready";
         };
         readonly AuditExportInput: Record<string, never>;
+        readonly AWSReferenceAuthorizationConfiguration: {
+            readonly external_id_reference: string;
+            readonly region: string;
+            readonly role_arn: string;
+        };
+        readonly AWSReferenceAuthorizationReceiptIntent: {
+            readonly configuration: components["schemas"]["AWSReferenceAuthorizationConfiguration"];
+            readonly expected_version: number;
+            readonly idempotency_key: string;
+            readonly integration_id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly provider: "aws";
+            readonly scope: components["schemas"]["ReferenceAuthorizationReceiptScope"];
+        };
         readonly BreakOption: {
             readonly evidence_id: components["schemas"]["ProductID"];
             /** @enum {string} */
@@ -1734,6 +1748,18 @@ export type components = {
             readonly team: string;
             readonly workload_id?: string;
         };
+        readonly KubernetesReferenceAuthorizationConfiguration: {
+            readonly connection_reference: string;
+        };
+        readonly KubernetesReferenceAuthorizationReceiptIntent: {
+            readonly configuration: components["schemas"]["KubernetesReferenceAuthorizationConfiguration"];
+            readonly expected_version: number;
+            readonly idempotency_key: string;
+            readonly integration_id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly provider: "kubernetes";
+            readonly scope: components["schemas"]["ReferenceAuthorizationReceiptScope"];
+        };
         readonly MemberRoleInput: {
             readonly role: components["schemas"]["BuiltInRoleName"];
         };
@@ -1834,6 +1860,30 @@ export type components = {
         /** @description Canonical product identifier. */
         readonly ProductID: string;
         readonly RedTeamID: string;
+        readonly ReferenceAuthorizationReceiptIntent: components["schemas"]["AWSReferenceAuthorizationReceiptIntent"] | components["schemas"]["KubernetesReferenceAuthorizationReceiptIntent"];
+        readonly ReferenceAuthorizationReceiptScope: {
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly organization_id: components["schemas"]["ProductID"];
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly ReferenceAuthorizationWorkflowMutationReceipt: {
+            readonly audit_id: components["schemas"]["ProductID"];
+            readonly correlation_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly idempotency_key: string;
+            readonly intent: components["schemas"]["ReferenceAuthorizationReceiptIntent"];
+            /** @constant */
+            readonly operation: "completeIntegrationReferenceAuthorization";
+            readonly resource_id: components["schemas"]["ProductID"];
+            /** @constant */
+            readonly resource_kind: "integration";
+            readonly resource_version: number;
+            readonly result: components["schemas"]["Integration"];
+        };
         readonly Relationship: {
             readonly evidence_id: components["schemas"]["ProductID"];
             readonly from_id: components["schemas"]["ProductID"];
@@ -2185,6 +2235,24 @@ export type components = {
         readonly SSOIdentityProvider: "classlink" | "cyberark" | "duo" | "generic" | "google-workspace" | "jumpcloud" | "keycloak" | "miniorange" | "microsoft-entra" | "okta" | "onelogin" | "pingfederate" | "rippling" | "salesforce" | "shibboleth";
         /** @enum {string} */
         readonly SSOProtocol: "saml" | "oidc";
+        readonly StandardWorkflowMutationReceipt: {
+            readonly audit_id: components["schemas"]["ProductID"];
+            readonly correlation_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly idempotency_key: string;
+            readonly intent: components["schemas"]["WorkflowMutationIntent"];
+            /** @enum {string} */
+            readonly operation: "createPolicy" | "updatePolicy" | "deletePolicy" | "rolloutPolicy" | "disablePolicy" | "createIntegration" | "updateIntegration" | "deleteIntegration" | "remediateIntegrationAuthorization" | "createSecurityAgent" | "updateSecurityAgent" | "deleteSecurityAgent" | "updateFinding" | "acceptFindingRisk";
+            readonly resource_id: string;
+            /** @enum {string} */
+            readonly resource_kind: "policy" | "integration" | "security_agent" | "finding";
+            readonly resource_version: number;
+            readonly result: components["schemas"]["Policy"] | components["schemas"]["Integration"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["Finding"];
+        };
         readonly SystemComponent: {
             /** Format: date-time */
             readonly fresh_at: string;
@@ -2232,24 +2300,7 @@ export type components = {
             readonly expected_version: number;
             readonly resource_id: string;
         };
-        readonly WorkflowMutationReceipt: {
-            readonly audit_id: components["schemas"]["ProductID"];
-            readonly correlation_id: components["schemas"]["ProductID"];
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly expires_at: string;
-            readonly id: components["schemas"]["ProductID"];
-            readonly idempotency_key: string;
-            readonly intent: components["schemas"]["WorkflowMutationIntent"];
-            /** @enum {string} */
-            readonly operation: "createPolicy" | "updatePolicy" | "deletePolicy" | "rolloutPolicy" | "disablePolicy" | "createIntegration" | "updateIntegration" | "deleteIntegration" | "remediateIntegrationAuthorization" | "completeIntegrationReferenceAuthorization" | "createSecurityAgent" | "updateSecurityAgent" | "deleteSecurityAgent" | "updateFinding" | "acceptFindingRisk";
-            readonly resource_id: string;
-            /** @enum {string} */
-            readonly resource_kind: "policy" | "integration" | "security_agent" | "finding";
-            readonly resource_version: number;
-            readonly result: components["schemas"]["Policy"] | components["schemas"]["Integration"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["Finding"];
-        };
+        readonly WorkflowMutationReceipt: components["schemas"]["StandardWorkflowMutationReceipt"] | components["schemas"]["ReferenceAuthorizationWorkflowMutationReceipt"];
         readonly WorkflowMutationReceiptPage: {
             readonly items: readonly components["schemas"]["WorkflowMutationReceipt"][];
         };
@@ -2332,6 +2383,8 @@ export type AuditEvent = components['schemas']['AuditEvent'];
 export type AuditEventPage = components['schemas']['AuditEventPage'];
 export type AuditExport = components['schemas']['AuditExport'];
 export type AuditExportInput = components['schemas']['AuditExportInput'];
+export type AwsReferenceAuthorizationConfiguration = components['schemas']['AWSReferenceAuthorizationConfiguration'];
+export type AwsReferenceAuthorizationReceiptIntent = components['schemas']['AWSReferenceAuthorizationReceiptIntent'];
 export type BreakOption = components['schemas']['BreakOption'];
 export type BreakOptionPage = components['schemas']['BreakOptionPage'];
 export type BuiltInRole = components['schemas']['BuiltInRole'];
@@ -2392,6 +2445,8 @@ export type IntegrationUpdateInput = components['schemas']['IntegrationUpdateInp
 export type InventoryKind = components['schemas']['InventoryKind'];
 export type InventoryPage = components['schemas']['InventoryPage'];
 export type InventoryRecord = components['schemas']['InventoryRecord'];
+export type KubernetesReferenceAuthorizationConfiguration = components['schemas']['KubernetesReferenceAuthorizationConfiguration'];
+export type KubernetesReferenceAuthorizationReceiptIntent = components['schemas']['KubernetesReferenceAuthorizationReceiptIntent'];
 export type MemberRoleInput = components['schemas']['MemberRoleInput'];
 export type NameInput = components['schemas']['NameInput'];
 export type Organization = components['schemas']['Organization'];
@@ -2411,6 +2466,9 @@ export type PrincipalPage = components['schemas']['PrincipalPage'];
 export type ProductError = components['schemas']['ProductError'];
 export type ProductId = components['schemas']['ProductID'];
 export type RedTeamId = components['schemas']['RedTeamID'];
+export type ReferenceAuthorizationReceiptIntent = components['schemas']['ReferenceAuthorizationReceiptIntent'];
+export type ReferenceAuthorizationReceiptScope = components['schemas']['ReferenceAuthorizationReceiptScope'];
+export type ReferenceAuthorizationWorkflowMutationReceipt = components['schemas']['ReferenceAuthorizationWorkflowMutationReceipt'];
 export type Relationship = components['schemas']['Relationship'];
 export type RelationshipPage = components['schemas']['RelationshipPage'];
 export type RiskFactor = components['schemas']['RiskFactor'];
@@ -2467,6 +2525,7 @@ export type SsoConnectionMutation = components['schemas']['SSOConnectionMutation
 export type SsoConnectionPage = components['schemas']['SSOConnectionPage'];
 export type SsoIdentityProvider = components['schemas']['SSOIdentityProvider'];
 export type SsoProtocol = components['schemas']['SSOProtocol'];
+export type StandardWorkflowMutationReceipt = components['schemas']['StandardWorkflowMutationReceipt'];
 export type SystemComponent = components['schemas']['SystemComponent'];
 export type SystemComponentPage = components['schemas']['SystemComponentPage'];
 export type SystemStatus = components['schemas']['SystemStatus'];

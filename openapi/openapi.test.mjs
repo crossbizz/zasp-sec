@@ -223,7 +223,7 @@ function verifyDocument(value, rawText) {
       assert.match(entry, /^#\/components\/(?:headers|parameters|responses|schemas|securitySchemes)\/[A-Za-z][A-Za-z0-9]*$/);
     }
   });
-  assert.doesNotMatch(rawText.toLowerCase(), /(?:amazon|aws|azure|customer_|example\.com|localstack|openai|stytch)/);
+  assert.doesNotMatch(rawText.toLowerCase(), /(?:amazon|azure|customer_|example\.com|localstack|openai|stytch)/);
 }
 
 before(async () => {
@@ -416,8 +416,20 @@ describe("production workflow concurrency contract", () => {
     assert.deepEqual(Object.keys(acknowledge.responses), ["204", "400", "401", "403", "404", "default"]);
 
     const receipt = document.components.schemas.WorkflowMutationReceipt;
-    assert.equal(receipt.additionalProperties, false);
-    assert.deepEqual(receipt.required, ["id", "operation", "idempotency_key", "intent", "result", "resource_kind", "resource_id", "resource_version", "audit_id", "correlation_id", "created_at", "expires_at"]);
+    assert.deepEqual(receipt.oneOf, [
+      { $ref: "#/components/schemas/StandardWorkflowMutationReceipt" },
+      { $ref: "#/components/schemas/ReferenceAuthorizationWorkflowMutationReceipt" },
+    ]);
+    const standard = document.components.schemas.StandardWorkflowMutationReceipt;
+    assert.equal(standard.additionalProperties, false);
+    assert.deepEqual(standard.required, ["id", "operation", "idempotency_key", "intent", "result", "resource_kind", "resource_id", "resource_version", "audit_id", "correlation_id", "created_at", "expires_at"]);
+    const reference = document.components.schemas.ReferenceAuthorizationWorkflowMutationReceipt;
+    assert.equal(reference.additionalProperties, false);
+    assert.deepEqual(reference.required, standard.required);
+    assert.deepEqual(reference.properties.operation, { type: "string", const: "completeIntegrationReferenceAuthorization" });
+    assert.deepEqual(reference.properties.intent, { $ref: "#/components/schemas/ReferenceAuthorizationReceiptIntent" });
+    assert.deepEqual(reference.properties.result, { $ref: "#/components/schemas/Integration" });
+    assert.deepEqual(reference.properties.resource_kind, { type: "string", const: "integration" });
     assert.equal(document.components.schemas.WorkflowMutationReceiptPage.properties.items.maxItems, 50);
   });
 
@@ -433,7 +445,7 @@ describe("production workflow concurrency contract", () => {
 	});
 
   it("publishes exact receipt intent and authoritative result object shapes", () => {
-    const receipt = document.components.schemas.WorkflowMutationReceipt;
+    const receipt = document.components.schemas.StandardWorkflowMutationReceipt;
     assert.equal(receipt.properties.intent.$ref, "#/components/schemas/WorkflowMutationIntent");
     assert.deepEqual(receipt.properties.result.oneOf, [
       { $ref: "#/components/schemas/Policy" },
@@ -456,6 +468,22 @@ describe("production workflow concurrency contract", () => {
       { $ref: "#/components/schemas/FindingUpdateInput" },
       { $ref: "#/components/schemas/FindingAcceptanceInput" },
     ]);
+    const referenceIntent = document.components.schemas.ReferenceAuthorizationReceiptIntent;
+    assert.deepEqual(referenceIntent.oneOf, [
+      { $ref: "#/components/schemas/AWSReferenceAuthorizationReceiptIntent" },
+      { $ref: "#/components/schemas/KubernetesReferenceAuthorizationReceiptIntent" },
+    ]);
+    for (const [name, provider, configuration] of [
+      ["AWSReferenceAuthorizationReceiptIntent", "aws", "AWSReferenceAuthorizationConfiguration"],
+      ["KubernetesReferenceAuthorizationReceiptIntent", "kubernetes", "KubernetesReferenceAuthorizationConfiguration"],
+    ]) {
+      const providerIntent = document.components.schemas[name];
+      assert.equal(providerIntent.additionalProperties, false);
+      assert.deepEqual(providerIntent.required, ["configuration", "expected_version", "idempotency_key", "integration_id", "provider", "scope"]);
+      assert.deepEqual(providerIntent.properties.provider, { type: "string", const: provider });
+      assert.deepEqual(providerIntent.properties.configuration, { $ref: `#/components/schemas/${configuration}` });
+      assert.deepEqual(providerIntent.properties.scope, { $ref: "#/components/schemas/ReferenceAuthorizationReceiptScope" });
+    }
   });
 
   it("publishes exactly the mounted Batch 4 risk slice and launch authorization operations without other overclaims", () => {
@@ -596,7 +624,7 @@ describe("production workflow concurrency contract", () => {
     assert.deepEqual(Object.keys(success.headers).sort(), ["Cache-Control", "ETag", "X-Audit-ID", "X-Mutation-Receipt-ID"]);
     assert.deepEqual(success.headers["Cache-Control"].schema, { type: "string", const: "no-store" });
     assert.deepEqual(Object.keys(operation.responses), ["200", "400", "401", "403", "404", "409", "503", "default"]);
-    assert.ok(document.components.schemas.WorkflowMutationReceipt.properties.operation.enum.includes("completeIntegrationReferenceAuthorization"));
+    assert.deepEqual(document.components.schemas.ReferenceAuthorizationWorkflowMutationReceipt.properties.operation, { type: "string", const: "completeIntegrationReferenceAuthorization" });
   });
 
   it("binds risk reads and mutations to strict pagination, security, and recovery contracts", () => {
@@ -625,9 +653,9 @@ describe("production workflow concurrency contract", () => {
       ]);
       assert.deepEqual(Object.keys(operation.responses["200"].headers).sort(), ["ETag", "X-Audit-ID", "X-Mutation-Receipt-ID"]);
     }
-    assert.deepEqual(document.components.schemas.WorkflowMutationReceipt.properties.operation.enum.slice(-2), ["updateFinding", "acceptFindingRisk"]);
-    assert.equal(document.components.schemas.WorkflowMutationReceipt.properties.resource_kind.enum.includes("finding"), true);
-    assert.deepEqual(document.components.schemas.WorkflowMutationReceipt.properties.result.oneOf.at(-1), { $ref: "#/components/schemas/Finding" });
+    assert.deepEqual(document.components.schemas.StandardWorkflowMutationReceipt.properties.operation.enum.slice(-2), ["updateFinding", "acceptFindingRisk"]);
+    assert.equal(document.components.schemas.StandardWorkflowMutationReceipt.properties.resource_kind.enum.includes("finding"), true);
+    assert.deepEqual(document.components.schemas.StandardWorkflowMutationReceipt.properties.result.oneOf.at(-1), { $ref: "#/components/schemas/Finding" });
     assert.deepEqual(document.components.schemas.WorkflowMutationIntent.properties.body.oneOf.slice(-2), [
       { $ref: "#/components/schemas/FindingUpdateInput" },
       { $ref: "#/components/schemas/FindingAcceptanceInput" },
