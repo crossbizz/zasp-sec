@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -105,6 +106,48 @@ func TestOutboxProcessorRejectsForeignTopicAndScopeBeforePublish(t *testing.T) {
 	}
 }
 
+func TestOutboxProcessorRejectsPayloadDigestDriftBeforePublish(t *testing.T) {
+	event := outboxEvent(t, "pid_80000071-0000-4000-8000-000000000071", "pid_80000072-0000-4000-8000-000000000072")
+	event.Payload = bytesReplaceOnce(t, event.Payload, []byte("000000000004"), []byte("000000000005"))
+	authority := &recordingOutboxAuthority{events: []apiserver.DiscoveryOutboxEvent{event}}
+	publisher := &recordingOutboxPublisher{}
+	processor, err := newOutboxProcessor(outboxProcessorConfig{
+		Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 30, BatchSize: 1, RetrySeconds: 30,
+		NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) {
+		t.Fatalf("digest drift error = %v", err)
+	}
+	if len(publisher.jobs) != 0 || len(authority.acknowledged) != 0 || len(authority.retried) != 0 {
+		t.Fatalf("digest drift caused side effects: jobs=%d ack=%v retry=%v", len(publisher.jobs), authority.acknowledged, authority.retried)
+	}
+}
+
+func TestOutboxProcessorRetriesExactDatabaseAcknowledgementWithoutRepublishing(t *testing.T) {
+	event := outboxEvent(t, "pid_80000081-0000-4000-8000-000000000081", "pid_80000082-0000-4000-8000-000000000082")
+	jobID := mustProductID(t, firstPayloadJobID(t, event))
+	for _, lostResponse := range []bool{false, true} {
+		authority := &recordingOutboxAuthority{events: []apiserver.DiscoveryOutboxEvent{event}, ackFailures: 1, ackLostResponse: lostResponse}
+		publisher := &recordingOutboxPublisher{result: jobqueue.PublishResult{JobIDs: []domain.ProductID{jobID}, Acknowledgements: []jobqueue.PublishAcknowledgement{{JobID: jobID, ProviderAck: canonicalProviderAck(t, "provider-message")}}}}
+		processor, err := newOutboxProcessor(outboxProcessorConfig{
+			Authority: authority, Publisher: publisher, Topic: discoveryOutboxTopic, WorkerID: "outbox-01", LeaseSeconds: 30, BatchSize: 1, RetrySeconds: 30,
+			NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil },
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := processor.RunOnce(context.Background()); err != nil {
+			t.Fatalf("lostResponse=%v RunOnce error=%v", lostResponse, err)
+		}
+		if publisher.calls != 1 || authority.ackCalls != 2 || len(authority.acknowledged) != 1 {
+			t.Fatalf("lostResponse=%v publisher=%d ackCalls=%d acknowledged=%v", lostResponse, publisher.calls, authority.ackCalls, authority.acknowledged)
+		}
+	}
+}
+
 func TestOutboxProcessorRejectsMalformedPublishAcknowledgementsWithoutDatabaseAck(t *testing.T) {
 	event := outboxEvent(t, "pid_80000061-0000-4000-8000-000000000061", "pid_80000062-0000-4000-8000-000000000062")
 	jobID := mustProductID(t, firstPayloadJobID(t, event))
@@ -134,6 +177,9 @@ type recordingOutboxAuthority struct {
 	events                              []apiserver.DiscoveryOutboxEvent
 	claimTopic, claimWorker, claimToken string
 	acknowledged, retried               []string
+	ackCalls, ackFailures               int
+	ackLostResponse                     bool
+	ackCommitted                        map[string]struct{}
 }
 
 func (authority *recordingOutboxAuthority) ClaimOutboxTopic(_ context.Context, topic, worker, token string, _, _ int) ([]apiserver.DiscoveryOutboxEvent, error) {
@@ -142,7 +188,25 @@ func (authority *recordingOutboxAuthority) ClaimOutboxTopic(_ context.Context, t
 }
 
 func (authority *recordingOutboxAuthority) AcknowledgeOutbox(_ context.Context, _ domain.Scope, id, _, _, providerAck string) error {
-	authority.acknowledged = append(authority.acknowledged, id+":"+providerAck)
+	authority.ackCalls++
+	key := id + ":" + providerAck
+	if authority.ackCommitted != nil {
+		if _, replay := authority.ackCommitted[key]; replay {
+			return nil
+		}
+	}
+	if authority.ackFailures > 0 {
+		authority.ackFailures--
+		if authority.ackLostResponse {
+			if authority.ackCommitted == nil {
+				authority.ackCommitted = map[string]struct{}{}
+			}
+			authority.ackCommitted[key] = struct{}{}
+			authority.acknowledged = append(authority.acknowledged, key)
+		}
+		return errors.New("database response unavailable")
+	}
+	authority.acknowledged = append(authority.acknowledged, key)
 	return nil
 }
 
@@ -155,9 +219,11 @@ type recordingOutboxPublisher struct {
 	jobs   []jobqueue.Job
 	result jobqueue.PublishResult
 	err    error
+	calls  int
 }
 
 func (publisher *recordingOutboxPublisher) PublishBatch(_ context.Context, jobs []jobqueue.Job) (jobqueue.PublishResult, error) {
+	publisher.calls++
 	publisher.jobs = append([]jobqueue.Job(nil), jobs...)
 	return publisher.result, publisher.err
 }
@@ -174,9 +240,10 @@ func outboxEvent(t *testing.T, outboxID, jobID string) apiserver.DiscoveryOutbox
 	if err != nil {
 		t.Fatal(err)
 	}
+	digest := sha256.Sum256(payload)
 	return apiserver.DiscoveryOutboxEvent{
 		OrganizationID: scope.OrganizationID().String(), WorkspaceID: scope.WorkspaceID().String(), EnvironmentID: scope.EnvironmentID().String(),
-		ID: outboxID, Topic: discoveryOutboxTopic, DeterministicKey: "sync:" + syncID, PayloadVersion: 1, Payload: payload, PayloadDigest: make([]byte, 32), Attempt: 1,
+		ID: outboxID, Topic: discoveryOutboxTopic, DeterministicKey: "sync:" + syncID, PayloadVersion: 1, Payload: payload, PayloadDigest: digest[:], Attempt: 1,
 	}
 }
 
@@ -220,4 +287,21 @@ func containsAny(value string, needles ...string) bool {
 		}
 	}
 	return false
+}
+
+func bytesReplaceOnce(t *testing.T, value, old, replacement []byte) []byte {
+	t.Helper()
+	index := -1
+	for candidate := 0; candidate+len(old) <= len(value); candidate++ {
+		if string(value[candidate:candidate+len(old)]) == string(old) {
+			index = candidate
+			break
+		}
+	}
+	if index < 0 || len(old) != len(replacement) {
+		t.Fatal("invalid same-length replacement fixture")
+	}
+	result := append([]byte(nil), value...)
+	copy(result[index:index+len(old)], replacement)
+	return result
 }

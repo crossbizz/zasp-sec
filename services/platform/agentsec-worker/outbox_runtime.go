@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,6 +16,8 @@ import (
 )
 
 const discoveryOutboxTopic = "discovery-jobs"
+
+const outboxAcknowledgementAttempts = 3
 
 var (
 	discoveryRequestDigestPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -90,13 +94,26 @@ func (processor *outboxProcessor) RunOnce(ctx context.Context) error {
 		return errWorkerExecution
 	}
 	for index, event := range events {
-		if err := processor.config.Authority.AcknowledgeOutbox(ctx, scopes[index], event.ID, processor.config.WorkerID, token, result.Acknowledgements[index].ProviderAck); err != nil {
-			// The provider publish has succeeded. Leaving the exact DB lease in place
-			// is safer than republishing; the fenced acknowledgement can be replayed.
+		if err := processor.acknowledge(ctx, scopes[index], event.ID, token, result.Acknowledgements[index].ProviderAck); err != nil {
+			// Standard queues are at-least-once. A later lease may republish after a
+			// process crash, but the stable job envelope and downstream job authority
+			// prevent a duplicate collection effect.
 			return errWorkerExecution
 		}
 	}
 	return nil
+}
+
+func (processor *outboxProcessor) acknowledge(ctx context.Context, scope domain.Scope, id, token, providerAck string) error {
+	for attempt := 0; attempt < outboxAcknowledgementAttempts; attempt++ {
+		if err := processor.config.Authority.AcknowledgeOutbox(ctx, scope, id, processor.config.WorkerID, token, providerAck); err == nil {
+			return nil
+		}
+		if ctx.Err() != nil {
+			break
+		}
+	}
+	return errWorkerExecution
 }
 
 func (processor *outboxProcessor) retryClaims(ctx context.Context, events []apiserver.DiscoveryOutboxEvent, scopes []domain.Scope, token, code string) {
@@ -121,7 +138,8 @@ func discoveryJobForOutbox(event apiserver.DiscoveryOutboxEvent, expectedTopic s
 	environment, environmentErr := domain.ParseProductID(event.EnvironmentID)
 	outboxID, outboxErr := domain.ParseProductID(event.ID)
 	scope, scopeErr := domain.NewScope(organization, workspace, environment)
-	if organizationErr != nil || workspaceErr != nil || environmentErr != nil || outboxErr != nil || scopeErr != nil || outboxID.IsZero() || event.Topic != expectedTopic || expectedTopic != discoveryOutboxTopic || event.PayloadVersion != 1 || len(event.Payload) == 0 || len(event.Payload) > 65_536 || len(event.PayloadDigest) != 32 || event.Attempt < 1 || event.Attempt > 100 {
+	payloadDigest := sha256.Sum256(event.Payload)
+	if organizationErr != nil || workspaceErr != nil || environmentErr != nil || outboxErr != nil || scopeErr != nil || outboxID.IsZero() || event.Topic != expectedTopic || expectedTopic != discoveryOutboxTopic || event.PayloadVersion != 1 || len(event.Payload) == 0 || len(event.Payload) > 65_536 || len(event.PayloadDigest) != sha256.Size || subtle.ConstantTimeCompare(event.PayloadDigest, payloadDigest[:]) != 1 || event.Attempt < 1 || event.Attempt > 100 {
 		return jobqueue.Job{}, domain.Scope{}, false
 	}
 	var payload discoveryOutboxPayload
