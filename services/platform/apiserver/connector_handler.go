@@ -139,12 +139,27 @@ func (handler *connectorHTTPHandler) remediateQuarantine(writer http.ResponseWri
 		}
 		return
 	}
+	workflow, workflowErr := handler.workflows.GetWorkflow(request.Context(), identity.Scope, "integration", integrationID)
+	intent, intentErr := json.Marshal(map[string]any{"resource_id": integrationID, "expected_version": expectedVersion, "body": map[string]any{"acknowledgement": input.Acknowledgement}})
+	if workflowErr != nil || intentErr != nil {
+		writeProductionError(writer, request, firstError(workflowErr, ErrRepositoryUnavailable))
+		return
+	}
+	if replay, replayed, replayErr := handler.repository.ReplayConnectorQuarantine(request.Context(), identity, integrationID, idempotencyKey, expectedVersion, intent); replayErr != nil {
+		writeProductionError(writer, request, replayErr)
+		return
+	} else if replayed {
+		writer.Header().Set("ETag", quoteVersion(replay.Version))
+		writer.Header().Set("X-Audit-ID", replay.AuditID)
+		writer.Header().Set("X-Mutation-Receipt-ID", replay.ReceiptID)
+		writeProductionResponse(writer, request, http.StatusOK, replay.Body, nil)
+		return
+	}
 	quarantine, err := handler.repository.GetConnectorQuarantine(request.Context(), identity.Scope, integrationID)
 	if err != nil {
 		writeProductionError(writer, request, err)
 		return
 	}
-	workflow, workflowErr := handler.workflows.GetWorkflow(request.Context(), identity.Scope, "integration", integrationID)
 	providerKey, providerConfiguration, workflowOK := authorizedOAuthIntegrationStatus(workflow, integrationID, "degraded", "pending_authorization", "active", "revoking")
 	definition, ready := handler.registry.Provider(request.Context(), providerKey)
 	cleanupErr := error(nil)
@@ -171,11 +186,10 @@ func (handler *connectorHTTPHandler) remediateQuarantine(writer http.ResponseWri
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
-	intent, intentErr := json.Marshal(map[string]any{"resource_id": integrationID, "expected_version": expectedVersion, "body": map[string]any{"acknowledgement": input.Acknowledgement}})
 	auditID, auditErr := newWorkflowProductID()
 	receiptID, receiptErr := newWorkflowProductID()
 	correlationID := correlationIDFromContext(request.Context())
-	if intentErr != nil || auditErr != nil || receiptErr != nil || !validProductID(correlationID) {
+	if auditErr != nil || receiptErr != nil || !validProductID(correlationID) {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}

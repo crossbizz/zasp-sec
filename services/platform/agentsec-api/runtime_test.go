@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -52,6 +53,22 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 	values["ZASP_ORGANIZATION_ID"] = ""
 	if _, err := loadRuntimeConfig(func(key string) string { return values[key] }); !errors.Is(err, errInvalidRuntimeConfig) {
 		t.Fatalf("single tenant without organization error = %v", err)
+	}
+}
+
+func TestConnectorWorkerOwnerIsPerProcessAndBounded(t *testing.T) {
+	first, err := newConnectorWorkerOwner("agentsec-api-7c8f9d6b4f-a1b2c", bytes.NewReader(make([]byte, 8)))
+	if err != nil || first != "agentsec-api:agentsec-api-7c8f9d6b4f-a1b2c:0000000000000000" || len(first) > 128 {
+		t.Fatalf("worker owner=%q err=%v", first, err)
+	}
+	second, err := newConnectorWorkerOwner("agentsec-api-7c8f9d6b4f-a1b2c", bytes.NewReader(bytes.Repeat([]byte{1}, 8)))
+	if err != nil || second == first {
+		t.Fatalf("worker owner did not distinguish process restart: %q/%q err=%v", first, second, err)
+	}
+	for _, hostname := range []string{"", " hostile", strings.Repeat("a", 97)} {
+		if _, err := newConnectorWorkerOwner(hostname, bytes.NewReader(make([]byte, 8))); err == nil {
+			t.Fatalf("hostile hostname accepted: %q", hostname)
+		}
 	}
 }
 
@@ -185,6 +202,40 @@ func TestServeRuntimeRunsAndCancelsConnectorLifecycleWorker(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("connector lifecycle worker did not stop")
 	}
+}
+
+func TestServeRuntimeBoundsHostileLifecycleWorkerShutdown(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	opened := make(chan commandListenResult, 2)
+	listen := func(network, address string) (net.Listener, error) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		opened <- commandListenResult{listener: listener, network: network, address: address, err: err}
+		return listener, err
+	}
+	release := make(chan struct{})
+	dependencies := fixtureRuntimeDependencies()
+	dependencies.LifecycleWorker = func(context.Context) error {
+		<-release
+		return nil
+	}
+	config := fixtureRuntimeConfig()
+	config.ShutdownTimeout = 100 * time.Millisecond
+	result := make(chan error, 1)
+	go func() { result <- serveRuntime(ctx, &bytes.Buffer{}, "1.2.3", config, dependencies, listen) }()
+	for range 2 {
+		<-opened
+	}
+	started := time.Now()
+	cancel()
+	select {
+	case err := <-result:
+		if !errors.Is(err, errRuntimeUnavailable) || time.Since(started) > time.Second {
+			t.Fatalf("bounded hostile worker shutdown err=%v elapsed=%s", err, time.Since(started))
+		}
+	case <-time.After(time.Second):
+		t.Fatal("hostile lifecycle worker blocked process shutdown")
+	}
+	close(release)
 }
 
 func TestServeRuntimeReadinessTracksRequiredProviderChecks(t *testing.T) {

@@ -117,6 +117,11 @@ test("release applies non-root rollout, zone and host spread, drain, PDB, and de
     assert.equal(deployment.spec.template.spec.containers[0].securityContext.runAsUser, 65532);
     assert.equal(deployment.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem, true);
     assert.equal(deployment.spec.template.spec.containers[0].lifecycle.preStop.exec.command.at(-1), "sleep 10");
+	if (name === "agentsec-api") {
+	  const shutdown = deployment.spec.template.spec.containers[0].env.find(({ name: key }) => key === "ZASP_SHUTDOWN_TIMEOUT");
+	  assert.equal(shutdown.value, "15s");
+	  assert.ok(10 + Number.parseInt(shutdown.value, 10) + 5 <= deployment.spec.template.spec.terminationGracePeriodSeconds);
+	}
     assert.deepEqual(deployment.spec.template.spec.topologySpreadConstraints.map(({ topologyKey }) => topologyKey), ["topology.kubernetes.io/zone", "kubernetes.io/hostname"]);
     assert.equal(one(resources, "PodDisruptionBudget", name).spec.minAvailable, 1);
   }

@@ -453,7 +453,7 @@ func TestConnectorAuthorizationMigrationOwnsDurableProviderEffects(t *testing.T)
 	for _, fragment := range []string{
 		"zasp_connector_oauth_attempts", "zasp_connector_effects", "zasp_connector_credentials", "zasp_connector_audit",
 		"zasp_connector_start_oauth", "zasp_connector_consume_oauth", "zasp_connector_complete_oauth",
-		"zasp_connector_begin_effect", "zasp_connector_resolve_effect", "zasp_connector_claim_reconciliation",
+		"zasp_connector_begin_effect", "zasp_connector_resolve_effect", "zasp_connector_claim_reconciliation", "zasp_connector_recover_final_attempts",
 		"connector_authorization_fingerprint", "connector-authorization-v1", "zasp_risk_mutate",
 	} {
 		if !strings.Contains(metadata.UpSQL(), fragment) {

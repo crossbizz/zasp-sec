@@ -15,20 +15,26 @@ import (
 )
 
 type connectorAuthorizationStub struct {
-	started      OAuthStart
-	consumed     OAuthConsumption
-	consumeErr   error
-	effect       ConnectorEffectStart
-	completed    OAuthCompletion
-	resolved     ConnectorEffectResolution
-	resolveErr   error
-	completeErr  error
-	cleanupCount int
-	remediation  ConnectorQuarantineRemediation
-	quarantine   ConnectorQuarantine
-	startErr     error
-	activatedID  string
-	staged       []PKCECleanupStage
+	started            OAuthStart
+	consumed           OAuthConsumption
+	consumeErr         error
+	effect             ConnectorEffectStart
+	completed          OAuthCompletion
+	resolved           ConnectorEffectResolution
+	resolveErr         error
+	completeErr        error
+	cleanupCount       int
+	remediation        ConnectorQuarantineRemediation
+	quarantine         ConnectorQuarantine
+	startErr           error
+	activatedID        string
+	staged             []PKCECleanupStage
+	quarantineReplay   WorkflowMutationResult
+	quarantineReplayed bool
+}
+
+func (stub *connectorAuthorizationStub) ReplayConnectorQuarantine(context.Context, RequestIdentity, string, string, int64, json.RawMessage) (WorkflowMutationResult, bool, error) {
+	return stub.quarantineReplay, stub.quarantineReplayed, nil
 }
 
 func (stub *connectorAuthorizationStub) StartOAuth(_ context.Context, _ RequestIdentity, input OAuthStart) (OAuthAttemptRecord, error) {
@@ -95,6 +101,9 @@ func (stub *connectorAuthorizationStub) GetConnectorQuarantine(_ context.Context
 }
 func (*connectorAuthorizationStub) ClaimReconciliation(context.Context, string, int, int) ([]ConnectorEffectLease, error) {
 	return nil, nil
+}
+func (*connectorAuthorizationStub) RecoverExpiredFinalAttempts(context.Context, string, int, int) (int, error) {
+	return 0, nil
 }
 
 type connectorWorkflowStub struct{ value WorkflowValue }
@@ -473,6 +482,29 @@ func TestConnectorQuarantineRemediationRequiresFreshExactIntentAndReturnsDurable
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("stale-auth remediation = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestConnectorQuarantineRemediationLostResponseReplaysBeforeHistoricalLookup(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	identity.FreshAuthenticated = true
+	integrationID := "pid_70000001-0000-4000-8000-000000000001"
+	replay := WorkflowMutationResult{WorkflowValue: WorkflowValue{Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","status":"pending_authorization"}`), Version: 3}, AuditID: "pid_70000006-0000-4000-8000-000000000006", CorrelationID: "pid_70000007-0000-4000-8000-000000000007", ReceiptID: "pid_70000008-0000-4000-8000-000000000008", Replayed: true}
+	repository := &connectorAuthorizationStub{quarantineReplayed: true, quarantineReplay: replay}
+	workflow := WorkflowValue{Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"GitHub","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:01:00Z"}`), Version: 3}
+	handler, _ := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Secrets: &connectorSecretStub{}, Providers: map[string]ConnectorOAuthProviderDefinition{"github": {Provider: &connectorProviderStub{}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, Clock: time.Now})
+	request := httptest.NewRequest(http.MethodPost, "https://app.zasp.test/api/v1/integrations/"+integrationID+"/authorization-remediation", strings.NewReader(`{"acknowledgement":"provider_grant_revoked_manually"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Idempotency-Key", "idem-quarantine-remediation-0001")
+	request.Header.Set("If-Match", `"2"`)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request = request.WithContext(context.WithValue(request.Context(), correlationContextKey{}, testCorrelationID))
+	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "remediateIntegrationAuthorization", PathParameters: map[string]string{"id": integrationID}}))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"3"` || response.Header().Get("X-Mutation-Receipt-ID") != replay.ReceiptID || repository.remediation.EffectID != "" {
+		t.Fatalf("lost remediation replay status=%d headers=%#v remediation=%#v body=%s", response.Code, response.Header(), repository.remediation, response.Body.String())
 	}
 }
 

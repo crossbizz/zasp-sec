@@ -331,7 +331,6 @@ func serveRuntime(ctx context.Context, output io.Writer, version string, config 
 	}
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), config.ShutdownTimeout)
 	shutdownErr := productServer.Shutdown(shutdownCtx)
-	shutdownCancel()
 	cancel()
 	if productErr == nil {
 		productErr = <-productDone
@@ -340,8 +339,13 @@ func serveRuntime(ctx context.Context, output io.Writer, version string, config 
 		internalErr = <-internalDone
 	}
 	if workerDone != nil && !workerFinished {
-		workerErr = <-workerDone
+		select {
+		case workerErr = <-workerDone:
+		case <-shutdownCtx.Done():
+			workerErr = shutdownCtx.Err()
+		}
 	}
+	shutdownCancel()
 	if ctx.Err() != nil && (productErr == nil || errors.Is(productErr, http.ErrServerClosed)) && internalErr == nil && (workerErr == nil || errors.Is(workerErr, context.Canceled)) && shutdownErr == nil {
 		return nil
 	}

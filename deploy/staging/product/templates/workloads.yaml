@@ -68,7 +68,7 @@ spec:
             - { name: ZASP_INTERNAL_LISTEN_ADDRESS, value: ":8081" }
             - { name: ZASP_COOKIE_SECURE, value: "true" }
             - { name: ZASP_PROVIDER_TIMEOUT, value: "5s" }
-            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "25s" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
             - { name: ZASP_READINESS_INTERVAL, value: "5s" }
             - { name: ZASP_READINESS_MAX_INTERVAL, value: "1m" }
             - { name: ZASP_TRUSTED_PROXY_CIDRS, value: {{ join "," $root.Values.global.trustedProxyCIDRs | quote }} }

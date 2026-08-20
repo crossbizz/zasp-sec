@@ -26,6 +26,7 @@ const (
 	postgresConnectorPutCredentialSQL          = `SELECT zasp_connector_put_credential($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`
 	postgresConnectorCompleteOAuthSQL          = `SELECT zasp_connector_complete_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)`
 	postgresConnectorClaimReconciliationSQL    = `SELECT zasp_connector_claim_reconciliation($1,$2,$3)`
+	postgresConnectorRecoverFinalAttemptsSQL   = `SELECT zasp_connector_recover_final_attempts($1,$2,$3)`
 	postgresConnectorCompleteReconciliationSQL = `SELECT zasp_connector_complete_reconciliation($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14)`
 	postgresConnectorFailReconciliationSQL     = `SELECT zasp_connector_fail_reconciliation($1,$2,$3,$4,$5,$6,$7)`
 	postgresConnectorCompleteRevocationSQL     = `SELECT zasp_connector_complete_revocation($1,$2,$3,$4,$5,$6)`
@@ -51,6 +52,7 @@ type ConnectorAuthorizationRepository interface {
 	ActivatePKCECleanup(context.Context, domain.Scope, string) (ConnectorEffectTransition, error)
 	CompletePKCECleanup(context.Context, domain.Scope, string) (ConnectorEffectTransition, error)
 	GetConnectorQuarantine(context.Context, domain.Scope, string) (ConnectorQuarantine, error)
+	ReplayConnectorQuarantine(context.Context, RequestIdentity, string, string, int64, json.RawMessage) (WorkflowMutationResult, bool, error)
 	CompleteConnectorCleanup(context.Context, domain.Scope, string) (ConnectorEffectTransition, error)
 	RemediateConnectorQuarantine(context.Context, RequestIdentity, ConnectorQuarantineRemediation) (WorkflowMutationResult, error)
 }
@@ -400,6 +402,23 @@ func (repository *ConnectorRepository) ClaimReconciliation(ctx context.Context, 
 	return page.Items, nil
 }
 
+func (repository *ConnectorRepository) RecoverExpiredFinalAttempts(ctx context.Context, owner string, leaseSeconds, limit int) (int, error) {
+	if !validConnectorRepository(repository, ctx) || len(owner) < 3 || len(owner) > 128 || leaseSeconds < 5 || leaseSeconds > 300 || limit < 1 || limit > 100 {
+		return 0, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorRecoverFinalAttemptsSQL, owner, leaseSeconds, limit)
+	if err != nil {
+		return 0, discoveryProviderError(err)
+	}
+	var result struct {
+		Recovered *int `json:"recovered"`
+	}
+	if decodeStrictDiscovery(payload, &result) != nil || result.Recovered == nil || *result.Recovered < 0 || *result.Recovered > limit {
+		return 0, ErrRepositoryUnavailable
+	}
+	return *result.Recovered, nil
+}
+
 func (repository *ConnectorRepository) CompleteOAuthReconciliation(ctx context.Context, lease ConnectorEffectLease, input OAuthCompletion) (OAuthCompletionRecord, error) {
 	if !validConnectorRepository(repository, ctx) || !validConnectorLease(lease) || lease.Operation != "authorize" || input.AttemptID != lease.OAuthAttemptID || input.EffectID != lease.ID || !validOAuthCompletion(input) {
 		return OAuthCompletionRecord{}, ErrRepositoryOperation
@@ -512,13 +531,37 @@ func (repository *ConnectorRepository) GetConnectorQuarantine(ctx context.Contex
 	if decodeStrictDiscovery(payload, &result) != nil {
 		return ConnectorQuarantine{}, ErrRepositoryUnavailable
 	}
-	validReason := stringIn(result.Reason, "provider_outcome_ambiguous", "provider_cleanup_ambiguous", "provider_revocation_ambiguous", "pkce_cleanup_ambiguous", "provider_outcome_remediated", "provider_cleanup_remediated", "provider_revocation_remediated", "pkce_cleanup_remediated")
-	needsReference := result.Operation == "pkce_cleanup" || result.Operation == "revoke" || result.Operation == "authorize" && stringIn(result.Reason, "provider_cleanup_ambiguous", "provider_cleanup_remediated")
+	validReason := stringIn(result.Reason, "provider_outcome_ambiguous", "provider_cleanup_ambiguous", "provider_revocation_ambiguous", "pkce_cleanup_ambiguous")
+	needsReference := result.Operation == "pkce_cleanup" || result.Operation == "revoke" || result.Operation == "authorize" && result.Reason == "provider_cleanup_ambiguous"
 	validReference := needsReference && validOpaqueReference(result.ConnectionReference) || !needsReference && result.ConnectionReference == ""
-	if !validProductID(result.ID) || result.IntegrationID != integrationID || !validOAuthProvider(result.Provider) || !stringIn(result.Operation, "authorize", "revoke", "pkce_cleanup") || !validReference || !stringIn(result.Status, "unknown", "failed") || !validReason {
+	if !validProductID(result.ID) || result.IntegrationID != integrationID || !validOAuthProvider(result.Provider) || !stringIn(result.Operation, "authorize", "revoke", "pkce_cleanup") || !validReference || result.Status != "unknown" || !validReason {
 		return ConnectorQuarantine{}, ErrRepositoryUnavailable
 	}
 	return result, nil
+}
+
+func (repository *ConnectorRepository) ReplayConnectorQuarantine(ctx context.Context, identity RequestIdentity, integrationID, idempotencyKey string, expectedVersion int64, intent json.RawMessage) (WorkflowMutationResult, bool, error) {
+	if !validConnectorRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validProductID(integrationID) || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) || expectedVersion < 1 || !validJSONObjectBody(intent) {
+		return WorkflowMutationResult{}, false, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowReplaySQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), "remediateIntegrationAuthorization", idempotencyKey, intent)
+	if err != nil {
+		return WorkflowMutationResult{}, false, discoveryProviderError(err)
+	}
+	var envelope workflowReplayEnvelope
+	if decodeStrictDiscovery(payload, &envelope) != nil {
+		return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
+	}
+	if !envelope.Found {
+		return WorkflowMutationResult{}, false, nil
+	}
+	var body struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(envelope.Result.Body, &body) != nil || body.ID != integrationID || !validProductID(envelope.Result.AuditID) || !validProductID(envelope.Result.CorrelationID) || !validMutationReceiptIdentity(identity, envelope.Result.ReceiptID) || envelope.Result.Version != expectedVersion+1 || envelope.Result.SecretGeneration < 0 || !validJSONObjectBody(envelope.Result.Body) || !envelope.Result.Replayed {
+		return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
+	}
+	return envelope.Result, true, nil
 }
 
 func (repository *ConnectorRepository) RemediateConnectorQuarantine(ctx context.Context, identity RequestIdentity, input ConnectorQuarantineRemediation) (WorkflowMutationResult, error) {

@@ -13,6 +13,7 @@ import (
 )
 
 type ConnectorReconciliationRepository interface {
+	RecoverExpiredFinalAttempts(context.Context, string, int, int) (int, error)
 	ClaimReconciliation(context.Context, string, int, int) ([]ConnectorEffectLease, error)
 	CompleteOAuthReconciliation(context.Context, ConnectorEffectLease, OAuthCompletion) (OAuthCompletionRecord, error)
 	CompleteConnectorCleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error)
@@ -43,13 +44,15 @@ type ConnectorReconciler struct {
 	limit        int
 	interval     time.Duration
 	ready        atomic.Bool
+	slots        chan struct{}
+	workers      sync.WaitGroup
 }
 
 func NewConnectorReconciler(config ConnectorReconcilerConfig) (*ConnectorReconciler, error) {
 	if nilInterface(config.Repository) || nilInterface(config.Workflows) || nilInterface(config.Secrets) || config.Registry == nil || len(config.Owner) < 3 || len(config.Owner) > 128 || config.LeaseSeconds < 5 || config.LeaseSeconds > 300 || config.Limit < 1 || config.Limit > 100 || config.Interval < 10*time.Millisecond || config.Interval > time.Minute {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &ConnectorReconciler{repository: config.Repository, workflows: config.Workflows, registry: config.Registry, secrets: config.Secrets, owner: config.Owner, leaseSeconds: config.LeaseSeconds, limit: config.Limit, interval: config.Interval}, nil
+	return &ConnectorReconciler{repository: config.Repository, workflows: config.Workflows, registry: config.Registry, secrets: config.Secrets, owner: config.Owner, leaseSeconds: config.LeaseSeconds, limit: config.Limit, interval: config.Interval, slots: make(chan struct{}, config.Limit)}, nil
 }
 
 func (reconciler *ConnectorReconciler) Ready() bool {
@@ -60,13 +63,28 @@ func (reconciler *ConnectorReconciler) Run(ctx context.Context) error {
 	if reconciler == nil || ctx == nil {
 		return ErrRepositoryConfiguration
 	}
-	delay := reconciler.interval
+	delay := time.Duration(0)
 	for {
-		claimHealthy, err := reconciler.reconcileBatch(ctx)
+		if delay > 0 {
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				if !timer.Stop() {
+					<-timer.C
+				}
+				return reconciler.waitForShutdown(ctx)
+			case <-timer.C:
+			}
+		}
+		claimHealthy, err := reconciler.dispatchAvailable(ctx)
 		if err != nil && !claimHealthy {
-			reconciler.ready.Store(claimHealthy)
+			reconciler.ready.Store(false)
 			if delay < 30*time.Second {
-				delay *= 2
+				if delay == 0 {
+					delay = reconciler.interval
+				} else {
+					delay *= 2
+				}
 				if delay > 30*time.Second {
 					delay = 30 * time.Second
 				}
@@ -75,16 +93,49 @@ func (reconciler *ConnectorReconciler) Run(ctx context.Context) error {
 			reconciler.ready.Store(true)
 			delay = reconciler.interval
 		}
-		timer := time.NewTimer(delay)
-		select {
-		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
-			return ctx.Err()
-		case <-timer.C:
-		}
 	}
+}
+
+func (reconciler *ConnectorReconciler) dispatchAvailable(ctx context.Context) (bool, error) {
+	if reconciler == nil || ctx == nil || ctx.Err() != nil {
+		return false, ErrRepositoryOperation
+	}
+	if _, err := reconciler.repository.RecoverExpiredFinalAttempts(ctx, reconciler.owner, reconciler.leaseSeconds, reconciler.limit); err != nil {
+		return false, err
+	}
+	available := cap(reconciler.slots) - len(reconciler.slots)
+	if available < 1 {
+		return true, nil
+	}
+	leases, err := reconciler.repository.ClaimReconciliation(ctx, reconciler.owner, reconciler.leaseSeconds, available)
+	if err != nil {
+		return false, err
+	}
+	for _, lease := range leases {
+		reconciler.slots <- struct{}{}
+		reconciler.workers.Add(1)
+		go func(item ConnectorEffectLease) {
+			defer reconciler.workers.Done()
+			defer func() { <-reconciler.slots }()
+			_ = reconciler.reconcileLease(ctx, item)
+		}(lease)
+	}
+	return true, nil
+}
+
+func (reconciler *ConnectorReconciler) waitForShutdown(ctx context.Context) error {
+	done := make(chan struct{})
+	go func() {
+		reconciler.workers.Wait()
+		close(done)
+	}()
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+	}
+	return ctx.Err()
 }
 
 func (reconciler *ConnectorReconciler) reconcileOnce(ctx context.Context) error {
@@ -95,6 +146,9 @@ func (reconciler *ConnectorReconciler) reconcileOnce(ctx context.Context) error 
 func (reconciler *ConnectorReconciler) reconcileBatch(ctx context.Context) (bool, error) {
 	if reconciler == nil || ctx == nil || ctx.Err() != nil {
 		return false, ErrRepositoryOperation
+	}
+	if _, err := reconciler.repository.RecoverExpiredFinalAttempts(ctx, reconciler.owner, reconciler.leaseSeconds, reconciler.limit); err != nil {
+		return false, err
 	}
 	leases, err := reconciler.repository.ClaimReconciliation(ctx, reconciler.owner, reconciler.leaseSeconds, reconciler.limit)
 	if err != nil {
@@ -141,7 +195,7 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	}
 	providerContext, cancel := context.WithDeadline(ctx, providerDeadline)
 	defer cancel()
-	finalizationContext, finalize := context.WithDeadline(ctx, finalizationDeadline)
+	finalizationContext, finalize := context.WithDeadline(context.WithoutCancel(ctx), finalizationDeadline)
 	defer finalize()
 	if lease.Operation == "pkce_cleanup" {
 		if err := reconciler.secrets.Delete(providerContext, lease.ConnectionReference); err != nil {
@@ -231,7 +285,7 @@ func (reconciler *ConnectorReconciler) quarantineExpiredFinalAttempt(ctx context
 	} else if lease.LastErrorCode == "cleanup_pending" {
 		code = "provider_cleanup_ambiguous"
 	}
-	finalizationContext, cancel := context.WithTimeout(ctx, 2*time.Second)
+	finalizationContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 	defer cancel()
 	_, err := reconciler.repository.QuarantineConnectorReconciliation(finalizationContext, lease, code)
 	return err

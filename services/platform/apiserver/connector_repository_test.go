@@ -107,3 +107,24 @@ func TestConnectorRepositoryStrictlyDecodesUnknownEffectClaims(t *testing.T) {
 		t.Fatalf("null claim items error = %v", err)
 	}
 }
+
+func TestConnectorRepositoryStrictlyDecodesFinalAttemptRecovery(t *testing.T) {
+	database := &connectorCallDatabase{responses: map[string]json.RawMessage{
+		postgresConnectorReadySQL:                json.RawMessage(`true`),
+		postgresDiscoveryPrincipalReadySQL:       json.RawMessage(`true`),
+		postgresConnectorRecoverFinalAttemptsSQL: json.RawMessage(`{"recovered":1}`),
+	}}
+	repository, err := NewConnectorRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recovered, err := repository.RecoverExpiredFinalAttempts(context.Background(), "worker-a", 30, 10); err != nil || recovered != 1 {
+		t.Fatalf("final recovery=%d err=%v", recovered, err)
+	}
+	for _, hostile := range []json.RawMessage{json.RawMessage(`{"recovered":11}`), json.RawMessage(`{"recovered":1,"unknown":true}`), json.RawMessage(`{}`)} {
+		database.responses[postgresConnectorRecoverFinalAttemptsSQL] = hostile
+		if _, err := repository.RecoverExpiredFinalAttempts(context.Background(), "worker-a", 30, 10); !errors.Is(err, ErrRepositoryUnavailable) {
+			t.Fatalf("hostile final recovery %s err=%v", hostile, err)
+		}
+	}
+}

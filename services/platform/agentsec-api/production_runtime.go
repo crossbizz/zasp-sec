@@ -134,7 +134,11 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	connectorReconciler, err := apiserver.NewConnectorReconciler(apiserver.ConnectorReconcilerConfig{Repository: connectorRepository, Workflows: repository, Registry: connectorRegistry, Secrets: secretStore, Owner: "agentsec-api-connector", LeaseSeconds: 30, Limit: 25, Interval: time.Second})
+	workerOwner, err := newConnectorWorkerOwner(os.Getenv("HOSTNAME"), rand.Reader)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	connectorReconciler, err := apiserver.NewConnectorReconciler(apiserver.ConnectorReconcilerConfig{Repository: connectorRepository, Workflows: repository, Registry: connectorRegistry, Secrets: secretStore, Owner: workerOwner, LeaseSeconds: 30, Limit: 25, Interval: time.Second})
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -176,6 +180,17 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 		}
 		return nil
 	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}}, Closers: connectorResources}, nil
+}
+
+func newConnectorWorkerOwner(hostname string, source io.Reader) (string, error) {
+	if len(hostname) < 1 || len(hostname) > 96 || strings.TrimSpace(hostname) != hostname || strings.ContainsAny(hostname, "\x00\r\n") || source == nil {
+		return "", errRuntimeUnavailable
+	}
+	random := make([]byte, 8)
+	if _, err := io.ReadFull(source, random); err != nil {
+		return "", errRuntimeUnavailable
+	}
+	return "agentsec-api:" + hostname + ":" + hex.EncodeToString(random), nil
 }
 
 type transportCloser struct{ transport *http.Transport }

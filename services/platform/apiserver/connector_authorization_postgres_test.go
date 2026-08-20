@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
@@ -445,6 +446,12 @@ func TestConnectorAuthorizationPostgresAmbiguousProviderOutcomeIsPermanentlyQuar
 	if replay, err := connectorRepository.RemediateConnectorQuarantine(ctx, identity, remediation); err != nil || !replay.Replayed || replay.Version != remediated.Version || replay.ReceiptID != remediated.ReceiptID {
 		t.Fatalf("quarantine remediation replay = %#v, %v; first=%#v", replay, err, remediated)
 	}
+	if _, err := connectorRepository.GetConnectorQuarantine(ctx, identity.Scope, integrationID); !errors.Is(err, ErrRepositoryNotFound) {
+		t.Fatalf("remediated history remained an active quarantine: %v", err)
+	}
+	if replay, found, err := connectorRepository.ReplayConnectorQuarantine(ctx, identity, integrationID, remediation.IdempotencyKey, remediation.ExpectedVersion, remediation.Intent); err != nil || !found || !replay.Replayed || replay.ReceiptID != remediated.ReceiptID {
+		t.Fatalf("historical remediation replay=%#v found=%v err=%v", replay, found, err)
+	}
 	remediation.Acknowledgement = "provider_grant_verified_absent"
 	if _, err := connectorRepository.RemediateConnectorQuarantine(ctx, identity, remediation); !errors.Is(err, ErrRepositoryConflict) {
 		t.Fatalf("changed quarantine remediation = %v, want conflict", err)
@@ -733,22 +740,323 @@ func TestConnectorAuthorizationPostgresClaimReturnsOneImmediatelyRunnableLeasePe
 			t.Fatal(err)
 		}
 	}
-	leases, err := connectors.ClaimReconciliation(ctx, "connector-worker-fair", 30, 25)
-	if err != nil || len(leases) != 1 || leases[0].Provider != "github" || leases[0].Operation != "revoke" || leases[0].Attempt != 100 {
-		t.Fatalf("fair exact-lane claim=%#v err=%v", leases, err)
+	otherLaneID := "pid_72400201-0000-4000-8000-000000000001"
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,connection_reference,attempt,available_at,updated_at) VALUES($1,$2,$3,$4,$5,'okta','revoke',$6,$7,'unknown','ref:okta/refresh/customer-0001',0,transaction_timestamp()-interval '1 minute',transaction_timestamp()-interval '30 seconds')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), otherLaneID, integrationID, "fair-okta-revoke-0001", digest[:]); err != nil {
+		t.Fatal(err)
+	}
+	otherConnection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer otherConnection.Close(ctx)
+	otherDatabase, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: otherConnection})
+	otherConnectors := &ConnectorRepository{database: otherDatabase}
+	type claimResult struct {
+		leases []ConnectorEffectLease
+		err    error
+	}
+	claims := make(chan claimResult, 2)
+	start := make(chan struct{})
+	for _, candidate := range []struct {
+		repository *ConnectorRepository
+		owner      string
+	}{{connectors, "connector-worker-fair"}, {otherConnectors, "connector-worker-other"}} {
+		go func(repository *ConnectorRepository, owner string) {
+			<-start
+			leases, claimErr := repository.ClaimReconciliation(ctx, owner, 30, 1)
+			claims <- claimResult{leases: leases, err: claimErr}
+		}(candidate.repository, candidate.owner)
+	}
+	close(start)
+	firstResult, secondResult := <-claims, <-claims
+	claimed := append(firstResult.leases, secondResult.leases...)
+	if firstResult.err != nil || secondResult.err != nil || len(claimed) != 2 {
+		t.Fatalf("simultaneous claims=%#v errors=%v/%v", claimed, firstResult.err, secondResult.err)
+	}
+	var leases, second []ConnectorEffectLease
+	for _, lease := range claimed {
+		if lease.Provider == "github" {
+			leases = append(leases, lease)
+		} else if lease.Provider == "okta" {
+			second = append(second, lease)
+		}
+	}
+	if len(leases) != 1 || leases[0].Operation != "revoke" || leases[0].Attempt != 100 || len(second) != 1 || second[0].ID != otherLaneID || second[0].LeaseOwner == leases[0].LeaseOwner || second[0].LeaseToken == leases[0].LeaseToken {
+		t.Fatalf("live exact-lane exclusion claims=%#v", claimed)
 	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET updated_at=transaction_timestamp()-interval '2 seconds',lease_expires_at=transaction_timestamp()-interval '1 second' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, leases[0].OrganizationID, leases[0].WorkspaceID, leases[0].EnvironmentID, leases[0].ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := connectors.QuarantineConnectorReconciliation(ctx, leases[0], "provider_revocation_ambiguous"); err != nil {
-		t.Fatalf("fenced expired attempt-100 terminalization = %v", err)
+	recovered, err := connectors.RecoverExpiredFinalAttempts(ctx, "connector-worker-restarted", 30, 25)
+	if err != nil || recovered != 1 {
+		t.Fatalf("restart final-attempt recovery=%d err=%v", recovered, err)
 	}
 	if _, err := connectors.QuarantineConnectorReconciliation(ctx, leases[0], "provider_revocation_ambiguous"); !errors.Is(err, ErrRepositoryConflict) {
-		t.Fatalf("stale terminalization replay = %v", err)
+		t.Fatalf("crashed owner retained terminalization authority = %v", err)
 	}
 	var stranded int
 	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_connector_effects WHERE attempt=100 AND status='unknown' AND last_error_code IS DISTINCT FROM 'provider_revocation_ambiguous'`).Scan(&stranded); err != nil || stranded != 0 {
 		t.Fatalf("stranded final attempts=%d err=%v", stranded, err)
+	}
+}
+
+func TestConnectorAuthorizationPostgresRestartTickQuarantinesExpiredFinalAttemptWithoutProviderCall(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToConnectorAuthorization(t, ctx, connection)
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	workflows, _ := NewPostgresRepository(database)
+	connectors := &ConnectorRepository{database: database}
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_72410001-0000-4000-8000-000000000001"
+	effectID := "pid_72410002-0000-4000-8000-000000000002"
+	create := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: "restart-final-create-0001", Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"Restart Final","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: "pid_72410003-0000-4000-8000-000000000003", CorrelationID: "pid_72410004-0000-4000-8000-000000000004", ReceiptID: "pid_72410005-0000-4000-8000-000000000005"}
+	if _, err := workflows.MutateWorkflow(ctx, identity, create); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("restart-final"))
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,connection_reference,attempt,lease_owner,lease_token,lease_expires_at,available_at,updated_at) VALUES($1,$2,$3,$4,$5,'github','revoke',$6,$7,'unknown','ref:github/installation/123456',100,'crashed-worker',$8,transaction_timestamp()-interval '1 second',transaction_timestamp()-interval '1 minute',transaction_timestamp()-interval '1 minute')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), effectID, integrationID, "restart-final-revoke-0001", digest[:], strings.Repeat("a", 64)); err != nil {
+		t.Fatal(err)
+	}
+	provider := &connectorRecoveryProvider{}
+	registry, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reconciler, err := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: connectors, Workflows: workflows, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "restarted-worker", LeaseSeconds: 30, Limit: 25, Interval: time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reconciler.reconcileOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	provider.mu.Lock()
+	providerCalls := provider.recoverCalls + provider.revokeCalls + provider.discardCalls + provider.completeCalls
+	provider.mu.Unlock()
+	var errorCode, workflowStatus string
+	if err := connection.QueryRow(ctx, `SELECT e.last_error_code,w.body->>'status' FROM zasp_connector_effects e JOIN zasp_workflow_records w ON (w.organization_id,w.workspace_id,w.environment_id,w.id)=(e.organization_id,e.workspace_id,e.environment_id,e.integration_id) WHERE e.id=$1`, effectID).Scan(&errorCode, &workflowStatus); err != nil || errorCode != "provider_revocation_ambiguous" || workflowStatus != "degraded" || providerCalls != 0 {
+		t.Fatalf("restart recovery error=%q status=%q provider_calls=%d err=%v", errorCode, workflowStatus, providerCalls, err)
+	}
+}
+
+func TestConnectorAuthorizationPostgresExpiredFinalAttemptRecoveryIsOperationAware(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToConnectorAuthorization(t, ctx, connection)
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	workflows, _ := NewPostgresRepository(database)
+	connectors := &ConnectorRepository{database: database}
+	identity := fixtureRequestIdentity(t)
+	tests := []struct {
+		operation, priorCode, reference, wantCode string
+	}{
+		{operation: "authorize", priorCode: "provider_effect_started", wantCode: "provider_outcome_ambiguous"},
+		{operation: "authorize", priorCode: "cleanup_pending", reference: "ref:github/installation/123456", wantCode: "provider_cleanup_ambiguous"},
+		{operation: "revoke", reference: "ref:github/installation/123456", wantCode: "provider_revocation_ambiguous"},
+		{operation: "pkce_cleanup", priorCode: "oauth_attempt_expiry", reference: "ref:oauth/pkce/72440000-0000-4000-8000-000000000000", wantCode: "pkce_cleanup_ambiguous"},
+	}
+	digest := sha256.Sum256([]byte("operation-aware-final-recovery"))
+	for index, test := range tests {
+		integrationID := fmt.Sprintf("pid_72440%03d-0000-4000-8000-%012d", index+1, index+1)
+		effectID := fmt.Sprintf("pid_72441%03d-0000-4000-8000-%012d", index+1, index+1)
+		create := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: fmt.Sprintf("operation-recovery-create-%04d", index), Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"Recovery","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: fmt.Sprintf("pid_72442%03d-0000-4000-8000-%012d", index+1, index+1), CorrelationID: fmt.Sprintf("pid_72443%03d-0000-4000-8000-%012d", index+1, index+1), ReceiptID: fmt.Sprintf("pid_72444%03d-0000-4000-8000-%012d", index+1, index+1)}
+		if _, err := workflows.MutateWorkflow(ctx, identity, create); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,connection_reference,attempt,last_error_code,lease_owner,lease_token,lease_expires_at,available_at,updated_at) VALUES($1,$2,$3,$4,$5,'github',$6,$7,$8,'unknown',NULLIF($9,''),100,NULLIF($10,''),'crashed-worker',$11,transaction_timestamp()-interval '1 second',transaction_timestamp()-interval '1 minute',transaction_timestamp()-interval '1 minute')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), effectID, integrationID, test.operation, fmt.Sprintf("operation-recovery-effect-%04d", index), digest[:], test.reference, test.priorCode, strings.Repeat(fmt.Sprintf("%x", index+1), 64)[:64]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if recovered, err := connectors.RecoverExpiredFinalAttempts(ctx, "restart-matrix-worker", 30, 25); err != nil || recovered != len(tests) {
+		t.Fatalf("operation-aware recovery=%d err=%v", recovered, err)
+	}
+	rows, err := connection.Query(ctx, `SELECT operation,last_error_code FROM zasp_connector_effects ORDER BY operation,last_error_code`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	got := map[string]int{}
+	for rows.Next() {
+		var operation, code string
+		if err := rows.Scan(&operation, &code); err != nil {
+			t.Fatal(err)
+		}
+		got[operation+":"+code]++
+	}
+	for _, test := range tests {
+		if got[test.operation+":"+test.wantCode] != 1 {
+			t.Fatalf("operation-aware quarantine=%#v missing %s/%s", got, test.operation, test.wantCode)
+		}
+	}
+	var degraded, audited int
+	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_integrations WHERE state='degraded'),(SELECT count(*) FROM zasp_connector_audit WHERE event_kind='effect_unknown' AND reason_code IN('provider_outcome_ambiguous','provider_cleanup_ambiguous','provider_revocation_ambiguous','pkce_cleanup_ambiguous'))`).Scan(&degraded, &audited); err != nil || degraded != len(tests) || audited != len(tests) {
+		t.Fatalf("operation-aware state degraded=%d audited=%d err=%v", degraded, audited, err)
+	}
+}
+
+func TestConnectorAuthorizationPostgresEnforcesGlobalLeaseCapAcrossReplicas(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToConnectorAuthorization(t, ctx, connection)
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	workflows, _ := NewPostgresRepository(database)
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_72420001-0000-4000-8000-000000000001"
+	create := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: "global-cap-create-0001", Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"Global Cap","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: "pid_72420002-0000-4000-8000-000000000002", CorrelationID: "pid_72420003-0000-4000-8000-000000000003", ReceiptID: "pid_72420004-0000-4000-8000-000000000004"}
+	if _, err := workflows.MutateWorkflow(ctx, identity, create); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("global-cap"))
+	for ordinal := 1; ordinal <= 101; ordinal++ {
+		effectID := fmt.Sprintf("pid_72421%03d-0000-4000-8000-%012d", ordinal, ordinal)
+		provider := fmt.Sprintf("nango:p%03d", ordinal)
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,attempt,available_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,'bind',$7,$8,'unknown',0,transaction_timestamp()-interval '1 minute',transaction_timestamp()-interval '1 minute')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), effectID, integrationID, provider, fmt.Sprintf("global-cap-effect-%04d", ordinal), digest[:]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repositories := make([]*ConnectorRepository, 3)
+	connections := make([]*pgx.Conn, 0, 2)
+	repositories[0] = &ConnectorRepository{database: database}
+	for index := 1; index < 3; index++ {
+		candidate, err := pgx.Connect(ctx, dsn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		connections = append(connections, candidate)
+		candidateDB, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: candidate})
+		repositories[index] = &ConnectorRepository{database: candidateDB}
+	}
+	defer func() {
+		for _, candidate := range connections {
+			_ = candidate.Close(ctx)
+		}
+	}()
+	var claimed int
+	for index, repository := range repositories {
+		leases, err := repository.ClaimReconciliation(ctx, fmt.Sprintf("surge-replica-%d", index), 30, 100)
+		if err != nil {
+			t.Fatal(err)
+		}
+		claimed += len(leases)
+		if index > 0 && len(leases) != 0 {
+			t.Fatalf("replica %d exceeded global cap with %d leases", index, len(leases))
+		}
+	}
+	var live int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_connector_effects WHERE status='unknown' AND lease_expires_at>transaction_timestamp()`).Scan(&live); err != nil || claimed != 100 || live != 100 {
+		t.Fatalf("global lease cap claimed=%d live=%d err=%v", claimed, live, err)
+	}
+}
+
+func TestConnectorAuthorizationPostgresClaimsFairlyAcrossScopes(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToConnectorAuthorization(t, ctx, connection)
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	repository, _ := NewPostgresRepository(database)
+	connectors := &ConnectorRepository{database: database}
+	firstIdentity := fixtureRequestIdentity(t)
+	organizationID := "pid_72450000-0000-4000-8000-000000000000"
+	workspaceID := "pid_72450001-0000-4000-8000-000000000001"
+	environmentID := "pid_72450002-0000-4000-8000-000000000002"
+	organization, _ := domain.ParseProductID(organizationID)
+	workspace, _ := domain.ParseProductID(workspaceID)
+	environment, _ := domain.ParseProductID(environmentID)
+	secondScope, _ := domain.NewScope(organization, workspace, environment)
+	secondIdentity := firstIdentity
+	secondIdentity.Scope = secondScope
+	digest := sha256.Sum256([]byte("scope-fairness"))
+	for scopeIndex, identity := range []RequestIdentity{firstIdentity, secondIdentity} {
+		integrationID := fmt.Sprintf("pid_72451%03d-0000-4000-8000-%012d", scopeIndex+1, scopeIndex+1)
+		create := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: fmt.Sprintf("scope-fair-create-%04d", scopeIndex), Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"Scope Fair","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: fmt.Sprintf("pid_72452%03d-0000-4000-8000-%012d", scopeIndex+1, scopeIndex+1), CorrelationID: fmt.Sprintf("pid_72453%03d-0000-4000-8000-%012d", scopeIndex+1, scopeIndex+1), ReceiptID: fmt.Sprintf("pid_72454%03d-0000-4000-8000-%012d", scopeIndex+1, scopeIndex+1)}
+		if _, err := repository.MutateWorkflow(ctx, identity, create); err != nil {
+			t.Fatal(err)
+		}
+		for ordinal := 0; ordinal < 2; ordinal++ {
+			effectID := fmt.Sprintf("pid_7245%d%03d-0000-4000-8000-%012d", scopeIndex+5, ordinal+1, (scopeIndex+1)*10+ordinal)
+			provider := fmt.Sprintf("nango:s%d%d", scopeIndex, ordinal)
+			age := 60 - scopeIndex*20 - ordinal
+			if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,attempt,available_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,'bind',$7,$8,'unknown',0,transaction_timestamp()-interval '1 minute',transaction_timestamp()-make_interval(secs=>$9))`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), effectID, integrationID, provider, fmt.Sprintf("scope-fair-effect-%d-%d", scopeIndex, ordinal), digest[:], age); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	leases, err := connectors.ClaimReconciliation(ctx, "scope-fair-worker", 30, 2)
+	if err != nil || len(leases) != 2 {
+		t.Fatalf("fair scope leases=%#v err=%v", leases, err)
+	}
+	seen := map[string]bool{}
+	for _, lease := range leases {
+		seen[lease.EnvironmentID] = true
+	}
+	if !seen[firstIdentity.Scope.EnvironmentID().String()] || !seen[environmentID] {
+		t.Fatalf("oldest scope monopolized bounded claim: %#v", leases)
+	}
+}
+
+func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousandRowSkew(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToConnectorAuthorization(t, ctx, connection)
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	workflows, _ := NewPostgresRepository(database)
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_72430001-0000-4000-8000-000000000001"
+	create := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: "index-skew-create-0001", Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"Index Skew","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: "pid_72430002-0000-4000-8000-000000000002", CorrelationID: "pid_72430003-0000-4000-8000-000000000003", ReceiptID: "pid_72430004-0000-4000-8000-000000000004"}
+	if _, err := workflows.MutateWorkflow(ctx, identity, create); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,attempt,available_at,updated_at)
+	 SELECT $1,$2,$3,'pid_'||substr(hash,1,8)||'-'||substr(hash,9,4)||'-4'||substr(hash,14,3)||'-8'||substr(hash,18,3)||'-'||substr(hash,21,12),$4,'github','bind','index-skew-'||lpad(ordinal::text,10,'0'),digest(ordinal::text,'sha256'),'unknown',0,transaction_timestamp()-interval '1 minute',transaction_timestamp()-interval '1 minute'
+	 FROM (SELECT ordinal,md5(ordinal::text) hash FROM generate_series(1,100000) ordinal) generated`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `ANALYZE zasp_connector_effects`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `SET enable_seqscan=off`); err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Exec(context.Background(), `RESET enable_seqscan`)
+	var candidatePlan, activePlan []byte
+	if err := connection.QueryRow(ctx, `EXPLAIN (FORMAT JSON) SELECT id FROM zasp_connector_effects WHERE provider='github' AND operation='bind' AND status='unknown' AND attempt<100 AND available_at<=transaction_timestamp() ORDER BY available_at,updated_at,id LIMIT 1`).Scan(&candidatePlan); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, `EXPLAIN (FORMAT JSON) SELECT 1 FROM zasp_connector_effects WHERE provider='github' AND operation='bind' AND status='unknown' AND lease_expires_at>transaction_timestamp() LIMIT 1`).Scan(&activePlan); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(candidatePlan), "zasp_connector_effect_candidate_lane_idx") || !strings.Contains(string(activePlan), "zasp_connector_effect_active_lane_idx") {
+		t.Fatalf("reconciliation plans candidate=%s active=%s", candidatePlan, activePlan)
 	}
 }
 

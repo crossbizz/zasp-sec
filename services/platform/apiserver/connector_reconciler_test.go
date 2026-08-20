@@ -23,6 +23,9 @@ type connectorConcurrentRepositoryStub struct {
 func (stub *connectorConcurrentRepositoryStub) ClaimReconciliation(context.Context, string, int, int) ([]ConnectorEffectLease, error) {
 	return append([]ConnectorEffectLease(nil), stub.leases...), nil
 }
+func (*connectorConcurrentRepositoryStub) RecoverExpiredFinalAttempts(context.Context, string, int, int) (int, error) {
+	return 0, nil
+}
 func (*connectorConcurrentRepositoryStub) CompleteOAuthReconciliation(context.Context, ConnectorEffectLease, OAuthCompletion) (OAuthCompletionRecord, error) {
 	return OAuthCompletionRecord{}, nil
 }
@@ -58,6 +61,152 @@ type connectorDelayedRevocationProvider struct{ delay time.Duration }
 
 func (*connectorDelayedRevocationProvider) AuthorizationURL(string, string) (string, error) {
 	return "", nil
+}
+
+type connectorBlockingRevocationProvider struct{ release <-chan struct{} }
+
+func (*connectorBlockingRevocationProvider) AuthorizationURL(string, string) (string, error) {
+	return "", nil
+}
+func (*connectorBlockingRevocationProvider) Complete(context.Context, string, string, []byte) (ConnectorOAuthGrant, error) {
+	return ConnectorOAuthGrant{}, errors.New("unexpected complete")
+}
+func (*connectorBlockingRevocationProvider) Recover(context.Context, string) (ConnectorOAuthGrant, error) {
+	return ConnectorOAuthGrant{}, errors.New("unexpected recover")
+}
+func (*connectorBlockingRevocationProvider) Discard(context.Context, string, bool) error {
+	return errors.New("unexpected discard")
+}
+func (provider *connectorBlockingRevocationProvider) Revoke(context.Context, string) error {
+	<-provider.release
+	return nil
+}
+
+type connectorDispatchRepositoryStub struct {
+	mu         sync.Mutex
+	first      []ConnectorEffectLease
+	second     ConnectorEffectLease
+	claimed    bool
+	secondSent bool
+	completed  chan string
+	b1         string
+	b1Done     bool
+}
+
+func (*connectorDispatchRepositoryStub) RecoverExpiredFinalAttempts(context.Context, string, int, int) (int, error) {
+	return 0, nil
+}
+func (stub *connectorDispatchRepositoryStub) ClaimReconciliation(_ context.Context, _ string, _ int, limit int) ([]ConnectorEffectLease, error) {
+	stub.mu.Lock()
+	defer stub.mu.Unlock()
+	if !stub.claimed {
+		stub.claimed = true
+		return append([]ConnectorEffectLease(nil), stub.first...), nil
+	}
+	if stub.b1Done && !stub.secondSent && stub.second.ID != "" {
+		stub.secondSent = true
+		return []ConnectorEffectLease{stub.second}, nil
+	}
+	return []ConnectorEffectLease{}, nil
+}
+func (*connectorDispatchRepositoryStub) CompleteOAuthReconciliation(context.Context, ConnectorEffectLease, OAuthCompletion) (OAuthCompletionRecord, error) {
+	return OAuthCompletionRecord{}, nil
+}
+func (*connectorDispatchRepositoryStub) CompleteConnectorCleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	return ConnectorEffectTransition{}, nil
+}
+func (*connectorDispatchRepositoryStub) CompletePKCECleanupReconciliation(context.Context, ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	return ConnectorEffectTransition{}, nil
+}
+func (*connectorDispatchRepositoryStub) QuarantineConnectorReconciliation(context.Context, ConnectorEffectLease, string) (ConnectorEffectTransition, error) {
+	return ConnectorEffectTransition{}, nil
+}
+func (*connectorDispatchRepositoryStub) FailConnectorReconciliation(context.Context, ConnectorEffectLease, string) (ConnectorEffectTransition, error) {
+	return ConnectorEffectTransition{}, nil
+}
+func (stub *connectorDispatchRepositoryStub) CompleteConnectorRevocation(_ context.Context, lease ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	stub.mu.Lock()
+	if lease.ID == stub.b1 {
+		stub.b1Done = true
+	}
+	stub.mu.Unlock()
+	stub.completed <- lease.ID
+	return ConnectorEffectTransition{ID: lease.ID, Status: "reconciled", Attempt: lease.Attempt, UpdatedAt: time.Now().UTC()}, nil
+}
+
+func TestConnectorReconcilerDispatchesNextHealthyLaneWithoutWaitingForSlowSibling(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	githubID := "pid_70500001-0000-4000-8000-000000000001"
+	oktaID := "pid_70500002-0000-4000-8000-000000000002"
+	lease := func(id, integrationID, provider, reference string) ConnectorEffectLease {
+		return ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: id, IntegrationID: integrationID, Provider: provider, Operation: "revoke", IdempotencyKey: "dispatch-" + id, RequestDigest: hex.EncodeToString(make([]byte, sha256.Size)), ConnectionReference: reference, Attempt: 1, LeaseOwner: "dispatch-worker", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute)}
+	}
+	slowID := "pid_70500003-0000-4000-8000-000000000003"
+	fastOneID := "pid_70500004-0000-4000-8000-000000000004"
+	fastTwoID := "pid_70500005-0000-4000-8000-000000000005"
+	repository := &connectorDispatchRepositoryStub{first: []ConnectorEffectLease{lease(slowID, githubID, "github", "ref:github/installation/123456"), lease(fastOneID, oktaID, "okta", "ref:okta/refresh/70500001-0000-4000-8000-000000000001")}, second: lease(fastTwoID, oktaID, "okta", "ref:okta/refresh/70500002-0000-4000-8000-000000000002"), completed: make(chan string, 3), b1: fastOneID}
+	registry, _ := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{
+		"github": {Provider: &connectorDelayedRevocationProvider{delay: 250 * time.Millisecond}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"},
+		"okta":   {Provider: &connectorDelayedRevocationProvider{}, RequestedScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, CredentialClass: "okta_refresh_reference"},
+	}, nil)
+	workflows := connectorWorkflowMapStub{githubID: connectorRevokingWorkflow(t, githubID, "github"), oktaID: connectorRevokingWorkflow(t, oktaID, "okta")}
+	reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: workflows, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "dispatch-worker", LeaseSeconds: 30, Limit: 3, Interval: 10 * time.Millisecond})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- reconciler.Run(ctx) }()
+	seen := map[string]bool{}
+	deadline := time.After(150 * time.Millisecond)
+	for !seen[fastOneID] || !seen[fastTwoID] {
+		select {
+		case id := <-repository.completed:
+			seen[id] = true
+		case <-deadline:
+			cancel()
+			t.Fatalf("healthy lane did not drain independently: %#v", seen)
+		}
+	}
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("dispatcher shutdown=%v", err)
+	}
+}
+
+func TestConnectorReconcilerShutdownDoesNotWaitIndefinitelyForHostileProvider(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_70600001-0000-4000-8000-000000000001"
+	effectID := "pid_70600002-0000-4000-8000-000000000002"
+	release := make(chan struct{})
+	lease := ConnectorEffectLease{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: effectID, IntegrationID: integrationID, Provider: "github", Operation: "revoke", IdempotencyKey: "shutdown-hostile-provider-0001", RequestDigest: hex.EncodeToString(make([]byte, sha256.Size)), ConnectionReference: "ref:github/installation/123456", Attempt: 1, LeaseOwner: "shutdown-worker", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute)}
+	repository := &connectorDispatchRepositoryStub{first: []ConnectorEffectLease{lease}, completed: make(chan string, 1)}
+	registry, _ := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"github": {Provider: &connectorBlockingRevocationProvider{release: release}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, nil)
+	reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowMapStub{integrationID: connectorRevokingWorkflow(t, integrationID, "github")}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "shutdown-worker", LeaseSeconds: 30, Limit: 1, Interval: 10 * time.Millisecond})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- reconciler.Run(ctx) }()
+	time.Sleep(25 * time.Millisecond)
+	started := time.Now()
+	cancel()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) || time.Since(started) > 2500*time.Millisecond {
+			t.Fatalf("bounded shutdown err=%v elapsed=%s", err, time.Since(started))
+		}
+	case <-time.After(2500 * time.Millisecond):
+		t.Fatal("hostile provider blocked worker shutdown")
+	}
+	close(release)
+}
+
+func connectorRevokingWorkflow(t *testing.T, integrationID, provider string) WorkflowValue {
+	t.Helper()
+	workflow := connectorWorkflowValue(integrationID, provider)
+	var body map[string]any
+	if err := json.Unmarshal(workflow.Body, &body); err != nil {
+		t.Fatal(err)
+	}
+	body["status"] = "revoking"
+	workflow.Body, _ = json.Marshal(body)
+	return workflow
 }
 func (*connectorDelayedRevocationProvider) Complete(context.Context, string, string, []byte) (ConnectorOAuthGrant, error) {
 	return ConnectorOAuthGrant{}, errors.New("unexpected complete")
@@ -140,6 +289,9 @@ func (stub *connectorReconciliationRepositoryStub) ClaimReconciliation(context.C
 		return []ConnectorEffectLease{}, nil
 	}
 	return []ConnectorEffectLease{stub.lease}, nil
+}
+func (*connectorReconciliationRepositoryStub) RecoverExpiredFinalAttempts(context.Context, string, int, int) (int, error) {
+	return 0, nil
 }
 
 func TestConnectorReconcilerProviderFailuresDoNotBackOffGlobalClaims(t *testing.T) {
@@ -418,7 +570,7 @@ func TestConnectorReconcilerDrainsClaimAfterOneProviderFailure(t *testing.T) {
 	provider := &connectorRecoveryProvider{grant: ConnectorOAuthGrant{ConnectionReference: "ref:github/install/123456", ProviderSubject: "installation:123456", CredentialClass: "github_installation_reference", Metadata: json.RawMessage(`{"installation_id":123456}`)}, recoverErrors: []error{errors.New("first provider unavailable"), nil}}
 	registry, _ := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{"github": {Provider: provider, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"}}, nil)
 	reconciler, _ := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 10, Interval: time.Second})
-	if err := reconciler.reconcileOnce(context.Background()); err == nil || provider.recoverCalls != 2 || repository.completeCount != 1 || repository.completed.AttemptID != "pid_70000004-0000-4000-8000-000000000004" {
+	if err := reconciler.reconcileOnce(context.Background()); err == nil || provider.recoverCalls != 2 || repository.completeCount != 1 || !validProductID(repository.completed.AttemptID) {
 		t.Fatalf("drained claim err=%v recover_calls=%d completions=%d last=%#v", err, provider.recoverCalls, repository.completeCount, repository.completed)
 	}
 }
