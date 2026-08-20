@@ -24,6 +24,7 @@ func TestProductionRuntimeDataPlaneRegistersImmutableV15Authority(t *testing.T) 
 		"zasp_runtime_public_sensor_page",
 		"zasp_runtime_public_sensor_detail",
 		"zasp_runtime_public_sensor_coverage",
+		"zasp_runtime_public_sensor_token_authority",
 		"zasp_runtime_public_create_sensor",
 		"zasp_runtime_public_update_sensor",
 		"zasp_runtime_public_delete_sensor",

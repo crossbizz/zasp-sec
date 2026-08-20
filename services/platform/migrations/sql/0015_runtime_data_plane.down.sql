@@ -1,5 +1,5 @@
 DO $runtime_guard$ BEGIN
- IF zasp_runtime_data_plane_live_fingerprint()<>'27231caf874018313cc8c25de846549ecb8d65c1e41cd49f43233af1d6277ab5' OR NOT zasp_runtime_data_plane_security_ready() THEN
+ IF zasp_runtime_data_plane_live_fingerprint()<>'2a4346e8b06e5a0b599d3b124653d3628b1c0c4f513b2576ab6faeaa39b28c59' OR NOT zasp_runtime_data_plane_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime data plane semantic drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_runtime_data_plane_state WHERE used_at IS NOT NULL) THEN
@@ -61,6 +61,7 @@ DROP FUNCTION public.zasp_runtime_public_delete_sensor(text,text,text,text,text,
 DROP FUNCTION public.zasp_runtime_public_update_sensor(text,text,text,text,text,bigint,text,text,text,bytea);
 DROP FUNCTION public.zasp_runtime_public_create_sensor(text,text,text,text,text,text,text,text,text,bytea,text,bigint,bytea,bytea,bytea,timestamptz);
 DROP FUNCTION public.zasp_runtime_public_sensor_coverage(text,text,text,text);
+DROP FUNCTION public.zasp_runtime_public_sensor_token_authority(text,text,text,text);
 DROP FUNCTION public.zasp_runtime_public_sensor_detail(text,text,text,text);
 DROP FUNCTION public.zasp_runtime_public_sensor_page(text,text,text,text,integer);
 DROP FUNCTION public.zasp_runtime_public_sensor_value(text,text,text,text);

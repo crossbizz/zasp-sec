@@ -111,6 +111,20 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
 	}
+	if repository.schema == RuntimeDataPlaneSchemaVersion {
+		sensorRepository, sensorErr := NewSensorPublicRepository(repository.database)
+		if sensorErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		sensorHandler, sensorErr := NewSensorPublicHTTPHandler(sensorRepository, cookie.WorkflowSigningKey)
+		if sensorErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		workflowSurface, sensorErr = NewSensorWorkflowSurface(workflowSurface, sensorHandler)
+		if sensorErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+	}
 	inventorySurface := http.Handler(&coreHTTPHandler{repository: repository, boundary: inventoryDependency})
 	if isTypedInventorySchema(repository.schema) {
 		inventoryRepository, inventoryErr := NewPostgresInventoryRepository(repository.database)

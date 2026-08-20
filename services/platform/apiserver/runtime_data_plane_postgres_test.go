@@ -130,8 +130,11 @@ func TestProductionRuntimeDataPlanePostgresSensorPublicAuthority(t *testing.T) {
 	if err != nil || created.Sensor.ID != sensorID || created.Sensor.Version != 1 || created.TokenID != tokenID || created.Replayed {
 		t.Fatalf("created=%#v err=%v", created, err)
 	}
-	replayed, err := repository.CreateSensor(ctx, identity, create)
-	if err != nil || !replayed.Replayed || replayed.TokenID != tokenID {
+	replayCreate := create
+	replayCreate.SensorID = "pid_96000009-0000-4000-8000-000000000009"
+	replayCreate.TokenID = "pid_96000010-0000-4000-8000-000000000010"
+	replayed, err := repository.CreateSensor(ctx, identity, replayCreate)
+	if err != nil || !replayed.Replayed || replayed.Sensor.ID != sensorID || replayed.TokenID != tokenID {
 		t.Fatalf("replayed=%#v err=%v", replayed, err)
 	}
 	wire, _ := credential.Wire()
@@ -164,6 +167,14 @@ func TestProductionRuntimeDataPlanePostgresSensorPublicAuthority(t *testing.T) {
 	rotated, err := repository.RotateSensorToken(ctx, identity, SensorRotateMutation{SensorID: sensorID, ExpectedVersion: 2, IdempotencyKey: "sensor-public-rotate-0001", RequestDigest: rotateDigest[:], TokenID: replacementID, TokenGeneration: 2, LocatorDigest: replacementDigest[:], Salt: salt, TokenHash: replacementHash[:], TokenExpiresAt: expires})
 	if err != nil || rotated.Replayed || rotated.TokenGeneration != 2 {
 		t.Fatalf("rotated=%#v err=%v", rotated, err)
+	}
+	authority, err := repository.GetSensorTokenAuthority(ctx, identity.Scope, sensorID)
+	if err != nil || authority.Generation != 2 || authority.SensorVersion != 2 {
+		t.Fatalf("authority=%#v err=%v", authority, err)
+	}
+	replayedRotation, err := repository.RotateSensorToken(ctx, identity, SensorRotateMutation{SensorID: sensorID, ExpectedVersion: 2, IdempotencyKey: "sensor-public-rotate-0001", RequestDigest: rotateDigest[:], TokenID: "pid_96000011-0000-4000-8000-000000000011", TokenGeneration: 3, LocatorDigest: replacementDigest[:], Salt: salt, TokenHash: replacementHash[:], TokenExpiresAt: expires})
+	if err != nil || !replayedRotation.Replayed || replayedRotation.TokenID != replacementID || replayedRotation.TokenGeneration != 2 {
+		t.Fatalf("replayed rotation=%#v err=%v", replayedRotation, err)
 	}
 	deleteDigest := sha256.Sum256([]byte("sensor-public-delete"))
 	deleted, err := repository.DeleteSensor(ctx, identity, SensorDeleteMutation{SensorID: sensorID, ExpectedVersion: 2, IdempotencyKey: "sensor-public-delete-0001", RequestDigest: deleteDigest[:]})

@@ -993,6 +993,89 @@ export type paths = {
         readonly patch: operations["updateSecurityAgent"];
         readonly trace?: never;
     };
+    readonly "/api/v1/sensors": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List sensors in the authorized scope */
+        readonly get: operations["listSensors"];
+        readonly put?: never;
+        /**
+         * Create a sensor and reveal its ingest token exactly once
+         * @description BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. ProductAPIToken requests omit the browser-only headers. Exact replay never reveals token material and returns conflict so the caller can rotate with a new key.
+         */
+        readonly post: operations["createSensorEnrollment"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/sensors/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get an authorized sensor */
+        readonly get: operations["getSensor"];
+        readonly put?: never;
+        readonly post?: never;
+        /** Revoke active tokens and delete a sensor atomically */
+        readonly delete: operations["deleteSensor"];
+        readonly options?: never;
+        readonly head?: never;
+        /** Update sensor name and collection mode */
+        readonly patch: operations["updateSensor"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/sensors/{id}/coverage": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get exact heartbeat-derived sensor coverage */
+        readonly get: operations["getSensorCoverage"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/sensors/{id}/rotate-token": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Revoke the prior token and reveal its replacement exactly once
+         * @description BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. Exact replay never reveals token material and returns conflict.
+         */
+        readonly post: operations["rotateSensorToken"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/session/bootstrap": {
         readonly parameters: {
             readonly query?: never;
@@ -2375,16 +2458,18 @@ export type components = {
             readonly items: readonly components["schemas"]["SecurityAgentTemplate"][];
         };
         readonly Sensor: {
-            readonly capabilities: readonly string[];
             /** Format: date-time */
             readonly created_at: string;
             readonly id: components["schemas"]["ProductID"];
-            /** Format: date-time */
-            readonly last_heartbeat?: string;
+            readonly kind: components["schemas"]["SensorKind"];
+            readonly last_heartbeat_at: string | null;
             readonly mode: components["schemas"]["SensorMode"];
             readonly name: string;
+            readonly state: components["schemas"]["SensorState"];
+            readonly token_expires_at: string | null;
             /** Format: date-time */
             readonly updated_at: string;
+            readonly version: number;
         };
         readonly SensorCoverage: {
             readonly btf: boolean;
@@ -2392,35 +2477,47 @@ export type components = {
             readonly drops: number;
             readonly event_rate: number;
             readonly kernel: string;
-            /** Format: date-time */
-            readonly last_heartbeat?: string;
+            readonly last_heartbeat: string | null;
             readonly sensor_id: components["schemas"]["ProductID"];
             /** @enum {string} */
-            readonly status: "awaiting_heartbeat" | "supported" | "degraded";
+            readonly status: "pending" | "healthy" | "degraded" | "offline" | "revoked";
             readonly supported: boolean;
         };
         readonly SensorEnrollment: {
-            readonly capabilities: readonly string[];
             /** Format: date-time */
             readonly created_at: string;
             readonly id: components["schemas"]["ProductID"];
-            /** Format: date-time */
-            readonly last_heartbeat?: string;
+            readonly kind: components["schemas"]["SensorKind"];
+            readonly last_heartbeat_at: string | null;
             readonly mode: components["schemas"]["SensorMode"];
             readonly name: string;
+            readonly state: components["schemas"]["SensorState"];
             /** @description One-time enrollment credential returned only by create or rotate. */
             readonly token: string;
             /** Format: date-time */
+            readonly token_expires_at: string;
+            /** Format: date-time */
             readonly updated_at: string;
+            readonly version: number;
         };
         readonly SensorInput: {
+            readonly kind: components["schemas"]["SensorKind"];
             readonly mode: components["schemas"]["SensorMode"];
             readonly name: string;
         };
         /** @enum {string} */
+        readonly SensorKind: "tetragon" | "otlp";
+        /** @enum {string} */
         readonly SensorMode: "metadata_only" | "full";
         readonly SensorPage: {
             readonly items: readonly components["schemas"]["Sensor"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        /** @enum {string} */
+        readonly SensorState: "pending" | "active" | "degraded" | "revoked";
+        readonly SensorUpdateInput: {
+            readonly mode: components["schemas"]["SensorMode"];
+            readonly name: string;
         };
         readonly Session: {
             readonly agent_id: string;
@@ -2841,8 +2938,11 @@ export type Sensor = components['schemas']['Sensor'];
 export type SensorCoverage = components['schemas']['SensorCoverage'];
 export type SensorEnrollment = components['schemas']['SensorEnrollment'];
 export type SensorInput = components['schemas']['SensorInput'];
+export type SensorKind = components['schemas']['SensorKind'];
 export type SensorMode = components['schemas']['SensorMode'];
 export type SensorPage = components['schemas']['SensorPage'];
+export type SensorState = components['schemas']['SensorState'];
+export type SensorUpdateInput = components['schemas']['SensorUpdateInput'];
 export type Session = components['schemas']['Session'];
 export type SessionBootstrap = components['schemas']['SessionBootstrap'];
 export type SessionCallbackInput = components['schemas']['SessionCallbackInput'];
@@ -4935,6 +5035,267 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listSensors: {
+        readonly parameters: {
+            readonly query?: {
+                /** @description Opaque cursor returned by the preceding page. */
+                readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Maximum number of records to return. */
+                readonly limit?: components["parameters"]["PageLimit"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Bounded sensor page. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SensorPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createSensorEnrollment: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SensorInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Sensor created and token revealed once. */
+            readonly 201: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SensorEnrollment"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSensor: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized sensor. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Sensor"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly deleteSensor: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Sensor deleted or exactly replayed. */
+            readonly 204: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateSensor: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SensorUpdateInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Sensor updated or exactly replayed. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Sensor"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSensorCoverage: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current bounded coverage. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SensorCoverage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly rotateSensorToken: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Replacement token revealed once. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly Pragma?: "no-cache";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SensorEnrollment"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

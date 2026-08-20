@@ -101,6 +101,13 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/runtimes", "listRuntimes", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/runtimes/{id}", "getRuntime", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/assets/{id}", "getAsset", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
+	{OperationDefinition{"GET", "/api/v1/sensors", "listSensors", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/sensors", "createSensorEnrollment", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/sensors/{id}", "getSensor", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"PATCH", "/api/v1/sensors/{id}", "updateSensor", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"DELETE", "/api/v1/sensors/{id}", "deleteSensor", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/sensors/{id}/rotate-token", "rotateSensorToken", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/sensors/{id}/coverage", "getSensorCoverage", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/workflow-mutation-receipts", "listWorkflowMutationReceipts", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/workflow-mutation-receipts/{id}/acknowledge", "acknowledgeWorkflowMutationReceipt", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/policies", "listPolicies", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
@@ -205,7 +212,7 @@ func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
 	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
 		"updateMemberRole", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
-		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization":
+		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true
 	default:
 		return false

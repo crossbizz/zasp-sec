@@ -372,8 +372,12 @@ func TestProductionHandlersPreserveDiscoveryAndTypedInventoryAtV15(t *testing.T)
 	if _, ok := handlers.Inventory.(*inventoryHTTPHandler); !ok {
 		t.Fatalf("inventory handler = %T", handlers.Inventory)
 	}
-	if _, ok := handlers.Workflow.(*discoveryWorkflowSurface); !ok {
+	sensorSurface, ok := handlers.Workflow.(*sensorWorkflowSurface)
+	if !ok {
 		t.Fatalf("workflow handler = %T", handlers.Workflow)
+	}
+	if _, ok := sensorSurface.workflow.(*discoveryWorkflowSurface); !ok {
+		t.Fatalf("sensor workflow delegate = %T", sensorSurface.workflow)
 	}
 }
 

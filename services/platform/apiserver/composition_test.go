@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 91 || len(public) != 91 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 91/91", len(seen), len(public))
+	if len(seen) != 98 || len(public) != 98 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 98/98", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -88,7 +88,7 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 	}
 }
 
-func TestBatchFourCompositionHasExactRiskAndDiscoverySurfacesWithoutLaterOverclaims(t *testing.T) {
+func TestTaskSixCompositionHasExactRiskDiscoveryAndSensorSurfacesWithoutLaterOverclaims(t *testing.T) {
 	definitions := make(map[string]OperationDefinition)
 	for _, operation := range CoreOperations() {
 		definitions[operation.OperationID] = operation
@@ -119,8 +119,19 @@ func TestBatchFourCompositionHasExactRiskAndDiscoverySurfacesWithoutLaterOvercla
 			t.Errorf("discovery read %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
 		}
 	}
+	for _, operationID := range []string{"listSensors", "getSensor", "getSensorCoverage"} {
+		definition, ok := definitions[operationID]
+		if !ok || definition.Permission != "view" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
+			t.Errorf("sensor read %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
+		}
+	}
+	for _, operationID := range []string{"createSensorEnrollment", "updateSensor", "deleteSensor", "rotateSensorToken"} {
+		definition, ok := definitions[operationID]
+		if !ok || definition.Permission != "manage_workflows" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
+			t.Errorf("sensor mutation %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
+		}
+	}
 	for _, operationID := range []string{
-		"listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
 		"updateAgent", "createFindingTicket",
 		"listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
 		"listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
@@ -165,7 +176,6 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 	}
 	for _, hidden := range []string{
 		"simulatePolicy", "listPolicyDecisions",
-		"listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
 		"listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
 	} {
 		if _, mounted := definitions[hidden]; mounted {

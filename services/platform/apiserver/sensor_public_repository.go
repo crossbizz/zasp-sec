@@ -11,13 +11,14 @@ import (
 )
 
 const (
-	postgresRuntimePublicSensorPageSQL     = `SELECT zasp_runtime_public_sensor_page($1,$2,$3,NULLIF($4,''),$5)`
-	postgresRuntimePublicSensorDetailSQL   = `SELECT zasp_runtime_public_sensor_detail($1,$2,$3,$4)`
-	postgresRuntimePublicSensorCoverageSQL = `SELECT zasp_runtime_public_sensor_coverage($1,$2,$3,$4)`
-	postgresRuntimePublicCreateSensorSQL   = `SELECT zasp_runtime_public_create_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
-	postgresRuntimePublicUpdateSensorSQL   = `SELECT zasp_runtime_public_update_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresRuntimePublicDeleteSensorSQL   = `SELECT zasp_runtime_public_delete_sensor($1,$2,$3,$4,$5,$6,$7,$8)`
-	postgresRuntimePublicRotateSensorSQL   = `SELECT zasp_runtime_public_rotate_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`
+	postgresRuntimePublicSensorPageSQL           = `SELECT zasp_runtime_public_sensor_page($1,$2,$3,NULLIF($4,''),$5)`
+	postgresRuntimePublicSensorDetailSQL         = `SELECT zasp_runtime_public_sensor_detail($1,$2,$3,$4)`
+	postgresRuntimePublicSensorCoverageSQL       = `SELECT zasp_runtime_public_sensor_coverage($1,$2,$3,$4)`
+	postgresRuntimePublicSensorTokenAuthoritySQL = `SELECT zasp_runtime_public_sensor_token_authority($1,$2,$3,$4)`
+	postgresRuntimePublicCreateSensorSQL         = `SELECT zasp_runtime_public_create_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
+	postgresRuntimePublicUpdateSensorSQL         = `SELECT zasp_runtime_public_update_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresRuntimePublicDeleteSensorSQL         = `SELECT zasp_runtime_public_delete_sensor($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresRuntimePublicRotateSensorSQL         = `SELECT zasp_runtime_public_rotate_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`
 )
 
 var publicSensorFields = []string{"created_at", "id", "kind", "last_heartbeat_at", "mode", "name", "state", "token_expires_at", "updated_at", "version"}
@@ -57,8 +58,13 @@ type SensorCoverage struct {
 	Kernel        string     `json:"kernel"`
 	BTF           bool       `json:"btf"`
 	Capabilities  []string   `json:"capabilities"`
-	EventRate     float64    `json:"event_rate"`
+	EventRate     uint64     `json:"event_rate"`
 	Drops         int64      `json:"drops"`
+}
+
+type SensorTokenAuthority struct {
+	Generation    int64 `json:"generation"`
+	SensorVersion int64 `json:"sensor_version"`
 }
 
 type SensorCreateMutation struct {
@@ -203,6 +209,21 @@ func (repository *SensorPublicRepository) GetSensorCoverage(ctx context.Context,
 	return result, nil
 }
 
+func (repository *SensorPublicRepository) GetSensorTokenAuthority(ctx context.Context, scope domain.Scope, id string) (SensorTokenAuthority, error) {
+	if !validSensorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(id) {
+		return SensorTokenAuthority{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresRuntimePublicSensorTokenAuthoritySQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id)
+	if err != nil {
+		return SensorTokenAuthority{}, discoveryProviderError(err)
+	}
+	var result SensorTokenAuthority
+	if !exactJSONFields(payload, "generation", "sensor_version") || decodeStrictDiscovery(payload, &result) != nil || result.Generation < 1 || result.SensorVersion < 1 {
+		return SensorTokenAuthority{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+
 func (repository *SensorPublicRepository) CreateSensor(ctx context.Context, identity RequestIdentity, input SensorCreateMutation) (SensorMutationResult, error) {
 	if !validSensorMutationAuthority(repository, ctx, identity) || !validCreateSensorMutation(input) {
 		return SensorMutationResult{}, ErrRepositoryOperation
@@ -246,11 +267,11 @@ func decodeSensorMutation(payload json.RawMessage, err error, sensorID, tokenID 
 		return SensorMutationResult{}, ErrRepositoryUnavailable
 	}
 	sensorValue, valid := decodeSensorRecord(envelope.Body)
-	if !valid || sensorValue.ID != sensorID {
+	if !valid || !envelope.Replayed && sensorValue.ID != sensorID {
 		return SensorMutationResult{}, ErrRepositoryUnavailable
 	}
 	if tokenExpected {
-		if envelope.TokenID == nil || envelope.TokenGeneration == nil || envelope.TokenExpiresAt == nil || *envelope.TokenID != tokenID || *envelope.TokenGeneration != tokenGeneration || !validSensorTime(*envelope.TokenExpiresAt) || sensorValue.TokenExpiresAt == nil || !sensorValue.TokenExpiresAt.Equal(*envelope.TokenExpiresAt) {
+		if envelope.TokenID == nil || envelope.TokenGeneration == nil || envelope.TokenExpiresAt == nil || !validProductID(*envelope.TokenID) || *envelope.TokenGeneration < 1 || !validSensorTime(*envelope.TokenExpiresAt) || sensorValue.TokenExpiresAt == nil || !sensorValue.TokenExpiresAt.Equal(*envelope.TokenExpiresAt) || !envelope.Replayed && (*envelope.TokenID != tokenID || *envelope.TokenGeneration != tokenGeneration) {
 			return SensorMutationResult{}, ErrRepositoryUnavailable
 		}
 		value := envelope.TokenExpiresAt.UTC()
@@ -290,7 +311,7 @@ func decodeSensorRecord(payload json.RawMessage) (ProductSensor, bool) {
 }
 
 func validSensorCoverage(result SensorCoverage, sensorID string) bool {
-	if result.SensorID != sensorID || result.Capabilities == nil || len(result.Capabilities) > 32 || result.Drops < 0 || result.EventRate < 0 || result.EventRate > 1e9 || !stringIn(result.Status, "pending", "healthy", "degraded", "offline", "revoked") || len(result.Kernel) > 128 || result.Kernel != "" && !printableInventoryString(result.Kernel, 1, 128, false) {
+	if result.SensorID != sensorID || result.Capabilities == nil || len(result.Capabilities) > 32 || result.Drops < 0 || result.EventRate > 1e9 || !stringIn(result.Status, "pending", "healthy", "degraded", "offline", "revoked") || len(result.Kernel) > 128 || result.Kernel != "" && !printableInventoryString(result.Kernel, 1, 128, false) {
 		return false
 	}
 	prior := ""

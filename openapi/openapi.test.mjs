@@ -345,6 +345,39 @@ describe("M1-23 strict OpenAPI root", () => {
 });
 
 describe("production workflow concurrency contract", () => {
+  it("publishes the exact replay-safe sensor management surface", () => {
+    const collection = document.paths["/api/v1/sensors"];
+    const detail = document.paths["/api/v1/sensors/{id}"];
+    const rotation = document.paths["/api/v1/sensors/{id}/rotate-token"].post;
+    const coverage = document.paths["/api/v1/sensors/{id}/coverage"].get;
+    assert.equal(collection.get.operationId, "listSensors");
+    assert.equal(collection.post.operationId, "createSensorEnrollment");
+    assert.equal(detail.get.operationId, "getSensor");
+    assert.equal(detail.patch.operationId, "updateSensor");
+    assert.equal(detail.delete.operationId, "deleteSensor");
+    assert.equal(rotation.operationId, "rotateSensorToken");
+    assert.equal(coverage.operationId, "getSensorCoverage");
+    assert.equal(collection.get.responses["200"].content["application/json"].schema.$ref, "#/components/schemas/SensorPage");
+    assert.equal(collection.post.responses["201"].content["application/json"].schema.$ref, "#/components/schemas/SensorEnrollment");
+    assert.equal(rotation.responses["200"].content["application/json"].schema.$ref, "#/components/schemas/SensorEnrollment");
+    for (const operation of [collection.post, detail.patch, detail.delete, rotation]) {
+      const refs = operation.parameters.map((parameter) => parameter.$ref);
+      assert.ok(refs.includes("#/components/parameters/IdempotencyKey"));
+      assert.equal(operation.responses["409"].$ref, "#/components/responses/ProductErrorResponse");
+    }
+    assert.equal(detail.patch.parameters.some((value) => value.$ref === "#/components/parameters/ResourceVersion"), true);
+    assert.equal(detail.delete.parameters.some((value) => value.$ref === "#/components/parameters/ResourceVersion"), true);
+    assert.equal(rotation.parameters.some((value) => value.$ref === "#/components/parameters/ResourceVersion"), true);
+    assert.deepEqual(document.components.schemas.SensorKind.enum, ["tetragon", "otlp"]);
+    assert.deepEqual(document.components.schemas.SensorState.enum, ["pending", "active", "degraded", "revoked"]);
+    assert.deepEqual(document.components.schemas.Sensor.required, ["id", "name", "kind", "mode", "state", "version", "token_expires_at", "last_heartbeat_at", "created_at", "updated_at"]);
+    assert.deepEqual(document.components.schemas.SensorEnrollment.required, [...document.components.schemas.Sensor.required, "token"]);
+    assert.equal(document.components.schemas.SensorEnrollment.properties.token.pattern, "^zasp_sensor_v1\\.[A-Za-z0-9_-]{22}\\.[A-Za-z0-9_-]{43}$");
+    assert.deepEqual(document.components.schemas.SensorPage.required, ["items", "page_info"]);
+    assert.equal(document.components.schemas.SensorPage.properties.page_info.$ref, "#/components/schemas/PageInfo");
+    assert.deepEqual(document.components.schemas.SensorCoverage.properties.status.enum, ["pending", "healthy", "degraded", "offline", "revoked"]);
+  });
+
   it("publishes the three retained DELETE operations with no request body", () => {
     for (const path of ["/api/v1/policies/{id}", "/api/v1/integrations/{id}", "/api/v1/security-agents/{id}"]) {
       const operation = document.paths[path].delete;
@@ -634,19 +667,18 @@ describe("production workflow concurrency contract", () => {
     }
   });
 
-  it("publishes exactly the mounted Task 4 public surface without later-task overclaims", () => {
+  it("publishes exactly the mounted Task 6 public surface without later-task overclaims", () => {
     const operations = new Map();
     for (const [path, pathItem] of Object.entries(document.paths)) {
       for (const [method, operation] of Object.entries(pathItem)) {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 91);
-    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness"]) {
+    assert.equal(operations.size, 98);
+    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [
-      "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage",
       "updateAgent", "createFindingTicket",
       "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
       "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",

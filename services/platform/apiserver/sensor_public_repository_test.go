@@ -51,7 +51,7 @@ func TestSensorPublicRepositoryStrictlyReadsScopedSensorsAndCoverage(t *testing.
 		t.Fatalf("detail=%#v err=%v", detail, err)
 	}
 
-	database.responses[postgresRuntimePublicSensorCoverageSQL] = json.RawMessage(`{"sensor_id":"` + testSensorID + `","supported":true,"status":"healthy","last_heartbeat":"2026-08-20T00:00:00Z","kernel":"6.8.0","btf":true,"capabilities":["network","process"],"event_rate":12.5,"drops":0}`)
+	database.responses[postgresRuntimePublicSensorCoverageSQL] = json.RawMessage(`{"sensor_id":"` + testSensorID + `","supported":true,"status":"healthy","last_heartbeat":"2026-08-20T00:00:00Z","kernel":"6.8.0","btf":true,"capabilities":["network","process"],"event_rate":12,"drops":0}`)
 	coverage, err := repository.GetSensorCoverage(context.Background(), identity.Scope, testSensorID)
 	if err != nil || coverage.SensorID != testSensorID || !coverage.Supported || coverage.LastHeartbeat == nil || len(coverage.Capabilities) != 2 {
 		t.Fatalf("coverage=%#v err=%v", coverage, err)
@@ -79,10 +79,21 @@ func TestSensorPublicRepositoryCreatesAndRotatesWithoutPersistingWireToken(t *te
 		}
 	}
 
-	database.responses[postgresRuntimePublicRotateSensorSQL] = json.RawMessage(`{"body":` + sensorRecordJSON(testSensorID, "active", 1) + `,"token_id":"pid_91000003-0000-4000-8000-000000000003","token_generation":2,"token_expires_at":"2026-09-19T00:00:00Z","replayed":true}`)
-	rotated, err := repository.RotateSensorToken(context.Background(), identity, SensorRotateMutation{SensorID: testSensorID, ExpectedVersion: 1, IdempotencyKey: "sensor-rotate-idem-001", RequestDigest: digest[:], TokenID: "pid_91000003-0000-4000-8000-000000000003", TokenGeneration: 2, LocatorDigest: locator[:], Salt: salt[:], TokenHash: tokenHash[:], TokenExpiresAt: expires})
+	priorSensorID := "pid_91000004-0000-4000-8000-000000000004"
+	priorTokenID := "pid_91000003-0000-4000-8000-000000000003"
+	database.responses[postgresRuntimePublicRotateSensorSQL] = json.RawMessage(`{"body":` + sensorRecordJSON(priorSensorID, "active", 1) + `,"token_id":"` + priorTokenID + `","token_generation":2,"token_expires_at":"2026-09-19T00:00:00Z","replayed":true}`)
+	rotated, err := repository.RotateSensorToken(context.Background(), identity, SensorRotateMutation{SensorID: testSensorID, ExpectedVersion: 1, IdempotencyKey: "sensor-rotate-idem-001", RequestDigest: digest[:], TokenID: "pid_91000005-0000-4000-8000-000000000005", TokenGeneration: 3, LocatorDigest: locator[:], Salt: salt[:], TokenHash: tokenHash[:], TokenExpiresAt: expires})
 	if err != nil || !rotated.Replayed || rotated.TokenGeneration != 2 {
 		t.Fatalf("rotated=%#v err=%v", rotated, err)
+	}
+	if rotated.Sensor.ID != priorSensorID || rotated.TokenID != priorTokenID {
+		t.Fatalf("replay bound to fresh candidate instead of durable result: %#v", rotated)
+	}
+
+	database.responses[postgresRuntimePublicSensorTokenAuthoritySQL] = json.RawMessage(`{"generation":2,"sensor_version":4}`)
+	authority, err := repository.GetSensorTokenAuthority(context.Background(), identity.Scope, testSensorID)
+	if err != nil || authority.Generation != 2 || authority.SensorVersion != 4 {
+		t.Fatalf("authority=%#v err=%v", authority, err)
 	}
 }
 

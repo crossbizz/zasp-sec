@@ -120,7 +120,7 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 				writeRouterError(writer, request, http.StatusForbidden, "request_forbidden", "Request forbidden")
 				return
 			}
-			if operation.requireFreshAuth && !requestHasFreshBrowserAuthentication(request) {
+			if operation.requireFreshAuth && !requestHasFreshAuthentication(request) {
 				writeRouterError(writer, request, http.StatusForbidden, "fresh_auth_required", "Fresh authentication required")
 				return
 			}
@@ -141,9 +141,9 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 	writeRouterError(writer, request, http.StatusNotFound, "not_found", "Product route not found")
 }
 
-func requestHasFreshBrowserAuthentication(request *http.Request) bool {
+func requestHasFreshAuthentication(request *http.Request) bool {
 	identity, ok := IdentityFromRequest(request)
-	return ok && identity.CredentialKind == CredentialBrowserSession && identity.FreshAuthenticated
+	return ok && (identity.CredentialKind == CredentialBearerToken || identity.CredentialKind == CredentialBrowserSession && identity.FreshAuthenticated)
 }
 
 func operationRequiresBrowserScope(operationID string, security []CredentialKind) bool {

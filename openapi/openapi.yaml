@@ -665,6 +665,156 @@ paths:
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/sensors:
+    get:
+      operationId: listSensors
+      summary: List sensors in the authorized scope
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200':
+          description: Bounded sensor page.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SensorPage' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: createSensorEnrollment
+      summary: Create a sensor and reveal its ingest token exactly once
+      description: BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. ProductAPIToken requests omit the browser-only headers. Exact replay never reveals token material and returns conflict so the caller can rotate with a new key.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/FreshAuth'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SensorInput' } } }
+      responses:
+        '201':
+          description: Sensor created and token revealed once.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+            Pragma: { schema: { type: string, const: no-cache } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SensorEnrollment' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/sensors/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getSensor
+      summary: Get an authorized sensor
+      responses:
+        '200':
+          description: Authorized sensor.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/Sensor' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    patch:
+      operationId: updateSensor
+      summary: Update sensor name and collection mode
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SensorUpdateInput' } } }
+      responses:
+        '200':
+          description: Sensor updated or exactly replayed.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/Sensor' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    delete:
+      operationId: deleteSensor
+      summary: Revoke active tokens and delete a sensor atomically
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      responses:
+        '204':
+          description: Sensor deleted or exactly replayed.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, Cache-Control: { schema: { type: string, const: no-store } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/sensors/{id}/rotate-token:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: rotateSensorToken
+      summary: Revoke the prior token and reveal its replacement exactly once
+      description: BrowserSession requests require fresh authentication, same-origin Origin, and CSRF. Exact replay never reveals token material and returns conflict.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+        - $ref: '#/components/parameters/FreshAuth'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EmptyInput' } } }
+      responses:
+        '200':
+          description: Replacement token revealed once.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+            Pragma: { schema: { type: string, const: no-cache } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SensorEnrollment' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/sensors/{id}/coverage:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getSensorCoverage
+      summary: Get exact heartbeat-derived sensor coverage
+      responses:
+        '200':
+          description: Current bounded coverage.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SensorCoverage' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations:
     get:
       operationId: listIntegrations
@@ -3274,73 +3424,91 @@ components:
     SensorMode:
       type: string
       enum: [metadata_only, full]
+    SensorKind:
+      type: string
+      enum: [tetragon, otlp]
+    SensorState:
+      type: string
+      enum: [pending, active, degraded, revoked]
     SensorInput:
+      type: object
+      additionalProperties: false
+      required: [name, kind, mode]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 128, pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$' }
+        kind: { $ref: '#/components/schemas/SensorKind' }
+        mode: { $ref: '#/components/schemas/SensorMode' }
+    SensorUpdateInput:
       type: object
       additionalProperties: false
       required: [name, mode]
       properties:
-        name: { type: string, minLength: 1, maxLength: 128 }
+        name: { type: string, minLength: 1, maxLength: 128, pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$' }
         mode: { $ref: '#/components/schemas/SensorMode' }
     Sensor:
       type: object
       additionalProperties: false
-      required: [id, name, mode, capabilities, created_at, updated_at]
+      required: [id, name, kind, mode, state, version, token_expires_at, last_heartbeat_at, created_at, updated_at]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
-        name: { type: string, minLength: 1, maxLength: 128 }
+        name: { type: string, minLength: 1, maxLength: 128, pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$' }
+        kind: { $ref: '#/components/schemas/SensorKind' }
         mode: { $ref: '#/components/schemas/SensorMode' }
-        capabilities:
-          type: array
-          uniqueItems: true
-          items: { type: string, minLength: 1, maxLength: 96 }
+        state: { $ref: '#/components/schemas/SensorState' }
+        version: { type: integer, minimum: 1 }
+        token_expires_at: { oneOf: [{ type: string, format: date-time }, { type: 'null' }] }
+        last_heartbeat_at: { oneOf: [{ type: string, format: date-time }, { type: 'null' }] }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
-        last_heartbeat: { type: string, format: date-time }
     SensorEnrollment:
       type: object
       additionalProperties: false
-      required: [id, name, mode, capabilities, created_at, updated_at, token]
+      required: [id, name, kind, mode, state, version, token_expires_at, last_heartbeat_at, created_at, updated_at, token]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
-        name: { type: string, minLength: 1, maxLength: 128 }
+        name: { type: string, minLength: 1, maxLength: 128, pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$' }
+        kind: { $ref: '#/components/schemas/SensorKind' }
         mode: { $ref: '#/components/schemas/SensorMode' }
-        capabilities:
-          type: array
-          uniqueItems: true
-          items: { type: string, minLength: 1, maxLength: 96 }
+        state: { $ref: '#/components/schemas/SensorState' }
+        version: { type: integer, minimum: 1 }
+        token_expires_at: { type: string, format: date-time }
+        last_heartbeat_at: { oneOf: [{ type: string, format: date-time }, { type: 'null' }] }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
-        last_heartbeat: { type: string, format: date-time }
         token:
           type: string
-          minLength: 44
-          maxLength: 128
+          minLength: 81
+          maxLength: 81
+          pattern: '^zasp_sensor_v1\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$'
           description: One-time enrollment credential returned only by create or rotate.
     SensorPage:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, page_info]
       properties:
         items:
           type: array
+          maxItems: 100
           items: { $ref: '#/components/schemas/Sensor' }
+        page_info: { $ref: '#/components/schemas/PageInfo' }
     SensorCoverage:
       type: object
       additionalProperties: false
-      required: [sensor_id, supported, status, kernel, btf, capabilities, event_rate, drops]
+      required: [sensor_id, supported, status, last_heartbeat, kernel, btf, capabilities, event_rate, drops]
       properties:
         sensor_id: { $ref: '#/components/schemas/ProductID' }
         supported: { type: boolean }
-        status: { type: string, enum: [awaiting_heartbeat, supported, degraded] }
+        status: { type: string, enum: [pending, healthy, degraded, offline, revoked] }
+        last_heartbeat: { oneOf: [{ type: string, format: date-time }, { type: 'null' }] }
         kernel: { type: string, maxLength: 128 }
         btf: { type: boolean }
         capabilities:
           type: array
           uniqueItems: true
+          maxItems: 32
           items: { type: string, minLength: 1, maxLength: 96 }
         event_rate: { type: integer, minimum: 0, maximum: 1000000000 }
         drops: { type: integer, minimum: 0, maximum: 1000000000 }
-        last_heartbeat: { type: string, format: date-time }
     InventoryKind:
       type: string
       enum: [asset, agent, tool, identity, runtime]
