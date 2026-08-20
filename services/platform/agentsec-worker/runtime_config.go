@@ -18,6 +18,7 @@ const (
 	workerModeRuntimeArchive       workerMode = "runtime-archive"
 	workerModeRuntimeIndex         workerMode = "runtime-index"
 	workerModeRuntimeCorrelation   workerMode = "runtime-correlation"
+	workerModeRuntimeProjection    workerMode = "runtime-projection"
 	workerModeDiscovery            workerMode = "discovery"
 	workerModeScheduler            workerMode = "scheduler"
 	workerModeProjectionRisk       workerMode = "projection-risk"
@@ -162,11 +163,12 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 		workerModeRuntimeArchive:     "zasp_runtime_archive_worker",
 		workerModeRuntimeIndex:       "zasp_runtime_index_worker",
 		workerModeRuntimeCorrelation: "zasp_runtime_correlation_worker",
+		workerModeRuntimeProjection:  "zasp_runtime_projection_worker",
 		workerModeProjectionRisk:     "zasp_projection_risk_worker", workerModeProjectionGraph: "zasp_projection_graph_worker", workerModeProjectionSearch: "zasp_projection_search_worker",
 	}[config.Mode]
 	return wantAuthority != "" && config.DatabaseAuthority == wantAuthority && workerIdentityPattern.MatchString(config.WorkerID) && validModeDependencies(config) &&
 		config.PollInterval >= 50*time.Millisecond && config.PollInterval <= time.Minute && config.LeaseDuration >= 5*time.Second && config.LeaseDuration <= 15*time.Minute &&
-		config.BatchSize >= 1 && config.BatchSize <= 64 && (config.Mode != workerModeDiscovery && config.Mode != workerModeRuntimeCoordinator && config.Mode != workerModeRuntimeArchive && config.Mode != workerModeRuntimeIndex && config.Mode != workerModeRuntimeCorrelation || config.BatchSize <= 10) && config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= time.Minute && config.ShutdownTimeout < config.LeaseDuration
+		config.BatchSize >= 1 && config.BatchSize <= 64 && (config.Mode != workerModeDiscovery && config.Mode != workerModeRuntimeCoordinator && config.Mode != workerModeRuntimeArchive && config.Mode != workerModeRuntimeIndex && config.Mode != workerModeRuntimeCorrelation && config.Mode != workerModeRuntimeProjection || config.BatchSize <= 10) && config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= time.Minute && config.ShutdownTimeout < config.LeaseDuration
 }
 
 var (
@@ -193,6 +195,8 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 		return validRuntimeIndexAWSAuthority(config)
 	case workerModeRuntimeCorrelation:
 		return validRuntimeCorrelationAWSAuthority(config)
+	case workerModeRuntimeProjection:
+		return validRuntimeProjectionAWSAuthority(config)
 	case workerModeDiscovery:
 		return validDiscoveryRuntimeAuthority(config)
 	case workerModeProjectionSearch:
@@ -225,6 +229,12 @@ func validRuntimeCorrelationAWSAuthority(config workerRuntimeConfig) bool {
 	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RuntimeStageRoleARN)
 	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
 	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && config.RuntimeStageVersion == "runtime-correlate-v1" && config.OpenSearchURL == "" && config.OpenSearchIndex == "" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
+}
+
+func validRuntimeProjectionAWSAuthority(config workerRuntimeConfig) bool {
+	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RuntimeStageRoleARN)
+	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
+	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && config.RuntimeStageVersion == "runtime-project-v1" && config.OpenSearchURL == "" && config.OpenSearchIndex == "" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
 }
 
 func validRuntimeCoordinatorAWSAuthority(config workerRuntimeConfig) bool {

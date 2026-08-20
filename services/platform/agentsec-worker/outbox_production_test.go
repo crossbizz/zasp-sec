@@ -35,6 +35,19 @@ func TestOutboxWebIdentityProviderUsesOnlyExplicitBoundAuthority(t *testing.T) {
 	}
 }
 
+func TestWebIdentitySessionAuthorityIncludesEveryRuntimeStage(t *testing.T) {
+	for _, value := range []string{"", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker"} {
+		if !validOutboxSession(value) {
+			t.Fatalf("session %q rejected", value)
+		}
+	}
+	for _, value := range []string{"runtime-projection", "zasp-runtime-complete-worker", " zasp-runtime-index-worker"} {
+		if validOutboxSession(value) {
+			t.Fatalf("session %q accepted", value)
+		}
+	}
+}
+
 func TestOutboxQueueReadinessBindsExactARNAndRedrivePolicy(t *testing.T) {
 	t.Parallel()
 	config := validSchedulerRuntimeConfig()

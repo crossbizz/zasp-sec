@@ -42,7 +42,7 @@ type outboxWebIdentityProvider struct {
 }
 
 func (provider *outboxWebIdentityProvider) Retrieve(ctx context.Context) (aws.Credentials, error) {
-	if provider == nil || provider.client == nil || ctx == nil || ctx.Err() != nil || !workerProjectionRolePattern.MatchString(provider.roleARN) || provider.tokenFile == "" || provider.timeout < time.Second || provider.timeout > 30*time.Second || provider.session != "" && provider.session != "zasp-outbox-worker" && provider.session != "zasp-runtime-outbox-worker" && provider.session != "zasp-runtime-coordinator" && provider.session != "zasp-runtime-archive-worker" {
+	if provider == nil || provider.client == nil || ctx == nil || ctx.Err() != nil || !workerProjectionRolePattern.MatchString(provider.roleARN) || provider.tokenFile == "" || provider.timeout < time.Second || provider.timeout > 30*time.Second || !validOutboxSession(provider.session) {
 		return aws.Credentials{}, errRuntimeUnavailable
 	}
 	file, err := os.Open(provider.tokenFile)
@@ -70,6 +70,15 @@ func (provider *outboxWebIdentityProvider) Retrieve(ctx context.Context) (aws.Cr
 		return aws.Credentials{}, errRuntimeUnavailable
 	}
 	return aws.Credentials{AccessKeyID: *result.Credentials.AccessKeyId, SecretAccessKey: *result.Credentials.SecretAccessKey, SessionToken: *result.Credentials.SessionToken, CanExpire: true, Expires: result.Credentials.Expiration.UTC(), Source: "zasp-outbox-web-identity"}, nil
+}
+
+func validOutboxSession(value string) bool {
+	switch value {
+	case "", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker":
+		return true
+	default:
+		return false
+	}
 }
 
 type productionOutboxPublisher struct {
