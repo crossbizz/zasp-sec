@@ -1,0 +1,110 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"net"
+	"testing"
+	"time"
+)
+
+func TestComposeWorkerRuntimeMountsOnlyProductionReadyModes(t *testing.T) {
+	database := readyWorkerDatabase{}
+	scheduler := validSchedulerRuntimeConfig()
+	dependencies, err := composeWorkerRuntime(scheduler, database)
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil {
+		t.Fatalf("scheduler dependencies=%#v err=%v", dependencies, err)
+	}
+	discovery := scheduler
+	discovery.Mode = workerModeDiscovery
+	discovery.DatabaseAuthority = "zasp_discovery_worker"
+	discovery.DiscoveryQueueURL = "https://sqs.us-west-2.amazonaws.com/123456789012/zasp-discovery"
+	discovery.AWSRegion = "us-west-2"
+	discovery.EvidenceBucket = "zasp-production-evidence"
+	discovery.EvidenceOwner = "123456789012"
+	discovery.EvidenceKMSKeyARN = "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111"
+	if _, err := composeWorkerRuntime(discovery, database); !errors.Is(err, errRuntimeUnavailable) {
+		t.Fatalf("uncomposed discovery mode error=%v", err)
+	}
+}
+
+func TestServeWorkerRuntimeBoundsShutdownWhenProcessorIgnoresCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+	processor := blockingWorkerProcessor{entered: entered, release: release}
+	closed := make(chan struct{}, 1)
+	config := validSchedulerRuntimeConfig()
+	config.ShutdownTimeout = time.Second
+	listeners := make(chan net.Listener, 1)
+	listen := func(string, string) (net.Listener, error) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err == nil {
+			listeners <- listener
+		}
+		return listener, err
+	}
+	result := make(chan error, 1)
+	go func() {
+		result <- serveWorkerRuntime(ctx, &bytes.Buffer{}, "test", config, workerRuntimeDependencies{Processor: processor, Ready: func(context.Context) error { return nil }, Close: func() error { closed <- struct{}{}; return nil }}, listen)
+	}()
+	select {
+	case <-listeners:
+	case <-time.After(time.Second):
+		t.Fatal("worker did not listen")
+	}
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("worker did not start processor")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatalf("bounded shutdown error = %v", err)
+		}
+	case <-time.After(1250 * time.Millisecond):
+		close(release)
+		<-result
+		t.Fatal("worker waited indefinitely for a noncooperative processor")
+	}
+	select {
+	case <-closed:
+	default:
+		t.Fatal("worker dependencies were not closed")
+	}
+	close(release)
+}
+
+type blockingWorkerProcessor struct {
+	entered chan<- struct{}
+	release <-chan struct{}
+}
+
+func (processor blockingWorkerProcessor) RunOnce(context.Context) error {
+	processor.entered <- struct{}{}
+	<-processor.release
+	return nil
+}
+
+func validSchedulerRuntimeConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeScheduler, PostgresDSN: "postgres://scheduler@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_discovery_scheduler", WorkerID: "scheduler-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 1, ShutdownTimeout: 20 * time.Second,
+		ParserVersion: "inventory-parser-2026.08.20", ToolVersion: "collector-tool-2026.08.20",
+	}
+}
+
+type readyWorkerDatabase struct{}
+
+func (readyWorkerDatabase) SchemaVersion(context.Context) (string, error) {
+	return "production-discovery-execution-v1", nil
+}
+func (readyWorkerDatabase) QueryJSON(_ context.Context, _ string, _ ...any) (json.RawMessage, error) {
+	return json.RawMessage(`true`), nil
+}
+func (readyWorkerDatabase) Exec(context.Context, string, ...any) error { return nil }

@@ -25,7 +25,15 @@ var (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := serveProcess(ctx, os.Stdout, buildVersion, net.Listen); err != nil {
+	config, err := loadWorkerRuntimeConfig(os.Getenv)
+	if err != nil {
+		os.Exit(1)
+	}
+	dependencies, err := buildWorkerRuntime(ctx, config)
+	if err != nil {
+		os.Exit(1)
+	}
+	if err := serveWorkerRuntime(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen); err != nil {
 		os.Exit(1)
 	}
 }
