@@ -109,7 +109,7 @@ const expectedMap: MapDocument = {
         { id: "update_integration", operation_id: "updateIntegration", availability: "available" },
         { id: "delete_integration", operation_id: "deleteIntegration", availability: "available" },
         { id: "authorize_integration", operation_id: "authorizeIntegration", availability: "api_available" },
-        { id: "authorize_integration_reference", operation_id: "authorizeIntegrationReference", availability: "api_available" },
+        { id: "authorize_integration_reference", operation_id: "authorizeIntegrationReference", availability: "available" },
         { id: "complete_integration_oauth_callback", operation_id: "completeIntegrationOAuthCallback", availability: "api_available" },
         { id: "remediate_integration_authorization", operation_id: "remediateIntegrationAuthorization", availability: "api_available" },
         { id: "sync_integration", operation_id: "syncIntegration", availability: "planned" },

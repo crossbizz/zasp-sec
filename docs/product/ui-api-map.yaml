@@ -197,7 +197,7 @@ screens:
         availability: api_available
       - id: authorize_integration_reference
         operation_id: authorizeIntegrationReference
-        availability: api_available
+        availability: available
       - id: complete_integration_oauth_callback
         operation_id: completeIntegrationOAuthCallback
         availability: api_available
