@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -25,19 +26,56 @@ func TestDiscoveryProcessorAppliesCompleteSnapshotAndAcknowledgesLast(t *testing
 	authority := &recordingDiscoveryAuthority{input: input, steps: &steps}
 	queue := &recordingDiscoveryQueue{deliveries: []jobqueue.Delivery{{Job: jobqueue.Job{Scope: scope, JobID: jobID, Kind: "discovery", Payload: json.RawMessage(`{"version":1}`)}}}, steps: &steps}
 	collector := recordingCollector{steps: &steps, outcome: workerCompleteOutcome(t, input)}
-	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, Collector: collector, WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, Now: func() time.Time { return time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC) }, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
+	factory := &recordingDiscoveryCollectorFactory{collector: collector, steps: &steps}
+	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, CollectorFactory: factory, WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, Now: func() time.Time { return time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC) }, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := processor.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce error = %v, steps = %v", err, steps)
 	}
-	want := []string{"consume", "claim", "input", "collect", "apply", "finish:succeeded", "ack"}
+	want := []string{"consume", "claim", "input", "factory", "collect", "destroy", "apply", "finish:succeeded", "ack"}
 	if fmt.Sprint(steps) != fmt.Sprint(want) {
 		t.Fatalf("steps = %v, want %v", steps, want)
 	}
 	if authority.applied.JobID != jobID.String() || authority.applied.SnapshotID != input.SnapshotID || authority.finished.ResultDigest == nil {
 		t.Fatalf("apply/finish = %#v / %#v", authority.applied, authority.finished)
+	}
+	if len(factory.bindings) != 1 || factory.bindings[0].Scope != scope || factory.bindings[0].Input.JobID != input.JobID || factory.bindings[0].WorkerID != "discovery-01" || factory.bindings[0].LeaseToken != "0123456789abcdef" {
+		t.Fatalf("factory bindings = %#v", factory.bindings)
+	}
+	factory.bindings[0].Input.Configuration[0] = '['
+	if authority.input.Configuration[0] == '[' {
+		t.Fatal("collector factory retained authority-owned mutable job input")
+	}
+}
+
+func TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory(t *testing.T) {
+	scope := workerScope(t)
+	jobID := workerID(t, "pid_10000003-0000-4000-8000-000000000003")
+	valid := workerExecutionInput(scope, jobID.String())
+	for name, mutate := range map[string]func(*apiserver.ExecutionJobInput){
+		"organization": func(input *apiserver.ExecutionJobInput) { input.OrganizationID = input.WorkspaceID },
+		"job":          func(input *apiserver.ExecutionJobInput) { input.JobID = input.SnapshotID },
+		"subject": func(input *apiserver.ExecutionJobInput) {
+			input.ExpectedSubject = collection.SubjectBinding{Kind: input.SubjectKind, ID: "999999999999"}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			input := valid
+			mutate(&input)
+			steps := []string{}
+			authority := &recordingDiscoveryAuthority{input: input, steps: &steps}
+			queue := &recordingDiscoveryQueue{deliveries: []jobqueue.Delivery{{Job: jobqueue.Job{Scope: scope, JobID: jobID, Kind: "discovery", Payload: json.RawMessage(`{"version":1}`)}}}, steps: &steps}
+			factory := &recordingDiscoveryCollectorFactory{steps: &steps}
+			processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, CollectorFactory: factory, WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) || len(factory.bindings) != 0 {
+				t.Fatalf("RunOnce error=%v factory bindings=%#v", err, factory.bindings)
+			}
+		})
 	}
 }
 
@@ -53,7 +91,7 @@ func TestDiscoveryProcessorNeverAppliesOrAcknowledgesPartialResult(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, Collector: recordingCollector{steps: &steps, outcome: partial}, WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, Now: time.Now, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
+	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, CollectorFactory: workerCollectorFactory(recordingCollector{steps: &steps, outcome: partial}), WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, Now: time.Now, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +114,7 @@ func TestDiscoveryProcessorLeavesDeliveryUnacknowledgedWhenSnapshotApplyFails(t 
 	steps := []string{}
 	authority := &recordingDiscoveryAuthority{input: input, applyErr: errors.New("lease lost"), steps: &steps}
 	queue := &recordingDiscoveryQueue{deliveries: []jobqueue.Delivery{{Job: jobqueue.Job{Scope: scope, JobID: jobID, Kind: "discovery", Payload: json.RawMessage(`{"version":1}`)}}}, steps: &steps}
-	processor, _ := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, Collector: recordingCollector{steps: &steps, outcome: workerCompleteOutcome(t, input)}, WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
+	processor, _ := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, CollectorFactory: workerCollectorFactory(recordingCollector{steps: &steps, outcome: workerCompleteOutcome(t, input)}), WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
 	if err := processor.RunOnce(context.Background()); err == nil {
 		t.Fatal("RunOnce succeeded after snapshot apply failure")
 	}
@@ -95,7 +133,7 @@ func TestDiscoveryProcessorRenewsDatabaseLeaseAndQueueVisibilityDuringSlowCollec
 	authority := &recordingDiscoveryAuthority{input: input, steps: &[]string{}, heartbeatSeen: heartbeatSeen}
 	queue := &recordingDiscoveryQueue{deliveries: []jobqueue.Delivery{{Job: jobqueue.Job{Scope: scope, JobID: jobID, Kind: "discovery", Payload: json.RawMessage(`{"version":1}`)}}}, steps: &[]string{}, visibilitySeen: visibilitySeen}
 	collector := waitingCollector{heartbeatSeen: heartbeatSeen, visibilitySeen: visibilitySeen, outcome: workerCompleteOutcome(t, input)}
-	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, Collector: collector, WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, HeartbeatInterval: 10 * time.Millisecond, Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
+	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, CollectorFactory: workerCollectorFactory(collector), WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 1, HeartbeatInterval: 10 * time.Millisecond, Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +161,7 @@ func TestDiscoveryProcessorStartsEveryConsumedDeliveryBeforeWaiting(t *testing.T
 	}}
 	authority := &parallelDiscoveryAuthority{inputs: map[string]apiserver.ExecutionJobInput{firstID.String(): firstInput, secondID.String(): secondInput}}
 	collector := &parallelCollector{entered: entered, release: release, outcomes: map[string]collection.Outcome{firstID.String(): workerCompleteOutcome(t, firstInput), secondID.String(): workerCompleteOutcome(t, secondInput)}}
-	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, Collector: collector, WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 2, Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: newWorkerLeaseToken})
+	processor, err := newDiscoveryProcessor(discoveryProcessorConfig{Authority: authority, Queue: queue, CollectorFactory: workerCollectorFactory(collector), WorkerID: "discovery-01", LeaseSeconds: 30, BatchSize: 2, Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: newWorkerLeaseToken})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,6 +178,51 @@ func TestDiscoveryProcessorStartsEveryConsumedDeliveryBeforeWaiting(t *testing.T
 	close(release)
 	if err := <-done; err != nil || queue.acknowledged != 2 {
 		t.Fatalf("parallel RunOnce error=%v acknowledged=%d", err, queue.acknowledged)
+	}
+}
+
+func TestDiscoveryCollectorLifecycleDestroysOnEveryExit(t *testing.T) {
+	request := workerCollectionRequest(t, workerExecutionInput(workerScope(t), "pid_10000003-0000-4000-8000-000000000003"))
+	for name, setup := range map[string]func(*lifecycleJobCollector) context.Context{
+		"success": func(*lifecycleJobCollector) context.Context { return context.Background() },
+		"error": func(collector *lifecycleJobCollector) context.Context {
+			collector.err = errors.New("provider-secret-must-not-escape")
+			return context.Background()
+		},
+		"panic": func(collector *lifecycleJobCollector) context.Context {
+			collector.panicCall = true
+			return context.Background()
+		},
+		"cancel": func(*lifecycleJobCollector) context.Context {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			return ctx
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			collector := &lifecycleJobCollector{}
+			ctx := setup(collector)
+			_, err := callDiscoveryCollector(collector, ctx, request)
+			if collector.destroyed != 1 {
+				t.Fatalf("Destroy calls = %d", collector.destroyed)
+			}
+			if name == "panic" && (!errors.Is(err, errWorkerExecution) || strings.Contains(err.Error(), "secret")) {
+				t.Fatalf("panic error = %q", err)
+			}
+			collector.Destroy()
+			if collector.destroyed != 1 {
+				t.Fatalf("repeated Destroy calls = %d", collector.destroyed)
+			}
+		})
+	}
+}
+
+func TestDiscoveryCollectorFactoryFailureDestroysReturnedCollector(t *testing.T) {
+	collector := &lifecycleJobCollector{}
+	factory := errorDiscoveryCollectorFactory{collector: collector, err: errors.New("factory-secret-must-not-escape")}
+	returned, err := buildDiscoveryCollector(factory, context.Background(), discoveryCollectorBinding{})
+	if returned != nil || !errors.Is(err, errWorkerExecution) || collector.destroyed != 1 || strings.Contains(err.Error(), "secret") {
+		t.Fatalf("build result/error/destroy = %#v / %q / %d", returned, err, collector.destroyed)
 	}
 }
 
@@ -170,6 +253,80 @@ func (queue *recordingDiscoveryQueue) ExtendVisibility(context.Context, []jobque
 type recordingCollector struct {
 	steps   *[]string
 	outcome collection.Outcome
+}
+
+type recordingDiscoveryCollectorFactory struct {
+	mu        sync.Mutex
+	collector discoveryCollector
+	steps     *[]string
+	bindings  []discoveryCollectorBinding
+}
+
+func (factory *recordingDiscoveryCollectorFactory) BuildDiscoveryCollector(_ context.Context, binding discoveryCollectorBinding) (discoveryJobCollector, error) {
+	factory.mu.Lock()
+	defer factory.mu.Unlock()
+	factory.bindings = append(factory.bindings, binding)
+	if factory.steps != nil {
+		*factory.steps = append(*factory.steps, "factory")
+	}
+	return &recordingJobCollector{collector: factory.collector, steps: factory.steps}, nil
+}
+
+type recordingJobCollector struct {
+	collector discoveryCollector
+	steps     *[]string
+	once      sync.Once
+}
+
+type lifecycleJobCollector struct {
+	mu        sync.Mutex
+	destroyed int
+	err       error
+	panicCall bool
+}
+
+type errorDiscoveryCollectorFactory struct {
+	collector discoveryJobCollector
+	err       error
+}
+
+func (factory errorDiscoveryCollectorFactory) BuildDiscoveryCollector(context.Context, discoveryCollectorBinding) (discoveryJobCollector, error) {
+	return factory.collector, factory.err
+}
+
+func (collector *lifecycleJobCollector) Collect(ctx context.Context, _ collection.Request) (collection.Outcome, error) {
+	if collector.panicCall {
+		panic("provider-secret-must-not-escape")
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return nil, collector.err
+}
+
+func (collector *lifecycleJobCollector) Destroy() {
+	collector.mu.Lock()
+	defer collector.mu.Unlock()
+	if collector.destroyed == 0 {
+		collector.destroyed++
+	}
+}
+
+func (collector *recordingJobCollector) Collect(ctx context.Context, request collection.Request) (collection.Outcome, error) {
+	return collector.collector.Collect(ctx, request)
+}
+
+func (collector *recordingJobCollector) Destroy() {
+	collector.once.Do(func() {
+		if collector.steps != nil {
+			*collector.steps = append(*collector.steps, "destroy")
+		}
+		collector.collector = nil
+	})
+}
+
+func workerCollectorFactory(collector discoveryCollector) discoveryCollectorFactory {
+	return &recordingDiscoveryCollectorFactory{collector: collector}
 }
 
 type waitingCollector struct {

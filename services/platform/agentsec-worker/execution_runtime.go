@@ -22,6 +22,22 @@ type discoveryCollector interface {
 	Collect(context.Context, collection.Request) (collection.Outcome, error)
 }
 
+type discoveryJobCollector interface {
+	discoveryCollector
+	Destroy()
+}
+
+type discoveryCollectorBinding struct {
+	Scope      domain.Scope
+	Input      apiserver.ExecutionJobInput
+	WorkerID   string
+	LeaseToken string
+}
+
+type discoveryCollectorFactory interface {
+	BuildDiscoveryCollector(context.Context, discoveryCollectorBinding) (discoveryJobCollector, error)
+}
+
 type discoveryAuthority interface {
 	ClaimDiscoveryDelivery(context.Context, domain.Scope, string, string, string, int) (apiserver.DiscoveryDeliveryClaim, error)
 	GetDiscoveryJobInput(context.Context, domain.Scope, string, string, string) (apiserver.ExecutionJobInput, error)
@@ -34,7 +50,7 @@ type discoveryAuthority interface {
 type discoveryProcessorConfig struct {
 	Authority         discoveryAuthority
 	Queue             discoveryQueue
-	Collector         discoveryCollector
+	CollectorFactory  discoveryCollectorFactory
 	WorkerID          string
 	LeaseSeconds      int
 	BatchSize         int
@@ -50,7 +66,7 @@ func newDiscoveryProcessor(config discoveryProcessorConfig) (*discoveryProcessor
 		config.HeartbeatInterval = time.Duration(config.LeaseSeconds) * time.Second / 3
 	}
 	_, extendsVisibility := config.Queue.(jobqueue.VisibilityExtender)
-	if config.Authority == nil || config.Queue == nil || !extendsVisibility || config.Collector == nil || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 5 || config.LeaseSeconds > 900 || config.BatchSize < 1 || config.BatchSize > 10 || config.HeartbeatInterval < 10*time.Millisecond || config.HeartbeatInterval > time.Duration(config.LeaseSeconds)*time.Second/2 || config.Now == nil || config.NewLeaseToken == nil {
+	if config.Authority == nil || config.Queue == nil || !extendsVisibility || config.CollectorFactory == nil || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 5 || config.LeaseSeconds > 900 || config.BatchSize < 1 || config.BatchSize > 10 || config.HeartbeatInterval < 10*time.Millisecond || config.HeartbeatInterval > time.Duration(config.LeaseSeconds)*time.Second/2 || config.Now == nil || config.NewLeaseToken == nil {
 		return nil, errWorkerExecution
 	}
 	return &discoveryProcessor{config: config}, nil
@@ -107,11 +123,18 @@ func (processor *discoveryProcessor) process(ctx context.Context, delivery jobqu
 	if err != nil {
 		return errWorkerExecution
 	}
+	if !validDiscoveryExecutionInput(delivery.Job.Scope, jobID, input) {
+		return errWorkerExecution
+	}
 	request, ok := collectionRequest(delivery.Job.Scope, input)
 	if !ok {
 		return errWorkerExecution
 	}
-	outcome, err, lifecycleErr := processor.collectWithHeartbeat(ctx, delivery, input, leaseToken, request)
+	collector, err := buildDiscoveryCollector(processor.config.CollectorFactory, ctx, discoveryCollectorBinding{Scope: delivery.Job.Scope, Input: cloneExecutionJobInput(input), WorkerID: processor.config.WorkerID, LeaseToken: leaseToken})
+	if err != nil || collector == nil {
+		return errWorkerExecution
+	}
+	outcome, err, lifecycleErr := processor.collectWithHeartbeat(ctx, delivery, input, leaseToken, request, collector)
 	if lifecycleErr != nil {
 		return errWorkerExecution
 	}
@@ -128,7 +151,7 @@ func (processor *discoveryProcessor) process(ctx context.Context, delivery jobqu
 	}
 }
 
-func (processor *discoveryProcessor) collectWithHeartbeat(ctx context.Context, delivery jobqueue.Delivery, input apiserver.ExecutionJobInput, leaseToken string, request collection.Request) (collection.Outcome, error, error) {
+func (processor *discoveryProcessor) collectWithHeartbeat(ctx context.Context, delivery jobqueue.Delivery, input apiserver.ExecutionJobInput, leaseToken string, request collection.Request, collector discoveryJobCollector) (collection.Outcome, error, error) {
 	workCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() {
@@ -155,7 +178,7 @@ func (processor *discoveryProcessor) collectWithHeartbeat(ctx context.Context, d
 			}
 		}
 	}()
-	outcome, collectErr := processor.config.Collector.Collect(workCtx, request)
+	outcome, collectErr := callDiscoveryCollector(collector, workCtx, request)
 	cancel()
 	select {
 	case lifecycleErr := <-done:
@@ -163,6 +186,40 @@ func (processor *discoveryProcessor) collectWithHeartbeat(ctx context.Context, d
 	case <-time.After(5 * time.Second):
 		return nil, collectErr, errWorkerExecution
 	}
+}
+
+func buildDiscoveryCollector(factory discoveryCollectorFactory, ctx context.Context, binding discoveryCollectorBinding) (collector discoveryJobCollector, resultErr error) {
+	defer func() {
+		if recover() != nil {
+			destroyDiscoveryJobCollector(collector)
+			collector = nil
+			resultErr = errWorkerExecution
+		}
+	}()
+	collector, resultErr = factory.BuildDiscoveryCollector(ctx, binding)
+	if resultErr != nil || nilWorkerDependency(collector) {
+		destroyDiscoveryJobCollector(collector)
+		return nil, errWorkerExecution
+	}
+	return collector, nil
+}
+
+func destroyDiscoveryJobCollector(collector discoveryJobCollector) {
+	defer func() { _ = recover() }()
+	if !nilWorkerDependency(collector) {
+		collector.Destroy()
+	}
+}
+
+func callDiscoveryCollector(collector discoveryJobCollector, ctx context.Context, request collection.Request) (outcome collection.Outcome, resultErr error) {
+	defer func() {
+		if recover() != nil {
+			outcome = nil
+			resultErr = errWorkerExecution
+		}
+	}()
+	defer collector.Destroy()
+	return collector.Collect(ctx, request)
 }
 
 func (processor *discoveryProcessor) finishComplete(ctx context.Context, delivery jobqueue.Delivery, input apiserver.ExecutionJobInput, leaseToken string, result collection.CompleteResult) error {
@@ -265,6 +322,11 @@ func (processor *discoveryProcessor) acknowledge(ctx context.Context, receipt jo
 		return errWorkerExecution
 	}
 	return nil
+}
+
+func validDiscoveryExecutionInput(scope domain.Scope, jobID string, input apiserver.ExecutionJobInput) bool {
+	return scope.Validate() == nil && input.OrganizationID == scope.OrganizationID().String() && input.WorkspaceID == scope.WorkspaceID().String() && input.EnvironmentID == scope.EnvironmentID().String() &&
+		input.JobID == jobID && input.ExpectedSubject == (collection.SubjectBinding{Kind: input.SubjectKind, ID: input.SubjectID})
 }
 
 func collectionRequest(scope domain.Scope, input apiserver.ExecutionJobInput) (collection.Request, bool) {
