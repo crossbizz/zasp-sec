@@ -112,9 +112,13 @@ const expectedMap: MapDocument = {
         { id: "authorize_integration_reference", operation_id: "authorizeIntegrationReference", availability: "available" },
         { id: "complete_integration_oauth_callback", operation_id: "completeIntegrationOAuthCallback", availability: "api_available" },
         { id: "remediate_integration_authorization", operation_id: "remediateIntegrationAuthorization", availability: "api_available" },
-        { id: "sync_integration", operation_id: "syncIntegration", availability: "planned" },
-        { id: "view_integration_syncs", operation_id: "listIntegrationSyncs", availability: "planned" },
-        { id: "view_integration_sync", operation_id: "getIntegrationSync", availability: "planned" },
+        { id: "sync_integration", operation_id: "syncIntegration", availability: "available" },
+        { id: "view_integration_syncs", operation_id: "listIntegrationSyncs", availability: "available" },
+        { id: "view_integration_sync", operation_id: "getIntegrationSync", availability: "available" },
+        { id: "view_integration_schedule", operation_id: "getIntegrationSchedule", availability: "available" },
+        { id: "update_integration_schedule", operation_id: "putIntegrationSchedule", availability: "available" },
+        { id: "delete_integration_schedule", operation_id: "deleteIntegrationSchedule", availability: "available" },
+        { id: "view_integration_freshness", operation_id: "getIntegrationFreshness", availability: "available" },
         { id: "view_sensors", operation_id: "listSensors", availability: "planned" },
         { id: "create_sensor_enrollment", operation_id: "createSensorEnrollment", availability: "planned" },
         { id: "view_sensor", operation_id: "getSensor", availability: "planned" },
@@ -371,7 +375,7 @@ describe("M1-25 UI API map seed", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M1A-10", "M1A-09", "M1A-08", "M1A-07", "M3-52", "M3-14", "M8-54", "M8-63", "M8-63e", "M8-63d", "M8-63c", "M8-63b", "M8-63a", "M8-62", "M8-62e", "M8-62d", "M8-62c", "M8-62b", "M8-62a", "M8-61", "M8-61a", "M8-60", "M8-60b", "M8-59", "M8-59b", "M8-58", "M8-58b", "M8-53", "M8-52", "M8-52d", "M8-52c", "M8-52b", "M8-52a", "M8-51", "M8-51e", "M8-51d", "M8-51c", "M8-51b", "M8-51a", "M8-46", "M8-45", "M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
   });
 
-  it("accepts only the exact sixteen-screen, 136-action mixed-lifecycle map", async () => {
+  it("accepts only the exact sixteen-screen, 140-action mixed-lifecycle map", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
 
     expect(parseStrictMap(source)).toEqual(expectedMap);
@@ -467,6 +471,10 @@ describe("M1-25 UI API map seed", () => {
       "syncIntegration",
       "listIntegrationSyncs",
       "getIntegrationSync",
+      "getIntegrationSchedule",
+      "putIntegrationSchedule",
+      "deleteIntegrationSchedule",
+      "getIntegrationFreshness",
       "listSensors",
       "createSensorEnrollment",
       "getSensor",

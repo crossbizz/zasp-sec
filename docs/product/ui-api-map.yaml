@@ -206,13 +206,25 @@ screens:
         availability: api_available
       - id: sync_integration
         operation_id: syncIntegration
-        availability: planned
+        availability: available
       - id: view_integration_syncs
         operation_id: listIntegrationSyncs
-        availability: planned
+        availability: available
       - id: view_integration_sync
         operation_id: getIntegrationSync
-        availability: planned
+        availability: available
+      - id: view_integration_schedule
+        operation_id: getIntegrationSchedule
+        availability: available
+      - id: update_integration_schedule
+        operation_id: putIntegrationSchedule
+        availability: available
+      - id: delete_integration_schedule
+        operation_id: deleteIntegrationSchedule
+        availability: available
+      - id: view_integration_freshness
+        operation_id: getIntegrationFreshness
+        availability: available
       - id: view_sensors
         operation_id: listSensors
         availability: planned
