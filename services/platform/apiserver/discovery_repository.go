@@ -1056,6 +1056,7 @@ type ProjectionWorkLease struct {
 	Version        string    `json:"version"`
 	InputDigest    []byte    `json:"input_digest"`
 	Attempt        int       `json:"attempt"`
+	AvailableAt    time.Time `json:"available_at"`
 	LeaseExpiresAt time.Time `json:"lease_expires_at"`
 }
 

@@ -157,11 +157,14 @@ func TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority(t *testing.T) {
 		ready:               func(context.Context) error { return nil },
 		close:               func() error { closed = true; return nil },
 	})
-	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil || dependencies.Metrics == nil {
 		t.Fatalf("projection dependencies=%#v err=%v", dependencies, err)
 	}
 	if err := dependencies.Ready(context.Background()); err != nil {
 		t.Fatalf("projection readiness = %v", err)
+	}
+	if payload := dependencies.Metrics(); !strings.Contains(payload, "zasp_worker_driver_ready 1\n") {
+		t.Fatalf("projection metrics do not reflect exact driver readiness:\n%s", payload)
 	}
 	if err := dependencies.Close(); err != nil || !closed {
 		t.Fatalf("projection close = %v, closed=%v", err, closed)
@@ -171,6 +174,37 @@ func TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority(t *testing.T) {
 	riskDependencies, err := composeProjectionWorkerRuntime(config, readyWorkerDatabase{}, productionProjectionProjector{projectionProjector: projector, ready: func(context.Context) error { return nil }, close: func() error { return nil }})
 	if err != nil || riskDependencies.Processor == nil || riskDependencies.Ready == nil {
 		t.Fatalf("risk composition dependencies=%#v error=%v", riskDependencies, err)
+	}
+}
+
+func TestServeWorkerRuntimeExposesOperationalMetrics(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	config := validSchedulerRuntimeConfig()
+	listeners := make(chan net.Listener, 1)
+	result := make(chan error, 1)
+	go func() {
+		result <- serveWorkerRuntime(ctx, &bytes.Buffer{}, "test", config, workerRuntimeDependencies{
+			Processor: immediateWorkerProcessor{}, Ready: func(context.Context) error { return nil }, Close: func() error { return nil },
+			Metrics: func() string { return "zasp_worker_claimed_total 7\n" },
+		}, func(string, string) (net.Listener, error) {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			if err == nil {
+				listeners <- listener
+			}
+			return listener, err
+		})
+	}()
+	var listener net.Listener
+	select {
+	case listener = <-listeners:
+	case <-time.After(time.Second):
+		t.Fatal("worker did not listen")
+	}
+	assertContains(t, "http://"+listener.Addr().String()+"/metrics", "zasp_worker_claimed_total 7\n")
+	cancel()
+	if err := <-result; err != nil {
+		t.Fatalf("serveWorkerRuntime() error = %v", err)
 	}
 }
 
@@ -202,6 +236,9 @@ func TestComposeProjectionWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts(t *t
 	database.resetAndDrift()
 	if err := dependencies.Processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) {
 		t.Fatalf("repository-drift RunOnce error = %v", err)
+	}
+	if payload := dependencies.Metrics(); !strings.Contains(payload, "zasp_worker_driver_ready 0\n") {
+		t.Fatalf("repository drift did not clear driver readiness:\n%s", payload)
 	}
 	for _, statement := range database.statementsSnapshot() {
 		if strings.Contains(statement, "claim_projection_work") {

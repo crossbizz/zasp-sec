@@ -529,10 +529,11 @@ func (repository *DiscoveryExecutionRepository) ClaimProjectionWork(ctx context.
 	}
 	for index := range envelope.Items {
 		item := &envelope.Items[index]
-		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.SnapshotID) || item.Kind != kind || !executionVersionPattern.MatchString(item.Version) || len(item.InputDigest) != sha256.Size || item.Attempt < 1 || item.Attempt > 5 || !validLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) {
+		if !validLeaseScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID) || !validProductID(item.SnapshotID) || item.Kind != kind || !executionVersionPattern.MatchString(item.Version) || len(item.InputDigest) != sha256.Size || item.Attempt < 1 || item.Attempt > 5 || item.AvailableAt.IsZero() || item.AvailableAt.After(time.Now().UTC()) || !validLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) {
 			return nil, ErrRepositoryUnavailable
 		}
 		item.InputDigest = bytes.Clone(item.InputDigest)
+		item.AvailableAt = item.AvailableAt.UTC()
 		item.LeaseExpiresAt = item.LeaseExpiresAt.UTC()
 	}
 	return envelope.Items, nil

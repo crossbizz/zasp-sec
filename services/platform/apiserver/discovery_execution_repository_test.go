@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -278,6 +279,32 @@ func TestDiscoveryExecutionProjectionAttemptLimitMatchesDatabase(t *testing.T) {
 	completion := ProjectionWorkCompletion{SnapshotID: snapshotID, Kind: "risk", Version: "v1", Worker: "projection-worker-01", LeaseToken: "projection-token-00000001", Outcome: "failed", LastError: "projection_failed"}
 	if _, err := repository.FinishProjectionWork(context.Background(), identity.Scope, completion); !errors.Is(err, ErrRepositoryUnavailable) {
 		t.Fatalf("attempt 6 completion output error=%v", err)
+	}
+}
+
+func TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability(t *testing.T) {
+	t.Parallel()
+	identity := fixtureRequestIdentity(t)
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestDiscoveryExecutionRepository(t, database, DiscoveryExecutionAuthorityProjectionSearch)
+	now := time.Now().UTC()
+	lease := now.Add(30 * time.Second).Format(time.RFC3339Nano)
+	available := now.Add(-2 * time.Minute).Format(time.RFC3339Nano)
+	digest := "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+	base := `{"items":[{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","snapshot_id":"pid_82900001-0000-4000-8000-000000000001","kind":"search","version":"v1","input_digest":"` + digest + `","attempt":1,"available_at":"` + available + `","lease_expires_at":"` + lease + `"}]}`
+	database.responses[postgresExecutionClaimProjectionSQL] = json.RawMessage(base)
+	items, err := repository.ClaimProjectionWork(context.Background(), "search", "projection-worker-01", "projection-token-00000001", 30, 8)
+	if err != nil || len(items) != 1 || !items[0].AvailableAt.Equal(now.Add(-2*time.Minute)) || items[0].AvailableAt.Location() != time.UTC {
+		t.Fatalf("items=%#v err=%v", items, err)
+	}
+	for _, hostile := range []string{
+		strings.Replace(base, `,"available_at":"`+available+`"`, "", 1),
+		strings.Replace(base, available, now.Add(time.Minute).Format(time.RFC3339Nano), 1),
+	} {
+		database.responses[postgresExecutionClaimProjectionSQL] = json.RawMessage(hostile)
+		if _, err := repository.ClaimProjectionWork(context.Background(), "search", "projection-worker-01", "projection-token-00000001", 30, 8); !errors.Is(err, ErrRepositoryUnavailable) {
+			t.Fatalf("hostile availability error=%v payload=%s", err, hostile)
+		}
 	}
 }
 

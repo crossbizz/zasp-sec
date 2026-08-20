@@ -1001,9 +1001,12 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := connection.QueryRow(ctx, `EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT payload FROM zasp_discovery_snapshot_projection_items WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND snapshot_id=$4 AND section='entities' AND item_id>$5 ORDER BY item_id LIMIT 100`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID, *page.NextID).Scan(&plan); err != nil || !bytes.Contains(plan, []byte(`zasp_discovery_snapshot_projection_items_pkey`)) || bytes.Contains(plan, []byte(`Sort Method`)) {
 		t.Fatalf("projection keyset plan=%s err=%v", plan, err)
 	}
-	for range 3 {
+	for claimIndex := range 3 {
 		if err := connection.QueryRow(ctx, `SELECT zasp_execution_claim_projection_work('search','projection-worker-01','projection-token-00000001',30,3)`).Scan(&payload); err != nil {
 			t.Fatal(err)
+		}
+		if claimIndex == 0 && !bytes.Contains(payload, []byte(`"available_at":`)) {
+			t.Fatalf("projection claim omits exact backlog authority: %s", payload)
 		}
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_heartbeat_projection($1,$2,$3,$4,'search','v1','projection-worker-01','projection-token-00000001',30)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID).Scan(&payload); err != nil {

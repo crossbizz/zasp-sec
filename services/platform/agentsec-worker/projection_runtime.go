@@ -316,6 +316,8 @@ type projectionProcessorConfig struct {
 	BatchSize         int
 	HeartbeatInterval time.Duration
 	NewLeaseToken     func() (string, error)
+	Metrics           *workerMetrics
+	Now               func() time.Time
 }
 
 type projectionProcessor struct{ config projectionProcessorConfig }
@@ -323,6 +325,12 @@ type projectionProcessor struct{ config projectionProcessorConfig }
 func newProjectionProcessor(config projectionProcessorConfig) (*projectionProcessor, error) {
 	if config.HeartbeatInterval == 0 {
 		config.HeartbeatInterval = time.Duration(config.LeaseSeconds) * time.Second / 3
+	}
+	if config.Metrics == nil {
+		config.Metrics = newWorkerMetrics()
+	}
+	if config.Now == nil {
+		config.Now = func() time.Time { return time.Now().UTC() }
 	}
 	if config.Authority == nil || config.Projector == nil || !stringInWorker(config.Kind, "risk", "graph", "search") ||
 		!workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 5 || config.LeaseSeconds > 900 ||
@@ -343,12 +351,22 @@ func (processor *projectionProcessor) RunOnce(ctx context.Context) error {
 	}
 	leases, err := processor.config.Authority.ClaimProjectionWork(ctx, processor.config.Kind, processor.config.WorkerID, leaseToken, processor.config.LeaseSeconds, processor.config.BatchSize)
 	if err != nil {
+		processor.config.Metrics.observeFailure()
 		return errWorkerExecution
 	}
+	processor.config.Metrics.observeProjectionClaim(leases, processor.config.Now())
 	results := make(chan error, len(leases))
 	for _, lease := range leases {
 		lease := lease
-		go func() { results <- processor.process(ctx, lease, leaseToken) }()
+		processor.config.Metrics.addInflight(1)
+		go func() {
+			defer processor.config.Metrics.addInflight(-1)
+			processErr := processor.process(ctx, lease, leaseToken)
+			if processErr != nil {
+				processor.config.Metrics.observeFailure()
+			}
+			results <- processErr
+		}()
 	}
 	failed := false
 	for range leases {
@@ -383,7 +401,9 @@ func (processor *projectionProcessor) process(ctx context.Context, lease apiserv
 	}
 	if workCtx.Err() != nil {
 		cancel()
-		<-heartbeatDone
+		if <-heartbeatDone != nil {
+			processor.config.Metrics.observeLeaseLoss()
+		}
 		return errWorkerExecution
 	}
 	var finishErr error
@@ -396,6 +416,7 @@ func (processor *projectionProcessor) process(ctx context.Context, lease apiserv
 	}
 	cancel()
 	if heartbeatErr := <-heartbeatDone; heartbeatErr != nil {
+		processor.config.Metrics.observeLeaseLoss()
 		return errWorkerExecution
 	}
 	return finishErr
@@ -510,6 +531,14 @@ func (processor *projectionProcessor) finishFailure(ctx context.Context, scope d
 	})
 	if err != nil || completion.State != outcome && !(outcome == "retryable" && completion.State == "failed") {
 		return errWorkerExecution
+	}
+	if outcome == "retryable" {
+		processor.config.Metrics.observeRetry()
+		if completion.State == "failed" {
+			processor.config.Metrics.observeExhaustion()
+		}
+	} else if outcome == "failed" {
+		processor.config.Metrics.observeFailure()
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/url"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -270,22 +271,29 @@ func TestProductionReadinessBindsExactWorkerPrincipalRoleAndNoDDL(t *testing.T) 
 	if err := adapter.Ready(context.Background()); err != nil {
 		t.Fatalf("Ready() error = %v", err)
 	}
-	if !reflect.DeepEqual(session.tx.queries, []string{showCurrentUserQuery, showRolePrivilegesQuery, showOwnedConstraintsQuery}) {
+	if !reflect.DeepEqual(session.tx.queries, []string{showCurrentUserQuery, showUserPrivilegesQuery, showOwnedConstraintsQuery}) ||
+		!reflect.DeepEqual(session.tx.parameters[1], map[string]any{"principal": principal}) {
 		t.Fatalf("readiness queries = %#v", session.tx.queries)
 	}
 
-	hostileCommands := append([]string(nil), commands...)
-	hostileCommands = append(hostileCommands, "GRANT CREATE CONSTRAINT ON DATABASE neo4j TO `"+role+"`")
-	hostileRows := make([]graphRecord, len(hostileCommands))
-	for index, command := range hostileCommands {
-		hostileRows[index] = graphRecord{Keys: privilegeCommandResultKeys, Values: []any{command}}
-	}
-	adapter.provider = &fakeProvider{session: &fakeSession{tx: &fakeTransaction{results: []*fakeResult{
-		{keys: currentUserResultKeys, records: []graphRecord{{Keys: currentUserResultKeys, Values: []any{principal, []any{"PUBLIC", role}, false, false}}}},
-		{keys: privilegeCommandResultKeys, records: hostileRows},
-	}}}}
-	if err := adapter.Ready(context.Background()); !errors.Is(err, ErrSchema) {
-		t.Fatalf("Ready(DDL privilege) error = %v", err)
+	for _, hostilePrivilege := range []string{
+		"GRANT CREATE CONSTRAINT ON DATABASE neo4j TO `PUBLIC`",
+		"GRANT DROP CONSTRAINT ON DATABASE neo4j TO `PUBLIC`",
+		"GRANT ALL DBMS PRIVILEGES ON DBMS TO `PUBLIC`",
+	} {
+		hostileCommands := append(append([]string(nil), commands...), hostilePrivilege)
+		slices.Sort(hostileCommands)
+		hostileRows := make([]graphRecord, len(hostileCommands))
+		for index, command := range hostileCommands {
+			hostileRows[index] = graphRecord{Keys: privilegeCommandResultKeys, Values: []any{command}}
+		}
+		adapter.provider = &fakeProvider{session: &fakeSession{tx: &fakeTransaction{results: []*fakeResult{
+			{keys: currentUserResultKeys, records: []graphRecord{{Keys: currentUserResultKeys, Values: []any{principal, []any{"PUBLIC", role}, false, false}}}},
+			{keys: privilegeCommandResultKeys, records: hostileRows},
+		}}}}
+		if err := adapter.Ready(context.Background()); !errors.Is(err, ErrSchema) {
+			t.Fatalf("Ready(%q) error = %v", hostilePrivilege, err)
+		}
 	}
 }
 

@@ -21,6 +21,7 @@ type workerRuntimeDependencies struct {
 	Processor workerProcessor
 	Ready     func(context.Context) error
 	Close     func() error
+	Metrics   func() string
 }
 
 func buildWorkerRuntime(ctx context.Context, config workerRuntimeConfig) (workerRuntimeDependencies, error) {
@@ -271,9 +272,10 @@ func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserv
 		_ = projector.close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
+	metrics := newWorkerMetrics()
 	processor, err := newProjectionProcessor(projectionProcessorConfig{
 		Authority: repository, Projector: projector.projectionProjector, Kind: config.ProjectionKind, WorkerID: config.WorkerID,
-		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3, NewLeaseToken: newWorkerLeaseToken,
+		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3, NewLeaseToken: newWorkerLeaseToken, Metrics: metrics,
 	})
 	if err != nil {
 		_ = projector.close()
@@ -281,11 +283,14 @@ func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserv
 	}
 	check := func(ctx context.Context) error {
 		if err := repository.Ready(ctx); err != nil {
+			metrics.observeDriverReadiness(false)
 			return errRuntimeUnavailable
 		}
 		if err := projector.ready(ctx); err != nil {
+			metrics.observeDriverReadiness(false)
 			return errRuntimeUnavailable
 		}
+		metrics.observeDriverReadiness(true)
 		return nil
 	}
 	ready, err := newBoundedCachedWorkerReadiness(check, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
@@ -293,7 +298,7 @@ func composeProjectionWorkerRuntime(config workerRuntimeConfig, database apiserv
 		_ = projector.close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: projector.close}, nil
+	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: projector.close, Metrics: metrics.render}, nil
 }
 
 func serveWorkerRuntime(ctx context.Context, output interface{ Write([]byte) (int, error) }, version string, config workerRuntimeConfig, dependencies workerRuntimeDependencies, listen func(string, string) (net.Listener, error)) (resultErr error) {
@@ -313,7 +318,7 @@ func serveWorkerRuntime(ctx context.Context, output interface{ Write([]byte) (in
 		return errRuntimeUnavailable
 	}
 	var executingReady atomic.Bool
-	server, err := healthserver.New(healthserver.Config{Service: "agentsec-worker", Version: version, ReadyInterval: maxDuration(config.PollInterval, 100*time.Millisecond), ReadyMaxInterval: minDuration(maxDuration(config.PollInterval*8, time.Second), time.Minute), ReadyCheck: func(checkCtx context.Context) bool {
+	server, err := healthserver.New(healthserver.Config{Service: "agentsec-worker", Version: version, Metrics: dependencies.Metrics, ReadyInterval: maxDuration(config.PollInterval, 100*time.Millisecond), ReadyMaxInterval: minDuration(maxDuration(config.PollInterval*8, time.Second), time.Minute), ReadyCheck: func(checkCtx context.Context) bool {
 		return executingReady.Load() && dependencies.Ready(checkCtx) == nil
 	}})
 	if err != nil {

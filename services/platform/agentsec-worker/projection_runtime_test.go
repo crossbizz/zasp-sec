@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -180,6 +181,51 @@ func TestProjectionProcessorKeepsTransientPageReadRetryable(t *testing.T) {
 	}
 }
 
+func TestProjectionProcessorObservesClaimsInflightRetriesExhaustionAndLeaseLoss(t *testing.T) {
+	t.Parallel()
+	scope := projectionTestScope(t)
+	digest := sha256.Sum256([]byte("candidate"))
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	metrics := newWorkerMetrics()
+	authority := &projectionAuthorityStub{
+		leases: []apiserver.ProjectionWorkLease{{
+			OrganizationID: scope.OrganizationID().String(), WorkspaceID: scope.WorkspaceID().String(), EnvironmentID: scope.EnvironmentID().String(),
+			SnapshotID: projectionID(4), Kind: "search", Version: "projection-v1", InputDigest: digest[:], Attempt: 5,
+			AvailableAt: now.Add(-2 * time.Minute), LeaseExpiresAt: now.Add(time.Minute),
+		}},
+		pages: projectionPages(t, scope, digest), finishResultState: "failed",
+	}
+	processor, err := newProjectionProcessor(projectionProcessorConfig{
+		Authority: authority, Projector: &projectionProjectorStub{err: inventorysearch.ErrUnavailable}, Kind: "search", WorkerID: "projection-search-01",
+		LeaseSeconds: 30, BatchSize: 1, HeartbeatInterval: time.Second, NewLeaseToken: func() (string, error) { return "0123456789abcdef", nil },
+		Metrics: metrics, Now: func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := processor.RunOnce(context.Background()); err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+	payload := metrics.render()
+	for _, want := range []string{"zasp_worker_claimed_total 1\n", "zasp_worker_inflight 0\n", "zasp_worker_retry_total 1\n", "zasp_worker_exhaustion_total 1\n", "zasp_worker_projection_backlog_age_seconds 120\n"} {
+		if !strings.Contains(payload, want) {
+			t.Fatalf("metrics missing %q:\n%s", want, payload)
+		}
+	}
+
+	metrics = newWorkerMetrics()
+	authority.heartbeatErr = errors.New("lease lost")
+	authority.finished = nil
+	processor.config.Metrics = metrics
+	processor.config.Projector = &projectionProjectorStub{blockUntilCanceled: true}
+	if err := processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) {
+		t.Fatalf("lease-loss RunOnce() error = %v", err)
+	}
+	if !strings.Contains(metrics.render(), "zasp_worker_lease_loss_total 1\n") {
+		t.Fatalf("lease-loss metrics:\n%s", metrics.render())
+	}
+}
+
 func TestSearchProjectionProjectorStrictlyMapsCanonicalEntities(t *testing.T) {
 	t.Parallel()
 	candidate := projectionCandidateFromPages(t, "search")
@@ -249,6 +295,7 @@ type projectionAuthorityStub struct {
 	claimKind, claimWorker string
 	claimLimit, heartbeats int
 	finished               []apiserver.ProjectionWorkCompletion
+	finishResultState      string
 }
 
 func (stub *projectionAuthorityStub) ClaimProjectionWork(_ context.Context, kind, worker, _ string, _ int, limit int) ([]apiserver.ProjectionWorkLease, error) {
@@ -291,7 +338,11 @@ func (stub *projectionAuthorityStub) FinishProjectionWork(_ context.Context, _ d
 	stub.mu.Lock()
 	defer stub.mu.Unlock()
 	stub.finished = append(stub.finished, input)
-	return apiserver.WorkCompletionResult{SnapshotID: input.SnapshotID, Kind: input.Kind, State: input.Outcome, Attempt: 1}, nil
+	state := input.Outcome
+	if stub.finishResultState != "" {
+		state = stub.finishResultState
+	}
+	return apiserver.WorkCompletionResult{SnapshotID: input.SnapshotID, Kind: input.Kind, State: state, Attempt: 1}, nil
 }
 
 func (stub *projectionAuthorityStub) heartbeatCount() int {

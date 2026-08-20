@@ -39,7 +39,7 @@ const (
 	createSnapshotEdgeConstraintQuery   = "CREATE CONSTRAINT zasp_graph_snapshot_edge_identity_v1 IF NOT EXISTS FOR ()-[edge:ZASP_INVENTORY_GRAPH_EDGE]-() REQUIRE (edge.organization_id, edge.workspace_id, edge.environment_id, edge.integration_id, edge.source, edge.edge_id) IS UNIQUE"
 	showOwnedConstraintsQuery           = "SHOW CONSTRAINTS YIELD name, type, entityType, labelsOrTypes, properties, ownedIndex WHERE name STARTS WITH $prefix RETURN name, type, entityType, labelsOrTypes, properties, ownedIndex ORDER BY name"
 	showCurrentUserQuery                = "SHOW CURRENT USER YIELD user, roles, passwordChangeRequired, suspended RETURN user, roles, passwordChangeRequired, suspended"
-	showRolePrivilegesQuery             = "SHOW ROLE $role PRIVILEGES AS COMMANDS YIELD command RETURN command ORDER BY command"
+	showUserPrivilegesQuery             = "SHOW USER $principal PRIVILEGES AS COMMANDS YIELD command RETURN command ORDER BY command"
 )
 
 var (
@@ -394,7 +394,7 @@ func verifyReadinessWithProvider(ctx context.Context, provider sessionProvider, 
 		if err != nil || !validCurrentUser(ctx, current, principal, role) {
 			return ErrSchema
 		}
-		privileges, err := tx.Run(ctx, showRolePrivilegesQuery, map[string]any{"role": role})
+		privileges, err := tx.Run(ctx, showUserPrivilegesQuery, map[string]any{"principal": principal})
 		if err != nil || !validWorkerPrivileges(ctx, privileges, role) {
 			return ErrSchema
 		}
