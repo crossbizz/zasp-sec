@@ -27,15 +27,30 @@ const ignoredProductDirectories = new Set([
   "vendor",
 ]);
 const discoveryEntryLimit = 4096;
-const internalHealthModule = "github.com/zasp-ai/zasp-sec/services/health";
-const internalHealthVersion = "v0.0.0";
-const internalHealthConsumers = new Set([
-  "services/event-ingest/go.mod",
-  "services/platform/go.mod",
-  "services/runtime-gateway/go.mod",
+const internalModuleVersion = "v0.0.0";
+const internalModules = new Map([
+  ["github.com/zasp-ai/zasp-sec/services/health", {
+    target: "services/health/go.mod",
+    replacement: "../health",
+    consumers: new Map([
+      ["services/event-ingest/go.mod", false],
+      ["services/gateway-control/go.mod", true],
+      ["services/platform/go.mod", false],
+      ["services/runtime-gateway/go.mod", false],
+      ["services/sensor-agent/go.mod", false],
+    ]),
+  }],
+  ["github.com/zasp-ai/zasp-sec/services/platform", {
+    target: "services/platform/go.mod",
+    replacement: "../platform",
+    consumers: new Map([
+      ["services/event-ingest/go.mod", false],
+      ["services/gateway-control/go.mod", false],
+      ["services/runtime-gateway/go.mod", false],
+      ["services/sensor-agent/go.mod", false],
+    ]),
+  }],
 ]);
-const internalHealthTarget = "services/health/go.mod";
-const internalHealthReplacement = `replace ${internalHealthModule} => ../health`;
 
 const approvedOwners = ["identity-platform", "platform-data", "web-platform"];
 const allowedLicenses = ["Apache-2.0", "ISC", "MIT"];
@@ -52,9 +67,11 @@ const requiredManifests = [
   { ecosystem: "go", path: "cmd/agentsecctl/go.mod" },
   { ecosystem: "npm", path: "package.json" },
   { ecosystem: "go", path: "services/event-ingest/go.mod" },
+  { ecosystem: "go", path: "services/gateway-control/go.mod" },
   { ecosystem: "go", path: "services/health/go.mod" },
   { ecosystem: "go", path: "services/platform/go.mod" },
   { ecosystem: "go", path: "services/runtime-gateway/go.mod" },
+  { ecosystem: "go", path: "services/sensor-agent/go.mod" },
   { ecosystem: "npm", path: "workers/redteam-node/package.json" },
   { ecosystem: "python", path: "workers/security-python/pyproject.toml" },
 ];
@@ -80,6 +97,28 @@ const exactDependencyMetadata = new Map([
     review: "approved",
   },
 ]));
+for (const [manifest, name, version, license] of [
+  ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2", "v1.43.6", "Apache-2.0"],
+  ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6", "Apache-2.0"],
+  ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2", "Apache-2.0"],
+  ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2/service/sts", "v1.41.6", "Apache-2.0"],
+  ["services/event-ingest/go.mod", "github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
+  ["services/gateway-control/go.mod", "github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
+  ["services/sensor-agent/go.mod", "k8s.io/api", "v0.35.5", "Apache-2.0"],
+  ["services/sensor-agent/go.mod", "k8s.io/apimachinery", "v0.35.5", "Apache-2.0"],
+  ["services/sensor-agent/go.mod", "k8s.io/client-go", "v0.35.5", "Apache-2.0"],
+]) {
+  exactDependencyMetadata.set(`${manifest}:${name}`, {
+    ecosystem: "go",
+    manifest,
+    name,
+    version,
+    license,
+    owner: "platform-data",
+    scope: "runtime",
+    review: "approved",
+  });
+}
 
 function invalid() {
   return new Error("dependency lock invalid");
@@ -243,16 +282,23 @@ function collectGoDependencies(path, text, files) {
   assert(typeof text === "string" && Buffer.byteLength(text, "utf8") <= manifestByteLimit);
   const dependencies = [];
   let inRequireBlock = false;
-  let internalReplacementSeen = false;
+  const internalReplacementsSeen = new Set();
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (line === "" || line.startsWith("//")) {
       continue;
     }
     if (/^replace\b/.test(line)) {
-      assert(internalHealthConsumers.has(path));
-      assert(line === internalHealthReplacement && !internalReplacementSeen);
-      internalReplacementSeen = true;
+      let matchedModule = "";
+      for (const [name, authority] of internalModules) {
+        if (line === `replace ${name} => ${authority.replacement}`) {
+          assert(authority.consumers.has(path) && !internalReplacementsSeen.has(name));
+          matchedModule = name;
+          break;
+        }
+      }
+      assert(matchedModule !== "");
+      internalReplacementsSeen.add(matchedModule);
       continue;
     }
     if (/^require\s*\($/.test(line)) {
@@ -278,17 +324,27 @@ function collectGoDependencies(path, text, files) {
     }
   }
   assert(!inRequireBlock);
-  let internalRequirementSeen = false;
+  const internalRequirementsSeen = new Set();
   const external = dependencies.filter(({ name, version, indirect }) => {
-    if (name !== internalHealthModule) return !indirect;
-    assert(internalHealthConsumers.has(path) && version === internalHealthVersion && !indirect && !internalRequirementSeen);
-    internalRequirementSeen = true;
+    const authority = internalModules.get(name);
+    if (authority === undefined) return !indirect;
+    const expectedIndirect = authority.consumers.get(path);
+    assert(
+      expectedIndirect !== undefined
+        && version === internalModuleVersion
+        && indirect === expectedIndirect
+        && !internalRequirementsSeen.has(name),
+    );
+    internalRequirementsSeen.add(name);
     return false;
   });
-  assert(internalReplacementSeen === internalRequirementSeen);
-  if (internalRequirementSeen) {
-    assert(typeof files[internalHealthTarget] === "string");
-    assert(goModulePath(files[internalHealthTarget]) === internalHealthModule);
+  for (const [name, authority] of internalModules) {
+    const requirementSeen = internalRequirementsSeen.has(name);
+    assert(internalReplacementsSeen.has(name) === requirementSeen);
+    if (requirementSeen) {
+      assert(typeof files[authority.target] === "string");
+      assert(goModulePath(files[authority.target]) === name);
+    }
   }
   return external.map(({ name, version }) => ({ ecosystem: "go", manifest: path, name, version }));
 }

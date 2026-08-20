@@ -19,9 +19,11 @@ const manifests = [
   { ecosystem: "go", path: "cmd/agentsecctl/go.mod" },
   { ecosystem: "npm", path: "package.json" },
   { ecosystem: "go", path: "services/event-ingest/go.mod" },
+  { ecosystem: "go", path: "services/gateway-control/go.mod" },
   { ecosystem: "go", path: "services/health/go.mod" },
   { ecosystem: "go", path: "services/platform/go.mod" },
   { ecosystem: "go", path: "services/runtime-gateway/go.mod" },
+  { ecosystem: "go", path: "services/sensor-agent/go.mod" },
   { ecosystem: "npm", path: "workers/redteam-node/package.json" },
   { ecosystem: "python", path: "workers/security-python/pyproject.toml" },
 ];
@@ -33,6 +35,7 @@ const npmDependencies = [
   ["react", "19.2.6", "MIT", "web-platform"],
   ["react-dom", "19.2.6", "MIT", "web-platform"],
   ["stytch", "14.2.0", "MIT", "identity-platform"],
+  ["vinext", "1.0.0-beta.2", "MIT", "web-platform"],
 ].map(([name, version, license, owner]) => ({
   ecosystem: "npm",
   manifest: "package.json",
@@ -76,7 +79,69 @@ const policyDependencies = [
   },
 ];
 
-const dependencies = [...npmDependencies, ...awsDependencies, ...policyDependencies].sort((left, right) =>
+const platformDependencies = [
+  ["github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
+  ["github.com/neo4j/neo4j-go-driver/v6", "v6.2.0", "Apache-2.0"],
+  ["gopkg.in/yaml.v3", "v3.0.1", "MIT"],
+].map(([name, version, license]) => ({
+  ecosystem: "go",
+  manifest: "services/platform/go.mod",
+  name,
+  version,
+  license,
+  owner: "platform-data",
+  scope: "runtime",
+  review: "approved",
+}));
+
+const eventIngestDependencies = [
+  ["github.com/aws/aws-sdk-go-v2", "v1.43.6", "Apache-2.0"],
+  ["github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6", "Apache-2.0"],
+  ["github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2", "Apache-2.0"],
+  ["github.com/aws/aws-sdk-go-v2/service/sts", "v1.41.6", "Apache-2.0"],
+  ["github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
+].map(([name, version, license]) => ({
+  ecosystem: "go",
+  manifest: "services/event-ingest/go.mod",
+  name,
+  version,
+  license,
+  owner: "platform-data",
+  scope: "runtime",
+  review: "approved",
+}));
+
+const gatewayDependencies = [{
+  ecosystem: "go",
+  manifest: "services/gateway-control/go.mod",
+  name: "github.com/jackc/pgx/v5",
+  version: "v5.10.0",
+  license: "MIT",
+  owner: "platform-data",
+  scope: "runtime",
+  review: "approved",
+}];
+
+const sensorDependencies = ["api", "apimachinery", "client-go"].map((name) => ({
+  ecosystem: "go",
+  manifest: "services/sensor-agent/go.mod",
+  name: `k8s.io/${name}`,
+  version: "v0.35.5",
+  license: "Apache-2.0",
+  owner: "platform-data",
+  scope: "runtime",
+  review: "approved",
+}));
+
+const dependencies = [
+  ...npmDependencies,
+  ...eventIngestDependencies,
+  ...gatewayDependencies,
+  ...awsDependencies,
+  ...policyDependencies,
+  ...platformDependencies,
+  ...sensorDependencies,
+].sort((left, right) =>
   `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`),
 );
 
@@ -121,20 +186,83 @@ function filesFixture() {
       "dependencies = []",
       "",
     ].join("\n"),
-    "services/event-ingest/go.mod": "module example/event-ingest\n\ngo 1.25.0\n",
-    "services/health/go.mod": "module example/health\n\ngo 1.25.0\n",
+    "services/event-ingest/go.mod": [
+      "module github.com/zasp-ai/zasp-sec/services/event-ingest",
+      "",
+      "go 1.25.0",
+      "",
+      "require (",
+      ...eventIngestDependencies.map(({ name, version }) => `\t${name} ${version}`),
+      "\tgithub.com/zasp-ai/zasp-sec/services/health v0.0.0",
+      "\tgithub.com/zasp-ai/zasp-sec/services/platform v0.0.0",
+      ")",
+      "",
+      "replace github.com/zasp-ai/zasp-sec/services/health => ../health",
+      "",
+      "replace github.com/zasp-ai/zasp-sec/services/platform => ../platform",
+      "",
+    ].join("\n"),
+    "services/gateway-control/go.mod": [
+      "module github.com/zasp-ai/zasp-sec/services/gateway-control",
+      "",
+      "go 1.25.0",
+      "",
+      "require (",
+      ...gatewayDependencies.map(({ name, version }) => `\t${name} ${version}`),
+      "\tgithub.com/zasp-ai/zasp-sec/services/platform v0.0.0",
+      "\tgithub.com/zasp-ai/zasp-sec/services/health v0.0.0 // indirect",
+      ")",
+      "",
+      "replace github.com/zasp-ai/zasp-sec/services/health => ../health",
+      "",
+      "replace github.com/zasp-ai/zasp-sec/services/platform => ../platform",
+      "",
+    ].join("\n"),
+    "services/health/go.mod": "module github.com/zasp-ai/zasp-sec/services/health\n\ngo 1.25.0\n",
     "services/platform/go.mod": [
-      "module example/platform",
+      "module github.com/zasp-ai/zasp-sec/services/platform",
       "",
       "go 1.25.0",
       "",
       "require (",
       ...awsDependencies.map(({ name, version }) => `\t${name} ${version}`),
       ...policyDependencies.map(({ name, version }) => `\t${name} ${version}`),
+      ...platformDependencies.map(({ name, version }) => `\t${name} ${version}`),
+      "\tgithub.com/zasp-ai/zasp-sec/services/health v0.0.0",
       ")",
       "",
+      "replace github.com/zasp-ai/zasp-sec/services/health => ../health",
+      "",
     ].join("\n"),
-    "services/runtime-gateway/go.mod": "module example/runtime-gateway\n\ngo 1.25.0\n",
+    "services/runtime-gateway/go.mod": [
+      "module github.com/zasp-ai/zasp-sec/services/runtime-gateway",
+      "",
+      "go 1.25.0",
+      "",
+      "require github.com/zasp-ai/zasp-sec/services/health v0.0.0",
+      "require github.com/zasp-ai/zasp-sec/services/platform v0.0.0",
+      "",
+      "replace github.com/zasp-ai/zasp-sec/services/health => ../health",
+      "",
+      "replace github.com/zasp-ai/zasp-sec/services/platform => ../platform",
+      "",
+    ].join("\n"),
+    "services/sensor-agent/go.mod": [
+      "module github.com/zasp-ai/zasp-sec/services/sensor-agent",
+      "",
+      "go 1.25.0",
+      "",
+      "require (",
+      "\tgithub.com/zasp-ai/zasp-sec/services/health v0.0.0",
+      "\tgithub.com/zasp-ai/zasp-sec/services/platform v0.0.0",
+      ...sensorDependencies.map(({ name, version }) => `\t${name} ${version}`),
+      ")",
+      "",
+      "replace github.com/zasp-ai/zasp-sec/services/health => ../health",
+      "",
+      "replace github.com/zasp-ai/zasp-sec/services/platform => ../platform",
+      "",
+    ].join("\n"),
     "cmd/agentsecctl/go.mod": "module example/agentsecctl\n\ngo 1.25.0\n",
   };
 }
@@ -144,21 +272,33 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 9, dependencies: 14 });
+  assert.deepEqual(validate(), { manifests: 11, dependencies: 27 });
 });
 
 test("binds the exact seven AWS SDK product dependencies", async (t) => {
   assert.deepEqual(
-    lockFixture().dependencies.filter(({ name }) => name.startsWith("github.com/aws/aws-sdk-go-v2")),
+    lockFixture().dependencies.filter(
+      ({ manifest, name }) => manifest === "services/platform/go.mod" && name.startsWith("github.com/aws/aws-sdk-go-v2"),
+    ),
     awsDependencies,
   );
 
   for (const [name, mutate] of [
-    ["missing", (lock) => lock.dependencies.splice(lock.dependencies.findIndex((entry) => entry.name === awsDependencies[0].name), 1)],
-    ["version drift", (lock) => { lock.dependencies.find((entry) => entry.name === awsDependencies[0].name).version = "v1.43.5"; }],
-    ["prohibited license", (lock) => { lock.dependencies.find((entry) => entry.name === awsDependencies[0].name).license = "GPL-3.0-only"; }],
-    ["wrong owner", (lock) => { lock.dependencies.find((entry) => entry.name === awsDependencies[0].name).owner = "web-platform"; }],
-    ["wrong scope", (lock) => { lock.dependencies.find((entry) => entry.name === awsDependencies[0].name).scope = "development"; }],
+    ["missing", (lock) => lock.dependencies.splice(lock.dependencies.findIndex(
+      (entry) => entry.manifest === "services/platform/go.mod" && entry.name === awsDependencies[0].name,
+    ), 1)],
+    ["version drift", (lock) => {
+      lock.dependencies.find((entry) => entry.manifest === "services/platform/go.mod" && entry.name === awsDependencies[0].name).version = "v1.43.5";
+    }],
+    ["prohibited license", (lock) => {
+      lock.dependencies.find((entry) => entry.manifest === "services/platform/go.mod" && entry.name === awsDependencies[0].name).license = "GPL-3.0-only";
+    }],
+    ["wrong owner", (lock) => {
+      lock.dependencies.find((entry) => entry.manifest === "services/platform/go.mod" && entry.name === awsDependencies[0].name).owner = "web-platform";
+    }],
+    ["wrong scope", (lock) => {
+      lock.dependencies.find((entry) => entry.manifest === "services/platform/go.mod" && entry.name === awsDependencies[0].name).scope = "development";
+    }],
   ]) {
     await t.test(name, () => {
       const lock = lockFixture();
@@ -188,6 +328,21 @@ test("binds the exact OPA product runtime dependency", async (t) => {
     await t.test(name, () => {
       const lock = lockFixture();
       mutate(lock.dependencies.find((entry) => entry.name === "github.com/open-policy-agent/opa"));
+      assert.throws(() => validate(lock));
+    });
+  }
+});
+
+test("binds exact metadata for every newly reviewed service dependency", async (t) => {
+  for (const { manifest, name } of [
+    ...eventIngestDependencies,
+    ...gatewayDependencies,
+    ...sensorDependencies,
+  ]) {
+    await t.test(`${manifest}:${name}`, () => {
+      const lock = lockFixture();
+      const entry = lock.dependencies.find((candidate) => candidate.manifest === manifest && candidate.name === name);
+      entry.owner = "web-platform";
       assert.throws(() => validate(lock));
     });
   }
@@ -337,60 +492,22 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 9, dependencies: 16 });
+  assert.deepEqual(validate(lock, files), { manifests: 11, dependencies: 29 });
 });
 
-test("accepts only the exact repository-owned health module replacement outside the third-party lock", async (t) => {
-  function internalFiles() {
-    const files = filesFixture();
-    files["services/health/go.mod"] = "module github.com/zasp-ai/zasp-sec/services/health\n\ngo 1.25.0\n";
-    for (const [path, module] of [
-      ["services/platform/go.mod", "github.com/zasp-ai/zasp-sec/services/platform"],
-      ["services/event-ingest/go.mod", "github.com/zasp-ai/zasp-sec/services/event-ingest"],
-      ["services/runtime-gateway/go.mod", "github.com/zasp-ai/zasp-sec/services/runtime-gateway"],
-    ]) {
-      files[path] = [
-        `module ${module}`,
-        "",
-        "go 1.25.0",
-        "",
-        "require github.com/zasp-ai/zasp-sec/services/health v0.0.0",
-        "",
-        "replace github.com/zasp-ai/zasp-sec/services/health => ../health",
-        "",
-      ].join("\n");
-    }
-    files["services/platform/go.mod"] = files["services/platform/go.mod"].replace(
-      "require github.com/zasp-ai/zasp-sec/services/health v0.0.0",
-      [
-        "require (",
-        ...awsDependencies.map(({ name, version }) => `\t${name} ${version}`),
-        ...policyDependencies.map(({ name, version }) => `\t${name} ${version}`),
-        "\tgithub.com/zasp-ai/zasp-sec/services/health v0.0.0",
-        ")",
-      ].join("\n"),
-    );
-    return files;
-  }
-
-  assert.deepEqual(validate(lockFixture(), internalFiles()), { manifests: 9, dependencies: 14 });
+test("accepts only exact repository-owned module requirements and replacements outside the third-party lock", async (t) => {
+  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 11, dependencies: 27 });
 
   for (const [name, mutate] of [
-    ["missing replacement", (files) => {
+    ["missing health replacement", (files) => {
       files["services/platform/go.mod"] = files["services/platform/go.mod"].replace(
         "\nreplace github.com/zasp-ai/zasp-sec/services/health => ../health\n",
         "\n",
       );
     }],
-    ["missing event-ingest replacement", (files) => {
+    ["missing platform replacement", (files) => {
       files["services/event-ingest/go.mod"] = files["services/event-ingest/go.mod"].replace(
-        "\nreplace github.com/zasp-ai/zasp-sec/services/health => ../health\n",
-        "\n",
-      );
-    }],
-    ["missing runtime-gateway replacement", (files) => {
-      files["services/runtime-gateway/go.mod"] = files["services/runtime-gateway/go.mod"].replace(
-        "\nreplace github.com/zasp-ai/zasp-sec/services/health => ../health\n",
+        "\nreplace github.com/zasp-ai/zasp-sec/services/platform => ../platform\n",
         "\n",
       );
     }],
@@ -403,6 +520,12 @@ test("accepts only the exact repository-owned health module replacement outside 
     ["wrong target module", (files) => {
       files["services/health/go.mod"] = files["services/health/go.mod"].replace("services/health", "services/health-copy");
     }],
+    ["wrong platform target module", (files) => {
+      files["services/platform/go.mod"] = files["services/platform/go.mod"].replace(
+        "module github.com/zasp-ai/zasp-sec/services/platform",
+        "module github.com/zasp-ai/zasp-sec/services/platform-copy",
+      );
+    }],
     ["remote replacement", (files) => {
       files["services/platform/go.mod"] = files["services/platform/go.mod"].replace("../health", "github.com/example/health v1.0.0");
     }],
@@ -413,7 +536,7 @@ test("accepts only the exact repository-owned health module replacement outside 
       files["cmd/agentsecctl/go.mod"] +=
         "require github.com/zasp-ai/zasp-sec/services/health v0.0.0 // indirect\n";
     }],
-    ["runtime-gateway indirect requirement", (files) => {
+    ["unexpected runtime-gateway indirect health requirement", (files) => {
       files["services/runtime-gateway/go.mod"] = files["services/runtime-gateway/go.mod"].replace(
         "github.com/zasp-ai/zasp-sec/services/health v0.0.0",
         "github.com/zasp-ai/zasp-sec/services/health v0.0.0 // indirect",
@@ -431,9 +554,21 @@ test("accepts only the exact repository-owned health module replacement outside 
         "github.com/zasp-ai/zasp-sec/services/health v0.0.0 // indirect",
       );
     }],
+    ["unexpected gateway direct health requirement", (files) => {
+      files["services/gateway-control/go.mod"] = files["services/gateway-control/go.mod"].replace(
+        "github.com/zasp-ai/zasp-sec/services/health v0.0.0 // indirect",
+        "github.com/zasp-ai/zasp-sec/services/health v0.0.0",
+      );
+    }],
+    ["sensor platform requirement becomes indirect", (files) => {
+      files["services/sensor-agent/go.mod"] = files["services/sensor-agent/go.mod"].replace(
+        "github.com/zasp-ai/zasp-sec/services/platform v0.0.0",
+        "github.com/zasp-ai/zasp-sec/services/platform v0.0.0 // indirect",
+      );
+    }],
   ]) {
     await t.test(name, () => {
-      const files = internalFiles();
+      const files = filesFixture();
       mutate(files);
       assert.throws(() => validate(lockFixture(), files));
     });

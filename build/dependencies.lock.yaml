@@ -25,11 +25,15 @@ manifests:
   - ecosystem: go
     path: services/event-ingest/go.mod
   - ecosystem: go
+    path: services/gateway-control/go.mod
+  - ecosystem: go
     path: services/health/go.mod
   - ecosystem: go
     path: services/platform/go.mod
   - ecosystem: go
     path: services/runtime-gateway/go.mod
+  - ecosystem: go
+    path: services/sensor-agent/go.mod
   - ecosystem: npm
     path: workers/redteam-node/package.json
   - ecosystem: python
@@ -89,6 +93,54 @@ dependencies:
     version: 1.0.0-beta.2
     license: MIT
     owner: web-platform
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/event-ingest/go.mod
+    name: github.com/aws/aws-sdk-go-v2
+    version: v1.43.6
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/event-ingest/go.mod
+    name: github.com/aws/aws-sdk-go-v2/service/kms
+    version: v1.55.6
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/event-ingest/go.mod
+    name: github.com/aws/aws-sdk-go-v2/service/s3
+    version: v1.107.2
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/event-ingest/go.mod
+    name: github.com/aws/aws-sdk-go-v2/service/sts
+    version: v1.41.6
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/event-ingest/go.mod
+    name: github.com/jackc/pgx/v5
+    version: v5.10.0
+    license: MIT
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/gateway-control/go.mod
+    name: github.com/jackc/pgx/v5
+    version: v5.10.0
+    license: MIT
+    owner: platform-data
     scope: runtime
     review: approved
   - ecosystem: go
@@ -176,6 +228,30 @@ dependencies:
     name: gopkg.in/yaml.v3
     version: v3.0.1
     license: MIT
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/sensor-agent/go.mod
+    name: k8s.io/api
+    version: v0.35.5
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/sensor-agent/go.mod
+    name: k8s.io/apimachinery
+    version: v0.35.5
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/sensor-agent/go.mod
+    name: k8s.io/client-go
+    version: v0.35.5
+    license: Apache-2.0
     owner: platform-data
     scope: runtime
     review: approved
