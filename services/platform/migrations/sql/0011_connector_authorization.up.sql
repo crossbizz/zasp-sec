@@ -115,7 +115,7 @@ CREATE UNIQUE INDEX zasp_connector_credential_active_idx ON zasp_connector_crede
 CREATE TABLE "public"."zasp_connector_audit" (
   organization_id text NOT NULL, workspace_id text NOT NULL, environment_id text NOT NULL,
   id text NOT NULL CHECK(zasp_valid_product_id(id)), integration_id text NOT NULL, oauth_attempt_id text, effect_id text,
-  event_kind text NOT NULL CHECK(event_kind IN ('authorization_started','authorization_consumed','authorization_completed','authorization_rejected','effect_unknown','effect_resolved','credential_created','credential_rotated','credential_revoked')),
+  event_kind text NOT NULL CHECK(event_kind IN ('authorization_started','authorization_consumed','authorization_completed','authorization_rejected','effect_unknown','effect_resolved','credential_created','credential_rotated','credential_revoked','revocation_requested','revocation_completed')),
   principal_id text CHECK(principal_id IS NULL OR zasp_valid_product_id(principal_id)), reason_code text CHECK(reason_code IS NULL OR reason_code ~ '^[a-z][a-z0-9_]{2,63}$'),
   metadata jsonb NOT NULL DEFAULT '{}' CHECK(zasp_connector_metadata_only(metadata)), occurred_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
   PRIMARY KEY(organization_id,workspace_id,environment_id,id),
@@ -123,6 +123,20 @@ CREATE TABLE "public"."zasp_connector_audit" (
   FOREIGN KEY(organization_id,workspace_id,environment_id,integration_id,oauth_attempt_id) REFERENCES zasp_connector_oauth_attempts(organization_id,workspace_id,environment_id,integration_id,id),
   FOREIGN KEY(organization_id,workspace_id,environment_id,effect_id) REFERENCES zasp_connector_effects(organization_id,workspace_id,environment_id,id)
 );
+
+CREATE FUNCTION "public"."zasp_connector_audit_event"(organization_value text,workspace_value text,environment_value text,integration_value text,attempt_value text,effect_value text,event_value text,principal_value text,reason_value text,metadata_value jsonb) RETURNS void
+LANGUAGE plpgsql AS $$
+DECLARE audit_value text; existing zasp_connector_audit%ROWTYPE;
+BEGIN
+  audit_value:=zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'connector_audit',concat_ws(chr(31),integration_value,COALESCE(attempt_value,''),COALESCE(effect_value,''),event_value,COALESCE(reason_value,'')));
+  INSERT INTO zasp_connector_audit(organization_id,workspace_id,environment_id,id,integration_id,oauth_attempt_id,effect_id,event_kind,principal_id,reason_code,metadata)
+  VALUES(organization_value,workspace_value,environment_value,audit_value,integration_value,NULLIF(attempt_value,''),NULLIF(effect_value,''),event_value,NULLIF(principal_value,''),NULLIF(reason_value,''),metadata_value)
+  ON CONFLICT(organization_id,workspace_id,environment_id,id) DO NOTHING;
+  SELECT * INTO existing FROM zasp_connector_audit WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=audit_value;
+  IF NOT FOUND OR existing.integration_id<>integration_value OR existing.oauth_attempt_id IS DISTINCT FROM NULLIF(attempt_value,'') OR existing.effect_id IS DISTINCT FROM NULLIF(effect_value,'') OR existing.event_kind<>event_value OR existing.principal_id IS DISTINCT FROM NULLIF(principal_value,'') OR existing.reason_code IS DISTINCT FROM NULLIF(reason_value,'') OR existing.metadata<>metadata_value THEN
+    RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='connector audit conflict';
+  END IF;
+END $$;
 
 GRANT SELECT,INSERT,UPDATE,DELETE ON zasp_workflow_records,zasp_workflow_idempotency,zasp_workflow_audit,zasp_workflow_receipts TO zasp_discovery_authority;
 
@@ -140,9 +154,33 @@ DECLARE
   configuration_value jsonb;
   response_version bigint;
   typed_row zasp_integrations%ROWTYPE;
+  workflow_row zasp_workflow_records%ROWTYPE;
+  connection_row zasp_integration_connections%ROWTYPE;
+  credential_row zasp_connector_credentials%ROWTYPE;
+  revocation_effect_id text;
+  revocation_digest bytea;
 BEGIN
   IF requested_kind<>'integration' THEN
     RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='connector workflow kind rejected';
+  END IF;
+  IF mutation='delete' THEN
+    SELECT * INTO workflow_row FROM zasp_workflow_records WHERE organization_id=requested_organization_id AND workspace_id=requested_workspace_id AND environment_id=requested_environment_id AND kind='integration' AND id=requested_id AND deleted_at IS NULL FOR UPDATE;
+    SELECT * INTO connection_row FROM zasp_integration_connections WHERE organization_id=requested_organization_id AND workspace_id=requested_workspace_id AND environment_id=requested_environment_id AND integration_id=requested_id AND state='verified' ORDER BY id LIMIT 1 FOR UPDATE;
+    SELECT * INTO credential_row FROM zasp_connector_credentials WHERE organization_id=requested_organization_id AND workspace_id=requested_workspace_id AND environment_id=requested_environment_id AND integration_id=requested_id AND status='active' ORDER BY id LIMIT 1 FOR UPDATE;
+    IF workflow_row.id IS NOT NULL AND (connection_row.id IS NOT NULL OR credential_row.id IS NOT NULL) THEN
+      mutation_response:=zasp_workflow_mutate(
+        'update',requested_kind,requested_id,requested_organization_id,requested_workspace_id,requested_environment_id,
+        requested_principal_id,requested_operation,requested_idempotency_key,expected_version,requested_intent,
+        jsonb_set(workflow_row.body,'{status}','"revoking"'::jsonb),requested_audit_id,requested_correlation_id,requested_receipt_id
+      );
+      revocation_effect_id:=zasp_discovery_canonical_id(requested_organization_id,requested_workspace_id,requested_environment_id,'connector_effect','revoke'||chr(31)||requested_id||chr(31)||requested_idempotency_key);
+      revocation_digest:=digest(convert_to(jsonb_build_object('integration_id',requested_id,'provider',COALESCE(connection_row.provider,credential_row.provider),'connection_reference',COALESCE(connection_row.connection_reference,credential_row.credential_reference),'credential_version',credential_row.version)::text,'UTF8'),'sha256');
+      PERFORM zasp_connector_begin_effect(requested_organization_id,requested_workspace_id,requested_environment_id,revocation_effect_id,requested_id,'',COALESCE(connection_row.provider,credential_row.provider),'revoke',requested_idempotency_key,revocation_digest);
+      PERFORM zasp_connector_resolve_effect(requested_organization_id,requested_workspace_id,requested_environment_id,revocation_effect_id,'unknown',COALESCE(connection_row.connection_reference,credential_row.credential_reference),'{}'::jsonb,'revocation_requested');
+      UPDATE zasp_integrations SET state='degraded',version=GREATEST(version,(mutation_response->>'version')::bigint),updated_at=transaction_timestamp() WHERE organization_id=requested_organization_id AND workspace_id=requested_workspace_id AND environment_id=requested_environment_id AND id=requested_id AND state<>'deleted';
+      PERFORM zasp_connector_audit_event(requested_organization_id,requested_workspace_id,requested_environment_id,requested_id,'',revocation_effect_id,'revocation_requested',requested_principal_id,'','{}'::jsonb);
+      RETURN mutation_response;
+    END IF;
   END IF;
   mutation_response:=zasp_workflow_mutate(
     mutation,requested_kind,requested_id,requested_organization_id,requested_workspace_id,requested_environment_id,
@@ -195,6 +233,7 @@ BEGIN
   VALUES(organization_value,workspace_value,environment_value,attempt_value,integration_value,provider_value,principal_value,session_value,state_value,pkce_reference_value,request_value,scopes_value,expires_value) ON CONFLICT(organization_id,workspace_id,environment_id,id) DO NOTHING;
   SELECT * INTO row_value FROM zasp_connector_oauth_attempts WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=attempt_value FOR UPDATE;
   IF NOT FOUND OR row_value.integration_id<>integration_value OR row_value.provider<>provider_value OR row_value.principal_id<>principal_value OR row_value.session_digest<>session_value OR row_value.state_hash<>state_value OR row_value.pkce_verifier_reference<>pkce_reference_value OR row_value.request_digest<>request_value OR row_value.requested_scopes<>scopes_value OR row_value.expires_at<>expires_value THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='oauth attempt conflict'; END IF;
+  PERFORM zasp_connector_audit_event(organization_value,workspace_value,environment_value,integration_value,attempt_value,'','authorization_started',principal_value,'','{}'::jsonb);
   RETURN jsonb_build_object('id',row_value.id,'integration_id',row_value.integration_id,'provider',row_value.provider,'status',row_value.status,'expires_at',row_value.expires_at,'created_at',row_value.created_at);
 END $$;
 
@@ -206,6 +245,7 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='oauth attempt unavailable'; END IF;
   IF row_value.status<>'pending' OR row_value.expires_at<=transaction_timestamp() OR row_value.principal_id<>principal_value OR row_value.session_digest<>session_value THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='oauth attempt rejected'; END IF;
   UPDATE zasp_connector_oauth_attempts SET status='consuming',consumed_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=row_value.id RETURNING * INTO row_value;
+  PERFORM zasp_connector_audit_event(organization_value,workspace_value,environment_value,row_value.integration_id,row_value.id,'','authorization_consumed',row_value.principal_id,'','{}'::jsonb);
   RETURN jsonb_build_object('id',row_value.id,'integration_id',row_value.integration_id,'provider',row_value.provider,'principal_id',row_value.principal_id,'pkce_verifier_reference',row_value.pkce_verifier_reference,'request_digest',encode(row_value.request_digest,'hex'),'requested_scopes',row_value.requested_scopes,'return_path',row_value.return_path,'expires_at',row_value.expires_at,'consumed_at',row_value.consumed_at);
 END $$;
 
@@ -228,6 +268,7 @@ BEGIN
   IF NOT FOUND OR status_value NOT IN ('unknown','failed') THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid connector effect transition'; END IF;
   IF row_value.status=status_value AND row_value.connection_reference IS NOT DISTINCT FROM NULLIF(reference_value,'') AND row_value.metadata=metadata_value AND row_value.last_error_code IS NOT DISTINCT FROM NULLIF(error_value,'') THEN
     IF status_value='failed' AND row_value.oauth_attempt_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=row_value.oauth_attempt_id AND status='rejected') THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='oauth rejection conflict'; END IF;
+    PERFORM zasp_connector_audit_event(organization_value,workspace_value,environment_value,row_value.integration_id,COALESCE(row_value.oauth_attempt_id,''),row_value.id,CASE WHEN status_value='unknown' THEN 'effect_unknown' ELSE 'authorization_rejected' END,'',error_value,metadata_value);
     RETURN jsonb_build_object('id',row_value.id,'status',row_value.status,'attempt',row_value.attempt,'updated_at',row_value.updated_at);
   END IF;
   IF row_value.status<>'pending' THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='connector effect already resolved'; END IF;
@@ -237,6 +278,7 @@ BEGIN
     WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=row_value.oauth_attempt_id AND status='consuming';
     IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='oauth rejection conflict'; END IF;
   END IF;
+  PERFORM zasp_connector_audit_event(organization_value,workspace_value,environment_value,row_value.integration_id,COALESCE(row_value.oauth_attempt_id,''),row_value.id,CASE WHEN status_value='unknown' THEN 'effect_unknown' ELSE 'authorization_rejected' END,'',error_value,metadata_value);
   RETURN jsonb_build_object('id',row_value.id,'status',row_value.status,'attempt',row_value.attempt,'updated_at',row_value.updated_at);
 END $$;
 
@@ -245,9 +287,9 @@ LANGUAGE plpgsql AS $$
 DECLARE result_value jsonb;
 BEGIN
   IF length(owner_value) NOT BETWEEN 3 AND 128 OR lease_seconds NOT BETWEEN 5 AND 300 OR limit_value NOT BETWEEN 1 AND 100 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid reconciliation claim'; END IF;
-  WITH selected AS (SELECT organization_id,workspace_id,environment_id,id FROM zasp_connector_effects WHERE status='unknown' AND attempt<100 AND (lease_expires_at IS NULL OR lease_expires_at<=transaction_timestamp()) ORDER BY updated_at,id FOR UPDATE SKIP LOCKED LIMIT limit_value),
+  WITH selected AS (SELECT organization_id,workspace_id,environment_id,id FROM zasp_connector_effects WHERE status='unknown' AND attempt<100 AND updated_at<=transaction_timestamp()-interval '15 seconds' AND (lease_expires_at IS NULL OR lease_expires_at<=transaction_timestamp()) ORDER BY updated_at,id FOR UPDATE SKIP LOCKED LIMIT limit_value),
   updated AS (UPDATE zasp_connector_effects effect SET attempt=effect.attempt+1,lease_owner=owner_value,lease_token=encode(gen_random_bytes(32),'hex'),lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds),updated_at=transaction_timestamp() FROM selected WHERE (effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)=(selected.organization_id,selected.workspace_id,selected.environment_id,selected.id) RETURNING effect.*)
-  SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'id',id,'integration_id',integration_id,'provider',provider,'operation',operation,'idempotency_key',idempotency_key,'request_digest',encode(request_digest,'hex'),'attempt',attempt,'lease_owner',lease_owner,'lease_token',lease_token,'lease_expires_at',lease_expires_at) ORDER BY updated_at,id),'[]'::jsonb)) INTO result_value FROM updated;
+  SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'id',id,'integration_id',integration_id,'oauth_attempt_id',oauth_attempt_id,'principal_id',(SELECT principal_id FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(updated.organization_id,updated.workspace_id,updated.environment_id,updated.oauth_attempt_id)),'requested_scopes',(SELECT requested_scopes FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(updated.organization_id,updated.workspace_id,updated.environment_id,updated.oauth_attempt_id)),'provider',provider,'operation',operation,'connection_reference',connection_reference,'idempotency_key',idempotency_key,'request_digest',encode(request_digest,'hex'),'attempt',attempt,'lease_owner',lease_owner,'lease_token',lease_token,'lease_expires_at',lease_expires_at) ORDER BY updated_at,id),'[]'::jsonb)) INTO result_value FROM updated;
   RETURN result_value;
 END $$;
 
@@ -264,7 +306,7 @@ END $$;
 
 CREATE FUNCTION "public"."zasp_connector_complete_oauth"(organization_value text,workspace_value text,environment_value text,attempt_value text,effect_value text,connection_value text,reference_value text,subject_value text,credential_value text,class_value text,metadata_value jsonb,completion_value bytea) RETURNS jsonb
 LANGUAGE plpgsql AS $$
-DECLARE attempt_row zasp_connector_oauth_attempts%ROWTYPE; effect_row zasp_connector_effects%ROWTYPE; connection_row zasp_integration_connections%ROWTYPE;
+DECLARE attempt_row zasp_connector_oauth_attempts%ROWTYPE; effect_row zasp_connector_effects%ROWTYPE; connection_row zasp_integration_connections%ROWTYPE; workflow_row zasp_workflow_records%ROWTYPE; workflow_intent jsonb; workflow_response jsonb; workflow_audit_id text; workflow_correlation_id text; workflow_receipt_id text; workflow_key text;
 BEGIN
   SELECT * INTO attempt_row FROM zasp_connector_oauth_attempts WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=attempt_value FOR UPDATE;
   SELECT * INTO effect_row FROM zasp_connector_effects WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=effect_value AND oauth_attempt_id=attempt_value FOR UPDATE;
@@ -280,7 +322,83 @@ BEGIN
   PERFORM zasp_connector_put_credential(organization_value,workspace_value,environment_value,credential_value,attempt_row.integration_id,attempt_row.provider,class_value,reference_value,1,metadata_value);
   UPDATE zasp_connector_effects SET status=CASE WHEN status='unknown' THEN 'reconciled' ELSE 'succeeded' END,connection_reference=reference_value,provider_subject=subject_value,metadata=metadata_value,last_error_code=NULL,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,resolved_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=effect_value;
   UPDATE zasp_connector_oauth_attempts SET status='succeeded',connection_id=connection_value,completion_digest=completion_value,completed_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=attempt_value RETURNING * INTO attempt_row;
+  UPDATE zasp_workflow_records SET body=jsonb_set(jsonb_set(body,'{status}','"active"'::jsonb),'{updated_at}',to_jsonb(transaction_timestamp())),version=version+1,updated_at=transaction_timestamp()
+  WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND kind='integration' AND id=attempt_row.integration_id AND deleted_at IS NULL AND body->>'status' IN('configured','pending_authorization','authorizing') RETURNING * INTO workflow_row;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='public integration completion conflict'; END IF;
+  UPDATE zasp_integrations SET state='active',version=GREATEST(version,workflow_row.version),updated_at=transaction_timestamp(),deleted_at=NULL WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=attempt_row.integration_id AND state IN('pending','authorizing','degraded');
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='typed integration completion conflict'; END IF;
+  workflow_key:='oauth-completion:'||attempt_row.id;
+  workflow_audit_id:=zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'workflow_audit',workflow_key);
+  workflow_correlation_id:=zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'workflow_correlation',workflow_key);
+  workflow_receipt_id:=zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'workflow_receipt',workflow_key);
+  workflow_intent:=jsonb_build_object('authorization_attempt_id',attempt_row.id,'integration_id',attempt_row.integration_id,'provider',attempt_row.provider);
+  workflow_response:=jsonb_build_object('body',workflow_row.body,'version',workflow_row.version,'secret_generation',workflow_row.secret_generation,'audit_id',workflow_audit_id,'correlation_id',workflow_correlation_id,'receipt_id',workflow_receipt_id,'replayed',false);
+  INSERT INTO zasp_workflow_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,principal_id,operation,resource_kind,resource_id,resource_version)
+  VALUES(organization_value,workspace_value,environment_value,workflow_audit_id,workflow_correlation_id,attempt_row.principal_id,'completeIntegrationOAuth','integration',attempt_row.integration_id,workflow_row.version);
+  INSERT INTO zasp_workflow_idempotency(organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key,request_digest,response,receipt_semantics)
+  VALUES(organization_value,workspace_value,environment_value,attempt_row.principal_id,'completeIntegrationOAuth',workflow_key,digest(convert_to(workflow_intent::text,'UTF8'),'sha256'),workflow_response,'receipt_backed');
+  INSERT INTO zasp_workflow_receipts(organization_id,workspace_id,environment_id,principal_id,receipt_id,operation,idempotency_key,intent,result,resource_kind,resource_id,resource_version,audit_id,correlation_id)
+  VALUES(organization_value,workspace_value,environment_value,attempt_row.principal_id,workflow_receipt_id,'completeIntegrationOAuth',workflow_key,workflow_intent,workflow_row.body,'integration',attempt_row.integration_id,workflow_row.version,workflow_audit_id,workflow_correlation_id);
+  PERFORM zasp_connector_audit_event(organization_value,workspace_value,environment_value,attempt_row.integration_id,attempt_row.id,effect_row.id,'effect_resolved','', '',metadata_value);
+  PERFORM zasp_connector_audit_event(organization_value,workspace_value,environment_value,attempt_row.integration_id,attempt_row.id,effect_row.id,'credential_created','', '',jsonb_build_object('class',class_value));
+  PERFORM zasp_connector_audit_event(organization_value,workspace_value,environment_value,attempt_row.integration_id,attempt_row.id,effect_row.id,'authorization_completed',attempt_row.principal_id,'',jsonb_build_object('connection_id',connection_value));
   RETURN jsonb_build_object('attempt_id',attempt_row.id,'connection_id',attempt_row.connection_id,'status',attempt_row.status,'completed_at',attempt_row.completed_at);
+END $$;
+
+CREATE FUNCTION "public"."zasp_connector_complete_reconciliation"(organization_value text,workspace_value text,environment_value text,attempt_value text,effect_value text,owner_value text,token_value text,connection_value text,reference_value text,subject_value text,credential_value text,class_value text,metadata_value jsonb,completion_value bytea) RETURNS jsonb
+LANGUAGE plpgsql AS $$
+DECLARE effect_row zasp_connector_effects%ROWTYPE; result_value jsonb;
+BEGIN
+  SELECT * INTO effect_row FROM zasp_connector_effects WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=effect_value AND oauth_attempt_id=attempt_value FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='connector reconciliation unavailable'; END IF;
+  IF effect_row.status IN('succeeded','reconciled') THEN
+    RETURN zasp_connector_complete_oauth(organization_value,workspace_value,environment_value,attempt_value,effect_value,connection_value,reference_value,subject_value,credential_value,class_value,metadata_value,completion_value);
+  END IF;
+  IF effect_row.status<>'unknown' OR effect_row.lease_owner<>owner_value OR effect_row.lease_token<>token_value OR effect_row.lease_expires_at<=transaction_timestamp() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector reconciliation lease unavailable'; END IF;
+  result_value:=zasp_connector_complete_oauth(organization_value,workspace_value,environment_value,attempt_value,effect_value,connection_value,reference_value,subject_value,credential_value,class_value,metadata_value,completion_value);
+  RETURN result_value;
+END $$;
+
+CREATE FUNCTION "public"."zasp_connector_fail_reconciliation"(organization_value text,workspace_value text,environment_value text,effect_value text,owner_value text,token_value text,error_value text) RETURNS jsonb
+LANGUAGE plpgsql AS $$
+DECLARE effect_row zasp_connector_effects%ROWTYPE;
+BEGIN
+  IF error_value !~ '^[a-z][a-z0-9_]{2,63}$' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid reconciliation failure'; END IF;
+  SELECT * INTO effect_row FROM zasp_connector_effects WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=effect_value FOR UPDATE;
+  IF NOT FOUND OR effect_row.status<>'unknown' OR effect_row.lease_owner<>owner_value OR effect_row.lease_token<>token_value OR effect_row.lease_expires_at<=transaction_timestamp() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector reconciliation lease unavailable'; END IF;
+  UPDATE zasp_connector_effects SET status='failed',last_error_code=error_value,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,resolved_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=effect_value RETURNING * INTO effect_row;
+  IF effect_row.oauth_attempt_id IS NOT NULL THEN
+    UPDATE zasp_connector_oauth_attempts SET status='rejected',completed_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=effect_row.oauth_attempt_id AND status='consuming';
+    IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='oauth reconciliation failure conflict'; END IF;
+  END IF;
+  PERFORM zasp_connector_audit_event(organization_value,workspace_value,environment_value,effect_row.integration_id,COALESCE(effect_row.oauth_attempt_id,''),effect_row.id,'effect_resolved','',error_value,'{}'::jsonb);
+  RETURN jsonb_build_object('id',effect_row.id,'status',effect_row.status,'attempt',effect_row.attempt,'updated_at',effect_row.updated_at);
+END $$;
+
+CREATE FUNCTION "public"."zasp_connector_complete_revocation"(organization_value text,workspace_value text,environment_value text,effect_value text,owner_value text,token_value text) RETURNS jsonb
+LANGUAGE plpgsql AS $$
+DECLARE effect_row zasp_connector_effects%ROWTYPE; credential_row zasp_connector_credentials%ROWTYPE;
+BEGIN
+  SELECT * INTO effect_row FROM zasp_connector_effects WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=effect_value AND operation='revoke' FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='connector revocation unavailable'; END IF;
+  IF effect_row.status='reconciled' THEN
+    IF EXISTS(SELECT 1 FROM zasp_integrations WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=effect_row.integration_id AND state='deleted') THEN
+      RETURN jsonb_build_object('id',effect_row.id,'status',effect_row.status,'attempt',effect_row.attempt,'updated_at',effect_row.updated_at);
+    END IF;
+    RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='connector revocation replay conflict';
+  END IF;
+  IF effect_row.status<>'unknown' OR effect_row.lease_owner<>owner_value OR effect_row.lease_token<>token_value OR effect_row.lease_expires_at<=transaction_timestamp() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='connector revocation lease unavailable'; END IF;
+  UPDATE zasp_connector_credentials SET status='revoked',revoked_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND integration_id=effect_row.integration_id AND status='active' RETURNING * INTO credential_row;
+  UPDATE zasp_integration_connections SET state='revoked',revoked_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND integration_id=effect_row.integration_id AND state='verified';
+  UPDATE zasp_workflow_records SET body=jsonb_set(body,'{status}','"deleted"'::jsonb),deleted_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND kind='integration' AND id=effect_row.integration_id AND deleted_at IS NULL AND body->>'status'='revoking';
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='public integration revocation conflict'; END IF;
+  UPDATE zasp_integrations SET state='deleted',deleted_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=effect_row.integration_id AND state='degraded';
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='typed integration revocation conflict'; END IF;
+  UPDATE zasp_connector_effects SET status='reconciled',provider_subject='revoked',last_error_code=NULL,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,resolved_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE organization_id=organization_value AND workspace_id=workspace_value AND environment_id=environment_value AND id=effect_value RETURNING * INTO effect_row;
+  PERFORM zasp_connector_audit_event(organization_value,workspace_value,environment_value,effect_row.integration_id,'',effect_row.id,'effect_resolved','','','{}'::jsonb);
+  IF credential_row.id IS NOT NULL THEN PERFORM zasp_connector_audit_event(organization_value,workspace_value,environment_value,effect_row.integration_id,'',effect_row.id,'credential_revoked','','',jsonb_build_object('class',credential_row.credential_class)); END IF;
+  PERFORM zasp_connector_audit_event(organization_value,workspace_value,environment_value,effect_row.integration_id,'',effect_row.id,'revocation_completed','','','{}'::jsonb);
+  RETURN jsonb_build_object('id',effect_row.id,'status',effect_row.status,'attempt',effect_row.attempt,'updated_at',effect_row.updated_at);
 END $$;
 
 DO $rls$ DECLARE table_name text; BEGIN
@@ -313,8 +431,8 @@ DO $authority$ DECLARE procedure_oid oid; BEGIN
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway',procedure_oid::regprocedure); EXECUTE format('ALTER FUNCTION %s SECURITY DEFINER',procedure_oid::regprocedure); EXECUTE format('ALTER FUNCTION %s SET search_path TO pg_catalog, public',procedure_oid::regprocedure); EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',procedure_oid::regprocedure);
   END LOOP;
 END $authority$;
-GRANT EXECUTE ON FUNCTION zasp_connector_security_ready(),zasp_connector_readiness(text,text),zasp_connector_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text),zasp_connector_start_oauth(text,text,text,text,text,text,text,bytea,bytea,text,bytea,jsonb,timestamptz),zasp_connector_consume_oauth(text,text,text,bytea,text,bytea),zasp_connector_begin_effect(text,text,text,text,text,text,text,text,text,bytea),zasp_connector_resolve_effect(text,text,text,text,text,text,jsonb,text),zasp_connector_put_credential(text,text,text,text,text,text,text,text,bigint,jsonb),zasp_connector_complete_oauth(text,text,text,text,text,text,text,text,text,text,jsonb,bytea) TO zasp_discovery_api;
-GRANT EXECUTE ON FUNCTION zasp_connector_security_ready(),zasp_connector_readiness(text,text),zasp_connector_claim_reconciliation(text,integer,integer),zasp_connector_resolve_effect(text,text,text,text,text,text,jsonb,text),zasp_connector_complete_oauth(text,text,text,text,text,text,text,text,text,text,jsonb,bytea) TO zasp_discovery_worker;
+GRANT EXECUTE ON FUNCTION zasp_connector_security_ready(),zasp_connector_readiness(text,text),zasp_connector_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text),zasp_connector_start_oauth(text,text,text,text,text,text,text,bytea,bytea,text,bytea,jsonb,timestamptz),zasp_connector_consume_oauth(text,text,text,bytea,text,bytea),zasp_connector_begin_effect(text,text,text,text,text,text,text,text,text,bytea),zasp_connector_resolve_effect(text,text,text,text,text,text,jsonb,text),zasp_connector_put_credential(text,text,text,text,text,text,text,text,bigint,jsonb),zasp_connector_complete_oauth(text,text,text,text,text,text,text,text,text,text,jsonb,bytea),zasp_connector_claim_reconciliation(text,integer,integer),zasp_connector_complete_reconciliation(text,text,text,text,text,text,text,text,text,text,text,text,jsonb,bytea),zasp_connector_fail_reconciliation(text,text,text,text,text,text,text),zasp_connector_complete_revocation(text,text,text,text,text,text) TO zasp_discovery_api;
+GRANT EXECUTE ON FUNCTION zasp_connector_security_ready(),zasp_connector_readiness(text,text),zasp_connector_claim_reconciliation(text,integer,integer),zasp_connector_resolve_effect(text,text,text,text,text,text,jsonb,text),zasp_connector_complete_oauth(text,text,text,text,text,text,text,text,text,text,jsonb,bytea),zasp_connector_complete_reconciliation(text,text,text,text,text,text,text,text,text,text,text,text,jsonb,bytea),zasp_connector_fail_reconciliation(text,text,text,text,text,text,text),zasp_connector_complete_revocation(text,text,text,text,text,text) TO zasp_discovery_worker;
 
 DO $migration$ DECLARE definition text; BEGIN
  SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure) INTO definition;
@@ -333,7 +451,7 @@ DO $risk_migration$ DECLARE definition text; BEGIN
  EXECUTE definition;
 END $risk_migration$;
 
-INSERT INTO zasp_schema_metadata(key,value) VALUES ('connector_authorization_fingerprint', '59127e045743484d04d056f60f2a51ab87f21c93087407f874b8239daa461d4c');
+INSERT INTO zasp_schema_metadata(key,value) VALUES ('connector_authorization_fingerprint', '1e5c5286dd32e9514be275d3b7ef54dfc479f6772f264c2b45da9c066cb80fb9');
 UPDATE zasp_schema_metadata SET value='a3ee9cb3bfd3e6ed0d37399817432ec9ebdc4e4a66b778d2e1b79c62f99a65f9' WHERE key='production_discovery_fingerprint' AND EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_discovery_release_fingerprint');
 DELETE FROM zasp_schema_metadata WHERE key='production_discovery_release_fingerprint';
 UPDATE zasp_schema_metadata SET value='connector-authorization-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='production-discovery-v1';

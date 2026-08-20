@@ -528,6 +528,8 @@ func workflowMutationTarget(operation string) (kind, action string, status int, 
 		return "integration", "create", http.StatusCreated, true
 	case "updateIntegration":
 		return "integration", "update", http.StatusOK, true
+	case "completeIntegrationOAuth":
+		return "integration", "update", http.StatusOK, true
 	case "deleteIntegration":
 		return "integration", "delete", http.StatusNoContent, true
 	case "createSecurityAgent":

@@ -214,29 +214,98 @@ func TestConnectorAuthorizationPostgresPublicIntegrationMutationCreatesTypedOAut
 	if _, err := connectorRepository.BeginConnectorEffect(ctx, identity.Scope, ConnectorEffectStart{ID: successEffectID, IntegrationID: integrationID, OAuthAttemptID: successAttemptID, Provider: "github", Operation: "authorize", IdempotencyKey: "idem-provider-success-0001", RequestDigest: successDigest[:]}); err != nil {
 		t.Fatalf("begin success effect: %v", err)
 	}
+	if _, err := connectorRepository.ResolveConnectorEffect(ctx, identity.Scope, ConnectorEffectResolution{ID: successEffectID, Status: "unknown", ErrorCode: "provider_effect_started", Metadata: json.RawMessage(`{}`)}); err != nil {
+		t.Fatalf("mark success effect unknown: %v", err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET updated_at=transaction_timestamp()-interval '16 seconds' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), successEffectID); err != nil {
+		t.Fatal(err)
+	}
+	authorizationLeases, err := connectorRepository.ClaimReconciliation(ctx, "connector-worker-a", 30, 10)
+	if err != nil || len(authorizationLeases) != 1 || authorizationLeases[0].OAuthAttemptID != successAttemptID || authorizationLeases[0].PrincipalID != identity.PrincipalID.String() || !equalStringSet(authorizationLeases[0].RequestedScopes, []string{"read:org"}) {
+		t.Fatalf("authorization reconciliation claim = %#v, %v", authorizationLeases, err)
+	}
 	completion := OAuthCompletion{AttemptID: successAttemptID, EffectID: successEffectID, ConnectionID: "pid_71000009-0000-4000-8000-000000000009", ConnectionReference: "ref:github/install/987654", ProviderSubject: "installation:987654", CredentialID: "pid_71000010-0000-4000-8000-000000000010", CredentialClass: "github_installation_reference", Metadata: json.RawMessage(`{"installation_id":987654}`)}
-	firstCompletion, err := connectorRepository.CompleteOAuth(ctx, identity.Scope, completion)
+	wrongAuthorizationLease := authorizationLeases[0]
+	wrongAuthorizationLease.LeaseToken = strings.Repeat("f", 64)
+	if _, err := connectorRepository.CompleteOAuthReconciliation(ctx, wrongAuthorizationLease, completion); err == nil {
+		t.Fatal("wrong-owner OAuth reconciliation succeeded")
+	}
+	firstCompletion, err := connectorRepository.CompleteOAuthReconciliation(ctx, authorizationLeases[0], completion)
 	if err != nil {
 		t.Fatalf("complete OAuth: %v", err)
 	}
-	replayedCompletion, err := connectorRepository.CompleteOAuth(ctx, identity.Scope, completion)
+	replayedCompletion, err := connectorRepository.CompleteOAuthReconciliation(ctx, authorizationLeases[0], completion)
 	if err != nil || replayedCompletion != firstCompletion {
 		t.Fatalf("completion replay = %#v, %v; first=%#v", replayedCompletion, err, firstCompletion)
 	}
 	completion.ConnectionReference = "ref:github/install/changed"
-	if _, err := connectorRepository.CompleteOAuth(ctx, identity.Scope, completion); !errors.Is(err, ErrRepositoryConflict) {
+	if _, err := connectorRepository.CompleteOAuthReconciliation(ctx, authorizationLeases[0], completion); !errors.Is(err, ErrRepositoryConflict) {
 		t.Fatalf("changed completion replay = %v, want conflict", err)
 	}
-	deletion := WorkflowMutation{Action: "delete", Kind: "integration", ID: integrationID, Operation: "deleteIntegration", IdempotencyKey: "idem-public-connector-delete-0001", ExpectedVersion: 2, Intent: json.RawMessage(`{"body":{},"expected_version":2,"resource_id":"` + integrationID + `"}`), Body: json.RawMessage(`{}`), AuditID: "pid_71000022-0000-4000-8000-000000000022", CorrelationID: "pid_71000023-0000-4000-8000-000000000023", ReceiptID: "pid_71000024-0000-4000-8000-000000000024"}
+	active, err := repository.GetWorkflow(ctx, identity.Scope, "integration", integrationID)
+	var activeBody map[string]any
+	if err != nil || json.Unmarshal(active.Body, &activeBody) != nil || active.Version != 3 || activeBody["status"] != "active" {
+		t.Fatalf("public OAuth completion status = %#v, %v", active, err)
+	}
+	receipts, err := repository.ListWorkflowMutationReceipts(ctx, identity, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundCompletionReceipt := false
+	for _, receipt := range receipts {
+		var receiptBody map[string]any
+		if receipt.Operation == "completeIntegrationOAuth" && receipt.ResourceID == integrationID && receipt.ResourceVersion == 3 && json.Unmarshal(receipt.Result, &receiptBody) == nil && receiptBody["status"] == "active" {
+			foundCompletionReceipt = true
+		}
+	}
+	if !foundCompletionReceipt {
+		t.Fatalf("public OAuth receipt missing: %#v", receipts)
+	}
+	var connectorAuditCount int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_connector_audit WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&connectorAuditCount); err != nil || connectorAuditCount < 8 {
+		t.Fatalf("connector audit count = %d, %v", connectorAuditCount, err)
+	}
+	deletion := WorkflowMutation{Action: "delete", Kind: "integration", ID: integrationID, Operation: "deleteIntegration", IdempotencyKey: "idem-public-connector-delete-0001", ExpectedVersion: 3, Intent: json.RawMessage(`{"body":{},"expected_version":3,"resource_id":"` + integrationID + `"}`), Body: json.RawMessage(`{}`), AuditID: "pid_71000022-0000-4000-8000-000000000022", CorrelationID: "pid_71000023-0000-4000-8000-000000000023", ReceiptID: "pid_71000024-0000-4000-8000-000000000024"}
 	if _, err := repository.MutateWorkflow(ctx, identity, deletion); err != nil {
 		t.Fatalf("public integration delete: %v", err)
 	}
 	if replay, err := repository.MutateWorkflow(ctx, identity, deletion); err != nil || !replay.Replayed {
 		t.Fatalf("public integration delete replay = %#v, %v", replay, err)
 	}
-	var typedState string
+	var typedState, effectStatus, effectOperation, credentialStatus string
+	if err := connection.QueryRow(ctx, `SELECT state FROM zasp_integrations WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&typedState); err != nil || typedState != "degraded" {
+		t.Fatalf("typed integration revocation pending = %q, %v", typedState, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT operation,status FROM zasp_connector_effects WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4 AND operation='revoke'`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&effectOperation, &effectStatus); err != nil || effectStatus != "unknown" {
+		t.Fatalf("durable revoke effect = %q/%q, %v", effectOperation, effectStatus, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT status FROM zasp_connector_credentials WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&credentialStatus); err != nil || credentialStatus != "active" {
+		t.Fatalf("credential revoked before provider confirmation = %q, %v", credentialStatus, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET updated_at=transaction_timestamp()-interval '16 seconds' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4 AND operation='revoke'`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID); err != nil {
+		t.Fatal(err)
+	}
+	leases, err := connectorRepository.ClaimReconciliation(ctx, "connector-worker-a", 30, 10)
+	if err != nil || len(leases) != 1 || leases[0].Operation != "revoke" || leases[0].ConnectionReference != "ref:github/install/987654" {
+		t.Fatalf("revoke claim = %#v, %v", leases, err)
+	}
+	wrongLease := leases[0]
+	wrongLease.LeaseToken = strings.Repeat("f", 64)
+	if _, err := connectorRepository.CompleteConnectorRevocation(ctx, wrongLease); err == nil {
+		t.Fatal("wrong-owner revocation completion succeeded")
+	}
+	completedRevocation, err := connectorRepository.CompleteConnectorRevocation(ctx, leases[0])
+	if err != nil || completedRevocation.Status != "reconciled" {
+		t.Fatalf("complete revocation = %#v, %v", completedRevocation, err)
+	}
+	if replay, err := connectorRepository.CompleteConnectorRevocation(ctx, leases[0]); err != nil || replay != completedRevocation {
+		t.Fatalf("revocation replay = %#v, %v; first=%#v", replay, err, completedRevocation)
+	}
 	if err := connection.QueryRow(ctx, `SELECT state FROM zasp_integrations WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&typedState); err != nil || typedState != "deleted" {
-		t.Fatalf("typed integration delete = %q, %v", typedState, err)
+		t.Fatalf("typed integration final revocation = %q, %v", typedState, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT status FROM zasp_connector_credentials WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND integration_id=$4`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID).Scan(&credentialStatus); err != nil || credentialStatus != "revoked" {
+		t.Fatalf("credential final revocation = %q, %v", credentialStatus, err)
 	}
 }
 

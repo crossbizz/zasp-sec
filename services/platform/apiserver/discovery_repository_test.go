@@ -109,9 +109,11 @@ func TestDiscoveryRepositorySnapshotApplyCarriesOneCompleteCandidate(t *testing.
 
 func TestDiscoveryRepositoryGatewayEnrollmentUsesTheDistinctAudienceContract(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
-	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresDiscoveryReadySQL: json.RawMessage(`true`), postgresDiscoveryGatewayEnrollSQL: json.RawMessage(`{"id":"pid_40000008-0000-4000-8000-000000000008","device_id":"pid_40000006-0000-4000-8000-000000000006","audience":"runtime-gateway","issued_at":"2026-08-19T00:00:00Z","expires_at":"2026-08-20T00:00:00Z"}`)}}
+	now := time.Now().UTC()
+	expiresAt := now.Add(24 * time.Hour)
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresDiscoveryReadySQL: json.RawMessage(`true`), postgresDiscoveryGatewayEnrollSQL: json.RawMessage(`{"id":"pid_40000008-0000-4000-8000-000000000008","device_id":"pid_40000006-0000-4000-8000-000000000006","audience":"runtime-gateway","issued_at":"` + now.Format(time.RFC3339Nano) + `","expires_at":"` + expiresAt.Format(time.RFC3339Nano) + `"}`)}}
 	repository := newTestDiscoveryRepository(t, database)
-	input := GatewayEnrollment{DeviceID: "pid_40000006-0000-4000-8000-000000000006", EnrollmentID: "pid_40000007-0000-4000-8000-000000000007", CredentialID: "pid_40000008-0000-4000-8000-000000000008", Audience: "runtime-gateway", KeyReference: "ref:kms/gateway/key-0001", TokenHash: make([]byte, 32), Salt: make([]byte, 16), PublicKey: make([]byte, 32), ExpiresAt: time.Date(2026, 8, 20, 0, 0, 0, 0, time.UTC)}
+	input := GatewayEnrollment{DeviceID: "pid_40000006-0000-4000-8000-000000000006", EnrollmentID: "pid_40000007-0000-4000-8000-000000000007", CredentialID: "pid_40000008-0000-4000-8000-000000000008", Audience: "runtime-gateway", KeyReference: "ref:kms/gateway/key-0001", TokenHash: make([]byte, 32), Salt: make([]byte, 16), PublicKey: make([]byte, 32), ExpiresAt: expiresAt}
 	result, err := repository.EnrollGateway(context.Background(), identity.Scope, input)
 	if err != nil || result.Audience != "runtime-gateway" {
 		t.Fatalf("enrollment=%#v err=%v", result, err)

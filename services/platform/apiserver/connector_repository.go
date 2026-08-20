@@ -15,14 +15,17 @@ import (
 )
 
 const (
-	postgresConnectorReadySQL               = `SELECT to_jsonb(zasp_connector_readiness($1,$2))`
-	postgresConnectorStartOAuthSQL          = `SELECT zasp_connector_start_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13)`
-	postgresConnectorConsumeOAuthSQL        = `SELECT zasp_connector_consume_oauth($1,$2,$3,$4,$5,$6)`
-	postgresConnectorBeginEffectSQL         = `SELECT zasp_connector_begin_effect($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresConnectorResolveEffectSQL       = `SELECT zasp_connector_resolve_effect($1,$2,$3,$4,$5,$6,$7::jsonb,$8)`
-	postgresConnectorPutCredentialSQL       = `SELECT zasp_connector_put_credential($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`
-	postgresConnectorCompleteOAuthSQL       = `SELECT zasp_connector_complete_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)`
-	postgresConnectorClaimReconciliationSQL = `SELECT zasp_connector_claim_reconciliation($1,$2,$3)`
+	postgresConnectorReadySQL                  = `SELECT to_jsonb(zasp_connector_readiness($1,$2))`
+	postgresConnectorStartOAuthSQL             = `SELECT zasp_connector_start_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13)`
+	postgresConnectorConsumeOAuthSQL           = `SELECT zasp_connector_consume_oauth($1,$2,$3,$4,$5,$6)`
+	postgresConnectorBeginEffectSQL            = `SELECT zasp_connector_begin_effect($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresConnectorResolveEffectSQL          = `SELECT zasp_connector_resolve_effect($1,$2,$3,$4,$5,$6,$7::jsonb,$8)`
+	postgresConnectorPutCredentialSQL          = `SELECT zasp_connector_put_credential($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`
+	postgresConnectorCompleteOAuthSQL          = `SELECT zasp_connector_complete_oauth($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)`
+	postgresConnectorClaimReconciliationSQL    = `SELECT zasp_connector_claim_reconciliation($1,$2,$3)`
+	postgresConnectorCompleteReconciliationSQL = `SELECT zasp_connector_complete_reconciliation($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14)`
+	postgresConnectorFailReconciliationSQL     = `SELECT zasp_connector_fail_reconciliation($1,$2,$3,$4,$5,$6,$7)`
+	postgresConnectorCompleteRevocationSQL     = `SELECT zasp_connector_complete_revocation($1,$2,$3,$4,$5,$6)`
 )
 
 var connectorScopePattern = regexp.MustCompile(`^[A-Za-z0-9:_./-]{1,128}$`)
@@ -36,7 +39,6 @@ type ConnectorAuthorizationRepository interface {
 	ResolveConnectorEffect(context.Context, domain.Scope, ConnectorEffectResolution) (ConnectorEffectRecord, error)
 	PutConnectorCredential(context.Context, domain.Scope, ConnectorCredentialPut) (ConnectorCredentialRecord, error)
 	CompleteOAuth(context.Context, domain.Scope, OAuthCompletion) (OAuthCompletionRecord, error)
-	ClaimReconciliation(context.Context, string, int, int) ([]ConnectorEffectLease, error)
 }
 
 type ConnectorRepository struct{ database JSONDatabase }
@@ -244,8 +246,7 @@ func (repository *ConnectorRepository) CompleteOAuth(ctx context.Context, scope 
 	if !validConnectorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(input.AttemptID) || !validProductID(input.EffectID) || !validProductID(input.ConnectionID) || !validOpaqueReference(input.ConnectionReference) || len(input.ProviderSubject) < 1 || len(input.ProviderSubject) > 256 || !validProductID(input.CredentialID) || len(input.CredentialClass) < 1 || len(input.CredentialClass) > 64 || !validConnectorMetadata(input.Metadata) {
 		return OAuthCompletionRecord{}, ErrRepositoryOperation
 	}
-	canonicalMetadata, _ := canonicalConnectorMetadata(input.Metadata)
-	digest := sha256.Sum256([]byte(strings.Join([]string{input.AttemptID, input.EffectID, input.ConnectionID, input.ConnectionReference, input.ProviderSubject, input.CredentialID, input.CredentialClass, string(canonicalMetadata)}, "\x1f")))
+	canonicalMetadata, digest := connectorOAuthCompletionDigest(input)
 	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompleteOAuthSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.AttemptID, input.EffectID, input.ConnectionID, input.ConnectionReference, input.ProviderSubject, input.CredentialID, input.CredentialClass, canonicalMetadata, digest[:])
 	if err != nil {
 		return OAuthCompletionRecord{}, discoveryProviderError(err)
@@ -256,6 +257,12 @@ func (repository *ConnectorRepository) CompleteOAuth(ctx context.Context, scope 
 	}
 	result.CompletedAt = result.CompletedAt.UTC()
 	return result, nil
+}
+
+func connectorOAuthCompletionDigest(input OAuthCompletion) (json.RawMessage, [sha256.Size]byte) {
+	canonicalMetadata, _ := canonicalConnectorMetadata(input.Metadata)
+	digest := sha256.Sum256([]byte(strings.Join([]string{input.AttemptID, input.EffectID, input.ConnectionID, input.ConnectionReference, input.ProviderSubject, input.CredentialID, input.CredentialClass, string(canonicalMetadata)}, "\x1f")))
+	return canonicalMetadata, digest
 }
 
 func canonicalConnectorMetadata(value json.RawMessage) (json.RawMessage, error) {
@@ -271,19 +278,30 @@ func canonicalConnectorMetadata(value json.RawMessage) (json.RawMessage, error) 
 }
 
 type ConnectorEffectLease struct {
-	OrganizationID string    `json:"organization_id"`
-	WorkspaceID    string    `json:"workspace_id"`
-	EnvironmentID  string    `json:"environment_id"`
-	ID             string    `json:"id"`
-	IntegrationID  string    `json:"integration_id"`
-	Provider       string    `json:"provider"`
-	Operation      string    `json:"operation"`
-	IdempotencyKey string    `json:"idempotency_key"`
-	RequestDigest  string    `json:"request_digest"`
-	Attempt        int       `json:"attempt"`
-	LeaseOwner     string    `json:"lease_owner"`
-	LeaseToken     string    `json:"lease_token"`
-	LeaseExpiresAt time.Time `json:"lease_expires_at"`
+	OrganizationID      string    `json:"organization_id"`
+	WorkspaceID         string    `json:"workspace_id"`
+	EnvironmentID       string    `json:"environment_id"`
+	ID                  string    `json:"id"`
+	IntegrationID       string    `json:"integration_id"`
+	OAuthAttemptID      string    `json:"oauth_attempt_id"`
+	PrincipalID         string    `json:"principal_id"`
+	RequestedScopes     []string  `json:"requested_scopes"`
+	ConnectionReference string    `json:"connection_reference"`
+	Provider            string    `json:"provider"`
+	Operation           string    `json:"operation"`
+	IdempotencyKey      string    `json:"idempotency_key"`
+	RequestDigest       string    `json:"request_digest"`
+	Attempt             int       `json:"attempt"`
+	LeaseOwner          string    `json:"lease_owner"`
+	LeaseToken          string    `json:"lease_token"`
+	LeaseExpiresAt      time.Time `json:"lease_expires_at"`
+}
+
+type ConnectorEffectTransition struct {
+	ID        string    `json:"id"`
+	Status    string    `json:"status"`
+	Attempt   int       `json:"attempt"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (repository *ConnectorRepository) ClaimReconciliation(ctx context.Context, owner string, leaseSeconds, limit int) ([]ConnectorEffectLease, error) {
@@ -304,12 +322,70 @@ func (repository *ConnectorRepository) ClaimReconciliation(ctx context.Context, 
 	for index := range page.Items {
 		item := &page.Items[index]
 		digest, digestErr := hex.DecodeString(item.RequestDigest)
-		if digestErr != nil || len(digest) != 32 || !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.IntegrationID) || !validConnectorProvider(item.Provider) || !stringIn(item.Operation, "authorize", "bind", "test", "rotate", "revoke", "nango_connect") || len(item.IdempotencyKey) < 16 || len(item.IdempotencyKey) > 128 || item.Attempt < 1 || item.Attempt > 100 || item.LeaseOwner != owner || len(item.LeaseToken) != 64 || !item.LeaseExpiresAt.After(now) || item.LeaseExpiresAt.After(now.Add(time.Duration(leaseSeconds)*time.Second+time.Second)) {
+		if digestErr != nil || len(digest) != 32 || !validProductID(item.OrganizationID) || !validProductID(item.WorkspaceID) || !validProductID(item.EnvironmentID) || !validProductID(item.ID) || !validProductID(item.IntegrationID) || item.Operation == "authorize" && (!validProductID(item.OAuthAttemptID) || !validProductID(item.PrincipalID) || !validConnectorScopes(item.RequestedScopes)) || item.Operation != "authorize" && (item.OAuthAttemptID != "" || item.PrincipalID != "" || item.RequestedScopes != nil) || item.Operation == "revoke" && !validOpaqueReference(item.ConnectionReference) || item.Operation != "revoke" && item.ConnectionReference != "" || !validConnectorProvider(item.Provider) || !stringIn(item.Operation, "authorize", "bind", "test", "rotate", "revoke", "nango_connect") || len(item.IdempotencyKey) < 16 || len(item.IdempotencyKey) > 128 || item.Attempt < 1 || item.Attempt > 100 || item.LeaseOwner != owner || len(item.LeaseToken) != 64 || !item.LeaseExpiresAt.After(now) || item.LeaseExpiresAt.After(now.Add(time.Duration(leaseSeconds)*time.Second+time.Second)) {
 			return nil, ErrRepositoryUnavailable
 		}
 		item.LeaseExpiresAt = item.LeaseExpiresAt.UTC()
 	}
 	return page.Items, nil
+}
+
+func (repository *ConnectorRepository) CompleteOAuthReconciliation(ctx context.Context, lease ConnectorEffectLease, input OAuthCompletion) (OAuthCompletionRecord, error) {
+	if !validConnectorRepository(repository, ctx) || !validConnectorLease(lease) || lease.Operation != "authorize" || input.AttemptID != lease.OAuthAttemptID || input.EffectID != lease.ID || !validOAuthCompletion(input) {
+		return OAuthCompletionRecord{}, ErrRepositoryOperation
+	}
+	canonicalMetadata, digest := connectorOAuthCompletionDigest(input)
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompleteReconciliationSQL, lease.OrganizationID, lease.WorkspaceID, lease.EnvironmentID, input.AttemptID, input.EffectID, lease.LeaseOwner, lease.LeaseToken, input.ConnectionID, input.ConnectionReference, input.ProviderSubject, input.CredentialID, input.CredentialClass, canonicalMetadata, digest[:])
+	if err != nil {
+		return OAuthCompletionRecord{}, discoveryProviderError(err)
+	}
+	var result OAuthCompletionRecord
+	if decodeStrictDiscovery(payload, &result) != nil || result.AttemptID != input.AttemptID || result.ConnectionID != input.ConnectionID || result.Status != "succeeded" || !validPastServerTime(result.CompletedAt) {
+		return OAuthCompletionRecord{}, ErrRepositoryUnavailable
+	}
+	result.CompletedAt = result.CompletedAt.UTC()
+	return result, nil
+}
+
+func (repository *ConnectorRepository) FailConnectorReconciliation(ctx context.Context, lease ConnectorEffectLease, errorCode string) (ConnectorEffectTransition, error) {
+	if !validConnectorRepository(repository, ctx) || !validConnectorLease(lease) || !connectorCodePattern.MatchString(errorCode) {
+		return ConnectorEffectTransition{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorFailReconciliationSQL, lease.OrganizationID, lease.WorkspaceID, lease.EnvironmentID, lease.ID, lease.LeaseOwner, lease.LeaseToken, errorCode)
+	if err != nil {
+		return ConnectorEffectTransition{}, discoveryProviderError(err)
+	}
+	var result ConnectorEffectTransition
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != lease.ID || result.Status != "failed" || result.Attempt != lease.Attempt || !validPastServerTime(result.UpdatedAt) {
+		return ConnectorEffectTransition{}, ErrRepositoryUnavailable
+	}
+	result.UpdatedAt = result.UpdatedAt.UTC()
+	return result, nil
+}
+
+func (repository *ConnectorRepository) CompleteConnectorRevocation(ctx context.Context, lease ConnectorEffectLease) (ConnectorEffectTransition, error) {
+	if !validConnectorRepository(repository, ctx) || !validConnectorLease(lease) || lease.Operation != "revoke" {
+		return ConnectorEffectTransition{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresConnectorCompleteRevocationSQL, lease.OrganizationID, lease.WorkspaceID, lease.EnvironmentID, lease.ID, lease.LeaseOwner, lease.LeaseToken)
+	if err != nil {
+		return ConnectorEffectTransition{}, discoveryProviderError(err)
+	}
+	var result ConnectorEffectTransition
+	if decodeStrictDiscovery(payload, &result) != nil || result.ID != lease.ID || result.Status != "reconciled" || result.Attempt != lease.Attempt || !validPastServerTime(result.UpdatedAt) {
+		return ConnectorEffectTransition{}, ErrRepositoryUnavailable
+	}
+	result.UpdatedAt = result.UpdatedAt.UTC()
+	return result, nil
+}
+
+func validConnectorLease(lease ConnectorEffectLease) bool {
+	digest, err := hex.DecodeString(lease.RequestDigest)
+	return err == nil && len(digest) == sha256.Size && validProductID(lease.OrganizationID) && validProductID(lease.WorkspaceID) && validProductID(lease.EnvironmentID) && validProductID(lease.ID) && validProductID(lease.IntegrationID) && validConnectorProvider(lease.Provider) && stringIn(lease.Operation, "authorize", "bind", "test", "rotate", "revoke", "nango_connect") && (lease.Operation != "authorize" || validProductID(lease.OAuthAttemptID) && validProductID(lease.PrincipalID) && validConnectorScopes(lease.RequestedScopes)) && (lease.Operation == "authorize" || lease.OAuthAttemptID == "" && lease.PrincipalID == "" && lease.RequestedScopes == nil) && (lease.Operation != "revoke" && lease.ConnectionReference == "" || lease.Operation == "revoke" && validOpaqueReference(lease.ConnectionReference)) && len(lease.IdempotencyKey) >= 16 && len(lease.IdempotencyKey) <= 128 && lease.Attempt >= 1 && lease.Attempt <= 100 && len(lease.LeaseOwner) >= 3 && len(lease.LeaseOwner) <= 128 && len(lease.LeaseToken) == 64 && lease.LeaseExpiresAt.After(time.Now())
+}
+
+func validOAuthCompletion(input OAuthCompletion) bool {
+	return validProductID(input.AttemptID) && validProductID(input.EffectID) && validProductID(input.ConnectionID) && validOpaqueReference(input.ConnectionReference) && len(input.ProviderSubject) >= 1 && len(input.ProviderSubject) <= 256 && validProductID(input.CredentialID) && len(input.CredentialClass) >= 1 && len(input.CredentialClass) <= 64 && validConnectorMetadata(input.Metadata)
 }
 
 func decodeConnectorEffect(payload json.RawMessage, id, integrationID, provider, operation string) (ConnectorEffectRecord, error) {

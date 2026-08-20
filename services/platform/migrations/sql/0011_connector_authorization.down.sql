@@ -12,7 +12,7 @@ BEGIN
     UNION ALL SELECT 'index',table_class.relname||'.'||index_class.relname,jsonb_build_object('definition',regexp_replace(pg_get_indexdef(index_value.indexrelid,0,true),E'\\s+',' ','g'),'unique',index_value.indisunique,'primary',index_value.indisprimary,'exclusion',index_value.indisexclusion,'valid',index_value.indisvalid,'ready',index_value.indisready) FROM pg_index index_value JOIN pg_class table_class ON table_class.oid=index_value.indrelid JOIN pg_class index_class ON index_class.oid=index_value.indexrelid JOIN pg_namespace namespace ON namespace.oid=table_class.relnamespace WHERE namespace.nspname='public' AND left(table_class.relname,5)='zasp_'
     UNION ALL SELECT 'function',procedure.proname||'('||pg_get_function_identity_arguments(procedure.oid)||')',jsonb_build_object('result',pg_get_function_result(procedure.oid),'language',language.lanname,'kind',procedure.prokind,'volatility',procedure.provolatile,'strict',procedure.proisstrict,'security_definer',procedure.prosecdef,'leakproof',procedure.proleakproof,'parallel',procedure.proparallel,'config',COALESCE(to_jsonb(procedure.proconfig),'[]'::jsonb),'body',regexp_replace(btrim(procedure.prosrc),E'\\s+',' ','g')) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_language language ON language.oid=procedure.prolang WHERE namespace.nspname='public' AND left(procedure.proname,5)='zasp_'
   ) SELECT encode(digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(object_kind,object_identity,definition) ORDER BY object_kind,object_identity)::text,'[]'),'UTF8'),'sha256'),'hex') INTO actual_fingerprint FROM semantic_objects;
-  IF actual_fingerprint<>'59127e045743484d04d056f60f2a51ab87f21c93087407f874b8239daa461d4c' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
+  IF actual_fingerprint<>'1e5c5286dd32e9514be275d3b7ef54dfc479f6772f264c2b45da9c066cb80fb9' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
 END $rollback_guard$;
 
 DO $data_guard$ BEGIN
@@ -39,6 +39,9 @@ END $risk_migration$;
 DROP FUNCTION zasp_connector_readiness(text,text);
 DROP FUNCTION zasp_connector_security_ready();
 DROP FUNCTION zasp_connector_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text);
+DROP FUNCTION zasp_connector_complete_revocation(text,text,text,text,text,text);
+DROP FUNCTION zasp_connector_fail_reconciliation(text,text,text,text,text,text,text);
+DROP FUNCTION zasp_connector_complete_reconciliation(text,text,text,text,text,text,text,text,text,text,text,text,jsonb,bytea);
 DROP FUNCTION zasp_connector_complete_oauth(text,text,text,text,text,text,text,text,text,text,jsonb,bytea);
 DROP FUNCTION zasp_connector_put_credential(text,text,text,text,text,text,text,text,bigint,jsonb);
 DROP FUNCTION zasp_connector_claim_reconciliation(text,integer,integer);
@@ -46,6 +49,7 @@ DROP FUNCTION zasp_connector_resolve_effect(text,text,text,text,text,text,jsonb,
 DROP FUNCTION zasp_connector_begin_effect(text,text,text,text,text,text,text,text,text,bytea);
 DROP FUNCTION zasp_connector_consume_oauth(text,text,text,bytea,text,bytea);
 DROP FUNCTION zasp_connector_start_oauth(text,text,text,text,text,text,text,bytea,bytea,text,bytea,jsonb,timestamptz);
+DROP FUNCTION zasp_connector_audit_event(text,text,text,text,text,text,text,text,text,jsonb);
 DROP TABLE zasp_connector_audit;
 DROP TABLE zasp_connector_credentials;
 DROP TABLE zasp_connector_effects;
