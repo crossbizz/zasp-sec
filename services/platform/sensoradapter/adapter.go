@@ -342,6 +342,16 @@ func (normalizer *Normalizer) Normalize(line []byte) (RuntimeEvent, error) {
 	return event, nil
 }
 
+func (normalizer *Normalizer) reset() {
+	if normalizer == nil {
+		return
+	}
+	normalizer.mu.Lock()
+	defer normalizer.mu.Unlock()
+	clear(normalizer.values)
+	normalizer.order = nil
+}
+
 func correlationKey(node string, process providerProcess) (processCorrelationKey, bool) {
 	if !boundedText(node, 253) || process.PID == 0 {
 		return processCorrelationKey{}, false
