@@ -2361,7 +2361,7 @@ export type components = {
     parameters: {
         /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
         readonly CSRFToken: string;
-        /** @description Explicit fresh-auth confirmation required for an approval decision. */
+        /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
         readonly FreshAuth: "confirmed";
         /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
         readonly IdempotencyKey: string;
@@ -3689,7 +3689,7 @@ export interface operations {
                 readonly "If-Match": components["parameters"]["ResourceVersion"];
                 /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
                 readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
-                /** @description Explicit fresh-auth confirmation required for an approval decision. */
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
                 readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
             };
             readonly path: {
@@ -3775,7 +3775,7 @@ export interface operations {
                 readonly "If-Match": components["parameters"]["ResourceVersion"];
                 /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
                 readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
-                /** @description Explicit fresh-auth confirmation required for an approval decision. */
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
                 readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
             };
             readonly path: {

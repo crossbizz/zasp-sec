@@ -115,7 +115,7 @@ function verifyDocument(value, rawText) {
       name: "X-Zasp-Fresh-Auth",
       in: "header",
       required: true,
-      description: "Explicit fresh-auth confirmation required for an approval decision.",
+      description: "Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation.",
       schema: { type: "string", const: "confirmed" },
     },
     IdempotencyKey: {
