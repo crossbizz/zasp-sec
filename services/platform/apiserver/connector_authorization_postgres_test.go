@@ -1023,6 +1023,42 @@ func TestConnectorAuthorizationPostgresClaimsFairlyAcrossScopes(t *testing.T) {
 	}
 }
 
+func TestConnectorAuthorizationPostgresOneClaimNeverLeasesSameGlobalLaneAcrossScopes(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(ctx)
+	migrateToConnectorAuthorization(t, ctx, connection)
+	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	repository, _ := NewPostgresRepository(database)
+	connectors := &ConnectorRepository{database: database}
+	first := fixtureRequestIdentity(t)
+	second := first
+	secondOrganization, _ := domain.ParseProductID("pid_72460001-0000-4000-8000-000000000001")
+	secondWorkspace, _ := domain.ParseProductID("pid_72460002-0000-4000-8000-000000000002")
+	secondEnvironment, _ := domain.ParseProductID("pid_72460003-0000-4000-8000-000000000003")
+	second.Scope, _ = domain.NewScope(secondOrganization, secondWorkspace, secondEnvironment)
+	digest := sha256.Sum256([]byte("global-lane-across-scopes"))
+	for index, identity := range []RequestIdentity{first, second} {
+		integrationID := fmt.Sprintf("pid_72460%03d-0000-4000-8000-%012d", index+1, index+1)
+		create := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: fmt.Sprintf("global-lane-create-%04d", index), Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"Global Lane","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: fmt.Sprintf("pid_72461%03d-0000-4000-8000-%012d", index+1, index+1), CorrelationID: fmt.Sprintf("pid_72462%03d-0000-4000-8000-%012d", index+1, index+1), ReceiptID: fmt.Sprintf("pid_72463%03d-0000-4000-8000-%012d", index+1, index+1)}
+		if _, err := repository.MutateWorkflow(ctx, identity, create); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,connection_reference,attempt,available_at,updated_at) VALUES($1,$2,$3,$4,$5,'github','revoke',$6,$7,'unknown','ref:github/installation/123456',0,transaction_timestamp()-interval '1 minute',transaction_timestamp()-interval '1 minute')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), fmt.Sprintf("pid_72464%03d-0000-4000-8000-%012d", index+1, index+1), integrationID, fmt.Sprintf("global-lane-effect-%04d", index), digest[:]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	leases, err := connectors.ClaimReconciliation(ctx, "global-lane-worker", 30, 25)
+	if err != nil || len(leases) != 1 || leases[0].Provider != "github" || leases[0].Operation != "revoke" {
+		t.Fatalf("same global lane leases=%#v err=%v", leases, err)
+	}
+}
+
 func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousandRowSkew(t *testing.T) {
 	dsn := startDisposablePostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
@@ -1061,7 +1097,7 @@ func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousand
 	var candidatePlan, activePlan []byte
 	if err := connection.QueryRow(ctx, `EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON)
 	 WITH candidates AS (
-	   SELECT effect.organization_id,effect.workspace_id,effect.environment_id,effect.id,effect.updated_at
+	   SELECT lane.provider,lane.operation,effect.organization_id,effect.workspace_id,effect.environment_id,effect.id,effect.updated_at
 	   FROM zasp_connector_effect_lane_scopes lane CROSS JOIN LATERAL (
 	     SELECT candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id,candidate.updated_at
 	     FROM zasp_connector_effects candidate
@@ -1072,8 +1108,10 @@ func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousand
 	       AND (candidate.operation<>'pkce_cleanup' OR candidate.oauth_attempt_id IS NULL OR NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.oauth_attempt_id) AND attempt.status='consuming'))
 	     ORDER BY candidate.updated_at,candidate.id LIMIT 1
 	   ) effect
+	 ), lane_fair AS (
+	   SELECT candidates.*,row_number() OVER(PARTITION BY provider,operation ORDER BY updated_at,id) lane_rank FROM candidates
 	 ), fair AS (
-	   SELECT candidates.*,row_number() OVER(PARTITION BY organization_id,workspace_id,environment_id ORDER BY updated_at,id) organization_rank FROM candidates
+	   SELECT lane_fair.*,row_number() OVER(PARTITION BY organization_id,workspace_id,environment_id ORDER BY updated_at,id) organization_rank FROM lane_fair WHERE lane_rank=1
 	 )
 	 SELECT effect.id FROM zasp_connector_effects effect JOIN fair ON (fair.organization_id,fair.workspace_id,fair.environment_id,fair.id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)
 	 ORDER BY fair.organization_rank,effect.updated_at,effect.id LIMIT 25`).Scan(&candidatePlan); err != nil {
@@ -1088,6 +1126,29 @@ func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousand
 	var decodedPlan any
 	if json.Unmarshal(candidatePlan, &decodedPlan) != nil || maxJSONPlanMetric(decodedPlan, "Actual Rows") > 256 || maxJSONPlanMetric(decodedPlan, "Shared Read Blocks") > 2048 || maxJSONPlanMetric(decodedPlan, "Temp Written Blocks") != 0 || strings.Contains(string(candidatePlan), `"Sort Method": "external`) {
 		t.Fatalf("unbounded reconciliation candidate plan=%s", candidatePlan)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET status='failed',last_error_code='provider_access_denied',resolved_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE status='unknown'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,attempt,available_at,updated_at)
+	 SELECT $1,$2,$3,'pid_'||substr(hash,1,8)||'-'||substr(hash,9,4)||'-4'||substr(hash,14,3)||'-8'||substr(hash,18,3)||'-'||substr(hash,21,12),$4,'nango:history'||lpad(ordinal::text,6,'0'),'bind','history-lane-'||lpad(ordinal::text,10,'0'),digest(('history'||ordinal)::text,'sha256'),'unknown',0,transaction_timestamp()-interval '1 minute',transaction_timestamp()-interval '1 minute'
+	 FROM (SELECT ordinal,md5('history'||ordinal::text) hash FROM generate_series(1,100000) ordinal) generated`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET status='failed',last_error_code='provider_access_denied',resolved_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE idempotency_key LIKE 'history-lane-%'`); err != nil {
+		t.Fatal(err)
+	}
+	var activeLanes int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_connector_effect_lane_scopes`).Scan(&activeLanes); err != nil || activeLanes != 0 {
+		t.Fatalf("historical lane registry=%d err=%v", activeLanes, err)
+	}
+	var emptyPlan []byte
+	if err := connection.QueryRow(ctx, `EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT provider,operation,organization_id,workspace_id,environment_id FROM zasp_connector_effect_lane_scopes ORDER BY provider,operation,organization_id,workspace_id,environment_id LIMIT 25`).Scan(&emptyPlan); err != nil {
+		t.Fatal(err)
+	}
+	decodedPlan = nil
+	if json.Unmarshal(emptyPlan, &decodedPlan) != nil || maxJSONPlanMetric(decodedPlan, "Actual Rows") != 0 || maxJSONPlanMetric(decodedPlan, "Shared Read Blocks") > 2048 || maxJSONPlanMetric(decodedPlan, "Temp Written Blocks") != 0 {
+		t.Fatalf("historical empty queue plan=%s", emptyPlan)
 	}
 }
 
@@ -1348,6 +1409,21 @@ func TestConnectorAuthorizationPostgresWorkerHasOnlyLeasedTransitionAuthority(t 
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_connector_security_ready()`).Scan(&ready); err != nil || !ready {
 		t.Fatalf("restored connector security ready=%t err=%v", ready, err)
+	}
+	if _, err := connection.Exec(ctx, `ALTER TABLE zasp_connector_effects DISABLE TRIGGER zasp_connector_effect_lanes_update`); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_connector_security_ready()`).Scan(&ready); err != nil || ready {
+		t.Fatalf("disabled lane trigger ready=%t err=%v", ready, err)
+	}
+	if _, err := connection.Exec(ctx, migrations.ConnectorAuthorization().DownSQL()); err == nil {
+		t.Fatal("trigger drift did not block guarded connector down")
+	}
+	if _, err := connection.Exec(ctx, `ALTER TABLE zasp_connector_effects ENABLE TRIGGER zasp_connector_effect_lanes_update`); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_connector_security_ready()`).Scan(&ready); err != nil || !ready {
+		t.Fatalf("restored lane trigger ready=%t err=%v", ready, err)
 	}
 }
 

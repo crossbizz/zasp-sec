@@ -73,8 +73,18 @@ const postgresSchemaVersionSQL = `WITH semantic_objects AS (
              'body', regexp_replace(btrim(procedure.prosrc), E'\\s+', ' ', 'g'))
       FROM pg_proc AS procedure
       JOIN pg_namespace AS namespace ON namespace.oid = procedure.pronamespace
-      JOIN pg_language AS language ON language.oid = procedure.prolang
+     JOIN pg_language AS language ON language.oid = procedure.prolang
      WHERE namespace.nspname = 'public' AND left(procedure.proname, 5) = 'zasp_'
+    UNION ALL
+    SELECT 'trigger', table_class.relname || '.' || trigger_value.tgname,
+           jsonb_build_object(
+             'definition', regexp_replace(pg_get_triggerdef(trigger_value.oid, true), E'\\s+', ' ', 'g'),
+             'enabled', trigger_value.tgenabled,
+             'function', trigger_value.tgfoid::regprocedure::text)
+      FROM pg_trigger AS trigger_value
+      JOIN pg_class AS table_class ON table_class.oid = trigger_value.tgrelid
+      JOIN pg_namespace AS namespace ON namespace.oid = table_class.relnamespace
+     WHERE namespace.nspname = 'public' AND table_class.relname = 'zasp_connector_effects' AND NOT trigger_value.tgisinternal
 ), semantic_fingerprint AS (
     SELECT encode(digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(object_kind, object_identity, definition) ORDER BY object_kind, object_identity)::text, '[]'), 'UTF8'), 'sha256'), 'hex') AS value
       FROM semantic_objects

@@ -11,8 +11,9 @@ BEGIN
     UNION ALL SELECT 'constraint',class.relname||'.'||constraint_value.conname,jsonb_build_object('type',constraint_value.contype,'definition',regexp_replace(pg_get_constraintdef(constraint_value.oid,true),E'\\s+',' ','g'),'deferrable',constraint_value.condeferrable,'deferred',constraint_value.condeferred,'validated',constraint_value.convalidated) FROM pg_constraint constraint_value JOIN pg_class class ON class.oid=constraint_value.conrelid JOIN pg_namespace namespace ON namespace.oid=class.relnamespace WHERE namespace.nspname='public' AND left(class.relname,5)='zasp_'
     UNION ALL SELECT 'index',table_class.relname||'.'||index_class.relname,jsonb_build_object('definition',regexp_replace(pg_get_indexdef(index_value.indexrelid,0,true),E'\\s+',' ','g'),'unique',index_value.indisunique,'primary',index_value.indisprimary,'exclusion',index_value.indisexclusion,'valid',index_value.indisvalid,'ready',index_value.indisready) FROM pg_index index_value JOIN pg_class table_class ON table_class.oid=index_value.indrelid JOIN pg_class index_class ON index_class.oid=index_value.indexrelid JOIN pg_namespace namespace ON namespace.oid=table_class.relnamespace WHERE namespace.nspname='public' AND left(table_class.relname,5)='zasp_'
     UNION ALL SELECT 'function',procedure.proname||'('||pg_get_function_identity_arguments(procedure.oid)||')',jsonb_build_object('result',pg_get_function_result(procedure.oid),'language',language.lanname,'kind',procedure.prokind,'volatility',procedure.provolatile,'strict',procedure.proisstrict,'security_definer',procedure.prosecdef,'leakproof',procedure.proleakproof,'parallel',procedure.proparallel,'config',COALESCE(to_jsonb(procedure.proconfig),'[]'::jsonb),'body',regexp_replace(btrim(procedure.prosrc),E'\\s+',' ','g')) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_language language ON language.oid=procedure.prolang WHERE namespace.nspname='public' AND left(procedure.proname,5)='zasp_'
+    UNION ALL SELECT 'trigger',table_class.relname||'.'||trigger_value.tgname,jsonb_build_object('definition',regexp_replace(pg_get_triggerdef(trigger_value.oid,true),E'\\s+',' ','g'),'enabled',trigger_value.tgenabled,'function',trigger_value.tgfoid::regprocedure::text) FROM pg_trigger trigger_value JOIN pg_class table_class ON table_class.oid=trigger_value.tgrelid JOIN pg_namespace namespace ON namespace.oid=table_class.relnamespace WHERE namespace.nspname='public' AND table_class.relname='zasp_connector_effects' AND NOT trigger_value.tgisinternal
   ) SELECT encode(digest(convert_to(COALESCE(jsonb_agg(jsonb_build_array(object_kind,object_identity,definition) ORDER BY object_kind,object_identity)::text,'[]'),'UTF8'),'sha256'),'hex') INTO actual_fingerprint FROM semantic_objects;
-  IF actual_fingerprint<>'6155572ea2a7ba360ae370cd6985c2abe5830be7982ace987328cecafbc11d3b' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
+  IF actual_fingerprint<>'9bc53b82427248d1679223e9625eda9e77f5b3da2d50a7b0806618780e435be8' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='semantic schema drift blocks rollback'; END IF;
 END $rollback_guard$;
 
 DO $data_guard$ BEGIN
@@ -38,8 +39,12 @@ DO $risk_migration$ DECLARE definition text; BEGIN
 END $risk_migration$;
 DROP FUNCTION zasp_connector_readiness(text,text);
 DROP FUNCTION zasp_connector_security_ready();
-DROP TRIGGER zasp_connector_effect_lane_scopes_insert ON zasp_connector_effects;
-DROP FUNCTION zasp_connector_register_effect_lane_scopes();
+DROP TRIGGER zasp_connector_effect_lanes_insert ON zasp_connector_effects;
+DROP TRIGGER zasp_connector_effect_lanes_update ON zasp_connector_effects;
+DROP TRIGGER zasp_connector_effect_lanes_delete ON zasp_connector_effects;
+DROP FUNCTION zasp_connector_effect_lanes_insert();
+DROP FUNCTION zasp_connector_effect_lanes_update();
+DROP FUNCTION zasp_connector_effect_lanes_delete();
 DROP FUNCTION zasp_connector_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text);
 DROP FUNCTION zasp_connector_complete_revocation(text,text,text,text,text,text);
 DROP FUNCTION zasp_connector_fail_reconciliation(text,text,text,text,text,text,text);
