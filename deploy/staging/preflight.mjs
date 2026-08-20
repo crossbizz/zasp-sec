@@ -9,16 +9,20 @@ const toolChecks = Object.freeze([
 ]);
 export const requiredTools = Object.freeze(toolChecks.map(({ tool }) => tool));
 const digestPattern = /^[a-z0-9./_-]+(?::[a-zA-Z0-9._-]+)?@sha256:[0-9a-f]{64}$/;
-const rolePrefix = "arn:aws:iam::[0-9]{12}:role/zasp-production-";
 const identityContract = Object.freeze({
-  web: Object.freeze({ serviceAccount: "agentsec-web", role: null }),
-  agentsecApi: Object.freeze({ serviceAccount: "agentsec-api", role: new RegExp(`^${rolePrefix}api$`) }),
-  discoveryScheduler: Object.freeze({ serviceAccount: "zasp-discovery-scheduler", role: new RegExp(`^${rolePrefix}discovery-scheduler$`) }),
-  projectionSearch: Object.freeze({ serviceAccount: "zasp-projection-search", role: new RegExp(`^${rolePrefix}projection-search$`) }),
-  outboxPublisher: Object.freeze({ serviceAccount: "zasp-outbox-publisher", role: new RegExp(`^${rolePrefix}outbox$`) }),
-  migration: Object.freeze({ serviceAccount: "agentsec-migration", role: new RegExp(`^${rolePrefix}migration$`) }),
-  canary: Object.freeze({ serviceAccount: "agentsec-canary", role: null }),
-  canarySecretSync: Object.freeze({ serviceAccount: "agentsec-canary-secret-sync", role: new RegExp(`^${rolePrefix}canary-secret-sync$`) }),
+  web: Object.freeze({ serviceAccount: "agentsec-web", role: null, deployment: true }),
+  agentsecApi: Object.freeze({ serviceAccount: "agentsec-api", role: "api", deployment: true }),
+  discoveryScheduler: Object.freeze({ serviceAccount: "zasp-discovery-scheduler", role: "discovery-scheduler", deployment: true }),
+  discoveryWorker: Object.freeze({ serviceAccount: "zasp-discovery-worker", role: "discovery-worker", deployment: true }),
+  outboxPublisher: Object.freeze({ serviceAccount: "zasp-outbox-publisher", role: "outbox", deployment: true }),
+  projectionRisk: Object.freeze({ serviceAccount: "zasp-projection-risk", role: "projection-risk", deployment: true }),
+  projectionGraph: Object.freeze({ serviceAccount: "zasp-projection-graph", role: "projection-graph", deployment: true }),
+  projectionSearch: Object.freeze({ serviceAccount: "zasp-projection-search", role: "projection-search", deployment: true }),
+  migration: Object.freeze({ serviceAccount: "agentsec-migration", role: "migration", deployment: false }),
+  projectionGraphInit: Object.freeze({ serviceAccount: "agentsec-projection-graph-init", role: "projection-graph-init", deployment: false }),
+  projectionSearchInit: Object.freeze({ serviceAccount: "agentsec-projection-search-init", role: "projection-search-init", deployment: false }),
+  canary: Object.freeze({ serviceAccount: "agentsec-canary", role: null, deployment: false }),
+  canarySecretSync: Object.freeze({ serviceAccount: "agentsec-canary-secret-sync", role: "canary-secret-sync", deployment: false }),
 });
 
 function exactKeys(value, keys) {
@@ -26,14 +30,15 @@ function exactKeys(value, keys) {
 }
 
 export function validateReleaseInput(input) {
-  if (!exactKeys(input, ["environment", "privateEndpointOnly", "endpoint_public_access", "productImages", "workloadIdentities"]) || input.environment !== "production" || input.privateEndpointOnly !== true || input.endpoint_public_access !== false) throw new Error("release preflight rejected");
+  if (!exactKeys(input, ["environment", "platformAccountID", "privateEndpointOnly", "endpoint_public_access", "productImages", "workloadIdentities"]) || input.environment !== "production" || !/^[0-9]{12}$/.test(input.platformAccountID) || input.platformAccountID === "000000000000" || input.privateEndpointOnly !== true || input.endpoint_public_access !== false) throw new Error("release preflight rejected");
   if (!exactKeys(input.productImages, ["web", "agentsecApi", "agentsecWorker"]) || !Object.values(input.productImages).every((value) => digestPattern.test(value))) throw new Error("release preflight rejected");
   if (!exactKeys(input.workloadIdentities, Object.keys(identityContract))) throw new Error("release preflight rejected");
   for (const [name, expected] of Object.entries(identityContract)) {
     const identity = input.workloadIdentities[name];
-    if (!exactKeys(identity, ["serviceAccount", "roleArn"]) || identity.serviceAccount !== expected.serviceAccount || (expected.role === null ? identity.roleArn !== null : !expected.role.test(identity.roleArn))) throw new Error("release preflight rejected");
+    const expectedRole = expected.role === null ? null : `arn:aws:iam::${input.platformAccountID}:role/zasp-production-${expected.role}`;
+    if (!exactKeys(identity, ["serviceAccount", "roleArn"]) || identity.serviceAccount !== expected.serviceAccount || identity.roleArn !== expectedRole) throw new Error("release preflight rejected");
   }
-  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 3, cloudIdentities: 6 });
+  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 3, deployments: Object.values(identityContract).filter(({ deployment }) => deployment).length, cloudIdentities: Object.values(identityContract).filter(({ role }) => role !== null).length });
 }
 
 export function runPreflight(argv = process.argv.slice(2), runtime = { spawn: spawnSync, read: readFileSync }) {

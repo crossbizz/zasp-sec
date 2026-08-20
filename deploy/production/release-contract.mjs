@@ -49,20 +49,21 @@ export async function inspectContainerBuilds() {
 
 export async function renderRelease(value) {
   if (!validRelease(value)) throw new Error("release rejected");
+  const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
   const set = [
     ["global.publicOrigin", `https://${value.host}`],
     ["global.trustedProxyCIDRs[0]", "10.20.0.0/16"],
-    ["serviceAccounts.api.roleArn", "arn:aws:iam::123456789012:role/zasp-production-api"],
-    ["serviceAccounts.migration.roleArn", "arn:aws:iam::123456789012:role/zasp-production-migration"],
+    ["serviceAccounts.api.roleArn", `arn:aws:iam::${platformAccountID}:role/zasp-production-api`],
+    ["serviceAccounts.migration.roleArn", `arn:aws:iam::${platformAccountID}:role/zasp-production-migration`],
     ["serviceAccounts.worker.roleArn", value.discovery.roleArn],
-    ["serviceAccounts.scheduler.roleArn", "arn:aws:iam::123456789012:role/zasp-production-discovery-scheduler"],
+    ["serviceAccounts.scheduler.roleArn", `arn:aws:iam::${platformAccountID}:role/zasp-production-discovery-scheduler`],
     ["serviceAccounts.projectionRisk.roleArn", value.projectionRisk.roleArn],
     ["serviceAccounts.projectionGraph.roleArn", value.projectionGraph.roleArn],
     ["serviceAccounts.projectionGraphInit.roleArn", value.projectionGraph.initRoleArn],
     ["serviceAccounts.projectionSearch.roleArn", value.projectionSearch.roleArn],
     ["serviceAccounts.projectionSearchInit.roleArn", value.projectionSearch.initRoleArn],
     ["serviceAccounts.outbox.roleArn", value.outbox.roleArn],
-    ["serviceAccounts.canarySecretSync.roleArn", "arn:aws:iam::123456789012:role/zasp-production-canary-sync"],
+    ["serviceAccounts.canarySecretSync.roleArn", `arn:aws:iam::${platformAccountID}:role/zasp-production-canary-secret-sync`],
     ["ingress.host", value.host], ["ingress.tlsSecretName", value.tlsSecretName],
     ["secrets.providerClassName", value.secretProviderClass],
     ["secrets.apiPostgresDSNObjectName", "zasp/production/postgres-api-dsn"],
@@ -152,11 +153,13 @@ export async function renderRelease(value) {
     ...connectorEgressKeys.flatMap((provider) => value.connectorEgressCIDRs[provider].map((cidr, index) => [`network.connectorEgressCIDRs.${provider}[${index}]`, cidr])),
     ...imageNames.map((name) => [`global.productImages.${name}`, value.images[name]]),
   ];
-  const args = ["template", "zasp", path.join(root, "deploy/staging/product"), "--namespace", "agentsec"];
-  for (const [key, entry] of set) args.push("--set-string", `${key}=${entry.replaceAll("\\", "\\\\").replaceAll(",", "\\,")}`);
+  const chart = path.join(root, "deploy/staging/product");
+  const valueArgs = [];
+  for (const [key, entry] of set) valueArgs.push("--set-string", `${key}=${entry.replaceAll("\\", "\\\\").replaceAll(",", "\\,")}`);
   let stdout;
   try {
-    ({ stdout } = await exec("helm", args, { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 }));
+    await exec("helm", ["lint", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
+    ({ stdout } = await exec("helm", ["template", "zasp", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 }));
   } catch {
     throw new Error("release rejected");
   }
@@ -167,6 +170,7 @@ export async function renderRelease(value) {
     throw new Error("release rejected");
   }
   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw new Error("release rejected");
+  validateRenderedRelease(resources, platformAccountID);
   return Object.freeze(resources);
 }
 
@@ -188,7 +192,7 @@ function validRelease(value) {
   const searchRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-projection-search$/.exec(value.projectionSearch.roleArn);
   const searchInitRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-projection-search-init$/.exec(value.projectionSearch.initRoleArn);
   const searchEndpoint = /^https:\/\/(?:search|vpc)-[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.es\.amazonaws\.com$/.exec(value.projectionSearch.endpoint);
-  if (!searchRole || !searchInitRole || searchRole[1] !== searchInitRole[1] || !searchEndpoint || value.projectionSearch.awsRegion !== searchEndpoint[1] || value.projectionSearch.index !== "zasp-inventory-v1" || value.projectionSearch.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token") return false;
+  if (!searchRole || !searchInitRole || searchRole[1] !== searchInitRole[1] || searchRole[1] !== discoveryRole[1] || !searchEndpoint || value.projectionSearch.awsRegion !== searchEndpoint[1] || value.projectionSearch.index !== "zasp-inventory-v1" || value.projectionSearch.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token") return false;
   if (!value.projectionRisk || typeof value.projectionRisk !== "object" || Array.isArray(value.projectionRisk) || Object.keys(value.projectionRisk).sort().join("\0") !== [...projectionRiskKeys].sort().join("\0")) return false;
   const riskRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-projection-risk$/.exec(value.projectionRisk.roleArn);
   if (!riskRole || riskRole[1] !== searchRole[1]) return false;
@@ -201,11 +205,11 @@ function validRelease(value) {
   if (!value.outbox || typeof value.outbox !== "object" || Array.isArray(value.outbox) || Object.keys(value.outbox).sort().join("\0") !== [...outboxKeys].sort().join("\0")) return false;
   const outboxRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-outbox$/.exec(value.outbox.roleArn);
   const outboxQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-discovery-jobs$/.exec(value.outbox.queueURL);
-  if (!outboxRole || !outboxQueue || value.outbox.awsRegion !== outboxQueue[1] || outboxRole[1] !== outboxQueue[2] || value.outbox.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validCIDRList(value.outbox.egressCIDRs)) return false;
+  if (!outboxRole || !outboxQueue || value.outbox.awsRegion !== outboxQueue[1] || outboxRole[1] !== outboxQueue[2] || outboxRole[1] !== discoveryRole[1] || value.outbox.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validCIDRList(value.outbox.egressCIDRs)) return false;
   if (!value.connectors || typeof value.connectors !== "object" || Array.isArray(value.connectors) || Object.keys(value.connectors).sort().join("\0") !== [...connectorKeys].sort().join("\0")) return false;
   const role = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-api-connectors$/.exec(value.connectors.roleArn);
   const kms = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.connectors.kmsKeyArn);
-  if (!/^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$/.test(value.connectors.awsRegion) || !role || !kms || kms[1] !== value.connectors.awsRegion || kms[2] !== role[1]) return false;
+  if (!/^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]$/.test(value.connectors.awsRegion) || !role || !kms || kms[1] !== value.connectors.awsRegion || kms[2] !== role[1] || role[1] !== discoveryRole[1]) return false;
   if (!Array.isArray(value.connectors.awsCustomerRolePrefixes) || value.connectors.awsCustomerRolePrefixes.length < 1 || value.connectors.awsCustomerRolePrefixes.length > 64 || new Set(value.connectors.awsCustomerRolePrefixes).size !== value.connectors.awsCustomerRolePrefixes.length || !value.connectors.awsCustomerRolePrefixes.every((prefix) => /^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9+=,.@_/-]{1,120}\/$/.test(prefix))) return false;
   if (!Array.isArray(value.connectors.awsCustomerRoleARNs) || value.connectors.awsCustomerRoleARNs.length < 1 || value.connectors.awsCustomerRoleARNs.length > 64 || new Set(value.connectors.awsCustomerRoleARNs).size !== value.connectors.awsCustomerRoleARNs.length || !value.connectors.awsCustomerRoleARNs.every((roleARN) => /^arn:aws:iam::[0-9]{12}:role\/[A-Za-z0-9+=,.@_/-]{1,128}$/.test(roleARN) && value.connectors.awsCustomerRolePrefixes.some((prefix) => roleARN.startsWith(prefix) && roleARN !== prefix))) return false;
   if (value.connectors.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.connectors.secretPrefix !== "zasp-production/connectors/oauth") return false;
@@ -214,6 +218,57 @@ function validRelease(value) {
   if (value.discovery.githubAppID !== value.connectors.githubAppID || value.discovery.githubPrivateKeyReference !== value.connectors.githubPrivateKeyReference || value.discovery.oktaClientID !== value.connectors.oktaClientID || value.discovery.oktaClientSecretReference !== value.connectors.oktaClientSecretReference) return false;
   if (!value.connectorEgressCIDRs || typeof value.connectorEgressCIDRs !== "object" || Array.isArray(value.connectorEgressCIDRs) || Object.keys(value.connectorEgressCIDRs).sort().join("\0") !== [...connectorEgressKeys].sort().join("\0")) return false;
   return connectorEgressKeys.every((provider) => validCIDRList(value.connectorEgressCIDRs[provider]));
+}
+
+export function validateRenderedRelease(resources, platformAccountID) {
+  const accountPattern = /^[0-9]{12}$/;
+  if (!Array.isArray(resources) || !accountPattern.test(platformAccountID) || platformAccountID === "000000000000") throw new Error("release rejected");
+  const deployments = new Map(resources.filter(({ kind }) => kind === "Deployment").map((resource) => [resource.metadata?.name, resource]));
+  const deploymentIdentities = new Map([
+    ["web", "agentsec-web"],
+    ["agentsec-api", "agentsec-api"],
+    ["agentsec-discovery-scheduler", "zasp-discovery-scheduler"],
+    ["agentsec-discovery-worker", "zasp-discovery-worker"],
+    ["agentsec-outbox-publisher", "zasp-outbox-publisher"],
+    ["agentsec-projection-risk", "zasp-projection-risk"],
+    ["agentsec-projection-graph", "zasp-projection-graph"],
+    ["agentsec-projection-search", "zasp-projection-search"],
+  ]);
+  if (deployments.size !== deploymentIdentities.size || [...deploymentIdentities].some(([name, serviceAccount]) => deployments.get(name)?.spec?.template?.spec?.serviceAccountName !== serviceAccount)) throw new Error("release rejected");
+  const identityContracts = new Map([
+    ["agentsec-web", null],
+    ["agentsec-api", "api"],
+    ["zasp-discovery-scheduler", "discovery-scheduler"],
+    ["zasp-discovery-worker", "discovery-worker"],
+    ["zasp-outbox-publisher", "outbox"],
+    ["zasp-projection-risk", "projection-risk"],
+    ["zasp-projection-graph", "projection-graph"],
+    ["zasp-projection-search", "projection-search"],
+    ["agentsec-migration", "migration"],
+    ["agentsec-projection-graph-init", "projection-graph-init"],
+    ["agentsec-projection-search-init", "projection-search-init"],
+    ["agentsec-canary", null],
+    ["agentsec-canary-secret-sync", "canary-secret-sync"],
+  ]);
+  const accounts = new Map(resources.filter(({ kind }) => kind === "ServiceAccount").map((resource) => [resource.metadata?.name, resource]));
+  if (accounts.size !== identityContracts.size) throw new Error("release rejected");
+  for (const [name, role] of identityContracts) {
+    const rendered = accounts.get(name);
+    const roleArn = rendered?.metadata?.annotations?.["eks.amazonaws.com/role-arn"];
+    if (!rendered || (role === null ? roleArn !== undefined : roleArn !== `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`)) throw new Error("release rejected");
+  }
+  for (const [kind, name, serviceAccount] of [
+    ["Job", "agentsec-schema-v13", "agentsec-migration"],
+    ["Job", "agentsec-projection-graph-init-v1", "agentsec-projection-graph-init"],
+    ["Job", "agentsec-projection-search-init-v1", "agentsec-projection-search-init"],
+    ["CronJob", "production-readonly-canary", "agentsec-canary"],
+    ["Job", "zasp-canary-secret-sync", "agentsec-canary-secret-sync"],
+  ]) {
+    const resource = resources.find((candidate) => candidate.kind === kind && candidate.metadata?.name === name);
+    const pod = kind === "CronJob" ? resource?.spec?.jobTemplate?.spec?.template?.spec : resource?.spec?.template?.spec;
+    if (pod?.serviceAccountName !== serviceAccount) throw new Error("release rejected");
+  }
+  return Object.freeze({ deployments: deployments.size, identities: accounts.size, platformAccountID });
 }
 
 function validCIDRList(value) {

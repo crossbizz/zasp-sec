@@ -659,12 +659,12 @@ resource "aws_iam_role_policy" "outbox" {
         "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product["postgres-outbox-worker-dsn"].arn
       } }
     },
-    { Effect = "Allow", Action = ["sqs:SendMessage"], Resource = aws_sqs_queue.work["discovery-jobs"].arn },
+    { Effect = "Allow", Action = ["sqs:SendMessage", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.work["discovery-jobs"].arn },
     {
       Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = aws_kms_key.staging.arn
       Condition = { StringEquals = {
-        "kms:ViaService"                          = "sqs.${var.region}.amazonaws.com"
-        "kms:EncryptionContext:aws:sqs:queue-arn" = aws_sqs_queue.work["discovery-jobs"].arn
+        "kms:ViaService"                    = "sqs.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:aws:sqs:arn" = aws_sqs_queue.work["discovery-jobs"].arn
       } }
     },
   ] })

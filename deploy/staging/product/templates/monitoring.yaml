@@ -74,21 +74,51 @@ spec:
           for: 5m
           labels: { severity: page }
           annotations: { summary: "Discovery worker is unavailable or absent" }
-        - alert: ZaspProjectionWorkersUnavailable
-          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment=~"agentsec-projection-(risk|graph|search)"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment=~"agentsec-projection-(risk|graph|search)"})
+        - alert: ZaspDiscoverySchedulerUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-discovery-scheduler"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-discovery-scheduler"})
           for: 5m
           labels: { severity: page }
-          annotations: { summary: "A projection worker is unavailable or absent" }
-        - alert: ZaspTask4ControlWorkersUnavailable
-          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment=~"agentsec-(discovery-scheduler|outbox-publisher)"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment=~"agentsec-(discovery-scheduler|outbox-publisher)"})
+          annotations: { summary: "Discovery scheduler is unavailable or absent" }
+        - alert: ZaspOutboxPublisherUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-outbox-publisher"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-outbox-publisher"})
           for: 5m
           labels: { severity: page }
-          annotations: { summary: "The discovery scheduler or outbox publisher is unavailable or absent" }
+          annotations: { summary: "Discovery outbox publisher is unavailable or absent" }
+        - alert: ZaspProjectionRiskUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-projection-risk"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-projection-risk"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "Risk projection worker is unavailable or absent" }
+        - alert: ZaspProjectionGraphUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-projection-graph"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-projection-graph"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "Graph projection worker is unavailable or absent" }
+        - alert: ZaspProjectionSearchUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-projection-search"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-projection-search"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "Search projection worker is unavailable or absent" }
         - alert: ZaspTask4WorkerDependencyNotReady
-          expr: min by (pod) (agentsec_ready{service="agentsec-worker"}) == 0
+          expr: zasp_worker_driver_ready == 0 or absent(zasp_worker_driver_ready)
           for: 10m
           labels: { severity: ticket }
           annotations: { summary: "A discovery or projection worker dependency is not ready" }
+        - alert: ZaspProjectionBacklogAge
+          expr: max(zasp_worker_projection_backlog_age_seconds) > 300
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "Projection backlog age exceeds five minutes" }
+        - alert: ZaspWorkerLeaseLoss
+          expr: sum(increase(zasp_worker_lease_loss_total[10m])) > 0
+          for: 5m
+          labels: { severity: ticket }
+          annotations: { summary: "A worker lost durable lease ownership" }
+        - alert: ZaspWorkerExhaustion
+          expr: sum(increase(zasp_worker_exhaustion_total[15m])) > 0
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "A worker exhausted bounded retry attempts" }
         - alert: ZaspTask4WorkerCapacityExhausted
           expr: kube_horizontalpodautoscaler_status_current_replicas{namespace="{{ .Release.Namespace }}",horizontalpodautoscaler=~"agentsec-(discovery-(scheduler|worker)|outbox-publisher|projection-(risk|graph|search))"} >= kube_horizontalpodautoscaler_spec_max_replicas{namespace="{{ .Release.Namespace }}",horizontalpodautoscaler=~"agentsec-(discovery-(scheduler|worker)|outbox-publisher|projection-(risk|graph|search))"}
           for: 15m

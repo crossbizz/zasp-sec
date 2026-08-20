@@ -395,10 +395,28 @@ test("release renders read-only synthetic and exact SLO budgets without credenti
   assert.match(errorBudget.expr, /zasp_http_slo_requests_total/);
   assert.doesNotMatch(errorBudget.expr, /clamp_min/);
   assert.match(errorBudget.expr, /sum\(rate\(zasp_http_slo_requests_total\[5m\]\)\) > 0/);
-  for (const [alert, workload] of [["ZaspWebUnavailable", "web"], ["ZaspAPIUnavailable", "agentsec-api"]]) {
+  for (const [alert, workload] of [
+    ["ZaspWebUnavailable", "web"],
+    ["ZaspAPIUnavailable", "agentsec-api"],
+    ["ZaspDiscoverySchedulerUnavailable", "agentsec-discovery-scheduler"],
+    ["ZaspDiscoveryWorkerUnavailable", "agentsec-discovery-worker"],
+    ["ZaspOutboxPublisherUnavailable", "agentsec-outbox-publisher"],
+    ["ZaspProjectionRiskUnavailable", "agentsec-projection-risk"],
+    ["ZaspProjectionGraphUnavailable", "agentsec-projection-graph"],
+    ["ZaspProjectionSearchUnavailable", "agentsec-projection-search"],
+  ]) {
     const availability = rules.spec.groups.flatMap(({ rules: groupRules }) => groupRules).find((rule) => rule.alert === alert);
     assert.match(availability.expr, new RegExp(`deployment="${workload}"`));
     assert.match(availability.expr, /absent\(/);
+  }
+  for (const [alert, metric] of [
+    ["ZaspTask4WorkerDependencyNotReady", "zasp_worker_driver_ready"],
+    ["ZaspProjectionBacklogAge", "zasp_worker_projection_backlog_age_seconds"],
+    ["ZaspWorkerLeaseLoss", "zasp_worker_lease_loss_total"],
+    ["ZaspWorkerExhaustion", "zasp_worker_exhaustion_total"],
+  ]) {
+    const rule = rules.spec.groups.flatMap(({ rules: groupRules }) => groupRules).find((candidate) => candidate.alert === alert);
+    assert.match(rule.expr, new RegExp(metric));
   }
 });
 
@@ -408,6 +426,8 @@ test("release rejects unpinned images and hostile public identifiers", async () 
   await assert.rejects(() => renderRelease({ ...release, images: { ...release.images, web: "zasp/web:latest" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, discovery: { ...release.discovery, parserVersion: "parser-v1" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, discovery: { ...release.discovery, roleArn: release.outbox.roleArn } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, projectionSearch: { ...release.projectionSearch, roleArn: "arn:aws:iam::210987654321:role/zasp-production-projection-search", initRoleArn: "arn:aws:iam::210987654321:role/zasp-production-projection-search-init" } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, connectors: { ...release.connectors, roleArn: "arn:aws:iam::210987654321:role/zasp-production-api-connectors", kmsKeyArn: "arn:aws:kms:us-west-2:210987654321:key/11111111-1111-4111-8111-111111111111" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, discovery: { ...release.discovery, queueURL: "https://sqs.us-east-1.amazonaws.com/123456789012/agentsec-discovery-jobs" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, discovery: { ...release.discovery, secretPrefix: release.connectors.secretPrefix } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, discovery: { ...release.discovery, githubAppID: "654321" } }), /release rejected/);
@@ -497,9 +517,11 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
   assert.doesNotMatch(searchInitPolicy, /_bulk|_mget|_delete_by_query|secretsmanager:|s3:|sqs:/);
   const outboxPolicyStart = terraform.indexOf('resource "aws_iam_role_policy" "outbox"');
   const outboxPolicy = terraform.slice(outboxPolicyStart, terraform.indexOf("\nresource ", outboxPolicyStart + 1));
-  assert.match(outboxPolicy, /sqs:SendMessage/);
+  assert.match(outboxPolicy, /sqs:SendMessage.*sqs:GetQueueAttributes/s);
   assert.match(outboxPolicy, /aws_sqs_queue\.work\["discovery-jobs"\]\.arn/);
   assert.match(outboxPolicy, /kms:ViaService[\s\S]*sqs\.\$\{var\.region\}\.amazonaws\.com/);
+  assert.match(outboxPolicy, /kms:EncryptionContext:aws:sqs:arn/);
+  assert.doesNotMatch(outboxPolicy, /kms:EncryptionContext:aws:sqs:queue-arn/);
   assert.doesNotMatch(outboxPolicy, /sqs:\*|Resource\s*=\s*"\*"|sqs:ReceiveMessage|sqs:DeleteMessage/);
   const apiSecrets = terraform.slice(terraform.indexOf("api_secret_names"), terraform.indexOf("queue_contract"));
   assert.match(apiSecrets, /postgres-api-dsn/);

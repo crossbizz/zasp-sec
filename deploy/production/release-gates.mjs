@@ -93,7 +93,12 @@ export async function verifyReleaseSources() {
   for (const contract of ["ZASP_WORKER_MODE", "projection-risk", "projection-graph", "projection-search", "ZASP_NEO4J_EXPECTED_PRINCIPAL", "ZASP_NEO4J_EXPECTED_ROLE"]) if (!workloads.includes(contract)) throw new Error("worker deployment gate rejected");
   for (const contract of ["projection-search-init", "projection-graph-init", "ZASP_PROJECTION_INIT_ROLE_ARN", "ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE", "ZASP_PROJECTION_INIT_TIMEOUT", "ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE", "ZASP_OPENSEARCH_INDEX", 'helm.sh/hook-weight: "-7"']) if (!projectionInit.includes(contract)) throw new Error("projection init gate rejected");
   for (const contract of ["agentsec-discovery-worker", "agentsec-projection-risk", "agentsec-projection-graph", "agentsec-projection-search", "HorizontalPodAutoscaler", "PodDisruptionBudget", "default-deny"]) if (!resilience.includes(contract)) throw new Error("worker resilience gate rejected");
-  for (const contract of ["ZaspDiscoveryWorkerUnavailable", "ZaspProjectionWorkersUnavailable", "ZaspTask4ControlWorkersUnavailable", "ZaspTask4WorkerDependencyNotReady", "ZaspTask4WorkerCapacityExhausted"]) if (!monitoring.includes(contract)) throw new Error("worker monitoring gate rejected");
+  for (const contract of [
+    "ZaspDiscoverySchedulerUnavailable", "ZaspDiscoveryWorkerUnavailable", "ZaspOutboxPublisherUnavailable",
+    "ZaspProjectionRiskUnavailable", "ZaspProjectionGraphUnavailable", "ZaspProjectionSearchUnavailable",
+    "ZaspTask4WorkerDependencyNotReady", "ZaspProjectionBacklogAge", "ZaspWorkerLeaseLoss", "ZaspWorkerExhaustion", "ZaspTask4WorkerCapacityExhausted",
+    "zasp_worker_driver_ready", "zasp_worker_projection_backlog_age_seconds", "zasp_worker_lease_loss_total", "zasp_worker_exhaustion_total",
+  ]) if (!monitoring.includes(contract)) throw new Error("worker monitoring gate rejected");
 
   await exec("gitleaks", ["git", "--no-banner", "--redact", "--log-opts=HEAD"], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   const workflow = await source(".github/workflows/runnable-ui.yml");
