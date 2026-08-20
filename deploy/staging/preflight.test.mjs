@@ -16,6 +16,7 @@ const input = {
     eventIngest: digest("zasp/event-ingest", "d"),
     gatewayControl: digest("zasp/gateway-control", "e"),
     runtimeGateway: digest("zasp/runtime-gateway", "f"),
+    sensorAgent: digest("zasp/sensor-agent", "1"),
   },
   workloadIdentities: {
     web: { serviceAccount: "agentsec-web", roleArn: null },
@@ -43,10 +44,10 @@ const input = {
   },
 };
 
-test("release preflight validates all six images and least-privilege identities", () => {
+test("release preflight validates all seven images and least-privilege identities", () => {
   const calls = [];
   const value = runPreflight(["--input", "release.json"], { read: () => JSON.stringify(input), spawn: (tool, args, options) => { calls.push({ tool, args, options }); return { status: 0 }; } });
-  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 6, deployments: 17, cloudIdentities: 20 });
+  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 7, deployments: 17, cloudIdentities: 20 });
   assert.deepEqual(calls.map(({ tool, args }) => ({ tool, args })), [
     { tool: "terraform", args: ["version", "-json"] },
     { tool: "helm", args: ["version", "--short"] },

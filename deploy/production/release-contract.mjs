@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isIP } from "node:net";
 import path from "node:path";
@@ -13,7 +14,8 @@ const digestPattern = /^[a-z0-9][a-z0-9./_-]*(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-
 const hostPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const namePattern = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
 const productIDPattern = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const imageNames = Object.freeze(["web", "agentsecApi", "agentsecWorker", "eventIngest", "gatewayControl", "runtimeGateway"]);
+const imageNames = Object.freeze(["web", "agentsecApi", "agentsecWorker", "eventIngest", "gatewayControl", "runtimeGateway", "sensorAgent"]);
+const tetragonChartDigest = "4935787067939cacfe779366e9959962458d0cb6accdb368ec2554c1b733b3b2";
 const discoveryKeys = Object.freeze([
   "parserVersion", "toolVersion", "awsCollectorVersion", "kubernetesCollectorVersion", "githubCollectorVersion", "oktaCollectorVersion",
   "awsRegion", "queueURL", "roleArn", "webIdentityTokenFile", "secretPrefix", "evidenceBucket", "evidenceBucketOwner", "evidenceKMSKeyArn",
@@ -38,6 +40,7 @@ export async function inspectContainerBuilds() {
     { name: "event-ingest", file: "event-ingest.Dockerfile", port: 8081 },
     { name: "gateway-control", file: "gateway-control.Dockerfile", port: 8081 },
     { name: "runtime-gateway", file: "runtime-gateway.Dockerfile", port: 8081 },
+    { name: "sensor-agent", file: "sensor-agent.Dockerfile", port: 8081 },
   ];
   return Promise.all(definitions.map(async ({ name, file, port }) => {
     const source = await readFile(path.join(here, file), "utf8");
@@ -226,6 +229,7 @@ export async function renderCustomerEdgeRelease(value) {
   if (!validCustomerEdgeRelease(value)) throw new Error("edge release rejected");
   const set = [
     ["global.productImages.runtimeGateway", value.image],
+    ["global.productImages.sensorAgent", value.sensorImage],
     ["runtimeGateway.controlPlaneURL", value.controlPlaneURL],
     ["runtimeGateway.organizationID", value.organizationID],
     ["runtimeGateway.workspaceID", value.workspaceID],
@@ -235,37 +239,53 @@ export async function renderCustomerEdgeRelease(value) {
     ["runtimeGateway.credentialSecretName", value.credentialSecretName],
     ["runtimeGateway.policyKeysSecretName", value.policyKeysSecretName],
     ["runtimeGateway.policyCache.storageClassName", value.storageClassName],
+    ["sensorAgent.tokenSecretName", value.sensorTokenSecretName],
+    ["sensorAgent.stateHostPath", value.stateHostPath],
     ...value.controlPlaneCIDRs.map((cidr, index) => [`network.controlPlaneCIDRs[${index}]`, cidr]),
+    ...value.kubernetesAPICIDRs.map((cidr, index) => [`network.kubernetesAPICIDRs[${index}]`, cidr]),
+    ...value.nodeCIDRs.map((cidr, index) => [`network.nodeCIDRs[${index}]`, cidr]),
   ];
   const chart = path.join(root, "deploy/staging/product");
   const edgeValues = path.join(chart, "values-customer-edge.yaml");
   const valueArgs = [];
   for (const [key, entry] of set) valueArgs.push("--set-string", `${key}=${entry.replaceAll("\\", "\\\\").replaceAll(",", "\\,")}`);
-  let stdout;
+  let productOutput, tetragonOutput;
   try {
-    await exec("helm", ["lint", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
-    ({ stdout } = await exec("helm", ["template", "zasp", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 }));
+    const tetragonChart = path.join(root, "deploy/staging/tetragon");
+    const dependency = await readFile(path.join(tetragonChart, "charts/tetragon-1.7.0.tgz"));
+    if (createHash("sha256").update(dependency).digest("hex") !== tetragonChartDigest) throw new Error("tetragon dependency rejected");
+    const results = await Promise.all([
+      exec("helm", ["lint", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
+      exec("helm", ["template", "zasp", chart, "--namespace", "agentsec", "--values", edgeValues, ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
+      exec("helm", ["lint", tetragonChart, "--namespace", "agentsec"], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
+      exec("helm", ["template", "zasp-tetragon", tetragonChart, "--namespace", "agentsec"], { cwd: root, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }),
+    ]);
+    productOutput = results[1].stdout;
+    tetragonOutput = results[3].stdout;
   } catch {
     throw new Error("edge release rejected");
   }
   const resources = [];
   try {
-    loadAll(stdout, (document) => { if (document) resources.push(document); }, { schema: JSON_SCHEMA });
+    loadAll(productOutput, (document) => { if (document) resources.push(document); }, { schema: JSON_SCHEMA });
+    loadAll(tetragonOutput, (document) => { if (document) resources.push(document); }, { schema: JSON_SCHEMA });
   } catch {
     throw new Error("edge release rejected");
   }
   const deployments = resources.filter(({ kind }) => kind === "Deployment");
+  const daemonSets = resources.filter(({ kind }) => kind === "DaemonSet");
   const accounts = resources.filter(({ kind }) => kind === "ServiceAccount");
-  if (resources.length < 8 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name) || deployments.length !== 1 || deployments[0].metadata.name !== "runtime-gateway" || accounts.length !== 1 || accounts[0].metadata.name !== "runtime-gateway" || accounts[0].metadata.annotations?.["eks.amazonaws.com/role-arn"] !== undefined) throw new Error("edge release rejected");
+  if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name) || deployments.length !== 1 || deployments[0].metadata.name !== "runtime-gateway" || daemonSets.length !== 2 || !daemonSets.some(({ metadata }) => metadata.name === "sensor-agent") || !daemonSets.some(({ metadata }) => metadata.name === "zasp-tetragon") || accounts.length !== 3 || !["runtime-gateway", "sensor-agent", "zasp-tetragon"].every((name) => accounts.some(({ metadata }) => metadata.name === name)) || accounts.some(({ metadata }) => metadata.annotations?.["eks.amazonaws.com/role-arn"] !== undefined)) throw new Error("edge release rejected");
   return Object.freeze(resources);
 }
 
 function validCustomerEdgeRelease(value) {
-  const keys = ["controlPlaneURL", "image", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "storageClassName", "controlPlaneCIDRs"];
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== keys.sort().join("\0") || !digestPattern.test(value.image)) return false;
+  const keys = ["controlPlaneURL", "image", "sensorImage", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "sensorTokenSecretName", "storageClassName", "controlPlaneCIDRs", "kubernetesAPICIDRs", "nodeCIDRs", "stateHostPath"];
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== keys.sort().join("\0") || !digestPattern.test(value.image) || !digestPattern.test(value.sensorImage) || value.image === value.sensorImage) return false;
   if (!/^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value.controlPlaneURL)) return false;
   if (![value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID].every((identifier) => productIDPattern.test(identifier)) || new Set([value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID]).size !== 5) return false;
-  return namePattern.test(value.credentialSecretName) && namePattern.test(value.policyKeysSecretName) && value.credentialSecretName !== value.policyKeysSecretName && namePattern.test(value.storageClassName) && validCIDRList(value.controlPlaneCIDRs);
+  const secretNames = [value.credentialSecretName, value.policyKeysSecretName, value.sensorTokenSecretName];
+  return secretNames.every((name) => namePattern.test(name)) && new Set(secretNames).size === secretNames.length && namePattern.test(value.storageClassName) && value.stateHostPath === "/var/lib/zasp-sensor" && validCIDRList(value.controlPlaneCIDRs) && validCIDRList(value.kubernetesAPICIDRs) && validCIDRList(value.nodeCIDRs);
 }
 
 function validRelease(value) {

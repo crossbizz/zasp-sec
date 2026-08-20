@@ -12,5 +12,11 @@ runtimeGateway:
   policyCache:
     maximumBytes: 67108864
     storageClassName: ""
+sensorAgent:
+  enabled: true
+  tokenSecretName: ""
+  stateHostPath: /var/lib/zasp-sensor
 network:
   controlPlaneCIDRs: []
+  kubernetesAPICIDRs: []
+  nodeCIDRs: []

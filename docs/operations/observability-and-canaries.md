@@ -6,6 +6,13 @@ The edge rejects requests unless host, origin and TLS forwarding metadata are ex
 
 Private `/metrics` exposes process readiness/build data, a bounded detailed API request histogram, request/rate-limit/authentication/dependency counters, and live PostgreSQL pool gauges. Detailed labels use a fixed method set plus `OTHER`, allowlisted routes, bounded status classes and an overflow cap. Independent fixed-cardinality `zasp_http_slo_requests_total` and `zasp_http_slo_request_duration_seconds` series preserve status plus read/mutation latency semantics even after detailed-series overflow. Separate ServiceMonitors scrape API, discovery, projections, gateway control, event ingest, and every runtime worker on port 8081. Prometheus pages when a required Deployment is absent or unavailable, and it tickets failed worker dependency readiness or an HPA held at its maximum. Queue age and projection-lag paging remains an external release gate until each source exports bounded durable lag metrics; capacity is not a substitute for lag.
 
+The customer-edge release adds a private `sensor-agent` ServiceMonitor. It
+pages when adapter readiness disappears or reports zero and when either the
+`sensor-agent` or `zasp-tetragon` DaemonSet has unavailable nodes. The SaaS
+sensor detail remains the source for cluster heartbeat sequence, capabilities,
+kernel/BTF state, event rate, and drops. A green Kubernetes DaemonSet alone
+doesn't prove that heartbeat or event ingest reached the SaaS.
+
 Request, PostgreSQL repository and provider boundaries emit API-local correlation records as JSON event `correlation_span`; workers emit structured lifecycle and mutation audit outcomes for scheduler, outbox, discovery, and projection processing. These records reuse validated identifiers for log correlation, but they are not OpenTelemetry spans and do not provide end-to-end distributed tracing. The log pipeline must collect them without raw credentials, provider payloads, lease tokens, or tenant identifiers. Real end-to-end OpenTelemetry SDK/export and distributed tracing remains an external release gate.
 
 To investigate a user-visible failure, collect the correlation ID from the response or error envelope, search structured logs for the exact `correlation_id`, pivot to the returned trace ID, then inspect the API-local request and repository/provider correlation records. Access is operator-only and searches must remain within the incident window and customer scope. Do not request credentials or response bodies from the user.

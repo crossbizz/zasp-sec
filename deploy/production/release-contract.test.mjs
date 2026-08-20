@@ -79,12 +79,13 @@ const release = Object.freeze({
   }),
   images: Object.freeze({
     web: digest("web", "a"), agentsecApi: digest("api", "b"), agentsecWorker: digest("worker", "c"),
-    eventIngest: digest("event-ingest", "d"), gatewayControl: digest("gateway-control", "e"), runtimeGateway: digest("runtime-gateway", "f"),
+    eventIngest: digest("event-ingest", "d"), gatewayControl: digest("gateway-control", "e"), runtimeGateway: digest("runtime-gateway", "f"), sensorAgent: digest("sensor-agent", "1"),
   }),
 });
 const edgeRelease = Object.freeze({
   controlPlaneURL: "https://app.zasp.example",
   image: digest("runtime-gateway", "f"),
+  sensorImage: digest("sensor-agent", "1"),
   organizationID: "pid_10000001-0000-4000-8000-000000000001",
   workspaceID: "pid_10000002-0000-4000-8000-000000000002",
   environmentID: "pid_10000003-0000-4000-8000-000000000003",
@@ -92,8 +93,12 @@ const edgeRelease = Object.freeze({
   credentialID: "pid_10000005-0000-4000-8000-000000000005",
   credentialSecretName: "zasp-runtime-gateway-credential",
   policyKeysSecretName: "zasp-runtime-gateway-policy-keys",
+  sensorTokenSecretName: "zasp-sensor-token",
   storageClassName: "gp3-encrypted",
   controlPlaneCIDRs: Object.freeze(["10.80.0.0/28"]),
+  kubernetesAPICIDRs: Object.freeze(["10.96.0.1/32"]),
+  nodeCIDRs: Object.freeze(["10.0.0.0/16"]),
+  stateHostPath: "/var/lib/zasp-sensor",
 });
 
 test("production container builds are exact, non-root, health-bound, and secret-free", async () => {
@@ -105,6 +110,7 @@ test("production container builds are exact, non-root, health-bound, and secret-
     { name: "event-ingest", user: "65532:65532", port: 8081 },
     { name: "gateway-control", user: "65532:65532", port: 8081 },
     { name: "runtime-gateway", user: "65532:65532", port: 8081 },
+    { name: "sensor-agent", user: "65532:65532", port: 8081 },
   ]);
   for (const build of builds) {
     assert.equal(build.readOnlyCompatible, true);
@@ -119,7 +125,7 @@ test("production container builds are exact, non-root, health-bound, and secret-
   assert.match(await readFile(new URL("../../next.config.ts", import.meta.url), "utf8"), /output:\s*["']standalone["']/);
 });
 
-test("customer edge renders one database-free runtime gateway with durable policy cache", async () => {
+test("customer edge renders database-free gateway, multi-node sensor, and pinned Tetragon", async () => {
   const resources = await renderCustomerEdgeRelease(edgeRelease);
   const deployment = one(resources, "Deployment", "runtime-gateway");
   const pod = deployment.spec.template.spec;
@@ -159,6 +165,84 @@ test("customer edge renders one database-free runtime gateway with durable polic
   const monitoring = one(resources, "NetworkPolicy", "runtime-gateway-monitoring");
   assert.deepEqual(monitoring.spec.ingress[0].ports, [{ protocol: "TCP", port: 8081 }]);
   assert.equal(one(resources, "ServiceMonitor", "runtime-gateway").spec.endpoints[0].path, "/metrics");
+
+  const sensor = one(resources, "DaemonSet", "sensor-agent");
+  const sensorPod = sensor.spec.template.spec;
+  const sensorContainer = sensorPod.containers.find(({ name }) => name === "sensor-agent");
+  assert.equal(sensorContainer.image, edgeRelease.sensorImage);
+  assert.equal(sensorPod.serviceAccountName, "sensor-agent");
+  assert.equal(sensorPod.automountServiceAccountToken, true);
+  assert.equal(sensorContainer.securityContext.privileged, false);
+  assert.equal(sensorContainer.securityContext.readOnlyRootFilesystem, true);
+  assert.equal(sensorContainer.securityContext.runAsUser, 65532);
+  assert.equal(sensorPod.hostNetwork, false);
+  assert.deepEqual(envOf(sensor), {
+    ZASP_SENSOR_CONTROL_PLANE_URL: edgeRelease.controlPlaneURL,
+    ZASP_SENSOR_TOKEN_FILE: "/var/run/secrets/zasp-sensor/token",
+    ZASP_TETRAGON_LOG_FILE: "/var/run/cilium/tetragon/tetragon.log",
+    ZASP_SENSOR_CURSOR_FILE: "/var/lib/zasp-sensor/cursor.json",
+    ZASP_SENSOR_NAMESPACE: "fieldRef:metadata.namespace",
+    ZASP_SENSOR_POD_NAME: "fieldRef:metadata.name",
+    ZASP_SENSOR_NODE_NAME: "fieldRef:spec.nodeName",
+    HOST_IP: "fieldRef:status.hostIP",
+    ZASP_SENSOR_KERNEL_FILE: "/host/proc/sys/kernel/osrelease",
+    ZASP_SENSOR_BTF_FILE: "/host/sys/kernel/btf/vmlinux",
+    ZASP_TETRAGON_METRICS_URL: "http://$(HOST_IP):2112/metrics",
+    ZASP_SENSOR_BATCH_SIZE: "100",
+    ZASP_SENSOR_MAX_PROCESSES: "10000",
+    ZASP_SENSOR_POLL_INTERVAL: "1s",
+    ZASP_SENSOR_OPERATION_TIMEOUT: "10s",
+    ZASP_SENSOR_SHUTDOWN_TIMEOUT: "15s",
+    ZASP_SENSOR_LEASE_DURATION: "15s",
+    ZASP_SENSOR_REPORT_TTL: "30s",
+  });
+  assert.equal(sensorPod.volumes.find(({ name }) => name === "token-source").secret.secretName, edgeRelease.sensorTokenSecretName);
+  assert.equal(sensorPod.volumes.find(({ name }) => name === "token-source").secret.defaultMode, 0o440);
+  assert.equal(sensorPod.volumes.find(({ name }) => name === "state").hostPath.path, edgeRelease.stateHostPath);
+  assert.equal(sensorPod.volumes.find(({ name }) => name === "tetragon-log").hostPath.type, "DirectoryOrCreate");
+  assert.equal(sensorContainer.volumeMounts.some(({ name }) => name === "token-source"), false);
+  const materializer = sensorPod.initContainers.find(({ name }) => name === "materialize-sensor-authority");
+  assert.equal(materializer.image, edgeRelease.sensorImage);
+  assert.deepEqual(materializer.command, ["/bin/sh", "-ec"]);
+  assert.match(materializer.args[0], /chown 65532:65532 \/config\/token \/state; chmod 0600 \/config\/token; chmod 0700 \/state/);
+  assert.equal(materializer.securityContext.runAsUser, 0);
+  assert.deepEqual(materializer.securityContext.capabilities, { drop: ["ALL"], add: ["CHOWN", "DAC_OVERRIDE", "FOWNER"] });
+  assert.deepEqual(one(resources, "Role", "sensor-agent").rules, [
+    { apiGroups: ["coordination.k8s.io"], resources: ["leases"], verbs: ["get", "list", "create", "update"] },
+    { apiGroups: [""], resources: ["pods"], verbs: ["list"] },
+  ]);
+  assert.equal(one(resources, "RoleBinding", "sensor-agent").subjects[0].name, "sensor-agent");
+  assert.deepEqual(one(resources, "NetworkPolicy", "sensor-agent-kubernetes-api").spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)), edgeRelease.kubernetesAPICIDRs);
+  assert.deepEqual(one(resources, "NetworkPolicy", "sensor-agent-node-metrics").spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)), edgeRelease.nodeCIDRs);
+  assert.equal(one(resources, "ServiceMonitor", "sensor-agent").spec.endpoints[0].path, "/metrics");
+  const edgeAlerts = one(resources, "PrometheusRule", "zasp-customer-edge").spec.groups.flatMap(({ rules }) => rules);
+  assert.deepEqual(edgeAlerts.map(({ alert }) => alert), ["ZaspSensorAgentNotReady", "ZaspEdgeDaemonSetUnavailable"]);
+
+  const tetragon = resources.find(({ kind, spec }) => kind === "DaemonSet" && spec?.template?.spec?.containers?.some(({ name }) => name === "tetragon"));
+  assert.ok(tetragon);
+  const tetragonContainer = tetragon.spec.template.spec.containers.find(({ name }) => name === "tetragon");
+  assert.match(tetragonContainer.image, /^quay\.io\/cilium\/tetragon:v1\.7\.0@sha256:[0-9a-f]{64}$/);
+  assert.equal(tetragonContainer.securityContext.privileged, true);
+  const tetragonConfig = one(resources, "ConfigMap", "zasp-tetragon-config");
+  assert.equal(tetragonConfig.data["cluster-name"], "zasp-runtime");
+  assert.equal(tetragonConfig.data["export-file-perm"], "644");
+  assert.equal(tetragonConfig.data["export-file-max-backups"], "4");
+  assert.equal(tetragonConfig.data["field-filters"], '{"fields":"process.arguments,parent.arguments,ancestors.arguments,process.cwd,parent.cwd,ancestors.cwd","action":"EXCLUDE"}');
+  assert.equal(tetragonConfig.data["metrics-label-filter"], "namespace,workload");
+  assert.equal(resources.some((resource) => resource.kind === "Deployment" && /tetragon-operator/.test(resource.metadata?.name ?? "")), false);
+  assert.equal(resources.filter(({ kind }) => kind === "ServiceAccount").every(({ metadata }) => metadata.annotations?.["eks.amazonaws.com/role-arn"] === undefined), true);
+  assert.doesNotMatch(JSON.stringify(resources), /ZASP_(?:POSTGRES|DATABASE)|DATABASE_URL/);
+});
+
+test("customer edge rejects mutable sensors, broad networks, shared secrets, and ambient state", async () => {
+  for (const value of [
+    { ...edgeRelease, sensorImage: "zasp/sensor-agent:latest" },
+    { ...edgeRelease, sensorTokenSecretName: edgeRelease.credentialSecretName },
+    { ...edgeRelease, kubernetesAPICIDRs: [] },
+    { ...edgeRelease, nodeCIDRs: ["0.0.0.0/0"] },
+    { ...edgeRelease, stateHostPath: "/tmp/zasp-sensor" },
+    { ...edgeRelease, extra: "ambient" },
+  ]) await assert.rejects(() => renderCustomerEdgeRelease(value), /edge release rejected/);
 });
 
 test("release renders one TLS origin, split ports, private internals, and migration/schema gates", async () => {
@@ -855,5 +939,5 @@ function one(resources, kind, name) {
 }
 
 function envOf(workload) {
-  return Object.fromEntries(workload.spec.template.spec.containers[0].env.map(({ name, value }) => [name, value]));
+  return Object.fromEntries(workload.spec.template.spec.containers[0].env.map(({ name, value, valueFrom }) => [name, value ?? "fieldRef:" + valueFrom?.fieldRef?.fieldPath]));
 }

@@ -4,6 +4,30 @@ apiVersion: v1
 kind: ServiceAccount
 metadata: { name: runtime-gateway, labels: { app.kubernetes.io/name: runtime-gateway, app.kubernetes.io/part-of: zasp } }
 automountServiceAccountToken: false
+{{- if .Values.sensorAgent.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: sensor-agent, labels: { app.kubernetes.io/name: sensor-agent, app.kubernetes.io/part-of: zasp } }
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: sensor-agent, labels: { app.kubernetes.io/name: sensor-agent, app.kubernetes.io/part-of: zasp } }
+rules:
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, create, update]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: sensor-agent, labels: { app.kubernetes.io/name: sensor-agent, app.kubernetes.io/part-of: zasp } }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: sensor-agent }
+subjects: [{ kind: ServiceAccount, name: sensor-agent, namespace: {{ .Release.Namespace | quote }} }]
+{{- end }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -82,6 +106,99 @@ spec:
           emptyDir: { sizeLimit: 1Mi }
         - name: policy-cache
           persistentVolumeClaim: { claimName: runtime-gateway-cache }
+{{- if .Values.sensorAgent.enabled }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: { name: sensor-agent, labels: { app.kubernetes.io/name: sensor-agent, app.kubernetes.io/part-of: zasp } }
+spec:
+  revisionHistoryLimit: 3
+  updateStrategy: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 1 } }
+  selector: { matchLabels: { app.kubernetes.io/name: sensor-agent } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: sensor-agent, app.kubernetes.io/part-of: zasp } }
+    spec:
+      serviceAccountName: sensor-agent
+      automountServiceAccountToken: true
+      enableServiceLinks: false
+      hostNetwork: false
+      terminationGracePeriodSeconds: 30
+      tolerations: [{ operator: Exists }]
+      securityContext: { fsGroup: 65532, fsGroupChangePolicy: OnRootMismatch, seccompProfile: { type: RuntimeDefault } }
+      initContainers:
+        - name: materialize-sensor-authority
+          image: {{ required "global.productImages.sensorAgent must be an immutable digest" .Values.global.productImages.sensorAgent | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - cp /source/token /config/token; chown 65532:65532 /config/token /state; chmod 0600 /config/token; chmod 0700 /state
+          resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { cpu: 100m, memory: 32Mi } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL], add: [CHOWN, DAC_OVERRIDE, FOWNER] }
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
+          volumeMounts:
+            - { name: token-source, mountPath: /source, readOnly: true }
+            - { name: token, mountPath: /config }
+            - { name: state, mountPath: /state }
+      containers:
+        - name: sensor-agent
+          image: {{ required "global.productImages.sensorAgent must be an immutable digest" .Values.global.productImages.sensorAgent | quote }}
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: internal }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: internal }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: internal }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 16Mi }, limits: { cpu: 500m, memory: 256Mi, ephemeral-storage: 64Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_SENSOR_CONTROL_PLANE_URL, value: {{ required "runtimeGateway.controlPlaneURL is required" .Values.runtimeGateway.controlPlaneURL | quote }} }
+            - { name: ZASP_SENSOR_TOKEN_FILE, value: /var/run/secrets/zasp-sensor/token }
+            - { name: ZASP_TETRAGON_LOG_FILE, value: /var/run/cilium/tetragon/tetragon.log }
+            - { name: ZASP_SENSOR_CURSOR_FILE, value: /var/lib/zasp-sensor/cursor.json }
+            - name: ZASP_SENSOR_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - name: ZASP_SENSOR_POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: ZASP_SENSOR_NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+            - name: HOST_IP
+              valueFrom: { fieldRef: { fieldPath: status.hostIP } }
+            - { name: ZASP_SENSOR_KERNEL_FILE, value: /host/proc/sys/kernel/osrelease }
+            - { name: ZASP_SENSOR_BTF_FILE, value: /host/sys/kernel/btf/vmlinux }
+            - { name: ZASP_TETRAGON_METRICS_URL, value: "http://$(HOST_IP):2112/metrics" }
+            - { name: ZASP_SENSOR_BATCH_SIZE, value: "100" }
+            - { name: ZASP_SENSOR_MAX_PROCESSES, value: "10000" }
+            - { name: ZASP_SENSOR_POLL_INTERVAL, value: "1s" }
+            - { name: ZASP_SENSOR_OPERATION_TIMEOUT, value: "10s" }
+            - { name: ZASP_SENSOR_SHUTDOWN_TIMEOUT, value: "15s" }
+            - { name: ZASP_SENSOR_LEASE_DURATION, value: "15s" }
+            - { name: ZASP_SENSOR_REPORT_TTL, value: "30s" }
+          volumeMounts:
+            - { name: token, mountPath: /var/run/secrets/zasp-sensor, readOnly: true }
+            - { name: state, mountPath: /var/lib/zasp-sensor }
+            - { name: tetragon-log, mountPath: /var/run/cilium/tetragon, readOnly: true }
+            - { name: kernel-proc, mountPath: /host/proc/sys/kernel, readOnly: true }
+            - { name: kernel-sys, mountPath: /host/sys/kernel, readOnly: true }
+      volumes:
+        - name: token-source
+          secret: { secretName: {{ required "sensorAgent.tokenSecretName is required" .Values.sensorAgent.tokenSecretName | quote }}, defaultMode: 288 }
+        - name: token
+          emptyDir: { sizeLimit: 1Mi }
+        - name: state
+          hostPath: { path: {{ required "sensorAgent.stateHostPath is required" .Values.sensorAgent.stateHostPath | quote }}, type: DirectoryOrCreate }
+        - name: tetragon-log
+          hostPath: { path: /var/run/cilium/tetragon, type: DirectoryOrCreate }
+        - name: kernel-proc
+          hostPath: { path: /proc/sys/kernel, type: Directory }
+        - name: kernel-sys
+          hostPath: { path: /sys/kernel, type: Directory }
+{{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -90,6 +207,16 @@ spec:
   type: ClusterIP
   selector: { app.kubernetes.io/name: runtime-gateway }
   ports: [{ name: product, port: 8080, targetPort: product, protocol: TCP }, { name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+{{- if .Values.sensorAgent.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata: { name: sensor-agent, labels: { app.kubernetes.io/name: sensor-agent, app.kubernetes.io/part-of: zasp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: sensor-agent }
+  ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -100,7 +227,9 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: dns-egress, labels: { app.kubernetes.io/part-of: zasp } }
 spec:
-  podSelector: { matchLabels: { app.kubernetes.io/name: runtime-gateway } }
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [runtime-gateway, sensor-agent] }
   policyTypes: [Egress]
   egress:
     - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
@@ -118,6 +247,70 @@ spec:
         - ipBlock: { cidr: {{ $cidr | quote }} }
       {{- end }}
       ports: [{ protocol: TCP, port: 443 }]
+{{- if .Values.sensorAgent.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: sensor-agent-control-plane, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: sensor-agent } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := required "network.controlPlaneCIDRs is required" .Values.network.controlPlaneCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: sensor-agent-kubernetes-api, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: sensor-agent } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := required "network.kubernetesAPICIDRs is required" .Values.network.kubernetesAPICIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: sensor-agent-node-metrics, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: sensor-agent } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := required "network.nodeCIDRs is required" .Values.network.nodeCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 2112 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: tetragon-kubernetes-api, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: tetragon } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := required "network.kubernetesAPICIDRs is required" .Values.network.kubernetesAPICIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: tetragon-node-metrics, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: tetragon } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: sensor-agent } } }]
+      ports: [{ protocol: TCP, port: 2112 }]
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -128,6 +321,18 @@ spec:
   ingress:
     - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
       ports: [{ protocol: TCP, port: 8081 }]
+{{- if .Values.sensorAgent.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: sensor-agent-monitoring, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: sensor-agent } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -147,5 +352,33 @@ spec:
   selector: { matchLabels: { app.kubernetes.io/name: runtime-gateway, app.kubernetes.io/part-of: zasp } }
   namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
   endpoints: [{ port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }]
+{{- if .Values.sensorAgent.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata: { name: sensor-agent, labels: { app.kubernetes.io/name: sensor-agent, app.kubernetes.io/part-of: zasp } }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: sensor-agent, app.kubernetes.io/part-of: zasp } }
+  namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
+  endpoints: [{ port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata: { name: zasp-customer-edge, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  groups:
+    - name: zasp.customer-edge
+      rules:
+        - alert: ZaspSensorAgentNotReady
+          expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service="sensor-agent"} == 0 or absent(agentsec_ready{namespace="{{ .Release.Namespace }}",service="sensor-agent"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "The customer-edge sensor adapter is not ready" }
+        - alert: ZaspEdgeDaemonSetUnavailable
+          expr: kube_daemonset_status_number_unavailable{namespace="{{ .Release.Namespace }}",daemonset=~"sensor-agent|zasp-tetragon"} > 0
+          for: 10m
+          labels: { severity: page }
+          annotations: { summary: "A customer-edge sensor DaemonSet is unavailable" }
+{{- end }}
 {{- end }}
 {{- end }}

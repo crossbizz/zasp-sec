@@ -13,6 +13,7 @@ global:
     eventIngest: ""
     gatewayControl: ""
     runtimeGateway: ""
+    sensorAgent: ""
   images:
     neo4j: neo4j:5.26.28-community@sha256:ff32db30b2baff97971e441b46bfd9c832c1b62c970398ef579244c06b21d357
     nango: nangohq/nango-server:hosted-7faf2c303bbb0322333f526e9ca31c0fe95ef58e@sha256:b191d8d5b072fec5984e28da67298e9dabd5dc3a2585f1ebff7e2f5b9dfb66ed
@@ -255,6 +256,8 @@ network:
   outboxEgressCIDRs: []
   runtimeEgressCIDRs: []
   controlPlaneCIDRs: []
+  kubernetesAPICIDRs: []
+  nodeCIDRs: []
   stytchCIDR: ""
   canaryCIDR: ""
   # Native NetworkPolicy is CIDR-based, not an FQDN firewall. Operators must

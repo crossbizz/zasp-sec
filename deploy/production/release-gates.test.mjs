@@ -47,7 +47,7 @@ test("release sources contain truthful runbooks, canary, SBOM/license/image/secr
   const result = await verifyReleaseSources();
   assert.equal(result.canary, true);
   assert.equal(result.documentation, true);
-  assert.equal(result.imageDefinitions, 6);
+  assert.equal(result.imageDefinitions, 7);
   assert.equal(result.licensePolicy, true);
   assert.equal(result.trackedSecretScan, true);
   assert.ok(result.npmSpdxPackages > 20);
