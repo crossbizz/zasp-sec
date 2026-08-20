@@ -3,7 +3,9 @@ package kubernetesdiscovery
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -75,6 +77,37 @@ func TestKubernetesCollectionAPIPaginatesNamespacesThenWorkloadsCanonically(t *t
 		if providerRequest.Method != http.MethodGet || providerRequest.URL.String() != wantURLs[index] || providerRequest.Header.Get("Authorization") != "Bearer "+string(credential) || providerRequest.Header.Get("Accept") != "application/json" {
 			t.Fatalf("request %d = %#v", index, providerRequest)
 		}
+	}
+}
+
+func TestKubernetesCollectionAPIClassifiesOnlyExactlyLabeledAgentDeployments(t *testing.T) {
+	t.Parallel()
+	body := `{"apiVersion":"apps/v1","kind":"DeploymentList","metadata":{"continue":""},"items":[` +
+		`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"uid":"22222222-2222-4222-8222-222222222222","namespace":"default","name":"agent","labels":{"zasp.ai/entity-kind":"agent"}}},` +
+		`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"uid":"33333333-3333-4333-8333-333333333333","namespace":"default","name":"ordinary","labels":{"zasp.ai/entity-kind":"Agent","other":"agent"}}}]}`
+	roundTripper := &kubernetesRoundTripper{responses: []kubernetesHTTPResponse{{status: http.StatusOK, body: body}}}
+	api, err := newKubernetesCollectionAPI("https://cluster.example", roundTripper, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	subject := collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "cluster.example/prod"}
+	request := CollectionPageRequest{Provider: collection.ProviderKubernetes, Subject: subject, Cursor: nextKubernetesPageCursor(subject, "deployments", 2, "start"), Page: 2, RemainingItems: 4, RemainingBytes: 1 << 20}
+	page, err := api.FetchCollectionPage(context.Background(), []byte("kubernetes-bearer-secret-value"), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kinds []string
+	for _, raw := range page.Entities {
+		var entity struct {
+			Kind string `json:"kind"`
+		}
+		if json.Unmarshal(raw, &entity) != nil {
+			t.Fatalf("entity = %s", raw)
+		}
+		kinds = append(kinds, entity.Kind)
+	}
+	if fmt.Sprint(kinds) != "[kubernetes_agent kubernetes_workload]" {
+		t.Fatalf("entity kinds = %v", kinds)
 	}
 }
 

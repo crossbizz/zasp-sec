@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -175,6 +176,46 @@ func TestSnapshotCandidateRejectsMissingUnknownAndDanglingNormalizedFields(t *te
 	dangling := `[{"id":"pid_10000009-0000-4000-8000-000000000009","kind":"uses_policy","source_native_id":"edge-1","from_entity_id":"pid_10000005-0000-4000-8000-000000000005","to_entity_id":"pid_10000009-0000-4000-8000-000000000009","attributes":{}}]`
 	if _, err := NewSnapshotCandidate(ProviderAWS, "parser_v1", "tool_v1", []byte(`[`+validEntity+`,`+validSecond+`]`), []byte(dangling), []byte(`[]`)); !errors.Is(err, ErrContract) {
 		t.Fatalf("dangling relationship accepted: %v", err)
+	}
+}
+
+func TestSnapshotCandidateBindsCompleteTypedObservationEnvelopeToEvidence(t *testing.T) {
+	entity := []byte(`[{"id":"pid_10000005-0000-4000-8000-000000000005","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{},"identity_namespace":"aws_account","identity_rule_version":1,"identity_priority":100,"product_kind":"asset","confidence_basis_points":9000,"observed_at":"2026-08-20T12:00:00Z","fresh_until":"2026-08-21T12:00:00Z","evidence_id":"pid_10000009-0000-4000-8000-000000000009","source_projection_version":1}]`)
+	evidence := evidenceForArtifactBinding("s3://zasp-evidence/organizations/pid_10000010-0000-4000-8000-000000000010/workspaces/pid_10000011-0000-4000-8000-000000000011/environments/pid_10000012-0000-4000-8000-000000000012/artifacts/pid_10000006-0000-4000-8000-000000000006", "s3-version-object-1")
+
+	candidate, err := NewSnapshotCandidate(ProviderAWS, "parser_v1", "tool_v1", entity, []byte(`[]`), evidence)
+	if err != nil || !candidate.TypedObservations() {
+		t.Fatalf("typed candidate = %#v, err=%v", candidate, err)
+	}
+	empty, err := NewTypedSnapshotCandidate(ProviderAWS, "parser_v1", "tool_v1", []byte(`[]`), []byte(`[]`), []byte(`[]`))
+	if err != nil || !empty.TypedObservations() {
+		t.Fatalf("typed empty candidate = %#v, err=%v", empty, err)
+	}
+	legacy, err := NewSnapshotCandidate(ProviderAWS, "parser_v1", "tool_v1", []byte(`[]`), []byte(`[]`), []byte(`[]`))
+	if err != nil || legacy.TypedObservations() {
+		t.Fatalf("legacy candidate = %#v, err=%v", legacy, err)
+	}
+
+	for name, mutate := range map[string]func(string) string{
+		"partial envelope": func(value string) string { return strings.Replace(value, `,"source_projection_version":1`, "", 1) },
+		"wrong evidence": func(value string) string {
+			return strings.Replace(value, "pid_10000009-0000-4000-8000-000000000009", "pid_10000019-0000-4000-8000-000000000019", 1)
+		},
+		"noncanonical time": func(value string) string {
+			return strings.Replace(value, "2026-08-20T12:00:00Z", "2026-08-20T12:00:00.000Z", 1)
+		},
+		"closed product kind": func(value string) string {
+			return strings.Replace(value, `"product_kind":"asset"`, `"product_kind":"server"`, 1)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := NewSnapshotCandidate(ProviderAWS, "parser_v1", "tool_v1", []byte(mutate(string(entity))), []byte(`[]`), evidence); !errors.Is(err, ErrContract) {
+				t.Fatalf("invalid typed envelope accepted: %v", err)
+			}
+		})
+	}
+	if _, err := NewTypedSnapshotCandidate(ProviderAWS, "parser_v1", "tool_v1", []byte(`[{"id":"pid_10000005-0000-4000-8000-000000000005","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}]`), []byte(`[]`), []byte(`[]`)); !errors.Is(err, ErrContract) {
+		t.Fatalf("typed constructor accepted legacy entity: %v", err)
 	}
 }
 

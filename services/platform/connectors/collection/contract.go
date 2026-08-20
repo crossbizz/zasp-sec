@@ -125,7 +125,9 @@ type Request struct {
 	Cursor              Cursor
 	ParserVersion       string
 	ToolVersion         string
-	Bounds              Bounds
+	// ObservationTime is immutable job authority. Zero preserves the legacy v1 snapshot contract.
+	ObservationTime time.Time
+	Bounds          Bounds
 }
 
 func (request Request) Validate() error {
@@ -133,7 +135,8 @@ func (request Request) Validate() error {
 		request.IntegrationID == request.ConnectionID || request.IntegrationID == request.JobID || request.ConnectionID == request.JobID ||
 		request.Attempt < 1 || request.Attempt > 100 || !request.Provider.valid() || !versionPattern.MatchString(request.CollectorVersion) ||
 		!credentialMatchesProvider(request.CredentialClass, request.Provider) || !validCredentialReference(request.Provider, request.CredentialReference) ||
-		!request.ExpectedSubject.valid(request.Provider) || !request.Cursor.valid(request.Provider) || !versionPattern.MatchString(request.ParserVersion) || !versionPattern.MatchString(request.ToolVersion) || !request.Bounds.valid() {
+		!request.ExpectedSubject.valid(request.Provider) || !request.Cursor.valid(request.Provider) || !versionPattern.MatchString(request.ParserVersion) || !versionPattern.MatchString(request.ToolVersion) ||
+		(!request.ObservationTime.IsZero() && !canonicalObservationTime(request.ObservationTime)) || !request.Bounds.valid() {
 		return ErrContract
 	}
 	return nil
@@ -251,16 +254,26 @@ type SnapshotCandidate struct {
 	relationCount int
 	evidenceCount int
 	evidenceItems []normalizedEvidence
+	typed         bool
 	digest        [sha256.Size]byte
 }
 
 type normalizedEntity struct {
-	ID             string          `json:"id"`
-	Kind           string          `json:"kind"`
-	SourceNativeID string          `json:"source_native_id"`
-	DisplayName    string          `json:"display_name"`
-	StableFields   json.RawMessage `json:"stable_fields"`
-	Attributes     json.RawMessage `json:"attributes"`
+	ID                      string          `json:"id"`
+	Kind                    string          `json:"kind"`
+	SourceNativeID          string          `json:"source_native_id"`
+	DisplayName             string          `json:"display_name"`
+	StableFields            json.RawMessage `json:"stable_fields"`
+	Attributes              json.RawMessage `json:"attributes"`
+	IdentityNamespace       string          `json:"identity_namespace,omitempty"`
+	IdentityRuleVersion     int             `json:"identity_rule_version,omitempty"`
+	IdentityPriority        int             `json:"identity_priority,omitempty"`
+	ProductKind             string          `json:"product_kind,omitempty"`
+	ConfidenceBasisPoints   int             `json:"confidence_basis_points,omitempty"`
+	ObservedAt              string          `json:"observed_at,omitempty"`
+	FreshUntil              string          `json:"fresh_until,omitempty"`
+	EvidenceID              string          `json:"evidence_id,omitempty"`
+	SourceProjectionVersion int             `json:"source_projection_version,omitempty"`
 }
 
 type normalizedRelationship struct {
@@ -289,7 +302,15 @@ type normalizedEvidence struct {
 }
 
 func NewSnapshotCandidate(source Provider, parserVersion, toolVersion string, entities, relationships, evidence []byte) (SnapshotCandidate, error) {
-	entityCopy, entityItems, entityIDs, ok := normalizedEntities(entities)
+	return newSnapshotCandidate(source, parserVersion, toolVersion, entities, relationships, evidence, false)
+}
+
+func NewTypedSnapshotCandidate(source Provider, parserVersion, toolVersion string, entities, relationships, evidence []byte) (SnapshotCandidate, error) {
+	return newSnapshotCandidate(source, parserVersion, toolVersion, entities, relationships, evidence, true)
+}
+
+func newSnapshotCandidate(source Provider, parserVersion, toolVersion string, entities, relationships, evidence []byte, requireTyped bool) (SnapshotCandidate, error) {
+	entityCopy, entityItems, entityIDs, typed, ok := normalizedEntities(entities)
 	if !ok {
 		return SnapshotCandidate{}, ErrContract
 	}
@@ -298,7 +319,7 @@ func NewSnapshotCandidate(source Provider, parserVersion, toolVersion string, en
 		return SnapshotCandidate{}, ErrContract
 	}
 	evidenceCopy, evidenceItems, ok := normalizedEvidenceItems(evidence, entityIDs)
-	if !ok || !source.valid() || !versionPattern.MatchString(parserVersion) || !versionPattern.MatchString(toolVersion) || len(entityCopy)+len(relationshipCopy)+len(evidenceCopy) > maximumSnapshotBytes {
+	if !ok || requireTyped && len(entityItems) > 0 && !typed || !typedEvidenceMatches(entityItems, evidenceItems, typed) || !source.valid() || !versionPattern.MatchString(parserVersion) || !versionPattern.MatchString(toolVersion) || len(entityCopy)+len(relationshipCopy)+len(evidenceCopy) > maximumSnapshotBytes {
 		return SnapshotCandidate{}, ErrContract
 	}
 	hash := sha256.New()
@@ -308,7 +329,7 @@ func NewSnapshotCandidate(source Provider, parserVersion, toolVersion string, en
 	}
 	var digest [sha256.Size]byte
 	copy(digest[:], hash.Sum(nil))
-	return SnapshotCandidate{source: source, parser: parserVersion, tool: toolVersion, entities: entityCopy, relationships: relationshipCopy, evidence: evidenceCopy, entityCount: len(entityItems), relationCount: len(relationshipItems), evidenceCount: len(evidenceItems), evidenceItems: append([]normalizedEvidence(nil), evidenceItems...), digest: digest}, nil
+	return SnapshotCandidate{source: source, parser: parserVersion, tool: toolVersion, entities: entityCopy, relationships: relationshipCopy, evidence: evidenceCopy, entityCount: len(entityItems), relationCount: len(relationshipItems), evidenceCount: len(evidenceItems), evidenceItems: append([]normalizedEvidence(nil), evidenceItems...), typed: requireTyped || typed, digest: digest}, nil
 }
 
 func (candidate SnapshotCandidate) Source() Provider      { return candidate.source }
@@ -322,11 +343,12 @@ func (candidate SnapshotCandidate) Evidence() []byte          { return bytes.Clo
 func (candidate SnapshotCandidate) EntityCount() int          { return candidate.entityCount }
 func (candidate SnapshotCandidate) RelationshipCount() int    { return candidate.relationCount }
 func (candidate SnapshotCandidate) EvidenceCount() int        { return candidate.evidenceCount }
+func (candidate SnapshotCandidate) TypedObservations() bool   { return candidate.typed }
 func (candidate SnapshotCandidate) Digest() [sha256.Size]byte { return candidate.digest }
 
 func (candidate SnapshotCandidate) valid(request Request) bool {
 	return candidate.source == request.Provider && candidate.parser == request.ParserVersion && candidate.tool == request.ToolVersion && candidate.digest != ([sha256.Size]byte{}) &&
-		candidate.entityCount <= request.Bounds.MaxItems && candidate.relationCount <= request.Bounds.MaxItems*2 && candidate.evidenceCount <= request.Bounds.MaxItems*2
+		candidate.typed == !request.ObservationTime.IsZero() && candidate.entityCount <= request.Bounds.MaxItems && candidate.relationCount <= request.Bounds.MaxItems*2 && candidate.evidenceCount <= request.Bounds.MaxItems*2
 }
 
 type Outcome interface {
@@ -831,28 +853,93 @@ func manifestFitsRequest(manifest RawManifest, request Request) bool {
 	return true
 }
 
-func normalizedEntities(value []byte) ([]byte, []normalizedEntity, map[string]struct{}, bool) {
+func normalizedEntities(value []byte) ([]byte, []normalizedEntity, map[string]struct{}, bool, bool) {
 	var items []normalizedEntity
 	canonical, ok := decodeCanonicalArray(value, &items)
 	if !ok {
-		return nil, nil, nil, false
+		return nil, nil, nil, false, false
 	}
 	ids := make(map[string]struct{}, len(items))
 	sourceIDs := make(map[string]struct{}, len(items))
+	typedCount := 0
 	for _, item := range items {
-		if !validProductIDText(item.ID) || !tokenPattern.MatchString(item.Kind) || !boundedText(item.SourceNativeID, 1024) || !boundedText(item.DisplayName, 256) || !canonicalJSONObject(item.StableFields, 65_536) || !canonicalJSONObject(item.Attributes, 65_536) {
-			return nil, nil, nil, false
+		itemTyped, envelopeOK := validTypedObservationEnvelope(item)
+		if !validProductIDText(item.ID) || !tokenPattern.MatchString(item.Kind) || !boundedText(item.SourceNativeID, 1024) || !boundedText(item.DisplayName, 256) || !canonicalJSONObject(item.StableFields, 65_536) || !canonicalJSONObject(item.Attributes, 65_536) || !envelopeOK {
+			return nil, nil, nil, false, false
+		}
+		if itemTyped {
+			typedCount++
 		}
 		if _, duplicate := ids[item.ID]; duplicate {
-			return nil, nil, nil, false
+			return nil, nil, nil, false, false
 		}
 		if _, duplicate := sourceIDs[item.SourceNativeID]; duplicate {
-			return nil, nil, nil, false
+			return nil, nil, nil, false, false
 		}
 		ids[item.ID] = struct{}{}
 		sourceIDs[item.SourceNativeID] = struct{}{}
 	}
-	return canonical, items, ids, true
+	if typedCount != 0 && typedCount != len(items) {
+		return nil, nil, nil, false, false
+	}
+	typed := len(items) > 0 && typedCount == len(items)
+	return canonical, items, ids, typed, true
+}
+
+func validTypedObservationEnvelope(item normalizedEntity) (bool, bool) {
+	present := 0
+	for _, value := range []bool{
+		item.IdentityNamespace != "", item.IdentityRuleVersion != 0, item.IdentityPriority != 0, item.ProductKind != "", item.ConfidenceBasisPoints != 0,
+		item.ObservedAt != "", item.FreshUntil != "", item.EvidenceID != "", item.SourceProjectionVersion != 0,
+	} {
+		if value {
+			present++
+		}
+	}
+	if present == 0 {
+		return false, true
+	}
+	if present != 9 || !tokenPattern.MatchString(item.IdentityNamespace) || item.IdentityRuleVersion < 1 || item.IdentityRuleVersion > 1_000_000 || item.IdentityPriority < 1 || item.IdentityPriority > 1_000_000 ||
+		!map[string]bool{"asset": true, "agent": true, "tool": true, "identity": true, "runtime": true}[item.ProductKind] || item.ConfidenceBasisPoints < 1 || item.ConfidenceBasisPoints > 10_000 ||
+		!validProductIDText(item.EvidenceID) || item.SourceProjectionVersion < 1 || item.SourceProjectionVersion > 1_000_000 {
+		return false, false
+	}
+	observed, observedOK := parseCanonicalObservationTime(item.ObservedAt)
+	fresh, freshOK := parseCanonicalObservationTime(item.FreshUntil)
+	return true, observedOK && freshOK && fresh.After(observed)
+}
+
+func typedEvidenceMatches(entities []normalizedEntity, evidence []normalizedEvidence, typed bool) bool {
+	if !typed {
+		return true
+	}
+	byEntity := make(map[string]string, len(entities))
+	for _, item := range evidence {
+		if item.EntityID != "" {
+			if _, duplicate := byEntity[item.EntityID]; duplicate {
+				return false
+			}
+			byEntity[item.EntityID] = item.ID
+		}
+	}
+	if len(byEntity) != len(entities) {
+		return false
+	}
+	for _, entity := range entities {
+		if byEntity[entity.ID] != entity.EvidenceID {
+			return false
+		}
+	}
+	return true
+}
+
+func parseCanonicalObservationTime(value string) (time.Time, bool) {
+	parsed, err := time.Parse(time.RFC3339, value)
+	return parsed, err == nil && canonicalObservationTime(parsed) && parsed.Format(time.RFC3339) == value
+}
+
+func canonicalObservationTime(value time.Time) bool {
+	return !value.IsZero() && value.Location() == time.UTC && value.Nanosecond() == 0
 }
 
 func normalizedRelationships(value []byte, entityIDs map[string]struct{}) ([]byte, []normalizedRelationship, bool) {

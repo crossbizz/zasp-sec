@@ -60,6 +60,45 @@ func TestClientWritesRawPagesThenManifestAndReturnsBoundCompleteSnapshot(t *test
 	}
 }
 
+func TestClientBindsRuleCatalogObservationAuthorityToExactEvidence(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"}, true,
+		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)}, nil)
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{page}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := outcome.(collection.CompleteResult).Snapshot()
+	if !snapshot.TypedObservations() {
+		t.Fatal("production collection returned a legacy snapshot")
+	}
+	var entities []struct {
+		IdentityNamespace       string `json:"identity_namespace"`
+		IdentityRuleVersion     int    `json:"identity_rule_version"`
+		IdentityPriority        int    `json:"identity_priority"`
+		ProductKind             string `json:"product_kind"`
+		ConfidenceBasisPoints   int    `json:"confidence_basis_points"`
+		ObservedAt              string `json:"observed_at"`
+		FreshUntil              string `json:"fresh_until"`
+		EvidenceID              string `json:"evidence_id"`
+		SourceProjectionVersion int    `json:"source_projection_version"`
+	}
+	var evidence []evidenceItem
+	if json.Unmarshal(snapshot.Entities(), &entities) != nil || json.Unmarshal(snapshot.Evidence(), &evidence) != nil || len(entities) != 1 || len(evidence) != 1 {
+		t.Fatalf("typed snapshot bodies = %s / %s", snapshot.Entities(), snapshot.Evidence())
+	}
+	entity := entities[0]
+	if entity.IdentityNamespace != "aws_account" || entity.IdentityRuleVersion != 1 || entity.IdentityPriority != 100 || entity.ProductKind != "asset" || entity.ConfidenceBasisPoints != 9000 || entity.ObservedAt != "2026-08-20T12:00:00Z" || entity.FreshUntil != "2026-08-21T12:00:00Z" || entity.EvidenceID != evidence[0].ID || entity.SourceProjectionVersion != 1 {
+		t.Fatalf("typed observation = %#v, evidence=%#v", entity, evidence[0])
+	}
+}
+
 func TestClientSupportsMaximumPageBoundWhenTheActualCollectionIsSmall(t *testing.T) {
 	t.Parallel()
 	request := testRequest(t, collection.ProviderAWS)
@@ -520,6 +559,7 @@ func TestArtifactIdentityChangesForEveryIndependentRequestAuthority(t *testing.T
 		"cursor":               func(value *collection.Request) { value.Cursor.Value = "next" },
 		"parser":               func(value *collection.Request) { value.ParserVersion = "parser_v2" },
 		"tool":                 func(value *collection.Request) { value.ToolVersion = "tool_v2" },
+		"observation time":     func(value *collection.Request) { value.ObservationTime = value.ObservationTime.Add(time.Second) },
 		"bounds":               func(value *collection.Request) { value.Bounds.MaxItems++ },
 	}
 	for name, mutate := range changes {
@@ -724,7 +764,7 @@ func testRequest(t *testing.T, provider collection.Provider) collection.Request 
 	request := collection.Request{
 		Scope: scope, IntegrationID: mustID(t, "pid_20000001-0000-4000-8000-000000000001"), ConnectionID: mustID(t, "pid_20000002-0000-4000-8000-000000000002"), JobID: mustID(t, "pid_20000003-0000-4000-8000-000000000003"),
 		Attempt: 1, Provider: provider, CollectorVersion: "collector_v1", CredentialClass: class, CredentialReference: "ref:" + string(provider) + "/connection/customer-0001", ExpectedSubject: subject,
-		Cursor: collection.Cursor{Provider: provider, Version: "cursor_v1", Value: "initial"}, ParserVersion: "parser_v1", ToolVersion: "tool_v1", Bounds: collection.Bounds{MaxPages: 4, MaxItems: 8, MaxRawBytes: 1 << 20, Timeout: time.Second},
+		Cursor: collection.Cursor{Provider: provider, Version: "cursor_v1", Value: "initial"}, ParserVersion: "parser_v1", ToolVersion: "tool_v1", ObservationTime: fixedClock(), Bounds: collection.Bounds{MaxPages: 4, MaxItems: 8, MaxRawBytes: 1 << 20, Timeout: time.Second},
 	}
 	if err := request.Validate(); err != nil {
 		t.Fatal(err)

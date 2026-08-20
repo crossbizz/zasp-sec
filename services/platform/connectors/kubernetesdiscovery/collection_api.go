@@ -197,9 +197,10 @@ type kubernetesCollectionList struct {
 		APIVersion string `json:"apiVersion"`
 		Kind       string `json:"kind"`
 		Metadata   struct {
-			UID       string `json:"uid"`
-			Namespace string `json:"namespace"`
-			Name      string `json:"name"`
+			UID       string            `json:"uid"`
+			Namespace string            `json:"namespace"`
+			Name      string            `json:"name"`
+			Labels    map[string]string `json:"labels,omitempty"`
 		} `json:"metadata"`
 	} `json:"items"`
 }
@@ -257,7 +258,11 @@ func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase 
 			if payload.APIVersion != "apps/v1" || payload.Kind != "DeploymentList" || item.APIVersion != "apps/v1" || item.Kind != "Deployment" || !kubernetesNamePattern.MatchString(item.Metadata.Namespace) {
 				return nil, nil, false
 			}
-			entityID := deterministicKubernetesInventoryID(subject, "kubernetes_workload", item.Metadata.UID)
+			entityKind := "kubernetes_workload"
+			if item.Metadata.Labels["zasp.ai/entity-kind"] == "agent" {
+				entityKind = "kubernetes_agent"
+			}
+			entityID := deterministicKubernetesInventoryID(subject, entityKind, item.Metadata.UID)
 			stable, _ := json.Marshal(struct {
 				Cluster      string `json:"cluster"`
 				Namespace    string `json:"namespace"`
@@ -266,7 +271,7 @@ func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase 
 				ResourceKind string `json:"resource_kind"`
 				Name         string `json:"name"`
 			}{subject.ID, item.Metadata.Namespace, "apps", "v1", "Deployment", item.Metadata.Name})
-			entity, err := marshalKubernetesEntity(entityID, "kubernetes_workload", "kubernetes:deployment:"+item.Metadata.UID, item.Metadata.Namespace+"/"+item.Metadata.Name, stable, json.RawMessage(`{"namespaced":true}`))
+			entity, err := marshalKubernetesEntity(entityID, entityKind, "kubernetes:deployment:"+item.Metadata.UID, item.Metadata.Namespace+"/"+item.Metadata.Name, stable, json.RawMessage(`{"namespaced":true}`))
 			if err != nil {
 				return nil, nil, false
 			}

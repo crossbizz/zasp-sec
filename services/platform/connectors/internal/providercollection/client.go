@@ -19,6 +19,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/inventoryprojection"
 )
 
 const (
@@ -81,6 +82,24 @@ type normalizedPageEntity struct {
 	DisplayName    string          `json:"display_name"`
 	StableFields   json.RawMessage `json:"stable_fields"`
 	Attributes     json.RawMessage `json:"attributes"`
+}
+
+type typedSnapshotEntity struct {
+	ID                      string          `json:"id"`
+	Kind                    string          `json:"kind"`
+	SourceNativeID          string          `json:"source_native_id"`
+	DisplayName             string          `json:"display_name"`
+	StableFields            json.RawMessage `json:"stable_fields"`
+	Attributes              json.RawMessage `json:"attributes"`
+	IdentityNamespace       string          `json:"identity_namespace"`
+	IdentityRuleVersion     int             `json:"identity_rule_version"`
+	IdentityPriority        int             `json:"identity_priority"`
+	ProductKind             string          `json:"product_kind"`
+	ConfidenceBasisPoints   int             `json:"confidence_basis_points"`
+	ObservedAt              string          `json:"observed_at"`
+	FreshUntil              string          `json:"fresh_until"`
+	EvidenceID              string          `json:"evidence_id"`
+	SourceProjectionVersion int             `json:"source_projection_version"`
 }
 
 type normalizedPageRelationship struct {
@@ -224,7 +243,8 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		remainingRelationships -= len(seed.relationships)
 		seededPages = len(seed.objects)
 		for index, page := range seed.pages {
-			if !snapshotLimit.addPage(page.Entities, page.Relationships, seed.evidenceLengths[index]) {
+			typedEntities, evidenceLengths, typedErr := snapshotPageBudgetBodies(request, page.Entities, seed.entityObjects)
+			if typedErr != nil || len(evidenceLengths) != len(seed.evidenceLengths[index]) || !snapshotLimit.addPage(typedEntities, page.Relationships, evidenceLengths) {
 				return nil, outcomeUnknown()
 			}
 		}
@@ -321,16 +341,12 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		if err != nil {
 			return nil, outcomeUnknown()
 		}
-		evidenceLengths := make([]int, len(pageEntityIDs))
-		for index, identity := range pageEntityIDs {
-			item, itemErr := evidenceForEntity(request, identity, object)
-			encoded, encodeErr := json.Marshal(item)
-			if itemErr != nil || encodeErr != nil {
-				return nil, collection.ErrContract
-			}
-			evidenceLengths[index] = len(encoded)
+		pageEntityObjects := make(map[string]collection.RawObject, len(pageEntityIDs))
+		for _, identity := range pageEntityIDs {
+			pageEntityObjects[identity] = object
 		}
-		if !snapshotLimit.addPage(page.Entities, page.Relationships, evidenceLengths) {
+		typedEntities, evidenceLengths, typedErr := snapshotPageBudgetBodies(request, page.Entities, pageEntityObjects)
+		if typedErr != nil || !snapshotLimit.addPage(typedEntities, page.Relationships, evidenceLengths) {
 			return nil, malformedFailure()
 		}
 		objects = append(objects, object)
@@ -393,7 +409,12 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	if err != nil {
 		return nil, malformedFailure()
 	}
-	snapshot, err := collection.NewSnapshotCandidate(request.Provider, request.ParserVersion, request.ToolVersion, entityBody, relationshipBody, evidenceBody)
+	var snapshot collection.SnapshotCandidate
+	if request.ObservationTime.IsZero() {
+		snapshot, err = collection.NewSnapshotCandidate(request.Provider, request.ParserVersion, request.ToolVersion, entityBody, relationshipBody, evidenceBody)
+	} else {
+		snapshot, err = collection.NewTypedSnapshotCandidate(request.Provider, request.ParserVersion, request.ToolVersion, entityBody, relationshipBody, evidenceBody)
+	}
 	if err != nil {
 		return nil, malformedFailure()
 	}
@@ -500,7 +521,7 @@ func providerEntitySchema(provider collection.Provider) (map[string]bool, map[st
 	case collection.ProviderAWS:
 		return tokenSet("aws_account", "aws_role", "aws_resource", "aws_service"), tokenSet("account_id", "arn", "region", "resource_type", "service", "name"), tokenSet("state", "status")
 	case collection.ProviderKubernetes:
-		return tokenSet("kubernetes_cluster", "kubernetes_namespace", "kubernetes_resource", "kubernetes_workload"), tokenSet("cluster", "namespace", "api_group", "api_version", "resource_kind", "name"), tokenSet("state", "status", "namespaced")
+		return tokenSet("kubernetes_agent", "kubernetes_cluster", "kubernetes_namespace", "kubernetes_resource", "kubernetes_workload"), tokenSet("cluster", "namespace", "api_group", "api_version", "resource_kind", "name"), tokenSet("state", "status", "namespaced")
 	case collection.ProviderGitHub:
 		return tokenSet("github_installation", "github_organization", "github_repository"), tokenSet("installation_id", "owner", "repository", "visibility", "name"), tokenSet("archived", "default_branch", "state")
 	case collection.ProviderOkta:
@@ -691,26 +712,79 @@ func snapshotBodies(request collection.Request, entities, relationships []json.R
 		return identityForSort(relationships[left]) < identityForSort(relationships[right])
 	})
 	evidence := make([]evidenceItem, 0, len(entities))
+	snapshotEntities := make([]json.RawMessage, 0, len(entities))
 	for _, entity := range entities {
 		entityID, ok := itemIdentity(entity)
 		object, exists := entityObjects[entityID]
 		if !ok || !exists {
 			return nil, nil, nil, collection.ErrContract
 		}
-		item, err := evidenceForEntity(request, entityID, object)
+		typed, item, err := snapshotEntity(request, entity, object)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		evidence = append(evidence, item)
+		snapshotEntities = append(snapshotEntities, typed)
 	}
 	sort.Slice(evidence, func(left, right int) bool { return evidence[left].ID < evidence[right].ID })
-	entityBody, entityErr := json.Marshal(entities)
+	entityBody, entityErr := json.Marshal(snapshotEntities)
 	relationshipBody, relationshipErr := json.Marshal(relationships)
 	evidenceBody, evidenceErr := json.Marshal(evidence)
 	if entityErr != nil || relationshipErr != nil || evidenceErr != nil {
 		return nil, nil, nil, collection.ErrContract
 	}
 	return entityBody, relationshipBody, evidenceBody, nil
+}
+
+func snapshotPageBudgetBodies(request collection.Request, entities []json.RawMessage, entityObjects map[string]collection.RawObject) ([]json.RawMessage, []int, error) {
+	typed := make([]json.RawMessage, len(entities))
+	evidenceLengths := make([]int, len(entities))
+	for index, entity := range entities {
+		identity, ok := itemIdentity(entity)
+		object, exists := entityObjects[identity]
+		if !ok || !exists {
+			return nil, nil, collection.ErrContract
+		}
+		value, evidence, err := snapshotEntity(request, entity, object)
+		encodedEvidence, encodeErr := json.Marshal(evidence)
+		if err != nil || encodeErr != nil {
+			return nil, nil, collection.ErrContract
+		}
+		typed[index] = value
+		evidenceLengths[index] = len(encodedEvidence)
+	}
+	return typed, evidenceLengths, nil
+}
+
+func snapshotEntity(request collection.Request, entity json.RawMessage, object collection.RawObject) (json.RawMessage, evidenceItem, error) {
+	entityID, ok := itemIdentity(entity)
+	if !ok {
+		return nil, evidenceItem{}, collection.ErrContract
+	}
+	item, err := evidenceForEntity(request, entityID, object)
+	if err != nil {
+		return nil, evidenceItem{}, err
+	}
+	if request.ObservationTime.IsZero() {
+		return bytes.Clone(entity), item, nil
+	}
+	var raw normalizedPageEntity
+	if !decodeExactObject(entity, &raw) {
+		return nil, evidenceItem{}, collection.ErrContract
+	}
+	rule, exists := inventoryprojection.LookupRule(string(request.Provider), raw.Kind)
+	if !exists {
+		return nil, evidenceItem{}, collection.ErrContract
+	}
+	typed, marshalErr := json.Marshal(typedSnapshotEntity{
+		ID: raw.ID, Kind: raw.Kind, SourceNativeID: raw.SourceNativeID, DisplayName: raw.DisplayName, StableFields: raw.StableFields, Attributes: raw.Attributes,
+		IdentityNamespace: rule.Namespace, IdentityRuleVersion: rule.Version, IdentityPriority: rule.Priority, ProductKind: string(rule.ProductKind), ConfidenceBasisPoints: rule.ConfidenceBasisPoints,
+		ObservedAt: request.ObservationTime.Format(time.RFC3339), FreshUntil: request.ObservationTime.Add(rule.Freshness).Format(time.RFC3339), EvidenceID: item.ID, SourceProjectionVersion: rule.Version,
+	})
+	if marshalErr != nil {
+		return nil, evidenceItem{}, collection.ErrContract
+	}
+	return typed, item, nil
 }
 
 func evidenceForEntity(request collection.Request, entityID string, object collection.RawObject) (evidenceItem, error) {
@@ -864,14 +938,19 @@ func collectionRequestDigest(request collection.Request) ([sha256.Size]byte, err
 		Cursor              digestCursor               `json:"cursor"`
 		ParserVersion       string                     `json:"parser_version"`
 		ToolVersion         string                     `json:"tool_version"`
+		ObservationTime     string                     `json:"observation_time,omitempty"`
 		Bounds              digestBounds               `json:"bounds"`
+	}
+	observationTime := ""
+	if !request.ObservationTime.IsZero() {
+		observationTime = request.ObservationTime.Format(time.RFC3339)
 	}
 	encoded, err := json.Marshal(digestRequest{
 		Scope:         digestScope{OrganizationID: request.Scope.OrganizationID().String(), WorkspaceID: request.Scope.WorkspaceID().String(), EnvironmentID: request.Scope.EnvironmentID().String()},
 		IntegrationID: request.IntegrationID.String(), ConnectionID: request.ConnectionID.String(), JobID: request.JobID.String(), Attempt: request.Attempt,
 		Provider: request.Provider, CollectorVersion: request.CollectorVersion, CredentialClass: request.CredentialClass, CredentialReference: request.CredentialReference,
 		ExpectedSubject: request.ExpectedSubject, Cursor: digestCursor{Provider: request.Cursor.Provider, Version: request.Cursor.Version, Value: request.Cursor.Value},
-		ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion,
+		ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, ObservationTime: observationTime,
 		Bounds: digestBounds{MaxPages: request.Bounds.MaxPages, MaxItems: request.Bounds.MaxItems, MaxRawBytes: request.Bounds.MaxRawBytes, TimeoutNS: int64(request.Bounds.Timeout)},
 	})
 	if err != nil {
