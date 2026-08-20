@@ -144,13 +144,13 @@ func TestReferenceProviderConfigurationDecodersRejectTrailingDocuments(t *testin
 	awsAdapter, _ := awsdiscovery.NewAdapter(&referenceIdentityClientStub{}, resolver, time.Second)
 	awsProbe := &awsReferenceProbe{adapter: awsAdapter}
 	awsConfiguration := json.RawMessage(`{"role_arn":"arn:aws:iam::123456789012:role/zasp/customer","external_id_reference":"ref:aws/external-id/customer-0001","region":"us-east-1"} {}`)
-	if err := awsProbe.ProbeReferenceAuthorization(context.Background(), apiserver.ReferenceAuthorizationTarget{Provider: "aws", Configuration: awsConfiguration}); !errors.Is(err, errRuntimeUnavailable) {
+	if _, err := awsProbe.ProbeReferenceAuthorization(context.Background(), apiserver.ReferenceAuthorizationTarget{Provider: "aws", Configuration: awsConfiguration}); !errors.Is(err, errRuntimeUnavailable) {
 		t.Fatalf("AWS trailing document = %v", err)
 	}
 	kubernetesAdapter, _ := kubernetesdiscovery.NewAdapter(&referenceKubernetesProbeStub{}, time.Second)
 	kubernetesProbe := &kubernetesReferenceProbe{adapter: kubernetesAdapter, resolver: resolver}
 	kubernetesConfiguration := json.RawMessage(`{"connection_reference":"ref:kubernetes/connection/customer-0001"}`)
-	if err := kubernetesProbe.ProbeReferenceAuthorization(context.Background(), apiserver.ReferenceAuthorizationTarget{Provider: "kubernetes", ConnectionReference: "ref:kubernetes/connection/customer-0001", Configuration: kubernetesConfiguration}); !errors.Is(err, errRuntimeUnavailable) {
+	if _, err := kubernetesProbe.ProbeReferenceAuthorization(context.Background(), apiserver.ReferenceAuthorizationTarget{Provider: "kubernetes", ConnectionReference: "ref:kubernetes/connection/customer-0001", Configuration: kubernetesConfiguration}); !errors.Is(err, errRuntimeUnavailable) {
 		t.Fatalf("Kubernetes trailing descriptor = %v", err)
 	}
 }

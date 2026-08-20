@@ -36,6 +36,8 @@ const (
 	connectorName         = "connector_authorization"
 	referenceVersion      = int64(12)
 	referenceName         = "reference_authorization"
+	executionVersion      = int64(13)
+	executionName         = "production_discovery_execution"
 	rollbackTimeout       = 5 * time.Second
 
 	tableExistsSQL           = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
@@ -49,6 +51,7 @@ const (
 	lockRiskProjectionSQL    = `LOCK TABLE "public"."zasp_risk_findings", "public"."zasp_risk_finding_evidence", "public"."zasp_risk_finding_factors", "public"."zasp_risk_attack_paths", "public"."zasp_risk_attack_path_nodes", "public"."zasp_risk_attack_path_evidence", "public"."zasp_risk_break_options", "public"."zasp_workflow_idempotency", "public"."zasp_workflow_audit", "public"."zasp_workflow_receipts" IN ACCESS EXCLUSIVE MODE`
 	lockDiscoverySQL         = `LOCK TABLE "public"."zasp_discovery_principal_bindings", "public"."zasp_integrations", "public"."zasp_integration_connections", "public"."zasp_discovery_schedules", "public"."zasp_discovery_syncs", "public"."zasp_discovery_jobs", "public"."zasp_discovery_snapshots", "public"."zasp_discovery_cursors", "public"."zasp_inventory_entities", "public"."zasp_inventory_source_observations", "public"."zasp_inventory_relationships", "public"."zasp_inventory_evidence", "public"."zasp_sensors", "public"."zasp_sensor_tokens", "public"."zasp_sensor_heartbeats", "public"."zasp_runtime_batches", "public"."zasp_runtime_stages", "public"."zasp_discovery_outbox", "public"."zasp_projection_work", "public"."zasp_gateway_devices", "public"."zasp_gateway_enrollment_tokens", "public"."zasp_gateway_credentials", "public"."zasp_gateway_policy_subscriptions" IN ACCESS EXCLUSIVE MODE`
 	lockConnectorSQL         = `LOCK TABLE "public"."zasp_connector_oauth_attempts", "public"."zasp_connector_effects", "public"."zasp_connector_credentials", "public"."zasp_connector_audit" IN ACCESS EXCLUSIVE MODE`
+	lockExecutionSQL         = `LOCK TABLE "public"."zasp_discovery_execution_principals", "public"."zasp_discovery_connection_subjects", "public"."zasp_discovery_execution_quotas", "public"."zasp_discovery_snapshot_inputs", "public"."zasp_discovery_projection_cursors" IN ACCESS EXCLUSIVE MODE`
 	insertRowSQL             = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
 	deleteRowSQL             = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
 )
@@ -135,6 +138,12 @@ var referenceUpSQL string
 
 //go:embed sql/0012_reference_authorization.down.sql
 var referenceDownSQL string
+
+//go:embed sql/0013_production_discovery_execution.up.sql
+var executionUpSQL string
+
+//go:embed sql/0013_production_discovery_execution.down.sql
+var executionDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -240,6 +249,13 @@ func ReferenceAuthorization() Metadata {
 	return Metadata{version: referenceVersion, name: referenceName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionDiscoveryExecution() Metadata {
+	up := strings.TrimSpace(executionUpSQL)
+	down := strings.TrimSpace(executionDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: executionVersion, name: executionName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -292,6 +308,10 @@ func ConnectorAuthorizationSemanticFingerprint() string {
 
 func ReferenceAuthorizationSemanticFingerprint() string {
 	return semanticFingerprint(referenceUpSQL, "reference_authorization_fingerprint")
+}
+
+func ProductionDiscoveryExecutionSemanticFingerprint() string {
+	return semanticFingerprint(executionUpSQL, "production_discovery_execution_fingerprint")
 }
 
 func semanticFingerprint(source, key string) string {
@@ -395,7 +415,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 12 {
+	if count < 1 || count > 13 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -422,6 +442,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization())
 	} else if count == 12 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization())
+	} else if count == 13 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -1072,6 +1094,54 @@ func (runner *Runner) DownReferenceAuthorization(ctx context.Context) error {
 	})
 }
 
+func (runner *Runner) UpProductionDiscoveryExecution(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readReferenceAuthorizationState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionDiscoveryExecution()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readProductionDiscoveryExecutionState(ctx, transaction)
+	})
+}
+
+func (runner *Runner) DownProductionDiscoveryExecution(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionDiscoveryExecutionState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionDiscoveryExecution()
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		return readReferenceAuthorizationState(ctx, transaction)
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -1243,6 +1313,10 @@ func readConnectorAuthorizationState(ctx context.Context, queryer Queryer) error
 
 func readReferenceAuthorizationState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization()})
+}
+
+func readProductionDiscoveryExecutionState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

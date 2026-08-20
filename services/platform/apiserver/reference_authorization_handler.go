@@ -67,7 +67,8 @@ func (handler *referenceAuthorizationHTTPHandler) ServeHTTP(writer http.Response
 		writeWorkflowMutationError(writer, request, ErrRepositoryConflict)
 		return
 	}
-	if err := handler.registry.Probe(request.Context(), ReferenceAuthorizationTarget{Provider: provider, IntegrationID: integrationID, ConnectionReference: reference, Configuration: configuration}); err != nil {
+	subject, err := handler.registry.Probe(request.Context(), ReferenceAuthorizationTarget{Provider: provider, IntegrationID: integrationID, ConnectionReference: reference, Configuration: configuration})
+	if err != nil {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
@@ -80,6 +81,7 @@ func (handler *referenceAuthorizationHTTPHandler) ServeHTTP(writer http.Response
 	}
 	result, err := handler.repository.Complete(request.Context(), identity, ReferenceAuthorizationCompletion{
 		IntegrationID: integrationID, Provider: provider, ConnectionID: referenceConnectionID(identity.Scope, integrationID, provider), ConnectionReference: reference,
+		SubjectKind: subject.Kind, SubjectID: subject.ID,
 		IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, Configuration: configuration, Intent: intent,
 		AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID,
 	})

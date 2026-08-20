@@ -15,11 +15,13 @@ const (
 	postgresReferenceAuthorizationReadySQL    = `SELECT to_jsonb(zasp_reference_authorization_readiness($1,$2))`
 	postgresReplayReferenceAuthorizationSQL   = `SELECT zasp_reference_authorization_replay($1,$2,$3,$4,$5,$6,$7)`
 	postgresCompleteReferenceAuthorizationSQL = `SELECT zasp_complete_reference_authorization($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14,$15)`
+	postgresExecutionCompleteReferenceSQL     = `SELECT zasp_execution_complete_reference_authorization($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14,$15,$16,$17)`
 	referenceAuthorizationOperation           = "completeIntegrationReferenceAuthorization"
 )
 
 type ReferenceAuthorizationCompletion struct {
 	IntegrationID, Provider, ConnectionID, ConnectionReference string
+	SubjectKind, SubjectID                                     string
 	IdempotencyKey                                             string
 	ExpectedVersion                                            int64
 	Configuration, Intent                                      json.RawMessage
@@ -43,7 +45,7 @@ func NewReferenceAuthorizationRepository(database JSONDatabase) (*ReferenceAutho
 		return nil, ErrRepositoryConfiguration
 	}
 	version, err := database.SchemaVersion(context.Background())
-	if err != nil || version != ReferenceSchemaVersion {
+	if err != nil || version != ReferenceSchemaVersion && version != DiscoveryExecutionSchemaVersion {
 		return nil, ErrRepositoryConfiguration
 	}
 	repository := &ReferenceAuthorizationRepository{database: database}
@@ -58,10 +60,14 @@ func (repository *ReferenceAuthorizationRepository) Ready(ctx context.Context) e
 		return ErrRepositoryUnavailable
 	}
 	version, err := repository.database.SchemaVersion(ctx)
-	if err != nil || version != ReferenceSchemaVersion {
+	if err != nil || version != ReferenceSchemaVersion && version != DiscoveryExecutionSchemaVersion {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresReferenceAuthorizationReadySQL, migrations.ReferenceAuthorization().Checksum(), migrations.ReferenceAuthorizationSemanticFingerprint())
+	readySQL, checksum, fingerprint := postgresReferenceAuthorizationReadySQL, migrations.ReferenceAuthorization().Checksum(), migrations.ReferenceAuthorizationSemanticFingerprint()
+	if version == DiscoveryExecutionSchemaVersion {
+		readySQL, checksum, fingerprint = postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()
+	}
+	payload, err := repository.database.QueryJSON(ctx, readySQL, checksum, fingerprint)
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return ErrRepositoryUnavailable
@@ -95,14 +101,24 @@ func (repository *ReferenceAuthorizationRepository) Replay(ctx context.Context, 
 }
 
 func (repository *ReferenceAuthorizationRepository) Complete(ctx context.Context, identity RequestIdentity, input ReferenceAuthorizationCompletion) (WorkflowMutationResult, error) {
-	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, false) || !validReferenceAuthorizationCompletion(input) {
+	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, false) {
 		return WorkflowMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresCompleteReferenceAuthorizationSQL,
+	version, _ := repository.database.SchemaVersion(ctx)
+	if !validReferenceAuthorizationCompletion(input, version == DiscoveryExecutionSchemaVersion) {
+		return WorkflowMutationResult{}, ErrRepositoryOperation
+	}
+	args := []any{
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(),
 		input.IntegrationID, input.Provider, input.ConnectionID, input.ConnectionReference, input.IdempotencyKey, input.ExpectedVersion,
 		input.Configuration, input.Intent, input.AuditID, input.CorrelationID, input.ReceiptID,
-	)
+	}
+	statement := postgresCompleteReferenceAuthorizationSQL
+	if version == DiscoveryExecutionSchemaVersion {
+		statement = postgresExecutionCompleteReferenceSQL
+		args = append(args, input.SubjectKind, input.SubjectID)
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, args...)
 	if err != nil {
 		return WorkflowMutationResult{}, discoveryProviderError(err)
 	}
@@ -166,8 +182,11 @@ func referenceAuthorizationIntent(identity RequestIdentity, integrationID, provi
 	return intent
 }
 
-func validReferenceAuthorizationCompletion(input ReferenceAuthorizationCompletion) bool {
+func validReferenceAuthorizationCompletion(input ReferenceAuthorizationCompletion, requireSubject bool) bool {
 	if !validProductID(input.IntegrationID) || !validProductID(input.ConnectionID) || !stringIn(input.Provider, "aws", "kubernetes") || len(input.IdempotencyKey) < 16 || len(input.IdempotencyKey) > 128 || !workflowKeyPattern.MatchString(input.IdempotencyKey) || input.ExpectedVersion < 1 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || !validJSONObjectBody(input.Configuration) || !validJSONObjectBody(input.Intent) {
+		return false
+	}
+	if requireSubject && !validReferenceAuthorizationSubject(input.Provider, ReferenceAuthorizationSubject{Kind: input.SubjectKind, ID: input.SubjectID}) {
 		return false
 	}
 	configuration, reference, valid := parseReferenceAuthorizationConfiguration(input.Provider, input.Configuration)

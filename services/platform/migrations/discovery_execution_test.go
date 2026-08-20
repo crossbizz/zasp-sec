@@ -1,0 +1,44 @@
+package migrations
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestProductionDiscoveryExecutionMigrationOwnsLeasedExecutionAuthority(t *testing.T) {
+	metadata := ProductionDiscoveryExecution()
+	if metadata.Version() != 13 || metadata.Name() != "production_discovery_execution" || len(metadata.Checksum()) != 64 {
+		t.Fatalf("production discovery execution metadata = v%d/%q/%q", metadata.Version(), metadata.Name(), metadata.Checksum())
+	}
+	for _, required := range []string{
+		"zasp_discovery_execution_principals",
+		"zasp_discovery_connection_subjects",
+		"zasp_discovery_execution_quotas",
+		"zasp_discovery_snapshot_inputs",
+		"zasp_discovery_projection_cursors",
+		"zasp_execution_claim_jobs",
+		"zasp_execution_job_input",
+		"zasp_execution_heartbeat_job",
+		"zasp_execution_schedule_input",
+		"zasp_execution_heartbeat_schedule",
+		"zasp_execution_apply_complete_snapshot",
+		"zasp_execution_snapshot_projection_page",
+		"zasp_execution_advance_projection_cursor",
+		"zasp_execution_readiness",
+		"production_discovery_execution_fingerprint",
+		"SECURITY DEFINER",
+		"SET search_path TO pg_catalog, public",
+	} {
+		if !strings.Contains(metadata.UpSQL(), required) {
+			t.Fatalf("production discovery execution migration missing %q", required)
+		}
+	}
+	if fingerprint := ProductionDiscoveryExecutionSemanticFingerprint(); len(fingerprint) != 64 || !strings.Contains(metadata.UpSQL(), fingerprint) || !strings.Contains(metadata.DownSQL(), fingerprint) {
+		t.Fatalf("production discovery execution fingerprint = %q", fingerprint)
+	}
+	for _, required := range []string{"semantic schema drift blocks rollback", "production discovery execution data blocks rollback", "reference-authorization-v1"} {
+		if !strings.Contains(metadata.DownSQL(), required) {
+			t.Fatalf("production discovery execution rollback missing %q", required)
+		}
+	}
+}

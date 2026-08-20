@@ -188,17 +188,20 @@ func containsString(values []string, candidate string) bool {
 
 type awsReferenceProbe struct{ adapter *awsdiscovery.Adapter }
 
-func (probe *awsReferenceProbe) ProbeReferenceAuthorization(ctx context.Context, target apiserver.ReferenceAuthorizationTarget) error {
+func (probe *awsReferenceProbe) ProbeReferenceAuthorization(ctx context.Context, target apiserver.ReferenceAuthorizationTarget) (apiserver.ReferenceAuthorizationSubject, error) {
 	var config struct {
 		RoleARN             string `json:"role_arn"`
 		ExternalIDReference string `json:"external_id_reference"`
 		Region              string `json:"region"`
 	}
 	if probe == nil || probe.adapter == nil || !decodeStrictReferenceJSON(target.Configuration, &config, 4096) {
-		return errRuntimeUnavailable
+		return apiserver.ReferenceAuthorizationSubject{}, errRuntimeUnavailable
 	}
-	_, err := probe.adapter.TestConnection(ctx, awsdiscovery.Config{RoleARN: config.RoleARN, ExternalIDReference: config.ExternalIDReference, Region: config.Region})
-	return err
+	identity, err := probe.adapter.TestConnection(ctx, awsdiscovery.Config{RoleARN: config.RoleARN, ExternalIDReference: config.ExternalIDReference, Region: config.Region})
+	if err != nil {
+		return apiserver.ReferenceAuthorizationSubject{}, err
+	}
+	return apiserver.ReferenceAuthorizationSubject{Kind: "aws_account", ID: identity.AccountID}, nil
 }
 
 type kubernetesReferenceProbe struct {
@@ -206,16 +209,16 @@ type kubernetesReferenceProbe struct {
 	resolver *referenceSecretResolver
 }
 
-func (probe *kubernetesReferenceProbe) ProbeReferenceAuthorization(ctx context.Context, target apiserver.ReferenceAuthorizationTarget) error {
+func (probe *kubernetesReferenceProbe) ProbeReferenceAuthorization(ctx context.Context, target apiserver.ReferenceAuthorizationTarget) (apiserver.ReferenceAuthorizationSubject, error) {
 	var configuration struct {
 		ConnectionReference string `json:"connection_reference"`
 	}
 	if probe == nil || probe.adapter == nil || probe.resolver == nil || !decodeStrictReferenceJSON(target.Configuration, &configuration, 4096) || configuration.ConnectionReference != target.ConnectionReference {
-		return errRuntimeUnavailable
+		return apiserver.ReferenceAuthorizationSubject{}, errRuntimeUnavailable
 	}
 	descriptorBytes, err := probe.resolver.Resolve(ctx, configuration.ConnectionReference)
 	if err != nil {
-		return errRuntimeUnavailable
+		return apiserver.ReferenceAuthorizationSubject{}, errRuntimeUnavailable
 	}
 	defer clear(descriptorBytes)
 	var descriptor struct {
@@ -225,10 +228,17 @@ func (probe *kubernetesReferenceProbe) ProbeReferenceAuthorization(ctx context.C
 		CredentialReference string `json:"credential_reference"`
 	}
 	if !decodeStrictReferenceJSON(descriptorBytes, &descriptor, 4096) {
-		return errRuntimeUnavailable
+		return apiserver.ReferenceAuthorizationSubject{}, errRuntimeUnavailable
 	}
-	_, err = probe.adapter.TestConnection(ctx, kubernetesdiscovery.Config{Endpoint: descriptor.Endpoint, Context: descriptor.Context, CAReference: descriptor.CAReference, CredentialReference: descriptor.CredentialReference})
-	return err
+	result, err := probe.adapter.TestConnection(ctx, kubernetesdiscovery.Config{Endpoint: descriptor.Endpoint, Context: descriptor.Context, CAReference: descriptor.CAReference, CredentialReference: descriptor.CredentialReference})
+	if err != nil {
+		return apiserver.ReferenceAuthorizationSubject{}, err
+	}
+	endpoint, parseErr := url.Parse(descriptor.Endpoint)
+	if parseErr != nil {
+		return apiserver.ReferenceAuthorizationSubject{}, errRuntimeUnavailable
+	}
+	return apiserver.ReferenceAuthorizationSubject{Kind: "kubernetes_cluster", ID: strings.ToLower(endpoint.Hostname()) + "/" + strings.ToLower(result.ClusterID)}, nil
 }
 
 func decodeStrictReferenceJSON(raw []byte, target any, limit int) bool {

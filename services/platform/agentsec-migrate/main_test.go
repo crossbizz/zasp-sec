@@ -215,6 +215,24 @@ func (runner *scriptedMigrationRunner) DownReferenceAuthorization(context.Contex
 	return nil
 }
 
+func (runner *scriptedMigrationRunner) UpProductionDiscoveryExecution(context.Context) error {
+	runner.events = append(runner.events, "up-production-discovery-execution")
+	if runner.errAt == "up-production-discovery-execution" {
+		return errors.New("detail")
+	}
+	runner.version = 13
+	return nil
+}
+
+func (runner *scriptedMigrationRunner) DownProductionDiscoveryExecution(context.Context) error {
+	runner.events = append(runner.events, "down-production-discovery-execution")
+	if runner.errAt == "down-production-discovery-execution" {
+		return errors.New("detail")
+	}
+	runner.version = 12
+	return nil
+}
+
 func (runner *scriptedMigrationRunner) DownWorkflowReceiptSafety(context.Context) error {
 	runner.events = append(runner.events, "down-receipt-safety")
 	if runner.errAt == "down-receipt-safety" {
@@ -278,6 +296,10 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 		{direction: "up", version: 9, want: []string{"version", "up-production-discovery", "up-connector-authorization", "version"}},
 		{direction: "up", version: 10, want: []string{"version", "up-connector-authorization", "version"}},
 		{direction: "up", version: 11, want: []string{"version", "version"}},
+		{direction: "up", version: 12, want: []string{"version", "version"}},
+		{direction: "up", version: 13, want: []string{"version", "version"}},
+		{direction: "down", version: 13, want: []string{"version", "down-production-discovery-execution", "down-reference-authorization", "down-connector-authorization", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
+		{direction: "down", version: 12, want: []string{"version", "down-reference-authorization", "down-connector-authorization", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 11, want: []string{"version", "down-connector-authorization", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 10, want: []string{"version", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 9, want: []string{"version", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
@@ -293,7 +315,14 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 	} {
 		t.Run(test.direction+string(rune('0'+test.version)), func(t *testing.T) {
 			if test.direction == "up" {
-				test.want = append(append(append([]string(nil), test.want[:len(test.want)-1]...), "up-reference-authorization"), test.want[len(test.want)-1])
+				steps := append([]string(nil), test.want[:len(test.want)-1]...)
+				if test.version <= 11 {
+					steps = append(steps, "up-reference-authorization")
+				}
+				if test.version <= 12 {
+					steps = append(steps, "up-production-discovery-execution")
+				}
+				test.want = append(steps, test.want[len(test.want)-1])
 			}
 			runner := &scriptedMigrationRunner{version: test.version}
 			if err := runReleaseMigration(context.Background(), runner, []string{test.direction}); err != nil {
@@ -311,14 +340,14 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 	}
 }
 
-func TestRunReleaseMigrationIncludesReferenceAuthorizationRelease(t *testing.T) {
+func TestRunReleaseMigrationIncludesDiscoveryExecutionRelease(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 11}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-reference-authorization", "version"}) {
-		t.Fatalf("v11 to v12 = %#v, %v", up.events, err)
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-reference-authorization", "up-production-discovery-execution", "version"}) {
+		t.Fatalf("v11 to v13 = %#v, %v", up.events, err)
 	}
-	down := &scriptedMigrationRunner{version: 12}
-	if err := runReleaseMigration(context.Background(), down, []string{"down"}); err != nil || len(down.events) < 3 || down.events[1] != "down-reference-authorization" {
-		t.Fatalf("v12 down = %#v, %v", down.events, err)
+	down := &scriptedMigrationRunner{version: 13}
+	if err := runReleaseMigration(context.Background(), down, []string{"down"}); err != nil || len(down.events) < 4 || down.events[1] != "down-production-discovery-execution" || down.events[2] != "down-reference-authorization" {
+		t.Fatalf("v13 down = %#v, %v", down.events, err)
 	}
 }
 
@@ -335,7 +364,7 @@ func equalMigrationEvents(left, right []string) bool {
 }
 
 func TestRunReleaseMigrationRejectsDriftAndHonorsDeadline(t *testing.T) {
-	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 13}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
+	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 14}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
 		t.Fatalf("drift error = %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -347,16 +376,18 @@ func TestRunReleaseMigrationRejectsDriftAndHonorsDeadline(t *testing.T) {
 
 func TestLoadDiscoveryPrincipalRegistrationRequiresDistinctSafeNames(t *testing.T) {
 	values := map[string]string{
-		migrationPrincipalEnvironment:       "zasp_test_migration_login",
-		discoveryAPIPrincipalEnvironment:    "zasp_test_api_login",
-		discoveryWorkerPrincipalEnvironment: "zasp_test_discovery_login",
-		runtimeIngestPrincipalEnvironment:   "zasp_test_ingest_login",
-		runtimeWorkerPrincipalEnvironment:   "zasp_test_runtime_login",
-		outboxWorkerPrincipalEnvironment:    "zasp_test_outbox_login",
-		runtimeGatewayPrincipalEnvironment:  "zasp_test_gateway_login",
+		migrationPrincipalEnvironment:          "zasp_test_migration_login",
+		discoveryAPIPrincipalEnvironment:       "zasp_test_api_login",
+		discoveryWorkerPrincipalEnvironment:    "zasp_test_discovery_login",
+		runtimeIngestPrincipalEnvironment:      "zasp_test_ingest_login",
+		runtimeWorkerPrincipalEnvironment:      "zasp_test_runtime_login",
+		outboxWorkerPrincipalEnvironment:       "zasp_test_outbox_login",
+		runtimeGatewayPrincipalEnvironment:     "zasp_test_gateway_login",
+		discoverySchedulerPrincipalEnvironment: "zasp_test_scheduler_login",
+		projectionWorkerPrincipalEnvironment:   "zasp_test_projection_login",
 	}
 	registration, err := loadDiscoveryPrincipalRegistration(func(key string) string { return values[key] })
-	if err != nil || registration.migration != values[migrationPrincipalEnvironment] || registration.api != values[discoveryAPIPrincipalEnvironment] || registration.gateway != values[runtimeGatewayPrincipalEnvironment] {
+	if err != nil || registration.migration != values[migrationPrincipalEnvironment] || registration.api != values[discoveryAPIPrincipalEnvironment] || registration.gateway != values[runtimeGatewayPrincipalEnvironment] || registration.scheduler != values[discoverySchedulerPrincipalEnvironment] || registration.projection != values[projectionWorkerPrincipalEnvironment] {
 		t.Fatalf("registration=%#v err=%v", registration, err)
 	}
 	delete(values, runtimeWorkerPrincipalEnvironment)
@@ -369,7 +400,7 @@ func TestLoadDiscoveryPrincipalRegistrationRequiresDistinctSafeNames(t *testing.
 	}
 }
 
-func TestAgentsecMigrateCLIReachesV12FromEmptyAndV11(t *testing.T) {
+func TestAgentsecMigrateCLIReachesV13FromEmptyAndV12(t *testing.T) {
 	dsn := startMigrationPostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
@@ -379,7 +410,7 @@ func TestAgentsecMigrateCLIReachesV12FromEmptyAndV11(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	principalNames := []string{"zasp_cli_api_login", "zasp_cli_discovery_login", "zasp_cli_ingest_login", "zasp_cli_runtime_login", "zasp_cli_outbox_login", "zasp_cli_gateway_login"}
+	principalNames := []string{"zasp_cli_api_login", "zasp_cli_discovery_login", "zasp_cli_ingest_login", "zasp_cli_runtime_login", "zasp_cli_outbox_login", "zasp_cli_gateway_login", "zasp_cli_scheduler_login", "zasp_cli_projection_login"}
 	for _, principal := range principalNames {
 		if _, err := connection.Exec(ctx, fmt.Sprintf(`CREATE ROLE %s LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`, principal)); err != nil {
 			t.Fatal(err)
@@ -390,6 +421,7 @@ func TestAgentsecMigrateCLIReachesV12FromEmptyAndV11(t *testing.T) {
 		"ZASP_DISCOVERY_API_DB_PRINCIPAL=" + principalNames[0], "ZASP_DISCOVERY_WORKER_DB_PRINCIPAL=" + principalNames[1],
 		"ZASP_RUNTIME_INGEST_DB_PRINCIPAL=" + principalNames[2], "ZASP_RUNTIME_WORKER_DB_PRINCIPAL=" + principalNames[3],
 		"ZASP_OUTBOX_WORKER_DB_PRINCIPAL=" + principalNames[4], "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL=" + principalNames[5],
+		"ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL=" + principalNames[6], "ZASP_PROJECTION_WORKER_DB_PRINCIPAL=" + principalNames[7],
 	}
 	runCLI := func(label string) {
 		t.Helper()
@@ -398,7 +430,7 @@ func TestAgentsecMigrateCLIReachesV12FromEmptyAndV11(t *testing.T) {
 		if output, commandErr := command.CombinedOutput(); commandErr != nil {
 			t.Fatalf("%s: %v output=%q", label, commandErr, output)
 		}
-		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 12 {
+		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 13 {
 			t.Fatalf("%s version = (%d, %v)", label, version, versionErr)
 		}
 		var bindings int
@@ -406,19 +438,22 @@ func TestAgentsecMigrateCLIReachesV12FromEmptyAndV11(t *testing.T) {
 			t.Fatalf("%s principal bindings=%d err=%v", label, bindings, err)
 		}
 	}
-	runCLI("empty to v12")
+	runCLI("empty to v13")
 	var connectorReady bool
 	if err := connection.QueryRow(ctx, `SELECT zasp_connector_security_ready()`).Scan(&connectorReady); err != nil || !connectorReady {
 		t.Fatalf("connector security ready before down=%v err=%v", connectorReady, err)
 	}
-	var connectorReleaseReady bool
-	if err := connection.QueryRow(ctx, `SELECT zasp_connector_readiness($1,$2)`, migrations.ConnectorAuthorization().Checksum(), migrations.ConnectorAuthorizationSemanticFingerprint()).Scan(&connectorReleaseReady); err != nil || !connectorReleaseReady {
-		t.Fatalf("connector release ready before down=%v err=%v", connectorReleaseReady, err)
+	var executionReleaseReady bool
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_readiness($1,$2)`, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()).Scan(&executionReleaseReady); err != nil || !executionReleaseReady {
+		t.Fatalf("execution release ready before down=%v err=%v", executionReleaseReady, err)
+	}
+	if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
+		t.Fatalf("v13 to v12 fixture: %v", err)
 	}
 	if err := runner.DownReferenceAuthorization(ctx); err != nil {
 		t.Fatalf("v12 to v11 fixture: %v", err)
 	}
-	runCLI("v11 to v12")
+	runCLI("v11 to v13")
 }
 
 func TestRunReleaseMigrationRejectsAmbiguousInputsAndStopsOnFailure(t *testing.T) {
@@ -447,22 +482,22 @@ func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDri
 		t.Fatal(err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("empty to v12: %v", err)
+		t.Fatalf("empty to v13: %v", err)
 	}
-	if version, err := runner.Version(ctx); err != nil || version != 12 {
-		t.Fatalf("v12 = (%d, %v)", version, err)
+	if version, err := runner.Version(ctx); err != nil || version != 13 {
+		t.Fatalf("v13 = (%d, %v)", version, err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v12 retry: %v", err)
+		t.Fatalf("v13 retry: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"down"}); err != nil {
-		t.Fatalf("v12 to empty: %v", err)
+		t.Fatalf("v13 to empty: %v", err)
 	}
 	if err := runner.Up(ctx); err != nil {
 		t.Fatalf("create v1: %v", err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("v1 to v12: %v", err)
+		t.Fatalf("v1 to v13: %v", err)
 	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_schema_versions SET checksum = repeat('0', 64) WHERE version = 2`); err != nil {
 		t.Fatal(err)
@@ -486,7 +521,10 @@ func TestV6ReceiptlessPATReplayUsesDurableMarkerAndBlocksEveryRollbackWithoutPar
 		t.Fatal(err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
-		t.Fatalf("empty to v12: %v", err)
+		t.Fatalf("empty to v13: %v", err)
+	}
+	if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
+		t.Fatalf("v13 to v12 fixture: %v", err)
 	}
 	if err := runner.DownReferenceAuthorization(ctx); err != nil {
 		t.Fatalf("v12 to v11 fixture: %v", err)
@@ -911,6 +949,9 @@ func migrateToV6(t *testing.T, ctx context.Context, connection *pgx.Conn) *migra
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
 		t.Fatalf("migrate to v6: %v", err)
+	}
+	if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
+		t.Fatalf("down production discovery execution: %v", err)
 	}
 	if err := runner.DownReferenceAuthorization(ctx); err != nil {
 		t.Fatalf("down reference authorization: %v", err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"regexp"
+	"strings"
 )
 
 var (
@@ -11,6 +12,8 @@ var (
 	awsExternalIDReferencePattern = regexp.MustCompile(`^ref:aws/external-id/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$`)
 	awsRegionPattern              = regexp.MustCompile(`^[a-z]{2}-[a-z]+-[1-9][0-9]?$`)
 	kubernetesReferencePattern    = regexp.MustCompile(`^ref:kubernetes/connection/[A-Za-z0-9][A-Za-z0-9._-]{7,127}$`)
+	awsReferenceSubjectPattern    = regexp.MustCompile(`^[0-9]{12}$`)
+	kubernetesSubjectPattern      = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{0,252}/[a-z0-9][a-z0-9._-]{0,127}$`)
 )
 
 type ReferenceAuthorizationTarget struct {
@@ -18,8 +21,13 @@ type ReferenceAuthorizationTarget struct {
 	Configuration                                json.RawMessage
 }
 
+type ReferenceAuthorizationSubject struct {
+	Kind string
+	ID   string
+}
+
 type ReferenceAuthorizationProbe interface {
-	ProbeReferenceAuthorization(context.Context, ReferenceAuthorizationTarget) error
+	ProbeReferenceAuthorization(context.Context, ReferenceAuthorizationTarget) (ReferenceAuthorizationSubject, error)
 }
 
 type ReferenceConnectorRegistry struct {
@@ -51,20 +59,32 @@ func NewReferenceConnectorRegistry(probes map[string]ReferenceAuthorizationProbe
 	return registry, nil
 }
 
-func (registry *ReferenceConnectorRegistry) Probe(ctx context.Context, target ReferenceAuthorizationTarget) error {
+func (registry *ReferenceConnectorRegistry) Probe(ctx context.Context, target ReferenceAuthorizationTarget) (ReferenceAuthorizationSubject, error) {
 	if registry == nil || ctx == nil || ctx.Err() != nil || !validProductID(target.IntegrationID) || !stringIn(target.Provider, "aws", "kubernetes") {
-		return ErrRepositoryOperation
+		return ReferenceAuthorizationSubject{}, ErrRepositoryOperation
 	}
 	canonical, reference, valid := parseReferenceAuthorizationConfiguration(target.Provider, target.Configuration)
 	probe, exists := registry.probes[target.Provider]
 	if !valid || reference != target.ConnectionReference || !exists || registry.checks[target.Provider](ctx) != nil {
-		return ErrRepositoryUnavailable
+		return ReferenceAuthorizationSubject{}, ErrRepositoryUnavailable
 	}
 	target.Configuration = canonical
-	if err := probe.ProbeReferenceAuthorization(ctx, target); err != nil {
-		return ErrRepositoryUnavailable
+	subject, err := probe.ProbeReferenceAuthorization(ctx, target)
+	if err != nil || !validReferenceAuthorizationSubject(target.Provider, subject) {
+		return ReferenceAuthorizationSubject{}, ErrRepositoryUnavailable
 	}
-	return nil
+	return subject, nil
+}
+
+func validReferenceAuthorizationSubject(provider string, subject ReferenceAuthorizationSubject) bool {
+	switch provider {
+	case "aws":
+		return subject.Kind == "aws_account" && awsReferenceSubjectPattern.MatchString(subject.ID)
+	case "kubernetes":
+		return subject.Kind == "kubernetes_cluster" && kubernetesSubjectPattern.MatchString(subject.ID) && !strings.Contains(subject.ID, "..")
+	default:
+		return false
+	}
 }
 
 func (registry *ReferenceConnectorRegistry) ConnectorAvailable(ctx context.Context, key string) bool {

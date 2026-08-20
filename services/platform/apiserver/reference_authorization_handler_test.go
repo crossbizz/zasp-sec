@@ -31,9 +31,12 @@ func (stub *referenceAuthorizationAuthorityStub) Complete(_ context.Context, _ R
 
 type referenceProbeStub struct{ calls int }
 
-func (stub *referenceProbeStub) ProbeReferenceAuthorization(context.Context, ReferenceAuthorizationTarget) error {
+func (stub *referenceProbeStub) ProbeReferenceAuthorization(_ context.Context, target ReferenceAuthorizationTarget) (ReferenceAuthorizationSubject, error) {
 	stub.calls++
-	return nil
+	if target.Provider == "aws" {
+		return ReferenceAuthorizationSubject{Kind: "aws_account", ID: "123456789012"}, nil
+	}
+	return ReferenceAuthorizationSubject{Kind: "kubernetes_cluster", ID: "cluster.example.test/cluster-01"}, nil
 }
 
 func referenceWorkflowValue(id, provider, status string, version int64) WorkflowValue {

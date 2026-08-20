@@ -82,10 +82,14 @@ func (repository *ConnectorRepository) ready(ctx context.Context) error {
 		return ErrRepositoryUnavailable
 	}
 	version, err := repository.database.SchemaVersion(ctx)
-	if err != nil || version != ConnectorSchemaVersion && version != ReferenceSchemaVersion {
+	if err != nil || version != ConnectorSchemaVersion && version != ReferenceSchemaVersion && version != DiscoveryExecutionSchemaVersion {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresConnectorReadySQL, migrations.ConnectorAuthorization().Checksum(), migrations.ConnectorAuthorizationSemanticFingerprint())
+	readySQL, checksum, fingerprint := postgresConnectorReadySQL, migrations.ConnectorAuthorization().Checksum(), migrations.ConnectorAuthorizationSemanticFingerprint()
+	if version == DiscoveryExecutionSchemaVersion {
+		readySQL, checksum, fingerprint = postgresExecutionReadySQL, migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()
+	}
+	payload, err := repository.database.QueryJSON(ctx, readySQL, checksum, fingerprint)
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return ErrRepositoryUnavailable

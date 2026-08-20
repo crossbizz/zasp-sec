@@ -15,22 +15,24 @@ import (
 )
 
 const (
-	postgresDSNEnvironment              = "ZASP_POSTGRES_DSN"
-	migrationTimeoutEnvironment         = "ZASP_MIGRATION_TIMEOUT"
-	migrationPrincipalEnvironment       = "ZASP_MIGRATION_DB_PRINCIPAL"
-	discoveryAPIPrincipalEnvironment    = "ZASP_DISCOVERY_API_DB_PRINCIPAL"
-	discoveryWorkerPrincipalEnvironment = "ZASP_DISCOVERY_WORKER_DB_PRINCIPAL"
-	runtimeIngestPrincipalEnvironment   = "ZASP_RUNTIME_INGEST_DB_PRINCIPAL"
-	runtimeWorkerPrincipalEnvironment   = "ZASP_RUNTIME_WORKER_DB_PRINCIPAL"
-	outboxWorkerPrincipalEnvironment    = "ZASP_OUTBOX_WORKER_DB_PRINCIPAL"
-	runtimeGatewayPrincipalEnvironment  = "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL"
+	postgresDSNEnvironment                 = "ZASP_POSTGRES_DSN"
+	migrationTimeoutEnvironment            = "ZASP_MIGRATION_TIMEOUT"
+	migrationPrincipalEnvironment          = "ZASP_MIGRATION_DB_PRINCIPAL"
+	discoveryAPIPrincipalEnvironment       = "ZASP_DISCOVERY_API_DB_PRINCIPAL"
+	discoveryWorkerPrincipalEnvironment    = "ZASP_DISCOVERY_WORKER_DB_PRINCIPAL"
+	runtimeIngestPrincipalEnvironment      = "ZASP_RUNTIME_INGEST_DB_PRINCIPAL"
+	runtimeWorkerPrincipalEnvironment      = "ZASP_RUNTIME_WORKER_DB_PRINCIPAL"
+	outboxWorkerPrincipalEnvironment       = "ZASP_OUTBOX_WORKER_DB_PRINCIPAL"
+	runtimeGatewayPrincipalEnvironment     = "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL"
+	discoverySchedulerPrincipalEnvironment = "ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL"
+	projectionWorkerPrincipalEnvironment   = "ZASP_PROJECTION_WORKER_DB_PRINCIPAL"
 )
 
 var errInvalidMigrationCommand = errors.New("invalid release migration command")
 var databasePrincipalPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{2,62}$`)
 
 type discoveryPrincipalRegistration struct {
-	migration, api, discovery, ingest, runtime, outbox, gateway string
+	migration, api, discovery, ingest, runtime, outbox, gateway, scheduler, projection string
 }
 
 type releaseMigrationRunner interface {
@@ -54,6 +56,8 @@ type releaseMigrationRunner interface {
 	DownConnectorAuthorization(context.Context) error
 	UpReferenceAuthorization(context.Context) error
 	DownReferenceAuthorization(context.Context) error
+	UpProductionDiscoveryExecution(context.Context) error
+	DownProductionDiscoveryExecution(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -100,6 +104,9 @@ func main() {
 		if err := connection.QueryRow(ctx, `SELECT zasp_discovery_register_principals($1,$2,$3,$4,$5,$6,$7)`, registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway).Scan(&registered); err != nil || !registered {
 			log.Fatal("release migration principal registration failed")
 		}
+		if err := connection.QueryRow(ctx, `SELECT zasp_execution_register_principals($1,$2,$3,$4)`, registration.migration, registration.scheduler, registration.discovery, registration.projection).Scan(&registered); err != nil || !registered {
+			log.Fatal("release execution principal registration failed")
+		}
 	}
 }
 
@@ -112,8 +119,9 @@ func loadDiscoveryPrincipalRegistration(getenv func(string) string) (discoveryPr
 		api:       getenv(discoveryAPIPrincipalEnvironment), discovery: getenv(discoveryWorkerPrincipalEnvironment),
 		ingest: getenv(runtimeIngestPrincipalEnvironment), runtime: getenv(runtimeWorkerPrincipalEnvironment),
 		outbox: getenv(outboxWorkerPrincipalEnvironment), gateway: getenv(runtimeGatewayPrincipalEnvironment),
+		scheduler: getenv(discoverySchedulerPrincipalEnvironment), projection: getenv(projectionWorkerPrincipalEnvironment),
 	}
-	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway}
+	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway, registration.scheduler, registration.projection}
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		if !databasePrincipalPattern.MatchString(value) {
@@ -223,10 +231,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 12
 		}
-		if version != 12 {
+		if version == 12 {
+			if err := runner.UpProductionDiscoveryExecution(ctx); err != nil {
+				return err
+			}
+			version = 13
+		}
+		if version != 13 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 13 {
+			if err := runner.DownProductionDiscoveryExecution(ctx); err != nil {
+				return err
+			}
+			version = 12
+		}
 		if version == 12 {
 			if err := runner.DownReferenceAuthorization(ctx); err != nil {
 				return err
