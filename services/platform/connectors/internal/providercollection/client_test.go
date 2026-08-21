@@ -23,9 +23,9 @@ func TestClientWritesRawPagesThenManifestAndReturnsBoundCompleteSnapshot(t *test
 	store := &recordingArtifacts{bucket: "zasp-evidence", steps: &steps}
 	api := &recordingAPI{steps: &steps, pages: []Page{
 		mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "page-2"}, false,
-			[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)}, nil),
+			[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012"},"attributes":{}}`)}, nil),
 		mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"}, true,
-			[]json.RawMessage{json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{},"attributes":{}}`)},
+			[]json.RawMessage{json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{"account_id":"123456789012","arn":"arn:aws:iam::123456789012:role/read","name":"read"},"attributes":{}}`)},
 			[]json.RawMessage{json.RawMessage(`{"id":"pid_40000003-0000-4000-8000-000000000003","kind":"contains","source_native_id":"123456789012/read","from_entity_id":"pid_40000001-0000-4000-8000-000000000001","to_entity_id":"pid_40000002-0000-4000-8000-000000000002","attributes":{}}`)}),
 	}}
 	client, err := New(Config{Provider: collection.ProviderAWS, API: api, Artifacts: store, CollectorVersion: "collector_v1", ParserVersion: "parser_v1", ToolVersion: "tool_v1", Clock: fixedClock})
@@ -64,7 +64,7 @@ func TestClientBindsRuleCatalogObservationAuthorityToExactEvidence(t *testing.T)
 	t.Parallel()
 	request := testRequest(t, collection.ProviderAWS)
 	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"}, true,
-		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)}, nil)
+		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012"},"attributes":{}}`)}, nil)
 	store := &recordingArtifacts{bucket: "zasp-evidence"}
 	client, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{page}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
 	if err != nil {
@@ -180,9 +180,9 @@ func TestClientRejectsCrossPageIdentityDriftAndDanglingRelationshipsAsMalformed(
 	t.Parallel()
 	request := testRequest(t, collection.ProviderAWS)
 	first := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "page-2"}, false,
-		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"same-native-id","display_name":"first","stable_fields":{},"attributes":{}}`)}, nil)
+		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"same-native-id","display_name":"first","stable_fields":{"account_id":"123456789012"},"attributes":{}}`)}, nil)
 	duplicateSource := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, true,
-		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"same-native-id","display_name":"second","stable_fields":{},"attributes":{}}`)}, nil)
+		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"same-native-id","display_name":"second","stable_fields":{"account_id":"123456789012","arn":"arn:aws:iam::123456789012:role/read","name":"read"},"attributes":{}}`)}, nil)
 	dangling := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "done"}, true, nil,
 		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000003-0000-4000-8000-000000000003","kind":"contains","source_native_id":"dangling-edge","from_entity_id":"pid_40000004-0000-4000-8000-000000000004","to_entity_id":"pid_40000005-0000-4000-8000-000000000005","attributes":{}}`)})
 
@@ -253,7 +253,7 @@ func TestClientStopsAtExactItemBudgetAndPublishesPartialWithoutAnotherProviderCa
 	request := testRequest(t, collection.ProviderAWS)
 	request.Bounds.MaxItems = 1
 	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "continue"}, false,
-		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)}, nil)
+		[]json.RawMessage{json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012"},"attributes":{}}`)}, nil)
 	api := &recordingAPI{pages: []Page{page}}
 	store := &recordingArtifacts{bucket: "zasp-evidence"}
 	client, err := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
@@ -274,9 +274,9 @@ func TestClientResumesFromVersionPinnedManifestAndReturnsExactUnion(t *testing.T
 	t.Parallel()
 	request := testRequest(t, collection.ProviderAWS)
 	request.Bounds.MaxPages = 2
-	firstEntity := json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)
+	firstEntity := json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012"},"attributes":{}}`)
 	firstPage := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "page-2"}, false, []json.RawMessage{firstEntity}, nil)
-	secondEntity := json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{},"attributes":{}}`)
+	secondEntity := json.RawMessage(`{"id":"pid_40000002-0000-4000-8000-000000000002","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{"account_id":"123456789012","arn":"arn:aws:iam::123456789012:role/read","name":"read"},"attributes":{}}`)
 	secondPage := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "continue"}, false, []json.RawMessage{secondEntity}, nil)
 	store := &recordingArtifacts{bucket: "zasp-evidence"}
 	firstClient, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{firstPage, secondPage}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
@@ -295,7 +295,7 @@ func TestClientResumesFromVersionPinnedManifestAndReturnsExactUnion(t *testing.T
 	request.Attempt++
 	request.Cursor = partial.NextCursor()
 	request.Bounds.MaxPages = 3
-	thirdEntity := json.RawMessage(`{"id":"pid_40000003-0000-4000-8000-000000000003","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/audit","display_name":"audit","stable_fields":{},"attributes":{}}`)
+	thirdEntity := json.RawMessage(`{"id":"pid_40000003-0000-4000-8000-000000000003","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/audit","display_name":"audit","stable_fields":{"account_id":"123456789012","arn":"arn:aws:iam::123456789012:role/audit","name":"audit"},"attributes":{}}`)
 	tail := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"}, true, []json.RawMessage{thirdEntity}, nil)
 	api := &recordingAPI{pages: []Page{tail}, pageOffset: 2}
 	base, _ := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
@@ -394,9 +394,9 @@ func TestNewPageAllowsOnlyCanonicalProviderInventoryWithoutSecrets(t *testing.T)
 		t.Fatalf("NewPage(valid) = %#v, %v", page, err)
 	}
 	for name, entity := range map[string]json.RawMessage{
-		"token":             json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"token":"secret"},"attributes":{}}`),
-		"secret access key": json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"secret_access_key":"secret"},"attributes":{}}`),
-		"client key data":   json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"client_key_data":"secret"},"attributes":{}}`),
+		"token":             json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012","token":"secret"},"attributes":{}}`),
+		"secret access key": json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012","secret_access_key":"secret"},"attributes":{}}`),
+		"client key data":   json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012","client_key_data":"secret"},"attributes":{}}`),
 		"nested data":       json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":{"data":"secret"}},"attributes":{}}`),
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -407,7 +407,7 @@ func TestNewPageAllowsOnlyCanonicalProviderInventoryWithoutSecrets(t *testing.T)
 	}
 	kubernetesSubject := collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}
 	kubernetesCursor := collection.Cursor{Provider: collection.ProviderKubernetes, Version: "cursor_v1", Value: "done"}
-	secretResource := json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"kubernetes_resource","source_native_id":"default/secret","display_name":"secret","stable_fields":{"cluster":"api.example.com/production","namespace":"default","resource_kind":"Secret","name":"secret"},"attributes":{}}`)
+	secretResource := json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"kubernetes_resource","source_native_id":"default/secret","display_name":"secret","stable_fields":{"api_group":"core","api_version":"v1","cluster":"api.example.com/production","name":"secret","namespace":"default","resource_kind":"Secret"},"attributes":{"namespaced":true}}`)
 	if _, err := NewPage(collection.ProviderKubernetes, kubernetesSubject, kubernetesCursor, true, []json.RawMessage{secretResource}, nil); !errors.Is(err, collection.ErrContract) {
 		t.Fatalf("NewPage(kubernetes Secret) error = %v", err)
 	}

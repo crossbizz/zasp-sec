@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -109,6 +110,19 @@ type normalizedPageRelationship struct {
 	FromEntityID   string          `json:"from_entity_id"`
 	ToEntityID     string          `json:"to_entity_id"`
 	Attributes     json.RawMessage `json:"attributes"`
+}
+
+type inventoryFieldRule struct {
+	kind     string
+	required bool
+	values   map[string]bool
+}
+
+type inventoryObjectSchema map[string]inventoryFieldRule
+
+type providerEntityDefinition struct {
+	stable     inventoryObjectSchema
+	attributes inventoryObjectSchema
 }
 
 func NewPage(provider collection.Provider, subject collection.SubjectBinding, cursor collection.Cursor, complete bool, entities, relationships []json.RawMessage) (Page, error) {
@@ -373,7 +387,7 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	sort.Slice(objects, func(left, right int) bool {
 		return objects[left].Reference().String() < objects[right].Reference().String()
 	})
-	if complete && !relationshipsResolve(relationships, entityObjects) {
+	if complete && !relationshipsResolve(request.Provider, relationships, entities, entityObjects) {
 		return nil, malformedFailure()
 	}
 	manifestBody, err := marshalManifest(request, cursor, objects)
@@ -451,6 +465,7 @@ func validNormalizedInventory(provider collection.Provider, entities, relationsh
 	var total int64
 	entityIDs := make(map[string]struct{}, len(entities))
 	entitySourceIDs := make(map[string]struct{}, len(entities))
+	entityKinds := make(map[string]string, len(entities))
 	for _, entity := range entities {
 		total += int64(len(entity))
 		if total > maximumArtifactBytes {
@@ -471,6 +486,11 @@ func validNormalizedInventory(provider collection.Provider, entities, relationsh
 		}
 		entityIDs[identity] = struct{}{}
 		entitySourceIDs[source] = struct{}{}
+		var normalized normalizedPageEntity
+		if !decodeExactObject(entity, &normalized) {
+			return false
+		}
+		entityKinds[identity] = normalized.Kind
 	}
 	relationshipIDs := make(map[string]struct{}, len(relationships))
 	relationshipSourceIDs := make(map[string]struct{}, len(relationships))
@@ -479,10 +499,10 @@ func validNormalizedInventory(provider collection.Provider, entities, relationsh
 		if total > maximumArtifactBytes {
 			return false
 		}
-		if !validProviderRelationship(relationship) {
+		if !validProviderRelationship(provider, relationship) {
 			return false
 		}
-		identity, source, _, _, ok := relationshipIdentity(relationship)
+		identity, source, from, to, ok := relationshipIdentity(relationship)
 		if !ok {
 			return false
 		}
@@ -494,6 +514,11 @@ func validNormalizedInventory(provider collection.Provider, entities, relationsh
 		}
 		relationshipIDs[identity] = struct{}{}
 		relationshipSourceIDs[source] = struct{}{}
+		fromKind, fromPresent := entityKinds[from]
+		toKind, toPresent := entityKinds[to]
+		if fromPresent && toPresent && !validProviderRelationshipEndpointKinds(provider, relationship, fromKind, toKind) {
+			return false
+		}
 	}
 	return true
 }
@@ -503,8 +528,8 @@ func validProviderEntity(provider collection.Provider, raw json.RawMessage) bool
 	if !decodeExactObject(raw, &entity) || !validProductIDText(entity.ID) || !boundedInventoryText(entity.SourceNativeID, 1024) || !boundedInventoryText(entity.DisplayName, 256) {
 		return false
 	}
-	kinds, stable, attributes := providerEntitySchema(provider)
-	if !kinds[entity.Kind] || !validScalarObject(entity.StableFields, stable) || !validScalarObject(entity.Attributes, attributes) {
+	definition, ok := providerEntitySchema(provider, entity.Kind)
+	if !ok || !validInventoryObject(entity.StableFields, definition.stable) || !validInventoryObject(entity.Attributes, definition.attributes) {
 		return false
 	}
 	if provider == collection.ProviderKubernetes && entity.Kind == "kubernetes_resource" {
@@ -516,27 +541,126 @@ func validProviderEntity(provider collection.Provider, raw json.RawMessage) bool
 	return true
 }
 
-func providerEntitySchema(provider collection.Provider) (map[string]bool, map[string]bool, map[string]bool) {
+func providerEntitySchema(provider collection.Provider, kind string) (providerEntityDefinition, bool) {
+	state := optionalStringFields("state", "status")
 	switch provider {
 	case collection.ProviderAWS:
-		return tokenSet("aws_account", "aws_role", "aws_resource", "aws_service"), tokenSet("account_id", "arn", "region", "resource_type", "service", "name"), tokenSet("state", "status")
+		switch kind {
+		case "aws_account":
+			return providerEntityDefinition{stable: requiredStringFields("account_id"), attributes: state}, true
+		case "aws_policy":
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("account_id", "arn", "name"), inventoryObjectSchema{"policy_type": enumInventoryField(true, "managed", "inline", "resource")}), attributes: state}, true
+		case "aws_role":
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "name"), attributes: state}, true
+		case "aws_resource":
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "arn", "name", "region", "resource_type"), attributes: state}, true
+		case "aws_service":
+			return providerEntityDefinition{stable: requiredStringFields("account_id", "name", "service"), attributes: state}, true
+		}
 	case collection.ProviderKubernetes:
-		return tokenSet("kubernetes_agent", "kubernetes_cluster", "kubernetes_namespace", "kubernetes_resource", "kubernetes_workload"), tokenSet("cluster", "namespace", "api_group", "api_version", "resource_kind", "name"), tokenSet("state", "status", "namespaced")
+		namespaced := mergeInventorySchemas(inventoryObjectSchema{"namespaced": boolInventoryField(true, true)}, state)
+		clusterScoped := mergeInventorySchemas(inventoryObjectSchema{"namespaced": boolInventoryField(true, false)}, state)
+		switch kind {
+		case "kubernetes_cluster":
+			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: state}, true
+		case "kubernetes_namespace":
+			return providerEntityDefinition{stable: requiredStringFields("cluster", "name", "namespace"), attributes: state}, true
+		case "kubernetes_agent", "kubernetes_resource", "kubernetes_service_account", "kubernetes_workload":
+			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), attributes: namespaced}, true
+		case "kubernetes_role":
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), inventoryObjectSchema{"scope": enumInventoryField(true, "namespace")}), attributes: namespaced}, true
+		case "kubernetes_cluster_role":
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "resource_kind"), inventoryObjectSchema{"scope": enumInventoryField(true, "cluster")}), attributes: clusterScoped}, true
+		case "kubernetes_role_binding":
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "role"), inventoryObjectSchema{"scope": enumInventoryField(true, "namespace")}), attributes: namespaced}, true
+		case "kubernetes_cluster_role_binding":
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "resource_kind", "role"), inventoryObjectSchema{"scope": enumInventoryField(true, "cluster")}), attributes: clusterScoped}, true
+		case "kubernetes_user":
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("cluster", "name"), inventoryObjectSchema{"scope": enumInventoryField(true, "cluster"), "subject_type": enumInventoryField(true, "User")}), attributes: state}, true
+		case "kubernetes_group":
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("cluster", "name"), inventoryObjectSchema{"scope": enumInventoryField(true, "cluster"), "subject_type": enumInventoryField(true, "Group")}), attributes: state}, true
+		}
 	case collection.ProviderGitHub:
-		return tokenSet("github_installation", "github_organization", "github_repository"), tokenSet("installation_id", "owner", "repository", "visibility", "name"), tokenSet("archived", "default_branch", "state")
+		installation := inventoryObjectSchema{"installation_id": numberInventoryField(true)}
+		switch kind {
+		case "github_installation":
+			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("owner")), attributes: inventoryObjectSchema{}}, true
+		case "github_organization", "github_app":
+			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner")), attributes: state}, true
+		case "github_repository":
+			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "repository"), inventoryObjectSchema{"visibility": enumInventoryField(true, "public", "private", "internal")}), attributes: mergeInventorySchemas(inventoryObjectSchema{"archived": boolInventoryField(true), "default_branch": stringInventoryField(true)}, state)}, true
+		case "github_workflow":
+			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "repository", "workflow")), attributes: state}, true
+		case "github_environment":
+			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "repository")), attributes: state}, true
+		case "github_permission":
+			return providerEntityDefinition{stable: mergeInventorySchemas(installation, requiredStringFields("name", "owner", "permission", "repository", "scope")), attributes: state}, true
+		}
 	case collection.ProviderOkta:
-		return tokenSet("okta_tenant", "okta_application", "okta_group", "okta_user"), tokenSet("tenant", "object_type", "name"), tokenSet("status", "state")
-	default:
-		return nil, nil, nil
+		switch kind {
+		case "okta_tenant":
+			return providerEntityDefinition{stable: requiredStringFields("name", "tenant"), attributes: inventoryObjectSchema{}}, true
+		case "okta_user", "okta_group", "okta_application", "okta_service_principal":
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "tenant"), attributes: inventoryObjectSchema{"status": stringInventoryField(true), "state": stringInventoryField(false)}}, true
+		case "okta_role":
+			return providerEntityDefinition{stable: requiredStringFields("name", "object_type", "role", "scope", "tenant"), attributes: state}, true
+		}
 	}
+	return providerEntityDefinition{}, false
 }
 
-func validProviderRelationship(raw json.RawMessage) bool {
+func validProviderRelationship(provider collection.Provider, raw json.RawMessage) bool {
 	var relationship normalizedPageRelationship
 	if !decodeExactObject(raw, &relationship) || !validProductIDText(relationship.ID) || !validProductIDText(relationship.FromEntityID) || !validProductIDText(relationship.ToEntityID) || relationship.FromEntityID == relationship.ToEntityID || !boundedInventoryText(relationship.SourceNativeID, 1024) {
 		return false
 	}
-	return tokenSet("contains", "member_of", "attached_to", "manages", "owns", "trusts", "depends_on")[relationship.Kind] && validScalarObject(relationship.Attributes, tokenSet("state", "type"))
+	var kinds map[string]bool
+	attributes := optionalStringFields("state", "type")
+	switch provider {
+	case collection.ProviderAWS:
+		kinds = tokenSet("belongs_to", "contains", "depends_on", "trusts", "uses_policy")
+	case collection.ProviderKubernetes:
+		kinds = tokenSet("assigned_to", "attached_to", "binds", "contains", "uses_identity")
+		attributes["type"] = stringInventoryField(true)
+	case collection.ProviderGitHub:
+		kinds = tokenSet("belongs_to", "contains", "depends_on", "has_permission", "owns", "uses_identity")
+		attributes["type"] = stringInventoryField(true)
+	case collection.ProviderOkta:
+		kinds = tokenSet("assigned_to", "contains", "has_permission", "member_of")
+		attributes["type"] = stringInventoryField(true)
+	default:
+		return false
+	}
+	return kinds[relationship.Kind] && validInventoryObject(relationship.Attributes, attributes)
+}
+
+func validProviderRelationshipEndpointKinds(provider collection.Provider, raw json.RawMessage, fromKind, toKind string) bool {
+	var relationship normalizedPageRelationship
+	if !decodeExactObject(raw, &relationship) {
+		return false
+	}
+	key := fromKind + "|" + relationship.Kind + "|" + toKind
+	allowed := map[collection.Provider]map[string]bool{
+		collection.ProviderAWS: tokenSet(
+			"aws_account|contains|aws_policy", "aws_account|contains|aws_resource", "aws_account|contains|aws_role", "aws_account|contains|aws_service",
+			"aws_resource|belongs_to|aws_account", "aws_resource|belongs_to|aws_service", "aws_resource|depends_on|aws_resource", "aws_role|trusts|aws_role", "aws_role|uses_policy|aws_policy",
+		),
+		collection.ProviderKubernetes: tokenSet(
+			"kubernetes_cluster|contains|kubernetes_cluster_role", "kubernetes_cluster|contains|kubernetes_cluster_role_binding", "kubernetes_cluster|contains|kubernetes_namespace",
+			"kubernetes_namespace|attached_to|kubernetes_agent", "kubernetes_namespace|attached_to|kubernetes_resource", "kubernetes_namespace|attached_to|kubernetes_workload",
+			"kubernetes_namespace|contains|kubernetes_role", "kubernetes_namespace|contains|kubernetes_role_binding", "kubernetes_namespace|contains|kubernetes_service_account",
+			"kubernetes_role_binding|binds|kubernetes_cluster_role", "kubernetes_role_binding|binds|kubernetes_role", "kubernetes_cluster_role_binding|binds|kubernetes_cluster_role",
+			"kubernetes_group|assigned_to|kubernetes_cluster_role_binding", "kubernetes_group|assigned_to|kubernetes_role_binding", "kubernetes_service_account|assigned_to|kubernetes_cluster_role_binding", "kubernetes_service_account|assigned_to|kubernetes_role_binding", "kubernetes_user|assigned_to|kubernetes_cluster_role_binding", "kubernetes_user|assigned_to|kubernetes_role_binding",
+			"kubernetes_agent|uses_identity|kubernetes_service_account", "kubernetes_workload|uses_identity|kubernetes_service_account",
+		),
+		collection.ProviderGitHub: tokenSet(
+			"github_installation|contains|github_app", "github_installation|owns|github_repository", "github_organization|owns|github_repository", "github_repository|contains|github_environment", "github_repository|contains|github_permission", "github_repository|contains|github_workflow", "github_workflow|depends_on|github_repository", "github_workflow|uses_identity|github_app", "github_app|has_permission|github_permission",
+		),
+		collection.ProviderOkta: tokenSet(
+			"okta_tenant|contains|okta_application", "okta_tenant|contains|okta_group", "okta_tenant|contains|okta_role", "okta_tenant|contains|okta_service_principal", "okta_tenant|contains|okta_user", "okta_group|assigned_to|okta_application", "okta_service_principal|assigned_to|okta_application", "okta_user|assigned_to|okta_application", "okta_service_principal|assigned_to|okta_role", "okta_user|assigned_to|okta_role", "okta_group|assigned_to|okta_role", "okta_service_principal|member_of|okta_group", "okta_user|member_of|okta_group",
+		),
+	}
+	return allowed[provider][key]
 }
 
 func boundedInventoryText(value string, maximum int) bool {
@@ -551,7 +675,7 @@ func boundedInventoryText(value string, maximum int) bool {
 	return true
 }
 
-func validScalarObject(raw json.RawMessage, allowed map[string]bool) bool {
+func validInventoryObject(raw json.RawMessage, schema inventoryObjectSchema) bool {
 	if !validJSONObject(raw) {
 		return false
 	}
@@ -561,21 +685,97 @@ func validScalarObject(raw json.RawMessage, allowed map[string]bool) bool {
 	if decoder.Decode(&fields) != nil || fields == nil {
 		return false
 	}
-	for key, value := range fields {
-		if !allowed[key] {
+	for name, rule := range schema {
+		if _, present := fields[name]; rule.required && !present {
 			return false
 		}
-		switch scalar := value.(type) {
-		case string:
-			if len(scalar) > 2048 || !utf8.ValidString(scalar) {
+	}
+	for name, value := range fields {
+		rule, allowed := schema[name]
+		if !allowed {
+			return false
+		}
+		switch rule.kind {
+		case "string":
+			text, ok := value.(string)
+			if !ok || !boundedInventoryText(text, 2048) || len(rule.values) > 0 && !rule.values[text] || !validInventoryFieldText(name, text) {
 				return false
 			}
-		case bool, json.Number:
+		case "number":
+			number, ok := value.(json.Number)
+			integer, err := number.Int64()
+			if !ok || err != nil || integer < 1 || integer > 1<<53 || len(rule.values) > 0 && !rule.values[number.String()] {
+				return false
+			}
+		case "bool":
+			boolean, ok := value.(bool)
+			if !ok || len(rule.values) > 0 && !rule.values[strconv.FormatBool(boolean)] {
+				return false
+			}
 		default:
 			return false
 		}
 	}
 	return true
+}
+
+func validInventoryFieldText(name, value string) bool {
+	switch name {
+	case "account_id":
+		return len(value) == 12 && strings.IndexFunc(value, func(character rune) bool { return character < '0' || character > '9' }) == -1
+	case "arn":
+		return strings.HasPrefix(value, "arn:") && strings.Count(value, ":") >= 5
+	case "resource_kind":
+		return !strings.EqualFold(value, "Secret")
+	default:
+		return true
+	}
+}
+
+func requiredStringFields(names ...string) inventoryObjectSchema {
+	result := make(inventoryObjectSchema, len(names))
+	for _, name := range names {
+		result[name] = stringInventoryField(true)
+	}
+	return result
+}
+
+func optionalStringFields(names ...string) inventoryObjectSchema {
+	result := make(inventoryObjectSchema, len(names))
+	for _, name := range names {
+		result[name] = stringInventoryField(false)
+	}
+	return result
+}
+
+func stringInventoryField(required bool) inventoryFieldRule {
+	return inventoryFieldRule{kind: "string", required: required}
+}
+
+func numberInventoryField(required bool) inventoryFieldRule {
+	return inventoryFieldRule{kind: "number", required: required}
+}
+
+func boolInventoryField(required bool, values ...bool) inventoryFieldRule {
+	allowed := make(map[string]bool, len(values))
+	for _, value := range values {
+		allowed[strconv.FormatBool(value)] = true
+	}
+	return inventoryFieldRule{kind: "bool", required: required, values: allowed}
+}
+
+func enumInventoryField(required bool, values ...string) inventoryFieldRule {
+	return inventoryFieldRule{kind: "string", required: required, values: tokenSet(values...)}
+}
+
+func mergeInventorySchemas(schemas ...inventoryObjectSchema) inventoryObjectSchema {
+	result := inventoryObjectSchema{}
+	for _, schema := range schemas {
+		for name, rule := range schema {
+			result[name] = rule
+		}
+	}
+	return result
 }
 
 func decodeExactObject(raw json.RawMessage, destination any) bool {
@@ -690,7 +890,15 @@ func relationshipIdentity(value json.RawMessage) (string, string, string, string
 	return relationship.ID, relationship.SourceNativeID, relationship.FromEntityID, relationship.ToEntityID, true
 }
 
-func relationshipsResolve(relationships []json.RawMessage, entities map[string]collection.RawObject) bool {
+func relationshipsResolve(provider collection.Provider, relationships, rawEntities []json.RawMessage, entities map[string]collection.RawObject) bool {
+	kinds := make(map[string]string, len(rawEntities))
+	for _, raw := range rawEntities {
+		var entity normalizedPageEntity
+		if !decodeExactObject(raw, &entity) {
+			return false
+		}
+		kinds[entity.ID] = entity.Kind
+	}
 	for _, raw := range relationships {
 		_, _, from, to, ok := relationshipIdentity(raw)
 		if !ok {
@@ -700,6 +908,9 @@ func relationshipsResolve(relationships []json.RawMessage, entities map[string]c
 			return false
 		}
 		if _, exists := entities[to]; !exists {
+			return false
+		}
+		if !validProviderRelationshipEndpointKinds(provider, raw, kinds[from], kinds[to]) {
 			return false
 		}
 	}
