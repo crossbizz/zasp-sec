@@ -28,6 +28,15 @@ automountServiceAccountToken: false
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  name: {{ .Values.serviceAccounts.securityAgent.name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    eks.amazonaws.com/role-arn: {{ required "serviceAccounts.securityAgent.roleArn is required" .Values.serviceAccounts.securityAgent.roleArn | quote }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
   name: {{ .Values.serviceAccounts.projectionSearch.name }}
   labels: { app.kubernetes.io/part-of: zasp }
   annotations:
@@ -107,7 +116,7 @@ spec:
   type: ClusterIP
   selector: { app.kubernetes.io/name: agentsec-discovery-worker }
   ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
-{{- range $name := list "agentsec-discovery-scheduler" "agentsec-outbox-publisher" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" }}
+{{- range $name := list "agentsec-discovery-scheduler" "agentsec-security-agent" "agentsec-outbox-publisher" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" }}
 ---
 apiVersion: v1
 kind: Service

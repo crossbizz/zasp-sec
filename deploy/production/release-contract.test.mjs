@@ -525,9 +525,53 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   }
 });
 
+test("release runs the security agent with one exact database authority", async () => {
+  const resources = await renderRelease(release);
+  const deployment = one(resources, "Deployment", "agentsec-security-agent");
+  const pod = deployment.spec.template.spec;
+  const container = pod.containers[0];
+
+  assert.equal(deployment.spec.replicas, 2);
+  assert.equal(pod.serviceAccountName, "zasp-security-agent");
+  assert.equal(one(resources, "ServiceAccount", "zasp-security-agent").metadata.annotations["eks.amazonaws.com/role-arn"], "arn:aws:iam::123456789012:role/zasp-production-security-agent-worker");
+  assert.deepEqual(envOf(deployment), {
+    ZASP_WORKER_MODE: "security-agent",
+    ZASP_DATABASE_AUTHORITY: "zasp_security_agent_worker",
+    ZASP_WORKER_ID: "fieldRef:metadata.name",
+    ZASP_POLL_INTERVAL: "1s",
+    ZASP_LEASE_DURATION: "60s",
+    ZASP_BATCH_SIZE: "8",
+    ZASP_SHUTDOWN_TIMEOUT: "20s",
+  });
+  assert.match(container.args[0], /export ZASP_POSTGRES_DSN="\$\(cat \/var\/run\/secrets\/zasp-security-agent\/postgres-dsn\)"/);
+  assert.deepEqual(container.volumeMounts, [{ name: "security-agent-secrets", mountPath: "/var/run/secrets/zasp-security-agent", readOnly: true }]);
+  assert.equal(one(resources, "SecretProviderClass", "zasp-production-security-agent-secrets").spec.secretObjects[0].data.length, 1);
+  assert.equal(one(resources, "Service", "agentsec-security-agent").spec.ports[0].port, 8081);
+  assert.equal(one(resources, "PodDisruptionBudget", "agentsec-security-agent").spec.minAvailable, 1);
+  assert.equal(one(resources, "HorizontalPodAutoscaler", "agentsec-security-agent").spec.maxReplicas, 6);
+  assert.equal(one(resources, "ServiceMonitor", "agentsec-security-agent").spec.endpoints[0].path, "/metrics");
+  const databasePolicy = one(resources, "NetworkPolicy", "security-agent-database");
+  assert.deepEqual(databasePolicy.spec.egress, [{
+    to: [{ ipBlock: { cidr: "10.30.0.0/24" } }],
+    ports: [{ protocol: "TCP", port: 5432 }],
+  }]);
+  assert.match(JSON.stringify(one(resources, "PrometheusRule", "zasp-production-slos")), /ZaspSecurityAgentUnavailable.*agentsec-security-agent/);
+  assert.doesNotMatch(JSON.stringify(deployment), /ZASP_(?:AWS|DISCOVERY|OUTBOX|OPENSEARCH|NEO4J|CONNECTOR|RUNTIME)_/);
+
+  const terraform = await readFile(new URL("../staging/main.tf", import.meta.url), "utf8");
+  const policyStart = terraform.indexOf('resource "aws_iam_role_policy" "security_agent_worker"');
+  const policy = terraform.slice(policyStart, terraform.indexOf("\nresource ", policyStart + 1));
+  assert.match(terraform, /system:serviceaccount:agentsec:zasp-security-agent/);
+  assert.match(policy, /postgres-security-agent-worker-dsn/);
+  assert.match(policy, /secretsmanager:DescribeSecret.*secretsmanager:GetSecretValue/s);
+  assert.match(policy, /kms:EncryptionContext:SecretARN/);
+  assert.doesNotMatch(policy, /Resource\s*=\s*"\*"|s3:|sqs:|es:|sts:/);
+  assert.match(await readFile(new URL("../staging/outputs.tf", import.meta.url), "utf8"), /output "security_agent_worker_role_arn"/);
+});
+
 test("release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies", async () => {
   const resources = await renderRelease(release);
-  const workloadNames = ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-event-ingest", "agentsec-gateway-control", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection", "nango", "otel-collector", "web"];
+  const workloadNames = ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-event-ingest", "agentsec-gateway-control", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection", "agentsec-security-agent", "nango", "otel-collector", "web"];
   assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), workloadNames);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Service").map(({ metadata }) => metadata.name).sort(), workloadNames);
   for (const name of workloadNames) {
@@ -540,7 +584,7 @@ test("release applies non-root rollout, zone and host spread, drain, PDB, and de
     assert.equal(deployment.spec.template.spec.containers[0].lifecycle.preStop.exec.command.at(-1), "sleep 10");
     if (name !== "web" && name !== "nango" && name !== "otel-collector") {
       const shutdown = deployment.spec.template.spec.containers[0].env.find(({ name: key }) => ["ZASP_SHUTDOWN_TIMEOUT", "ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT", "ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT"].includes(key));
-      assert.equal(shutdown.value, "15s");
+      assert.equal(shutdown.value, name === "agentsec-security-agent" ? "20s" : "15s");
       assert.ok(10 + Number.parseInt(shutdown.value, 10) + 5 <= deployment.spec.template.spec.terminationGracePeriodSeconds);
     }
     assert.deepEqual(deployment.spec.template.spec.topologySpreadConstraints.map(({ topologyKey }) => topologyKey), ["topology.kubernetes.io/zone", "kubernetes.io/hostname"]);
@@ -893,6 +937,7 @@ test("release renders read-only synthetic and exact SLO budgets without credenti
     ["ZaspAPIUnavailable", "agentsec-api"],
     ["ZaspDiscoverySchedulerUnavailable", "agentsec-discovery-scheduler"],
     ["ZaspDiscoveryWorkerUnavailable", "agentsec-discovery-worker"],
+    ["ZaspSecurityAgentUnavailable", "agentsec-security-agent"],
     ["ZaspOutboxPublisherUnavailable", "agentsec-outbox-publisher"],
     ["ZaspProjectionRiskUnavailable", "agentsec-projection-risk"],
     ["ZaspProjectionGraphUnavailable", "agentsec-projection-graph"],
@@ -903,7 +948,7 @@ test("release renders read-only synthetic and exact SLO budgets without credenti
     assert.match(availability.expr, /absent\(/);
   }
   for (const [alert, metric] of [
-    ["ZaspTask4WorkerDependencyNotReady", 'agentsec_ready{namespace="agentsec",service=~"agentsec-(discovery-(scheduler|worker)|outbox-publisher|projection-(risk|graph|search))"} == 0'],
+    ["ZaspTask4WorkerDependencyNotReady", 'agentsec_ready{namespace="agentsec",service=~"agentsec-(discovery-(scheduler|worker)|security-agent|outbox-publisher|projection-(risk|graph|search))"} == 0'],
     ["ZaspProjectionBacklogAge", "zasp_worker_projection_backlog_age_seconds"],
     ["ZaspWorkerLeaseLoss", "zasp_worker_lease_loss_total"],
     ["ZaspWorkerExhaustion", "zasp_worker_exhaustion_total"],

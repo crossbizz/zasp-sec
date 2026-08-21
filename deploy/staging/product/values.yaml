@@ -24,6 +24,7 @@ replicas:
   agentsecApi: 3
   discoveryWorker: 2
   discoveryScheduler: 2
+  securityAgent: 2
   projectionRisk: 2
   projectionGraph: 2
   projectionSearch: 2
@@ -47,6 +48,7 @@ secrets:
   migrationProviderClassName: zasp-production-migration-secrets
   workerProviderClassName: zasp-production-worker-secrets
   schedulerProviderClassName: zasp-production-scheduler-secrets
+  securityAgentProviderClassName: zasp-production-security-agent-secrets
   projectionRiskProviderClassName: zasp-production-projection-risk-secrets
   projectionGraphProviderClassName: zasp-production-projection-graph-secrets
   projectionSearchProviderClassName: zasp-production-projection-search-secrets
@@ -62,6 +64,7 @@ secrets:
   region: us-west-2
   apiPostgresDSNObjectName: ""
   securityAgentAPIPostgresDSNObjectName: ""
+  securityAgentWorkerPostgresDSNObjectName: ""
   migrationPostgresDSNObjectName: ""
   workerPostgresDSNObjectName: ""
   schedulerPostgresDSNObjectName: ""
@@ -209,6 +212,9 @@ serviceAccounts:
     roleArn: ""
   scheduler:
     name: zasp-discovery-scheduler
+    roleArn: ""
+  securityAgent:
+    name: zasp-security-agent
     roleArn: ""
   projectionSearch:
     name: zasp-projection-search

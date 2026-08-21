@@ -1,5 +1,5 @@
 {{- if ne .Values.profile "customer_edge" }}
-{{- range $name := list "web" "agentsec-api" "agentsec-discovery-scheduler" "agentsec-discovery-worker" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" "agentsec-outbox-publisher" }}
+{{- range $name := list "web" "agentsec-api" "agentsec-discovery-scheduler" "agentsec-discovery-worker" "agentsec-security-agent" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" "agentsec-outbox-publisher" }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -51,7 +51,7 @@ spec:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
 {{- end }}
-{{- range $name := list "agentsec-discovery-scheduler" "agentsec-outbox-publisher" }}
+{{- range $name := list "agentsec-discovery-scheduler" "agentsec-security-agent" "agentsec-outbox-publisher" }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -149,7 +149,7 @@ metadata: { name: task4-worker-monitoring, labels: { app.kubernetes.io/part-of: 
 spec:
   podSelector:
     matchExpressions:
-      - { key: app.kubernetes.io/name, operator: In, values: [agentsec-discovery-scheduler, agentsec-outbox-publisher] }
+      - { key: app.kubernetes.io/name, operator: In, values: [agentsec-discovery-scheduler, agentsec-security-agent, agentsec-outbox-publisher] }
   policyTypes: [Ingress]
   ingress:
     - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
@@ -215,6 +215,16 @@ kind: NetworkPolicy
 metadata: { name: discovery-scheduler-database, labels: { app.kubernetes.io/part-of: zasp } }
 spec:
   podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-discovery-scheduler } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: security-agent-database, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-security-agent } }
   policyTypes: [Egress]
   egress:
     - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]

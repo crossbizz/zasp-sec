@@ -18,6 +18,7 @@ const identityContract = Object.freeze({
   agentsecApi: Object.freeze({ serviceAccount: "agentsec-api", role: "api", deployment: true }),
   discoveryScheduler: Object.freeze({ serviceAccount: "zasp-discovery-scheduler", role: "discovery-scheduler", deployment: true }),
   discoveryWorker: Object.freeze({ serviceAccount: "zasp-discovery-worker", role: "discovery-worker", deployment: true }),
+  securityAgent: Object.freeze({ serviceAccount: "zasp-security-agent", role: "security-agent-worker", deployment: true }),
   outboxPublisher: Object.freeze({ serviceAccount: "zasp-outbox-publisher", role: "outbox", deployment: true }),
   projectionRisk: Object.freeze({ serviceAccount: "zasp-projection-risk", role: "projection-risk", deployment: true }),
   projectionGraph: Object.freeze({ serviceAccount: "zasp-projection-graph", role: "projection-graph", deployment: true }),

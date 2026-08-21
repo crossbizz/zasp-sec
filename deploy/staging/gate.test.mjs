@@ -20,6 +20,7 @@ const deployment = {
     { name: "agentsec-api", image: digest("registry.example/zasp/api", "b"), serviceAccount: "agentsec-api", roleArn: "arn:aws:iam::123456789012:role/zasp-production-api" },
     { name: "agentsec-discovery-scheduler", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-discovery-scheduler", roleArn: "arn:aws:iam::123456789012:role/zasp-production-discovery-scheduler" },
     { name: "agentsec-discovery-worker", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-discovery-worker", roleArn: "arn:aws:iam::123456789012:role/zasp-production-discovery-worker" },
+    { name: "agentsec-security-agent", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-security-agent", roleArn: "arn:aws:iam::123456789012:role/zasp-production-security-agent-worker" },
     { name: "agentsec-outbox-publisher", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-outbox-publisher", roleArn: "arn:aws:iam::123456789012:role/zasp-production-outbox" },
     { name: "agentsec-projection-risk", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-projection-risk", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-risk" },
     { name: "agentsec-projection-graph", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-projection-graph", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-graph" },
@@ -46,7 +47,7 @@ const deployment = {
   ],
 };
 
-test("staging deployment binds nineteen deployments and every init/canary identity to one account", () => {
+test("staging deployment binds twenty deployments and every init/canary identity to one account", () => {
   assert.deepEqual(buildStagingDeployment(deployment), deployment);
   const runtime = {
     start: () => "deploy-run-1",

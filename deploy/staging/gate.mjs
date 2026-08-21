@@ -5,6 +5,7 @@ const expectedWorkloads = Object.freeze([
   Object.freeze({ name: "agentsec-api", serviceAccount: "agentsec-api", role: "api" }),
   Object.freeze({ name: "agentsec-discovery-scheduler", serviceAccount: "zasp-discovery-scheduler", role: "discovery-scheduler" }),
   Object.freeze({ name: "agentsec-discovery-worker", serviceAccount: "zasp-discovery-worker", role: "discovery-worker" }),
+  Object.freeze({ name: "agentsec-security-agent", serviceAccount: "zasp-security-agent", role: "security-agent-worker" }),
   Object.freeze({ name: "agentsec-outbox-publisher", serviceAccount: "zasp-outbox-publisher", role: "outbox" }),
   Object.freeze({ name: "agentsec-projection-risk", serviceAccount: "zasp-projection-risk", role: "projection-risk" }),
   Object.freeze({ name: "agentsec-projection-graph", serviceAccount: "zasp-projection-graph", role: "projection-graph" }),

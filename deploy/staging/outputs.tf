@@ -109,6 +109,9 @@ output "discovery_runtime_config" {
 output "scheduler_role_arn" {
   value = aws_iam_role.scheduler.arn
 }
+output "security_agent_worker_role_arn" {
+  value = aws_iam_role.security_agent_worker.arn
+}
 output "outbox_role_arn" {
   value = aws_iam_role.outbox.arn
 }

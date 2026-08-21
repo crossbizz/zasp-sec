@@ -190,6 +190,59 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: agentsec-security-agent
+  labels: { app.kubernetes.io/name: agentsec-security-agent, app.kubernetes.io/part-of: zasp }
+spec:
+  replicas: {{ .Values.replicas.securityAgent }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-security-agent } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-security-agent, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.securityAgent.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 40
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-security-agent } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-security-agent } } }
+      containers:
+        - name: security-agent
+          image: {{ required "global.productImages.agentsecWorker must be an immutable digest" .Values.global.productImages.agentsecWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-security-agent/postgres-dsn)"; exec /app/agentsec-worker']
+          ports: [{ name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 96Mi, ephemeral-storage: 32Mi }, limits: { cpu: "1", memory: 256Mi, ephemeral-storage: 128Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_WORKER_MODE, value: "security-agent" }
+            - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_security_agent_worker" }
+            - name: ZASP_WORKER_ID
+              valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
+            - { name: ZASP_POLL_INTERVAL, value: "1s" }
+            - { name: ZASP_LEASE_DURATION, value: "60s" }
+            - { name: ZASP_BATCH_SIZE, value: "8" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "20s" }
+          volumeMounts: [{ name: security-agent-secrets, mountPath: /var/run/secrets/zasp-security-agent, readOnly: true }]
+      volumes:
+        - name: security-agent-secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.securityAgentProviderClassName | quote }} } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: agentsec-discovery-worker
   labels: { app.kubernetes.io/name: agentsec-discovery-worker, app.kubernetes.io/part-of: zasp }
 spec:

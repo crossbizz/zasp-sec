@@ -844,6 +844,35 @@ resource "aws_iam_role_policy" "worker" {
   ] })
 }
 
+resource "aws_iam_role" "security_agent_worker" {
+  name = "${var.cluster_name}-security-agent-worker"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:zasp-security-agent"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "security_agent_worker" {
+  name = "${var.cluster_name}-security-agent-worker-secret"
+  role = aws_iam_role.security_agent_worker.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-security-agent-worker-dsn"].arn },
+    {
+      Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product["postgres-security-agent-worker-dsn"].arn
+      } }
+    },
+  ] })
+}
+
 resource "aws_iam_role" "scheduler" {
   name = "${var.cluster_name}-discovery-scheduler"
   assume_role_policy = jsonencode({
