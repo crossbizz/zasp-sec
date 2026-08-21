@@ -117,7 +117,28 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = 'typed-invent
   AND zasp_inventory_readiness($1, $2)
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 14)`
 
-const postgresRuntimeDataPlaneSchemaVersionSQL = `SELECT metadata.value
+const postgresRuntimeDataPlaneReleaseSQL = `SELECT release.version::text
+FROM zasp_schema_versions AS release
+WHERE release.version BETWEEN 15 AND 17
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > release.version)
+ORDER BY release.version DESC
+LIMIT 1`
+
+const postgresRuntimeDataPlaneSchemaVersionSQL = `SELECT 'runtime-data-plane-v1'
+FROM zasp_schema_metadata AS metadata
+JOIN zasp_schema_versions AS release ON release.version = 15 AND release.name = 'runtime_data_plane'
+WHERE metadata.key = 'production_core_schema' AND metadata.value = 'runtime-data-plane-v1'
+  AND zasp_runtime_data_plane_readiness($1, $2)
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 15)`
+
+const postgresRuntimeGatewayReconciliationSchemaVersionSQL = `SELECT 'runtime-gateway-reconciliation-v1'
+FROM zasp_schema_metadata AS metadata
+JOIN zasp_schema_versions AS release ON release.version = 16 AND release.name = 'runtime_gateway_reconciliation'
+WHERE metadata.key = 'production_core_schema' AND metadata.value = 'runtime-data-plane-v1'
+  AND zasp_runtime_gateway_reconciliation_readiness($1, $2)
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 16)`
+
+const postgresRuntimeIngestReconciliationSchemaVersionSQL = `SELECT 'runtime-ingest-reconciliation-v1'
 FROM zasp_schema_metadata AS metadata
 JOIN zasp_schema_versions AS release ON release.version = 17 AND release.name = 'runtime_ingest_reconciliation'
 WHERE metadata.key = 'production_core_schema' AND metadata.value = 'runtime-data-plane-v1'
@@ -160,9 +181,21 @@ func expectedTypedInventorySchemaFingerprint() string {
 	return migrations.ProductionTypedInventoryCutoverSemanticFingerprint()
 }
 func expectedRuntimeDataPlaneSchemaChecksum() string {
-	return migrations.ProductionRuntimeIngestReconciliation().Checksum()
+	return migrations.ProductionRuntimeDataPlane().Checksum()
 }
 func expectedRuntimeDataPlaneSchemaFingerprint() string {
+	return migrations.ProductionRuntimeDataPlaneSemanticFingerprint()
+}
+func expectedRuntimeGatewayReconciliationSchemaChecksum() string {
+	return migrations.ProductionRuntimeGatewayReconciliation().Checksum()
+}
+func expectedRuntimeGatewayReconciliationSchemaFingerprint() string {
+	return migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint()
+}
+func expectedRuntimeIngestReconciliationSchemaChecksum() string {
+	return migrations.ProductionRuntimeIngestReconciliation().Checksum()
+}
+func expectedRuntimeIngestReconciliationSchemaFingerprint() string {
 	return migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()
 }
 func expectedSecurityAgentExecutionSchemaChecksum() string {
@@ -212,8 +245,23 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 			return "", classifyPostgresError(err)
 		}
 	} else if marker == RuntimeDataPlaneSchemaVersion {
-		if err := database.driver.QueryRow(ctx, postgresRuntimeDataPlaneSchemaVersionSQL, expectedRuntimeDataPlaneSchemaChecksum(), expectedRuntimeDataPlaneSchemaFingerprint()).Scan(&version); err != nil {
+		var release string
+		if err := database.driver.QueryRow(ctx, postgresRuntimeDataPlaneReleaseSQL).Scan(&release); err != nil {
 			return "", classifyPostgresError(err)
+		}
+		var readinessErr error
+		switch release {
+		case "15":
+			readinessErr = database.driver.QueryRow(ctx, postgresRuntimeDataPlaneSchemaVersionSQL, expectedRuntimeDataPlaneSchemaChecksum(), expectedRuntimeDataPlaneSchemaFingerprint()).Scan(&version)
+		case "16":
+			readinessErr = database.driver.QueryRow(ctx, postgresRuntimeGatewayReconciliationSchemaVersionSQL, expectedRuntimeGatewayReconciliationSchemaChecksum(), expectedRuntimeGatewayReconciliationSchemaFingerprint()).Scan(&version)
+		case "17":
+			readinessErr = database.driver.QueryRow(ctx, postgresRuntimeIngestReconciliationSchemaVersionSQL, expectedRuntimeIngestReconciliationSchemaChecksum(), expectedRuntimeIngestReconciliationSchemaFingerprint()).Scan(&version)
+		default:
+			return "", ErrRepositoryNotFound
+		}
+		if readinessErr != nil {
+			return "", classifyPostgresError(readinessErr)
 		}
 	} else if marker == TypedInventorySchemaVersion {
 		if err := database.driver.QueryRow(ctx, postgresTypedInventorySchemaVersionSQL, expectedTypedInventorySchemaChecksum(), expectedTypedInventorySchemaFingerprint()).Scan(&version); err != nil {

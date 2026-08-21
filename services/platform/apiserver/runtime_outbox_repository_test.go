@@ -19,7 +19,7 @@ func TestRuntimeOutboxRepositoryBindsExactV15TopicLifecycle(t *testing.T) {
 	id := "pid_75000003-0000-4000-8000-000000000003"
 	leaseExpiration := time.Now().UTC().Add(30 * time.Second)
 	providerAck := "sha256:" + strings.Repeat("c", 64)
-	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{
+	database := &discoveryCallDatabase{schema: RuntimeIngestReconciliationSchemaVersion, responses: map[string]json.RawMessage{
 		postgresRuntimeOutboxReadySQL:     json.RawMessage(`{"ready":true}`),
 		postgresRuntimeClaimOutboxSQL:     runtimeMustJSON(t, map[string]any{"items": []DiscoveryOutboxEvent{{OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(), ID: id, Topic: RuntimeOutboxTopic, DeterministicKey: "runtime:pid_75000001-0000-4000-8000-000000000001", PayloadVersion: 15, Payload: payload, PayloadDigest: digest[:], Attempt: 1, LeaseExpiresAt: leaseExpiration}}}),
 		postgresRuntimeHeartbeatOutboxSQL: json.RawMessage(`{"id":"runtime-events","lease_expires_at":"` + leaseExpiration.Format(time.RFC3339Nano) + `","remaining_count":1}`),
@@ -53,7 +53,7 @@ func TestRuntimeOutboxRepositoryRejectsForeignTopicAndHostileOutput(t *testing.T
 	if repository, err := NewRuntimeOutboxRepository(nil); repository != nil || !errors.Is(err, ErrRepositoryConfiguration) {
 		t.Fatalf("nil repository=%v err=%v", repository, err)
 	}
-	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresRuntimeOutboxReadySQL: json.RawMessage(`{"ready":true}`), postgresRuntimeClaimOutboxSQL: json.RawMessage(`{"items":[{"secret":"must-not-leak"}]}`)}}
+	database := &discoveryCallDatabase{schema: RuntimeIngestReconciliationSchemaVersion, responses: map[string]json.RawMessage{postgresRuntimeOutboxReadySQL: json.RawMessage(`{"ready":true}`), postgresRuntimeClaimOutboxSQL: json.RawMessage(`{"items":[{"secret":"must-not-leak"}]}`)}}
 	repository, err := NewRuntimeOutboxRepository(database)
 	if err != nil {
 		t.Fatal(err)

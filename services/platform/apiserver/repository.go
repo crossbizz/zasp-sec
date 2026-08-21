@@ -18,9 +18,13 @@ const CoreSchemaVersion = "production-risk-projection-v1"
 const DiscoverySchemaVersion = "production-discovery-v1"
 const ConnectorSchemaVersion = "connector-authorization-v1"
 const RuntimeDataPlaneSchemaVersion = "runtime-data-plane-v1"
+const RuntimeGatewayReconciliationSchemaVersion = "runtime-gateway-reconciliation-v1"
+const RuntimeIngestReconciliationSchemaVersion = "runtime-ingest-reconciliation-v1"
 const SecurityAgentExecutionSchemaVersion = "security-agent-execution-v1"
 
-const postgresRuntimeDataPlaneReadinessSQL = `SELECT to_jsonb(zasp_runtime_ingest_reconciliation_readiness($1,$2))`
+const postgresRuntimeDataPlaneReadinessSQL = `SELECT to_jsonb(zasp_runtime_data_plane_readiness($1,$2))`
+const postgresRuntimeGatewayReconciliationReadinessSQL = `SELECT to_jsonb(zasp_runtime_gateway_reconciliation_readiness($1,$2))`
+const postgresRuntimeIngestReconciliationReadinessSQL = `SELECT to_jsonb(zasp_runtime_ingest_reconciliation_readiness($1,$2))`
 const postgresSecurityAgentExecutionReadinessSQL = `SELECT to_jsonb(zasp_security_agent_readiness($1,$2))`
 
 const (
@@ -105,7 +109,7 @@ func isTypedInventorySchema(version string) bool {
 }
 
 func isRuntimeDataPlaneSchema(version string) bool {
-	return version == RuntimeDataPlaneSchemaVersion || version == SecurityAgentExecutionSchemaVersion
+	return version == RuntimeDataPlaneSchemaVersion || version == RuntimeGatewayReconciliationSchemaVersion || version == RuntimeIngestReconciliationSchemaVersion || version == SecurityAgentExecutionSchemaVersion
 }
 
 func exactProductReadiness(version string) (string, string, string, bool) {
@@ -115,7 +119,11 @@ func exactProductReadiness(version string) (string, string, string, bool) {
 	case TypedInventorySchemaVersion:
 		return postgresInventoryReadinessSQL, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint(), true
 	case RuntimeDataPlaneSchemaVersion:
-		return postgresRuntimeDataPlaneReadinessSQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint(), true
+		return postgresRuntimeDataPlaneReadinessSQL, migrations.ProductionRuntimeDataPlane().Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint(), true
+	case RuntimeGatewayReconciliationSchemaVersion:
+		return postgresRuntimeGatewayReconciliationReadinessSQL, migrations.ProductionRuntimeGatewayReconciliation().Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint(), true
+	case RuntimeIngestReconciliationSchemaVersion:
+		return postgresRuntimeIngestReconciliationReadinessSQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint(), true
 	case SecurityAgentExecutionSchemaVersion:
 		return postgresSecurityAgentExecutionReadinessSQL, migrations.ProductionSecurityAgentExecution().Checksum(), migrations.ProductionSecurityAgentExecutionSemanticFingerprint(), true
 	default:

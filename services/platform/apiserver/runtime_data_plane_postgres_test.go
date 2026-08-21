@@ -74,7 +74,7 @@ func TestProductionRuntimeDataPlanePostgresKeepsInheritedProductAuthorityReady(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	if version, err := database.SchemaVersion(ctx); err != nil || version != RuntimeDataPlaneSchemaVersion {
+	if version, err := database.SchemaVersion(ctx); err != nil || version != RuntimeGatewayReconciliationSchemaVersion {
 		t.Fatalf("schema version=(%q,%v)", version, err)
 	}
 	repository, err := NewPostgresRepository(database)
@@ -404,6 +404,9 @@ func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t 
 	outboxDatabase, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: outboxConnection})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if version, versionErr := outboxDatabase.SchemaVersion(ctx); versionErr != nil || version != RuntimeGatewayReconciliationSchemaVersion {
+		t.Fatalf("runtime outbox schema version=(%q,%v)", version, versionErr)
 	}
 	if repository, err := NewRuntimeOutboxRepository(outboxDatabase); err != nil || repository.Ready(ctx) != nil {
 		t.Fatalf("runtime outbox repository=%v err=%v", repository, err)

@@ -11,24 +11,46 @@ import (
 const RuntimeOutboxTopic = "runtime-events"
 
 const (
-	postgresRuntimeOutboxReadySQL     = `SELECT jsonb_build_object('ready',zasp_runtime_ingest_reconciliation_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
-	postgresRuntimeClaimOutboxSQL     = `SELECT zasp_runtime_claim_outbox($1,$2,$3,$4,$5)`
-	postgresRuntimeHeartbeatOutboxSQL = `SELECT zasp_runtime_heartbeat_outbox($1,$2,$3,$4,$5)`
-	postgresRuntimeAckOutboxSQL       = `SELECT zasp_runtime_ack_outbox($1,$2,$3,$4,$5,$6,$7,$8)`
-	postgresRuntimeRetryOutboxSQL     = `SELECT zasp_runtime_retry_outbox($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	postgresRuntimeDataPlaneOutboxReadySQL = `SELECT jsonb_build_object('ready',zasp_runtime_data_plane_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresRuntimeGatewayOutboxReadySQL   = `SELECT jsonb_build_object('ready',zasp_runtime_gateway_reconciliation_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresRuntimeOutboxReadySQL          = `SELECT jsonb_build_object('ready',zasp_runtime_ingest_reconciliation_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresSecurityAgentOutboxReadySQL    = `SELECT jsonb_build_object('ready',zasp_security_agent_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresRuntimeClaimOutboxSQL          = `SELECT zasp_runtime_claim_outbox($1,$2,$3,$4,$5)`
+	postgresRuntimeHeartbeatOutboxSQL      = `SELECT zasp_runtime_heartbeat_outbox($1,$2,$3,$4,$5)`
+	postgresRuntimeAckOutboxSQL            = `SELECT zasp_runtime_ack_outbox($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresRuntimeRetryOutboxSQL          = `SELECT zasp_runtime_retry_outbox($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 )
 
 type RuntimeOutboxRepository struct {
-	database JSONDatabase
+	database    JSONDatabase
+	readySQL    string
+	checksum    string
+	fingerprint string
 }
 
 func NewRuntimeOutboxRepository(database JSONDatabase) (*RuntimeOutboxRepository, error) {
 	if nilInterface(database) {
 		return nil, ErrRepositoryConfiguration
 	}
-	repository := &RuntimeOutboxRepository{database: database}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	version, err := database.SchemaVersion(ctx)
+	if err != nil {
+		return nil, ErrRepositoryConfiguration
+	}
+	repository := &RuntimeOutboxRepository{database: database}
+	switch version {
+	case RuntimeDataPlaneSchemaVersion:
+		repository.readySQL, repository.checksum, repository.fingerprint = postgresRuntimeDataPlaneOutboxReadySQL, migrations.ProductionRuntimeDataPlane().Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint()
+	case RuntimeGatewayReconciliationSchemaVersion:
+		repository.readySQL, repository.checksum, repository.fingerprint = postgresRuntimeGatewayOutboxReadySQL, migrations.ProductionRuntimeGatewayReconciliation().Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint()
+	case RuntimeIngestReconciliationSchemaVersion:
+		repository.readySQL, repository.checksum, repository.fingerprint = postgresRuntimeOutboxReadySQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()
+	case SecurityAgentExecutionSchemaVersion:
+		repository.readySQL, repository.checksum, repository.fingerprint = postgresSecurityAgentOutboxReadySQL, migrations.ProductionSecurityAgentExecution().Checksum(), migrations.ProductionSecurityAgentExecutionSemanticFingerprint()
+	default:
+		return nil, ErrRepositoryConfiguration
+	}
 	if repository.Ready(ctx) != nil {
 		return nil, ErrRepositoryConfiguration
 	}
@@ -39,7 +61,7 @@ func (repository *RuntimeOutboxRepository) Ready(ctx context.Context) error {
 	if !validRuntimeOutboxRepository(repository, ctx) {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimeOutboxReadySQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint(), DiscoveryDatabaseAuthorityOutbox)
+	payload, err := repository.database.QueryJSON(ctx, repository.readySQL, repository.checksum, repository.fingerprint, DiscoveryDatabaseAuthorityOutbox)
 	var result struct {
 		Ready bool `json:"ready"`
 	}
@@ -106,7 +128,7 @@ func (repository *RuntimeOutboxRepository) RetryOutboxTopic(ctx context.Context,
 }
 
 func validRuntimeOutboxRepository(repository *RuntimeOutboxRepository, ctx context.Context) bool {
-	return repository != nil && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil
+	return repository != nil && !nilInterface(repository.database) && repository.readySQL != "" && len(repository.checksum) == 64 && len(repository.fingerprint) == 64 && ctx != nil && ctx.Err() == nil
 }
 
 var _ TopicOutboxRepository = (*RuntimeOutboxRepository)(nil)

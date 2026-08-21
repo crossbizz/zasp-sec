@@ -138,6 +138,8 @@ func TestInventoryRepositoryRequiresExactTypedAuthority(t *testing.T) {
 	}{
 		{schema: TypedInventorySchemaVersion, statement: postgresInventoryReadinessSQL},
 		{schema: RuntimeDataPlaneSchemaVersion, statement: postgresRuntimeDataPlaneReadinessSQL},
+		{schema: RuntimeGatewayReconciliationSchemaVersion, statement: postgresRuntimeGatewayReconciliationReadinessSQL},
+		{schema: RuntimeIngestReconciliationSchemaVersion, statement: postgresRuntimeIngestReconciliationReadinessSQL},
 	} {
 		database := &inventoryJSONDatabase{schema: test.schema, responses: map[string]json.RawMessage{test.statement: json.RawMessage(`true`)}}
 		if _, err := NewPostgresInventoryRepository(database); err != nil || database.statement != test.statement {

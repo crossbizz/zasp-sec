@@ -35,8 +35,14 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 	if !strings.Contains(postgresTypedInventorySchemaVersionSQL, "release.version = 14") || !strings.Contains(postgresTypedInventorySchemaVersionSQL, "release.name = 'typed_inventory_cutover'") || !strings.Contains(postgresTypedInventorySchemaVersionSQL, "zasp_inventory_readiness($1, $2)") {
 		t.Fatalf("v14 schema readiness query does not require typed inventory readiness: %s", postgresTypedInventorySchemaVersionSQL)
 	}
-	if !strings.Contains(postgresRuntimeDataPlaneSchemaVersionSQL, "release.version = 17") || !strings.Contains(postgresRuntimeDataPlaneSchemaVersionSQL, "release.name = 'runtime_ingest_reconciliation'") || !strings.Contains(postgresRuntimeDataPlaneSchemaVersionSQL, "zasp_runtime_ingest_reconciliation_readiness($1, $2)") {
-		t.Fatalf("v17 schema readiness query does not require runtime ingest reconciliation readiness: %s", postgresRuntimeDataPlaneSchemaVersionSQL)
+	for _, release := range []struct{ statement, version, name, readiness string }{
+		{postgresRuntimeDataPlaneSchemaVersionSQL, "15", "runtime_data_plane", "zasp_runtime_data_plane_readiness($1, $2)"},
+		{postgresRuntimeGatewayReconciliationSchemaVersionSQL, "16", "runtime_gateway_reconciliation", "zasp_runtime_gateway_reconciliation_readiness($1, $2)"},
+		{postgresRuntimeIngestReconciliationSchemaVersionSQL, "17", "runtime_ingest_reconciliation", "zasp_runtime_ingest_reconciliation_readiness($1, $2)"},
+	} {
+		if !strings.Contains(release.statement, "release.version = "+release.version) || !strings.Contains(release.statement, "release.name = '"+release.name+"'") || !strings.Contains(release.statement, release.readiness) {
+			t.Fatalf("v%s schema readiness query does not require exact release readiness: %s", release.version, release.statement)
+		}
 	}
 	if !strings.Contains(postgresSecurityAgentExecutionSchemaVersionSQL, "release.version = 18") || !strings.Contains(postgresSecurityAgentExecutionSchemaVersionSQL, "release.name = 'security_agent_execution'") || !strings.Contains(postgresSecurityAgentExecutionSchemaVersionSQL, "zasp_security_agent_readiness($1, $2)") {
 		t.Fatalf("v18 schema readiness query does not require security agent execution readiness: %s", postgresSecurityAgentExecutionSchemaVersionSQL)
@@ -126,20 +132,28 @@ func TestPostgresJSONDatabaseUsesV14ReadinessOnlyForV14Marker(t *testing.T) {
 }
 
 func TestPostgresJSONDatabaseUsesV15ReadinessOnlyForV15Marker(t *testing.T) {
-	driver := &databaseDriver{responses: map[string][]byte{
-		postgresSchemaMarkerSQL:                  []byte(RuntimeDataPlaneSchemaVersion),
-		postgresRuntimeDataPlaneSchemaVersionSQL: []byte(RuntimeDataPlaneSchemaVersion),
-	}}
-	database, err := NewPostgresJSONDatabase(driver)
-	if err != nil {
-		t.Fatal(err)
-	}
-	version, err := database.SchemaVersion(context.Background())
-	if err != nil || version != RuntimeDataPlaneSchemaVersion {
-		t.Fatalf("version = (%q, %v)", version, err)
-	}
-	if !reflect.DeepEqual(driver.queryArguments, []any{expectedRuntimeDataPlaneSchemaChecksum(), expectedRuntimeDataPlaneSchemaFingerprint()}) {
-		t.Fatalf("v15 schema checksum arguments = %#v", driver.queryArguments)
+	for _, test := range []struct {
+		release, version, statement string
+		checksum, fingerprint       string
+	}{
+		{"15", RuntimeDataPlaneSchemaVersion, postgresRuntimeDataPlaneSchemaVersionSQL, expectedRuntimeDataPlaneSchemaChecksum(), expectedRuntimeDataPlaneSchemaFingerprint()},
+		{"16", RuntimeGatewayReconciliationSchemaVersion, postgresRuntimeGatewayReconciliationSchemaVersionSQL, expectedRuntimeGatewayReconciliationSchemaChecksum(), expectedRuntimeGatewayReconciliationSchemaFingerprint()},
+		{"17", RuntimeIngestReconciliationSchemaVersion, postgresRuntimeIngestReconciliationSchemaVersionSQL, expectedRuntimeIngestReconciliationSchemaChecksum(), expectedRuntimeIngestReconciliationSchemaFingerprint()},
+	} {
+		t.Run(test.release, func(t *testing.T) {
+			driver := &databaseDriver{responses: map[string][]byte{postgresSchemaMarkerSQL: []byte(RuntimeDataPlaneSchemaVersion), postgresRuntimeDataPlaneReleaseSQL: []byte(test.release), test.statement: []byte(test.version)}}
+			database, err := NewPostgresJSONDatabase(driver)
+			if err != nil {
+				t.Fatal(err)
+			}
+			version, err := database.SchemaVersion(context.Background())
+			if err != nil || version != test.version {
+				t.Fatalf("version = (%q, %v)", version, err)
+			}
+			if !reflect.DeepEqual(driver.queryArguments, []any{test.checksum, test.fingerprint}) {
+				t.Fatalf("v%s schema checksum arguments = %#v", test.release, driver.queryArguments)
+			}
+		})
 	}
 }
 
