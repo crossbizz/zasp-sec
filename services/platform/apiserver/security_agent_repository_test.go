@@ -5,9 +5,39 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestSecurityAgentPostgresRepositorySimulatesWithCanonicalPlanAuthority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	definitionID := "pid_78000001-0000-4000-8000-000000000001"
+	runID := "pid_78000006-0000-4000-8000-000000000006"
+	evidenceID := "pid_78000005-0000-4000-8000-000000000005"
+	auditID := "pid_78000002-0000-4000-8000-000000000002"
+	correlationID := "pid_78000003-0000-4000-8000-000000000003"
+	receiptID := "pid_78000004-0000-4000-8000-000000000004"
+	expiresAt := time.Now().UTC().Truncate(time.Second).Add(15 * time.Minute)
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentAuthorityReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentSimulateSQL:       json.RawMessage(`{"run_id":"` + runID + `","definition_id":"` + definitionID + `","definition_version":2,"plan_hash":"sha256:` + strings.Repeat("a", 64) + `","catalog_version":"security-agent-actions-v1","expires_at":"` + expiresAt.Format(time.RFC3339) + `","matched_evidence_ids":["` + evidenceID + `"],"summary":"Review exposed credential","steps":[{"index":0,"action":"create_temporary_policy","authorization":"approval_required","approval_required":true}],"side_effects":0,"version":1,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
+	}}
+	repository, err := NewSecurityAgentPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := SecurityAgentSimulationRequest{DefinitionID: definitionID, IdempotencyKey: "simulate-agent-idem-0001", ExpectedVersion: 2, RunID: runID, Goal: "Review exposed credential", EvidenceIDs: []string{evidenceID}, ExpiresAt: expiresAt, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}
+	result, err := repository.SimulateSecurityAgent(context.Background(), identity, input)
+	if err != nil || result.PlanHash != "sha256:"+strings.Repeat("a", 64) || result.SideEffects != 0 || result.Replayed {
+		t.Fatalf("simulation=%#v err=%v", result, err)
+	}
+	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID, identity.PrincipalID.String(), input.IdempotencyKey, int64(2), runID, input.Goal, json.RawMessage(`["` + evidenceID + `"]`), expiresAt, auditID, correlationID, receiptID}
+	if database.statements[1] != postgresSecurityAgentSimulateSQL || !reflect.DeepEqual(database.arguments[1], want) {
+		t.Fatalf("statement=%q args=%#v", database.statements[1], database.arguments[1])
+	}
+}
 
 type securityAgentRepositoryDatabase struct {
 	responses  map[string]json.RawMessage

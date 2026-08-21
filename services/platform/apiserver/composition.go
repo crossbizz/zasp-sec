@@ -144,6 +144,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"PATCH", "/api/v1/security-agents/{id}", "updateSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"DELETE", "/api/v1/security-agents/{id}", "deleteSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agents/{id}/activation", "activateSecurityAgent", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents/{id}/simulate", "simulateSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 })
 
 func withBrowserExpectedScope(operations []coreOperation) []coreOperation {

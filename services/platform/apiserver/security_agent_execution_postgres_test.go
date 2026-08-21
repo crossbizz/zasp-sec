@@ -119,6 +119,50 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-validated-0001',1,'validated',transaction_timestamp()+interval '4 minutes','audit-validated','corr-validated','receipt-validated')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err != nil {
 		t.Fatalf("validate definition: %v", err)
 	}
+	evidenceID := "pid_78000020-0000-4000-8000-000000000020"
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status) VALUES($1,$2,$3,$4,'posture','exposed_credential','Exposed credential','high','open')`, organizationID, workspaceID, environmentID, evidenceID); err != nil {
+		t.Fatalf("seed simulation evidence: %v", err)
+	}
+	simulationRunID := "pid_78000021-0000-4000-8000-000000000021"
+	simulationAuditID := "pid_78000022-0000-4000-8000-000000000022"
+	simulationCorrelationID := "pid_78000023-0000-4000-8000-000000000023"
+	simulationReceiptID := "pid_78000024-0000-4000-8000-000000000024"
+	simulationExpiresAt := time.Now().UTC().Add(15 * time.Minute).Truncate(time.Microsecond)
+	var simulation json.RawMessage
+	var replayed json.RawMessage
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_simulate($1,$2,$3,$4,$5,'simulate-agent-idem-0001',2,$6,'Review exposed credential',jsonb_build_array($7::text),$8,$9,$10,$11)`, organizationID, workspaceID, environmentID, definitionID, actorID, simulationRunID, evidenceID, simulationExpiresAt, simulationAuditID, simulationCorrelationID, simulationReceiptID).Scan(&simulation); err != nil {
+		t.Fatalf("simulate definition: %v", err)
+	}
+	var simulated struct {
+		RunID       string `json:"run_id"`
+		PlanHash    string `json:"plan_hash"`
+		SideEffects int    `json:"side_effects"`
+		Replayed    bool   `json:"replayed"`
+	}
+	if json.Unmarshal(simulation, &simulated) != nil || simulated.RunID != simulationRunID || !strings.HasPrefix(simulated.PlanHash, "sha256:") || len(simulated.PlanHash) != 71 || simulated.SideEffects != 0 || simulated.Replayed {
+		t.Fatalf("simulation=%s", simulation)
+	}
+	var simulationState string
+	var planMatches bool
+	var effectCount int
+	if err := connection.QueryRow(ctx, `SELECT run.state,run.plan_hash=plan.plan_hash,(SELECT count(*) FROM zasp_security_agent_effects effect WHERE (effect.organization_id,effect.workspace_id,effect.environment_id,effect.run_id)=($1,$2,$3,$4)) FROM zasp_security_agent_runs run JOIN zasp_security_agent_plans plan USING(organization_id,workspace_id,environment_id,run_id) WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, simulationRunID).Scan(&simulationState, &planMatches, &effectCount); err != nil || simulationState != "simulated" || !planMatches || effectCount != 0 {
+		t.Fatalf("simulation state=%q plan=%t effects=%d err=%v", simulationState, planMatches, effectCount, err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_simulate($1,$2,$3,$4,$5,'simulate-agent-idem-0001',2,'pid_78000025-0000-4000-8000-000000000025','Review exposed credential',jsonb_build_array($6::text),$7,'pid_78000026-0000-4000-8000-000000000026','pid_78000027-0000-4000-8000-000000000027','pid_78000028-0000-4000-8000-000000000028')`, organizationID, workspaceID, environmentID, definitionID, actorID, evidenceID, simulationExpiresAt).Scan(&replayed); err != nil || !strings.Contains(string(replayed), `"replayed": true`) || !strings.Contains(string(replayed), `"run_id": "`+simulationRunID+`"`) {
+		t.Fatalf("simulation replay=%s err=%v", replayed, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_risk_findings SET status='resolved',updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, evidenceID); err != nil {
+		t.Fatal(err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_simulate($1,$2,$3,$4,$5,'simulate-agent-idem-0001',2,$6,'Review exposed credential',jsonb_build_array($7::text),$8,$9,$10,$11)`, organizationID, workspaceID, environmentID, definitionID, actorID, simulationRunID, evidenceID, simulationExpiresAt, simulationAuditID, simulationCorrelationID, simulationReceiptID).Scan(&detail); err == nil {
+		t.Fatal("simulation replay ignored evidence authorization loss")
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_risk_findings SET status='open',updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, evidenceID); err != nil {
+		t.Fatal(err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_simulate($1,$2,$3,$4,$5,'simulate-agent-idem-0002',2,'pid_78000029-0000-4000-8000-000000000029','Review unknown evidence',jsonb_build_array('pid_78000030-0000-4000-8000-000000000030'::text),$6,'pid_78000031-0000-4000-8000-000000000031','pid_78000032-0000-4000-8000-000000000032','pid_78000033-0000-4000-8000-000000000033')`, organizationID, workspaceID, environmentID, definitionID, actorID, simulationExpiresAt).Scan(&detail); err == nil {
+		t.Fatal("simulation accepted unauthorized evidence")
+	}
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-supervised-0001',2,'supervised',transaction_timestamp()+interval '4 minutes','audit-supervised-blocked','corr-supervised-blocked','receipt-supervised-blocked')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err == nil {
 		t.Fatal("supervised activation passed with global execution disabled")
 	}
@@ -134,7 +178,6 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-supervised-0001',2,'supervised',transaction_timestamp()+interval '4 minutes','audit-supervised','corr-supervised','receipt-supervised')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err != nil {
 		t.Fatalf("supervised activation: %v", err)
 	}
-	var replayed json.RawMessage
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-supervised-0001',2,'supervised',transaction_timestamp()+interval '4 minutes','new-audit-must-not-win','new-correlation-must-not-win','new-receipt-must-not-win')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&replayed); err != nil || !strings.Contains(string(replayed), `"replayed": true`) || !strings.Contains(string(replayed), `"receipt_id": "receipt-supervised"`) {
 		t.Fatalf("activation replay=%s err=%v", replayed, err)
 	}

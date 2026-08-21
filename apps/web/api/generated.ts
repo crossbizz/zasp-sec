@@ -1055,6 +1055,25 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/security-agents/{id}/simulate": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Persist a deterministic zero-effect Security Agent simulation */
+        readonly post: operations["simulateSecurityAgent"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/sensors": {
         readonly parameters: {
             readonly query?: never;
@@ -2501,11 +2520,21 @@ export type components = {
         /** @enum {string} */
         readonly SecurityAgentRunState: "queued" | "planning" | "waiting_approval" | "running" | "verifying" | "contained" | "remediated" | "needs_human" | "failed" | "inconclusive" | "cancelled";
         readonly SecurityAgentSimulation: {
+            /** @constant */
+            readonly catalog_version: "security-agent-actions-v1";
+            readonly definition_id: components["schemas"]["ProductID"];
+            readonly definition_version: number;
+            /** Format: date-time */
+            readonly expires_at: string;
             readonly matched_evidence_ids: readonly components["schemas"]["ProductID"][];
+            readonly plan_hash: string;
+            readonly run_id: components["schemas"]["ProductID"];
             /** @constant */
             readonly side_effects: 0;
             readonly steps: readonly components["schemas"]["SecurityAgentSimulationStep"][];
             readonly summary: string;
+            /** @constant */
+            readonly version: 1;
         };
         readonly SecurityAgentSimulationInput: {
             readonly environment_id: components["schemas"]["ProductID"];
@@ -5249,6 +5278,50 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly simulateSecurityAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SecurityAgentSimulationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable simulation and canonical plan metadata with no effects. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentSimulation"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };

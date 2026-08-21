@@ -111,7 +111,7 @@ CREATE TABLE public.zasp_security_agent_runs (
   definition_id text NOT NULL,
   definition_version bigint NOT NULL CHECK(definition_version>0),
   trigger_id text NOT NULL,
-  state text NOT NULL CHECK(state IN('queued','planning','waiting_approval','running','verifying','contained','remediated','needs_human','failed','inconclusive','cancelled')),
+  state text NOT NULL CHECK(state IN('simulated','queued','planning','waiting_approval','running','verifying','contained','remediated','needs_human','failed','inconclusive','cancelled')),
   version bigint NOT NULL DEFAULT 1 CHECK(version>0),
   plan_hash bytea CHECK(plan_hash IS NULL OR octet_length(plan_hash)=32),
   available_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
@@ -490,6 +490,77 @@ BEGIN
 END
 $activate$;
 
+CREATE FUNCTION public.zasp_security_agent_simulate(organization_value text,workspace_value text,environment_value text,definition_value text,actor_value text,idempotency_value text,expected_version bigint,run_value text,goal_value text,evidence_values jsonb,expires_value timestamptz,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $simulate$
+DECLARE definition_row zasp_security_agent_definitions%ROWTYPE; receipt_row zasp_security_agent_request_receipts%ROWTYPE; canonical_evidence jsonb; steps_value jsonb; plan_value jsonb; plan_digest bytea; trigger_digest_value bytea; intent_value jsonb; intent_digest_value bytea; response_value jsonb; summary_value text;
+BEGIN
+  IF NOT zasp_security_agent_principal_ready('zasp_security_agent_api') OR expected_version<=0 OR NOT zasp_valid_product_id(definition_value) OR NOT zasp_valid_product_id(run_value) OR NOT zasp_valid_product_id(actor_value) OR NOT zasp_valid_product_id(audit_value) OR NOT zasp_valid_product_id(correlation_value) OR NOT zasp_valid_product_id(receipt_value)
+     OR length(idempotency_value) NOT BETWEEN 16 AND 128 OR idempotency_value!~'^[A-Za-z0-9][A-Za-z0-9._:-]*$' OR length(goal_value) NOT BETWEEN 1 AND 1024 OR btrim(goal_value)<>goal_value OR goal_value~'[[:cntrl:]]'
+     OR jsonb_typeof(evidence_values)<>'array' OR jsonb_array_length(evidence_values) NOT BETWEEN 1 AND 100 OR expires_value IS NULL OR expires_value<=transaction_timestamp() OR expires_value>transaction_timestamp()+interval '16 minutes' THEN
+    RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent simulation rejected';
+  END IF;
+  SELECT jsonb_agg(evidence ORDER BY evidence) INTO canonical_evidence FROM jsonb_array_elements_text(evidence_values) evidence;
+  IF (SELECT count(*) FROM jsonb_array_elements_text(canonical_evidence))<>(SELECT count(DISTINCT evidence) FROM jsonb_array_elements_text(canonical_evidence) evidence)
+     OR EXISTS(SELECT 1 FROM jsonb_array_elements_text(canonical_evidence) evidence WHERE NOT zasp_valid_product_id(evidence)) THEN
+    RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent simulation evidence rejected';
+  END IF;
+  intent_value:=jsonb_build_object('definition_id',definition_value,'expected_version',expected_version,'goal',goal_value,'evidence_ids',canonical_evidence,'expires_at',to_char(expires_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
+  intent_digest_value:=digest(convert_to(intent_value::text,'UTF8'),'sha256');
+  PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),organization_value,workspace_value,environment_value,actor_value,'simulateSecurityAgent',idempotency_value),0));
+  SELECT * INTO receipt_row FROM zasp_security_agent_request_receipts receipt
+  WHERE (receipt.organization_id,receipt.workspace_id,receipt.environment_id,receipt.principal_id,receipt.operation,receipt.idempotency_key)=(organization_value,workspace_value,environment_value,actor_value,'simulateSecurityAgent',idempotency_value);
+  IF FOUND THEN
+    IF receipt_row.resource_id<>definition_value OR receipt_row.expected_version<>expected_version OR receipt_row.intent_digest<>intent_digest_value OR receipt_row.expires_at<=transaction_timestamp() OR (receipt_row.response->>'expires_at')::timestamptz<=transaction_timestamp()
+       OR NOT EXISTS(SELECT 1 FROM zasp_security_agent_definitions current_definition WHERE (current_definition.organization_id,current_definition.workspace_id,current_definition.environment_id,current_definition.definition_id,current_definition.version)=(organization_value,workspace_value,environment_value,definition_value,expected_version) AND current_definition.deleted_at IS NULL) THEN
+      RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='security agent simulation replay conflict';
+    END IF;
+    IF EXISTS(
+      SELECT 1 FROM jsonb_array_elements_text(receipt_row.response->'matched_evidence_ids') evidence
+      WHERE NOT EXISTS(SELECT 1 FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=(organization_value,workspace_value,environment_value,evidence) AND finding.status IN('open','under_review','accepted'))
+        AND NOT EXISTS(SELECT 1 FROM zasp_risk_attack_paths path WHERE (path.organization_id,path.workspace_id,path.environment_id,path.id)=(organization_value,workspace_value,environment_value,evidence) AND path.state IN('observed','verified'))
+        AND NOT EXISTS(SELECT 1 FROM zasp_inventory_entities entity WHERE (entity.organization_id,entity.workspace_id,entity.environment_id,entity.id,entity.state)=(organization_value,workspace_value,environment_value,evidence,'active'))
+        AND NOT EXISTS(SELECT 1 FROM zasp_inventory_evidence evidence_row WHERE (evidence_row.organization_id,evidence_row.workspace_id,evidence_row.environment_id,evidence_row.id)=(organization_value,workspace_value,environment_value,evidence))
+    ) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='security agent simulation replay denied';END IF;
+    RETURN receipt_row.response||jsonb_build_object('replayed',true);
+  END IF;
+  SELECT * INTO definition_row FROM zasp_security_agent_definitions candidate
+  WHERE (candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.definition_id,candidate.version)=(organization_value,workspace_value,environment_value,definition_value,expected_version)
+    AND candidate.deleted_at IS NULL AND candidate.activation IN('validated','supervised','autonomous') AND candidate.body->'environment_ids' ? environment_value FOR SHARE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent simulation definition rejected';END IF;
+  IF EXISTS(
+    SELECT 1 FROM jsonb_array_elements_text(canonical_evidence) evidence
+    WHERE NOT EXISTS(SELECT 1 FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=(organization_value,workspace_value,environment_value,evidence) AND finding.status IN('open','under_review','accepted'))
+      AND NOT EXISTS(SELECT 1 FROM zasp_risk_attack_paths path WHERE (path.organization_id,path.workspace_id,path.environment_id,path.id)=(organization_value,workspace_value,environment_value,evidence) AND path.state IN('observed','verified'))
+      AND NOT EXISTS(SELECT 1 FROM zasp_inventory_entities entity WHERE (entity.organization_id,entity.workspace_id,entity.environment_id,entity.id,entity.state)=(organization_value,workspace_value,environment_value,evidence,'active'))
+      AND NOT EXISTS(SELECT 1 FROM zasp_inventory_evidence evidence_row WHERE (evidence_row.organization_id,evidence_row.workspace_id,evidence_row.environment_id,evidence_row.id)=(organization_value,workspace_value,environment_value,evidence))
+  ) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='security agent simulation evidence denied';END IF;
+  SELECT jsonb_agg(jsonb_build_object('index',ordinality-1,'action',action,'authorization',CASE WHEN definition_row.body->>'autonomy'='supervised' THEN 'approval_required' ELSE 'allow' END,'approval_required',definition_row.body->>'autonomy'='supervised') ORDER BY ordinality)
+  INTO steps_value FROM jsonb_array_elements_text(definition_row.body->'allowed_actions') WITH ORDINALITY action_rows(action,ordinality) WHERE ordinality<=(definition_row.body->>'max_steps')::integer;
+  IF jsonb_typeof(steps_value)<>'array' OR jsonb_array_length(steps_value) NOT BETWEEN 1 AND LEAST(100,(definition_row.body->>'max_steps')::integer) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent simulation plan rejected';END IF;
+  summary_value:=format('Planned %s action(s) from %s evidence record(s)',jsonb_array_length(steps_value),jsonb_array_length(canonical_evidence));
+  plan_value:=jsonb_build_object(
+    'version',1,'definition_id',definition_value,'definition_version',expected_version,'catalog_version',definition_row.plan_catalog_version,
+    'target_scope',jsonb_build_object('organization_id',organization_value,'workspace_id',workspace_value,'environment_id',environment_value),
+    'goal',goal_value,'summary',summary_value,'evidence_ids',canonical_evidence,'steps',steps_value,
+    'budgets',jsonb_build_object('max_steps',(definition_row.body->>'max_steps')::integer,'max_duration_seconds',(definition_row.body->>'max_duration_seconds')::integer,'temporary_policy_seconds',(definition_row.body->>'temporary_policy_seconds')::integer,'ai_token_budget',(definition_row.body->>'ai_token_budget')::integer,'concurrency_limit',(definition_row.body->>'concurrency_limit')::integer),
+    'verification',jsonb_build_object('kind',definition_row.body->>'verification_kind'),'expires_at',to_char(expires_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
+  plan_digest:=digest(convert_to(plan_value::text,'UTF8'),'sha256');trigger_digest_value:=digest(convert_to(jsonb_build_object('kind','simulation','evidence_ids',canonical_evidence,'goal',goal_value)::text,'UTF8'),'sha256');
+  INSERT INTO zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_id,state,plan_hash,completed_at)
+  VALUES(organization_value,workspace_value,environment_value,run_value,definition_value,expected_version,encode(trigger_digest_value,'hex'),'simulated',plan_digest,transaction_timestamp());
+  INSERT INTO zasp_security_agent_plans(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_digest,catalog_version,plan,plan_hash,expires_at)
+  VALUES(organization_value,workspace_value,environment_value,run_value,definition_value,expected_version,trigger_digest_value,definition_row.plan_catalog_version,plan_value,plan_digest,expires_value);
+  INSERT INTO zasp_security_agent_steps(organization_id,workspace_id,environment_id,run_id,step_id,step_index,action_key,input_digest,authorization_result,state)
+  SELECT organization_value,workspace_value,environment_value,run_value,zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'security_agent_step',run_value||chr(31)||(step->>'index')), (step->>'index')::integer,step->>'action',digest(convert_to(step::text,'UTF8'),'sha256'),step->>'authorization',CASE WHEN step->>'authorization'='approval_required' THEN 'waiting_approval' ELSE 'authorized' END
+  FROM jsonb_array_elements(steps_value) step;
+  INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,actor_id,event_kind,event_digest,body)
+  VALUES(organization_value,workspace_value,environment_value,audit_value,correlation_value,run_value,actor_value,'simulation_created',plan_digest,jsonb_build_object('run_id',run_value,'definition_id',definition_value,'definition_version',expected_version,'plan_hash','sha256:'||encode(plan_digest,'hex'),'side_effects',0));
+  response_value:=jsonb_build_object('run_id',run_value,'definition_id',definition_value,'definition_version',expected_version,'plan_hash','sha256:'||encode(plan_digest,'hex'),'catalog_version',definition_row.plan_catalog_version,'expires_at',to_char(expires_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'matched_evidence_ids',canonical_evidence,'summary',summary_value,'steps',steps_value,'side_effects',0,'version',1,'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
+  INSERT INTO zasp_security_agent_request_receipts(organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key,resource_id,expected_version,intent,intent_digest,response,audit_id,correlation_id,receipt_id)
+  VALUES(organization_value,workspace_value,environment_value,actor_value,'simulateSecurityAgent',idempotency_value,definition_value,expected_version,intent_value,intent_digest_value,response_value,audit_value,correlation_value,receipt_value);
+  UPDATE zasp_security_agent_execution_state SET used_at=COALESCE(used_at,transaction_timestamp()) WHERE singleton;
+  RETURN response_value;
+END
+$simulate$;
+
 CREATE FUNCTION public.zasp_security_agent_create_run(organization_value text,workspace_value text,environment_value text,definition_value text,definition_version_value bigint,run_value text,trigger_kind_value text,trigger_version_value bigint,trigger_digest_value bytea,actor_value text,audit_value text,correlation_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $create_run$
 DECLARE definition_row zasp_security_agent_definitions%ROWTYPE; action_value text; prior_run text;
 BEGIN
@@ -554,14 +625,14 @@ $claim_runs$;
 DO $functions$
 DECLARE procedure_oid oid;
 BEGIN
-  FOR procedure_oid IN SELECT procedure_row.oid FROM pg_proc procedure_row JOIN pg_namespace namespace_row ON namespace_row.oid=procedure_row.pronamespace WHERE namespace_row.nspname='public' AND procedure_row.proname IN('zasp_security_agent_register_principals','zasp_security_agent_principal_ready','zasp_security_agent_principals_ready','zasp_security_agent_definition_page','zasp_security_agent_definition_value','zasp_security_agent_replay_definition','zasp_security_agent_mutate_definition','zasp_security_agent_definition_detail','zasp_security_agent_set_kill_switch','zasp_security_agent_activate','zasp_security_agent_create_run','zasp_security_agent_claim_runs') LOOP
+  FOR procedure_oid IN SELECT procedure_row.oid FROM pg_proc procedure_row JOIN pg_namespace namespace_row ON namespace_row.oid=procedure_row.pronamespace WHERE namespace_row.nspname='public' AND procedure_row.proname IN('zasp_security_agent_register_principals','zasp_security_agent_principal_ready','zasp_security_agent_principals_ready','zasp_security_agent_definition_page','zasp_security_agent_definition_value','zasp_security_agent_replay_definition','zasp_security_agent_mutate_definition','zasp_security_agent_definition_detail','zasp_security_agent_set_kill_switch','zasp_security_agent_activate','zasp_security_agent_simulate','zasp_security_agent_create_run','zasp_security_agent_claim_runs') LOOP
     EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',procedure_oid::regprocedure);
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC,zasp_security_agent_api,zasp_security_agent_worker',procedure_oid::regprocedure);
     EXECUTE format('ALTER FUNCTION %s SECURITY DEFINER',procedure_oid::regprocedure);
     EXECUTE format('ALTER FUNCTION %s SET search_path TO pg_catalog, public',procedure_oid::regprocedure);
   END LOOP;
 END $functions$;
-GRANT EXECUTE ON FUNCTION public.zasp_security_agent_principal_ready(text),public.zasp_security_agent_definition_page(text,text,text,text,integer),public.zasp_security_agent_definition_value(text,text,text,text),public.zasp_security_agent_replay_definition(text,text,text,text,text,text,jsonb),public.zasp_security_agent_mutate_definition(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text),public.zasp_security_agent_definition_detail(text,text,text,text),public.zasp_security_agent_set_kill_switch(text,text,text,text,boolean,bigint,text,text,text),public.zasp_security_agent_activate(text,text,text,text,text,text,bigint,text,timestamptz,text,text,text),public.zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text) TO zasp_security_agent_api;
+GRANT EXECUTE ON FUNCTION public.zasp_security_agent_principal_ready(text),public.zasp_security_agent_definition_page(text,text,text,text,integer),public.zasp_security_agent_definition_value(text,text,text,text),public.zasp_security_agent_replay_definition(text,text,text,text,text,text,jsonb),public.zasp_security_agent_mutate_definition(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text),public.zasp_security_agent_definition_detail(text,text,text,text),public.zasp_security_agent_set_kill_switch(text,text,text,text,boolean,bigint,text,text,text),public.zasp_security_agent_activate(text,text,text,text,text,text,bigint,text,timestamptz,text,text,text),public.zasp_security_agent_simulate(text,text,text,text,text,text,bigint,text,text,jsonb,timestamptz,text,text,text),public.zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text) TO zasp_security_agent_api;
 GRANT EXECUTE ON FUNCTION public.zasp_security_agent_principal_ready(text),public.zasp_security_agent_claim_runs(text,text,integer,integer) TO zasp_security_agent_worker;
 
 CREATE FUNCTION public.zasp_security_agent_live_fingerprint() RETURNS text LANGUAGE sql STABLE SET search_path TO pg_catalog, public AS $fingerprint$
@@ -604,5 +675,5 @@ BEGIN
 END
 $schema_marker$;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', 'f37ac88ad69b7f59ade59d4704696ec0a9aae3aea81727ea44763f901e2eb024')
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', '135723010822313ad7a83c30e7afcec6dd3ef897735a349b0da65d3e23e9298c')
 ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;

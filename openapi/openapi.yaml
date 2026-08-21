@@ -1725,6 +1725,38 @@ paths:
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/{id}/simulate:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: simulateSecurityAgent
+      summary: Persist a deterministic zero-effect Security Agent simulation
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentSimulationInput' } } }
+      responses:
+        '200':
+          description: Durable simulation and canonical plan metadata with no effects.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentSimulation' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/home/summary:
     get:
       operationId: getHomeSummary
@@ -2373,12 +2405,19 @@ components:
     SecurityAgentSimulation:
       type: object
       additionalProperties: false
-      required: [matched_evidence_ids, summary, steps, side_effects]
+      required: [run_id, definition_id, definition_version, plan_hash, catalog_version, expires_at, matched_evidence_ids, summary, steps, side_effects, version]
       properties:
+        run_id: { $ref: '#/components/schemas/ProductID' }
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        definition_version: { type: integer, minimum: 1 }
+        plan_hash: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        catalog_version: { type: string, const: security-agent-actions-v1 }
+        expires_at: { type: string, format: date-time }
         matched_evidence_ids: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
         summary: { type: string, minLength: 1, maxLength: 500 }
         steps: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentSimulationStep' } }
         side_effects: { type: integer, const: 0 }
+        version: { type: integer, const: 1 }
     SecurityAgentManualRunInput:
       type: object
       additionalProperties: false
