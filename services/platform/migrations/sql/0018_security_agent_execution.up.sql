@@ -111,6 +111,7 @@ CREATE TABLE public.zasp_security_agent_runs (
   definition_id text NOT NULL,
   definition_version bigint NOT NULL CHECK(definition_version>0),
   trigger_id text NOT NULL,
+  requested_by text NOT NULL CHECK(length(requested_by) BETWEEN 1 AND 128),
   state text NOT NULL CHECK(state IN('simulated','queued','planning','waiting_approval','running','verifying','contained','remediated','needs_human','failed','inconclusive','cancelled')),
   version bigint NOT NULL DEFAULT 1 CHECK(version>0),
   plan_hash bytea CHECK(plan_hash IS NULL OR octet_length(plan_hash)=32),
@@ -544,8 +545,8 @@ BEGIN
     'budgets',jsonb_build_object('max_steps',(definition_row.body->>'max_steps')::integer,'max_duration_seconds',(definition_row.body->>'max_duration_seconds')::integer,'temporary_policy_seconds',(definition_row.body->>'temporary_policy_seconds')::integer,'ai_token_budget',(definition_row.body->>'ai_token_budget')::integer,'concurrency_limit',(definition_row.body->>'concurrency_limit')::integer),
     'verification',jsonb_build_object('kind',definition_row.body->>'verification_kind'),'expires_at',to_char(expires_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
   plan_digest:=digest(convert_to(plan_value::text,'UTF8'),'sha256');trigger_digest_value:=digest(convert_to(jsonb_build_object('kind','simulation','evidence_ids',canonical_evidence,'goal',goal_value)::text,'UTF8'),'sha256');
-  INSERT INTO zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_id,state,plan_hash,completed_at)
-  VALUES(organization_value,workspace_value,environment_value,run_value,definition_value,expected_version,encode(trigger_digest_value,'hex'),'simulated',plan_digest,transaction_timestamp());
+  INSERT INTO zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_id,requested_by,state,plan_hash,completed_at)
+  VALUES(organization_value,workspace_value,environment_value,run_value,definition_value,expected_version,encode(trigger_digest_value,'hex'),actor_value,'simulated',plan_digest,transaction_timestamp());
   INSERT INTO zasp_security_agent_plans(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_digest,catalog_version,plan,plan_hash,expires_at)
   VALUES(organization_value,workspace_value,environment_value,run_value,definition_value,expected_version,trigger_digest_value,definition_row.plan_catalog_version,plan_value,plan_digest,expires_value);
   INSERT INTO zasp_security_agent_steps(organization_id,workspace_id,environment_id,run_id,step_id,step_index,action_key,input_digest,authorization_result,state)
@@ -560,6 +561,192 @@ BEGIN
   RETURN response_value;
 END
 $simulate$;
+
+CREATE FUNCTION public.zasp_security_agent_run(organization_value text,workspace_value text,environment_value text,definition_value text,actor_value text,idempotency_value text,expected_version bigint,run_value text,trigger_kind_value text,trigger_value text,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $run$
+DECLARE definition_row zasp_security_agent_definitions%ROWTYPE; finding_version bigint; trigger_digest_value bytea; intent_value jsonb; intent_digest_value bytea; receipt_row zasp_security_agent_request_receipts%ROWTYPE; prior_run text; prior_state text; prior_version bigint; response_value jsonb;
+BEGIN
+  IF NOT zasp_security_agent_principal_ready('zasp_security_agent_api') OR expected_version<=0 OR trigger_kind_value<>'finding'
+     OR NOT zasp_valid_product_id(definition_value) OR NOT zasp_valid_product_id(actor_value) OR NOT zasp_valid_product_id(run_value) OR NOT zasp_valid_product_id(trigger_value)
+     OR NOT zasp_valid_product_id(audit_value) OR NOT zasp_valid_product_id(correlation_value) OR NOT zasp_valid_product_id(receipt_value)
+     OR length(idempotency_value) NOT BETWEEN 16 AND 128 OR idempotency_value!~'^[A-Za-z0-9][A-Za-z0-9._:-]*$' THEN
+    RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent run rejected';
+  END IF;
+  intent_value:=jsonb_build_object('definition_id',definition_value,'expected_version',expected_version,'trigger_kind',trigger_kind_value,'trigger_id',trigger_value);
+  intent_digest_value:=digest(convert_to(intent_value::text,'UTF8'),'sha256');
+  PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),organization_value,workspace_value,environment_value,actor_value,'runSecurityAgent',idempotency_value),0));
+  SELECT * INTO receipt_row FROM zasp_security_agent_request_receipts receipt
+  WHERE (receipt.organization_id,receipt.workspace_id,receipt.environment_id,receipt.principal_id,receipt.operation,receipt.idempotency_key)=(organization_value,workspace_value,environment_value,actor_value,'runSecurityAgent',idempotency_value);
+  IF FOUND THEN
+    IF receipt_row.resource_id<>definition_value OR receipt_row.expected_version<>expected_version OR receipt_row.intent_digest<>intent_digest_value OR receipt_row.expires_at<=transaction_timestamp()
+       OR NOT EXISTS(SELECT 1 FROM zasp_security_agent_definitions definition WHERE (definition.organization_id,definition.workspace_id,definition.environment_id,definition.definition_id,definition.version)=(organization_value,workspace_value,environment_value,definition_value,expected_version) AND definition.deleted_at IS NULL)
+       OR NOT EXISTS(SELECT 1 FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=(organization_value,workspace_value,environment_value,trigger_value) AND finding.status IN('open','under_review')) THEN
+      RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='security agent run replay conflict';
+    END IF;
+    RETURN receipt_row.response||jsonb_build_object('replayed',true);
+  END IF;
+  SELECT * INTO definition_row FROM zasp_security_agent_definitions definition
+  WHERE (definition.organization_id,definition.workspace_id,definition.environment_id,definition.definition_id,definition.version)=(organization_value,workspace_value,environment_value,definition_value,expected_version)
+    AND definition.deleted_at IS NULL AND definition.activation='supervised' AND definition.body->'environment_ids' ? environment_value
+    AND definition.body->>'autonomy'='supervised' AND definition.body->'allowed_actions'=jsonb_build_array('update_finding_response') AND definition.body->>'verification_kind'='finding_state' FOR SHARE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent run definition rejected';END IF;
+  SELECT finding.version INTO finding_version FROM zasp_risk_findings finding
+  WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=(organization_value,workspace_value,environment_value,trigger_value) AND finding.status='open' FOR SHARE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='security agent run trigger denied';END IF;
+  IF NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=('*','*','*','*',true))
+     OR NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=(organization_value,workspace_value,environment_value,'*',true))
+     OR NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=(organization_value,workspace_value,environment_value,'update_finding_response',true)) THEN
+    RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent execution disabled';
+  END IF;
+  trigger_digest_value:=digest(convert_to(jsonb_build_object('kind','finding','id',trigger_value,'version',finding_version)::text,'UTF8'),'sha256');
+  PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),organization_value,workspace_value,environment_value,definition_value,trigger_value,finding_version),0));
+  SELECT receipt.run_id INTO prior_run FROM zasp_security_agent_trigger_receipts receipt
+  WHERE (receipt.organization_id,receipt.workspace_id,receipt.environment_id,receipt.definition_id,receipt.trigger_id,receipt.trigger_version)=(organization_value,workspace_value,environment_value,definition_value,trigger_value,finding_version);
+  IF FOUND THEN
+    SELECT state,version INTO STRICT prior_state,prior_version FROM zasp_security_agent_runs existing
+    WHERE (existing.organization_id,existing.workspace_id,existing.environment_id,existing.run_id)=(organization_value,workspace_value,environment_value,prior_run);
+    response_value:=jsonb_build_object('id',prior_run,'agent_id',definition_value,'state',prior_state,'evidence_ids',jsonb_build_array(trigger_value),'definition_version',expected_version,'version',prior_version,'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',true);
+  ELSE
+    INSERT INTO zasp_security_agent_trigger_receipts(organization_id,workspace_id,environment_id,definition_id,trigger_id,trigger_kind,trigger_version,trigger_digest,run_id)
+    VALUES(organization_value,workspace_value,environment_value,definition_value,trigger_value,'finding',finding_version,trigger_digest_value,run_value);
+    INSERT INTO zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_id,requested_by,state)
+    VALUES(organization_value,workspace_value,environment_value,run_value,definition_value,expected_version,trigger_value,actor_value,'queued');
+    response_value:=jsonb_build_object('id',run_value,'agent_id',definition_value,'state','queued','evidence_ids',jsonb_build_array(trigger_value),'definition_version',expected_version,'version',1,'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
+  END IF;
+  INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,actor_id,event_kind,event_digest,body)
+  VALUES(organization_value,workspace_value,environment_value,audit_value,correlation_value,response_value->>'id',actor_value,CASE WHEN prior_run IS NULL THEN 'run_queued' ELSE 'run_deduplicated' END,trigger_digest_value,jsonb_build_object('run_id',response_value->>'id','definition_id',definition_value,'definition_version',expected_version,'trigger_kind','finding','trigger_id',trigger_value));
+  INSERT INTO zasp_security_agent_request_receipts(organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key,resource_id,expected_version,intent,intent_digest,response,audit_id,correlation_id,receipt_id)
+  VALUES(organization_value,workspace_value,environment_value,actor_value,'runSecurityAgent',idempotency_value,definition_value,expected_version,intent_value,intent_digest_value,response_value,audit_value,correlation_value,receipt_value);
+  UPDATE zasp_security_agent_execution_state SET used_at=COALESCE(used_at,transaction_timestamp()) WHERE singleton;
+  RETURN response_value;
+END
+$run$;
+
+CREATE FUNCTION public.zasp_security_agent_heartbeat_run(organization_value text,workspace_value text,environment_value text,run_value text,worker_value text,lease_token_value text,lease_seconds integer) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $heartbeat$
+DECLARE expiry_value timestamptz;
+BEGIN
+  IF NOT zasp_security_agent_principal_ready('zasp_security_agent_worker') OR NOT zasp_valid_product_id(run_value) OR length(worker_value) NOT BETWEEN 1 AND 128 OR length(lease_token_value) NOT BETWEEN 16 AND 128 OR lease_seconds NOT BETWEEN 30 AND 300 THEN
+    RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent heartbeat rejected';
+  END IF;
+  UPDATE zasp_security_agent_runs run SET lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds),updated_at=transaction_timestamp(),version=run.version+1
+  WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id,run.lease_owner,run.lease_token)=(organization_value,workspace_value,environment_value,run_value,worker_value,lease_token_value)
+    AND run.state IN('planning','running','verifying') AND run.lease_expires_at>transaction_timestamp()
+  RETURNING lease_expires_at INTO expiry_value;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent lease lost';END IF;
+  RETURN jsonb_build_object('run_id',run_value,'lease_expires_at',to_char(expiry_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
+END
+$heartbeat$;
+
+CREATE FUNCTION public.zasp_security_agent_prepare_run(organization_value text,workspace_value text,environment_value text,run_value text,worker_value text,lease_token_value text,approval_value text,approval_expires_value timestamptz,audit_value text,correlation_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $prepare$
+DECLARE run_row zasp_security_agent_runs%ROWTYPE; definition_row zasp_security_agent_definitions%ROWTYPE; trigger_row zasp_security_agent_trigger_receipts%ROWTYPE; finding_version bigint; step_value text; trigger_digest_value bytea; plan_value jsonb; plan_digest bytea;
+BEGIN
+  IF NOT zasp_security_agent_principal_ready('zasp_security_agent_worker') OR NOT zasp_valid_product_id(run_value) OR NOT zasp_valid_product_id(approval_value) OR NOT zasp_valid_product_id(audit_value) OR NOT zasp_valid_product_id(correlation_value)
+     OR length(worker_value) NOT BETWEEN 1 AND 128 OR length(lease_token_value) NOT BETWEEN 16 AND 128 OR approval_expires_value<=transaction_timestamp() OR approval_expires_value>transaction_timestamp()+interval '16 minutes' THEN
+    RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent plan rejected';
+  END IF;
+  SELECT * INTO run_row FROM zasp_security_agent_runs run
+  WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id,run.state,run.lease_owner,run.lease_token)=(organization_value,workspace_value,environment_value,run_value,'planning',worker_value,lease_token_value)
+    AND run.lease_expires_at>transaction_timestamp() FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent lease lost';END IF;
+  SELECT * INTO STRICT definition_row FROM zasp_security_agent_definitions definition
+  WHERE (definition.organization_id,definition.workspace_id,definition.environment_id,definition.definition_id,definition.version)=(organization_value,workspace_value,environment_value,run_row.definition_id,run_row.definition_version)
+    AND definition.activation='supervised' AND definition.deleted_at IS NULL AND definition.body->'allowed_actions'=jsonb_build_array('update_finding_response') AND definition.body->>'verification_kind'='finding_state' FOR SHARE;
+  SELECT * INTO STRICT trigger_row FROM zasp_security_agent_trigger_receipts trigger_receipt
+  WHERE (trigger_receipt.organization_id,trigger_receipt.workspace_id,trigger_receipt.environment_id,trigger_receipt.run_id,trigger_receipt.trigger_kind)=(organization_value,workspace_value,environment_value,run_value,'finding');
+  SELECT finding.version INTO finding_version FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id,finding.status)=(organization_value,workspace_value,environment_value,trigger_row.trigger_id,'open') FOR SHARE;
+  IF NOT FOUND OR finding_version<>trigger_row.trigger_version THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent evidence changed';END IF;
+  trigger_digest_value:=trigger_row.trigger_digest;
+  step_value:=zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'security_agent_step',run_value||chr(31)||'0');
+  plan_value:=jsonb_build_object('definition_id',run_row.definition_id,'definition_version',run_row.definition_version,'catalog_version','security-agent-actions-v1','evidence_ids',jsonb_build_array(trigger_row.trigger_id),'steps',jsonb_build_array(jsonb_build_object('index',0,'step_id',step_value,'action','update_finding_response','target_id',trigger_row.trigger_id,'expected_version',trigger_row.trigger_version,'target_status','under_review','authorization','approval_required')),'verification',jsonb_build_object('kind','finding_state','expected_status','under_review'),'expires_at',to_char(approval_expires_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
+  plan_digest:=digest(convert_to(plan_value::text,'UTF8'),'sha256');
+  INSERT INTO zasp_security_agent_plans(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_digest,catalog_version,plan,plan_hash,expires_at)
+  VALUES(organization_value,workspace_value,environment_value,run_value,run_row.definition_id,run_row.definition_version,trigger_digest_value,'security-agent-actions-v1',plan_value,plan_digest,approval_expires_value);
+  INSERT INTO zasp_security_agent_steps(organization_id,workspace_id,environment_id,run_id,step_id,step_index,action_key,input_digest,authorization_result,state)
+  VALUES(organization_value,workspace_value,environment_value,run_value,step_value,0,'update_finding_response',digest(convert_to((plan_value->'steps'->0)::text,'UTF8'),'sha256'),'approval_required','waiting_approval');
+  INSERT INTO zasp_security_agent_approvals(organization_id,workspace_id,environment_id,approval_id,run_id,step_id,plan_hash,state,requester_id,expires_at)
+  VALUES(organization_value,workspace_value,environment_value,approval_value,run_value,step_value,plan_digest,'pending',run_row.requested_by,approval_expires_value);
+  UPDATE zasp_security_agent_runs run SET state='waiting_approval',plan_hash=plan_digest,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,version=run.version+1,updated_at=transaction_timestamp()
+  WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(organization_value,workspace_value,environment_value,run_value);
+  INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,step_id,approval_id,actor_id,event_kind,event_digest,body)
+  VALUES(organization_value,workspace_value,environment_value,audit_value,correlation_value,run_value,step_value,approval_value,worker_value,'approval_requested',plan_digest,jsonb_build_object('run_id',run_value,'step_id',step_value,'approval_id',approval_value,'action','update_finding_response','target_id',trigger_row.trigger_id,'plan_hash','sha256:'||encode(plan_digest,'hex')));
+  RETURN jsonb_build_object('run_id',run_value,'state','waiting_approval','version',run_row.version+1,'approval_id',approval_value,'step_id',step_value,'plan_hash','sha256:'||encode(plan_digest,'hex'));
+END
+$prepare$;
+
+CREATE FUNCTION public.zasp_security_agent_decide_approval(organization_value text,workspace_value text,environment_value text,approval_value text,actor_value text,idempotency_value text,expected_version bigint,decision_value text,fresh_auth_value timestamptz,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $decide$
+DECLARE approval_row zasp_security_agent_approvals%ROWTYPE; receipt_row zasp_security_agent_request_receipts%ROWTYPE; intent_value jsonb; intent_digest_value bytea; response_value jsonb; next_run_state text;
+BEGIN
+  IF NOT zasp_security_agent_principal_ready('zasp_security_agent_api') OR NOT zasp_valid_product_id(approval_value) OR NOT zasp_valid_product_id(actor_value) OR NOT zasp_valid_product_id(audit_value) OR NOT zasp_valid_product_id(correlation_value) OR NOT zasp_valid_product_id(receipt_value)
+     OR length(idempotency_value) NOT BETWEEN 16 AND 128 OR idempotency_value!~'^[A-Za-z0-9][A-Za-z0-9._:-]*$' OR expected_version<=0 OR decision_value NOT IN('approved','rejected','cancelled')
+     OR fresh_auth_value<transaction_timestamp()-interval '5 minutes' OR fresh_auth_value>transaction_timestamp()+interval '5 seconds' THEN
+    RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent approval rejected';
+  END IF;
+  intent_value:=jsonb_build_object('approval_id',approval_value,'expected_version',expected_version,'decision',decision_value);
+  intent_digest_value:=digest(convert_to(intent_value::text,'UTF8'),'sha256');
+  PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),organization_value,workspace_value,environment_value,actor_value,'decideSecurityAgentApproval',idempotency_value),0));
+  SELECT * INTO receipt_row FROM zasp_security_agent_request_receipts receipt WHERE (receipt.organization_id,receipt.workspace_id,receipt.environment_id,receipt.principal_id,receipt.operation,receipt.idempotency_key)=(organization_value,workspace_value,environment_value,actor_value,'decideSecurityAgentApproval',idempotency_value);
+  IF FOUND THEN
+    IF receipt_row.resource_id<>approval_value OR receipt_row.expected_version<>expected_version OR receipt_row.intent_digest<>intent_digest_value OR receipt_row.expires_at<=transaction_timestamp()
+       OR NOT EXISTS(SELECT 1 FROM zasp_security_agent_approvals approval WHERE (approval.organization_id,approval.workspace_id,approval.environment_id,approval.approval_id)=(organization_value,workspace_value,environment_value,approval_value)) THEN
+      RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='security agent approval replay conflict';
+    END IF;
+    RETURN receipt_row.response||jsonb_build_object('replayed',true);
+  END IF;
+  SELECT * INTO approval_row FROM zasp_security_agent_approvals approval
+  WHERE (approval.organization_id,approval.workspace_id,approval.environment_id,approval.approval_id,approval.state,approval.version)=(organization_value,workspace_value,environment_value,approval_value,'pending',expected_version) FOR UPDATE;
+  IF NOT FOUND OR approval_row.expires_at<=transaction_timestamp() OR approval_row.requester_id=actor_value THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent approval conflict';END IF;
+  PERFORM 1 FROM zasp_security_agent_runs run WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id,run.state,run.plan_hash)=(organization_value,workspace_value,environment_value,approval_row.run_id,'waiting_approval',approval_row.plan_hash) FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent approval run conflict';END IF;
+  next_run_state:=CASE decision_value WHEN 'approved' THEN 'queued' WHEN 'rejected' THEN 'needs_human' ELSE 'cancelled' END;
+  UPDATE zasp_security_agent_approvals approval SET state=decision_value,approver_id=actor_value,fresh_auth_at=fresh_auth_value,version=approval.version+1,decided_at=transaction_timestamp()
+  WHERE (approval.organization_id,approval.workspace_id,approval.environment_id,approval.approval_id)=(organization_value,workspace_value,environment_value,approval_value);
+  UPDATE zasp_security_agent_steps step SET state=CASE WHEN decision_value='approved' THEN 'authorized' ELSE 'cancelled' END,version=step.version+1,updated_at=transaction_timestamp()
+  WHERE (step.organization_id,step.workspace_id,step.environment_id,step.run_id,step.step_id)=(organization_value,workspace_value,environment_value,approval_row.run_id,approval_row.step_id);
+  UPDATE zasp_security_agent_runs run SET state=next_run_state,available_at=transaction_timestamp(),version=run.version+1,updated_at=transaction_timestamp(),completed_at=CASE WHEN decision_value='approved' THEN NULL ELSE transaction_timestamp() END
+  WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(organization_value,workspace_value,environment_value,approval_row.run_id);
+  response_value:=jsonb_build_object('id',approval_value,'run_id',approval_row.run_id,'step_id',approval_row.step_id,'state',decision_value,'expires_at',to_char(approval_row.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'version',expected_version+1,'expected_effect','Move finding to under review','reversible',true,'ttl_seconds',0,'evidence_summary',(SELECT plan->'evidence_ids' FROM zasp_security_agent_plans plan WHERE (plan.organization_id,plan.workspace_id,plan.environment_id,plan.run_id)=(organization_value,workspace_value,environment_value,approval_row.run_id)),'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
+  INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,step_id,approval_id,actor_id,event_kind,event_digest,body)
+  VALUES(organization_value,workspace_value,environment_value,audit_value,correlation_value,approval_row.run_id,approval_row.step_id,approval_value,actor_value,'approval_decided',intent_digest_value,jsonb_build_object('approval_id',approval_value,'run_id',approval_row.run_id,'decision',decision_value,'version',expected_version+1));
+  INSERT INTO zasp_security_agent_request_receipts(organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key,resource_id,expected_version,intent,intent_digest,response,audit_id,correlation_id,receipt_id)
+  VALUES(organization_value,workspace_value,environment_value,actor_value,'decideSecurityAgentApproval',idempotency_value,approval_value,expected_version,intent_value,intent_digest_value,response_value,audit_value,correlation_value,receipt_value);
+  RETURN response_value;
+END
+$decide$;
+
+CREATE FUNCTION public.zasp_security_agent_execute_run(organization_value text,workspace_value text,environment_value text,run_value text,worker_value text,lease_token_value text,audit_value text,correlation_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $execute$
+DECLARE run_row zasp_security_agent_runs%ROWTYPE; trigger_row zasp_security_agent_trigger_receipts%ROWTYPE; plan_row zasp_security_agent_plans%ROWTYPE; step_row zasp_security_agent_steps%ROWTYPE; approval_row zasp_security_agent_approvals%ROWTYPE; finding_version bigint; outcome_value text; result_digest_value bytea;
+BEGIN
+  IF NOT zasp_security_agent_principal_ready('zasp_security_agent_worker') OR NOT zasp_valid_product_id(run_value) OR NOT zasp_valid_product_id(audit_value) OR NOT zasp_valid_product_id(correlation_value) OR length(worker_value) NOT BETWEEN 1 AND 128 OR length(lease_token_value) NOT BETWEEN 16 AND 128 THEN
+    RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent execution rejected';
+  END IF;
+  SELECT * INTO run_row FROM zasp_security_agent_runs run WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id,run.state,run.lease_owner,run.lease_token)=(organization_value,workspace_value,environment_value,run_value,'planning',worker_value,lease_token_value) AND run.lease_expires_at>transaction_timestamp() FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent lease lost';END IF;
+  SELECT * INTO STRICT trigger_row FROM zasp_security_agent_trigger_receipts trigger_receipt WHERE (trigger_receipt.organization_id,trigger_receipt.workspace_id,trigger_receipt.environment_id,trigger_receipt.run_id,trigger_receipt.trigger_kind)=(organization_value,workspace_value,environment_value,run_value,'finding');
+  SELECT * INTO STRICT plan_row FROM zasp_security_agent_plans plan WHERE (plan.organization_id,plan.workspace_id,plan.environment_id,plan.run_id,plan.plan_hash)=(organization_value,workspace_value,environment_value,run_value,run_row.plan_hash) AND plan.expires_at>transaction_timestamp() FOR SHARE;
+  SELECT * INTO STRICT step_row FROM zasp_security_agent_steps step WHERE (step.organization_id,step.workspace_id,step.environment_id,step.run_id,step.action_key,step.state)=(organization_value,workspace_value,environment_value,run_value,'update_finding_response','authorized') FOR UPDATE;
+  SELECT * INTO STRICT approval_row FROM zasp_security_agent_approvals approval WHERE (approval.organization_id,approval.workspace_id,approval.environment_id,approval.run_id,approval.step_id,approval.state,approval.plan_hash)=(organization_value,workspace_value,environment_value,run_value,step_row.step_id,'approved',run_row.plan_hash) AND approval.expires_at>transaction_timestamp() FOR SHARE;
+  IF NOT EXISTS(SELECT 1 FROM zasp_security_agent_definitions definition WHERE (definition.organization_id,definition.workspace_id,definition.environment_id,definition.definition_id,definition.version,definition.activation)=(organization_value,workspace_value,environment_value,run_row.definition_id,run_row.definition_version,'supervised') AND definition.deleted_at IS NULL AND definition.body->'allowed_actions'=jsonb_build_array('update_finding_response'))
+     OR NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=('*','*','*','*',true))
+     OR NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=(organization_value,workspace_value,environment_value,'*',true))
+     OR NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=(organization_value,workspace_value,environment_value,'update_finding_response',true)) THEN
+    RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent execution disabled';
+  END IF;
+  INSERT INTO zasp_security_agent_effects(organization_id,workspace_id,environment_id,run_id,step_id,action_key,input_digest,state,lease_owner,lease_token,lease_expires_at,attempt)
+  VALUES(organization_value,workspace_value,environment_value,run_value,step_row.step_id,'update_finding_response',step_row.input_digest,'leased',worker_value,lease_token_value,run_row.lease_expires_at,1);
+  UPDATE zasp_risk_findings finding SET status='under_review',acceptance_reason=NULL,version=finding.version+1,updated_at=transaction_timestamp()
+  WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id,finding.status,finding.version)=(organization_value,workspace_value,environment_value,trigger_row.trigger_id,'open',trigger_row.trigger_version)
+  RETURNING finding.version INTO finding_version;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent evidence changed';END IF;
+  outcome_value:=zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'security_agent_effect',run_value||chr(31)||step_row.step_id||chr(31)||'update_finding_response');
+  result_digest_value:=digest(convert_to(jsonb_build_object('finding_id',trigger_row.trigger_id,'status','under_review','version',finding_version)::text,'UTF8'),'sha256');
+  UPDATE zasp_security_agent_effects effect SET state='verified',outcome_id=outcome_value,result_digest=result_digest_value,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,version=effect.version+1,updated_at=transaction_timestamp()
+  WHERE (effect.organization_id,effect.workspace_id,effect.environment_id,effect.run_id,effect.step_id,effect.action_key)=(organization_value,workspace_value,environment_value,run_value,step_row.step_id,'update_finding_response');
+  UPDATE zasp_security_agent_steps step SET state='succeeded',version=step.version+1,updated_at=transaction_timestamp() WHERE (step.organization_id,step.workspace_id,step.environment_id,step.run_id,step.step_id)=(organization_value,workspace_value,environment_value,run_value,step_row.step_id);
+  UPDATE zasp_security_agent_runs run SET state='remediated',lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,version=run.version+1,updated_at=transaction_timestamp(),completed_at=transaction_timestamp() WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(organization_value,workspace_value,environment_value,run_value);
+  INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,step_id,approval_id,actor_id,event_kind,event_digest,body)
+  VALUES(organization_value,workspace_value,environment_value,audit_value,correlation_value,run_value,step_row.step_id,approval_row.approval_id,worker_value,'effect_verified',result_digest_value,jsonb_build_object('run_id',run_value,'step_id',step_row.step_id,'action','update_finding_response','target_id',trigger_row.trigger_id,'outcome_id',outcome_value,'result_digest','sha256:'||encode(result_digest_value,'hex')));
+  RETURN jsonb_build_object('run_id',run_value,'state','remediated','version',run_row.version+1,'step_id',step_row.step_id,'effect_state','verified','outcome_id',outcome_value,'result_digest','sha256:'||encode(result_digest_value,'hex'));
+END
+$execute$;
 
 CREATE FUNCTION public.zasp_security_agent_create_run(organization_value text,workspace_value text,environment_value text,definition_value text,definition_version_value bigint,run_value text,trigger_kind_value text,trigger_version_value bigint,trigger_digest_value bytea,actor_value text,audit_value text,correlation_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $create_run$
 DECLARE definition_row zasp_security_agent_definitions%ROWTYPE; action_value text; prior_run text;
@@ -590,8 +777,8 @@ BEGIN
   END IF;
   INSERT INTO zasp_security_agent_trigger_receipts(organization_id,workspace_id,environment_id,definition_id,trigger_id,trigger_kind,trigger_version,trigger_digest,run_id)
   VALUES(organization_value,workspace_value,environment_value,definition_value,encode(trigger_digest_value,'hex'),trigger_kind_value,trigger_version_value,trigger_digest_value,run_value);
-  INSERT INTO zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_id,state)
-  VALUES(organization_value,workspace_value,environment_value,run_value,definition_value,definition_version_value,encode(trigger_digest_value,'hex'),'queued');
+  INSERT INTO zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_id,requested_by,state)
+  VALUES(organization_value,workspace_value,environment_value,run_value,definition_value,definition_version_value,encode(trigger_digest_value,'hex'),actor_value,'queued');
   INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,actor_id,event_kind,event_digest,body)
   VALUES(organization_value,workspace_value,environment_value,audit_value,correlation_value,run_value,actor_value,'run_queued',digest(convert_to(jsonb_build_object('run_id',run_value,'definition_id',definition_value,'definition_version',definition_version_value)::text,'UTF8'),'sha256'),jsonb_build_object('run_id',run_value,'definition_id',definition_value,'definition_version',definition_version_value));
   UPDATE zasp_security_agent_execution_state SET used_at=COALESCE(used_at,transaction_timestamp()) WHERE singleton;
@@ -625,15 +812,15 @@ $claim_runs$;
 DO $functions$
 DECLARE procedure_oid oid;
 BEGIN
-  FOR procedure_oid IN SELECT procedure_row.oid FROM pg_proc procedure_row JOIN pg_namespace namespace_row ON namespace_row.oid=procedure_row.pronamespace WHERE namespace_row.nspname='public' AND procedure_row.proname IN('zasp_security_agent_register_principals','zasp_security_agent_principal_ready','zasp_security_agent_principals_ready','zasp_security_agent_definition_page','zasp_security_agent_definition_value','zasp_security_agent_replay_definition','zasp_security_agent_mutate_definition','zasp_security_agent_definition_detail','zasp_security_agent_set_kill_switch','zasp_security_agent_activate','zasp_security_agent_simulate','zasp_security_agent_create_run','zasp_security_agent_claim_runs') LOOP
+  FOR procedure_oid IN SELECT procedure_row.oid FROM pg_proc procedure_row JOIN pg_namespace namespace_row ON namespace_row.oid=procedure_row.pronamespace WHERE namespace_row.nspname='public' AND procedure_row.proname IN('zasp_security_agent_register_principals','zasp_security_agent_principal_ready','zasp_security_agent_principals_ready','zasp_security_agent_definition_page','zasp_security_agent_definition_value','zasp_security_agent_replay_definition','zasp_security_agent_mutate_definition','zasp_security_agent_definition_detail','zasp_security_agent_set_kill_switch','zasp_security_agent_activate','zasp_security_agent_simulate','zasp_security_agent_run','zasp_security_agent_decide_approval','zasp_security_agent_create_run','zasp_security_agent_claim_runs','zasp_security_agent_heartbeat_run','zasp_security_agent_prepare_run','zasp_security_agent_execute_run') LOOP
     EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',procedure_oid::regprocedure);
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC,zasp_security_agent_api,zasp_security_agent_worker',procedure_oid::regprocedure);
     EXECUTE format('ALTER FUNCTION %s SECURITY DEFINER',procedure_oid::regprocedure);
     EXECUTE format('ALTER FUNCTION %s SET search_path TO pg_catalog, public',procedure_oid::regprocedure);
   END LOOP;
 END $functions$;
-GRANT EXECUTE ON FUNCTION public.zasp_security_agent_principal_ready(text),public.zasp_security_agent_definition_page(text,text,text,text,integer),public.zasp_security_agent_definition_value(text,text,text,text),public.zasp_security_agent_replay_definition(text,text,text,text,text,text,jsonb),public.zasp_security_agent_mutate_definition(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text),public.zasp_security_agent_definition_detail(text,text,text,text),public.zasp_security_agent_set_kill_switch(text,text,text,text,boolean,bigint,text,text,text),public.zasp_security_agent_activate(text,text,text,text,text,text,bigint,text,timestamptz,text,text,text),public.zasp_security_agent_simulate(text,text,text,text,text,text,bigint,text,text,jsonb,timestamptz,text,text,text),public.zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text) TO zasp_security_agent_api;
-GRANT EXECUTE ON FUNCTION public.zasp_security_agent_principal_ready(text),public.zasp_security_agent_claim_runs(text,text,integer,integer) TO zasp_security_agent_worker;
+GRANT EXECUTE ON FUNCTION public.zasp_security_agent_principal_ready(text),public.zasp_security_agent_definition_page(text,text,text,text,integer),public.zasp_security_agent_definition_value(text,text,text,text),public.zasp_security_agent_replay_definition(text,text,text,text,text,text,jsonb),public.zasp_security_agent_mutate_definition(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text),public.zasp_security_agent_definition_detail(text,text,text,text),public.zasp_security_agent_set_kill_switch(text,text,text,text,boolean,bigint,text,text,text),public.zasp_security_agent_activate(text,text,text,text,text,text,bigint,text,timestamptz,text,text,text),public.zasp_security_agent_simulate(text,text,text,text,text,text,bigint,text,text,jsonb,timestamptz,text,text,text),public.zasp_security_agent_run(text,text,text,text,text,text,bigint,text,text,text,text,text,text),public.zasp_security_agent_decide_approval(text,text,text,text,text,text,bigint,text,timestamptz,text,text,text) TO zasp_security_agent_api;
+GRANT EXECUTE ON FUNCTION public.zasp_security_agent_principal_ready(text),public.zasp_security_agent_claim_runs(text,text,integer,integer),public.zasp_security_agent_heartbeat_run(text,text,text,text,text,text,integer),public.zasp_security_agent_prepare_run(text,text,text,text,text,text,text,timestamptz,text,text),public.zasp_security_agent_execute_run(text,text,text,text,text,text,text,text) TO zasp_security_agent_worker;
 
 CREATE FUNCTION public.zasp_security_agent_live_fingerprint() RETURNS text LANGUAGE sql STABLE SET search_path TO pg_catalog, public AS $fingerprint$
   WITH identities(value) AS (
@@ -675,5 +862,5 @@ BEGIN
 END
 $schema_marker$;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', '135723010822313ad7a83c30e7afcec6dd3ef897735a349b0da65d3e23e9298c')
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', '0b0a5786a6350f4b4b54e0289b8bed61c78d33a8ff730f0f53a014f563f1a9fe')
 ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;

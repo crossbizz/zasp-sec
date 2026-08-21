@@ -2,7 +2,6 @@ package apiserver
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -39,7 +38,7 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	workspaceID := scope.WorkspaceID().String()
 	environmentID := scope.EnvironmentID().String()
 	definitionID := "pid_78000001-0000-4000-8000-000000000001"
-	legacyBody := json.RawMessage(`{"id":"pid_78000001-0000-4000-8000-000000000001","name":"Contain risky runtime","trigger_kind":"runtime_decision","trigger_source":"block","environment_ids":["` + environmentID + `"],"autonomy":"supervised","max_steps":3,"max_duration_seconds":300,"temporary_policy_seconds":600,"ai_token_budget":1000,"concurrency_limit":1,"allowed_actions":["create_temporary_policy"],"verification_kind":"policy_state","definition_version":1,"enabled":true}`)
+	legacyBody := json.RawMessage(`{"id":"pid_78000001-0000-4000-8000-000000000001","name":"Review exposed credential","trigger_kind":"finding","trigger_source":"credential","environment_ids":["` + environmentID + `"],"autonomy":"supervised","max_steps":1,"max_duration_seconds":300,"temporary_policy_seconds":600,"ai_token_budget":1000,"concurrency_limit":1,"allowed_actions":["update_finding_response"],"verification_kind":"finding_state","definition_version":1,"enabled":true}`)
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,body) VALUES($1,$2,$3,'security_agent',$4,$5)`, organizationID, workspaceID, environmentID, definitionID, legacyBody); err != nil {
 		t.Fatal(err)
 	}
@@ -70,9 +69,9 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	defer apiConnection.Close(context.Background())
 	workerConnection := connectAs("security_agent_worker_login")
 	defer workerConnection.Close(context.Background())
-	var apiReady, workerReady, apiCanClaim bool
-	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_principal_ready('zasp_security_agent_api'),zasp_security_agent_principal_ready('zasp_security_agent_worker'),has_function_privilege(session_user,'zasp_security_agent_claim_runs(text,text,integer,integer)','EXECUTE')`).Scan(&apiReady, &workerReady, &apiCanClaim); err != nil || !apiReady || workerReady || apiCanClaim {
-		t.Fatalf("api authority ready=%t worker=%t claim=%t err=%v", apiReady, workerReady, apiCanClaim, err)
+	var apiReady, workerReady, apiCanClaim, apiCanLegacyCreate, apiCanRun bool
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_principal_ready('zasp_security_agent_api'),zasp_security_agent_principal_ready('zasp_security_agent_worker'),has_function_privilege(session_user,'zasp_security_agent_claim_runs(text,text,integer,integer)','EXECUTE'),has_function_privilege(session_user,'zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text)','EXECUTE'),has_function_privilege(session_user,'zasp_security_agent_run(text,text,text,text,text,text,bigint,text,text,text,text,text,text)','EXECUTE')`).Scan(&apiReady, &workerReady, &apiCanClaim, &apiCanLegacyCreate, &apiCanRun); err != nil || !apiReady || workerReady || apiCanClaim || apiCanLegacyCreate || !apiCanRun {
+		t.Fatalf("api authority ready=%t worker=%t claim=%t legacy_create=%t run=%t err=%v", apiReady, workerReady, apiCanClaim, apiCanLegacyCreate, apiCanRun, err)
 	}
 	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_principal_ready('zasp_security_agent_worker')`).Scan(&workerReady); err != nil || !workerReady {
 		t.Fatalf("worker authority ready=%t err=%v", workerReady, err)
@@ -172,7 +171,7 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_set_kill_switch($1,$2,$3,'*',true,0,$4,'audit-tenant','corr-tenant')`, organizationID, workspaceID, environmentID, actorID).Scan(&activated); err != nil {
 		t.Fatalf("enable tenant execution: %v", err)
 	}
-	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_set_kill_switch($1,$2,$3,'create_temporary_policy',true,0,$4,'audit-action','corr-action')`, organizationID, workspaceID, environmentID, actorID).Scan(&activated); err != nil {
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_set_kill_switch($1,$2,$3,'update_finding_response',true,0,$4,'audit-action','corr-action')`, organizationID, workspaceID, environmentID, actorID).Scan(&activated); err != nil {
 		t.Fatalf("enable action execution: %v", err)
 	}
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-supervised-0001',2,'supervised',transaction_timestamp()+interval '4 minutes','audit-supervised','corr-supervised','receipt-supervised')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err != nil {
@@ -187,9 +186,11 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 		t.Fatalf("foreign detail error=%v body=%s", err, detail)
 	}
 
-	triggerDigest := sha256.Sum256([]byte("runtime-decision-v1"))
 	runID := "pid_78000003-0000-4000-8000-000000000003"
-	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_create_run($1,$2,$3,$4,3,$5,'runtime_decision',1,$6,$7,$8,$9)`, organizationID, workspaceID, environmentID, definitionID, runID, triggerDigest[:], actorID, "audit-run", "corr-run").Scan(&detail); err != nil {
+	runAuditID := "pid_78000036-0000-4000-8000-000000000036"
+	runCorrelationID := "pid_78000037-0000-4000-8000-000000000037"
+	runReceiptID := "pid_78000038-0000-4000-8000-000000000038"
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_run($1,$2,$3,$4,$5,'security-agent-run-idem-0001',3,$6,'finding',$7,$8,$9,$10)`, organizationID, workspaceID, environmentID, definitionID, actorID, runID, evidenceID, runAuditID, runCorrelationID, runReceiptID).Scan(&detail); err != nil {
 		t.Fatalf("create run: %v", err)
 	}
 	var claimed json.RawMessage
@@ -205,9 +206,85 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	if json.Unmarshal(claimed, &claimItems) != nil || len(claimItems.Items) != 1 || claimItems.Items[0].RunID != runID || claimItems.Items[0].OrganizationID != organizationID {
 		t.Fatalf("claim=%s", claimed)
 	}
-
+	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_heartbeat_run($1,$2,$3,$4,'worker-a','lease-token-000000000001',60)`, organizationID, workspaceID, environmentID, runID).Scan(&detail); err != nil {
+		t.Fatalf("heartbeat run: %v", err)
+	}
+	approvalID := "pid_78000034-0000-4000-8000-000000000034"
+	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_prepare_run($1,$2,$3,$4,'worker-a','lease-token-000000000001',$5,transaction_timestamp()+interval '15 minutes','pid_78000039-0000-4000-8000-000000000039','pid_78000040-0000-4000-8000-000000000040')`, organizationID, workspaceID, environmentID, runID, approvalID).Scan(&detail); err != nil || !strings.Contains(string(detail), `"state": "waiting_approval"`) {
+		t.Fatalf("prepare run=%s err=%v", detail, err)
+	}
+	var effectCountBeforeApproval int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_security_agent_effects WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, runID).Scan(&effectCountBeforeApproval); err != nil || effectCountBeforeApproval != 0 {
+		t.Fatalf("effects before approval=%d err=%v", effectCountBeforeApproval, err)
+	}
 	var postgresError *pgconn.PgError
-	err = apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_create_run($1,$2,$3,$4,3,'pid_78000004-0000-4000-8000-000000000004','runtime_decision',1,$5,$6,'audit-run-foreign','corr-run-foreign')`, foreignOrganization, workspaceID, environmentID, definitionID, triggerDigest[:], actorID).Scan(&detail)
+	err = apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_decide_approval($1,$2,$3,$4,$5,'security-agent-self-approve-0001',1,'approved',transaction_timestamp(),'pid_78000046-0000-4000-8000-000000000046','pid_78000047-0000-4000-8000-000000000047','pid_78000048-0000-4000-8000-000000000048')`, organizationID, workspaceID, environmentID, approvalID, actorID).Scan(&detail)
+	if !errors.As(err, &postgresError) || postgresError.Code != "40001" {
+		t.Fatalf("self approval error=%v", err)
+	}
+	approverID := "pid_78000035-0000-4000-8000-000000000035"
+	postgresError = nil
+	err = apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_decide_approval($1,$2,$3,$4,$5,'security-agent-stale-auth-0001',1,'approved',transaction_timestamp()-interval '6 minutes','pid_78000049-0000-4000-8000-000000000049','pid_78000050-0000-4000-8000-000000000050','pid_78000051-0000-4000-8000-000000000051')`, organizationID, workspaceID, environmentID, approvalID, approverID).Scan(&detail)
+	if !errors.As(err, &postgresError) || postgresError.Code != "22023" {
+		t.Fatalf("stale authentication error=%v", err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_decide_approval($1,$2,$3,$4,$5,'security-agent-approve-idem-0001',1,'approved',transaction_timestamp(),'pid_78000041-0000-4000-8000-000000000041','pid_78000042-0000-4000-8000-000000000042','pid_78000043-0000-4000-8000-000000000043')`, organizationID, workspaceID, environmentID, approvalID, approverID).Scan(&detail); err != nil || !strings.Contains(string(detail), `"state": "approved"`) {
+		t.Fatalf("approve run=%s err=%v", detail, err)
+	}
+	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_claim_runs('worker-b','lease-token-000000000002',60,10)`).Scan(&claimed); err != nil || !strings.Contains(string(claimed), `"run_id": "`+runID+`"`) {
+		t.Fatalf("reclaim approved run=%s err=%v", claimed, err)
+	}
+	postgresError = nil
+	err = workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_execute_run($1,$2,$3,$4,'worker-a','lease-token-000000000001','pid_78000052-0000-4000-8000-000000000052','pid_78000053-0000-4000-8000-000000000053')`, organizationID, workspaceID, environmentID, runID).Scan(&detail)
+	if !errors.As(err, &postgresError) || postgresError.Code != "40001" {
+		t.Fatalf("stale worker execution error=%v", err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_security_agent_effects WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, runID).Scan(&effectCountBeforeApproval); err != nil || effectCountBeforeApproval != 0 {
+		t.Fatalf("effects after stale worker=%d err=%v", effectCountBeforeApproval, err)
+	}
+	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_execute_run($1,$2,$3,$4,'worker-b','lease-token-000000000002','pid_78000044-0000-4000-8000-000000000044','pid_78000045-0000-4000-8000-000000000045')`, organizationID, workspaceID, environmentID, runID).Scan(&detail); err != nil || !strings.Contains(string(detail), `"state": "remediated"`) {
+		t.Fatalf("execute run=%s err=%v", detail, err)
+	}
+	var findingStatus, effectState, runState string
+	var findingVersion int64
+	if err := connection.QueryRow(ctx, `SELECT finding.status,finding.version,effect.state,run.state FROM zasp_risk_findings finding JOIN zasp_security_agent_runs run ON (run.organization_id,run.workspace_id,run.environment_id,run.trigger_id)=(finding.organization_id,finding.workspace_id,finding.environment_id,finding.id) JOIN zasp_security_agent_effects effect ON (effect.organization_id,effect.workspace_id,effect.environment_id,effect.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id) WHERE run.run_id=$1`, runID).Scan(&findingStatus, &findingVersion, &effectState, &runState); err != nil || findingStatus != "under_review" || findingVersion != 2 || effectState != "verified" || runState != "remediated" {
+		t.Fatalf("finding=%s v%d effect=%s run=%s err=%v", findingStatus, findingVersion, effectState, runState, err)
+	}
+
+	changedEvidenceID := "pid_78000054-0000-4000-8000-000000000054"
+	changedRunID := "pid_78000055-0000-4000-8000-000000000055"
+	changedApprovalID := "pid_78000056-0000-4000-8000-000000000056"
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status) VALUES($1,$2,$3,$4,'posture','exposed_credential','Rotating credential','high','open')`, organizationID, workspaceID, environmentID, changedEvidenceID); err != nil {
+		t.Fatal(err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_run($1,$2,$3,$4,$5,'security-agent-run-idem-0002',3,$6,'finding',$7,'pid_78000057-0000-4000-8000-000000000057','pid_78000058-0000-4000-8000-000000000058','pid_78000059-0000-4000-8000-000000000059')`, organizationID, workspaceID, environmentID, definitionID, actorID, changedRunID, changedEvidenceID).Scan(&detail); err != nil {
+		t.Fatalf("create changed-evidence run: %v", err)
+	}
+	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_claim_runs('worker-c','lease-token-000000000003',60,10)`).Scan(&claimed); err != nil || !strings.Contains(string(claimed), `"run_id": "`+changedRunID+`"`) {
+		t.Fatalf("claim changed-evidence run=%s err=%v", claimed, err)
+	}
+	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_prepare_run($1,$2,$3,$4,'worker-c','lease-token-000000000003',$5,transaction_timestamp()+interval '15 minutes','pid_78000060-0000-4000-8000-000000000060','pid_78000061-0000-4000-8000-000000000061')`, organizationID, workspaceID, environmentID, changedRunID, changedApprovalID).Scan(&detail); err != nil {
+		t.Fatalf("prepare changed-evidence run: %v", err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_decide_approval($1,$2,$3,$4,$5,'security-agent-approve-idem-0002',1,'approved',transaction_timestamp(),'pid_78000062-0000-4000-8000-000000000062','pid_78000063-0000-4000-8000-000000000063','pid_78000064-0000-4000-8000-000000000064')`, organizationID, workspaceID, environmentID, changedApprovalID, approverID).Scan(&detail); err != nil {
+		t.Fatalf("approve changed-evidence run: %v", err)
+	}
+	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_claim_runs('worker-d','lease-token-000000000004',60,10)`).Scan(&claimed); err != nil || !strings.Contains(string(claimed), `"run_id": "`+changedRunID+`"`) {
+		t.Fatalf("reclaim changed-evidence run=%s err=%v", claimed, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_risk_findings SET title='Credential rotated concurrently',version=version+1,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, changedEvidenceID); err != nil {
+		t.Fatal(err)
+	}
+	postgresError = nil
+	err = workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_execute_run($1,$2,$3,$4,'worker-d','lease-token-000000000004','pid_78000065-0000-4000-8000-000000000065','pid_78000066-0000-4000-8000-000000000066')`, organizationID, workspaceID, environmentID, changedRunID).Scan(&detail)
+	if !errors.As(err, &postgresError) || postgresError.Code != "40001" {
+		t.Fatalf("changed evidence execution error=%v", err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT finding.status,finding.version,run.state,(SELECT count(*) FROM zasp_security_agent_effects effect WHERE (effect.organization_id,effect.workspace_id,effect.environment_id,effect.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)) FROM zasp_risk_findings finding JOIN zasp_security_agent_runs run ON (run.organization_id,run.workspace_id,run.environment_id,run.trigger_id)=(finding.organization_id,finding.workspace_id,finding.environment_id,finding.id) WHERE run.run_id=$1`, changedRunID).Scan(&findingStatus, &findingVersion, &runState, &effectCountBeforeApproval); err != nil || findingStatus != "open" || findingVersion != 2 || runState != "planning" || effectCountBeforeApproval != 0 {
+		t.Fatalf("changed finding=%s v%d run=%s effects=%d err=%v", findingStatus, findingVersion, runState, effectCountBeforeApproval, err)
+	}
+
+	err = apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_run($1,$2,$3,$4,$5,'security-agent-run-idem-foreign',3,'pid_78000004-0000-4000-8000-000000000004','finding',$6,'audit-run-foreign','corr-run-foreign','receipt-run-foreign')`, foreignOrganization, workspaceID, environmentID, definitionID, actorID, evidenceID).Scan(&detail)
 	if !errors.As(err, &postgresError) || postgresError.Code != "22023" {
 		t.Fatalf("foreign create error=%v", err)
 	}

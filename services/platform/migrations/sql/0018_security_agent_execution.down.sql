@@ -1,6 +1,6 @@
 DO $guard$
 BEGIN
-  IF public.zasp_security_agent_live_fingerprint()<>'135723010822313ad7a83c30e7afcec6dd3ef897735a349b0da65d3e23e9298c'
+  IF public.zasp_security_agent_live_fingerprint()<>'0b0a5786a6350f4b4b54e0289b8bed61c78d33a8ff730f0f53a014f563f1a9fe'
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_execution_state WHERE used_at IS NOT NULL)
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_runs)
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_effects) THEN
@@ -19,6 +19,11 @@ $principal_memberships$;
 
 DROP FUNCTION public.zasp_security_agent_readiness(text,text);
 DROP FUNCTION public.zasp_security_agent_live_fingerprint();
+DROP FUNCTION public.zasp_security_agent_execute_run(text,text,text,text,text,text,text,text);
+DROP FUNCTION public.zasp_security_agent_decide_approval(text,text,text,text,text,text,bigint,text,timestamptz,text,text,text);
+DROP FUNCTION public.zasp_security_agent_prepare_run(text,text,text,text,text,text,text,timestamptz,text,text);
+DROP FUNCTION public.zasp_security_agent_heartbeat_run(text,text,text,text,text,text,integer);
+DROP FUNCTION public.zasp_security_agent_run(text,text,text,text,text,text,bigint,text,text,text,text,text,text);
 DROP FUNCTION public.zasp_security_agent_claim_runs(text,text,integer,integer);
 DROP FUNCTION public.zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text);
 DROP FUNCTION public.zasp_security_agent_simulate(text,text,text,text,text,text,bigint,text,text,jsonb,timestamptz,text,text,text);
