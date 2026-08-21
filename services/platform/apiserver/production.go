@@ -85,8 +85,8 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 	if repository == nil || nilInterface(repository.database) || nilInterface(provider) || nilInterface(connector) || len(cookie.TokenRevealKey) != 32 {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
-	securityAgentSchema := repository.schema == SecurityAgentExecutionSchemaVersion
-	if securityAgentSchema != (securityAgentRepository != nil) || securityAgentRepository != nil && (nilInterface(securityAgentRepository.database) || !securityAgentRepository.securityAgentExecution || securityAgentRepository.schema != SecurityAgentExecutionSchemaVersion) {
+	securityAgentSchema := repository.schema == SecurityAgentExecutionSchemaVersion || repository.schema == IdentityAdministrationSchemaVersion
+	if securityAgentSchema != (securityAgentRepository != nil) || securityAgentRepository != nil && (nilInterface(securityAgentRepository.database) || !securityAgentRepository.securityAgentExecution || securityAgentRepository.schema != repository.schema) {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
 	now := cookie.Clock

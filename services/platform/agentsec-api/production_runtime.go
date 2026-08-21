@@ -19,6 +19,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 )
 
 func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (RuntimeDependencies, error) {
@@ -367,6 +368,84 @@ func (provider *tracedCallbackProvider) Start(ctx context.Context, returnTo stri
 	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.start", "client", map[string]string{"server.address": "stytch", "rpc.method": "start"})
 	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
 	return starter.Start(ctx, returnTo)
+}
+
+func (provider *tracedCallbackProvider) identityConnections() (apiserver.IdentityConnectionProvider, error) {
+	connections, ok := provider.next.(apiserver.IdentityConnectionProvider)
+	if !ok {
+		return nil, errRuntimeUnavailable
+	}
+	return connections, nil
+}
+
+func (provider *tracedCallbackProvider) ListSSO(ctx context.Context, organization string) (result []platformidentity.SSOConnection, err error) {
+	connections, err := provider.identityConnections()
+	if err != nil {
+		return nil, err
+	}
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.sso.list", "client", map[string]string{"server.address": "stytch", "rpc.method": "list_sso"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return connections.ListSSO(ctx, organization)
+}
+
+func (provider *tracedCallbackProvider) CreateSSO(ctx context.Context, organization string, config platformidentity.SSOConfig) (result platformidentity.SSOConnection, err error) {
+	connections, err := provider.identityConnections()
+	if err != nil {
+		return result, err
+	}
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.sso.create", "client", map[string]string{"server.address": "stytch", "rpc.method": "create_sso"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return connections.CreateSSO(ctx, organization, config)
+}
+
+func (provider *tracedCallbackProvider) DeleteSSO(ctx context.Context, organization, reference string) (err error) {
+	connections, err := provider.identityConnections()
+	if err != nil {
+		return err
+	}
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.sso.delete", "client", map[string]string{"server.address": "stytch", "rpc.method": "delete_sso"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return connections.DeleteSSO(ctx, organization, reference)
+}
+
+func (provider *tracedCallbackProvider) TestSSO(ctx context.Context, organization, reference string) (err error) {
+	connections, err := provider.identityConnections()
+	if err != nil {
+		return err
+	}
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.sso.test", "client", map[string]string{"server.address": "stytch", "rpc.method": "test_sso"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return connections.TestSSO(ctx, organization, reference)
+}
+
+func (provider *tracedCallbackProvider) ListSCIM(ctx context.Context, organization string) (result []platformidentity.SCIMConnection, err error) {
+	connections, err := provider.identityConnections()
+	if err != nil {
+		return nil, err
+	}
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.scim.list", "client", map[string]string{"server.address": "stytch", "rpc.method": "list_scim"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return connections.ListSCIM(ctx, organization)
+}
+
+func (provider *tracedCallbackProvider) CreateSCIM(ctx context.Context, organization string, config platformidentity.SCIMConfig) (result platformidentity.SCIMCredential, err error) {
+	connections, err := provider.identityConnections()
+	if err != nil {
+		return result, err
+	}
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.scim.create", "client", map[string]string{"server.address": "stytch", "rpc.method": "create_scim"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return connections.CreateSCIM(ctx, organization, config)
+}
+
+func (provider *tracedCallbackProvider) DeleteSCIM(ctx context.Context, organization, reference string) (err error) {
+	connections, err := provider.identityConnections()
+	if err != nil {
+		return err
+	}
+	ctx, end := startOperationalSpan(ctx, provider.exporter, "identity.scim.delete", "client", map[string]string{"server.address": "stytch", "rpc.method": "delete_scim"})
+	defer func() { provider.metrics.observeDependency("provider", err); end(err) }()
+	return connections.DeleteSCIM(ctx, organization, reference)
 }
 
 func generateCorrelationID() string {

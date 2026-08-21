@@ -1,6 +1,6 @@
 DO $guard$
 BEGIN
-  IF public.zasp_identity_administration_live_fingerprint()<>'049fe9343581e0dbf1f4f9ef05ab811366af7bd6340efc2a7c668edc3641c623'
+  IF public.zasp_identity_administration_live_fingerprint()<>'29a2c39f520a95b9226f8760e50676e8058ddc92d04a9f88532a39654761a2f8'
      OR EXISTS(SELECT 1 FROM public.zasp_identity_administration_state WHERE used_at IS NOT NULL)
      OR EXISTS(SELECT 1 FROM public.zasp_identity_provider_mutations)
      OR EXISTS(SELECT 1 FROM public.zasp_identity_webhook_events) THEN
@@ -16,9 +16,9 @@ DROP FUNCTION public.zasp_identity_admin_reconcile_deprovision(text,text,text,te
 DROP FUNCTION public.zasp_identity_admin_ack_secret(text,text,text);
 DROP FUNCTION public.zasp_identity_admin_reveal_secret(text,text,text);
 DROP FUNCTION public.zasp_identity_admin_connection_page(text,text,text,text,integer);
-DROP FUNCTION public.zasp_identity_admin_complete_mutation(text,text,text,text,text,jsonb,text,bytea,bytea,bytea,timestamptz);
-DROP FUNCTION public.zasp_identity_admin_mark_unknown(text,text,text,text,text);
-DROP FUNCTION public.zasp_identity_admin_reserve_mutation(text,text,text,text,text,bytea,jsonb,text,text,text);
+DROP FUNCTION public.zasp_identity_admin_complete_mutation(text,text,text,text,text,bytea,jsonb,text,bytea,bytea,bytea,timestamptz);
+DROP FUNCTION public.zasp_identity_admin_mark_unknown(text,text,text,text,text,bytea);
+DROP FUNCTION public.zasp_identity_admin_reserve_mutation(text,text,text,text,text,bytea,jsonb,text,text,text,bytea,integer);
 DROP FUNCTION public.zasp_identity_admin_intent_valid(text,jsonb);
 DROP FUNCTION public.zasp_identity_admin_provider_organization(text,text);
 DROP FUNCTION public.zasp_identity_admin_authorized(text,text);

@@ -152,6 +152,13 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = 'security-age
   AND zasp_security_agent_readiness($1, $2)
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 18)`
 
+const postgresIdentityAdministrationSchemaVersionSQL = `SELECT metadata.value
+FROM zasp_schema_metadata AS metadata
+JOIN zasp_schema_versions AS release ON release.version = 19 AND release.name = 'identity_administration'
+WHERE metadata.key = 'production_core_schema' AND metadata.value = 'identity-administration-v1'
+  AND zasp_identity_administration_readiness($1, $2)
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 19)`
+
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
 func expectedCoreSchemaFingerprint() string {
 	return migrations.ProductionRiskProjectionSemanticFingerprint()
@@ -204,6 +211,12 @@ func expectedSecurityAgentExecutionSchemaChecksum() string {
 func expectedSecurityAgentExecutionSchemaFingerprint() string {
 	return migrations.ProductionSecurityAgentExecutionSemanticFingerprint()
 }
+func expectedIdentityAdministrationSchemaChecksum() string {
+	return migrations.ProductionIdentityAdministration().Checksum()
+}
+func expectedIdentityAdministrationSchemaFingerprint() string {
+	return migrations.ProductionIdentityAdministrationSemanticFingerprint()
+}
 
 type PostgresRow interface{ Scan(...any) error }
 
@@ -240,7 +253,11 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", classifyPostgresError(err)
 	}
 	var version string
-	if marker == SecurityAgentExecutionSchemaVersion {
+	if marker == IdentityAdministrationSchemaVersion {
+		if err := database.driver.QueryRow(ctx, postgresIdentityAdministrationSchemaVersionSQL, expectedIdentityAdministrationSchemaChecksum(), expectedIdentityAdministrationSchemaFingerprint()).Scan(&version); err != nil {
+			return "", classifyPostgresError(err)
+		}
+	} else if marker == SecurityAgentExecutionSchemaVersion {
 		if err := database.driver.QueryRow(ctx, postgresSecurityAgentExecutionSchemaVersionSQL, expectedSecurityAgentExecutionSchemaChecksum(), expectedSecurityAgentExecutionSchemaFingerprint()).Scan(&version); err != nil {
 			return "", classifyPostgresError(err)
 		}

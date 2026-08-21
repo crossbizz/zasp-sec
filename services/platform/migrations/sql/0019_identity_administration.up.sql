@@ -32,6 +32,8 @@ CREATE TABLE public.zasp_identity_provider_mutations (
   state text NOT NULL DEFAULT 'reserved' CHECK(state IN('reserved','provider_unknown','completed','failed')),
   provider_reference text,
   response jsonb CHECK(response IS NULL OR jsonb_typeof(response)='object'),
+  owner_token bytea NOT NULL CHECK(octet_length(owner_token)=32),
+  lease_expires_at timestamptz NOT NULL,
   audit_id text NOT NULL CHECK(zasp_valid_product_id(audit_id)),
   correlation_id text NOT NULL CHECK(zasp_valid_product_id(correlation_id)),
   receipt_id text NOT NULL CHECK(zasp_valid_product_id(receipt_id)),
@@ -43,6 +45,7 @@ CREATE TABLE public.zasp_identity_provider_mutations (
   UNIQUE(organization_id,mutation_id),
   UNIQUE(organization_id,receipt_id),
   CHECK(expires_at>created_at AND expires_at<=created_at+interval '7 days'),
+  CHECK(lease_expires_at>=created_at AND lease_expires_at<=updated_at+interval '2 minutes'),
   CHECK((state IN('reserved','provider_unknown') AND response IS NULL) OR (state IN('completed','failed') AND response IS NOT NULL))
 );
 
@@ -134,13 +137,13 @@ CREATE FUNCTION public.zasp_identity_admin_intent_valid(operation_value text,int
   END
 $intent$;
 
-CREATE FUNCTION public.zasp_identity_admin_reserve_mutation(organization_value text,principal_value text,operation_value text,idempotency_value text,mutation_value text,intent_digest_value bytea,intent_value jsonb,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $reserve$
+CREATE FUNCTION public.zasp_identity_admin_reserve_mutation(organization_value text,principal_value text,operation_value text,idempotency_value text,mutation_value text,intent_digest_value bytea,intent_value jsonb,audit_value text,correlation_value text,receipt_value text,owner_token_value bytea,lease_seconds_value integer) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $reserve$
 DECLARE existing zasp_identity_provider_mutations%ROWTYPE;provider_organization_value text;
 BEGIN
   IF NOT zasp_identity_admin_authorized(organization_value,principal_value) OR operation_value NOT IN('createSSOConnection','deleteSSOConnection','testSSOConnection','createSCIMConnection','deleteSCIMConnection')
      OR length(idempotency_value) NOT BETWEEN 16 AND 128 OR idempotency_value!~'^[A-Za-z0-9][A-Za-z0-9._:-]*$'
      OR NOT zasp_valid_product_id(mutation_value) OR octet_length(intent_digest_value)<>32 OR NOT zasp_identity_admin_intent_valid(operation_value,intent_value) OR pg_column_size(intent_value)>4096
-     OR NOT zasp_valid_product_id(audit_value) OR NOT zasp_valid_product_id(correlation_value) OR NOT zasp_valid_product_id(receipt_value) THEN
+     OR NOT zasp_valid_product_id(audit_value) OR NOT zasp_valid_product_id(correlation_value) OR NOT zasp_valid_product_id(receipt_value) OR octet_length(owner_token_value)<>32 OR lease_seconds_value NOT BETWEEN 5 AND 120 THEN
     RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='identity mutation rejected';
   END IF;
   SELECT membership.organization_reference INTO provider_organization_value FROM zasp_identity_memberships membership WHERE membership.organization_id=organization_value AND membership.principal_id=principal_value AND membership.active;
@@ -152,43 +155,55 @@ BEGIN
       RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='identity mutation replay conflict';
     END IF;
     IF existing.state='completed' THEN RETURN existing.response||jsonb_build_object('replayed',true);END IF;
+    IF existing.state='reserved' AND existing.lease_expires_at>transaction_timestamp() AND existing.owner_token<>owner_token_value THEN RAISE EXCEPTION USING ERRCODE='55P03',MESSAGE='identity mutation lease busy';END IF;
+    UPDATE zasp_identity_provider_mutations SET owner_token=owner_token_value,lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds_value),updated_at=transaction_timestamp(),version=version+1 WHERE (organization_id,principal_id,operation,idempotency_key)=(organization_value,principal_value,operation_value,idempotency_value) RETURNING * INTO existing;
     RETURN jsonb_build_object('mutation_id',existing.mutation_id,'state',existing.state,'version',existing.version,'provider_organization_reference',existing.provider_organization_reference,'audit_id',existing.audit_id,'correlation_id',existing.correlation_id,'receipt_id',existing.receipt_id,'replayed',true);
   END IF;
-  INSERT INTO zasp_identity_provider_mutations(organization_id,principal_id,provider_organization_reference,operation,idempotency_key,mutation_id,intent_digest,intent,audit_id,correlation_id,receipt_id)
-  VALUES(organization_value,principal_value,provider_organization_value,operation_value,idempotency_value,mutation_value,intent_digest_value,intent_value,audit_value,correlation_value,receipt_value);
+  INSERT INTO zasp_identity_provider_mutations(organization_id,principal_id,provider_organization_reference,operation,idempotency_key,mutation_id,intent_digest,intent,audit_id,correlation_id,receipt_id,owner_token,lease_expires_at)
+  VALUES(organization_value,principal_value,provider_organization_value,operation_value,idempotency_value,mutation_value,intent_digest_value,intent_value,audit_value,correlation_value,receipt_value,owner_token_value,transaction_timestamp()+make_interval(secs=>lease_seconds_value));
   UPDATE zasp_identity_administration_state SET used_at=COALESCE(used_at,transaction_timestamp()) WHERE singleton;
   RETURN jsonb_build_object('mutation_id',mutation_value,'state','reserved','version',1,'provider_organization_reference',provider_organization_value,'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
 END
 $reserve$;
 
-CREATE FUNCTION public.zasp_identity_admin_mark_unknown(organization_value text,principal_value text,operation_value text,idempotency_value text,mutation_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $unknown$
+CREATE FUNCTION public.zasp_identity_admin_mark_unknown(organization_value text,principal_value text,operation_value text,idempotency_value text,mutation_value text,owner_token_value bytea) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $unknown$
 DECLARE changed zasp_identity_provider_mutations%ROWTYPE;
 BEGIN
   IF NOT zasp_identity_admin_authorized(organization_value,principal_value) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='identity mutation denied';END IF;
-  UPDATE zasp_identity_provider_mutations mutation SET state='provider_unknown',version=mutation.version+1,updated_at=transaction_timestamp()
+  UPDATE zasp_identity_provider_mutations mutation SET state='provider_unknown',version=mutation.version+1,lease_expires_at=transaction_timestamp(),updated_at=transaction_timestamp()
   WHERE (mutation.organization_id,mutation.principal_id,mutation.operation,mutation.idempotency_key,mutation.mutation_id)=(organization_value,principal_value,operation_value,idempotency_value,mutation_value)
-    AND mutation.state IN('reserved','provider_unknown') RETURNING * INTO changed;
+    AND mutation.owner_token=owner_token_value AND mutation.lease_expires_at>transaction_timestamp() AND mutation.state IN('reserved','provider_unknown') RETURNING * INTO changed;
   IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='identity mutation transition rejected';END IF;
   RETURN jsonb_build_object('mutation_id',changed.mutation_id,'state',changed.state,'version',changed.version);
 END
 $unknown$;
 
-CREATE FUNCTION public.zasp_identity_admin_complete_mutation(organization_value text,principal_value text,operation_value text,idempotency_value text,mutation_value text,connection_value jsonb,grant_value text,ciphertext_value bytea,nonce_value bytea,tag_value bytea,grant_expires_value timestamptz) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $complete$
+CREATE FUNCTION public.zasp_identity_admin_complete_mutation(organization_value text,principal_value text,operation_value text,idempotency_value text,mutation_value text,owner_token_value bytea,connection_value jsonb,grant_value text,ciphertext_value bytea,nonce_value bytea,tag_value bytea,grant_expires_value timestamptz) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $complete$
 DECLARE mutation_row zasp_identity_provider_mutations%ROWTYPE;reference_value text;kind_value text;protocol_value text;status_value text;display_value text;provider_value text;base_value text;connection_version bigint;response_value jsonb;workspace_value text;environment_value text;
 BEGIN
   IF NOT zasp_identity_admin_authorized(organization_value,principal_value) OR jsonb_typeof(connection_value)<>'object' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='identity mutation completion denied';END IF;
   SELECT * INTO mutation_row FROM zasp_identity_provider_mutations mutation WHERE (mutation.organization_id,mutation.principal_id,mutation.operation,mutation.idempotency_key,mutation.mutation_id)=(organization_value,principal_value,operation_value,idempotency_value,mutation_value) FOR UPDATE;
-  IF NOT FOUND OR mutation_row.state NOT IN('reserved','provider_unknown') THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='identity mutation completion rejected';END IF;
-  reference_value:=connection_value->>'reference';kind_value:=connection_value->>'kind';protocol_value:=connection_value->>'protocol';status_value:=connection_value->>'status';display_value:=connection_value->>'display_name';provider_value:=connection_value->>'identity_provider';base_value:=connection_value->>'base_url';
-  IF length(reference_value) NOT BETWEEN 12 AND 128 OR kind_value NOT IN('sso','scim') OR status_value NOT IN('active','pending','disabled') OR length(display_value) NOT BETWEEN 1 AND 128 OR length(provider_value) NOT BETWEEN 1 AND 64
-     OR (kind_value='sso' AND (protocol_value NOT IN('saml','oidc') OR base_value IS NOT NULL)) OR (kind_value='scim' AND (protocol_value IS NOT NULL OR length(base_value) NOT BETWEEN 8 AND 2048))
-     OR connection_value<>jsonb_build_object('reference',reference_value,'kind',kind_value,'protocol',protocol_value,'status',status_value,'display_name',display_value,'identity_provider',provider_value,'base_url',base_value)
-     OR (operation_value LIKE '%SSO%' AND kind_value<>'sso') OR (operation_value LIKE '%SCIM%' AND kind_value<>'scim')
-     OR (operation_value='createSSOConnection' AND (display_value<>mutation_row.intent->>'display_name' OR protocol_value<>mutation_row.intent->>'protocol' OR provider_value<>mutation_row.intent->>'identity_provider'))
-     OR (operation_value='createSCIMConnection' AND (display_value<>mutation_row.intent->>'display_name' OR provider_value<>mutation_row.intent->>'identity_provider'))
-     OR (operation_value IN('deleteSSOConnection','testSSOConnection','deleteSCIMConnection') AND reference_value<>mutation_row.intent->>'reference')
-     OR (operation_value='testSSOConnection' AND status_value<>'active') THEN
-    RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='identity connection result rejected';
+  IF NOT FOUND OR mutation_row.state NOT IN('reserved','provider_unknown') OR mutation_row.owner_token<>owner_token_value OR mutation_row.lease_expires_at<=transaction_timestamp() THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='identity mutation completion rejected';END IF;
+  reference_value:=connection_value->>'reference';kind_value:=connection_value->>'kind';
+  IF operation_value IN('deleteSSOConnection','deleteSCIMConnection') THEN
+    IF reference_value<>mutation_row.intent->>'reference'
+       OR kind_value<>(CASE operation_value WHEN 'deleteSSOConnection' THEN 'sso' ELSE 'scim' END)
+       OR connection_value<>jsonb_build_object('reference',reference_value,'kind',kind_value,'deleted',true)
+       OR (kind_value='sso' AND (reference_value!~'^(saml|oidc|external)-connection-[A-Za-z0-9_-]+$' OR length(reference_value) NOT BETWEEN 18 AND 128))
+       OR (kind_value='scim' AND (reference_value!~'^scim-connection-[A-Za-z0-9_-]+$' OR length(reference_value) NOT BETWEEN 20 AND 128)) THEN
+      RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='identity deletion result rejected';
+    END IF;
+  ELSE
+    protocol_value:=connection_value->>'protocol';status_value:=connection_value->>'status';display_value:=connection_value->>'display_name';provider_value:=connection_value->>'identity_provider';base_value:=connection_value->>'base_url';
+    IF length(reference_value) NOT BETWEEN 12 AND 128 OR kind_value NOT IN('sso','scim') OR status_value NOT IN('active','pending','disabled') OR length(display_value) NOT BETWEEN 1 AND 128 OR length(provider_value) NOT BETWEEN 1 AND 64
+       OR (kind_value='sso' AND (protocol_value NOT IN('saml','oidc') OR base_value IS NOT NULL)) OR (kind_value='scim' AND (protocol_value IS NOT NULL OR length(base_value) NOT BETWEEN 8 AND 2048))
+       OR connection_value<>jsonb_build_object('reference',reference_value,'kind',kind_value,'protocol',protocol_value,'status',status_value,'display_name',display_value,'identity_provider',provider_value,'base_url',base_value)
+       OR (operation_value LIKE '%SSO%' AND kind_value<>'sso') OR (operation_value LIKE '%SCIM%' AND kind_value<>'scim')
+       OR (operation_value='createSSOConnection' AND (display_value<>mutation_row.intent->>'display_name' OR protocol_value<>mutation_row.intent->>'protocol' OR provider_value<>mutation_row.intent->>'identity_provider'))
+       OR (operation_value='createSCIMConnection' AND (display_value<>mutation_row.intent->>'display_name' OR provider_value<>mutation_row.intent->>'identity_provider'))
+       OR (operation_value='testSSOConnection' AND (reference_value<>mutation_row.intent->>'reference' OR status_value<>'active')) THEN
+      RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='identity connection result rejected';
+    END IF;
   END IF;
   SELECT scope.workspace_id,scope.environment_id INTO workspace_value,environment_value FROM zasp_authorized_scopes scope WHERE scope.principal_id=principal_value AND scope.organization_id=organization_value ORDER BY scope.is_default DESC,scope.workspace_id,scope.environment_id LIMIT 1;
   IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='identity audit scope denied';END IF;
@@ -279,7 +294,7 @@ BEGIN
 END
 $functions$;
 
-GRANT EXECUTE ON FUNCTION public.zasp_identity_admin_provider_organization(text,text),public.zasp_identity_admin_reserve_mutation(text,text,text,text,text,bytea,jsonb,text,text,text),public.zasp_identity_admin_mark_unknown(text,text,text,text,text),public.zasp_identity_admin_complete_mutation(text,text,text,text,text,jsonb,text,bytea,bytea,bytea,timestamptz),public.zasp_identity_admin_connection_page(text,text,text,text,integer),public.zasp_identity_admin_reveal_secret(text,text,text),public.zasp_identity_admin_ack_secret(text,text,text),public.zasp_identity_admin_reconcile_deprovision(text,text,text,text,bytea,text) TO zasp_discovery_api;
+GRANT EXECUTE ON FUNCTION public.zasp_identity_admin_provider_organization(text,text),public.zasp_identity_admin_reserve_mutation(text,text,text,text,text,bytea,jsonb,text,text,text,bytea,integer),public.zasp_identity_admin_mark_unknown(text,text,text,text,text,bytea),public.zasp_identity_admin_complete_mutation(text,text,text,text,text,bytea,jsonb,text,bytea,bytea,bytea,timestamptz),public.zasp_identity_admin_connection_page(text,text,text,text,integer),public.zasp_identity_admin_reveal_secret(text,text,text),public.zasp_identity_admin_ack_secret(text,text,text),public.zasp_identity_admin_reconcile_deprovision(text,text,text,text,bytea,text) TO zasp_discovery_api;
 
 CREATE FUNCTION public.zasp_identity_admin_security_ready() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $security$
   SELECT
@@ -343,4 +358,4 @@ BEGIN
 END
 $schema_marker$;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('identity_administration_fingerprint', '049fe9343581e0dbf1f4f9ef05ab811366af7bd6340efc2a7c668edc3641c623') ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('identity_administration_fingerprint', '29a2c39f520a95b9226f8760e50676e8058ddc92d04a9f88532a39654761a2f8') ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;

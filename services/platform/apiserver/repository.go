@@ -21,11 +21,13 @@ const RuntimeDataPlaneSchemaVersion = "runtime-data-plane-v1"
 const RuntimeGatewayReconciliationSchemaVersion = "runtime-gateway-reconciliation-v1"
 const RuntimeIngestReconciliationSchemaVersion = "runtime-ingest-reconciliation-v1"
 const SecurityAgentExecutionSchemaVersion = "security-agent-execution-v1"
+const IdentityAdministrationSchemaVersion = "identity-administration-v1"
 
 const postgresRuntimeDataPlaneReadinessSQL = `SELECT to_jsonb(zasp_runtime_data_plane_readiness($1,$2))`
 const postgresRuntimeGatewayReconciliationReadinessSQL = `SELECT to_jsonb(zasp_runtime_gateway_reconciliation_readiness($1,$2))`
 const postgresRuntimeIngestReconciliationReadinessSQL = `SELECT to_jsonb(zasp_runtime_ingest_reconciliation_readiness($1,$2))`
 const postgresSecurityAgentExecutionReadinessSQL = `SELECT to_jsonb(zasp_security_agent_readiness($1,$2))`
+const postgresIdentityAdministrationReadinessSQL = `SELECT to_jsonb(zasp_identity_administration_readiness($1,$2))`
 
 const (
 	postgresAuthenticateSessionSQL = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', session.authenticated_at + interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
@@ -109,7 +111,7 @@ func isTypedInventorySchema(version string) bool {
 }
 
 func isRuntimeDataPlaneSchema(version string) bool {
-	return version == RuntimeDataPlaneSchemaVersion || version == RuntimeGatewayReconciliationSchemaVersion || version == RuntimeIngestReconciliationSchemaVersion || version == SecurityAgentExecutionSchemaVersion
+	return version == RuntimeDataPlaneSchemaVersion || version == RuntimeGatewayReconciliationSchemaVersion || version == RuntimeIngestReconciliationSchemaVersion || version == SecurityAgentExecutionSchemaVersion || version == IdentityAdministrationSchemaVersion
 }
 
 func exactProductReadiness(version string) (string, string, string, bool) {
@@ -126,6 +128,8 @@ func exactProductReadiness(version string) (string, string, string, bool) {
 		return postgresRuntimeIngestReconciliationReadinessSQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint(), true
 	case SecurityAgentExecutionSchemaVersion:
 		return postgresSecurityAgentExecutionReadinessSQL, migrations.ProductionSecurityAgentExecution().Checksum(), migrations.ProductionSecurityAgentExecutionSemanticFingerprint(), true
+	case IdentityAdministrationSchemaVersion:
+		return postgresIdentityAdministrationReadinessSQL, migrations.ProductionIdentityAdministration().Checksum(), migrations.ProductionIdentityAdministrationSemanticFingerprint(), true
 	default:
 		return "", "", "", false
 	}

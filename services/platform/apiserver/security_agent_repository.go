@@ -10,6 +10,7 @@ import (
 
 const (
 	postgresSecurityAgentAuthorityReadySQL       = `SELECT jsonb_build_object('release',zasp_security_agent_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
+	postgresIdentityAdminSecurityAgentReadySQL   = `SELECT jsonb_build_object('release',zasp_identity_administration_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
 	postgresSecurityAgentDefinitionPageSQL       = `SELECT zasp_security_agent_definition_page($1,$2,$3,NULLIF($4,''),$5)`
 	postgresSecurityAgentDefinitionValueSQL      = `SELECT zasp_security_agent_definition_value($1,$2,$3,$4)`
 	postgresSecurityAgentDefinitionReplaySQL     = `SELECT zasp_security_agent_replay_definition($1,$2,$3,$4,$5,$6,$7::jsonb)`
@@ -32,11 +33,13 @@ func NewSecurityAgentPostgresRepository(database JSONDatabase) (*PostgresReposit
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	repository := &PostgresRepository{database: database, schema: SecurityAgentExecutionSchemaVersion, securityAgentExecution: true}
-	if repository.readySecurityAgentAuthority(ctx) != nil {
-		return nil, ErrRepositoryConfiguration
+	for _, schema := range []string{IdentityAdministrationSchemaVersion, SecurityAgentExecutionSchemaVersion} {
+		repository := &PostgresRepository{database: database, schema: schema, securityAgentExecution: true}
+		if repository.readySecurityAgentAuthority(ctx) == nil {
+			return repository, nil
+		}
 	}
-	return repository, nil
+	return nil, ErrRepositoryConfiguration
 }
 
 func (repository *PostgresRepository) GetSecurityAgentActivation(ctx context.Context, identity RequestIdentity, definitionID string) (SecurityAgentActivationState, error) {
@@ -304,7 +307,15 @@ func (repository *PostgresRepository) readySecurityAgentAuthority(ctx context.Co
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentAuthorityReadySQL, migrations.ProductionSecurityAgentExecution().Checksum(), migrations.ProductionSecurityAgentExecutionSemanticFingerprint())
+	statement := postgresSecurityAgentAuthorityReadySQL
+	metadata := migrations.ProductionSecurityAgentExecution()
+	fingerprint := migrations.ProductionSecurityAgentExecutionSemanticFingerprint()
+	if repository.schema == IdentityAdministrationSchemaVersion {
+		statement = postgresIdentityAdminSecurityAgentReadySQL
+		metadata = migrations.ProductionIdentityAdministration()
+		fingerprint = migrations.ProductionIdentityAdministrationSemanticFingerprint()
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, metadata.Checksum(), fingerprint)
 	if err != nil {
 		return ErrRepositoryUnavailable
 	}

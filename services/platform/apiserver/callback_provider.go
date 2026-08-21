@@ -27,6 +27,16 @@ type IdentityStarter interface {
 	Start(context.Context, string) (string, error)
 }
 
+type IdentityConnectionProvider interface {
+	ListSSO(context.Context, string) ([]platformidentity.SSOConnection, error)
+	CreateSSO(context.Context, string, platformidentity.SSOConfig) (platformidentity.SSOConnection, error)
+	DeleteSSO(context.Context, string, string) error
+	TestSSO(context.Context, string, string) error
+	ListSCIM(context.Context, string) ([]platformidentity.SCIMConnection, error)
+	CreateSCIM(context.Context, string, platformidentity.SCIMConfig) (platformidentity.SCIMCredential, error)
+	DeleteSCIM(context.Context, string, string) error
+}
+
 type RepositoryIdentityProvider struct {
 	authenticator         ExternalIdentityAuthenticator
 	resolver              IdentityGrantResolver
@@ -138,4 +148,71 @@ func (provider *RepositoryIdentityProvider) Ready(ctx context.Context) error {
 		return ErrRepositoryUnavailable
 	}
 	return nil
+}
+
+func (provider *RepositoryIdentityProvider) connectionProvider() (IdentityConnectionProvider, error) {
+	if provider == nil {
+		return nil, ErrRepositoryUnavailable
+	}
+	connections, ok := provider.authenticator.(IdentityConnectionProvider)
+	if !ok || nilInterface(connections) {
+		return nil, ErrRepositoryUnavailable
+	}
+	return connections, nil
+}
+
+func (provider *RepositoryIdentityProvider) ListSSO(ctx context.Context, organization string) ([]platformidentity.SSOConnection, error) {
+	connections, err := provider.connectionProvider()
+	if err != nil {
+		return nil, err
+	}
+	return connections.ListSSO(ctx, organization)
+}
+
+func (provider *RepositoryIdentityProvider) CreateSSO(ctx context.Context, organization string, config platformidentity.SSOConfig) (platformidentity.SSOConnection, error) {
+	connections, err := provider.connectionProvider()
+	if err != nil {
+		return platformidentity.SSOConnection{}, err
+	}
+	return connections.CreateSSO(ctx, organization, config)
+}
+
+func (provider *RepositoryIdentityProvider) DeleteSSO(ctx context.Context, organization, reference string) error {
+	connections, err := provider.connectionProvider()
+	if err != nil {
+		return err
+	}
+	return connections.DeleteSSO(ctx, organization, reference)
+}
+
+func (provider *RepositoryIdentityProvider) TestSSO(ctx context.Context, organization, reference string) error {
+	connections, err := provider.connectionProvider()
+	if err != nil {
+		return err
+	}
+	return connections.TestSSO(ctx, organization, reference)
+}
+
+func (provider *RepositoryIdentityProvider) ListSCIM(ctx context.Context, organization string) ([]platformidentity.SCIMConnection, error) {
+	connections, err := provider.connectionProvider()
+	if err != nil {
+		return nil, err
+	}
+	return connections.ListSCIM(ctx, organization)
+}
+
+func (provider *RepositoryIdentityProvider) CreateSCIM(ctx context.Context, organization string, config platformidentity.SCIMConfig) (platformidentity.SCIMCredential, error) {
+	connections, err := provider.connectionProvider()
+	if err != nil {
+		return platformidentity.SCIMCredential{}, err
+	}
+	return connections.CreateSCIM(ctx, organization, config)
+}
+
+func (provider *RepositoryIdentityProvider) DeleteSCIM(ctx context.Context, organization, reference string) error {
+	connections, err := provider.connectionProvider()
+	if err != nil {
+		return err
+	}
+	return connections.DeleteSCIM(ctx, organization, reference)
 }

@@ -80,6 +80,73 @@ func (authenticator *StytchOAuthAuthenticator) Ready(ctx context.Context) error 
 	return nil
 }
 
+func (authenticator *StytchOAuthAuthenticator) connectionService() (*platformidentity.ConnectionService, error) {
+	if authenticator == nil || authenticator.adapter == nil {
+		return nil, ErrRepositoryUnavailable
+	}
+	service, err := platformidentity.NewConnectionService(authenticator.adapter)
+	if err != nil {
+		return nil, ErrRepositoryUnavailable
+	}
+	return service, nil
+}
+
+func (authenticator *StytchOAuthAuthenticator) ListSSO(ctx context.Context, organization string) ([]platformidentity.SSOConnection, error) {
+	service, err := authenticator.connectionService()
+	if err != nil {
+		return nil, err
+	}
+	return service.ListSSO(ctx, organization)
+}
+
+func (authenticator *StytchOAuthAuthenticator) CreateSSO(ctx context.Context, organization string, config platformidentity.SSOConfig) (platformidentity.SSOConnection, error) {
+	service, err := authenticator.connectionService()
+	if err != nil {
+		return platformidentity.SSOConnection{}, err
+	}
+	return service.CreateSSO(ctx, organization, config)
+}
+
+func (authenticator *StytchOAuthAuthenticator) DeleteSSO(ctx context.Context, organization, reference string) error {
+	service, err := authenticator.connectionService()
+	if err != nil {
+		return err
+	}
+	return service.DeleteSSO(ctx, organization, reference)
+}
+
+func (authenticator *StytchOAuthAuthenticator) TestSSO(ctx context.Context, organization, reference string) error {
+	service, err := authenticator.connectionService()
+	if err != nil {
+		return err
+	}
+	return service.TestSSO(ctx, organization, reference)
+}
+
+func (authenticator *StytchOAuthAuthenticator) ListSCIM(ctx context.Context, organization string) ([]platformidentity.SCIMConnection, error) {
+	service, err := authenticator.connectionService()
+	if err != nil {
+		return nil, err
+	}
+	return service.ListSCIM(ctx, organization)
+}
+
+func (authenticator *StytchOAuthAuthenticator) CreateSCIM(ctx context.Context, organization string, config platformidentity.SCIMConfig) (platformidentity.SCIMCredential, error) {
+	service, err := authenticator.connectionService()
+	if err != nil {
+		return platformidentity.SCIMCredential{}, err
+	}
+	return service.CreateSCIM(ctx, organization, config)
+}
+
+func (authenticator *StytchOAuthAuthenticator) DeleteSCIM(ctx context.Context, organization, reference string) error {
+	service, err := authenticator.connectionService()
+	if err != nil {
+		return err
+	}
+	return service.DeleteSCIM(ctx, organization, reference)
+}
+
 func (authenticator *StytchOAuthAuthenticator) request(ctx context.Context, path string, body []byte) (*http.Request, error) {
 	target := *authenticator.baseURL
 	target.Path = path
