@@ -263,6 +263,43 @@ describe("production workflow API", () => {
 		for (const call of calls) expect(call.options).not.toHaveProperty("body");
 	});
 
+	it("sends exact versioned cancellation and fresh-auth approval decisions without caching control authority", async () => {
+		const runID = "pid_40000004-0000-4000-8000-000000000004";
+		const agentID = "pid_40000001-0000-4000-8000-000000000001";
+		const approvalID = "pid_40000006-0000-4000-8000-000000000006";
+		const stepID = "pid_40000005-0000-4000-8000-000000000005";
+		const evidenceID = "pid_40000007-0000-4000-8000-000000000007";
+		const expiresAt = "2026-08-21T20:00:00Z";
+		const requests: Array<{ url: string; headers: Headers; body: string }> = [];
+		const client = createAPIClient({
+			getCSRFToken: () => "csrf_12345678901234567890123456789012",
+			getExpectedScope: () => capturedScope,
+			fetch: async (request) => {
+				const copy = request.clone(); requests.push({ url: copy.url, headers: new Headers(copy.headers), body: await copy.text() });
+				const approval = request.url.endsWith(`/security-agent-approvals/${approvalID}/decision`);
+				const value = approval
+					? { id: approvalID, run_id: runID, step_id: stepID, state: "approved", expires_at: expiresAt, version: 2, expected_effect: "Move finding to under review", reversible: true, ttl_seconds: 0, evidence_summary: [evidenceID] }
+					: { id: runID, agent_id: agentID, state: "cancelled", evidence_ids: [evidenceID], definition_version: 1, version: 5 };
+				return new Response(JSON.stringify(value), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ETag: approval ? '"2"' : '"5"', "X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001", "X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002" } });
+			},
+		});
+		const api = createSecurityAgentsAPI(client);
+		await api.cancelSecurityAgentRun(runID, 4, createWorkflowMutationAttempt());
+		await api.decideSecurityAgentApproval(approvalID, 1, "approved", createWorkflowMutationAttempt());
+
+		expect(requests).toHaveLength(2);
+		expect(requests[0]?.headers.get("If-Match")).toBe('"4"');
+		expect(requests[0]?.headers.get("Idempotency-Key")).toMatch(/^wf_/);
+		expect(requests[0]?.body).toBe("");
+		expect(requests[1]?.headers.get("If-Match")).toBe('"1"');
+		expect(requests[1]?.headers.get("X-Zasp-Fresh-Auth")).toBe("confirmed");
+		expect(requests[1]?.headers.get("X-CSRF-Token")).toBe("csrf_12345678901234567890123456789012");
+		expect(JSON.parse(requests[1]?.body ?? "null")).toEqual({ decision: "approved" });
+
+		const GET = vi.fn(async () => ({ data: { items: [] }, response: new Response(JSON.stringify({ items: [] }), { status: 200, headers: { "Content-Type": "application/json" } }) }));
+		await expect(createSecurityAgentsAPI({ GET } as unknown as APIClient).listSecurityAgentRuns()).rejects.toMatchObject({ kind: "invalid_response" });
+	});
+
 	it("pins receipt acknowledgement and relist to the captured scope assertion", async () => {
 		const headers: string[] = [];
 		const client = {

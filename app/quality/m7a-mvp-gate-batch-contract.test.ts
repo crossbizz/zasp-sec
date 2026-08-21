@@ -5,16 +5,17 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("M7A-85 through M7A-101 Security Agent MVP gate", () => {
-  it("renders bounded definitions and capability-hides executor-dependent surfaces", () => {
+  it("renders bounded definitions, redacted runs, and fresh-auth supervised approvals", () => {
     const securityAgents = read("app/features/securityagents/SecurityAgentsView.tsx");
-    for (const value of ["Definition template", "Definition name", "Authorized environment", "Template controls", "Limits", "Resource version", "Definition enabled", "Save definition", "Delete definition"]) expect(securityAgents).toContain(value);
-    expect(securityAgents).toContain("Execution, simulation, approvals, and provider actions remain hidden");
-    for (const operation of ["listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "listSecurityAgentApprovals", "decideSecurityAgentApproval"]) expect(securityAgents).not.toContain(operation);
+    for (const value of ["Definition template", "Definition name", "Authorized environment", "Template controls", "Limits", "Resource version", "Definition enabled", "Save definition", "Delete definition", "Security Agent runs", "Pending approvals", "Expected effect", "Reauthenticate to decide", "Cancel run"]) expect(securityAgents).toContain(value);
+    for (const operation of ["listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) expect(securityAgents).toContain(operation);
+    for (const operation of ["listSecurityActions", "simulateSecurityAgent", "runSecurityAgent"]) expect(securityAgents).not.toContain(operation);
     const home = read("app/features/agents/AgentSecurityView.tsx");
     const app = read("app/components/ZaspApp.tsx");
     const productionApp = read("app/components/ZaspProductionApp.tsx");
     expect(app).not.toContain('{ path: "/protect/approvals"');
     expect(productionApp).toContain('{ path: "/integrations/sensors"');
+    expect(productionApp).toContain('{ path: "/protect/approvals"');
     for (const value of ["Pending approvals", "Needs human", "Failed or inconclusive", "Recent containment", "Stale launch coverage"]) expect(home).toContain(value);
   });
 

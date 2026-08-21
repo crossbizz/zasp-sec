@@ -4,40 +4,39 @@ import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "../..");
 const operations = [
-  "listSecurityAgentTemplates", "listSecurityActions", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+  "listSecurityAgentTemplates", "listSecurityActions", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
 ] as const;
-const retainedOperations = ["listSecurityAgentTemplates", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent"] as const;
-const hiddenExecutionOperations = operations.filter((operation) => !retainedOperations.includes(operation as typeof retainedOperations[number]));
+const mountedOperations = ["listSecurityAgentTemplates", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"] as const;
+const apiOnlyOperations = ["activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent"] as const;
 
 describe("M7A audit, API, and builder batch", () => {
-  it("publishes only the six mounted Security Agent definition operations", async () => {
+  it("publishes the durable definition, activation, simulation, run, cancellation, and approval API", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
     ]);
-    for (const operation of retainedOperations) {
+    expect([...mountedOperations, "listSecurityActions", ...apiOnlyOperations].sort()).toEqual([...operations].sort());
+    for (const operation of [...mountedOperations, ...apiOnlyOperations]) {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
     }
-    for (const operation of hiddenExecutionOperations) {
-      expect(openapi).not.toContain(`operationId: ${operation}`);
-      expect(generated).not.toContain(` ${operation}:`);
-    }
+    expect(openapi).not.toContain("operationId: listSecurityActions");
+    expect(generated).not.toContain(" listSecurityActions:");
   });
 
-  it("ships the generated-client definition surface and hides executor-dependent controls", async () => {
+  it("ships the generated-client run and approval surface while keeping evidence-bound launch controls API-only", async () => {
     const [app, view, routes] = await Promise.all([
       readFile(resolve(root, "app/components/ZaspProductionApp.tsx"), "utf8"),
       readFile(resolve(root, "app/features/securityagents/SecurityAgentsView.tsx"), "utf8"),
       readFile(resolve(root, "app/domain/routes.ts"), "utf8"),
     ]);
     expect(routes).toContain('path: "/protect/security-agents"');
+    expect(routes).toContain('path: "/protect/approvals"');
     expect(app).toContain("<ProductionSecurityAgentsView");
     expect(view).toContain('from "../../../apps/web/api/generated"');
-    for (const operation of retainedOperations) expect(view).toContain(operation);
-    for (const operation of hiddenExecutionOperations) expect(view).not.toContain(operation);
-    for (const label of ["Definition template", "Definition name", "Authorized environment", "Step limit", "Runtime seconds", "Temporary-policy seconds", "AI token budget", "Concurrency", "Template controls", "Limits", "Definition enabled"]) expect(view).toContain(label);
-    expect(view).toContain("Execution, simulation, approvals, and provider actions remain hidden");
+    for (const operation of mountedOperations) expect(view).toContain(operation);
+    for (const operation of [...apiOnlyOperations, "listSecurityActions"]) expect(view).not.toContain(operation);
+    for (const label of ["Definition template", "Definition name", "Authorized environment", "Step limit", "Runtime seconds", "Temporary-policy seconds", "AI token budget", "Concurrency", "Template controls", "Limits", "Definition enabled", "Security Agent runs", "Pending approvals", "Expected effect", "Cancel run", "Reauthenticate to decide", "Approve", "Reject"]) expect(view).toContain(label);
     expect(view).not.toMatch(/textarea|tool URL|shell command|arbitrary query/i);
   });
 

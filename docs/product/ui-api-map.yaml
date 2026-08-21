@@ -411,30 +411,33 @@ screens:
       - id: delete_security_agent
         operation_id: deleteSecurityAgent
         availability: available
+      - id: activate_security_agent
+        operation_id: activateSecurityAgent
+        availability: api_available
       - id: simulate_security_agent
         operation_id: simulateSecurityAgent
-        availability: planned
+        availability: api_available
       - id: run_security_agent
         operation_id: runSecurityAgent
-        availability: planned
+        availability: api_available
       - id: view_security_agent_runs
         operation_id: listSecurityAgentRuns
-        availability: planned
+        availability: available
       - id: view_security_agent_run
         operation_id: getSecurityAgentRun
-        availability: planned
+        availability: available
       - id: cancel_security_agent_run
         operation_id: cancelSecurityAgentRun
-        availability: planned
+        availability: available
       - id: view_security_agent_approvals
         operation_id: listSecurityAgentApprovals
-        availability: planned
+        availability: available
       - id: view_security_agent_approval
         operation_id: getSecurityAgentApproval
-        availability: planned
+        availability: available
       - id: decide_security_agent_approval
         operation_id: decideSecurityAgentApproval
-        availability: planned
+        availability: available
   - id: compliance
     label: Compliance
     actions:

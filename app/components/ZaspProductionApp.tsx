@@ -32,6 +32,7 @@ const productionRoutes = [
   { path: "/connectors", label: "Integrations", capability: "integrations.read" },
   { path: "/integrations/sensors", label: "Sensors", capability: "sensors.read" },
   { path: "/protect/security-agents", label: "Security agents", capability: "security-agents.read" },
+  { path: "/protect/approvals", label: "Approvals", capability: "security-agents.read" },
   { path: "/administration/identity-access", label: "Identity & Access", capability: "identity.manage" },
   { path: "/administration/api-access", label: "API Access", capability: "api-access.manage" },
   { path: "/investigate/sessions", label: "Sessions", capability: "sessions.read" },
@@ -51,6 +52,7 @@ function ProductionRouteSurface({ path, navigate }: { path: string; navigate(pat
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} />;
+  if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" />;
   if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}><IdentityAccessView /><ScopeOnboardingView client={client} /></IdentityAPIProvider>;
   if (path === "/administration/api-access") return <APIAccessView client={client} />;
   if (path === "/investigate/sessions") return <SessionsComplianceView surface="sessions" client={client} canMutate={session.hasCapability("sessions.revoke")} />;
