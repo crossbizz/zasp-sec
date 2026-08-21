@@ -715,6 +715,9 @@ func TestProductionRuntimeDataPlanePostgresBindsGatewayEnrollmentReplayAndPolicy
 	defer connection.Close(context.Background())
 	runner := migrateToTypedInventoryCutover(t, ctx, connection)
 	scope := fixtureRequestIdentity(t).Scope
+	capabilityAgentID := "pid_76000106-0000-4000-8000-000000000106"
+	capabilityTargetID := "pid_76000107-0000-4000-8000-000000000107"
+	seedRuntimeGatewayCapabilityEdge(t, ctx, connection, capabilityAgentID, capabilityTargetID)
 	deviceID := "pid_76000101-0000-4000-8000-000000000101"
 	if _, err := connection.Exec(ctx, `SELECT zasp_discovery_create_gateway_device($1,$2,$3,$4,'runtime-gateway')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deviceID); err != nil {
 		t.Fatal(err)
@@ -816,7 +819,7 @@ func TestProductionRuntimeDataPlanePostgresBindsGatewayEnrollmentReplayAndPolicy
 		t.Fatalf("gateway policy fetch=%s err=%v", fetchedPolicy, err)
 	}
 	eventID := "pid_76000104-0000-4000-8000-000000000104"
-	classification := json.RawMessage(`{"category":"process","outcome":"blocked"}`)
+	classification := json.RawMessage(`{"agent_id":"` + capabilityAgentID + `","capability_category":"identity_assume","capability_outcome":"assume","category":"process","outcome":"blocked","resource_class":"identity","route_class":"runtime","target_id":"` + capabilityTargetID + `"}`)
 	occurredAt := time.Now().UTC().Truncate(time.Microsecond)
 	var eventDigest []byte
 	if err := connection.QueryRow(ctx, `SELECT digest(convert_to(jsonb_build_object('credential_id',$1::text,'device_id',$2::text,'event_id',$3::text,'expected_floor',1::bigint,'next_floor',2::bigint,'policy_version',1::bigint,'decision','block','action_kind','http','classification',$4::jsonb,'occurred_at',to_char($5::timestamptz AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))::text,'UTF8'),'sha256')`, credentialID, deviceID, eventID, classification, occurredAt).Scan(&eventDigest); err != nil {
@@ -829,6 +832,24 @@ func TestProductionRuntimeDataPlanePostgresBindsGatewayEnrollmentReplayAndPolicy
 	}
 	if err := gatewayConnection.QueryRow(ctx, recordEventSQL, credentialID, eventID, eventDigest, classification, occurredAt).Scan(&recordedEvent); err != nil || !bytes.Contains(recordedEvent, []byte(`"replayed": true`)) && !bytes.Contains(recordedEvent, []byte(`"replayed":true`)) {
 		t.Fatalf("gateway event replay=%s err=%v", recordedEvent, err)
+	}
+	var capabilityState, capabilityEvidence string
+	if err := connection.QueryRow(ctx, `SELECT state,evidence_id FROM zasp_inventory_capability_evidence WHERE (organization_id,workspace_id,environment_id,agent_id,target_id,category,outcome)=($1,$2,$3,$4,$5,'identity_assume','assume')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), capabilityAgentID, capabilityTargetID).Scan(&capabilityState, &capabilityEvidence); err != nil || capabilityState != "blocked" || capabilityEvidence != eventID {
+		t.Fatalf("runtime capability state=%q evidence=%q err=%v", capabilityState, capabilityEvidence, err)
+	}
+	forgedEventID := "pid_76000108-0000-4000-8000-000000000108"
+	forgedClassification := json.RawMessage(`{"agent_id":"` + capabilityAgentID + `","capability_category":"identity_assume","capability_outcome":"assume","category":"process","outcome":"blocked","resource_class":"identity","route_class":"runtime","target_id":"pid_76000109-0000-4000-8000-000000000109"}`)
+	var forgedDigest []byte
+	if err := connection.QueryRow(ctx, `SELECT digest(convert_to(jsonb_build_object('credential_id',$1::text,'device_id',$2::text,'event_id',$3::text,'expected_floor',2::bigint,'next_floor',3::bigint,'policy_version',1::bigint,'decision','block','action_kind','http','classification',$4::jsonb,'occurred_at',to_char($5::timestamptz AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))::text,'UTF8'),'sha256')`, credentialID, deviceID, forgedEventID, forgedClassification, occurredAt).Scan(&forgedDigest); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := gatewayConnection.Exec(ctx, `SELECT zasp_runtime_gateway_record_event($1,$2,2,3,$3,1,'block','http',$4::jsonb,$5)`, credentialID, forgedEventID, forgedDigest, forgedClassification, occurredAt); err == nil {
+		t.Fatal("gateway event forged a capability edge")
+	}
+	var eventCount, evidenceCount int
+	var replayFloorAfterForgery int64
+	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_runtime_gateway_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3),(SELECT count(*) FROM zasp_inventory_capability_evidence WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3),(SELECT replay_floor FROM zasp_gateway_devices WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deviceID).Scan(&eventCount, &evidenceCount, &replayFloorAfterForgery); err != nil || eventCount != 1 || evidenceCount != 1 || replayFloorAfterForgery != 2 {
+		t.Fatalf("forged residue events=%d evidence=%d floor=%d err=%v", eventCount, evidenceCount, replayFloorAfterForgery, err)
 	}
 	if _, err := gatewayConnection.Exec(ctx, recordEventSQL, credentialID, "pid_76000105-0000-4000-8000-000000000105", eventDigest, json.RawMessage(`{"authorization":"Bearer secret"}`), occurredAt); err == nil {
 		t.Fatal("gateway event accepted secret-shaped metadata")
@@ -848,6 +869,35 @@ func mustProductID(t *testing.T, value string) domain.ProductID {
 		t.Fatal(err)
 	}
 	return id
+}
+
+func seedRuntimeGatewayCapabilityEdge(t *testing.T, ctx context.Context, connection *pgx.Conn, agentID, targetID string) {
+	t.Helper()
+	identity := fixtureRequestIdentity(t)
+	scope := identity.Scope
+	const (
+		integrationID = "pid_76000110-0000-4000-8000-000000000110"
+		connectionID  = "pid_76000111-0000-4000-8000-000000000111"
+		syncID        = "pid_76000112-0000-4000-8000-000000000112"
+		snapshotID    = "pid_76000113-0000-4000-8000-000000000113"
+	)
+	configuration := json.RawMessage(`{"connection_reference":"ref:kubernetes/connection/runtime-gateway"}`)
+	seedReferenceAuthorizedIntegration(t, ctx, connection, "kubernetes", integrationID, connectionID, "ref:kubernetes/connection/runtime-gateway", configuration, "8")
+	observed := time.Now().UTC().Truncate(time.Second).Add(-time.Minute)
+	requestDigest := sha256.Sum256([]byte("runtime-gateway-capability-sync"))
+	manifestDigest := sha256.Sum256([]byte("runtime-gateway-capability-manifest"))
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_syncs(organization_id,workspace_id,environment_id,id,integration_id,idempotency_key,request_digest,trigger_kind,principal_id,parser_version,tool_version) VALUES($1,$2,$3,$4,$5,'runtime-gateway-capability-sync',$6,'manual',$7,'parser_v1','tool_v1')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), syncID, integrationID, requestDigest[:], identity.PrincipalID.String()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_snapshots(organization_id,workspace_id,environment_id,id,integration_id,sync_id,generation,source,manifest_reference,manifest_checksum,state,candidate_digest,apply_result,complete,is_last_good,collected_at,committed_at) VALUES($1,$2,$3,$4,$5,$6,1,'kubernetes','s3://zasp-evidence/runtime-gateway/manifest.json',$7,'complete',$7,'{}'::jsonb,true,true,$8,$8)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), snapshotID, integrationID, syncID, manifestDigest[:], observed); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,state,first_seen_at,last_seen_at,product_kind,winning_evidence_id) VALUES($1,$2,$3,$4,'agent','runtime-agent','active',$8,$8,'agent',$6),($1,$2,$3,$5,'identity','runtime-identity','active',$8,$8,'identity',$7)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), agentID, targetID, "pid_76000114-0000-4000-8000-000000000114", "pid_76000115-0000-4000-8000-000000000115", observed); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_relationships(organization_id,workspace_id,environment_id,id,integration_id,source,snapshot_id,from_entity_id,to_entity_id,kind,source_native_id,state,first_seen_at,last_seen_at) VALUES($1,$2,$3,'pid_76000116-0000-4000-8000-000000000116',$4,'kubernetes',$5,$6,$7,'uses_identity','runtime-agent:uses_identity:runtime-identity','present',$8,$8)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID, snapshotID, agentID, targetID, observed); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func connectRuntimeDataPlanePrincipal(t *testing.T, ctx context.Context, dsn, principal string) *pgx.Conn {
@@ -884,6 +934,9 @@ func TestProductionRuntimeGatewayReconciliationPostgresReplaysExpiredCommittedEv
 	defer connection.Close(context.Background())
 	runner := migrateToTypedInventoryCutover(t, ctx, connection)
 	scope := fixtureRequestIdentity(t).Scope
+	capabilityAgentID := "pid_76000206-0000-4000-8000-000000000206"
+	capabilityTargetID := "pid_76000207-0000-4000-8000-000000000207"
+	seedRuntimeGatewayCapabilityEdge(t, ctx, connection, capabilityAgentID, capabilityTargetID)
 	deviceID := "pid_76000201-0000-4000-8000-000000000201"
 	if _, err := connection.Exec(ctx, `SELECT zasp_discovery_create_gateway_device($1,$2,$3,$4,'runtime-gateway')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deviceID); err != nil {
 		t.Fatal(err)
@@ -925,7 +978,7 @@ func TestProductionRuntimeGatewayReconciliationPostgresReplaysExpiredCommittedEv
 		t.Fatal(err)
 	}
 
-	classification := json.RawMessage(`{"category":"process","outcome":"blocked"}`)
+	classification := json.RawMessage(`{"category":"process","outcome":"blocked","resource_class":"process","route_class":"runtime"}`)
 	occurredAt := time.Now().UTC().Add(-25 * time.Hour).Truncate(time.Microsecond)
 	gatewayConnection := connectRuntimeDataPlanePrincipal(t, ctx, dsn, principalNames[5])
 	defer gatewayConnection.Close(context.Background())
@@ -961,10 +1014,20 @@ func TestProductionRuntimeGatewayReconciliationPostgresReplaysExpiredCommittedEv
 	if err := gatewayConnection.QueryRow(ctx, recordEventSQL, credentialID, eventID, eventDigest, classification, occurredAt).Scan(&recorded); err != nil || !bytes.Contains(recorded, []byte(`"replayed": true`)) && !bytes.Contains(recorded, []byte(`"replayed":true`)) {
 		t.Fatalf("expired exact replay=%s err=%v", recorded, err)
 	}
-	var eventCount int
+	capabilityEventID := "pid_76000208-0000-4000-8000-000000000208"
+	capabilityClassification := json.RawMessage(`{"agent_id":"` + capabilityAgentID + `","capability_category":"identity_assume","capability_outcome":"assume","category":"process","outcome":"blocked","resource_class":"identity","route_class":"runtime","target_id":"` + capabilityTargetID + `"}`)
+	capabilityOccurredAt := time.Now().UTC().Truncate(time.Microsecond)
+	var capabilityDigest []byte
+	if err := connection.QueryRow(ctx, `SELECT digest(convert_to(jsonb_build_object('credential_id',$1::text,'device_id',$2::text,'event_id',$3::text,'expected_floor',2::bigint,'next_floor',3::bigint,'policy_version',1::bigint,'decision','block','action_kind','http','classification',$4::jsonb,'occurred_at',to_char($5::timestamptz AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))::text,'UTF8'),'sha256')`, credentialID, deviceID, capabilityEventID, capabilityClassification, capabilityOccurredAt).Scan(&capabilityDigest); err != nil {
+		t.Fatal(err)
+	}
+	if err := gatewayConnection.QueryRow(ctx, `SELECT zasp_runtime_gateway_record_event($1,$2,2,3,$3,1,'block','http',$4::jsonb,$5)`, credentialID, capabilityEventID, capabilityDigest, capabilityClassification, capabilityOccurredAt).Scan(&recorded); err != nil || !bytes.Contains(recorded, []byte(`"replayed": false`)) && !bytes.Contains(recorded, []byte(`"replayed":false`)) {
+		t.Fatalf("v16 capability event=%s err=%v", recorded, err)
+	}
+	var eventCount, evidenceCount int
 	var replayFloor int64
-	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_runtime_gateway_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3),(SELECT replay_floor FROM zasp_gateway_devices WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deviceID).Scan(&eventCount, &replayFloor); err != nil || eventCount != 1 || replayFloor != 2 {
-		t.Fatalf("event count=%d floor=%d err=%v", eventCount, replayFloor, err)
+	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_runtime_gateway_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3),(SELECT count(*) FROM zasp_inventory_capability_evidence WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND evidence_id=$5),(SELECT replay_floor FROM zasp_gateway_devices WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deviceID, capabilityEventID).Scan(&eventCount, &evidenceCount, &replayFloor); err != nil || eventCount != 2 || evidenceCount != 1 || replayFloor != 3 {
+		t.Fatalf("event count=%d evidence=%d floor=%d err=%v", eventCount, evidenceCount, replayFloor, err)
 	}
 	if err := runner.DownProductionRuntimeGatewayReconciliation(ctx); !errors.Is(err, migrations.ErrInvalidState) {
 		t.Fatalf("used v16 rollback error=%v", err)
@@ -994,6 +1057,10 @@ func TestProductionRuntimeGatewayReconciliationPostgresUnusedDownRestoresV15AndR
 	v15 := migrations.ProductionRuntimeDataPlane()
 	if err := connection.QueryRow(ctx, `SELECT zasp_runtime_data_plane_readiness($1,$2)`, v15.Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint()).Scan(&ready); err != nil || !ready {
 		t.Fatalf("restored v15 readiness=%t err=%v", ready, err)
+	}
+	var restoredRecordDefinition string
+	if err := connection.QueryRow(ctx, `SELECT pg_get_functiondef('zasp_runtime_gateway_record_event(text,text,bigint,bigint,bytea,bigint,text,text,jsonb,timestamptz)'::regprocedure)`).Scan(&restoredRecordDefinition); err != nil || !strings.Contains(restoredRecordDefinition, "zasp_inventory_record_capability_evidence") {
+		t.Fatalf("restored v15 record authority=%q err=%v", restoredRecordDefinition, err)
 	}
 	if err := runner.UpProductionRuntimeGatewayReconciliation(ctx); err != nil {
 		t.Fatalf("v16 re-up: %v", err)

@@ -81,7 +81,8 @@ func validDecisionEvent(value DecisionEvent) bool {
 	if !validProductID(value.CredentialID) || !validProductID(value.DeviceID) || !validProductID(value.EventID) ||
 		value.NextFloor != value.ExpectedFloor+1 || value.PolicyVersion == 0 ||
 		value.Decision != "allow" && value.Decision != "monitor" && value.Decision != "block" ||
-		value.ActionKind != "http" && value.ActionKind != "mcp" || !validTime(value.OccurredAt) || len(value.Classification) != 4 {
+		value.ActionKind != "http" && value.ActionKind != "mcp" || !validTime(value.OccurredAt) ||
+		len(value.Classification) != 4 && len(value.Classification) != 8 {
 		return false
 	}
 	for _, key := range []string{"category", "route_class", "resource_class", "outcome"} {
@@ -89,7 +90,30 @@ func validDecisionEvent(value DecisionEvent) bool {
 			return false
 		}
 	}
-	return true
+	if len(value.Classification) == 4 {
+		return true
+	}
+	return value.Decision == "block" && validProductID(value.Classification["agent_id"]) && validProductID(value.Classification["target_id"]) &&
+		validCapabilityPair(value.Classification["capability_category"], value.Classification["capability_outcome"])
+}
+
+func validCapabilityPair(category, outcome string) bool {
+	switch category {
+	case "data_read":
+		return outcome == "read"
+	case "data_write":
+		return outcome == "write"
+	case "action_execute":
+		return outcome == "execute"
+	case "identity_assume":
+		return outcome == "assume"
+	case "network_egress":
+		return outcome == "connect"
+	case "administration":
+		return outcome == "administer"
+	default:
+		return false
+	}
 }
 
 func validProductID(value string) bool {

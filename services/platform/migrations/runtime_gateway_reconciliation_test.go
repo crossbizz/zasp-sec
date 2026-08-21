@@ -19,6 +19,9 @@ func TestProductionRuntimeGatewayReconciliationRegistersImmutableV16Authority(t 
 		"zasp_runtime_gateway_reconciliation_readiness",
 		"runtime_gateway_reconciliation_fingerprint",
 		"zasp_runtime_gateway_record_event",
+		"zasp_inventory_record_capability_evidence",
+		"capability_category",
+		"capability_outcome",
 		"zasp_workflow_mutate",
 		"zasp_risk_mutate",
 		"release.\"version\" = 16",
@@ -35,9 +38,13 @@ func TestProductionRuntimeGatewayReconciliationRegistersImmutableV16Authority(t 
 	}
 	existingEvent := strings.Index(metadata.UpSQL(), "SELECT * INTO existing_value FROM zasp_runtime_gateway_events")
 	expiredEvent := strings.Index(metadata.UpSQL(), "IF occurred_value<transaction_timestamp()-interval '24 hours'")
+	capabilityEvidence := strings.Index(metadata.UpSQL(), "PERFORM zasp_inventory_record_capability_evidence")
 	advanceFloor := strings.Index(metadata.UpSQL(), "PERFORM zasp_runtime_gateway_advance_replay")
-	if existingEvent < 0 || expiredEvent < 0 || advanceFloor < 0 || !(existingEvent < expiredEvent && expiredEvent < advanceFloor) {
-		t.Fatalf("exact replay must precede the new-event age gate and replay-floor mutation: existing=%d expired=%d advance=%d", existingEvent, expiredEvent, advanceFloor)
+	if existingEvent < 0 || expiredEvent < 0 || capabilityEvidence < 0 || advanceFloor < 0 || !(existingEvent < expiredEvent && expiredEvent < capabilityEvidence && capabilityEvidence < advanceFloor) {
+		t.Fatalf("exact replay and age gate must precede capability/replay mutation: existing=%d expired=%d evidence=%d advance=%d", existingEvent, expiredEvent, capabilityEvidence, advanceFloor)
+	}
+	if !strings.Contains(metadata.DownSQL(), "PERFORM zasp_inventory_record_capability_evidence") {
+		t.Fatal("v16 down does not restore v15 capability evidence authority")
 	}
 }
 

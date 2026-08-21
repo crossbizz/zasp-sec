@@ -1,5 +1,5 @@
 DO $reconciliation_guard$ BEGIN
- IF zasp_runtime_gateway_reconciliation_live_fingerprint()<>'3f427d0c061d5ad7367e3b3e14f9ec5980852bb265f61c0daaa03d72278cc19b' OR NOT zasp_runtime_gateway_reconciliation_security_ready() THEN
+ IF zasp_runtime_gateway_reconciliation_live_fingerprint()<>'bff940634d9c5d17dd09702e370531f40fb3d9f7b84526f331a06dc98f935067' OR NOT zasp_runtime_gateway_reconciliation_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime gateway reconciliation drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_runtime_gateway_reconciliation_state WHERE used_at IS NOT NULL) THEN
@@ -24,7 +24,7 @@ DO $product_release_restore$ DECLARE definition text;original_definition text;BE
  EXECUTE definition;
 END $product_release_restore$;
 
-DELETE FROM public.zasp_schema_metadata WHERE (key,value)=('runtime_gateway_reconciliation_fingerprint','3f427d0c061d5ad7367e3b3e14f9ec5980852bb265f61c0daaa03d72278cc19b');
+DELETE FROM public.zasp_schema_metadata WHERE (key,value)=('runtime_gateway_reconciliation_fingerprint','bff940634d9c5d17dd09702e370531f40fb3d9f7b84526f331a06dc98f935067');
 DROP FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(text,text);
 DROP FUNCTION public.zasp_runtime_gateway_reconciliation_live_fingerprint();
 DROP FUNCTION public.zasp_runtime_gateway_reconciliation_security_ready();
@@ -32,7 +32,18 @@ DROP FUNCTION public.zasp_runtime_gateway_reconciliation_security_ready();
 CREATE OR REPLACE FUNCTION public.zasp_runtime_gateway_record_event(credential_value text,event_value text,expected_floor_value bigint,next_floor_value bigint,request_digest_value bytea,policy_version_value bigint,decision_value text,action_kind_value text,classification_value jsonb,occurred_value timestamptz) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
 DECLARE authority_value jsonb;organization_value text;workspace_value text;environment_value text;device_value text;existing_value zasp_runtime_gateway_events%ROWTYPE;canonical_digest bytea;result_value jsonb;
 BEGIN
- IF NOT zasp_valid_product_id(event_value) OR expected_floor_value<0 OR next_floor_value<=expected_floor_value OR octet_length(request_digest_value)<>32 OR policy_version_value<1 OR decision_value NOT IN('allow','monitor','block') OR action_kind_value NOT IN('http','mcp') OR jsonb_typeof(classification_value)<>'object' OR classification_value='{}'::jsonb OR classification_value-ARRAY['category','route_class','resource_class','outcome']<>'{}'::jsonb OR octet_length(convert_to(classification_value::text,'UTF8'))>16384 OR EXISTS(SELECT 1 FROM jsonb_each_text(classification_value) item WHERE length(item.value) NOT BETWEEN 1 AND 128 OR item.value<>btrim(item.value) OR item.value~'[[:cntrl:]]') OR occurred_value<transaction_timestamp()-interval '24 hours' OR occurred_value>transaction_timestamp()+interval '30 seconds' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway event rejected';END IF;
+ IF NOT zasp_valid_product_id(event_value) OR expected_floor_value<0 OR next_floor_value<=expected_floor_value OR octet_length(request_digest_value)<>32 OR policy_version_value<1 OR decision_value NOT IN('allow','monitor','block') OR action_kind_value NOT IN('http','mcp') OR jsonb_typeof(classification_value)<>'object'
+  OR NOT classification_value ?& ARRAY['category','route_class','resource_class','outcome']
+  OR classification_value-ARRAY['category','route_class','resource_class','outcome','agent_id','target_id','capability_category','capability_outcome']<>'{}'::jsonb
+  OR octet_length(convert_to(classification_value::text,'UTF8'))>16384
+  OR EXISTS(SELECT 1 FROM jsonb_each_text(classification_value) item WHERE length(item.value) NOT BETWEEN 1 AND 64 OR item.value<>btrim(item.value) OR item.value!~'^[a-z][a-z0-9._:-]{0,63}$')
+  OR classification_value ?| ARRAY['agent_id','target_id','capability_category','capability_outcome'] AND (
+   decision_value<>'block' OR NOT classification_value ?& ARRAY['agent_id','target_id','capability_category','capability_outcome']
+   OR NOT zasp_valid_product_id(classification_value->>'agent_id') OR NOT zasp_valid_product_id(classification_value->>'target_id')
+   OR (classification_value->>'capability_category',classification_value->>'capability_outcome') NOT IN(('data_read','read'),('data_write','write'),('action_execute','execute'),('identity_assume','assume'),('network_egress','connect'),('administration','administer'))
+  )
+  OR occurred_value<transaction_timestamp()-interval '24 hours' OR occurred_value>transaction_timestamp()+interval '30 seconds'
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway event rejected';END IF;
  authority_value:=zasp_runtime_gateway_credential_authority(credential_value,'runtime-gateway');organization_value:=authority_value->>'organization_id';workspace_value:=authority_value->>'workspace_id';environment_value:=authority_value->>'environment_id';device_value:=authority_value->>'device_id';
  canonical_digest:=digest(convert_to(jsonb_build_object('credential_id',credential_value,'device_id',device_value,'event_id',event_value,'expected_floor',expected_floor_value,'next_floor',next_floor_value,'policy_version',policy_version_value,'decision',decision_value,'action_kind',action_kind_value,'classification',classification_value,'occurred_at',to_char(occurred_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))::text,'UTF8'),'sha256');
  IF canonical_digest<>request_digest_value THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway event rejected';END IF;
@@ -41,6 +52,9 @@ BEGIN
  IF FOUND THEN
   IF (existing_value.device_id,existing_value.credential_id,existing_value.sequence,existing_value.request_digest,existing_value.policy_version,existing_value.decision,existing_value.action_kind,existing_value.classification,existing_value.occurred_at) IS DISTINCT FROM (device_value,credential_value,next_floor_value,request_digest_value,policy_version_value,decision_value,action_kind_value,classification_value,occurred_value) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='gateway event rejected';END IF;
   RETURN jsonb_build_object('event_id',event_value,'device_id',device_value,'sequence',next_floor_value,'recorded_at',existing_value.recorded_at,'replayed',true);
+ END IF;
+ IF classification_value ? 'agent_id' THEN
+  PERFORM zasp_inventory_record_capability_evidence(organization_value,workspace_value,environment_value,classification_value->>'agent_id',classification_value->>'target_id',classification_value->>'capability_category',classification_value->>'capability_outcome','runtime_policy',event_value,occurred_value);
  END IF;
  PERFORM zasp_runtime_gateway_advance_replay(credential_value,expected_floor_value,next_floor_value,request_digest_value);
  INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment_id,device_id,credential_id,event_id,sequence,request_digest,policy_version,decision,action_kind,classification,occurred_at) VALUES(organization_value,workspace_value,environment_value,device_value,credential_value,event_value,next_floor_value,request_digest_value,policy_version_value,decision_value,action_kind_value,classification_value,occurred_value)

@@ -41,6 +41,34 @@ func TestGatewayRuntimeSyncsSignedPolicyAndEvaluatesWithoutControlPlaneCall(t *t
 	}
 }
 
+func TestGatewayRuntimeBindsBlockedCapabilityEvidence(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	now := gatewayRuntimeTime()
+	authority := gatewayRuntimeAuthority()
+	envelope := signedGatewayRuntimeEnvelope(t, private, authority, now, "closed")
+	control := &gatewayControlStub{authority: authority, envelope: &envelope}
+	keys, _ := policy.NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
+	cache, _ := policy.NewGatewayPolicyCache(keys, authority.Binding(), func() time.Time { return now })
+	runtime, err := newGatewayRuntime(gatewayRuntimeConfig{Control: control, Cache: cache, CredentialID: authority.CredentialID, BootstrapFailureMode: "closed", MaximumPendingEvents: 8, Now: func() time.Time { return now }})
+	if err != nil || runtime.SyncOnce(context.Background()) != nil {
+		t.Fatalf("runtime=%#v err=%v", runtime, err)
+	}
+	classification := gatewayRuntimeCapabilityClassification("data_write", "write")
+	result, err := runtime.Evaluate(context.Background(), gatewayEvaluationRequest{EventID: gatewayRuntimeID(9), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "shell"}, Classification: classification})
+	if err != nil || result.Decision != "block" || runtime.RecordOnce(context.Background()) != nil || len(control.events) != 1 {
+		t.Fatalf("result=%#v events=%#v err=%v", result, control.events, err)
+	}
+	for key, value := range classification {
+		if control.events[0].Classification[key] != value {
+			t.Fatalf("classification=%#v want %s=%s", control.events[0].Classification, key, value)
+		}
+	}
+	allow := gatewayEvaluationRequest{EventID: gatewayRuntimeID(8), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "read"}, Classification: gatewayRuntimeCapabilityClassification("data_read", "read")}
+	if result, err := runtime.Evaluate(context.Background(), allow); !errors.Is(err, errGatewayRuntime) || result.Decision != "" {
+		t.Fatalf("allow binding result=%#v err=%v", result, err)
+	}
+}
+
 func TestGatewayRuntimeAppliesDeterministicOfflineFailureMode(t *testing.T) {
 	public, _, _ := ed25519.GenerateKey(rand.Reader)
 	authority := gatewayRuntimeAuthority()
@@ -68,6 +96,8 @@ func TestGatewayRuntimeRejectsRawOrUnboundEvaluationData(t *testing.T) {
 		{EventID: gatewayRuntimeID(8), ActionKind: "mcp", Attributes: map[string]string{"tool.arguments": "secret"}, Classification: gatewayRuntimeClassification("block")},
 		{EventID: gatewayRuntimeID(8), ActionKind: "http", Attributes: map[string]string{"http.body": "secret"}, Classification: gatewayRuntimeClassification("block")},
 		{EventID: gatewayRuntimeID(8), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "shell"}, Classification: map[string]string{"category": "runtime", "outcome": "block", "authorization": "secret"}},
+		{EventID: gatewayRuntimeID(8), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "shell"}, Classification: map[string]string{"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "blocked", "agent_id": gatewayRuntimeID(6)}},
+		{EventID: gatewayRuntimeID(8), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "shell"}, Classification: gatewayRuntimeCapabilityClassification("data_read", "write")},
 	} {
 		if result, err := runtime.Evaluate(context.Background(), request); !errors.Is(err, errGatewayRuntime) || result.Decision != "" {
 			t.Fatalf("request=%#v result=%#v err=%v", request, result, err)
@@ -767,6 +797,15 @@ func gatewayRuntimeTime() time.Time { return time.Date(2026, 8, 20, 12, 0, 0, 0,
 
 func gatewayRuntimeClassification(outcome string) map[string]string {
 	return map[string]string{"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": outcome}
+}
+
+func gatewayRuntimeCapabilityClassification(category, outcome string) map[string]string {
+	classification := gatewayRuntimeClassification("blocked")
+	classification["agent_id"] = gatewayRuntimeID(6)
+	classification["target_id"] = gatewayRuntimeID(7)
+	classification["capability_category"] = category
+	classification["capability_outcome"] = outcome
+	return classification
 }
 
 func signedGatewayRuntimeEnvelope(t *testing.T, private ed25519.PrivateKey, authority gatewayAuthority, now time.Time, failureMode string) policy.GatewayPolicyEnvelope {

@@ -348,6 +348,9 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 	default:
 		return gatewayEvaluationResult{}, errGatewayRuntime
 	}
+	if len(request.Classification) == 8 && result.Decision != "block" {
+		return gatewayEvaluationResult{}, errGatewayRuntime
+	}
 
 	runtime.mu.Lock()
 	defer runtime.mu.Unlock()
@@ -855,7 +858,7 @@ func validGatewayEvaluationRequest(request gatewayEvaluationRequest) bool {
 }
 
 func validGatewayClassification(classification map[string]string) bool {
-	if len(classification) != 4 {
+	if len(classification) != 4 && len(classification) != 8 {
 		return false
 	}
 	for _, key := range []string{"category", "route_class", "resource_class", "outcome"} {
@@ -863,7 +866,30 @@ func validGatewayClassification(classification map[string]string) bool {
 			return false
 		}
 	}
-	return true
+	if len(classification) == 4 {
+		return true
+	}
+	return validGatewayProductID(classification["agent_id"]) && validGatewayProductID(classification["target_id"]) &&
+		validGatewayCapabilityPair(classification["capability_category"], classification["capability_outcome"])
+}
+
+func validGatewayCapabilityPair(category, outcome string) bool {
+	switch category {
+	case "data_read":
+		return outcome == "read"
+	case "data_write":
+		return outcome == "write"
+	case "action_execute":
+		return outcome == "execute"
+	case "identity_assume":
+		return outcome == "assume"
+	case "network_egress":
+		return outcome == "connect"
+	case "administration":
+		return outcome == "administer"
+	default:
+		return false
+	}
 }
 
 func validGatewayProductID(value string) bool {

@@ -1,7 +1,7 @@
 DO $release_guard$ BEGIN
  IF NOT zasp_runtime_data_plane_readiness(
-  '21eac3609860934afe00a98e578b69d6ead62691a62897b0f8df675e29ee7d58',
-  '72be40e39ab9785de056693d48abfe54c643d19a69e752cd7f0d90e06f275e5e'
+  '2925bc45eb49e1b9e99ab0ec7166f26bcabb435e0eef017a6c90a8ec530a8b53',
+  '3e86b35ff7b5459f7fe506dc68e40e1aeb4c8d27dee5812f536eed633e7c1b64'
  ) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime data plane release required';END IF;
 END $release_guard$;
 
@@ -36,7 +36,18 @@ REVOKE ALL ON TABLE public.zasp_runtime_gateway_reconciliation_state FROM PUBLIC
 CREATE OR REPLACE FUNCTION public.zasp_runtime_gateway_record_event(credential_value text,event_value text,expected_floor_value bigint,next_floor_value bigint,request_digest_value bytea,policy_version_value bigint,decision_value text,action_kind_value text,classification_value jsonb,occurred_value timestamptz) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
 DECLARE authority_value jsonb;organization_value text;workspace_value text;environment_value text;device_value text;existing_value zasp_runtime_gateway_events%ROWTYPE;canonical_digest bytea;result_value jsonb;
 BEGIN
- IF NOT zasp_valid_product_id(event_value) OR expected_floor_value<0 OR next_floor_value<=expected_floor_value OR octet_length(request_digest_value)<>32 OR policy_version_value<1 OR decision_value NOT IN('allow','monitor','block') OR action_kind_value NOT IN('http','mcp') OR jsonb_typeof(classification_value)<>'object' OR classification_value='{}'::jsonb OR classification_value-ARRAY['category','route_class','resource_class','outcome']<>'{}'::jsonb OR octet_length(convert_to(classification_value::text,'UTF8'))>16384 OR EXISTS(SELECT 1 FROM jsonb_each_text(classification_value) item WHERE length(item.value) NOT BETWEEN 1 AND 128 OR item.value<>btrim(item.value) OR item.value~'[[:cntrl:]]') OR occurred_value IS NULL OR occurred_value>transaction_timestamp()+interval '30 seconds' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway event rejected';END IF;
+ IF NOT zasp_valid_product_id(event_value) OR expected_floor_value<0 OR next_floor_value<=expected_floor_value OR octet_length(request_digest_value)<>32 OR policy_version_value<1 OR decision_value NOT IN('allow','monitor','block') OR action_kind_value NOT IN('http','mcp') OR jsonb_typeof(classification_value)<>'object'
+  OR NOT classification_value ?& ARRAY['category','route_class','resource_class','outcome']
+  OR classification_value-ARRAY['category','route_class','resource_class','outcome','agent_id','target_id','capability_category','capability_outcome']<>'{}'::jsonb
+  OR octet_length(convert_to(classification_value::text,'UTF8'))>16384
+  OR EXISTS(SELECT 1 FROM jsonb_each_text(classification_value) item WHERE length(item.value) NOT BETWEEN 1 AND 64 OR item.value<>btrim(item.value) OR item.value!~'^[a-z][a-z0-9._:-]{0,63}$')
+  OR classification_value ?| ARRAY['agent_id','target_id','capability_category','capability_outcome'] AND (
+   decision_value<>'block' OR NOT classification_value ?& ARRAY['agent_id','target_id','capability_category','capability_outcome']
+   OR NOT zasp_valid_product_id(classification_value->>'agent_id') OR NOT zasp_valid_product_id(classification_value->>'target_id')
+   OR (classification_value->>'capability_category',classification_value->>'capability_outcome') NOT IN(('data_read','read'),('data_write','write'),('action_execute','execute'),('identity_assume','assume'),('network_egress','connect'),('administration','administer'))
+  )
+  OR occurred_value IS NULL OR occurred_value>transaction_timestamp()+interval '30 seconds'
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway event rejected';END IF;
  authority_value:=zasp_runtime_gateway_credential_authority(credential_value,'runtime-gateway');organization_value:=authority_value->>'organization_id';workspace_value:=authority_value->>'workspace_id';environment_value:=authority_value->>'environment_id';device_value:=authority_value->>'device_id';
  canonical_digest:=digest(convert_to(jsonb_build_object('credential_id',credential_value,'device_id',device_value,'event_id',event_value,'expected_floor',expected_floor_value,'next_floor',next_floor_value,'policy_version',policy_version_value,'decision',decision_value,'action_kind',action_kind_value,'classification',classification_value,'occurred_at',to_char(occurred_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))::text,'UTF8'),'sha256');
  IF canonical_digest<>request_digest_value THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway event rejected';END IF;
@@ -50,6 +61,9 @@ BEGIN
  IF occurred_value<transaction_timestamp()-interval '24 hours' THEN
   UPDATE zasp_runtime_gateway_reconciliation_state SET used_at=COALESCE(used_at,transaction_timestamp()) WHERE singleton;
   RETURN jsonb_build_object('event_id',event_value,'outcome','record_window_expired');
+ END IF;
+ IF classification_value ? 'agent_id' THEN
+  PERFORM zasp_inventory_record_capability_evidence(organization_value,workspace_value,environment_value,classification_value->>'agent_id',classification_value->>'target_id',classification_value->>'capability_category',classification_value->>'capability_outcome','runtime_policy',event_value,occurred_value);
  END IF;
  PERFORM zasp_runtime_gateway_advance_replay(credential_value,expected_floor_value,next_floor_value,request_digest_value);
  INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment_id,device_id,credential_id,event_id,sequence,request_digest,policy_version,decision,action_kind,classification,occurred_at) VALUES(organization_value,workspace_value,environment_value,device_value,credential_value,event_value,next_floor_value,request_digest_value,policy_version_value,decision_value,action_kind_value,classification_value,occurred_value)
@@ -66,7 +80,7 @@ CREATE FUNCTION public.zasp_runtime_gateway_reconciliation_security_ready() RETU
 CREATE FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
  SELECT length(expected_checksum)=64 AND length(expected_fingerprint)=64
   AND EXISTS(SELECT 1 FROM zasp_schema_versions release WHERE (release.version,release.name,release.checksum)=(16,'runtime_gateway_reconciliation',expected_checksum) AND NOT EXISTS(SELECT 1 FROM zasp_schema_versions later WHERE later.version>16))
-  AND EXISTS(SELECT 1 FROM zasp_schema_versions release WHERE (release.version,release.name,release.checksum)=(15,'runtime_data_plane','21eac3609860934afe00a98e578b69d6ead62691a62897b0f8df675e29ee7d58'))
+  AND EXISTS(SELECT 1 FROM zasp_schema_versions release WHERE (release.version,release.name,release.checksum)=(15,'runtime_data_plane','2925bc45eb49e1b9e99ab0ec7166f26bcabb435e0eef017a6c90a8ec530a8b53'))
   AND EXISTS(SELECT 1 FROM zasp_schema_metadata metadata WHERE (metadata.key,metadata.value)=('production_core_schema','runtime-data-plane-v1'))
   AND EXISTS(SELECT 1 FROM zasp_schema_metadata metadata WHERE (metadata.key,metadata.value)=('runtime_gateway_reconciliation_fingerprint',expected_fingerprint))
   AND zasp_runtime_gateway_reconciliation_live_fingerprint()=expected_fingerprint
@@ -100,4 +114,4 @@ ALTER FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(text,text) O
 REVOKE ALL ON FUNCTION public.zasp_runtime_gateway_reconciliation_live_fingerprint(),public.zasp_runtime_gateway_reconciliation_security_ready(),public.zasp_runtime_gateway_reconciliation_readiness(text,text) FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
 GRANT EXECUTE ON FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(text,text) TO zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_gateway_reconciliation_fingerprint', '3f427d0c061d5ad7367e3b3e14f9ec5980852bb265f61c0daaa03d72278cc19b');
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_gateway_reconciliation_fingerprint', 'bff940634d9c5d17dd09702e370531f40fb3d9f7b84526f331a06dc98f935067');

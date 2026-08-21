@@ -44,6 +44,9 @@ func TestProductionRuntimeDataPlaneRegistersImmutableV15Authority(t *testing.T) 
 		"zasp_runtime_gateway_put_policy_bundle",
 		"zasp_runtime_gateway_policy_bundle",
 		"zasp_runtime_gateway_record_event",
+		"zasp_inventory_record_capability_evidence",
+		"capability_category",
+		"capability_outcome",
 		"runtime-gateway-policy",
 		"Ed25519",
 		"locator_digest",
@@ -77,6 +80,11 @@ func TestProductionRuntimeDataPlaneRegistersImmutableV15Authority(t *testing.T) 
 	fingerprint := ProductionRuntimeDataPlaneSemanticFingerprint()
 	if len(fingerprint) != 64 || !strings.Contains(metadata.UpSQL(), fingerprint) || !strings.Contains(metadata.DownSQL(), fingerprint) {
 		t.Fatalf("runtime data plane fingerprint = %q", fingerprint)
+	}
+	capabilityEvidence := strings.Index(metadata.UpSQL(), "PERFORM zasp_inventory_record_capability_evidence")
+	advanceFloor := strings.Index(metadata.UpSQL(), "PERFORM zasp_runtime_gateway_advance_replay(credential_value,expected_floor_value,next_floor_value,request_digest_value)")
+	if capabilityEvidence < 0 || advanceFloor < 0 || capabilityEvidence > advanceFloor {
+		t.Fatalf("runtime capability evidence must precede replay mutation: evidence=%d advance=%d", capabilityEvidence, advanceFloor)
 	}
 }
 

@@ -69,6 +69,31 @@ func TestPostgresRepositoryRecordsThroughServerCanonicalDigest(t *testing.T) {
 	}
 }
 
+func TestDecisionEventAcceptsOnlyExactBlockedCapabilityBinding(t *testing.T) {
+	authority := fixtureAuthority(make([]byte, 32))
+	base := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "block", ActionKind: "mcp", Classification: map[string]string{
+		"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "blocked",
+		"agent_id": fixtureID(10), "target_id": fixtureID(11), "capability_category": "identity_assume", "capability_outcome": "assume",
+	}, OccurredAt: time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)}
+	if !validDecisionEvent(base) {
+		t.Fatalf("valid blocked binding rejected: %#v", base)
+	}
+	for name, mutate := range map[string]func(*DecisionEvent){
+		"partial": func(value *DecisionEvent) { delete(value.Classification, "target_id") },
+		"pair":    func(value *DecisionEvent) { value.Classification["capability_outcome"] = "write" },
+		"allow":   func(value *DecisionEvent) { value.Decision = "allow" },
+		"monitor": func(value *DecisionEvent) { value.Decision = "monitor" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate := cloneDecisionEvent(base)
+			mutate(&candidate)
+			if validDecisionEvent(candidate) {
+				t.Fatalf("hostile binding accepted: %#v", candidate)
+			}
+		})
+	}
+}
+
 func TestPostgresRepositoryReturnsOnlyExactExpiredRecordOutcome(t *testing.T) {
 	authority := fixtureAuthority(make([]byte, 32))
 	event := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "monitor", ActionKind: "mcp", Classification: map[string]string{"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "monitored"}, OccurredAt: time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)}
