@@ -1013,8 +1013,8 @@ $readiness$;
 
 ALTER FUNCTION public.zasp_security_agent_live_fingerprint() OWNER TO zasp_discovery_authority;
 ALTER FUNCTION public.zasp_security_agent_readiness(text,text) OWNER TO zasp_discovery_authority;
-REVOKE ALL ON FUNCTION public.zasp_security_agent_live_fingerprint(),public.zasp_security_agent_readiness(text,text) FROM PUBLIC,zasp_security_agent_api,zasp_security_agent_worker;
-GRANT EXECUTE ON FUNCTION public.zasp_security_agent_readiness(text,text) TO zasp_discovery_api,zasp_security_agent_api,zasp_security_agent_worker;
+REVOKE ALL ON FUNCTION public.zasp_security_agent_live_fingerprint(),public.zasp_security_agent_readiness(text,text) FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control,zasp_security_agent_api,zasp_security_agent_worker;
+GRANT EXECUTE ON FUNCTION public.zasp_security_agent_readiness(text,text) TO zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control,zasp_security_agent_api,zasp_security_agent_worker;
 
 DO $schema_marker$
 BEGIN
@@ -1023,5 +1023,5 @@ BEGIN
 END
 $schema_marker$;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', '0b2c30b3eed43ca5e7d2cb96ed991f805bc4775eb671a0c24db8408f578bc9bd')
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', '3089706b007901e79475a26b50e66b0406e2c4f5b500aff0e689c944a28f8957')
 ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;

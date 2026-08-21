@@ -270,6 +270,32 @@ CREATE ROLE execution_search_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATE
 	if schema, err := apiDatabase.SchemaVersion(ctx); err != nil || schema != TypedInventorySchemaVersion {
 		t.Fatalf("v14 API schema=%q err=%v", schema, err)
 	}
+	if err := runner.UpProductionRuntimeDataPlane(ctx); err != nil {
+		t.Fatalf("v15 migration: %v", err)
+	}
+	if err := runner.UpProductionRuntimeGatewayReconciliation(ctx); err != nil {
+		t.Fatalf("v16 migration: %v", err)
+	}
+	if err := runner.UpProductionRuntimeIngestReconciliation(ctx); err != nil {
+		t.Fatalf("v17 migration: %v", err)
+	}
+	if err := runner.UpProductionSecurityAgentExecution(ctx); err != nil {
+		t.Fatalf("v18 migration: %v", err)
+	}
+	assertConstructors(true, "exact v18 inherited discovery authority")
+	for _, test := range cases {
+		if test.principal != "execution_outbox_login" {
+			continue
+		}
+		runtimeOutboxCase := test
+		runtimeOutboxCase.construct = func(database JSONDatabase) error {
+			_, err := NewRuntimeOutboxRepository(database)
+			return err
+		}
+		if err := constructAs(runtimeOutboxCase); err != nil {
+			t.Fatalf("runtime outbox constructor under exact v18 authority: %v", err)
+		}
+	}
 }
 
 func TestProductionDiscoveryExecutionFingerprintIsStableAcrossMigrationPrincipalAndOwnerReapply(t *testing.T) {
