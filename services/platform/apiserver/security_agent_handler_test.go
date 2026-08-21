@@ -112,6 +112,30 @@ func TestSecurityAgentPublicHandlerReadsExactActivationState(t *testing.T) {
 	}
 }
 
+func TestSecurityAgentPublicHandlerSerializesEmptyRunAndApprovalCollections(t *testing.T) {
+	stub := &securityAgentPublicAuthorityStub{}
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: time.Now, NewProductID: newWorkflowProductID, SigningKey: securityAgentTestSigningKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	for _, test := range []struct {
+		operation string
+		path      string
+	}{
+		{operation: "listSecurityAgentRuns", path: "/api/v1/security-agent-runs?limit=100"},
+		{operation: "listSecurityAgentApprovals", path: "/api/v1/security-agent-approvals?limit=100"},
+	} {
+		request := workflowRequest(t, identity, testCorrelationID, test.operation, nil, http.MethodGet, test.path, "")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" || response.Body.String() != "{\"items\":[]}\n" {
+			t.Fatalf("%s status=%d headers=%v body=%s", test.operation, response.Code, response.Header(), response.Body.String())
+		}
+	}
+}
+
 func TestSecurityAgentPublicHandlerQueuesExactTenantFindingRun(t *testing.T) {
 	definitionID := "pid_78000001-0000-4000-8000-000000000001"
 	evidenceID := "pid_78000005-0000-4000-8000-000000000005"

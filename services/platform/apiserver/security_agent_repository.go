@@ -147,7 +147,7 @@ func (repository *PostgresRepository) ListSecurityAgentRuns(ctx context.Context,
 			return SecurityAgentRunPage{}, ErrRepositoryUnavailable
 		}
 	}
-	page := SecurityAgentRunPage{Items: append([]SecurityAgentRun(nil), wire.Items...), NextCreatedAt: wire.NextCreatedAt}
+	page := SecurityAgentRunPage{Items: append([]SecurityAgentRun{}, wire.Items...), NextCreatedAt: wire.NextCreatedAt}
 	if wire.NextID != nil {
 		if wire.NextCreatedAt.IsZero() || wire.NextCreatedAt.Location() != time.UTC || !validProductID(*wire.NextID) {
 			return SecurityAgentRunPage{}, ErrRepositoryUnavailable
@@ -217,7 +217,7 @@ func (repository *PostgresRepository) ListSecurityAgentApprovals(ctx context.Con
 			return SecurityAgentApprovalPage{}, ErrRepositoryUnavailable
 		}
 	}
-	page := SecurityAgentApprovalPage{Items: append([]SecurityAgentApproval(nil), wire.Items...), NextCreatedAt: wire.NextCreatedAt}
+	page := SecurityAgentApprovalPage{Items: append([]SecurityAgentApproval{}, wire.Items...), NextCreatedAt: wire.NextCreatedAt}
 	if wire.NextID != nil {
 		if wire.NextCreatedAt.IsZero() || wire.NextCreatedAt.Location() != time.UTC || !validProductID(*wire.NextID) {
 			return SecurityAgentApprovalPage{}, ErrRepositoryUnavailable

@@ -362,7 +362,7 @@ func (handler *securityAgentPublicHTTPHandler) listRuns(writer http.ResponseWrit
 		writeProductionError(writer, request, err)
 		return
 	}
-	value := map[string]any{"items": page.Items}
+	value := map[string]any{"items": append([]SecurityAgentRun{}, page.Items...)}
 	if page.NextCreatedAt != nil {
 		value["next_cursor"] = handler.encodePageCursor(identity, "listSecurityAgentRuns", limit, definitionID, state, "", *page.NextCreatedAt, page.NextID)
 	}
@@ -449,7 +449,7 @@ func (handler *securityAgentPublicHTTPHandler) listApprovals(writer http.Respons
 		writeProductionError(writer, request, err)
 		return
 	}
-	value := map[string]any{"items": page.Items}
+	value := map[string]any{"items": append([]SecurityAgentApproval{}, page.Items...)}
 	if page.NextCreatedAt != nil {
 		value["next_cursor"] = handler.encodePageCursor(identity, "listSecurityAgentApprovals", limit, "", state, runID, *page.NextCreatedAt, page.NextID)
 	}

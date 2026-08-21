@@ -183,6 +183,29 @@ func TestSecurityAgentPostgresRepositoryReadsExactScopedRunsAndApprovals(t *test
 	}
 }
 
+func TestSecurityAgentPostgresRepositoryPreservesEmptyRunAndApprovalCollections(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresIdentityAdminSecurityAgentReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentAuthorityReadySQL:     json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentRunPageSQL:            json.RawMessage(`{"items":[],"next_created_at":null,"next_id":null}`),
+		postgresSecurityAgentApprovalPageSQL:       json.RawMessage(`{"items":[],"next_created_at":null,"next_id":null}`),
+	}}
+	repository, err := NewSecurityAgentPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runs, err := repository.ListSecurityAgentRuns(context.Background(), identity, SecurityAgentRunPageRequest{Limit: 100})
+	if err != nil || runs.Items == nil || len(runs.Items) != 0 {
+		t.Fatalf("runs=%#v err=%v", runs, err)
+	}
+	approvals, err := repository.ListSecurityAgentApprovals(context.Background(), identity, SecurityAgentApprovalPageRequest{Limit: 100})
+	if err != nil || approvals.Items == nil || len(approvals.Items) != 0 {
+		t.Fatalf("approvals=%#v err=%v", approvals, err)
+	}
+}
+
 func TestSecurityAgentPostgresRepositoryCancelsWithoutExposingMutationAuthority(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	identity.CredentialKind = CredentialBrowserSession
