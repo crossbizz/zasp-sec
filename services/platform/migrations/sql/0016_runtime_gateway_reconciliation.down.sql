@@ -1,5 +1,5 @@
 DO $reconciliation_guard$ BEGIN
- IF zasp_runtime_gateway_reconciliation_live_fingerprint()<>'baf48507379aeb75fddff0df0549e90b88e578d8d667770d17cdd350c268a1e5' OR NOT zasp_runtime_gateway_reconciliation_security_ready() THEN
+ IF zasp_runtime_gateway_reconciliation_live_fingerprint()<>'a124de1fb24806a16ec92c590b2cee79748ffbdf721c360c9e7f02b9a6ba00f2' OR NOT zasp_runtime_gateway_reconciliation_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime gateway reconciliation drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_runtime_gateway_reconciliation_state WHERE used_at IS NOT NULL) THEN
@@ -24,7 +24,7 @@ DO $product_release_restore$ DECLARE definition text;original_definition text;BE
  EXECUTE definition;
 END $product_release_restore$;
 
-DELETE FROM public.zasp_schema_metadata WHERE (key,value)=('runtime_gateway_reconciliation_fingerprint','baf48507379aeb75fddff0df0549e90b88e578d8d667770d17cdd350c268a1e5');
+DELETE FROM public.zasp_schema_metadata WHERE (key,value)=('runtime_gateway_reconciliation_fingerprint','a124de1fb24806a16ec92c590b2cee79748ffbdf721c360c9e7f02b9a6ba00f2');
 DROP FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(text,text);
 DROP FUNCTION public.zasp_runtime_gateway_reconciliation_live_fingerprint();
 DROP FUNCTION public.zasp_runtime_gateway_reconciliation_security_ready();

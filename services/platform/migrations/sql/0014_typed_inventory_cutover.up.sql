@@ -613,14 +613,14 @@ BEGIN
    SELECT organization_value,workspace_value,environment_value,integration_value,source_value,snapshot_value,generation_value,input_digest_value,content_digest_value,item->>'section',item->>'id',item->'payload' FROM jsonb_array_elements(canonical_items) item;
 
    WITH ranked_findings AS (
-    SELECT item.payload->>'finding_id' finding_id,item.payload->>'check_id' check_id,item.payload->>'id' evidence_id,item.source,
+    SELECT item.payload->>'finding_id' finding_id,item.payload->>'entity_id' entity_id,item.payload->>'check_id' check_id,item.payload->>'id' evidence_id,item.source,
       row_number() OVER(PARTITION BY item.payload->>'finding_id' ORDER BY item.integration_id,item.source,item.item_id) rank_value
     FROM zasp_discovery_risk_projection_items item
     WHERE (item.organization_id,item.workspace_id,item.environment_id,item.section)=(organization_value,workspace_value,environment_value,'evidence')
-      AND item.payload ?& ARRAY['finding_id','check_id','severity','status'] AND item.payload->>'severity'='high' AND item.payload->>'status'='FAIL'
-      AND zasp_valid_product_id(item.payload->>'finding_id') AND zasp_valid_product_id(item.payload->>'id') AND item.payload->>'check_id' ~ '^[a-z][a-z0-9_]{0,63}$'
+      AND item.payload ?& ARRAY['finding_id','entity_id','check_id','severity','status'] AND item.payload->>'severity'='high' AND item.payload->>'status'='FAIL'
+      AND zasp_valid_product_id(item.payload->>'finding_id') AND zasp_valid_product_id(item.payload->>'entity_id') AND zasp_valid_product_id(item.payload->>'id') AND item.payload->>'check_id' ~ '^[a-z][a-z0-9_]{0,63}$'
    )
-   SELECT COALESCE(jsonb_agg(jsonb_build_object('finding_id',finding_id,'check_id',check_id,'evidence_id',evidence_id,'source',source) ORDER BY finding_id),'[]'::jsonb) INTO finding_items FROM ranked_findings WHERE rank_value=1;
+   SELECT COALESCE(jsonb_agg(jsonb_build_object('finding_id',finding_id,'entity_id',entity_id,'check_id',check_id,'evidence_id',evidence_id,'source',source) ORDER BY finding_id),'[]'::jsonb) INTO finding_items FROM ranked_findings WHERE rank_value=1;
    PERFORM zasp_inventory_apply_findings(organization_value,workspace_value,environment_value,finding_items);
  END IF;
  RETURN jsonb_build_object('snapshot_id',snapshot_value,'integration_id',integration_value,'source',source_value,'generation',generation_value,'input_digest',encode(input_digest_value,'base64'),'content_digest',encode(content_digest_value,'base64'),'driver_receipt','postgres:risk-input:'||snapshot_value||':sha256:'||encode(content_digest_value,'hex'),'replayed',replayed_value);
@@ -630,17 +630,24 @@ REVOKE ALL ON FUNCTION public.zasp_execution_apply_risk_projection(text,text,tex
 GRANT EXECUTE ON FUNCTION public.zasp_execution_apply_risk_projection(text,text,text,text,text,text,text,text,text,bigint,bytea,jsonb) TO zasp_projection_risk_worker;
 
 CREATE FUNCTION public.zasp_inventory_apply_findings(organization_value text,workspace_value text,environment_value text,items_value jsonb) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
+DECLARE old_path_ids text[];path_items jsonb;
 BEGIN
  IF jsonb_typeof(items_value)<>'array' OR jsonb_array_length(items_value)>1000 OR octet_length(items_value::text)>1048576 OR EXISTS(
   SELECT 1 FROM jsonb_array_elements(items_value) item
-  WHERE jsonb_typeof(item)<>'object' OR NOT item ?& ARRAY['finding_id','check_id','evidence_id','source'] OR item-ARRAY['finding_id','check_id','evidence_id','source']<>'{}'::jsonb
-    OR NOT zasp_valid_product_id(item->>'finding_id') OR NOT zasp_valid_product_id(item->>'evidence_id') OR item->>'check_id' !~ '^[a-z][a-z0-9_]{0,63}$' OR item->>'source' NOT IN('aws','kubernetes','github','okta')
+  WHERE jsonb_typeof(item)<>'object' OR NOT item ?& ARRAY['finding_id','entity_id','check_id','evidence_id','source'] OR item-ARRAY['finding_id','entity_id','check_id','evidence_id','source']<>'{}'::jsonb
+    OR NOT zasp_valid_product_id(item->>'finding_id') OR NOT zasp_valid_product_id(item->>'entity_id') OR NOT zasp_valid_product_id(item->>'evidence_id') OR item->>'check_id' !~ '^[a-z][a-z0-9_]{0,63}$' OR item->>'source' NOT IN('aws','kubernetes','github','okta')
  ) OR EXISTS(SELECT item->>'finding_id' FROM jsonb_array_elements(items_value) item GROUP BY item->>'finding_id' HAVING count(*)>1) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid public finding projection';END IF;
  IF EXISTS(
   SELECT 1 FROM jsonb_array_elements(items_value) item JOIN zasp_risk_findings finding
     ON (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=(organization_value,workspace_value,environment_value,item->>'finding_id')
   WHERE finding.source<>'prowler' OR finding.compliance_context NOT LIKE 'zasp-discovery:%'
  ) THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='risk finding ownership conflict';END IF;
+
+ SELECT COALESCE(array_agg(DISTINCT path.id),'{}'::text[]) INTO old_path_ids FROM zasp_risk_findings finding
+ JOIN zasp_risk_attack_paths path ON (path.organization_id,path.workspace_id,path.environment_id,path.id)=(finding.organization_id,finding.workspace_id,finding.environment_id,finding.path_id)
+ WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.source)=(organization_value,workspace_value,environment_value,'prowler')
+   AND finding.compliance_context LIKE 'zasp-discovery:%'
+   AND path.id=zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'attack_path',finding.id||chr(31)||(SELECT string_agg(node.node_id,chr(31) ORDER BY node.position) FROM zasp_risk_attack_path_nodes node WHERE (node.organization_id,node.workspace_id,node.environment_id,node.path_id)=(organization_value,workspace_value,environment_value,path.id)));
 
  INSERT INTO zasp_risk_findings AS finding(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status,compliance_context)
  SELECT organization_value,workspace_value,environment_value,item->>'finding_id','prowler',item->>'check_id','Discovered '||upper(item->>'source')||' control '||(item->>'check_id'),'high','open','zasp-discovery:'||(item->>'source')||':'||(item->>'check_id') FROM jsonb_array_elements(items_value) item
@@ -650,20 +657,92 @@ BEGIN
   version=finding.version+CASE WHEN (finding.source,finding.rule,finding.title,finding.severity,finding.status,finding.compliance_context,finding.acceptance_reason) IS DISTINCT FROM ('prowler',excluded.rule,excluded.title,'high',CASE WHEN finding.status IN('accepted','under_review') THEN finding.status ELSE 'open' END,excluded.compliance_context,CASE WHEN finding.status='accepted' THEN finding.acceptance_reason ELSE NULL END) THEN 1 ELSE 0 END,
   updated_at=CASE WHEN (finding.source,finding.rule,finding.title,finding.severity,finding.status,finding.compliance_context,finding.acceptance_reason) IS DISTINCT FROM ('prowler',excluded.rule,excluded.title,'high',CASE WHEN finding.status IN('accepted','under_review') THEN finding.status ELSE 'open' END,excluded.compliance_context,CASE WHEN finding.status='accepted' THEN finding.acceptance_reason ELSE NULL END) THEN transaction_timestamp() ELSE finding.updated_at END;
 
- WITH removed AS (
-  DELETE FROM zasp_risk_finding_evidence evidence_value USING jsonb_array_elements(items_value) item
-  WHERE (evidence_value.organization_id,evidence_value.workspace_id,evidence_value.environment_id,evidence_value.finding_id)=(organization_value,workspace_value,environment_value,item->>'finding_id')
- )
+ DELETE FROM zasp_risk_finding_evidence evidence_value USING jsonb_array_elements(items_value) item
+ WHERE (evidence_value.organization_id,evidence_value.workspace_id,evidence_value.environment_id,evidence_value.finding_id)=(organization_value,workspace_value,environment_value,item->>'finding_id');
  INSERT INTO zasp_risk_finding_evidence(organization_id,workspace_id,environment_id,finding_id,position,evidence_id)
  SELECT organization_value,workspace_value,environment_value,item->>'finding_id',1,item->>'evidence_id' FROM jsonb_array_elements(items_value) item;
 
- UPDATE zasp_risk_findings finding SET status='resolved',acceptance_reason=NULL,version=finding.version+1,updated_at=transaction_timestamp()
+ WITH RECURSIVE input_items AS (
+  SELECT item->>'finding_id' finding_id,item->>'entity_id' entity_id,item->>'evidence_id' evidence_id FROM jsonb_array_elements(items_value) item
+ ),edges AS (
+  SELECT CASE WHEN relationship.kind='trusts' THEN relationship.to_entity_id ELSE relationship.from_entity_id END from_id,
+         CASE WHEN relationship.kind='trusts' THEN relationship.from_entity_id ELSE relationship.to_entity_id END to_id
+  FROM zasp_inventory_relationships relationship
+  JOIN zasp_inventory_entities from_entity ON (from_entity.organization_id,from_entity.workspace_id,from_entity.environment_id,from_entity.id,from_entity.state)=(relationship.organization_id,relationship.workspace_id,relationship.environment_id,relationship.from_entity_id,'active')
+  JOIN zasp_inventory_entities to_entity ON (to_entity.organization_id,to_entity.workspace_id,to_entity.environment_id,to_entity.id,to_entity.state)=(relationship.organization_id,relationship.workspace_id,relationship.environment_id,relationship.to_entity_id,'active')
+  WHERE (relationship.organization_id,relationship.workspace_id,relationship.environment_id,relationship.state)=(organization_value,workspace_value,environment_value,'present')
+    AND relationship.kind IN('assigned_to','binds','uses_policy','uses_identity','has_permission','depends_on','member_of','trusts')
+ ),walk AS (
+  SELECT input.finding_id,input.evidence_id,ARRAY[edge.from_id,edge.to_id]::text[] node_ids
+  FROM input_items input JOIN edges edge ON edge.to_id=input.entity_id
+  UNION ALL
+  SELECT walk.finding_id,walk.evidence_id,ARRAY[edge.from_id]::text[]||walk.node_ids
+  FROM walk JOIN edges edge ON edge.to_id=walk.node_ids[1]
+  WHERE cardinality(walk.node_ids)<8 AND NOT edge.from_id=ANY(walk.node_ids)
+ ),ranked AS (
+  SELECT walk.*,row_number() OVER(PARTITION BY walk.finding_id ORDER BY cardinality(walk.node_ids) DESC,array_to_string(walk.node_ids,chr(31))) rank_value
+  FROM walk JOIN zasp_inventory_entities entry ON (entry.organization_id,entry.workspace_id,entry.environment_id,entry.id,entry.state)=(organization_value,workspace_value,environment_value,walk.node_ids[1],'active')
+  WHERE entry.product_kind IN('identity','agent','tool','runtime') OR EXISTS(
+   SELECT 1 FROM zasp_inventory_source_observations observation
+   WHERE (observation.organization_id,observation.workspace_id,observation.environment_id,observation.entity_id,observation.source_state,observation.source_kind)=(organization_value,workspace_value,environment_value,entry.id,'present','aws_role')
+  )
+ ),selected AS (
+  SELECT finding_id,evidence_id,node_ids,zasp_discovery_canonical_id(organization_value,workspace_value,environment_value,'attack_path',finding_id||chr(31)||array_to_string(node_ids,chr(31))) path_id
+  FROM ranked WHERE rank_value=1
+ )
+ SELECT COALESCE(jsonb_agg(jsonb_build_object('finding_id',finding_id,'evidence_id',evidence_id,'path_id',path_id,'entry_id',node_ids[1],'sink_id',node_ids[cardinality(node_ids)],'node_ids',to_jsonb(node_ids)) ORDER BY finding_id),'[]'::jsonb) INTO path_items FROM selected;
+
+ IF EXISTS(
+  SELECT 1 FROM jsonb_array_elements(path_items) candidate JOIN zasp_risk_attack_paths path
+    ON (path.organization_id,path.workspace_id,path.environment_id,path.id)=(organization_value,workspace_value,environment_value,candidate->>'path_id')
+  WHERE NOT EXISTS(SELECT 1 FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id,finding.path_id,finding.source)=(organization_value,workspace_value,environment_value,candidate->>'finding_id',path.id,'prowler') AND finding.compliance_context LIKE 'zasp-discovery:%')
+    OR (path.entry_id,path.sink_id) IS DISTINCT FROM (candidate->>'entry_id',candidate->>'sink_id')
+    OR (SELECT COALESCE(jsonb_agg(node.node_id ORDER BY node.position),'[]'::jsonb) FROM zasp_risk_attack_path_nodes node WHERE (node.organization_id,node.workspace_id,node.environment_id,node.path_id)=(organization_value,workspace_value,environment_value,path.id)) IS DISTINCT FROM candidate->'node_ids'
+ ) THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='risk attack path ownership conflict';END IF;
+
+ WITH candidates AS (SELECT candidate FROM jsonb_array_elements(path_items) candidate)
+ UPDATE zasp_risk_attack_paths path SET
+  state=CASE WHEN path.state='blocked' THEN 'blocked' ELSE 'observed' END,
+  blocked_edge=CASE WHEN path.state='blocked' THEN path.blocked_edge ELSE -1 END,
+  version=path.version+CASE WHEN path.state NOT IN('blocked','observed') OR (SELECT COALESCE(jsonb_agg(evidence.evidence_id ORDER BY evidence.position),'[]'::jsonb) FROM zasp_risk_attack_path_evidence evidence WHERE (evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.path_id)=(organization_value,workspace_value,environment_value,path.id)) IS DISTINCT FROM jsonb_build_array(candidates.candidate->>'evidence_id') THEN 1 ELSE 0 END,
+  updated_at=CASE WHEN path.state NOT IN('blocked','observed') OR (SELECT COALESCE(jsonb_agg(evidence.evidence_id ORDER BY evidence.position),'[]'::jsonb) FROM zasp_risk_attack_path_evidence evidence WHERE (evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.path_id)=(organization_value,workspace_value,environment_value,path.id)) IS DISTINCT FROM jsonb_build_array(candidates.candidate->>'evidence_id') THEN transaction_timestamp() ELSE path.updated_at END
+ FROM candidates WHERE (path.organization_id,path.workspace_id,path.environment_id,path.id)=(organization_value,workspace_value,environment_value,candidates.candidate->>'path_id');
+
+ INSERT INTO zasp_risk_attack_paths(organization_id,workspace_id,environment_id,id,entry_id,sink_id,state)
+ SELECT organization_value,workspace_value,environment_value,candidate->>'path_id',candidate->>'entry_id',candidate->>'sink_id','observed' FROM jsonb_array_elements(path_items) candidate
+ ON CONFLICT(organization_id,workspace_id,environment_id,id) DO NOTHING;
+
+ DELETE FROM zasp_risk_break_options option_value USING jsonb_array_elements(path_items) candidate WHERE (option_value.organization_id,option_value.workspace_id,option_value.environment_id,option_value.path_id)=(organization_value,workspace_value,environment_value,candidate->>'path_id');
+ DELETE FROM zasp_risk_attack_path_evidence evidence_value USING jsonb_array_elements(path_items) candidate WHERE (evidence_value.organization_id,evidence_value.workspace_id,evidence_value.environment_id,evidence_value.path_id)=(organization_value,workspace_value,environment_value,candidate->>'path_id');
+ DELETE FROM zasp_risk_attack_path_nodes node_value USING jsonb_array_elements(path_items) candidate WHERE (node_value.organization_id,node_value.workspace_id,node_value.environment_id,node_value.path_id)=(organization_value,workspace_value,environment_value,candidate->>'path_id');
+
+ INSERT INTO zasp_risk_attack_path_nodes(organization_id,workspace_id,environment_id,path_id,position,node_id)
+ SELECT organization_value,workspace_value,environment_value,candidate->>'path_id',node.ordinality::smallint,node.node_id
+ FROM jsonb_array_elements(path_items) candidate CROSS JOIN LATERAL jsonb_array_elements_text(candidate->'node_ids') WITH ORDINALITY node(node_id,ordinality);
+ INSERT INTO zasp_risk_attack_path_evidence(organization_id,workspace_id,environment_id,path_id,position,evidence_id)
+ SELECT organization_value,workspace_value,environment_value,candidate->>'path_id',1,candidate->>'evidence_id' FROM jsonb_array_elements(path_items) candidate;
+ INSERT INTO zasp_risk_break_options(organization_id,workspace_id,environment_id,path_id,rank,target_id,evidence_id,kind)
+ SELECT organization_value,workspace_value,environment_value,candidate->>'path_id',node.ordinality::smallint,node.node_id,candidate->>'evidence_id',CASE WHEN node.ordinality=1 THEN 'remove_node' ELSE 'enforce_policy' END
+ FROM jsonb_array_elements(path_items) candidate CROSS JOIN LATERAL jsonb_array_elements_text(candidate->'node_ids') WITH ORDINALITY node(node_id,ordinality);
+
+ WITH candidates AS (SELECT candidate FROM jsonb_array_elements(path_items) candidate)
+ UPDATE zasp_risk_findings finding SET path_id=candidates.candidate->>'path_id',version=finding.version+CASE WHEN finding.path_id IS DISTINCT FROM candidates.candidate->>'path_id' AND finding.updated_at<>transaction_timestamp() THEN 1 ELSE 0 END,updated_at=CASE WHEN finding.path_id IS DISTINCT FROM candidates.candidate->>'path_id' THEN transaction_timestamp() ELSE finding.updated_at END
+ FROM candidates WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=(organization_value,workspace_value,environment_value,candidates.candidate->>'finding_id');
+ UPDATE zasp_risk_findings finding SET path_id=NULL,version=finding.version+1,updated_at=transaction_timestamp()
+ WHERE (finding.organization_id,finding.workspace_id,finding.environment_id)=(organization_value,workspace_value,environment_value) AND finding.path_id IS NOT NULL
+   AND EXISTS(SELECT 1 FROM jsonb_array_elements(items_value) item WHERE item->>'finding_id'=finding.id)
+   AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(path_items) candidate WHERE candidate->>'finding_id'=finding.id);
+
+ UPDATE zasp_risk_findings finding SET status='resolved',path_id=NULL,acceptance_reason=NULL,version=finding.version+1,updated_at=transaction_timestamp()
  WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.source)=(organization_value,workspace_value,environment_value,'prowler')
    AND finding.compliance_context LIKE 'zasp-discovery:%' AND finding.status IN('open','under_review')
    AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(items_value) item WHERE item->>'finding_id'=finding.id);
+
+ DELETE FROM zasp_risk_attack_paths path WHERE (path.organization_id,path.workspace_id,path.environment_id)=(organization_value,workspace_value,environment_value)
+   AND path.id=ANY(old_path_ids) AND NOT EXISTS(SELECT 1 FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.path_id)=(organization_value,workspace_value,environment_value,path.id));
 END $$;
 
-GRANT SELECT,INSERT,UPDATE,DELETE ON public.zasp_risk_findings,public.zasp_risk_finding_evidence TO zasp_inventory_authority;
+GRANT SELECT,INSERT,UPDATE,DELETE ON public.zasp_risk_findings,public.zasp_risk_finding_evidence,public.zasp_risk_attack_paths,public.zasp_risk_attack_path_nodes,public.zasp_risk_attack_path_evidence,public.zasp_risk_break_options TO zasp_discovery_authority;
 
 ALTER FUNCTION public.zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb) SECURITY DEFINER;
 ALTER FUNCTION public.zasp_discovery_apply_snapshot(text,text,text,text,text,text,bigint,text,text,bytea,timestamptz,text,text,jsonb,jsonb,jsonb) SET search_path TO pg_catalog, public;
@@ -734,21 +813,21 @@ $$;
 CREATE FUNCTION public.zasp_inventory_security_ready() RETURNS boolean LANGUAGE sql STABLE AS $$
  SELECT EXISTS(SELECT 1 FROM pg_roles role WHERE role.rolname='zasp_inventory_authority' AND NOT role.rolcanlogin AND NOT role.rolinherit AND NOT role.rolsuper AND NOT role.rolcreatedb AND NOT role.rolcreaterole AND NOT role.rolreplication AND NOT role.rolbypassrls AND shobj_description(role.oid,'pg_authid')=ANY(ARRAY[format('zasp-managed:typed-inventory-cutover-v1:database:%s:created',(SELECT oid FROM pg_database WHERE datname=current_database())),format('zasp-managed:typed-inventory-cutover-v1:database:%s:bound',(SELECT oid FROM pg_database WHERE datname=current_database()))]))
  AND NOT EXISTS(SELECT 1 FROM pg_auth_members membership WHERE membership.roleid=(SELECT oid FROM pg_roles WHERE rolname='zasp_inventory_authority') OR membership.member=(SELECT oid FROM pg_roles WHERE rolname='zasp_inventory_authority'))
- AND EXISTS(SELECT 1 FROM aclexplode(COALESCE((SELECT relacl FROM pg_class WHERE oid='public.zasp_risk_attack_paths'::regclass),acldefault('r',(SELECT relowner FROM pg_class WHERE oid='public.zasp_risk_attack_paths'::regclass)))) acl WHERE acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND acl.privilege_type='SELECT' AND NOT acl.is_grantable)
- AND NOT EXISTS(SELECT 1 FROM aclexplode(COALESCE((SELECT relacl FROM pg_class WHERE oid='public.zasp_risk_attack_paths'::regclass),acldefault('r',(SELECT relowner FROM pg_class WHERE oid='public.zasp_risk_attack_paths'::regclass)))) acl WHERE acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND (acl.privilege_type<>'SELECT' OR acl.is_grantable))
+ AND (SELECT count(*) FROM aclexplode(COALESCE((SELECT relacl FROM pg_class WHERE oid='public.zasp_risk_attack_paths'::regclass),acldefault('r',(SELECT relowner FROM pg_class WHERE oid='public.zasp_risk_attack_paths'::regclass)))) acl WHERE acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND acl.privilege_type=ANY(ARRAY['SELECT','INSERT','UPDATE','DELETE']) AND NOT acl.is_grantable)=4
+ AND NOT EXISTS(SELECT 1 FROM aclexplode(COALESCE((SELECT relacl FROM pg_class WHERE oid='public.zasp_risk_attack_paths'::regclass),acldefault('r',(SELECT relowner FROM pg_class WHERE oid='public.zasp_risk_attack_paths'::regclass)))) acl WHERE acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND (acl.privilege_type<>ALL(ARRAY['SELECT','INSERT','UPDATE','DELETE']) OR acl.is_grantable))
  AND (SELECT count(*) FROM pg_class class JOIN pg_namespace namespace ON namespace.oid=class.relnamespace WHERE namespace.nspname='public' AND class.relname=ANY(ARRAY['zasp_inventory_cutover_state','zasp_inventory_legacy_restore','zasp_inventory_identity_rules','zasp_inventory_identity_bindings','zasp_inventory_annotations']) AND class.relowner=(SELECT oid FROM pg_roles WHERE rolname='zasp_inventory_authority') AND class.relrowsecurity AND class.relforcerowsecurity)=5
  AND NOT EXISTS(SELECT 1 FROM pg_class class JOIN pg_namespace namespace ON namespace.oid=class.relnamespace WHERE namespace.nspname='public' AND class.relname=ANY(ARRAY['zasp_inventory_cutover_state','zasp_inventory_legacy_restore','zasp_inventory_identity_rules','zasp_inventory_identity_bindings','zasp_inventory_annotations']) AND ((SELECT count(*) FROM pg_policy policy WHERE policy.polrelid=class.oid)<>1 OR NOT EXISTS(SELECT 1 FROM pg_policy policy WHERE policy.polrelid=class.oid AND policy.polname=class.relname||'_authority' AND policy.polpermissive AND policy.polcmd='*' AND policy.polroles=ARRAY[(SELECT oid FROM pg_roles WHERE rolname='zasp_inventory_authority')] AND pg_get_expr(policy.polqual,policy.polrelid)='true' AND pg_get_expr(policy.polwithcheck,policy.polrelid)='true') OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(class.relacl,acldefault('r',class.relowner))) acl WHERE acl.grantee<>class.relowner)))
  AND (SELECT count(*) FROM zasp_inventory_identity_rules)=30
  AND (SELECT count(*) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname LIKE 'zasp_inventory_%')=20
- AND NOT EXISTS(SELECT 1 FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname LIKE 'zasp_inventory_%' AND procedure.proname NOT IN('zasp_inventory_readiness','zasp_inventory_backfill_scope','zasp_inventory_compat_read','zasp_inventory_equivalence_scope','zasp_inventory_cutover_scope','zasp_inventory_page','zasp_inventory_detail','zasp_inventory_agent_capabilities_page','zasp_inventory_agent_relationships_page','zasp_inventory_agent_sessions_page','zasp_inventory_home_summary') AND (procedure.proowner<>(SELECT oid FROM pg_roles WHERE rolname='zasp_inventory_authority') OR NOT procedure.prosecdef OR NOT COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl WHERE acl.privilege_type='EXECUTE' AND acl.grantee NOT IN(procedure.proowner,(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority')))))
- AND (SELECT count(*) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname IN('zasp_inventory_readiness','zasp_inventory_backfill_scope','zasp_inventory_compat_read','zasp_inventory_equivalence_scope','zasp_inventory_cutover_scope','zasp_inventory_page','zasp_inventory_detail','zasp_inventory_agent_capabilities_page','zasp_inventory_agent_relationships_page','zasp_inventory_agent_sessions_page','zasp_inventory_home_summary') AND procedure.proowner=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND procedure.prosecdef AND COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] AND NOT EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl WHERE acl.privilege_type='EXECUTE' AND acl.grantee<>procedure.proowner AND NOT (procedure.proname IN('zasp_inventory_page','zasp_inventory_detail','zasp_inventory_agent_capabilities_page','zasp_inventory_agent_relationships_page','zasp_inventory_agent_sessions_page','zasp_inventory_home_summary') AND acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_api')) AND NOT (procedure.proname='zasp_inventory_readiness' AND acl.grantee IN(SELECT oid FROM pg_roles WHERE rolname=ANY(ARRAY['zasp_discovery_api','zasp_discovery_worker','zasp_runtime_ingest','zasp_runtime_worker','zasp_outbox_worker','zasp_runtime_gateway','zasp_discovery_scheduler','zasp_projection_risk_worker','zasp_projection_graph_worker','zasp_projection_search_worker'])))))=11
+ AND NOT EXISTS(SELECT 1 FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname LIKE 'zasp_inventory_%' AND procedure.proname NOT IN('zasp_inventory_readiness','zasp_inventory_backfill_scope','zasp_inventory_compat_read','zasp_inventory_equivalence_scope','zasp_inventory_cutover_scope','zasp_inventory_page','zasp_inventory_detail','zasp_inventory_agent_capabilities_page','zasp_inventory_agent_relationships_page','zasp_inventory_agent_sessions_page','zasp_inventory_home_summary','zasp_inventory_apply_findings') AND (procedure.proowner<>(SELECT oid FROM pg_roles WHERE rolname='zasp_inventory_authority') OR NOT procedure.prosecdef OR NOT COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl WHERE acl.privilege_type='EXECUTE' AND acl.grantee NOT IN(procedure.proowner,(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority')))))
+ AND (SELECT count(*) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname IN('zasp_inventory_readiness','zasp_inventory_backfill_scope','zasp_inventory_compat_read','zasp_inventory_equivalence_scope','zasp_inventory_cutover_scope','zasp_inventory_page','zasp_inventory_detail','zasp_inventory_agent_capabilities_page','zasp_inventory_agent_relationships_page','zasp_inventory_agent_sessions_page','zasp_inventory_home_summary','zasp_inventory_apply_findings') AND procedure.proowner=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND procedure.prosecdef AND COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] AND NOT EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl WHERE acl.privilege_type='EXECUTE' AND acl.grantee<>procedure.proowner AND NOT (procedure.proname IN('zasp_inventory_page','zasp_inventory_detail','zasp_inventory_agent_capabilities_page','zasp_inventory_agent_relationships_page','zasp_inventory_agent_sessions_page','zasp_inventory_home_summary') AND acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_api')) AND NOT (procedure.proname='zasp_inventory_readiness' AND acl.grantee IN(SELECT oid FROM pg_roles WHERE rolname=ANY(ARRAY['zasp_discovery_api','zasp_discovery_worker','zasp_runtime_ingest','zasp_runtime_worker','zasp_outbox_worker','zasp_runtime_gateway','zasp_discovery_scheduler','zasp_projection_risk_worker','zasp_projection_graph_worker','zasp_projection_search_worker'])))))=12
  AND (SELECT count(*) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname IN('zasp_core_read','zasp_core_inventory_cutover','zasp_core_inventory_write_fence') AND procedure.proowner=(SELECT relowner FROM pg_class WHERE oid='zasp_core_payloads'::regclass) AND procedure.prosecdef AND COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'])=3
  AND NOT EXISTS(SELECT 1 FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace CROSS JOIN LATERAL aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl WHERE namespace.nspname='public' AND procedure.proname IN('zasp_core_inventory_cutover','zasp_core_inventory_write_fence') AND acl.privilege_type='EXECUTE' AND acl.grantee NOT IN(procedure.proowner,CASE WHEN procedure.proname='zasp_core_inventory_cutover' THEN (SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') ELSE procedure.proowner END))
  AND EXISTS(SELECT 1 FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname='zasp_typed_inventory_job_input_v13' AND procedure.proowner=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND procedure.prosecdef AND COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] AND NOT EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl WHERE acl.privilege_type='EXECUTE' AND acl.grantee<>procedure.proowner))
  AND EXISTS(SELECT 1 FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname='zasp_execution_job_input' AND procedure.proowner=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND procedure.prosecdef AND COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] AND has_function_privilege('zasp_discovery_worker',procedure.oid,'EXECUTE') AND NOT EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl WHERE acl.privilege_type='EXECUTE' AND acl.grantee NOT IN(procedure.proowner,(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_worker'))))
  AND EXISTS(SELECT 1 FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname='zasp_execution_apply_risk_projection' AND procedure.proowner=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND procedure.prosecdef AND COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] AND has_function_privilege('zasp_projection_risk_worker',procedure.oid,'EXECUTE') AND NOT EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl WHERE acl.privilege_type='EXECUTE' AND acl.grantee NOT IN(procedure.proowner,(SELECT oid FROM pg_roles WHERE rolname='zasp_projection_risk_worker'))))
- AND (SELECT count(*) FROM pg_class class CROSS JOIN LATERAL aclexplode(COALESCE(class.relacl,acldefault('r',class.relowner))) acl WHERE class.oid IN('zasp_risk_findings'::regclass,'zasp_risk_finding_evidence'::regclass) AND acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_inventory_authority') AND acl.privilege_type=ANY(ARRAY['SELECT','INSERT','UPDATE','DELETE']) AND NOT acl.is_grantable)=8
- AND NOT EXISTS(SELECT 1 FROM pg_class class CROSS JOIN LATERAL aclexplode(COALESCE(class.relacl,acldefault('r',class.relowner))) acl WHERE class.oid IN('zasp_risk_findings'::regclass,'zasp_risk_finding_evidence'::regclass) AND acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_inventory_authority') AND (acl.privilege_type<>ALL(ARRAY['SELECT','INSERT','UPDATE','DELETE']) OR acl.is_grantable))
+ AND (SELECT count(*) FROM pg_class class CROSS JOIN LATERAL aclexplode(COALESCE(class.relacl,acldefault('r',class.relowner))) acl WHERE class.oid IN('zasp_risk_findings'::regclass,'zasp_risk_finding_evidence'::regclass,'zasp_risk_attack_paths'::regclass,'zasp_risk_attack_path_nodes'::regclass,'zasp_risk_attack_path_evidence'::regclass,'zasp_risk_break_options'::regclass) AND acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND acl.privilege_type=ANY(ARRAY['SELECT','INSERT','UPDATE','DELETE']) AND NOT acl.is_grantable)=24
+ AND NOT EXISTS(SELECT 1 FROM pg_class class CROSS JOIN LATERAL aclexplode(COALESCE(class.relacl,acldefault('r',class.relowner))) acl WHERE class.oid IN('zasp_risk_findings'::regclass,'zasp_risk_finding_evidence'::regclass,'zasp_risk_attack_paths'::regclass,'zasp_risk_attack_path_nodes'::regclass,'zasp_risk_attack_path_evidence'::regclass,'zasp_risk_break_options'::regclass) AND acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND (acl.privilege_type<>ALL(ARRAY['SELECT','INSERT','UPDATE','DELETE']) OR acl.is_grantable))
  AND EXISTS(SELECT 1 FROM pg_trigger trigger_value WHERE trigger_value.tgrelid='zasp_core_payloads'::regclass AND trigger_value.tgname='zasp_core_inventory_write_fence' AND trigger_value.tgenabled='O' AND trigger_value.tgfoid='zasp_core_inventory_write_fence()'::regprocedure AND NOT trigger_value.tgisinternal)
 $$;
 
@@ -772,7 +851,7 @@ DO $authority$ DECLARE procedure_oid oid;BEGIN
   EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker',procedure_oid::regprocedure);
   EXECUTE format('ALTER FUNCTION %s SECURITY DEFINER',procedure_oid::regprocedure);
   EXECUTE format('ALTER FUNCTION %s SET search_path TO pg_catalog, public',procedure_oid::regprocedure);
-  IF procedure_oid NOT IN('public.zasp_inventory_readiness(text,text)'::regprocedure,'public.zasp_inventory_backfill_scope(text,text,text)'::regprocedure,'public.zasp_inventory_compat_read(text,text,text,text)'::regprocedure,'public.zasp_inventory_equivalence_scope(text,text,text)'::regprocedure,'public.zasp_inventory_cutover_scope(text,text,text)'::regprocedure,'public.zasp_inventory_page(text,text,text,text,text,integer)'::regprocedure,'public.zasp_inventory_detail(text,text,text,text,text)'::regprocedure,'public.zasp_inventory_agent_capabilities_page(text,text,text,text,text,integer)'::regprocedure,'public.zasp_inventory_agent_relationships_page(text,text,text,text,text,integer)'::regprocedure,'public.zasp_inventory_agent_sessions_page(text,text,text,text,text,integer)'::regprocedure,'public.zasp_inventory_home_summary(text,text,text)'::regprocedure) THEN
+  IF procedure_oid NOT IN('public.zasp_inventory_readiness(text,text)'::regprocedure,'public.zasp_inventory_backfill_scope(text,text,text)'::regprocedure,'public.zasp_inventory_compat_read(text,text,text,text)'::regprocedure,'public.zasp_inventory_equivalence_scope(text,text,text)'::regprocedure,'public.zasp_inventory_cutover_scope(text,text,text)'::regprocedure,'public.zasp_inventory_page(text,text,text,text,text,integer)'::regprocedure,'public.zasp_inventory_detail(text,text,text,text,text)'::regprocedure,'public.zasp_inventory_agent_capabilities_page(text,text,text,text,text,integer)'::regprocedure,'public.zasp_inventory_agent_relationships_page(text,text,text,text,text,integer)'::regprocedure,'public.zasp_inventory_agent_sessions_page(text,text,text,text,text,integer)'::regprocedure,'public.zasp_inventory_home_summary(text,text,text)'::regprocedure,'public.zasp_inventory_apply_findings(text,text,text,jsonb)'::regprocedure) THEN
    EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_inventory_authority',procedure_oid::regprocedure);
    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO zasp_discovery_authority',procedure_oid::regprocedure);
   ELSE
@@ -808,4 +887,4 @@ END $schema_marker$;
 
 INSERT INTO zasp_schema_metadata(key,value) VALUES
  ('typed_inventory_rule_catalog_digest','44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30'),
- ('typed_inventory_cutover_fingerprint', '8fb115c8995713e20d96f9c0373aae504162f713ca4c4a36f43fe7e47439aaed');
+ ('typed_inventory_cutover_fingerprint', '16d01fe423188e39da414ecf17379719863bf1b8751348ea04e9c887964822fa');

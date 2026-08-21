@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -1112,14 +1113,32 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err != nil {
 		t.Fatal(err)
 	}
+	adminRoleARN := "arn:aws:iam::123456789012:role/AdminRole"
+	developerRoleARN := "arn:aws:iam::123456789012:role/DeveloperRole"
+	adminRoleID, err := CanonicalDiscoveryID(identity.Scope, "aws_role", adminRoleARN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	developerRoleID, err := CanonicalDiscoveryID(identity.Scope, "aws_role", developerRoleARN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trustNativeID := adminRoleARN + "|trusts|" + developerRoleARN
+	trustRelationshipID, err := CanonicalDiscoveryRelationshipID(identity.Scope, integrationID, "aws", "trusts", trustNativeID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	entityEvidenceID := "pid_79000031-0000-4000-8000-000000000031"
 	findingEvidenceID := "pid_79000032-0000-4000-8000-000000000032"
 	findingID := "pid_79000033-0000-4000-8000-000000000033"
 	artifactID := "pid_79000034-0000-4000-8000-000000000034"
-	entities := json.RawMessage(fmt.Sprintf(`[{"id":%q,"kind":"aws_account","source_native_id":"123456789012","display_name":"Production account","stable_fields":{"account_id":"123456789012"},"attributes":{},"identity_namespace":"aws_account","identity_rule_version":1,"identity_priority":100,"product_kind":"asset","confidence_basis_points":9000,"observed_at":%q,"fresh_until":%q,"evidence_id":%q,"source_projection_version":1}]`, entityID, collectedAt.Format(time.RFC3339), collectedAt.Add(24*time.Hour).Format(time.RFC3339), entityEvidenceID))
-	evidence := json.RawMessage(fmt.Sprintf(`[{"id":%q,"entity_id":%q,"object_reference":%q,"artifact_reference":%q,"artifact_key":%q,"artifact_version_id":"version-0001","checksum_hex":"%s","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"},{"id":%q,"entity_id":%q,"finding_id":%q,"check_id":"iam_role_administratoraccess_policy","severity":"high","status":"FAIL","observed_at":%q,"object_reference":%q,"artifact_reference":%q,"artifact_key":%q,"artifact_version_id":"version-0001","checksum_hex":"%s","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"}]`, entityEvidenceID, entityID, manifestReference, artifactID, manifestKey, fmt.Sprintf("%064x", 3), findingEvidenceID, entityID, findingID, collectedAt.Format(time.RFC3339), manifestReference, artifactID, manifestKey, fmt.Sprintf("%064x", 3)))
+	adminRoleEvidenceID := "pid_79000038-0000-4000-8000-000000000038"
+	developerRoleEvidenceID := "pid_79000039-0000-4000-8000-000000000039"
+	entities := json.RawMessage(fmt.Sprintf(`[{"id":%q,"kind":"aws_account","source_native_id":"123456789012","display_name":"Production account","stable_fields":{"account_id":"123456789012"},"attributes":{},"identity_namespace":"aws_account","identity_rule_version":1,"identity_priority":100,"product_kind":"asset","confidence_basis_points":9000,"observed_at":%q,"fresh_until":%q,"evidence_id":%q,"source_projection_version":1},{"id":%q,"kind":"aws_role","source_native_id":%q,"display_name":"AdminRole","stable_fields":{"account_id":"123456789012","arn":%q,"name":"AdminRole"},"attributes":{},"identity_namespace":"aws_role","identity_rule_version":1,"identity_priority":100,"product_kind":"asset","confidence_basis_points":9000,"observed_at":%q,"fresh_until":%q,"evidence_id":%q,"source_projection_version":1},{"id":%q,"kind":"aws_role","source_native_id":%q,"display_name":"DeveloperRole","stable_fields":{"account_id":"123456789012","arn":%q,"name":"DeveloperRole"},"attributes":{},"identity_namespace":"aws_role","identity_rule_version":1,"identity_priority":100,"product_kind":"asset","confidence_basis_points":9000,"observed_at":%q,"fresh_until":%q,"evidence_id":%q,"source_projection_version":1}]`, entityID, collectedAt.Format(time.RFC3339), collectedAt.Add(24*time.Hour).Format(time.RFC3339), entityEvidenceID, adminRoleID, adminRoleARN, adminRoleARN, collectedAt.Format(time.RFC3339), collectedAt.Add(24*time.Hour).Format(time.RFC3339), adminRoleEvidenceID, developerRoleID, developerRoleARN, developerRoleARN, collectedAt.Format(time.RFC3339), collectedAt.Add(24*time.Hour).Format(time.RFC3339), developerRoleEvidenceID))
+	relationships := json.RawMessage(fmt.Sprintf(`[{"id":%q,"kind":"trusts","source_native_id":%q,"from_entity_id":%q,"to_entity_id":%q,"attributes":{}}]`, trustRelationshipID, trustNativeID, adminRoleID, developerRoleID))
+	evidence := json.RawMessage(fmt.Sprintf(`[{"id":%q,"entity_id":%q,"object_reference":%q,"artifact_reference":%q,"artifact_key":%q,"artifact_version_id":"version-0001","checksum_hex":"%s","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"},{"id":%q,"entity_id":%q,"object_reference":%q,"artifact_reference":%q,"artifact_key":%q,"artifact_version_id":"version-0001","checksum_hex":"%s","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"},{"id":%q,"entity_id":%q,"object_reference":%q,"artifact_reference":%q,"artifact_key":%q,"artifact_version_id":"version-0001","checksum_hex":"%s","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"},{"id":%q,"entity_id":%q,"finding_id":%q,"check_id":"iam_role_administratoraccess_policy","severity":"high","status":"FAIL","observed_at":%q,"object_reference":%q,"artifact_reference":%q,"artifact_key":%q,"artifact_version_id":"version-0001","checksum_hex":"%s","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"}]`, entityEvidenceID, entityID, manifestReference, artifactID, manifestKey, fmt.Sprintf("%064x", 3), adminRoleEvidenceID, adminRoleID, manifestReference, artifactID, manifestKey, fmt.Sprintf("%064x", 3), developerRoleEvidenceID, developerRoleID, manifestReference, artifactID, manifestKey, fmt.Sprintf("%064x", 3), findingEvidenceID, adminRoleID, findingID, collectedAt.Format(time.RFC3339), manifestReference, artifactID, manifestKey, fmt.Sprintf("%064x", 3)))
 	applyQuery := `SELECT zasp_execution_apply_complete_snapshot($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'aws',$11,$12,'version-0001',$13,128,'application/json','manifest_v1',$14,'cursor-0001','parser_v1','tool_v1',$15::jsonb,$16::jsonb,$17::jsonb)`
-	applyArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, "discovery-worker-02", "delivery-token-0000000002", integrationID, syncID, snapshotID, reserved.Generation, manifestReference, manifestKey, manifestChecksum, collectedAt, entities, json.RawMessage(`[]`), evidence}
+	applyArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, "discovery-worker-02", "delivery-token-0000000002", integrationID, syncID, snapshotID, reserved.Generation, manifestReference, manifestKey, manifestChecksum, collectedAt, entities, relationships, evidence}
 	wrongManifestArgs := append([]any(nil), applyArgs...)
 	wrongManifestArgs[11] = manifestKey + "-other"
 	if err := connection.QueryRow(ctx, applyQuery, wrongManifestArgs...).Scan(&payload); err == nil {
@@ -1203,7 +1222,7 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_snapshot_projection_items(organization_id,workspace_id,environment_id,snapshot_id,integration_id,source,section,item_id,payload) SELECT $1,$2,$3,$4,$5,'aws','entities','pid_82000000-0000-4000-8000-'||lpad(value::text,12,'0'),jsonb_build_object('id','pid_82000000-0000-4000-8000-'||lpad(value::text,12,'0')) FROM generate_series(1,1000) value`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID, integrationID); err != nil {
 		t.Fatal(err)
 	}
-	if err := connection.QueryRow(ctx, `SELECT zasp_execution_snapshot_projection_page($1,$2,$3,$4,'entities',NULL,2)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID).Scan(&payload); err != nil {
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_snapshot_projection_page($1,$2,$3,$4,'entities',$5,2)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID, "pid_80000000-0000-4000-8000-000000000000").Scan(&payload); err != nil {
 		t.Fatal(err)
 	}
 	var page struct {
@@ -1306,14 +1325,69 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := connection.QueryRow(ctx, `SELECT payload->>'display_name' FROM zasp_discovery_risk_projection_items WHERE snapshot_id=$1 AND section='entities' AND item_id=$2`, snapshotID, entityID).Scan(&storedRiskName); err != nil || storedRiskName != "Production account" {
 		t.Fatalf("risk input residue name=%q err=%v", storedRiskName, err)
 	}
+	expectedPathID, err := CanonicalDiscoveryID(identity.Scope, "attack_path", strings.Join([]string{findingID, developerRoleID, adminRoleID}, "\x1f"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	var findingSource, findingRule, findingSeverity, findingStatus, findingContext, findingEvidence string
-	if err := connection.QueryRow(ctx, `SELECT finding.source,finding.rule,finding.severity,finding.status,finding.compliance_context,evidence.evidence_id FROM zasp_risk_findings finding JOIN zasp_risk_finding_evidence evidence ON (evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.finding_id)=(finding.organization_id,finding.workspace_id,finding.environment_id,finding.id) WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), findingID).Scan(&findingSource, &findingRule, &findingSeverity, &findingStatus, &findingContext, &findingEvidence); err != nil || findingSource != "prowler" || findingRule != "iam_role_administratoraccess_policy" || findingSeverity != "high" || findingStatus != "open" || findingContext != "zasp-discovery:aws:iam_role_administratoraccess_policy" || findingEvidence != findingEvidenceID {
-		t.Fatalf("public finding source=%q rule=%q severity=%q status=%q context=%q evidence=%q err=%v", findingSource, findingRule, findingSeverity, findingStatus, findingContext, findingEvidence, err)
+	var findingPath *string
+	if err := connection.QueryRow(ctx, `SELECT finding.source,finding.rule,finding.severity,finding.status,finding.compliance_context,evidence.evidence_id,finding.path_id FROM zasp_risk_findings finding JOIN zasp_risk_finding_evidence evidence ON (evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.finding_id)=(finding.organization_id,finding.workspace_id,finding.environment_id,finding.id) WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), findingID).Scan(&findingSource, &findingRule, &findingSeverity, &findingStatus, &findingContext, &findingEvidence, &findingPath); err != nil || findingSource != "prowler" || findingRule != "iam_role_administratoraccess_policy" || findingSeverity != "high" || findingStatus != "open" || findingContext != "zasp-discovery:aws:iam_role_administratoraccess_policy" || findingEvidence != findingEvidenceID || findingPath == nil || *findingPath != expectedPathID {
+		t.Fatalf("public finding source=%q rule=%q severity=%q status=%q context=%q evidence=%q path=%v err=%v", findingSource, findingRule, findingSeverity, findingStatus, findingContext, findingEvidence, findingPath, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_risk_attack_path_get($1,$2,$3,$4)`, expectedPathID, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()).Scan(&payload); err != nil {
+		t.Fatal(err)
+	}
+	var derivedPath RiskAttackPath
+	if err := json.Unmarshal(payload, &derivedPath); err != nil || derivedPath.ID != expectedPathID || derivedPath.EntryID != developerRoleID || derivedPath.SinkID != adminRoleID || !reflect.DeepEqual(derivedPath.NodeIDs, []string{developerRoleID, adminRoleID}) || derivedPath.State != "observed" || !reflect.DeepEqual(derivedPath.EvidenceIDs, []string{findingEvidenceID}) || derivedPath.BlockedEdge != -1 || derivedPath.Version != 1 {
+		t.Fatalf("derived path=%s decoded=%#v err=%v", payload, derivedPath, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_risk_break_options_get($1,$2,$3,$4)`, expectedPathID, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()).Scan(&payload); err != nil {
+		t.Fatal(err)
+	}
+	var derivedOptions struct {
+		Items []RiskBreakOption `json:"items"`
+	}
+	expectedOptions := []RiskBreakOption{{PathID: expectedPathID, TargetID: developerRoleID, EvidenceID: findingEvidenceID, Kind: "remove_node", Rank: 1}, {PathID: expectedPathID, TargetID: adminRoleID, EvidenceID: findingEvidenceID, Kind: "enforce_policy", Rank: 2}}
+	if err := json.Unmarshal(payload, &derivedOptions); err != nil || !reflect.DeepEqual(derivedOptions.Items, expectedOptions) {
+		t.Fatalf("derived break options=%s decoded=%#v err=%v", payload, derivedOptions.Items, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_risk_attack_paths SET state='blocked',blocked_edge=0,version=version+1,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), expectedPathID); err != nil {
+		t.Fatal(err)
+	}
+	pathReplay := json.RawMessage(fmt.Sprintf(`[{"finding_id":%q,"entity_id":%q,"check_id":"iam_role_administratoraccess_policy","evidence_id":%q,"source":"aws"}]`, findingID, adminRoleID, findingEvidenceID))
+	pathTransaction, err := connection.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pathTransaction.Rollback(context.Background())
+	if _, err := pathTransaction.Exec(ctx, `SET LOCAL ROLE zasp_discovery_authority`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pathTransaction.Exec(ctx, `SELECT zasp_inventory_apply_findings($1,$2,$3,$4::jsonb)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), pathReplay); err != nil {
+		t.Fatal(err)
+	}
+	if err := pathTransaction.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT state,blocked_edge,version FROM zasp_risk_attack_paths WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), expectedPathID).Scan(&derivedPath.State, &derivedPath.BlockedEdge, &derivedPath.Version); err != nil || derivedPath.State != "blocked" || derivedPath.BlockedEdge != 0 || derivedPath.Version != 2 {
+		t.Fatalf("reconciled blocked path state=%q edge=%d version=%d err=%v", derivedPath.State, derivedPath.BlockedEdge, derivedPath.Version, err)
 	}
 	acceptedFindingID := "pid_79000035-0000-4000-8000-000000000035"
 	foreignOrganizationID := "pid_79000036-0000-4000-8000-000000000036"
 	foreignFindingID := "pid_79000037-0000-4000-8000-000000000037"
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status,compliance_context,acceptance_reason) VALUES($1,$2,$3,$4,'prowler','accepted_control','Accepted discovered control','high','accepted','zasp-discovery:aws:accepted_control','documented exception'),($5,$2,$3,$6,'prowler','foreign_control','Foreign discovered control','high','open','zasp-discovery:aws:foreign_control',NULL)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), acceptedFindingID, foreignOrganizationID, foreignFindingID); err != nil {
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_attack_paths(organization_id,workspace_id,environment_id,id,entry_id,sink_id,state) VALUES($1,$2,$3,$4,$5,$6,'verified')`, foreignOrganizationID, identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), expectedPathID, developerRoleID, adminRoleID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_attack_path_nodes(organization_id,workspace_id,environment_id,path_id,position,node_id) VALUES($1,$2,$3,$4,1,$5),($1,$2,$3,$4,2,$6)`, foreignOrganizationID, identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), expectedPathID, developerRoleID, adminRoleID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_attack_path_evidence(organization_id,workspace_id,environment_id,path_id,position,evidence_id) VALUES($1,$2,$3,$4,1,$5)`, foreignOrganizationID, identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), expectedPathID, findingEvidenceID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_break_options(organization_id,workspace_id,environment_id,path_id,rank,target_id,evidence_id,kind) VALUES($1,$2,$3,$4,1,$5,$7,'remove_node'),($1,$2,$3,$4,2,$6,$7,'enforce_policy')`, foreignOrganizationID, identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), expectedPathID, developerRoleID, adminRoleID, findingEvidenceID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status,path_id,compliance_context,acceptance_reason) VALUES($1,$2,$3,$4,'prowler','accepted_control','Accepted discovered control','high','accepted',NULL,'zasp-discovery:aws:accepted_control','documented exception'),($5,$2,$3,$6,'prowler','foreign_control','Foreign discovered control','high','open',$7,'zasp-discovery:aws:foreign_control',NULL)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), acceptedFindingID, foreignOrganizationID, foreignFindingID, expectedPathID); err != nil {
 		t.Fatal(err)
 	}
 	emptySnapshotID := "pid_79000020-0000-4000-8000-000000000020"
@@ -1338,12 +1412,14 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := connection.QueryRow(ctx, `SELECT current.snapshot_id,current.item_count,(SELECT count(*) FROM zasp_discovery_risk_projection_items item WHERE (item.organization_id,item.workspace_id,item.environment_id,item.integration_id,item.source)=(current.organization_id,current.workspace_id,current.environment_id,current.integration_id,current.source)) FROM zasp_discovery_risk_projection_current current WHERE integration_id=$1 AND source='aws'`, integrationID).Scan(&currentRiskSnapshot, &currentRiskCount, &riskItemCount); err != nil || currentRiskSnapshot != emptySnapshotID || currentRiskCount != 0 || riskItemCount != 0 {
 		t.Fatalf("complete-empty current=%q counts=%d/%d err=%v", currentRiskSnapshot, currentRiskCount, riskItemCount, err)
 	}
-	if err := connection.QueryRow(ctx, `SELECT status FROM zasp_risk_findings WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), findingID).Scan(&findingStatus); err != nil || findingStatus != "resolved" {
-		t.Fatalf("complete-empty public finding status=%q err=%v", findingStatus, err)
+	var resolvedPath *string
+	var localPathCount int
+	if err := connection.QueryRow(ctx, `SELECT finding.status,finding.path_id,(SELECT count(*) FROM zasp_risk_attack_paths path WHERE (path.organization_id,path.workspace_id,path.environment_id,path.id)=($1,$2,$3,$5)) FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), findingID, expectedPathID).Scan(&findingStatus, &resolvedPath, &localPathCount); err != nil || findingStatus != "resolved" || resolvedPath != nil || localPathCount != 0 {
+		t.Fatalf("complete-empty public finding status=%q path=%v paths=%d err=%v", findingStatus, resolvedPath, localPathCount, err)
 	}
-	var acceptedStatus, acceptanceReason, foreignStatus string
-	if err := connection.QueryRow(ctx, `SELECT accepted.status,accepted.acceptance_reason,foreign_finding.status FROM zasp_risk_findings accepted CROSS JOIN zasp_risk_findings foreign_finding WHERE (accepted.organization_id,accepted.workspace_id,accepted.environment_id,accepted.id)=($1,$2,$3,$4) AND (foreign_finding.organization_id,foreign_finding.workspace_id,foreign_finding.environment_id,foreign_finding.id)=($5,$2,$3,$6)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), acceptedFindingID, foreignOrganizationID, foreignFindingID).Scan(&acceptedStatus, &acceptanceReason, &foreignStatus); err != nil || acceptedStatus != "accepted" || acceptanceReason != "documented exception" || foreignStatus != "open" {
-		t.Fatalf("complete-empty preserved accepted=%q reason=%q foreign=%q err=%v", acceptedStatus, acceptanceReason, foreignStatus, err)
+	var acceptedStatus, acceptanceReason, foreignStatus, foreignPath, foreignPathState string
+	if err := connection.QueryRow(ctx, `SELECT accepted.status,accepted.acceptance_reason,foreign_finding.status,foreign_finding.path_id,path.state FROM zasp_risk_findings accepted CROSS JOIN zasp_risk_findings foreign_finding JOIN zasp_risk_attack_paths path ON (path.organization_id,path.workspace_id,path.environment_id,path.id)=(foreign_finding.organization_id,foreign_finding.workspace_id,foreign_finding.environment_id,foreign_finding.path_id) WHERE (accepted.organization_id,accepted.workspace_id,accepted.environment_id,accepted.id)=($1,$2,$3,$4) AND (foreign_finding.organization_id,foreign_finding.workspace_id,foreign_finding.environment_id,foreign_finding.id)=($5,$2,$3,$6)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), acceptedFindingID, foreignOrganizationID, foreignFindingID).Scan(&acceptedStatus, &acceptanceReason, &foreignStatus, &foreignPath, &foreignPathState); err != nil || acceptedStatus != "accepted" || acceptanceReason != "documented exception" || foreignStatus != "open" || foreignPath != expectedPathID || foreignPathState != "verified" {
+		t.Fatalf("complete-empty preserved accepted=%q reason=%q foreign=%q path=%q state=%q err=%v", acceptedStatus, acceptanceReason, foreignStatus, foreignPath, foreignPathState, err)
 	}
 	if _, err := applyRisk(riskItems); err == nil {
 		t.Fatal("stale risk generation succeeded")
