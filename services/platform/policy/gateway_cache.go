@@ -33,6 +33,7 @@ const (
 	maximumGatewayPolicyBytes     = 1024 * 1024
 	maximumGatewayPolicyDiskBytes = maximumGatewayPolicyBytes + 512
 	ed25519RawURLSignatureLength  = 86
+	maximumGatewayPolicies        = 100
 )
 
 type GatewayPolicyBinding struct {
@@ -59,6 +60,15 @@ type GatewayPolicyEnvelope struct {
 	PayloadDigest   string           `json:"payload_digest"`
 	Policies        []CompiledPolicy `json:"policies"`
 	Signature       string           `json:"signature"`
+}
+
+type GatewayPolicySigningInput struct {
+	KeyID                    string
+	Binding                  GatewayPolicyBinding
+	Sequence, PolicyVersion  uint64
+	Now, IssuedAt, ExpiresAt time.Time
+	FailureMode              string
+	Policies                 []CompiledPolicy
 }
 
 type gatewayPolicyDiskState struct {
@@ -88,13 +98,56 @@ func VerifyGatewayPolicyEnvelope(envelope GatewayPolicyEnvelope, keys GatewayPol
 	return verifyGatewayPolicyEnvelope(envelope, keys, binding, now, false)
 }
 
+func SignGatewayPolicyEnvelope(input GatewayPolicySigningInput, privateKey ed25519.PrivateKey) (GatewayPolicyEnvelope, error) {
+	if len(privateKey) != ed25519.PrivateKeySize || !gatewayKeyIDPattern.MatchString(input.KeyID) || !validGatewayBinding(input.Binding) || input.Sequence < 1 || input.PolicyVersion < 1 ||
+		!canonicalGatewayTime(input.Now) || !canonicalGatewayTime(input.IssuedAt) || !canonicalGatewayTime(input.ExpiresAt) || input.IssuedAt.After(input.Now.Add(30*time.Second)) ||
+		!input.ExpiresAt.After(input.Now) || !input.ExpiresAt.After(input.IssuedAt) || input.ExpiresAt.Sub(input.IssuedAt) > 24*time.Hour || input.FailureMode != "open" && input.FailureMode != "closed" ||
+		len(input.Policies) > maximumGatewayPolicies {
+		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
+	}
+	envelope := GatewayPolicyEnvelope{
+		ContractVersion: 1,
+		KeyID:           input.KeyID,
+		Algorithm:       "Ed25519",
+		Audience:        "runtime-gateway-policy",
+		OrganizationID:  input.Binding.OrganizationID,
+		WorkspaceID:     input.Binding.WorkspaceID,
+		EnvironmentID:   input.Binding.EnvironmentID,
+		DeviceID:        input.Binding.DeviceID,
+		Sequence:        input.Sequence,
+		PolicyVersion:   input.PolicyVersion,
+		IssuedAt:        input.IssuedAt,
+		ExpiresAt:       input.ExpiresAt,
+		FailureMode:     input.FailureMode,
+		Policies:        make([]CompiledPolicy, len(input.Policies)),
+	}
+	for index, compiled := range input.Policies {
+		envelope.Policies[index] = cloneCompiledPolicy(compiled)
+	}
+	digest, payload, err := canonicalGatewayPolicyPayload(envelope)
+	if err != nil {
+		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
+	}
+	envelope.PayloadDigest = digest
+	envelope.Signature = base64.RawURLEncoding.EncodeToString(ed25519.Sign(privateKey, payload))
+	publicKey, ok := privateKey.Public().(ed25519.PublicKey)
+	if !ok {
+		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
+	}
+	keys, err := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{input.KeyID: publicKey})
+	if err != nil {
+		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
+	}
+	return VerifyGatewayPolicyEnvelope(envelope, keys, input.Binding, input.Now)
+}
+
 func verifyGatewayPolicyEnvelope(envelope GatewayPolicyEnvelope, keys GatewayPolicyKeys, binding GatewayPolicyBinding, now time.Time, allowExpired bool) (GatewayPolicyEnvelope, error) {
 	if !validGatewayBinding(binding) || !canonicalGatewayTime(now) || len(keys.values) < 1 || envelope.ContractVersion != 1 || !gatewayKeyIDPattern.MatchString(envelope.KeyID) ||
 		envelope.Algorithm != "Ed25519" || envelope.Audience != "runtime-gateway-policy" || envelope.Sequence < 1 || envelope.PolicyVersion < 1 ||
 		envelope.OrganizationID != binding.OrganizationID || envelope.WorkspaceID != binding.WorkspaceID || envelope.EnvironmentID != binding.EnvironmentID || envelope.DeviceID != binding.DeviceID ||
 		!canonicalGatewayTime(envelope.IssuedAt) || !canonicalGatewayTime(envelope.ExpiresAt) || !envelope.ExpiresAt.After(envelope.IssuedAt) || envelope.ExpiresAt.Sub(envelope.IssuedAt) > 24*time.Hour ||
 		envelope.IssuedAt.After(now.Add(30*time.Second)) || !allowExpired && !envelope.ExpiresAt.After(now) || envelope.FailureMode != "open" && envelope.FailureMode != "closed" ||
-		len(envelope.Policies) < 1 || len(envelope.Policies) > 512 || len(envelope.PayloadDigest) != sha256.Size*2 {
+		len(envelope.Policies) > maximumGatewayPolicies || len(envelope.PayloadDigest) != sha256.Size*2 {
 		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
 	}
 	publicKey, exists := keys.values[envelope.KeyID]
@@ -122,7 +175,7 @@ func verifyGatewayPolicyEnvelope(envelope GatewayPolicyEnvelope, keys GatewayPol
 }
 
 func canonicalGatewayPolicyPayload(envelope GatewayPolicyEnvelope) (string, []byte, error) {
-	if len(envelope.Policies) < 1 || len(envelope.Policies) > 512 {
+	if len(envelope.Policies) > maximumGatewayPolicies {
 		return "", nil, ErrGatewayPolicy
 	}
 	policies := make([]CompiledPolicy, len(envelope.Policies))

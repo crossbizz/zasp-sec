@@ -2715,17 +2715,18 @@ export type components = {
             readonly version: number;
         };
         readonly SecurityAgentApproval: {
-            readonly evidence_summary?: readonly components["schemas"]["ProductID"][];
-            readonly expected_effect?: string;
+            readonly evidence_summary: readonly components["schemas"]["ProductID"][];
+            /** @enum {string} */
+            readonly expected_effect: "Move finding to under review" | "Apply temporary containment policy";
             /** Format: date-time */
             readonly expires_at: string;
             readonly id: components["schemas"]["ProductID"];
-            readonly reversible?: boolean;
+            readonly reversible: boolean;
             readonly run_id: components["schemas"]["ProductID"];
             /** @enum {string} */
             readonly state: "pending" | "approved" | "rejected" | "cancelled" | "expired";
             readonly step_id: components["schemas"]["ProductID"];
-            readonly ttl_seconds?: number;
+            readonly ttl_seconds: number;
             readonly version: number;
         };
         readonly SecurityAgentApprovalDecision: {
@@ -2757,7 +2758,7 @@ export type components = {
         };
         readonly SecurityAgentExecutionControl: {
             /** @enum {string} */
-            readonly action_key: "*" | "update_finding_response";
+            readonly action_key: "*" | "create_temporary_policy" | "update_finding_response";
             readonly enabled: boolean;
             /** @enum {string} */
             readonly target: "global" | "environment" | "action";
@@ -2765,14 +2766,14 @@ export type components = {
         };
         readonly SecurityAgentExecutionControlInput: {
             /** @enum {string} */
-            readonly action_key: "*" | "update_finding_response";
+            readonly action_key: "*" | "create_temporary_policy" | "update_finding_response";
             readonly enabled: boolean;
             /** @enum {string} */
             readonly target: "environment" | "action";
         };
         readonly SecurityAgentExecutionControlResult: {
             /** @enum {string} */
-            readonly action_key: "*" | "update_finding_response";
+            readonly action_key: "*" | "create_temporary_policy" | "update_finding_response";
             readonly audit_id: components["schemas"]["ProductID"];
             readonly correlation_id: components["schemas"]["ProductID"];
             readonly enabled: boolean;

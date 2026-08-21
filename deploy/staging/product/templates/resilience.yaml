@@ -1,5 +1,5 @@
 {{- if ne .Values.profile "customer_edge" }}
-{{- range $name := list "web" "agentsec-api" "agentsec-discovery-scheduler" "agentsec-discovery-worker" "agentsec-security-agent" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" "agentsec-outbox-publisher" }}
+{{- range $name := list "web" "agentsec-api" "agentsec-discovery-scheduler" "agentsec-discovery-worker" "agentsec-security-agent" "agentsec-security-agent-action" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" "agentsec-outbox-publisher" }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -51,7 +51,7 @@ spec:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
 {{- end }}
-{{- range $name := list "agentsec-discovery-scheduler" "agentsec-security-agent" "agentsec-outbox-publisher" }}
+{{- range $name := list "agentsec-discovery-scheduler" "agentsec-security-agent" "agentsec-security-agent-action" "agentsec-outbox-publisher" }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -225,6 +225,16 @@ kind: NetworkPolicy
 metadata: { name: security-agent-database, labels: { app.kubernetes.io/part-of: zasp } }
 spec:
   podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-security-agent } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: security-agent-action-database, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-security-agent-action } }
   policyTypes: [Egress]
   egress:
     - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]

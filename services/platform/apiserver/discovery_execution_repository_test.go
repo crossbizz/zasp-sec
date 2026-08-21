@@ -88,11 +88,13 @@ func newTestDiscoveryExecutionRepository(t *testing.T, database *discoveryCallDa
 
 type executionReadinessOnlyDatabase struct {
 	schemaCalls    int
+	temporaryCalls int
 	inventoryCalls int
 	executionCalls int
 	identityCalls  int
 	inventoryReady json.RawMessage
 	identityReady  json.RawMessage
+	temporaryReady json.RawMessage
 	ready          json.RawMessage
 	principal      json.RawMessage
 }
@@ -104,6 +106,12 @@ func (database *executionReadinessOnlyDatabase) SchemaVersion(context.Context) (
 
 func (database *executionReadinessOnlyDatabase) QueryJSON(_ context.Context, query string, _ ...any) (json.RawMessage, error) {
 	switch query {
+	case postgresSecurityAgentTemporaryPolicyReadinessSQL:
+		database.temporaryCalls++
+		if database.temporaryReady == nil {
+			return nil, errors.New("temporary policy authority unavailable")
+		}
+		return database.temporaryReady, nil
 	case postgresInventoryReadinessSQL:
 		database.inventoryCalls++
 		if database.inventoryReady == nil {
@@ -120,6 +128,23 @@ func (database *executionReadinessOnlyDatabase) QueryJSON(_ context.Context, que
 		return database.principal, nil
 	default:
 		return nil, errors.New("unexpected query")
+	}
+}
+
+func TestDiscoveryExecutionConstructorsAcceptCurrentV22Readiness(t *testing.T) {
+	database := &executionReadinessOnlyDatabase{
+		temporaryReady: json.RawMessage(`true`),
+		principal:      json.RawMessage(`true`),
+	}
+	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+	if err != nil {
+		t.Fatalf("v22 constructor error=%v", err)
+	}
+	if err := repository.Ready(context.Background()); err != nil {
+		t.Fatalf("v22 Ready() error=%v", err)
+	}
+	if database.schemaCalls != 0 || database.temporaryCalls != 2 || database.identityCalls != 0 || database.inventoryCalls != 0 || database.executionCalls != 0 {
+		t.Fatalf("readiness calls schema=%d temporary=%d identity=%d inventory=%d execution=%d", database.schemaCalls, database.temporaryCalls, database.identityCalls, database.inventoryCalls, database.executionCalls)
 	}
 }
 

@@ -26,6 +26,7 @@ const (
 	workerModeProjectionGraph      workerMode = "projection-graph"
 	workerModeProjectionSearch     workerMode = "projection-search"
 	workerModeSecurityAgent        workerMode = "security-agent"
+	workerModeSecurityAgentAction  workerMode = "security-agent-action"
 	workerModeProjectionGraphInit  workerMode = "projection-graph-init"
 	workerModeProjectionSearchInit workerMode = "projection-search-init"
 )
@@ -83,6 +84,8 @@ type workerRuntimeConfig struct {
 	ProjectionSecretPrefix     string
 	OutboxRoleARN              string
 	OutboxTokenFile            string
+	GatewaySigningKeyID        string
+	GatewaySigningPrivateFile  string
 }
 
 func loadProjectionInitConfig(getenv func(string) string) (workerRuntimeConfig, error) {
@@ -137,6 +140,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		Neo4jExpectedPrincipal: getenv("ZASP_NEO4J_EXPECTED_PRINCIPAL"), Neo4jExpectedRole: getenv("ZASP_NEO4J_EXPECTED_ROLE"),
 		ProjectionRoleARN: getenv("ZASP_PROJECTION_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE"), ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"),
 		OutboxRoleARN: getenv("ZASP_OUTBOX_ROLE_ARN"), OutboxTokenFile: getenv("ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE"),
+		GatewaySigningKeyID: getenv("ZASP_GATEWAY_SIGNING_KEY_ID"), GatewaySigningPrivateFile: getenv("ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE"),
 		RuntimeRoleARN: getenv("ZASP_RUNTIME_ROLE_ARN"), RuntimeTokenFile: getenv("ZASP_RUNTIME_WEB_IDENTITY_TOKEN_FILE"),
 		RuntimeStageRoleARN: getenv("ZASP_RUNTIME_STAGE_ROLE_ARN"), RuntimeStageTokenFile: getenv("ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE"), RuntimeStageVersion: getenv("ZASP_RUNTIME_STAGE_VERSION"),
 	}
@@ -168,7 +172,8 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 		workerModeRuntimeProjection:  "zasp_runtime_projection_worker",
 		workerModeRuntimeComplete:    "zasp_runtime_coordinator",
 		workerModeProjectionRisk:     "zasp_projection_risk_worker", workerModeProjectionGraph: "zasp_projection_graph_worker", workerModeProjectionSearch: "zasp_projection_search_worker",
-		workerModeSecurityAgent: "zasp_security_agent_worker",
+		workerModeSecurityAgent:       "zasp_security_agent_worker",
+		workerModeSecurityAgentAction: "zasp_security_agent_action_worker",
 	}[config.Mode]
 	return wantAuthority != "" && config.DatabaseAuthority == wantAuthority && workerIdentityPattern.MatchString(config.WorkerID) && validModeDependencies(config) &&
 		config.PollInterval >= 50*time.Millisecond && config.PollInterval <= time.Minute && config.LeaseDuration >= 5*time.Second && config.LeaseDuration <= 15*time.Minute &&
@@ -216,6 +221,8 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 		return true
 	case workerModeSecurityAgent:
 		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
+	case workerModeSecurityAgentAction:
+		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`).MatchString(config.GatewaySigningKeyID) && config.GatewaySigningPrivateFile == "/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key" && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
 	default:
 		return false
 	}

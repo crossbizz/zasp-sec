@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"errors"
 	"net"
@@ -33,6 +34,17 @@ func TestComposeWorkerRuntimeMountsOnlyProductionReadyModes(t *testing.T) {
 	securityAgentDependencies, err := composeWorkerRuntime(context.Background(), validSecurityAgentRuntimeConfig(), database)
 	if err != nil || securityAgentDependencies.Processor == nil || securityAgentDependencies.Ready == nil || securityAgentDependencies.Close == nil {
 		t.Fatalf("security-agent dependencies=%#v error=%v", securityAgentDependencies, err)
+	}
+	_, actionPrivateKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actionDependencies, err := composeSecurityAgentActionWorkerRuntime(validSecurityAgentActionRuntimeConfig(), database, actionPrivateKey)
+	if err != nil || actionDependencies.Processor == nil || actionDependencies.Ready == nil || actionDependencies.Close == nil {
+		t.Fatalf("security-agent-action dependencies=%#v error=%v", actionDependencies, err)
+	}
+	if err := actionDependencies.Close(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -492,6 +504,14 @@ func validSecurityAgentRuntimeConfig() workerRuntimeConfig {
 	}
 }
 
+func validSecurityAgentActionRuntimeConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeSecurityAgentAction, PostgresDSN: "postgres://security_agent_action@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_security_agent_action_worker", WorkerID: "security-agent-action-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 8, ShutdownTimeout: 20 * time.Second,
+		GatewaySigningKeyID: "gateway-key-01", GatewaySigningPrivateFile: "/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key",
+	}
+}
+
 func validDiscoveryRuntimeConfig() workerRuntimeConfig {
 	return workerRuntimeConfig{
 		Mode: workerModeDiscovery, PostgresDSN: "postgres://discovery@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_discovery_worker", WorkerID: "discovery-01",
@@ -568,7 +588,7 @@ func (readyWorkerDatabase) QueryJSON(_ context.Context, statement string, _ ...a
 	if strings.Contains(statement, "jsonb_build_object('ready'") {
 		return json.RawMessage(`{"ready":true}`), nil
 	}
-	if strings.Contains(statement, "zasp_security_agent_autonomous_readiness") || strings.Contains(statement, "zasp_security_agent_readiness") {
+	if strings.Contains(statement, "zasp_security_agent_temporary_policy_readiness") || strings.Contains(statement, "zasp_security_agent_autonomous_readiness") || strings.Contains(statement, "zasp_security_agent_readiness") {
 		return json.RawMessage(`{"release":true,"principal":true}`), nil
 	}
 	if strings.Contains(statement, "zasp_runtime_ingest_reconciliation_readiness") || strings.Contains(statement, "zasp_runtime_gateway_reconciliation_readiness") {

@@ -293,15 +293,19 @@ func compileRego(id, trigger string, action Action, conditions []Condition) (str
 	builder.Write(actionJSON)
 	builder.WriteString(", \"matched\": true} if {\n")
 	for _, condition := range conditions {
-		if condition.Operator != "equals" || !bounded(condition.Field, 128) || !bounded(condition.Value, 256) {
+		if !bounded(condition.Field, 128) || condition.Operator != "equals" && condition.Operator != "present" || condition.Operator == "equals" && !bounded(condition.Value, 256) || condition.Operator == "present" && condition.Value != "" {
 			return "", ErrRejected
 		}
 		fieldJSON, _ := json.Marshal(condition.Field)
-		valueJSON, _ := json.Marshal(condition.Value)
 		builder.WriteString("\tinput[")
 		builder.Write(fieldJSON)
-		builder.WriteString("] == ")
-		builder.Write(valueJSON)
+		if condition.Operator == "present" {
+			builder.WriteString("] != \"\"")
+		} else {
+			valueJSON, _ := json.Marshal(condition.Value)
+			builder.WriteString("] == ")
+			builder.Write(valueJSON)
+		}
 		builder.WriteByte('\n')
 	}
 	builder.WriteString("}\n")

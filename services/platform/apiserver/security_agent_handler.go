@@ -350,7 +350,8 @@ func validSecurityAgentExecutionControl(value SecurityAgentExecutionControl, tar
 func validSecurityAgentExecutionControls(value SecurityAgentExecutionControls) bool {
 	return validSecurityAgentExecutionControl(value.Global, "global", "*", false) &&
 		validSecurityAgentExecutionControl(value.Environment, "environment", "*", true) &&
-		len(value.Actions) == 1 && validSecurityAgentExecutionControl(value.Actions[0], "action", "update_finding_response", true)
+		len(value.Actions) == 2 && validSecurityAgentExecutionControl(value.Actions[0], "action", "create_temporary_policy", true) &&
+		validSecurityAgentExecutionControl(value.Actions[1], "action", "update_finding_response", true)
 }
 
 func (handler *securityAgentPublicHTTPHandler) getExecutionControls(writer http.ResponseWriter, request *http.Request) {
@@ -383,7 +384,7 @@ func (handler *securityAgentPublicHTTPHandler) setExecutionControl(writer http.R
 	}
 	now := handler.config.Clock().UTC()
 	validTarget := func() bool {
-		return input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && input.ActionKey == "update_finding_response"
+		return input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, "create_temporary_policy", "update_finding_response")
 	}
 	if !ok || request.Method != http.MethodPut || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now) || identity.FreshAuthExpiresAt.After(now.Add(5*time.Minute)) || !exactHeaderValue(request.Header.Values("X-Zasp-Fresh-Auth"), "confirmed") || !headersOK || decodeProductionJSON(request, &input) != nil || !validTarget() {
 		if ok && (identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now)) {
@@ -719,7 +720,8 @@ func validSecurityAgentRunResult(result SecurityAgentRunResult, input SecurityAg
 }
 
 func validSecurityAgentApprovalResult(result SecurityAgentApprovalResult, input SecurityAgentApprovalDecisionRequest) bool {
-	return result.ID == input.ApprovalID && validProductID(result.RunID) && validProductID(result.StepID) && result.State == input.Decision && !result.ExpiresAt.IsZero() && result.ExpiresAt.Location() == time.UTC && result.Version == input.ExpectedVersion+1 && result.ExpectedEffect == "Move finding to under review" && result.Reversible && result.TTLSeconds == 0 && len(result.EvidenceSummary) == 1 && validProductID(result.EvidenceSummary[0]) && validProductID(result.AuditID) && validProductID(result.CorrelationID) && validProductID(result.ReceiptID)
+	approval := SecurityAgentApproval{ID: result.ID, RunID: result.RunID, StepID: result.StepID, State: result.State, ExpiresAt: result.ExpiresAt, Version: result.Version, ExpectedEffect: result.ExpectedEffect, Reversible: result.Reversible, TTLSeconds: result.TTLSeconds, EvidenceSummary: result.EvidenceSummary}
+	return result.ID == input.ApprovalID && result.State == input.Decision && result.Version == input.ExpectedVersion+1 && validSecurityAgentApproval(approval) && validProductID(result.AuditID) && validProductID(result.CorrelationID) && validProductID(result.ReceiptID)
 }
 
 func (handler *securityAgentPublicHTTPHandler) simulate(writer http.ResponseWriter, request *http.Request, routed RoutedOperation) {

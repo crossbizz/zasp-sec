@@ -9,12 +9,17 @@ import (
 )
 
 const (
-	postgresSecurityAgentWorkerReadySQL      = `SELECT jsonb_build_object('release',zasp_security_agent_autonomous_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
-	postgresSecurityAgentScheduleTriggersSQL = `SELECT zasp_security_agent_schedule_triggers_v21($1,$2)`
-	postgresSecurityAgentClaimRunsSQL        = `SELECT zasp_security_agent_claim_runs($1,$2,$3,$4)`
+	postgresSecurityAgentWorkerReadySQL      = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+	postgresSecurityAgentWorkerReadyV21SQL   = `SELECT jsonb_build_object('release',zasp_security_agent_autonomous_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+	postgresSecurityAgentScheduleTriggersSQL = `SELECT zasp_security_agent_schedule_triggers_v22($1,$2)`
+	postgresSecurityAgentScheduleV21SQL      = `SELECT zasp_security_agent_schedule_triggers_v21($1,$2)`
+	postgresSecurityAgentClaimRunsSQL        = `SELECT zasp_security_agent_claim_runs_v22($1,$2,$3,$4)`
+	postgresSecurityAgentClaimRunsV21SQL     = `SELECT zasp_security_agent_claim_runs($1,$2,$3,$4)`
 	postgresSecurityAgentHeartbeatRunSQL     = `SELECT zasp_security_agent_heartbeat_run($1,$2,$3,$4,$5,$6,$7)`
-	postgresSecurityAgentPrepareRunSQL       = `SELECT zasp_security_agent_prepare_run_v21($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresSecurityAgentExecuteRunSQL       = `SELECT zasp_security_agent_execute_run_v21($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresSecurityAgentPrepareRunSQL       = `SELECT zasp_security_agent_prepare_run_v22($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentPrepareRunV21SQL    = `SELECT zasp_security_agent_prepare_run_v21($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentExecuteRunSQL       = `SELECT zasp_security_agent_execute_run_v22($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresSecurityAgentExecuteRunV21SQL    = `SELECT zasp_security_agent_execute_run_v21($1,$2,$3,$4,$5,$6,$7,$8)`
 )
 
 type SecurityAgentRunClaim struct {
@@ -64,7 +69,7 @@ func (repository *SecurityAgentWorkerRepository) ScheduleSecurityAgentTriggers(c
 	if repository == nil || ctx == nil || ctx.Err() != nil || !validSecurityAgentText(workerID, 128) || limit < 1 || limit > 25 {
 		return 0, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentScheduleTriggersSQL, workerID, limit)
+	payload, err := repository.database.QueryJSON(ctx, repository.scheduleSQL, workerID, limit)
 	if err != nil {
 		return 0, discoveryProviderError(err)
 	}
@@ -77,26 +82,39 @@ func (repository *SecurityAgentWorkerRepository) ScheduleSecurityAgentTriggers(c
 	return result.Created, nil
 }
 
-type SecurityAgentWorkerRepository struct{ database JSONDatabase }
+type SecurityAgentWorkerRepository struct {
+	database                          JSONDatabase
+	readySQL, checksum, fingerprint   string
+	scheduleSQL, claimSQL, prepareSQL string
+	executeSQL                        string
+}
 
 func NewSecurityAgentWorkerRepository(database JSONDatabase) (*SecurityAgentWorkerRepository, error) {
 	if nilInterface(database) {
 		return nil, ErrRepositoryConfiguration
 	}
-	repository := &SecurityAgentWorkerRepository{database: database}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if repository.Ready(ctx) != nil {
-		return nil, ErrRepositoryConfiguration
+	configurations := []SecurityAgentWorkerRepository{
+		{database: database, readySQL: postgresSecurityAgentWorkerReadySQL, checksum: migrations.ProductionSecurityAgentTemporaryPolicy().Checksum(), fingerprint: migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleTriggersSQL, claimSQL: postgresSecurityAgentClaimRunsSQL, prepareSQL: postgresSecurityAgentPrepareRunSQL, executeSQL: postgresSecurityAgentExecuteRunSQL},
+		{database: database, readySQL: postgresSecurityAgentWorkerReadyV21SQL, checksum: migrations.ProductionSecurityAgentAutonomousResponse().Checksum(), fingerprint: migrations.ProductionSecurityAgentAutonomousResponseSemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleV21SQL, claimSQL: postgresSecurityAgentClaimRunsV21SQL, prepareSQL: postgresSecurityAgentPrepareRunV21SQL, executeSQL: postgresSecurityAgentExecuteRunV21SQL},
 	}
-	return repository, nil
+	for index := range configurations {
+		if configurations[index].Ready(ctx) == nil {
+			return &configurations[index], nil
+		}
+	}
+	return nil, ErrRepositoryConfiguration
 }
 
 func (repository *SecurityAgentWorkerRepository) Ready(ctx context.Context) error {
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentWorkerReadySQL, migrations.ProductionSecurityAgentAutonomousResponse().Checksum(), migrations.ProductionSecurityAgentAutonomousResponseSemanticFingerprint())
+	if repository.readySQL == "" || repository.checksum == "" || repository.fingerprint == "" {
+		return ErrRepositoryUnavailable
+	}
+	payload, err := repository.database.QueryJSON(ctx, repository.readySQL, repository.checksum, repository.fingerprint)
 	if err != nil {
 		return ErrRepositoryUnavailable
 	}
@@ -115,7 +133,7 @@ func (repository *SecurityAgentWorkerRepository) ClaimSecurityAgentRuns(ctx cont
 	if repository == nil || ctx == nil || ctx.Err() != nil || !validSecurityAgentWorkerLease(workerID, leaseToken, leaseSeconds) || limit < 1 || limit > 25 {
 		return nil, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentClaimRunsSQL, workerID, leaseToken, leaseSeconds, limit)
+	payload, err := repository.database.QueryJSON(ctx, repository.claimSQL, workerID, leaseToken, leaseSeconds, limit)
 	if err != nil {
 		return nil, discoveryProviderError(err)
 	}
@@ -156,7 +174,7 @@ func (repository *SecurityAgentWorkerRepository) PrepareSecurityAgentRun(ctx con
 	if repository == nil || ctx == nil || ctx.Err() != nil || !validSecurityAgentRunClaim(claim) || claim.Prepared || !validSecurityAgentWorkerIdentity(workerID, leaseToken) || !validProductID(approvalID) || expiresAt.IsZero() || expiresAt.Location() != time.UTC || !validProductID(auditID) || !validProductID(correlationID) {
 		return SecurityAgentPrepareResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentPrepareRunSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, workerID, leaseToken, approvalID, expiresAt, auditID, correlationID)
+	payload, err := repository.database.QueryJSON(ctx, repository.prepareSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, workerID, leaseToken, approvalID, expiresAt, auditID, correlationID)
 	if err != nil {
 		return SecurityAgentPrepareResult{}, discoveryProviderError(err)
 	}
@@ -175,7 +193,7 @@ func (repository *SecurityAgentWorkerRepository) ExecuteSecurityAgentRun(ctx con
 	if repository == nil || ctx == nil || ctx.Err() != nil || !validSecurityAgentRunClaim(claim) || !claim.Prepared || !validSecurityAgentWorkerIdentity(workerID, leaseToken) || !validProductID(auditID) || !validProductID(correlationID) {
 		return SecurityAgentExecuteResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentExecuteRunSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, workerID, leaseToken, auditID, correlationID)
+	payload, err := repository.database.QueryJSON(ctx, repository.executeSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, workerID, leaseToken, auditID, correlationID)
 	if err != nil {
 		return SecurityAgentExecuteResult{}, discoveryProviderError(err)
 	}
@@ -183,7 +201,9 @@ func (repository *SecurityAgentWorkerRepository) ExecuteSecurityAgentRun(ctx con
 	if !exactJSONFields(payload, "effect_state", "outcome_id", "result_digest", "run_id", "state", "step_id", "version") || decodeStrictDiscovery(payload, &result) != nil {
 		return SecurityAgentExecuteResult{}, ErrRepositoryUnavailable
 	}
-	if result.RunID != claim.RunID || result.State != "remediated" || result.Version != claim.Version+1 || !validProductID(result.StepID) || result.EffectState != "verified" || !validProductID(result.OutcomeID) || !securityAgentPlanHashPattern.MatchString(result.ResultDigest) {
+	terminal := result.State == "remediated" && result.EffectState == "verified"
+	dispatched := result.State == "running" && result.EffectState == "pending"
+	if result.RunID != claim.RunID || !terminal && !dispatched || result.Version != claim.Version+1 || !validProductID(result.StepID) || !validProductID(result.OutcomeID) || !securityAgentPlanHashPattern.MatchString(result.ResultDigest) {
 		return SecurityAgentExecuteResult{}, ErrRepositoryUnavailable
 	}
 	return result, nil

@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -25,6 +27,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
+	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
 
 func TestProductionCombinedE2EDiscoveryWorker(t *testing.T) {
@@ -89,6 +92,96 @@ func TestProductionCombinedE2EDiscoveryWorker(t *testing.T) {
 		t.Fatalf("scenario %q acknowledged=%v want %v; database trace=%s; postgres trace=%s", scenario, queue.acknowledged, wantAcknowledged, tracedDatabase.Trace(), postgresTrace.String())
 	}
 	t.Log("deterministic local provider and artifact authority completed public sync")
+}
+
+func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
+	actionDSN := os.Getenv("ZASP_COMBINED_E2E_ACTION_DSN")
+	if actionDSN == "" {
+		t.Skip("combined E2E helper")
+	}
+	phase := os.Getenv("ZASP_COMBINED_E2E_ACTION_PHASE")
+	if phase != "apply" && phase != "cleanup" {
+		t.Fatal("combined E2E action phase is invalid")
+	}
+	privateKeyBytes, err := base64.RawURLEncoding.DecodeString(os.Getenv("ZASP_COMBINED_E2E_ACTION_PRIVATE_KEY"))
+	if err != nil || len(privateKeyBytes) != ed25519.PrivateKeySize {
+		t.Fatal("combined E2E action signing authority is invalid")
+	}
+	privateKey := ed25519.PrivateKey(privateKeyBytes)
+	publicKey := append(ed25519.PublicKey(nil), privateKey.Public().(ed25519.PublicKey)...)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	poolConfig, err := pgxpool.ParseConfig(actionDSN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	poolConfig.MaxConns, poolConfig.MinConns = 3, 1
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	postgresTrace := &combinedE2EPostgresTrace{}
+	database, err := apiserver.NewPostgresJSONDatabase(&combinedE2EPostgresDriver{delegate: &workerPostgresDriver{pool: pool}, trace: postgresTrace})
+	if err != nil {
+		pool.Close()
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	tracedDatabase := &combinedE2ETracingDatabase{delegate: database}
+	config := workerRuntimeConfig{
+		Mode: workerModeSecurityAgentAction, PostgresDSN: actionDSN, DatabaseAuthority: "zasp_security_agent_action_worker", WorkerID: "production-e2e-security-agent-action",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 8, ShutdownTimeout: 20 * time.Second,
+		GatewaySigningKeyID: "gateway-key-01", GatewaySigningPrivateFile: "/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key",
+	}
+	dependencies, err := composeSecurityAgentActionWorkerRuntime(config, tracedDatabase, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = dependencies.Close() }()
+	if err := dependencies.Ready(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Processor.RunOnce(ctx); err != nil {
+		t.Fatalf("%v; database trace=%s; postgres trace=%s", err, tracedDatabase.Trace(), postgresTrace.String())
+	}
+
+	gatewayPool, err := pgxpool.New(ctx, os.Getenv("ZASP_COMBINED_E2E_GATEWAY_DSN"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gatewayPool.Close()
+	afterSequence, expectedPolicies := int64(0), 2
+	expectedRunState := "contained"
+	if phase == "cleanup" {
+		afterSequence, expectedPolicies, expectedRunState = 1, 0, "remediated"
+	}
+	var raw json.RawMessage
+	if err := gatewayPool.QueryRow(ctx, `SELECT zasp_runtime_gateway_policy_bundle($1,$2)`, "pid_79000003-0000-4000-8000-000000000003", afterSequence).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	var envelope policy.GatewayPolicyEnvelope
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	keys, err := policy.NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-01": publicKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	verified, err := policy.VerifyGatewayPolicyEnvelope(envelope, keys, policy.GatewayPolicyBinding{
+		OrganizationID: "pid_10000001-0000-4000-8000-000000000001", WorkspaceID: "pid_10000002-0000-4000-8000-000000000002", EnvironmentID: "pid_10000003-0000-4000-8000-000000000003", DeviceID: "pid_79000001-0000-4000-8000-000000000001",
+	}, time.Now().UTC().Truncate(time.Second))
+	if err != nil || len(verified.Policies) != expectedPolicies {
+		t.Fatalf("gateway bundle=%s policies=%d err=%v", raw, len(verified.Policies), err)
+	}
+	var runState string
+	if err := gatewayPool.QueryRow(ctx, `SELECT run.state FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) WHERE effect.action_key='create_temporary_policy' ORDER BY effect.updated_at DESC LIMIT 1`).Scan(&runState); err == nil {
+		t.Fatal("gateway principal read private Security Agent state")
+	}
+	if envelope.Sequence != uint64(afterSequence+1) {
+		t.Fatalf("phase=%s sequence=%d", phase, envelope.Sequence)
+	}
+	t.Logf("signed temporary gateway policy %s and verified through gateway authority; state=%s", phase, expectedRunState)
 }
 
 func TestProductionCombinedE2EProviderFixturesAreCanonical(t *testing.T) {
@@ -322,6 +415,8 @@ func combinedE2EDatabaseStage(query string) string {
 	for _, stage := range []string{
 		"zasp_inventory_readiness", "zasp_execution_principal_ready", "zasp_execution_claim_delivery", "zasp_execution_job_input",
 		"zasp_execution_heartbeat_job", "zasp_execution_checkpoint_partial", "zasp_execution_apply_complete_snapshot", "zasp_execution_finish_job",
+		"zasp_security_agent_temporary_policy_readiness", "zasp_security_agent_action_principal_ready", "zasp_security_agent_claim_temporary_policy_effects",
+		"zasp_security_agent_heartbeat_temporary_policy_effect", "zasp_security_agent_store_temporary_policy_target", "zasp_security_agent_read_temporary_policy_target", "zasp_security_agent_finish_temporary_policy_effect",
 	} {
 		if strings.Contains(query, stage) {
 			return stage

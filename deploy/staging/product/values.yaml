@@ -25,6 +25,7 @@ replicas:
   discoveryWorker: 2
   discoveryScheduler: 2
   securityAgent: 2
+  securityAgentAction: 2
   projectionRisk: 2
   projectionGraph: 2
   projectionSearch: 2
@@ -49,6 +50,7 @@ secrets:
   workerProviderClassName: zasp-production-worker-secrets
   schedulerProviderClassName: zasp-production-scheduler-secrets
   securityAgentProviderClassName: zasp-production-security-agent-secrets
+  securityAgentActionProviderClassName: zasp-production-security-agent-action-secrets
   projectionRiskProviderClassName: zasp-production-projection-risk-secrets
   projectionGraphProviderClassName: zasp-production-projection-graph-secrets
   projectionSearchProviderClassName: zasp-production-projection-search-secrets
@@ -65,6 +67,8 @@ secrets:
   apiPostgresDSNObjectName: ""
   securityAgentAPIPostgresDSNObjectName: ""
   securityAgentWorkerPostgresDSNObjectName: ""
+  securityAgentActionPostgresDSNObjectName: ""
+  gatewaySigningPrivateKeyObjectName: ""
   migrationPostgresDSNObjectName: ""
   workerPostgresDSNObjectName: ""
   schedulerPostgresDSNObjectName: ""
@@ -178,13 +182,14 @@ runtime:
   projectionRoleArn: ""
   completeRoleArn: ""
 schema:
-  expectedVersion: 21
+  expectedVersion: 22
   migrationTimeout: 10m
 databasePrincipals:
   migration: ""
   api: ""
   securityAgentAPI: ""
   securityAgentWorker: ""
+  securityAgentActionWorker: ""
   discoveryWorker: ""
   runtimeIngest: ""
   runtimeWorker: ""
@@ -216,6 +221,9 @@ serviceAccounts:
     roleArn: ""
   securityAgent:
     name: zasp-security-agent
+    roleArn: ""
+  securityAgentAction:
+    name: zasp-security-agent-action
     roleArn: ""
   projectionSearch:
     name: zasp-projection-search
@@ -266,6 +274,8 @@ serviceAccounts:
   canarySecretSync:
     name: agentsec-canary-secret-sync
     roleArn: ""
+gatewayPolicy:
+  signingKeyID: ""
 monitoring:
   namespace: monitoring
   enabled: true

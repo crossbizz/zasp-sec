@@ -17,20 +17,21 @@ const evidenceID = "pid_40000007-0000-4000-8000-000000000007";
 const expiresAt = "2026-08-21T20:00:00Z";
 const template: SecurityAgentTemplate = { id: "pid_70000001-0000-4000-8000-000000000001", name: "Finding Response", version: 1, trigger_kind: "finding", default_actions: ["update_finding_response"], verification_condition: "finding_state" };
 const action: SecurityAction = { key: "update_finding_response", risk_class: "low", target_types: ["finding"], approval_floor: "none", reversible: true, verification_kind: "finding_state" };
+const temporaryPolicyAction: SecurityAction = { key: "create_temporary_policy", risk_class: "containment", target_types: ["finding"], approval_floor: "operator", reversible: true, verification_kind: "policy_state" };
 const created: SecurityAgentDefinition = { id: agentID, name: "Bounded response definition", trigger_kind: "finding", trigger_source: "credential", environment_ids: [environmentID], autonomy: "supervised", max_steps: 10, max_duration_seconds: 900, temporary_policy_seconds: 3600, ai_token_budget: 4000, concurrency_limit: 2, allowed_actions: ["update_finding_response"], verification_kind: "finding_state", definition_version: 1, enabled: false };
 const draftActivation: SecurityAgentActivationState = { id: agentID, activation: "draft", enabled: false, version: 7 };
 const simulation: SecurityAgentSimulation = { run_id: "pid_40000008-0000-4000-8000-000000000008", definition_id: agentID, definition_version: 3, plan_hash: `sha256:${"b".repeat(64)}`, catalog_version: "security-agent-actions-v1", expires_at: expiresAt, matched_evidence_ids: [evidenceID], summary: "Planned one finding response", steps: [{ index: 0, action: "update_finding_response", authorization: "approval_required", approval_required: true }], side_effects: 0, version: 1 };
 const run: SecurityAgentRun = { id: runID, agent_id: agentID, state: "waiting_approval", evidence_ids: [evidenceID], definition_version: 1, version: 4 };
 const approval: SecurityAgentApproval = { id: approvalID, run_id: runID, step_id: stepID, state: "pending", expires_at: expiresAt, version: 1, expected_effect: "Move finding to under review", reversible: true, ttl_seconds: 0, evidence_summary: [evidenceID] };
 const runDetail: SecurityAgentRunDetail = { run, evidence_ids: [evidenceID], plan: { plan_hash: `sha256:${"a".repeat(64)}`, catalog_version: "security-agent-actions-v1", expires_at: expiresAt, steps: [{ id: stepID, index: 0, action: "update_finding_response", authorization: "approval_required", state: "waiting_approval", version: 1 }] }, authorization: "approval_required", approvals: [approval], execution: [{ step_id: stepID, action: "update_finding_response", state: "waiting_approval", version: 1 }], verification: "not_started" };
-const controls: SecurityAgentExecutionControls = { global: { target: "global", action_key: "*", enabled: true, version: 1 }, environment: { target: "environment", action_key: "*", enabled: false, version: 0 }, actions: [{ target: "action", action_key: "update_finding_response", enabled: false, version: 0 }] };
+const controls: SecurityAgentExecutionControls = { global: { target: "global", action_key: "*", enabled: true, version: 1 }, environment: { target: "environment", action_key: "*", enabled: false, version: 0 }, actions: [{ target: "action", action_key: "create_temporary_policy", enabled: false, version: 0 }, { target: "action", action_key: "update_finding_response", enabled: false, version: 0 }] };
 
 function fixtureAPI(overrides: Partial<SecurityAgentsAPI> = {}): SecurityAgentsAPI {
   return {
     listSecurityAgentTemplates: async () => [template],
-    listSecurityActions: async () => [action],
+    listSecurityActions: async () => [temporaryPolicyAction, action],
     getSecurityAgentExecutionControls: async () => controls,
-    setSecurityAgentExecutionControl: async (target, version, enabled) => ({ value: { target, action_key: target === "environment" ? "*" : "update_finding_response", enabled, version: version + 1, audit_id: auditID, correlation_id: "pid_40000009-0000-4000-8000-000000000009", receipt_id: receiptID, replayed: false }, version: `"${version + 1}"`, auditID, receiptID }),
+    setSecurityAgentExecutionControl: async (target, actionKey, version, enabled) => ({ value: { target, action_key: actionKey, enabled, version: version + 1, audit_id: auditID, correlation_id: "pid_40000009-0000-4000-8000-000000000009", receipt_id: receiptID, replayed: false }, version: `"${version + 1}"`, auditID, receiptID }),
     listSecurityAgents: async () => ({ items: [], page_info: { next_cursor: null, has_more: false } }),
     createSecurityAgent: async () => ({ value: created, version: `"1"`, auditID, receiptID }),
     getSecurityAgent: async () => ({ value: created, version: `"7"` }),
@@ -63,17 +64,17 @@ describe("Security Agent definition surface", () => {
     const user = userEvent.setup();
     const reauthenticate = vi.fn();
     const setSecurityAgentExecutionControl = vi.fn(fixtureAPI().setSecurityAgentExecutionControl);
-    const initialSnapshot = { agents: [], templates: [template], actions: [action], runs: [], approvals: [], controls };
+    const initialSnapshot = { agents: [], templates: [template], actions: [temporaryPolicyAction, action], runs: [], approvals: [], controls };
     const { rerender } = render(<SecurityAgentsView api={fixtureAPI({ setSecurityAgentExecutionControl })} environmentID={environmentID} autoLoad={false} initialSnapshot={initialSnapshot} canManageControls fresh={false} onReauthenticate={reauthenticate} />);
     expect(screen.getByText("Platform execution enabled")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Reauthenticate to change execution controls" }));
     expect(reauthenticate).toHaveBeenCalledTimes(1);
     rerender(<SecurityAgentsView api={fixtureAPI({ setSecurityAgentExecutionControl })} environmentID={environmentID} autoLoad={false} initialSnapshot={initialSnapshot} canManageControls fresh onReauthenticate={reauthenticate} />);
     await user.click(screen.getByRole("button", { name: "Enable environment automation" }));
-    await waitFor(() => expect(setSecurityAgentExecutionControl).toHaveBeenCalledWith("environment", 0, true, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+    await waitFor(() => expect(setSecurityAgentExecutionControl).toHaveBeenCalledWith("environment", "*", 0, true, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
     expect(await screen.findByText("Environment automation enabled")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Enable finding response action" }));
-    await waitFor(() => expect(setSecurityAgentExecutionControl).toHaveBeenLastCalledWith("action", 0, true, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+    await user.click(screen.getByRole("button", { name: "Enable create_temporary_policy" }));
+    await waitFor(() => expect(setSecurityAgentExecutionControl).toHaveBeenLastCalledWith("action", "create_temporary_policy", 0, true, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
     expect(screen.queryByRole("button", { name: /platform execution/i })).not.toBeInTheDocument();
   });
   it("strictly binds run plans, approvals, effects, and cursor pages", () => {
@@ -150,6 +151,20 @@ describe("Security Agent definition surface", () => {
 	await waitFor(() => expect(activateSecurityAgent).toHaveBeenCalledWith(agentID, 3, "autonomous", expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
 	expect(await screen.findByText(`${created.trigger_kind} · ${environmentID} · autonomous`)).toBeInTheDocument();
 	expect(await screen.findByRole("button", { name: "Start autonomous run" })).toBeInTheDocument();
+  });
+
+  it("keeps temporary policy definitions supervised", async () => {
+    const user = userEvent.setup();
+    const temporaryDefinition: SecurityAgentDefinition = { ...created, name: "Temporary containment", allowed_actions: ["create_temporary_policy"], verification_kind: "policy_state", autonomy: "supervised", enabled: true };
+    const api = fixtureAPI({
+      getSecurityAgent: async () => ({ value: temporaryDefinition, version: `"3"` }),
+      getSecurityAgentActivation: async () => ({ id: agentID, activation: "supervised", enabled: true, version: 3 }),
+    });
+    render(<SecurityAgentsView api={api} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [temporaryDefinition], templates: [template], actions: [temporaryPolicyAction, action], runs: [], approvals: [] }} fresh />);
+    await user.click(screen.getByRole("button", { name: "Open Temporary containment" }));
+    expect(await screen.findByText(/create_temporary_policy · containment · approval operator/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Enable autonomous execution" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start supervised run" })).toBeInTheDocument();
   });
 
   it("shows redacted run and approval detail, gates decisions on fresh auth, and cancels with the listed version", async () => {

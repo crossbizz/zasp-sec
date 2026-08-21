@@ -30,7 +30,7 @@ export type SecurityAgentsAPI = {
   listSecurityAgentTemplates(signal?: AbortSignal): Promise<readonly SecurityAgentTemplate[]>;
   listSecurityActions(signal?: AbortSignal): Promise<readonly SecurityAction[]>;
   getSecurityAgentExecutionControls(signal?: AbortSignal): Promise<SecurityAgentExecutionControls>;
-  setSecurityAgentExecutionControl(target: "environment" | "action", version: number, enabled: boolean, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentExecutionControlResult>>;
+  setSecurityAgentExecutionControl(target: "environment" | "action", actionKey: "*" | "create_temporary_policy" | "update_finding_response", version: number, enabled: boolean, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentExecutionControlResult>>;
   listSecurityAgents(options?: { cursor?: string; limit?: number }, signal?: AbortSignal): Promise<SecurityAgentPage>;
   createSecurityAgent(value: SecurityAgentInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentDefinition>>;
   getSecurityAgent(id: string, signal?: AbortSignal): Promise<Versioned<SecurityAgentDefinition>>;
@@ -60,8 +60,8 @@ export function createSecurityAgentsAPI(client: APIClient = createAPIClient()): 
       const result = await client.GET("/api/v1/security-agent-execution-controls", { signal }); requireSecurityAgentNoStore(result.response);
       return requireAPIData(result, decodeSecurityAgentExecutionControls);
     },
-    async setSecurityAgentExecutionControl(target, version, enabled, attempt) {
-      const actionKey = target === "environment" ? "*" : "update_finding_response";
+    async setSecurityAgentExecutionControl(target, actionKey, version, enabled, attempt) {
+      if (target === "environment" && actionKey !== "*" || target === "action" && actionKey !== "create_temporary_policy" && actionKey !== "update_finding_response") throw new TypeError("Security Agent execution control target is invalid");
       return executeWorkflowMutation(async (active) => {
         const params = { header: { ...workflowMutationHeaders(active, `"${version}"`), "X-Zasp-Fresh-Auth": "confirmed" } } as never;
         const result = await client.PUT("/api/v1/security-agent-execution-controls", { params, body: { target, action_key: actionKey, enabled } }); requireSecurityAgentNoStore(result.response);
@@ -170,7 +170,7 @@ type SecurityAgentApprovalDecisionIntent = { id: string; version: number; decisi
 type SecurityAgentActivationIntent = { id: string; version: number; activation: "validated" | "supervised" | "autonomous" };
 type SecurityAgentSimulationIntent = { id: string; version: number; goal: string; environmentID: string; evidenceIDs: readonly string[] };
 type SecurityAgentManualRunIntent = { id: string; version: number; environmentID: string; triggerKind: "finding" | "attack_path" | "session"; triggerID: string };
-type SecurityAgentControlIntent = { target: "environment" | "action"; version: number; enabled: boolean };
+type SecurityAgentControlIntent = { target: "environment" | "action"; actionKey: "*" | "create_temporary_policy" | "update_finding_response"; version: number; enabled: boolean };
 
 async function loadSecurityAgentSnapshot(api: SecurityAgentsAPI, includeControls = false, signal?: AbortSignal): Promise<SecurityAgentSnapshot> {
   const [firstPage, templates, actions, firstRuns, firstApprovals, controls] = await Promise.all([
@@ -207,16 +207,15 @@ type SecurityAgentControlMutation = ReturnType<typeof useRetainedWorkflowMutatio
 
 function ExecutionControls({ value, api, fresh, mutation, onReauthenticate, onChange }: { value: SecurityAgentExecutionControls; api: SecurityAgentsAPI; fresh: boolean; mutation: SecurityAgentControlMutation; onReauthenticate(): void; onChange(value: SecurityAgentExecutionControls): void }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(false);
-  const action = value.actions[0];
-  const change = async (target: "environment" | "action") => {
-    const current = target === "environment" ? value.environment : action;
+  const change = async (target: "environment" | "action", actionKey: "*" | "create_temporary_policy" | "update_finding_response") => {
+    const current = target === "environment" ? value.environment : value.actions.find((action) => action.action_key === actionKey);
     if (!current) return;
     setBusy(true); setError(false);
     try {
-      const intent = { target, version: current.version, enabled: !current.enabled };
-      const receipt = mutation.canRetry ? await mutation.retry<WorkflowReceipt<SecurityAgentExecutionControlResult>>() : await mutation.execute(intent, (frozen, attempt) => api.setSecurityAgentExecutionControl(frozen.target, frozen.version, frozen.enabled, attempt));
+      const intent = { target, actionKey, version: current.version, enabled: !current.enabled };
+      const receipt = mutation.canRetry ? await mutation.retry<WorkflowReceipt<SecurityAgentExecutionControlResult>>() : await mutation.execute(intent, (frozen, attempt) => api.setSecurityAgentExecutionControl(frozen.target, frozen.actionKey, frozen.version, frozen.enabled, attempt));
       const next = { target: receipt.value.target, action_key: receipt.value.action_key, enabled: receipt.value.enabled, version: receipt.value.version } as const;
-      onChange(target === "environment" ? { ...value, environment: next } : { ...value, actions: [next] });
+      onChange(target === "environment" ? { ...value, environment: next } : { ...value, actions: value.actions.map((action) => action.action_key === next.action_key ? next : action) });
     } catch (reason) {
       if (reason instanceof APIProductError && reason.status === 409) {
         try { onChange(await api.getSecurityAgentExecutionControls()); } catch { setError(true); }
@@ -226,10 +225,10 @@ function ExecutionControls({ value, api, fresh, mutation, onReauthenticate, onCh
   return <Card title="Execution controls"><div className="form-stack">
     <p><Badge tone={value.global.enabled ? "success" : "critical"}>{value.global.enabled ? "Platform execution enabled" : "Platform execution disabled"}</Badge> Platform authority is read-only to tenant administrators.</p>
     <p><strong>{value.environment.enabled ? "Environment automation enabled" : "Environment automation disabled"}</strong> · version {value.environment.version}</p>
-    <p><strong>{action?.enabled ? "Finding response action enabled" : "Finding response action disabled"}</strong> · version {action?.version ?? 0}</p>
+    {value.actions.map((action) => <p key={action.action_key}><strong>{action.enabled ? `${action.action_key} enabled` : `${action.action_key} disabled`}</strong> · version {action.version}</p>)}
     {!fresh ? <Button onClick={onReauthenticate}>Reauthenticate to change execution controls</Button> : <div className="button-row">
-      <Button disabled={busy || mutation.isUnresolved && !mutation.canRetry || !value.global.enabled && !value.environment.enabled} onClick={() => void change("environment")}>{mutation.canRetry && mutation.retainedIntent?.target === "environment" ? "Retry retained environment control" : value.environment.enabled ? "Disable environment automation" : "Enable environment automation"}</Button>
-      <Button disabled={busy || mutation.isUnresolved && !mutation.canRetry || !action || !action.enabled && (!value.global.enabled || !value.environment.enabled)} onClick={() => void change("action")}>{mutation.canRetry && mutation.retainedIntent?.target === "action" ? "Retry retained action control" : action?.enabled ? "Disable finding response action" : "Enable finding response action"}</Button>
+      <Button disabled={busy || mutation.isUnresolved && !mutation.canRetry || !value.global.enabled && !value.environment.enabled} onClick={() => void change("environment", "*")}>{mutation.canRetry && mutation.retainedIntent?.target === "environment" ? "Retry retained environment control" : value.environment.enabled ? "Disable environment automation" : "Enable environment automation"}</Button>
+      {value.actions.map((action) => <Button key={action.action_key} disabled={busy || mutation.isUnresolved && !mutation.canRetry || !action.enabled && (!value.global.enabled || !value.environment.enabled)} onClick={() => void change("action", action.action_key)}>{mutation.canRetry && mutation.retainedIntent?.target === "action" && mutation.retainedIntent.actionKey === action.action_key ? `Retry retained ${action.action_key} control` : action.enabled ? `Disable ${action.action_key}` : `Enable ${action.action_key}`}</Button>)}
     </div>}
     {error && <p role="alert">Execution controls changed or the response was lost. Retry the retained change or reload current authority.</p>}
   </div></Card>;
@@ -281,7 +280,8 @@ function AgentDetail({ selected, activation, actions, api, canWrite, fresh, onRe
   const save = () => void run(() => mutation.execute({ kind: "update", id: selected.value.id, version: selected.version, value: { ...selected.value, name, enabled } }, async (intent, attempt) => { if (intent.kind !== "update") throw new TypeError("Invalid retained Security Agent intent"); return { kind: "updated", receipt: await api.updateSecurityAgent(intent.id, intent.version, intent.value, attempt) }; }));
   const remove = () => void run(() => mutation.execute({ kind: "delete", id: selected.value.id, version: selected.version }, async (intent, attempt) => { if (intent.kind !== "delete") throw new TypeError("Invalid retained Security Agent intent"); return { kind: "deleted", receipt: await api.deleteSecurityAgent(intent.id, intent.version, attempt) }; }));
   const retry = () => void run(() => mutation.retry<SecurityAgentDetailResult>());
-  const nextActivation = activation.activation === "draft" ? "validated" : activation.activation === "validated" ? "supervised" : activation.activation === "supervised" ? "autonomous" : null;
+  const autonomousAllowed = !selected.value.allowed_actions.includes("create_temporary_policy");
+  const nextActivation = activation.activation === "draft" ? "validated" : activation.activation === "validated" ? "supervised" : activation.activation === "supervised" && autonomousAllowed ? "autonomous" : null;
   const activate = async () => {
     if (!nextActivation) return;
     if (!fresh) { onReauthenticate(); return; }

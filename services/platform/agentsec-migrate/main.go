@@ -36,6 +36,7 @@ const (
 	gatewayControlPrincipalEnvironment      = "ZASP_GATEWAY_CONTROL_DB_PRINCIPAL"
 	securityAgentAPIPrincipalEnvironment    = "ZASP_SECURITY_AGENT_API_DB_PRINCIPAL"
 	securityAgentWorkerPrincipalEnvironment = "ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL"
+	securityAgentActionPrincipalEnvironment = "ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL"
 )
 
 var errInvalidMigrationCommand = errors.New("invalid release migration command")
@@ -45,7 +46,7 @@ var databasePrincipalPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{2,62}$`)
 type discoveryPrincipalRegistration struct {
 	migration, api, discovery, ingest, runtime, outbox, gateway, scheduler, projectionRisk, projectionGraph, projectionSearch string
 	runtimeCoordinator, runtimeArchive, runtimeIndex, runtimeCorrelation, runtimeProjection, gatewayControl                   string
-	securityAgentAPI, securityAgentWorker                                                                                     string
+	securityAgentAPI, securityAgentWorker, securityAgentAction                                                                string
 }
 
 type principalQueryer interface {
@@ -91,6 +92,8 @@ type releaseMigrationRunner interface {
 	DownProductionSecurityAgentControls(context.Context) error
 	UpProductionSecurityAgentAutonomousResponse(context.Context) error
 	DownProductionSecurityAgentAutonomousResponse(context.Context) error
+	UpProductionSecurityAgentTemporaryPolicy(context.Context) error
+	DownProductionSecurityAgentTemporaryPolicy(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -151,7 +154,8 @@ func registerReleasePrincipals(ctx context.Context, queryer principalQueryer, re
 		{statement: `SELECT zasp_runtime_principals_ready()`},
 		{`SELECT zasp_security_agent_register_principals($1,$2,$3)`, []any{registration.migration, registration.securityAgentAPI, registration.securityAgentWorker}},
 		{statement: `SELECT zasp_security_agent_principals_ready()`},
-		{`SELECT zasp_security_agent_autonomous_readiness($1,$2)`, []any{migrations.ProductionSecurityAgentAutonomousResponse().Checksum(), migrations.ProductionSecurityAgentAutonomousResponseSemanticFingerprint()}},
+		{`SELECT zasp_security_agent_register_action_principal($1,$2)`, []any{registration.migration, registration.securityAgentAction}},
+		{`SELECT zasp_security_agent_temporary_policy_readiness($1,$2)`, []any{migrations.ProductionSecurityAgentTemporaryPolicy().Checksum(), migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint()}},
 	}
 	for _, check := range checks {
 		ready = false
@@ -177,8 +181,9 @@ func loadDiscoveryPrincipalRegistration(getenv func(string) string) (discoveryPr
 		runtimeIndex: getenv(runtimeIndexPrincipalEnvironment), runtimeCorrelation: getenv(runtimeCorrelationPrincipalEnvironment),
 		runtimeProjection: getenv(runtimeProjectionPrincipalEnvironment), gatewayControl: getenv(gatewayControlPrincipalEnvironment),
 		securityAgentAPI: getenv(securityAgentAPIPrincipalEnvironment), securityAgentWorker: getenv(securityAgentWorkerPrincipalEnvironment),
+		securityAgentAction: getenv(securityAgentActionPrincipalEnvironment),
 	}
-	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway, registration.scheduler, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch, registration.runtimeCoordinator, registration.runtimeArchive, registration.runtimeIndex, registration.runtimeCorrelation, registration.runtimeProjection, registration.gatewayControl, registration.securityAgentAPI, registration.securityAgentWorker}
+	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway, registration.scheduler, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch, registration.runtimeCoordinator, registration.runtimeArchive, registration.runtimeIndex, registration.runtimeCorrelation, registration.runtimeProjection, registration.gatewayControl, registration.securityAgentAPI, registration.securityAgentWorker, registration.securityAgentAction}
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		if !databasePrincipalPattern.MatchString(value) {
@@ -342,10 +347,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 21
 		}
-		if version != 21 {
+		if version == 21 {
+			if err := runner.UpProductionSecurityAgentTemporaryPolicy(ctx); err != nil {
+				return err
+			}
+			version = 22
+		}
+		if version != 22 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 22 {
+			if err := runner.DownProductionSecurityAgentTemporaryPolicy(ctx); err != nil {
+				return err
+			}
+			version = 21
+		}
 		if version == 21 {
 			if err := runner.DownProductionSecurityAgentAutonomousResponse(ctx); err != nil {
 				return err

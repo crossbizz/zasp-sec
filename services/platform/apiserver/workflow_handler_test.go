@@ -617,15 +617,17 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 			DefaultActions []string `json:"default_actions"`
 		} `json:"items"`
 	}
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &templates) != nil || len(templates.Items) != 1 {
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &templates) != nil || len(templates.Items) != 2 {
 		t.Fatalf("local templates = %d %s", response.Code, response.Body.String())
 	}
-	if !slices.Equal(templates.Items[0].DefaultActions, []string{"update_finding_response"}) {
+	if !slices.Equal(templates.Items[0].DefaultActions, []string{"update_finding_response"}) || !slices.Equal(templates.Items[1].DefaultActions, []string{"create_temporary_policy"}) {
 		t.Fatalf("production template exposes actions without a production executor: %#v", templates.Items[0].DefaultActions)
 	}
-	for _, action := range templates.Items[0].DefaultActions {
-		if !servedWorkflowActions([]string{action}) {
-			t.Fatalf("template publishes unsupported action %q", action)
+	for _, template := range templates.Items {
+		for _, action := range template.DefaultActions {
+			if !servedWorkflowActions([]string{action}) {
+				t.Fatalf("template publishes unsupported action %q", action)
+			}
 		}
 	}
 
@@ -642,7 +644,7 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 			VerificationKind string   `json:"verification_kind"`
 		} `json:"items"`
 	}
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &actions) != nil || len(actions.Items) != 1 || actions.Items[0].Key != "update_finding_response" || actions.Items[0].RiskClass != "low" || !slices.Equal(actions.Items[0].TargetTypes, []string{"finding"}) || actions.Items[0].ApprovalFloor != "none" || !actions.Items[0].Reversible || actions.Items[0].VerificationKind != "finding_state" {
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &actions) != nil || len(actions.Items) != 2 || actions.Items[0].Key != "create_temporary_policy" || actions.Items[0].RiskClass != "containment" || !slices.Equal(actions.Items[0].TargetTypes, []string{"environment"}) || actions.Items[0].ApprovalFloor != "operator" || !actions.Items[0].Reversible || actions.Items[0].VerificationKind != "policy_state" || actions.Items[1].Key != "update_finding_response" || actions.Items[1].RiskClass != "low" || !slices.Equal(actions.Items[1].TargetTypes, []string{"finding"}) || actions.Items[1].ApprovalFloor != "none" || !actions.Items[1].Reversible || actions.Items[1].VerificationKind != "finding_state" {
 		t.Fatalf("production action catalog = %d %s", response.Code, response.Body.String())
 	}
 }

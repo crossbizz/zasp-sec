@@ -58,6 +58,22 @@ func TestPolicyValidationCompileEvaluateBundleAndCache(t *testing.T) {
 	}
 }
 
+func TestCompilePresenceConditionMatchesAnyNonemptyRuntimeAttribute(t *testing.T) {
+	t.Parallel()
+	compiled, err := Compile(Policy{ID: "policy-presence", Trigger: "tool_call", Action: ActionBlock, Conditions: []Condition{{Field: "tool.name", Operator: "present"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	present, err := Evaluate(context.Background(), compiled, map[string]string{"tool.name": "shell"})
+	if err != nil || !present.Matched || present.Action != ActionBlock {
+		t.Fatalf("present=%+v err=%v", present, err)
+	}
+	missing, err := Evaluate(context.Background(), compiled, map[string]string{"resource.class": "tool"})
+	if err != nil || missing.Matched || missing.Action != ActionMonitor {
+		t.Fatalf("missing=%+v err=%v", missing, err)
+	}
+}
+
 func TestOPAArtifactRuntimeAndHistoricalBoundaries(t *testing.T) {
 	ctx := context.Background()
 	secret := []byte("0123456789abcdef0123456789abcdef")

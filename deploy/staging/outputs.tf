@@ -112,6 +112,9 @@ output "scheduler_role_arn" {
 output "security_agent_worker_role_arn" {
   value = aws_iam_role.security_agent_worker.arn
 }
+output "security_agent_action_worker_role_arn" {
+  value = aws_iam_role.security_agent_action_worker.arn
+}
 output "outbox_role_arn" {
   value = aws_iam_role.outbox.arn
 }

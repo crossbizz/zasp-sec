@@ -12,13 +12,16 @@ import (
 
 func TestProductionActionReadinessExposesOnlyVerifiedActions(t *testing.T) {
 	values := ProductionActionMetadata()
-	if len(values) != 1 || values[0].Key != "update_finding_response" {
+	if len(values) != 2 || values[0].Key != "create_temporary_policy" || values[1].Key != "update_finding_response" {
 		t.Fatalf("production actions=%#v", values)
+	}
+	if !ProductionActionAvailable("create_temporary_policy", AutonomySupervised) || ProductionActionAvailable("create_temporary_policy", AutonomyAutonomous) {
+		t.Fatal("temporary policy action autonomy is not exact")
 	}
 	if !ProductionActionAvailable("update_finding_response", AutonomySupervised) || !ProductionActionAvailable("update_finding_response", AutonomyAutonomous) {
 		t.Fatal("verified finding response action is unavailable")
 	}
-	for _, key := range []string{"create_temporary_policy", "isolate_session", "run_test", "rerun_test", "start_attack_lab", "create_evidence_export", "send_response_webhook", "revoke_integration_connection"} {
+	for _, key := range []string{"isolate_session", "run_test", "rerun_test", "start_attack_lab", "create_evidence_export", "send_response_webhook", "revoke_integration_connection"} {
 		if ProductionActionAvailable(key, AutonomySupervised) || ProductionActionAvailable(key, AutonomyAutonomous) {
 			t.Fatalf("unverified action %q is available", key)
 		}

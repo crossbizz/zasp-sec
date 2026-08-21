@@ -134,7 +134,7 @@ func TestSecurityAgentPublicHandlerReadsAndMutatesTenantExecutionControls(t *tes
 		controls: SecurityAgentExecutionControls{
 			Global:      SecurityAgentExecutionControl{Target: "global", ActionKey: "*", Enabled: true, Version: 1},
 			Environment: SecurityAgentExecutionControl{Target: "environment", ActionKey: "*", Enabled: false, Version: 0},
-			Actions:     []SecurityAgentExecutionControl{{Target: "action", ActionKey: "update_finding_response", Enabled: false, Version: 0}},
+			Actions:     []SecurityAgentExecutionControl{{Target: "action", ActionKey: "create_temporary_policy", Enabled: false, Version: 0}, {Target: "action", ActionKey: "update_finding_response", Enabled: false, Version: 0}},
 		},
 		controlResult: SecurityAgentExecutionControlResult{Target: "environment", ActionKey: "*", Enabled: true, Version: 1, AuditID: auditID, CorrelationID: testCorrelationID, ReceiptID: receiptID},
 	}
@@ -148,7 +148,7 @@ func TestSecurityAgentPublicHandlerReadsAndMutatesTenantExecutionControls(t *tes
 	read := workflowRequest(t, identity, testCorrelationID, "getSecurityAgentExecutionControls", nil, http.MethodGet, "/api/v1/security-agent-execution-controls", "")
 	readResponse := httptest.NewRecorder()
 	handler.ServeHTTP(readResponse, read)
-	if readResponse.Code != http.StatusOK || readResponse.Header().Get("Cache-Control") != "no-store" || readResponse.Body.String() != `{"global":{"target":"global","action_key":"*","enabled":true,"version":1},"environment":{"target":"environment","action_key":"*","enabled":false,"version":0},"actions":[{"target":"action","action_key":"update_finding_response","enabled":false,"version":0}]}`+"\n" {
+	if readResponse.Code != http.StatusOK || readResponse.Header().Get("Cache-Control") != "no-store" || readResponse.Body.String() != `{"global":{"target":"global","action_key":"*","enabled":true,"version":1},"environment":{"target":"environment","action_key":"*","enabled":false,"version":0},"actions":[{"target":"action","action_key":"create_temporary_policy","enabled":false,"version":0},{"target":"action","action_key":"update_finding_response","enabled":false,"version":0}]}`+"\n" {
 		t.Fatalf("read status=%d headers=%v body=%s", readResponse.Code, readResponse.Header(), readResponse.Body.String())
 	}
 	identity.FreshAuthenticated = true

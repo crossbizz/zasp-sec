@@ -681,7 +681,7 @@ func securityAgentBody(request *http.Request, scope domain.Scope, id string, cre
 		return nil, "", ErrRepositoryOperation
 	}
 	value := securityagent.SecurityAgent{ID: id, OrganizationID: scope.OrganizationID().String(), Name: input.Name, Trigger: securityagent.Trigger{Kind: input.TriggerKind, Source: input.TriggerSource}, Scope: securityagent.Scope{OrganizationID: scope.OrganizationID().String(), EnvironmentIDs: input.EnvironmentIDs}, Autonomy: securityagent.Autonomy(input.Autonomy), Limits: securityagent.RunLimits{MaxSteps: input.MaxSteps, MaxDuration: time.Duration(input.MaxDurationSeconds) * time.Second, TemporaryPolicyTTL: time.Duration(input.TemporaryPolicySeconds) * time.Second, MaxAITokens: input.AITokenBudget, MaxConcurrent: input.ConcurrencyLimit}, AllowedActions: input.AllowedActions, Verification: securityagent.Verification{Kind: input.VerificationKind}, DefinitionVersion: input.DefinitionVersion, Enabled: input.Enabled}
-	if securityagent.ValidateAgent(value) != nil || !exactWorkflowEnvironment(input.EnvironmentIDs, scope.EnvironmentID().String()) || !servedWorkflowActions(input.AllowedActions) {
+	if securityagent.ValidateAgent(value) != nil || !exactWorkflowEnvironment(input.EnvironmentIDs, scope.EnvironmentID().String()) || !servedWorkflowActionsAtAutonomy(input.AllowedActions, input.Autonomy) {
 		return nil, "", ErrRepositoryOperation
 	}
 	body, _ := json.Marshal(map[string]any{"id": id, "name": input.Name, "trigger_kind": input.TriggerKind, "trigger_source": input.TriggerSource, "environment_ids": input.EnvironmentIDs, "autonomy": input.Autonomy, "max_steps": input.MaxSteps, "max_duration_seconds": input.MaxDurationSeconds, "temporary_policy_seconds": input.TemporaryPolicySeconds, "ai_token_budget": input.AITokenBudget, "concurrency_limit": input.ConcurrencyLimit, "allowed_actions": input.AllowedActions, "verification_kind": input.VerificationKind, "definition_version": input.DefinitionVersion, "enabled": input.Enabled})
@@ -759,8 +759,13 @@ func exactWorkflowEnvironment(values []string, environmentID string) bool {
 }
 
 func servedWorkflowActions(values []string) bool {
+	return servedWorkflowActionsAtAutonomy(values, string(securityagent.AutonomySupervised))
+}
+
+func servedWorkflowActionsAtAutonomy(values []string, autonomy string) bool {
+	requested := securityagent.Autonomy(autonomy)
 	for _, value := range values {
-		if !securityagent.ProductionActionAvailable(value, securityagent.AutonomySupervised) {
+		if !securityagent.ProductionActionAvailable(value, requested) {
 			return false
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,6 +49,87 @@ func TestGatewayPolicyEnvelopeBindsKeyAudienceScopeDeviceAndPayload(t *testing.T
 		if _, err := VerifyGatewayPolicyEnvelope(candidate, keys, binding, now); err == nil {
 			t.Fatalf("mutation %d passed: %+v", index, candidate)
 		}
+	}
+}
+
+func TestSignGatewayPolicyEnvelopeProducesVerifiableTenantBoundPolicyAndCleanup(t *testing.T) {
+	t.Parallel()
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	binding := gatewayFixtureBinding()
+	compiled, err := Compile(Policy{ID: "policy-1", Trigger: "tool_call", Action: ActionBlock, Conditions: []Condition{{Field: "tool.name", Operator: "present"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys, err := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": publicKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := GatewayPolicySigningInput{
+		KeyID: "gateway-key-1", Binding: binding, Sequence: 7, PolicyVersion: 3,
+		Now: now, IssuedAt: now, ExpiresAt: now.Add(10 * time.Minute), FailureMode: "closed",
+		Policies: []CompiledPolicy{compiled},
+	}
+	envelope, err := SignGatewayPolicyEnvelope(input, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verified, err := VerifyGatewayPolicyEnvelope(envelope, keys, binding, now)
+	if err != nil || verified.Sequence != 7 || verified.PolicyVersion != 3 || len(verified.Policies) != 1 || verified.Policies[0].Conditions[0].Operator != "present" {
+		t.Fatalf("verified=%+v err=%v", verified, err)
+	}
+
+	input.Sequence = 8
+	input.PolicyVersion = 4
+	input.Policies = []CompiledPolicy{}
+	cleanup, err := SignGatewayPolicyEnvelope(input, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifiedCleanup, err := VerifyGatewayPolicyEnvelope(cleanup, keys, binding, now)
+	if err != nil || verifiedCleanup.Sequence != 8 || verifiedCleanup.PolicyVersion != 4 || len(verifiedCleanup.Policies) != 0 {
+		t.Fatalf("cleanup=%+v err=%v", verifiedCleanup, err)
+	}
+}
+
+func TestSignGatewayPolicyEnvelopeRejectsUnsafeAuthorityBeforeSigning(t *testing.T) {
+	t.Parallel()
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	valid := GatewayPolicySigningInput{KeyID: "gateway-key-1", Binding: gatewayFixtureBinding(), Sequence: 1, PolicyVersion: 1, Now: now, IssuedAt: now, ExpiresAt: now.Add(time.Minute), FailureMode: "closed", Policies: []CompiledPolicy{}}
+	tests := []struct {
+		name  string
+		input GatewayPolicySigningInput
+		key   ed25519.PrivateKey
+	}{
+		{name: "short key", input: valid, key: privateKey[:32]},
+		{name: "future issue", input: func() GatewayPolicySigningInput {
+			value := valid
+			value.IssuedAt = now.Add(time.Minute)
+			value.ExpiresAt = now.Add(2 * time.Minute)
+			return value
+		}(), key: privateKey},
+		{name: "long ttl", input: func() GatewayPolicySigningInput {
+			value := valid
+			value.ExpiresAt = now.Add(24*time.Hour + time.Second)
+			return value
+		}(), key: privateKey},
+		{name: "invalid binding", input: func() GatewayPolicySigningInput { value := valid; value.Binding.DeviceID = "foreign"; return value }(), key: privateKey},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := SignGatewayPolicyEnvelope(test.input, test.key); !errors.Is(err, ErrGatewayPolicy) {
+				t.Fatalf("err=%v", err)
+			}
+		})
 	}
 }
 

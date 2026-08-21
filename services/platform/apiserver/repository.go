@@ -24,6 +24,7 @@ const SecurityAgentExecutionSchemaVersion = "security-agent-execution-v1"
 const IdentityAdministrationSchemaVersion = "identity-administration-v1"
 const SecurityAgentControlsSchemaVersion = "security-agent-controls-v1"
 const SecurityAgentAutonomousSchemaVersion = "security-agent-autonomous-v1"
+const SecurityAgentTemporaryPolicySchemaVersion = "security-agent-temporary-policy-v1"
 
 const postgresRuntimeDataPlaneReadinessSQL = `SELECT to_jsonb(zasp_runtime_data_plane_readiness($1,$2))`
 const postgresRuntimeGatewayReconciliationReadinessSQL = `SELECT to_jsonb(zasp_runtime_gateway_reconciliation_readiness($1,$2))`
@@ -32,6 +33,7 @@ const postgresSecurityAgentExecutionReadinessSQL = `SELECT to_jsonb(zasp_securit
 const postgresIdentityAdministrationReadinessSQL = `SELECT to_jsonb(zasp_identity_administration_readiness($1,$2))`
 const postgresSecurityAgentControlsReadinessSQL = `SELECT to_jsonb(zasp_security_agent_controls_readiness($1,$2))`
 const postgresSecurityAgentAutonomousReadinessSQL = `SELECT to_jsonb(zasp_security_agent_autonomous_readiness($1,$2))`
+const postgresSecurityAgentTemporaryPolicyReadinessSQL = `SELECT to_jsonb(zasp_security_agent_temporary_policy_readiness($1,$2))`
 
 const (
 	postgresAuthenticateSessionSQL    = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', session.authenticated_at + interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
@@ -124,7 +126,7 @@ func isRuntimeDataPlaneSchema(version string) bool {
 }
 
 func isIdentityAdministrationSchema(version string) bool {
-	return version == IdentityAdministrationSchemaVersion || version == SecurityAgentControlsSchemaVersion || version == SecurityAgentAutonomousSchemaVersion
+	return version == IdentityAdministrationSchemaVersion || version == SecurityAgentControlsSchemaVersion || version == SecurityAgentAutonomousSchemaVersion || version == SecurityAgentTemporaryPolicySchemaVersion
 }
 
 func exactProductReadiness(version string) (string, string, string, bool) {
@@ -147,6 +149,8 @@ func exactProductReadiness(version string) (string, string, string, bool) {
 		return postgresSecurityAgentControlsReadinessSQL, migrations.ProductionSecurityAgentControls().Checksum(), migrations.ProductionSecurityAgentControlsSemanticFingerprint(), true
 	case SecurityAgentAutonomousSchemaVersion:
 		return postgresSecurityAgentAutonomousReadinessSQL, migrations.ProductionSecurityAgentAutonomousResponse().Checksum(), migrations.ProductionSecurityAgentAutonomousResponseSemanticFingerprint(), true
+	case SecurityAgentTemporaryPolicySchemaVersion:
+		return postgresSecurityAgentTemporaryPolicyReadinessSQL, migrations.ProductionSecurityAgentTemporaryPolicy().Checksum(), migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint(), true
 	default:
 		return "", "", "", false
 	}
