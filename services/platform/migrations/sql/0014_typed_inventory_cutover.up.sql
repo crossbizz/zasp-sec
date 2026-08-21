@@ -28,7 +28,7 @@ CREATE TABLE public.zasp_inventory_cutover_state (
   workspace_id text NOT NULL CHECK(zasp_valid_product_id(workspace_id)),
   environment_id text NOT NULL CHECK(zasp_valid_product_id(environment_id)),
   phase text NOT NULL CHECK(phase IN('expanded','backfilled','equivalent','cutover')),
-  rule_catalog_digest text NOT NULL CHECK(rule_catalog_digest='a2ac63a7fc968b0c0c883a999418e1eb14c2d8de3ffe62e95717b7dea6133c52'),
+  rule_catalog_digest text NOT NULL CHECK(rule_catalog_digest='44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30'),
   legacy_digest bytea CHECK(legacy_digest IS NULL OR octet_length(legacy_digest)=32),
   typed_digest bytea CHECK(typed_digest IS NULL OR octet_length(typed_digest)=32),
   expanded_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
@@ -141,19 +141,33 @@ CREATE TABLE public.zasp_inventory_identity_rules (
 
 INSERT INTO public.zasp_inventory_identity_rules(provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds) VALUES
  ('aws','aws_account','aws_account','asset',1,100,9000,86400),
+ ('aws','aws_policy','aws_policy','asset',1,100,9000,86400),
  ('aws','aws_resource','aws_resource','asset',1,100,9000,86400),
  ('aws','aws_role','aws_role','asset',1,100,9000,86400),
  ('aws','aws_service','aws_service','asset',1,100,9000,86400),
+ ('github','github_app','github_app','tool',1,120,9000,86400),
+ ('github','github_environment','github_environment','asset',1,120,9000,86400),
  ('github','github_installation','github_installation','asset',1,120,9000,86400),
  ('github','github_organization','github_organization','asset',1,120,9000,86400),
+ ('github','github_permission','github_permission','asset',1,120,9000,86400),
  ('github','github_repository','github_repository','tool',1,120,9000,86400),
+ ('github','github_workflow','github_workflow','tool',1,120,9000,86400),
  ('kubernetes','kubernetes_agent','kubernetes_agent','agent',1,80,9500,900),
  ('kubernetes','kubernetes_cluster','kubernetes_cluster','asset',1,80,9500,900),
+ ('kubernetes','kubernetes_cluster_role','kubernetes_cluster_role','asset',1,80,9500,900),
+ ('kubernetes','kubernetes_cluster_role_binding','kubernetes_cluster_role_binding','asset',1,80,9500,900),
+ ('kubernetes','kubernetes_group','kubernetes_group','identity',1,80,9500,900),
  ('kubernetes','kubernetes_namespace','kubernetes_namespace','asset',1,80,9500,900),
  ('kubernetes','kubernetes_resource','kubernetes_resource','asset',1,80,9500,900),
+ ('kubernetes','kubernetes_role','kubernetes_role','asset',1,80,9500,900),
+ ('kubernetes','kubernetes_role_binding','kubernetes_role_binding','asset',1,80,9500,900),
+ ('kubernetes','kubernetes_service_account','kubernetes_service_account','identity',1,80,9500,900),
+ ('kubernetes','kubernetes_user','kubernetes_user','identity',1,80,9500,900),
  ('kubernetes','kubernetes_workload','kubernetes_workload','runtime',1,80,9500,900),
  ('okta','okta_application','okta_application','tool',1,110,9500,86400),
  ('okta','okta_group','okta_group','identity',1,110,9500,86400),
+ ('okta','okta_role','okta_role','asset',1,110,9500,86400),
+ ('okta','okta_service_principal','okta_service_principal','identity',1,110,9500,86400),
  ('okta','okta_tenant','okta_tenant','asset',1,110,9500,86400),
  ('okta','okta_user','okta_user','identity',1,110,9500,86400);
 
@@ -266,7 +280,7 @@ BEGIN
  SELECT * INTO current_value FROM zasp_inventory_cutover_state WHERE (organization_id,workspace_id,environment_id)=(organization_value,workspace_value,environment_value) FOR UPDATE;
  IF NOT FOUND THEN
   IF next_phase<>'expanded' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inventory phase missing';END IF;
-  INSERT INTO zasp_inventory_cutover_state(organization_id,workspace_id,environment_id,phase,rule_catalog_digest) VALUES(organization_value,workspace_value,environment_value,'expanded','a2ac63a7fc968b0c0c883a999418e1eb14c2d8de3ffe62e95717b7dea6133c52') RETURNING * INTO current_value;
+  INSERT INTO zasp_inventory_cutover_state(organization_id,workspace_id,environment_id,phase,rule_catalog_digest) VALUES(organization_value,workspace_value,environment_value,'expanded','44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30') RETURNING * INTO current_value;
  ELSIF current_value.phase=next_phase AND (next_phase NOT IN('equivalent','cutover') OR (current_value.legacy_digest,current_value.typed_digest)=(legacy_value,typed_value)) THEN
   NULL;
  ELSIF current_value.phase='expanded' AND next_phase='backfilled' THEN
@@ -658,7 +672,7 @@ CREATE INDEX zasp_inventory_entities_kind_page_v14_idx ON public.zasp_inventory_
 CREATE INDEX zasp_inventory_observations_identity_v14_idx ON public.zasp_inventory_source_observations(organization_id,workspace_id,environment_id,provider,source,identity_namespace,source_native_id) WHERE source_state='present';
 
 INSERT INTO public.zasp_inventory_cutover_state(organization_id,workspace_id,environment_id,phase,rule_catalog_digest)
-SELECT scope_value.organization_id,scope_value.workspace_id,scope_value.environment_id,'expanded','a2ac63a7fc968b0c0c883a999418e1eb14c2d8de3ffe62e95717b7dea6133c52' FROM (
+SELECT scope_value.organization_id,scope_value.workspace_id,scope_value.environment_id,'expanded','44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30' FROM (
  SELECT organization_id,workspace_id,environment_id FROM zasp_core_payloads
  UNION SELECT organization_id,workspace_id,environment_id FROM zasp_inventory_entities
  UNION SELECT organization_id,workspace_id,environment_id FROM zasp_integrations
@@ -724,7 +738,7 @@ CREATE FUNCTION public.zasp_inventory_security_ready() RETURNS boolean LANGUAGE 
  AND NOT EXISTS(SELECT 1 FROM aclexplode(COALESCE((SELECT relacl FROM pg_class WHERE oid='public.zasp_risk_attack_paths'::regclass),acldefault('r',(SELECT relowner FROM pg_class WHERE oid='public.zasp_risk_attack_paths'::regclass)))) acl WHERE acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND (acl.privilege_type<>'SELECT' OR acl.is_grantable))
  AND (SELECT count(*) FROM pg_class class JOIN pg_namespace namespace ON namespace.oid=class.relnamespace WHERE namespace.nspname='public' AND class.relname=ANY(ARRAY['zasp_inventory_cutover_state','zasp_inventory_legacy_restore','zasp_inventory_identity_rules','zasp_inventory_identity_bindings','zasp_inventory_annotations']) AND class.relowner=(SELECT oid FROM pg_roles WHERE rolname='zasp_inventory_authority') AND class.relrowsecurity AND class.relforcerowsecurity)=5
  AND NOT EXISTS(SELECT 1 FROM pg_class class JOIN pg_namespace namespace ON namespace.oid=class.relnamespace WHERE namespace.nspname='public' AND class.relname=ANY(ARRAY['zasp_inventory_cutover_state','zasp_inventory_legacy_restore','zasp_inventory_identity_rules','zasp_inventory_identity_bindings','zasp_inventory_annotations']) AND ((SELECT count(*) FROM pg_policy policy WHERE policy.polrelid=class.oid)<>1 OR NOT EXISTS(SELECT 1 FROM pg_policy policy WHERE policy.polrelid=class.oid AND policy.polname=class.relname||'_authority' AND policy.polpermissive AND policy.polcmd='*' AND policy.polroles=ARRAY[(SELECT oid FROM pg_roles WHERE rolname='zasp_inventory_authority')] AND pg_get_expr(policy.polqual,policy.polrelid)='true' AND pg_get_expr(policy.polwithcheck,policy.polrelid)='true') OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(class.relacl,acldefault('r',class.relowner))) acl WHERE acl.grantee<>class.relowner)))
- AND (SELECT count(*) FROM zasp_inventory_identity_rules)=16
+ AND (SELECT count(*) FROM zasp_inventory_identity_rules)=30
  AND (SELECT count(*) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname LIKE 'zasp_inventory_%')=20
  AND NOT EXISTS(SELECT 1 FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname LIKE 'zasp_inventory_%' AND procedure.proname NOT IN('zasp_inventory_readiness','zasp_inventory_backfill_scope','zasp_inventory_compat_read','zasp_inventory_equivalence_scope','zasp_inventory_cutover_scope','zasp_inventory_page','zasp_inventory_detail','zasp_inventory_agent_capabilities_page','zasp_inventory_agent_relationships_page','zasp_inventory_agent_sessions_page','zasp_inventory_home_summary') AND (procedure.proowner<>(SELECT oid FROM pg_roles WHERE rolname='zasp_inventory_authority') OR NOT procedure.prosecdef OR NOT COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl WHERE acl.privilege_type='EXECUTE' AND acl.grantee NOT IN(procedure.proowner,(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority')))))
  AND (SELECT count(*) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname IN('zasp_inventory_readiness','zasp_inventory_backfill_scope','zasp_inventory_compat_read','zasp_inventory_equivalence_scope','zasp_inventory_cutover_scope','zasp_inventory_page','zasp_inventory_detail','zasp_inventory_agent_capabilities_page','zasp_inventory_agent_relationships_page','zasp_inventory_agent_sessions_page','zasp_inventory_home_summary') AND procedure.proowner=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND procedure.prosecdef AND COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] AND NOT EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl WHERE acl.privilege_type='EXECUTE' AND acl.grantee<>procedure.proowner AND NOT (procedure.proname IN('zasp_inventory_page','zasp_inventory_detail','zasp_inventory_agent_capabilities_page','zasp_inventory_agent_relationships_page','zasp_inventory_agent_sessions_page','zasp_inventory_home_summary') AND acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_api')) AND NOT (procedure.proname='zasp_inventory_readiness' AND acl.grantee IN(SELECT oid FROM pg_roles WHERE rolname=ANY(ARRAY['zasp_discovery_api','zasp_discovery_worker','zasp_runtime_ingest','zasp_runtime_worker','zasp_outbox_worker','zasp_runtime_gateway','zasp_discovery_scheduler','zasp_projection_risk_worker','zasp_projection_graph_worker','zasp_projection_search_worker'])))))=11
@@ -742,7 +756,7 @@ CREATE FUNCTION public.zasp_inventory_readiness(expected_checksum text,expected_
  SELECT EXISTS(
   SELECT 1 FROM zasp_schema_versions release
   JOIN zasp_schema_metadata fingerprint ON fingerprint.key='typed_inventory_cutover_fingerprint' AND fingerprint.value=expected_fingerprint
-  JOIN zasp_schema_metadata rules ON rules.key='typed_inventory_rule_catalog_digest' AND rules.value='a2ac63a7fc968b0c0c883a999418e1eb14c2d8de3ffe62e95717b7dea6133c52'
+  JOIN zasp_schema_metadata rules ON rules.key='typed_inventory_rule_catalog_digest' AND rules.value='44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30'
   WHERE release.version=14 AND release.name='typed_inventory_cutover' AND release.checksum=expected_checksum
     AND NOT EXISTS(SELECT 1 FROM zasp_schema_versions later WHERE later.version>14)
  )
@@ -793,5 +807,5 @@ DO $schema_marker$ BEGIN
 END $schema_marker$;
 
 INSERT INTO zasp_schema_metadata(key,value) VALUES
- ('typed_inventory_rule_catalog_digest','a2ac63a7fc968b0c0c883a999418e1eb14c2d8de3ffe62e95717b7dea6133c52'),
- ('typed_inventory_cutover_fingerprint', '8ed012c621c107805d8c859196418b09fe856fb49c309c6443d2b88a871ce600');
+ ('typed_inventory_rule_catalog_digest','44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30'),
+ ('typed_inventory_cutover_fingerprint', '8fb115c8995713e20d96f9c0373aae504162f713ca4c4a36f43fe7e47439aaed');

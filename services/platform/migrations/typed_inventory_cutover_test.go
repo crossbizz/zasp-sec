@@ -25,7 +25,7 @@ func TestProductionTypedInventoryCutoverRegistersImmutableV14Authority(t *testin
 		"zasp_execution_apply_risk_projection",
 		"GRANT SELECT,INSERT,UPDATE,DELETE ON public.zasp_risk_findings,public.zasp_risk_finding_evidence TO zasp_inventory_authority",
 		"typed_inventory_cutover_fingerprint",
-		"a2ac63a7fc968b0c0c883a999418e1eb14c2d8de3ffe62e95717b7dea6133c52",
+		"44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30",
 		"zasp_execution_readiness",
 		"SECURITY DEFINER",
 		"SET search_path TO pg_catalog, public",

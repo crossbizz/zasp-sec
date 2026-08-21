@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/inventoryprojection"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
@@ -267,8 +270,31 @@ func TestProductionTypedInventoryCutoverPostgresInstallsExactRuleAndIdentityAuth
 		(SELECT count(*) FROM zasp_inventory_annotations)`).Scan(&rules, &bindings, &annotations); err != nil {
 		t.Fatal(err)
 	}
-	if rules != 16 || bindings != 0 || annotations != 0 {
+	if rules != len(inventoryprojection.RuleCatalog()) || bindings != 0 || annotations != 0 {
 		t.Fatalf("typed inventory authority = rules:%d bindings:%d annotations:%d", rules, bindings, annotations)
+	}
+	rows, err := connection.Query(ctx, `SELECT provider,source_kind,identity_namespace,product_kind,rule_version,priority,confidence_basis_points,freshness_seconds FROM zasp_inventory_identity_rules ORDER BY provider,source_kind`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	databaseRules := make([]inventoryprojection.Rule, 0, rules)
+	for rows.Next() {
+		var rule inventoryprojection.Rule
+		var productKind string
+		var freshnessSeconds int64
+		if err := rows.Scan(&rule.Provider, &rule.SourceKind, &rule.Namespace, &productKind, &rule.Version, &rule.Priority, &rule.ConfidenceBasisPoints, &freshnessSeconds); err != nil {
+			t.Fatal(err)
+		}
+		rule.ProductKind = inventoryprojection.Kind(productKind)
+		rule.Freshness = time.Duration(freshnessSeconds) * time.Second
+		databaseRules = append(databaseRules, rule)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if expected := inventoryprojection.RuleCatalog(); !reflect.DeepEqual(databaseRules, expected) {
+		t.Fatalf("database rule catalog = %#v, want %#v", databaseRules, expected)
 	}
 	var ruleDigest, liveFingerprint string
 	var ready bool
@@ -278,7 +304,8 @@ func TestProductionTypedInventoryCutoverPostgresInstallsExactRuleAndIdentityAuth
 		zasp_inventory_readiness($1,$2)`, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint()).Scan(&ruleDigest, &liveFingerprint, &ready); err != nil {
 		t.Fatal(err)
 	}
-	if ruleDigest != "a2ac63a7fc968b0c0c883a999418e1eb14c2d8de3ffe62e95717b7dea6133c52" || liveFingerprint != migrations.ProductionTypedInventoryCutoverSemanticFingerprint() || !ready {
+	expectedDigest := inventoryprojection.RuleCatalogDigest()
+	if ruleDigest != hex.EncodeToString(expectedDigest[:]) || liveFingerprint != migrations.ProductionTypedInventoryCutoverSemanticFingerprint() || !ready {
 		t.Fatalf("typed readiness digest=%s live=%s ready=%v", ruleDigest, liveFingerprint, ready)
 	}
 }

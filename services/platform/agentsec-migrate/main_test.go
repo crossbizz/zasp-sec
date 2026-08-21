@@ -505,7 +505,7 @@ func TestAgentsecMigrateV14InstallsRollsBackReappliesAndBlocksPostCutoverRollbac
 		backfilled_at,equivalent_at,cutover_at
 	) VALUES(
 		'pid_74000001-0000-4000-8000-000000000001','pid_74000002-0000-4000-8000-000000000002','pid_74000003-0000-4000-8000-000000000003',
-		'cutover','a2ac63a7fc968b0c0c883a999418e1eb14c2d8de3ffe62e95717b7dea6133c52',decode(repeat('ab',32),'hex'),decode(repeat('ab',32),'hex'),
+		'cutover','44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30',decode(repeat('ab',32),'hex'),decode(repeat('ab',32),'hex'),
 		transaction_timestamp(),transaction_timestamp(),transaction_timestamp()
 	)`); err != nil {
 		t.Fatalf("mark cutover: %v", err)
