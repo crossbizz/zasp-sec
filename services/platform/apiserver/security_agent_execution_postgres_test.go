@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -115,10 +116,10 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	}
 
 	var activated json.RawMessage
-	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,1,'validated',$5,transaction_timestamp(),'audit-validated','corr-validated')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err != nil {
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-validated-0001',1,'validated',transaction_timestamp()+interval '4 minutes','audit-validated','corr-validated','receipt-validated')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err != nil {
 		t.Fatalf("validate definition: %v", err)
 	}
-	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,2,'supervised',$5,transaction_timestamp(),'audit-supervised-blocked','corr-supervised-blocked')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err == nil {
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-supervised-0001',2,'supervised',transaction_timestamp()+interval '4 minutes','audit-supervised-blocked','corr-supervised-blocked','receipt-supervised-blocked')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err == nil {
 		t.Fatal("supervised activation passed with global execution disabled")
 	}
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_set_kill_switch('*','*','*','*',true,1,$1,'audit-global','corr-global')`, actorID).Scan(&activated); err != nil {
@@ -130,8 +131,12 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_set_kill_switch($1,$2,$3,'create_temporary_policy',true,0,$4,'audit-action','corr-action')`, organizationID, workspaceID, environmentID, actorID).Scan(&activated); err != nil {
 		t.Fatalf("enable action execution: %v", err)
 	}
-	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,2,'supervised',$5,transaction_timestamp(),'audit-supervised','corr-supervised')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err != nil {
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-supervised-0001',2,'supervised',transaction_timestamp()+interval '4 minutes','audit-supervised','corr-supervised','receipt-supervised')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err != nil {
 		t.Fatalf("supervised activation: %v", err)
+	}
+	var replayed json.RawMessage
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-supervised-0001',2,'supervised',transaction_timestamp()+interval '4 minutes','new-audit-must-not-win','new-correlation-must-not-win','new-receipt-must-not-win')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&replayed); err != nil || !strings.Contains(string(replayed), `"replayed": true`) || !strings.Contains(string(replayed), `"receipt_id": "receipt-supervised"`) {
+		t.Fatalf("activation replay=%s err=%v", replayed, err)
 	}
 
 	foreignOrganization := "pid_78000011-0000-4000-8000-000000000011"

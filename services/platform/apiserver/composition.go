@@ -143,6 +143,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/security-agents/{id}", "getSecurityAgent", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"PATCH", "/api/v1/security-agents/{id}", "updateSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"DELETE", "/api/v1/security-agents/{id}", "deleteSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents/{id}/activation", "activateSecurityAgent", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 })
 
 func withBrowserExpectedScope(operations []coreOperation) []coreOperation {
@@ -216,6 +217,8 @@ func requiresFreshAuthentication(operationID string) bool {
 	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
 		"updateMemberRole", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
 		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
+		return true
+	case "activateSecurityAgent":
 		return true
 	default:
 		return false

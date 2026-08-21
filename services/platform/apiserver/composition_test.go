@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 101 || len(public) != 101 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 101/101", len(seen), len(public))
+	if len(seen) != 102 || len(public) != 102 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 102/102", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -88,7 +88,7 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 	}
 }
 
-func TestTaskSixCompositionHasExactRiskDiscoveryAndSensorSurfacesWithoutLaterOverclaims(t *testing.T) {
+func TestTaskSevenCompositionHasExactActivationSurfaceWithoutExecutionOverclaims(t *testing.T) {
 	definitions := make(map[string]OperationDefinition)
 	for _, operation := range CoreOperations() {
 		definitions[operation.OperationID] = operation
@@ -144,6 +144,10 @@ func TestTaskSixCompositionHasExactRiskDiscoveryAndSensorSurfacesWithoutLaterOve
 		if _, mounted := definitions[operationID]; mounted {
 			t.Errorf("incomplete operation %q remains mounted", operationID)
 		}
+	}
+	activation, ok := definitions["activateSecurityAgent"]
+	if !ok || activation.Method != http.MethodPost || activation.Pattern != "/api/v1/security-agents/{id}/activation" || activation.Permission != "manage_workflows" || !equalStrings(activation.Security, []string{"BrowserExpectedScope", "BrowserSession"}) || !requiresFreshAuthentication("activateSecurityAgent") {
+		t.Errorf("security-agent activation definition=%#v exists=%v", activation, ok)
 	}
 	if definition, ok := definitions["createFindingTicket"]; !ok || definition.Permission != "manage_findings" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
 		t.Errorf("finding ticket security/permission = %v/%q exists=%v", definition.Security, definition.Permission, ok)

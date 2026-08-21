@@ -4,13 +4,43 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
+	"time"
 )
 
 type securityAgentRepositoryDatabase struct {
 	responses  map[string]json.RawMessage
 	statements []string
 	arguments  [][]any
+}
+
+func TestSecurityAgentPostgresRepositoryActivatesWithExactScopeAndReceiptAuthority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	identity.FreshAuthenticated = true
+	identity.FreshAuthExpiresAt = time.Date(2026, 8, 21, 12, 4, 0, 0, time.UTC)
+	definitionID := "pid_78000001-0000-4000-8000-000000000001"
+	auditID := "pid_78000002-0000-4000-8000-000000000002"
+	correlationID := "pid_78000003-0000-4000-8000-000000000003"
+	receiptID := "pid_78000004-0000-4000-8000-000000000004"
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentAuthorityReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentActivateSQL:       json.RawMessage(`{"id":"` + definitionID + `","activation":"validated","enabled":false,"version":2,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
+	}}
+	repository, err := NewSecurityAgentPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := SecurityAgentActivation{DefinitionID: definitionID, IdempotencyKey: "activate-agent-idem-0001", ExpectedVersion: 1, TargetActivation: "validated", FreshAuthExpiresAt: identity.FreshAuthExpiresAt, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}
+	result, err := repository.ActivateSecurityAgent(context.Background(), identity, input)
+	if err != nil || result.Version != 2 || result.Replayed {
+		t.Fatalf("activation=%#v err=%v", result, err)
+	}
+	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID, identity.PrincipalID.String(), input.IdempotencyKey, int64(1), "validated", identity.FreshAuthExpiresAt, auditID, correlationID, receiptID}
+	if database.statements[1] != postgresSecurityAgentActivateSQL || !reflect.DeepEqual(database.arguments[1], want) {
+		t.Fatalf("statement=%q args=%#v", database.statements[1], database.arguments[1])
+	}
 }
 
 func (*securityAgentRepositoryDatabase) SchemaVersion(context.Context) (string, error) {

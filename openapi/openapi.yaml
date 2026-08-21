@@ -1703,6 +1703,28 @@ paths:
         '204': { description: Security Agent safely disabled and soft-deleted., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/{id}/activation:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: activateSecurityAgent
+      summary: Advance one Security Agent through its audited activation state machine
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+        - $ref: '#/components/parameters/FreshAuth'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentActivationInput' } } }
+      responses:
+        '200': { description: Activated Security Agent., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentActivationResult' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/home/summary:
     get:
       operationId: getHomeSummary
@@ -2316,6 +2338,21 @@ components:
       properties:
         items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentDefinition' } }
         page_info: { $ref: '#/components/schemas/PageInfo' }
+    SecurityAgentActivationInput:
+      type: object
+      additionalProperties: false
+      required: [activation]
+      properties:
+        activation: { type: string, enum: [validated, supervised, autonomous] }
+    SecurityAgentActivationResult:
+      type: object
+      additionalProperties: false
+      required: [id, activation, enabled, version]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        activation: { type: string, enum: [validated, supervised, autonomous] }
+        enabled: { type: boolean }
+        version: { type: integer, minimum: 2 }
     SecurityAgentSimulationInput:
       type: object
       additionalProperties: false

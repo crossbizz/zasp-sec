@@ -667,15 +667,15 @@ describe("production workflow concurrency contract", () => {
     }
   });
 
-  it("publishes exactly the mounted Task 6 public surface without later-task overclaims", () => {
+  it("publishes exactly the mounted Task 7 activation surface without execution overclaims", () => {
     const operations = new Map();
     for (const [path, pathItem] of Object.entries(document.paths)) {
       for (const [method, operation] of Object.entries(pathItem)) {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 101);
-    for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) {
+    assert.equal(operations.size, 102);
+    for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "activateSecurityAgent"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [

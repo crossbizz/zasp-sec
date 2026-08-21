@@ -93,9 +93,9 @@ test("reproduces the committed bytes and rejects changed or missing output witho
   }
 });
 
-test("exports the Task 6 sensor, collection, and global search APIs without later-task overclaims", async () => {
+test("exports the Task 7 activation API without execution overclaims", async () => {
   const generated = await readFile(generatedPath, "utf8");
-  for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) {
+  for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "activateSecurityAgent"]) {
     assert.match(generated, new RegExp(`\\b${operationId}:`), operationId);
   }
   for (const operationId of [
@@ -163,6 +163,17 @@ test("exports the Task 6 sensor, collection, and global search APIs without late
   const putSchedule = generated.slice(putScheduleStart, putScheduleEnd);
   assert.match(putSchedule, /readonly "If-Match": components\["parameters"\]\["ScheduleVersion"\]/);
   assert.match(putSchedule, /readonly "application\/json": components\["schemas"\]\["IntegrationScheduleInput"\]/);
+
+  const activationStart = generated.indexOf("readonly activateSecurityAgent:");
+  const activationEnd = generated.indexOf("readonly responses:", activationStart);
+  assert.notEqual(activationStart, -1);
+  const activation = generated.slice(activationStart, activationEnd);
+  assert.match(activation, /readonly "X-CSRF-Token": components\["parameters"\]\["CSRFToken"\]/);
+  assert.match(activation, /readonly "X-Zasp-Fresh-Auth": components\["parameters"\]\["FreshAuth"\]/);
+  assert.match(activation, /readonly "Idempotency-Key": components\["parameters"\]\["IdempotencyKey"\]/);
+  assert.match(activation, /readonly "If-Match": components\["parameters"\]\["ResourceVersion"\]/);
+  assert.match(activation, /readonly "application\/json": components\["schemas"\]\["SecurityAgentActivationInput"\]/);
+  assert.match(generated.slice(activationStart, generated.indexOf("readonly listSecurityAgentTemplates:", activationStart)), /readonly 200: \{[\s\S]*readonly "application\/json": components\["schemas"\]\["SecurityAgentActivationResult"\]/);
 
   assert.match(generated, /readonly WorkflowMutationReceipt: components\["schemas"\]\["StandardWorkflowMutationReceipt"\] \| components\["schemas"\]\["OAuthCompletionWorkflowMutationReceipt"\] \| components\["schemas"\]\["ReferenceAuthorizationWorkflowMutationReceipt"\] \| components\["schemas"\]\["SyncIntegrationWorkflowMutationReceipt"\] \| components\["schemas"\]\["PutIntegrationScheduleWorkflowMutationReceipt"\] \| components\["schemas"\]\["DeleteIntegrationScheduleWorkflowMutationReceipt"\]/);
   assert.match(generated, /readonly operation: "completeIntegrationOAuth"/);

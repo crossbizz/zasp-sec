@@ -1,6 +1,6 @@
 DO $guard$
 BEGIN
-  IF public.zasp_security_agent_live_fingerprint()<>'8d47e754c6e6e40b50625ed82cae858dcd1ab83c531efc247ba43bce762633bc'
+  IF public.zasp_security_agent_live_fingerprint()<>'f37ac88ad69b7f59ade59d4704696ec0a9aae3aea81727ea44763f901e2eb024'
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_execution_state WHERE used_at IS NOT NULL)
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_runs)
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_effects) THEN
@@ -21,7 +21,7 @@ DROP FUNCTION public.zasp_security_agent_readiness(text,text);
 DROP FUNCTION public.zasp_security_agent_live_fingerprint();
 DROP FUNCTION public.zasp_security_agent_claim_runs(text,text,integer,integer);
 DROP FUNCTION public.zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text);
-DROP FUNCTION public.zasp_security_agent_activate(text,text,text,text,bigint,text,text,timestamptz,text,text);
+DROP FUNCTION public.zasp_security_agent_activate(text,text,text,text,text,text,bigint,text,timestamptz,text,text,text);
 DROP FUNCTION public.zasp_security_agent_set_kill_switch(text,text,text,text,boolean,bigint,text,text,text);
 DROP FUNCTION public.zasp_security_agent_definition_detail(text,text,text,text);
 DROP FUNCTION public.zasp_security_agent_mutate_definition(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text);
@@ -46,6 +46,7 @@ DROP TABLE public.zasp_security_agent_runs;
 DROP TABLE public.zasp_security_agent_trigger_receipts;
 DROP TABLE public.zasp_security_agent_kill_switches;
 DROP TABLE public.zasp_security_agent_definition_versions;
+DROP TABLE public.zasp_security_agent_request_receipts;
 DROP TABLE public.zasp_security_agent_definitions;
 DROP TABLE public.zasp_security_agent_principal_bindings;
 DROP TABLE public.zasp_security_agent_execution_state;

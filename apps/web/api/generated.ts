@@ -1036,6 +1036,25 @@ export type paths = {
         readonly patch: operations["updateSecurityAgent"];
         readonly trace?: never;
     };
+    readonly "/api/v1/security-agents/{id}/activation": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Advance one Security Agent through its audited activation state machine */
+        readonly post: operations["activateSecurityAgent"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/sensors": {
         readonly parameters: {
             readonly query?: never;
@@ -2379,6 +2398,17 @@ export type components = {
         readonly SecurityActionPage: {
             readonly items: readonly components["schemas"]["SecurityAction"][];
         };
+        readonly SecurityAgentActivationInput: {
+            /** @enum {string} */
+            readonly activation: "validated" | "supervised" | "autonomous";
+        };
+        readonly SecurityAgentActivationResult: {
+            /** @enum {string} */
+            readonly activation: "validated" | "supervised" | "autonomous";
+            readonly enabled: boolean;
+            readonly id: components["schemas"]["ProductID"];
+            readonly version: number;
+        };
         readonly SecurityAgentApproval: {
             readonly evidence_summary?: readonly components["schemas"]["ProductID"][];
             readonly expected_effect?: string;
@@ -2962,6 +2992,8 @@ export type SearchResult = components['schemas']['SearchResult'];
 export type SearchResultPage = components['schemas']['SearchResultPage'];
 export type SecurityAction = components['schemas']['SecurityAction'];
 export type SecurityActionPage = components['schemas']['SecurityActionPage'];
+export type SecurityAgentActivationInput = components['schemas']['SecurityAgentActivationInput'];
+export type SecurityAgentActivationResult = components['schemas']['SecurityAgentActivationResult'];
 export type SecurityAgentApproval = components['schemas']['SecurityAgentApproval'];
 export type SecurityAgentApprovalDecision = components['schemas']['SecurityAgentApprovalDecision'];
 export type SecurityAgentApprovalPage = components['schemas']['SecurityAgentApprovalPage'];
@@ -5177,6 +5209,47 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly activateSecurityAgent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SecurityAgentActivationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Activated Security Agent. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentActivationResult"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
