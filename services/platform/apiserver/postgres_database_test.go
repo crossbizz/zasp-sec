@@ -47,6 +47,9 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 	if !strings.Contains(postgresSecurityAgentExecutionSchemaVersionSQL, "release.version = 18") || !strings.Contains(postgresSecurityAgentExecutionSchemaVersionSQL, "release.name = 'security_agent_execution'") || !strings.Contains(postgresSecurityAgentExecutionSchemaVersionSQL, "zasp_security_agent_readiness($1, $2)") {
 		t.Fatalf("v18 schema readiness query does not require security agent execution readiness: %s", postgresSecurityAgentExecutionSchemaVersionSQL)
 	}
+	if !strings.Contains(postgresSecurityAgentControlsSchemaVersionSQL, "release.version = 20") || !strings.Contains(postgresSecurityAgentControlsSchemaVersionSQL, "release.name = 'security_agent_controls'") || !strings.Contains(postgresSecurityAgentControlsSchemaVersionSQL, "zasp_security_agent_controls_readiness($1, $2)") {
+		t.Fatalf("v20 schema readiness query does not require security agent controls readiness: %s", postgresSecurityAgentControlsSchemaVersionSQL)
+	}
 	if !strings.Contains(postgresSchemaVersionSQL, "production_discovery_release_fingerprint") || !strings.Contains(postgresSchemaVersionSQL, "COALESCE(release_fingerprint.value, expected_fingerprint.value)") {
 		t.Fatalf("schema readiness query does not recognize the v11-to-v10 compatibility contract: %s", postgresSchemaVersionSQL)
 	}
@@ -172,6 +175,24 @@ func TestPostgresJSONDatabaseUsesV18ReadinessOnlyForV18Marker(t *testing.T) {
 	}
 	if !reflect.DeepEqual(driver.queryArguments, []any{expectedSecurityAgentExecutionSchemaChecksum(), expectedSecurityAgentExecutionSchemaFingerprint()}) {
 		t.Fatalf("v18 schema checksum arguments = %#v", driver.queryArguments)
+	}
+}
+
+func TestPostgresJSONDatabaseUsesV20ReadinessOnlyForV20Marker(t *testing.T) {
+	driver := &databaseDriver{responses: map[string][]byte{
+		postgresSchemaMarkerSQL:                       []byte(SecurityAgentControlsSchemaVersion),
+		postgresSecurityAgentControlsSchemaVersionSQL: []byte(SecurityAgentControlsSchemaVersion),
+	}}
+	database, err := NewPostgresJSONDatabase(driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	version, err := database.SchemaVersion(context.Background())
+	if err != nil || version != SecurityAgentControlsSchemaVersion {
+		t.Fatalf("version = (%q, %v)", version, err)
+	}
+	if !reflect.DeepEqual(driver.queryArguments, []any{expectedSecurityAgentControlsSchemaChecksum(), expectedSecurityAgentControlsSchemaFingerprint()}) {
+		t.Fatalf("v20 schema checksum arguments = %#v", driver.queryArguments)
 	}
 }
 

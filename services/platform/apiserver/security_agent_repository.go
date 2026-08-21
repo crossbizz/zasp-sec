@@ -12,6 +12,7 @@ import (
 const (
 	postgresSecurityAgentAuthorityReadySQL       = `SELECT jsonb_build_object('release',zasp_security_agent_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
 	postgresIdentityAdminSecurityAgentReadySQL   = `SELECT jsonb_build_object('release',zasp_identity_administration_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
+	postgresSecurityAgentControlsReadySQL        = `SELECT jsonb_build_object('release',zasp_security_agent_controls_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
 	postgresSecurityAgentDefinitionPageSQL       = `SELECT zasp_security_agent_definition_page($1,$2,$3,NULLIF($4,''),$5)`
 	postgresSecurityAgentDefinitionValueSQL      = `SELECT zasp_security_agent_definition_value($1,$2,$3,$4)`
 	postgresSecurityAgentDefinitionReplaySQL     = `SELECT zasp_security_agent_replay_definition($1,$2,$3,$4,$5,$6,$7::jsonb)`
@@ -34,7 +35,7 @@ func NewSecurityAgentPostgresRepository(database JSONDatabase) (*PostgresReposit
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	for _, schema := range []string{IdentityAdministrationSchemaVersion, SecurityAgentExecutionSchemaVersion} {
+	for _, schema := range []string{SecurityAgentControlsSchemaVersion, IdentityAdministrationSchemaVersion, SecurityAgentExecutionSchemaVersion} {
 		repository := &PostgresRepository{database: database, schema: schema, securityAgentExecution: true}
 		if repository.readySecurityAgentAuthority(ctx) == nil {
 			return repository, nil
@@ -330,7 +331,11 @@ func (repository *PostgresRepository) readySecurityAgentAuthority(ctx context.Co
 	statement := postgresSecurityAgentAuthorityReadySQL
 	metadata := migrations.ProductionSecurityAgentExecution()
 	fingerprint := migrations.ProductionSecurityAgentExecutionSemanticFingerprint()
-	if repository.schema == IdentityAdministrationSchemaVersion {
+	if repository.schema == SecurityAgentControlsSchemaVersion {
+		statement = postgresSecurityAgentControlsReadySQL
+		metadata = migrations.ProductionSecurityAgentControls()
+		fingerprint = migrations.ProductionSecurityAgentControlsSemanticFingerprint()
+	} else if repository.schema == IdentityAdministrationSchemaVersion {
 		statement = postgresIdentityAdminSecurityAgentReadySQL
 		metadata = migrations.ProductionIdentityAdministration()
 		fingerprint = migrations.ProductionIdentityAdministrationSemanticFingerprint()

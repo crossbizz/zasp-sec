@@ -87,6 +87,8 @@ type releaseMigrationRunner interface {
 	DownProductionSecurityAgentExecution(context.Context) error
 	UpProductionIdentityAdministration(context.Context) error
 	DownProductionIdentityAdministration(context.Context) error
+	UpProductionSecurityAgentControls(context.Context) error
+	DownProductionSecurityAgentControls(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -147,7 +149,7 @@ func registerReleasePrincipals(ctx context.Context, queryer principalQueryer, re
 		{statement: `SELECT zasp_runtime_principals_ready()`},
 		{`SELECT zasp_security_agent_register_principals($1,$2,$3)`, []any{registration.migration, registration.securityAgentAPI, registration.securityAgentWorker}},
 		{statement: `SELECT zasp_security_agent_principals_ready()`},
-		{`SELECT zasp_identity_administration_readiness($1,$2)`, []any{migrations.ProductionIdentityAdministration().Checksum(), migrations.ProductionIdentityAdministrationSemanticFingerprint()}},
+		{`SELECT zasp_security_agent_controls_readiness($1,$2)`, []any{migrations.ProductionSecurityAgentControls().Checksum(), migrations.ProductionSecurityAgentControlsSemanticFingerprint()}},
 	}
 	for _, check := range checks {
 		ready = false
@@ -326,10 +328,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 19
 		}
-		if version != 19 {
+		if version == 19 {
+			if err := runner.UpProductionSecurityAgentControls(ctx); err != nil {
+				return err
+			}
+			version = 20
+		}
+		if version != 20 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 20 {
+			if err := runner.DownProductionSecurityAgentControls(ctx); err != nil {
+				return err
+			}
+			version = 19
+		}
 		if version == 19 {
 			if err := runner.DownProductionIdentityAdministration(ctx); err != nil {
 				return err

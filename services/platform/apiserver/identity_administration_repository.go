@@ -21,7 +21,7 @@ const (
 )
 
 func (repository *PostgresRepository) ReconcileStytchWebhook(ctx context.Context, event platformidentity.WebhookEvent, digest []byte, auditID string) (bool, error) {
-	if repository == nil || repository.schema != IdentityAdministrationSchemaVersion || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || event.Kind() != "scim.member.delete" || event.Vertical != "B2B" || !validStytchReference(event.ProjectID, "project-") || !validStytchReference(event.WorkspaceID, "workspace-") || !validStytchReference(event.Details.OrganizationReference, "organization-") || !validStytchReference(event.ObjectID, "member-") || len(digest) != 32 || !validProductID(auditID) {
+	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || event.Kind() != "scim.member.delete" || event.Vertical != "B2B" || !validStytchReference(event.ProjectID, "project-") || !validStytchReference(event.WorkspaceID, "workspace-") || !validStytchReference(event.Details.OrganizationReference, "organization-") || !validStytchReference(event.ObjectID, "member-") || len(digest) != 32 || !validProductID(auditID) {
 		return false, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresIdentityReconcileWebhookSQL, event.ProjectID, event.EventID, event.Details.OrganizationReference, event.ObjectID, digest, auditID)
@@ -69,7 +69,7 @@ type identityMutationReservation struct {
 }
 
 func (repository *PostgresRepository) identityProviderOrganization(ctx context.Context, identity RequestIdentity) (string, error) {
-	if repository == nil || repository.schema != IdentityAdministrationSchemaVersion || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || identity.CredentialKind != CredentialBrowserSession {
+	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || identity.CredentialKind != CredentialBrowserSession {
 		return "", ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresIdentityProviderOrganizationSQL, identity.Scope.OrganizationID().String(), identity.PrincipalID.String())
@@ -84,7 +84,7 @@ func (repository *PostgresRepository) identityProviderOrganization(ctx context.C
 }
 
 func (repository *PostgresRepository) reserveIdentityProviderMutation(ctx context.Context, identity RequestIdentity, mutation identityProviderMutation) (identityMutationReservation, json.RawMessage, error) {
-	if repository == nil || repository.schema != IdentityAdministrationSchemaVersion || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || !validIdentityProviderMutation(mutation) {
+	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || !validIdentityProviderMutation(mutation) {
 		return identityMutationReservation{}, nil, ErrRepositoryOperation
 	}
 	digest := sha256.Sum256(mutation.Intent)
@@ -107,7 +107,7 @@ func (repository *PostgresRepository) reserveIdentityProviderMutation(ctx contex
 }
 
 func (repository *PostgresRepository) markIdentityProviderMutationUnknown(ctx context.Context, identity RequestIdentity, mutation identityProviderMutation) error {
-	if repository == nil || repository.schema != IdentityAdministrationSchemaVersion || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validIdentityProviderMutation(mutation) {
+	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validIdentityProviderMutation(mutation) {
 		return ErrRepositoryOperation
 	}
 	_, err := repository.database.QueryJSON(ctx, postgresIdentityMarkUnknownSQL, identity.Scope.OrganizationID().String(), identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.MutationID, mutation.OwnerToken)
@@ -115,7 +115,7 @@ func (repository *PostgresRepository) markIdentityProviderMutationUnknown(ctx co
 }
 
 func (repository *PostgresRepository) completeIdentityProviderMutation(ctx context.Context, identity RequestIdentity, completion identityProviderCompletion) (json.RawMessage, error) {
-	if repository == nil || repository.schema != IdentityAdministrationSchemaVersion || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validIdentityProviderMutation(completion.identityProviderMutation) || !json.Valid(completion.Connection) {
+	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validIdentityProviderMutation(completion.identityProviderMutation) || !json.Valid(completion.Connection) {
 		return nil, ErrRepositoryOperation
 	}
 	var grant any
@@ -139,7 +139,7 @@ func (repository *PostgresRepository) completeIdentityProviderMutation(ctx conte
 }
 
 func (repository *PostgresRepository) revealIdentityProviderSecret(ctx context.Context, identity RequestIdentity, grantID string) (json.RawMessage, error) {
-	if repository == nil || repository.schema != IdentityAdministrationSchemaVersion || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validProductID(grantID) {
+	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validProductID(grantID) {
 		return nil, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresIdentityRevealSecretSQL, identity.Scope.OrganizationID().String(), identity.PrincipalID.String(), grantID)
@@ -150,7 +150,7 @@ func (repository *PostgresRepository) revealIdentityProviderSecret(ctx context.C
 }
 
 func (repository *PostgresRepository) acknowledgeIdentityProviderSecret(ctx context.Context, identity RequestIdentity, grantID string) error {
-	if repository == nil || repository.schema != IdentityAdministrationSchemaVersion || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validProductID(grantID) {
+	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, true) || !validProductID(grantID) {
 		return ErrRepositoryOperation
 	}
 	_, err := repository.database.QueryJSON(ctx, postgresIdentityAcknowledgeSecretSQL, identity.Scope.OrganizationID().String(), identity.PrincipalID.String(), grantID)

@@ -74,19 +74,19 @@ func (repository *PostgresRepository) ReadAdministration(ctx context.Context, id
 		return repository.database.QueryJSON(ctx, postgresGetOrganizationSQL, identity.Scope.OrganizationID().String())
 	case "listWorkspaces":
 		statement := postgresListWorkspacesSQL
-		if repository.schema == IdentityAdministrationSchemaVersion {
+		if isIdentityAdministrationSchema(repository.schema) {
 			statement = postgresListWorkspacesV19SQL
 		}
 		return repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), identity.PrincipalID.String(), parameters["after_id"], adminLimit(parameters)+1)
 	case "getWorkspace":
 		statement := postgresGetWorkspaceSQL
-		if repository.schema == IdentityAdministrationSchemaVersion {
+		if isIdentityAdministrationSchema(repository.schema) {
 			statement = postgresGetWorkspaceV19SQL
 		}
 		return repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), parameters["id"], identity.PrincipalID.String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String())
 	case "listEnvironments":
 		statement := postgresListEnvironmentsSQL
-		if repository.schema == IdentityAdministrationSchemaVersion {
+		if isIdentityAdministrationSchema(repository.schema) {
 			statement = postgresListEnvironmentsV19SQL
 		}
 		return repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), parameters["workspace_id"], identity.PrincipalID.String(), parameters["after_id"], adminLimit(parameters)+1)

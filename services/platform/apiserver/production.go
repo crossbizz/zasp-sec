@@ -85,7 +85,7 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 	if repository == nil || nilInterface(repository.database) || nilInterface(provider) || nilInterface(connector) || len(cookie.TokenRevealKey) != 32 {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
-	securityAgentSchema := repository.schema == SecurityAgentExecutionSchemaVersion || repository.schema == IdentityAdministrationSchemaVersion
+	securityAgentSchema := repository.schema == SecurityAgentExecutionSchemaVersion || isIdentityAdministrationSchema(repository.schema)
 	if securityAgentSchema != (securityAgentRepository != nil) || securityAgentRepository != nil && (nilInterface(securityAgentRepository.database) || !securityAgentRepository.securityAgentExecution || securityAgentRepository.schema != repository.schema) {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
@@ -174,7 +174,7 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		version = "dev"
 	}
 	var identityAdministration *identityAdministrationCoordinator
-	if repository.schema == IdentityAdministrationSchemaVersion {
+	if isIdentityAdministrationSchema(repository.schema) {
 		connectionProvider, ok := provider.(IdentityConnectionProvider)
 		if !ok || nilInterface(connectionProvider) {
 			return Dependencies{}, nil, ErrRepositoryConfiguration

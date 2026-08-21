@@ -95,7 +95,7 @@ func discoveryExecutionReady(ctx context.Context, database JSONDatabase) bool {
 		return false
 	}
 	var ready bool
-	for _, version := range []string{IdentityAdministrationSchemaVersion, SecurityAgentExecutionSchemaVersion, RuntimeIngestReconciliationSchemaVersion, RuntimeGatewayReconciliationSchemaVersion, RuntimeDataPlaneSchemaVersion, TypedInventorySchemaVersion, DiscoveryExecutionSchemaVersion} {
+	for _, version := range []string{SecurityAgentControlsSchemaVersion, IdentityAdministrationSchemaVersion, SecurityAgentExecutionSchemaVersion, RuntimeIngestReconciliationSchemaVersion, RuntimeGatewayReconciliationSchemaVersion, RuntimeDataPlaneSchemaVersion, TypedInventorySchemaVersion, DiscoveryExecutionSchemaVersion} {
 		readySQL, checksum, fingerprint, _ := exactProductReadiness(version)
 		payload, err := database.QueryJSON(ctx, readySQL, checksum, fingerprint)
 		ready = false

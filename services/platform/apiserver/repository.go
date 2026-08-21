@@ -22,12 +22,14 @@ const RuntimeGatewayReconciliationSchemaVersion = "runtime-gateway-reconciliatio
 const RuntimeIngestReconciliationSchemaVersion = "runtime-ingest-reconciliation-v1"
 const SecurityAgentExecutionSchemaVersion = "security-agent-execution-v1"
 const IdentityAdministrationSchemaVersion = "identity-administration-v1"
+const SecurityAgentControlsSchemaVersion = "security-agent-controls-v1"
 
 const postgresRuntimeDataPlaneReadinessSQL = `SELECT to_jsonb(zasp_runtime_data_plane_readiness($1,$2))`
 const postgresRuntimeGatewayReconciliationReadinessSQL = `SELECT to_jsonb(zasp_runtime_gateway_reconciliation_readiness($1,$2))`
 const postgresRuntimeIngestReconciliationReadinessSQL = `SELECT to_jsonb(zasp_runtime_ingest_reconciliation_readiness($1,$2))`
 const postgresSecurityAgentExecutionReadinessSQL = `SELECT to_jsonb(zasp_security_agent_readiness($1,$2))`
 const postgresIdentityAdministrationReadinessSQL = `SELECT to_jsonb(zasp_identity_administration_readiness($1,$2))`
+const postgresSecurityAgentControlsReadinessSQL = `SELECT to_jsonb(zasp_security_agent_controls_readiness($1,$2))`
 
 const (
 	postgresAuthenticateSessionSQL    = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', session.authenticated_at + interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
@@ -116,7 +118,11 @@ func isTypedInventorySchema(version string) bool {
 }
 
 func isRuntimeDataPlaneSchema(version string) bool {
-	return version == RuntimeDataPlaneSchemaVersion || version == RuntimeGatewayReconciliationSchemaVersion || version == RuntimeIngestReconciliationSchemaVersion || version == SecurityAgentExecutionSchemaVersion || version == IdentityAdministrationSchemaVersion
+	return version == RuntimeDataPlaneSchemaVersion || version == RuntimeGatewayReconciliationSchemaVersion || version == RuntimeIngestReconciliationSchemaVersion || version == SecurityAgentExecutionSchemaVersion || isIdentityAdministrationSchema(version)
+}
+
+func isIdentityAdministrationSchema(version string) bool {
+	return version == IdentityAdministrationSchemaVersion || version == SecurityAgentControlsSchemaVersion
 }
 
 func exactProductReadiness(version string) (string, string, string, bool) {
@@ -135,6 +141,8 @@ func exactProductReadiness(version string) (string, string, string, bool) {
 		return postgresSecurityAgentExecutionReadinessSQL, migrations.ProductionSecurityAgentExecution().Checksum(), migrations.ProductionSecurityAgentExecutionSemanticFingerprint(), true
 	case IdentityAdministrationSchemaVersion:
 		return postgresIdentityAdministrationReadinessSQL, migrations.ProductionIdentityAdministration().Checksum(), migrations.ProductionIdentityAdministrationSemanticFingerprint(), true
+	case SecurityAgentControlsSchemaVersion:
+		return postgresSecurityAgentControlsReadinessSQL, migrations.ProductionSecurityAgentControls().Checksum(), migrations.ProductionSecurityAgentControlsSemanticFingerprint(), true
 	default:
 		return "", "", "", false
 	}
@@ -147,7 +155,7 @@ func (repository *PostgresRepository) Authenticate(ctx context.Context, credenti
 	statement := postgresAuthenticateSessionSQL
 	if credential.Kind == CredentialBearerToken {
 		statement = postgresAuthenticatePATSQL
-	} else if repository.schema == IdentityAdministrationSchemaVersion {
+	} else if isIdentityAdministrationSchema(repository.schema) {
 		statement = postgresAuthenticateSessionV19SQL
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, credential.Value)
@@ -255,7 +263,7 @@ func (repository *PostgresRepository) Bootstrap(ctx context.Context, identity Re
 	statement := postgresBootstrapSQL
 	arguments := []any{identity.PrincipalID.String(), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()}
 	correlationID := ""
-	if repository.schema == IdentityAdministrationSchemaVersion {
+	if isIdentityAdministrationSchema(repository.schema) {
 		generated, err := newWorkflowProductID()
 		if err != nil {
 			return nil, ErrRepositoryUnavailable
@@ -292,7 +300,7 @@ func (repository *PostgresRepository) ListScopes(ctx context.Context, identity R
 		return nil, ErrRepositoryOperation
 	}
 	statement := postgresListScopesSQL
-	if repository.schema == IdentityAdministrationSchemaVersion {
+	if isIdentityAdministrationSchema(repository.schema) {
 		statement = postgresListScopesV19SQL
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, identity.PrincipalID.String(), identity.Scope.OrganizationID().String())
@@ -305,7 +313,7 @@ func (repository *PostgresRepository) SwitchScope(ctx context.Context, identity 
 	}
 	csrf := identity.CSRFToken
 	statement := postgresSwitchScopeSQL
-	if repository.schema == IdentityAdministrationSchemaVersion {
+	if isIdentityAdministrationSchema(repository.schema) {
 		statement = postgresSwitchScopeV19SQL
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, token, csrf, identity.PrincipalID.String(), identity.Scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
@@ -328,7 +336,7 @@ func (repository *PostgresRepository) ResolveIdentity(ctx context.Context, exter
 	}
 	statement := postgresResolveIdentitySQL
 	arguments := []any{external.OrganizationReference(), external.MemberReference()}
-	if repository.schema == IdentityAdministrationSchemaVersion {
+	if isIdentityAdministrationSchema(repository.schema) {
 		groups, marshalErr := json.Marshal(external.GroupReferences())
 		if marshalErr != nil {
 			return SessionGrant{}, ErrRepositoryAuthentication
