@@ -4,6 +4,7 @@ import {
   decodeConnectorManifestPage,
   decodeFinding,
   decodeIntegration,
+  decodeIntegrationAuthorization,
   decodeIntegrationFreshness,
   decodeIntegrationPage,
   decodeIntegrationSchedule,
@@ -19,6 +20,7 @@ import {
 import type {
   ConnectorManifest,
   Integration,
+  IntegrationAuthorization,
   IntegrationFreshness,
   IntegrationInput,
   IntegrationSchedule,
@@ -312,6 +314,19 @@ export function createIntegrationsAPI(client: APIClient) {
     },
     async updateIntegration(id: string, version: string, value: IntegrationUpdateInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<Integration>> {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.PATCH("/api/v1/integrations/{id}", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: value }), decodeIntegration), attempt);
+    },
+    async authorizeIntegration(id: string, attempt?: WorkflowMutationAttempt): Promise<IntegrationAuthorization> {
+      return executeWorkflowMutation(async (active) => {
+        const params = { path: { id }, header: workflowMutationHeaders(active) } as never;
+        const result = await client.POST("/api/v1/integrations/{id}/authorize", { params, body: {} });
+        const authorization = requireAPIData(result, decodeIntegrationAuthorization);
+        const expiresAt = Date.parse(authorization.expires_at);
+        const now = Date.now();
+        if (result.response.status !== 200 || result.response.headers.get("Cache-Control") !== "no-store" || result.response.headers.get("Referrer-Policy") !== "no-referrer" || expiresAt <= now || expiresAt > now + 15 * 60_000) {
+          throw new APITransportError("invalid_response", "Integration authorization returned invalid navigation authority");
+        }
+        return authorization;
+      }, attempt);
     },
     async authorizeIntegrationReference(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<Integration>> {
       return executeWorkflowMutation(async (active) => {

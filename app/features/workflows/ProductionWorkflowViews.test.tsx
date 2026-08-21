@@ -34,6 +34,41 @@ const receiptHeaders = {
 };
 
 describe("production integration deletion", () => {
+	it("starts GitHub OAuth from the capability-gated product UI and retries the exact retained attempt", async () => {
+		const user = userEvent.setup();
+		const target = "https://github.com/login/oauth/authorize?state=opaque-state";
+		const navigation = vi.fn();
+		const GET = vi.fn(async (path: string) => {
+			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
+			if (path === "/api/v1/integrations") return jsonResult({ items: [integration], page_info: { next_cursor: null, has_more: false } });
+			if (path === "/api/v1/integrations/{id}") return jsonResult(integration, 200, { ETag: '"1"' });
+			throw new Error(`unexpected GET ${path}`);
+		});
+		const success = jsonResult({
+			authorization_attempt_id: "pid_70000002-0000-4000-8000-000000000002",
+			authorization_url: target,
+			expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
+		}, 200, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
+		const POST = vi.fn()
+			.mockRejectedValueOnce(new TypeError("response lost"))
+			.mockRejectedValueOnce(new TypeError("replay response lost"))
+			.mockResolvedValueOnce(success);
+		renderFreshIntegrations({ GET, POST } as unknown as APIClient, new Date(Date.now() + 60_000).toISOString(), navigation);
+
+		await user.click(await screen.findByRole("button", { name: "Open GitHub" }));
+		await user.click(screen.getByRole("button", { name: "Authorize GitHub" }));
+		expect(await screen.findByText(/The response was lost\. The exact operation and idempotency key are retained\./)).toBeVisible();
+		expect(navigation).not.toHaveBeenCalled();
+		await user.click(screen.getByRole("button", { name: "Retry retained integration operation" }));
+		await waitFor(() => expect(navigation).toHaveBeenCalledWith(target));
+		expect(document.body.innerHTML).not.toContain(target);
+		const calls = POST.mock.calls as unknown as Array<[string, { params: { header: Record<string, string> }; body: unknown }] >;
+		expect(calls).toHaveLength(3);
+		expect(calls.every(([path]) => path === "/api/v1/integrations/{id}/authorize")).toBe(true);
+		expect(new Set(calls.map(([, options]) => options.params.header["Idempotency-Key"])).size).toBe(1);
+		expect(calls.every(([, options]) => JSON.stringify(options.body) === "{}")).toBe(true);
+	});
+
 	it("fails closed when reference authorization has no session authority", async () => {
 		const user = userEvent.setup();
 		const GET = vi.fn(async (path: string) => {
@@ -363,7 +398,7 @@ function productErrorResult(status: number, code: string, message: string) {
 	return { error, response: new Response(JSON.stringify(error), { status, headers: { "Content-Type": "application/json" } }) };
 }
 
-function renderFreshIntegrations(client: APIClient, expiresAt = new Date(Date.now() + 60_000).toISOString()) {
+function renderFreshIntegrations(client: APIClient, expiresAt = new Date(Date.now() + 60_000).toISOString(), navigateAuthorization?: (target: string) => void) {
 	const GET = client.GET.bind(client);
 	const sessionClient = {
 		...client,
@@ -371,7 +406,7 @@ function renderFreshIntegrations(client: APIClient, expiresAt = new Date(Date.no
 			? Promise.resolve(jsonResult(sessionBootstrap(expiresAt)))
 			: GET(path as never, options as never),
 	} as APIClient;
-	return render(<APIProvider client={sessionClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite /></WorkflowMutationProvider></SessionProvider></APIProvider>);
+	return render(<APIProvider client={sessionClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionIntegrationsView canWrite navigateAuthorization={navigateAuthorization} /></WorkflowMutationProvider></SessionProvider></APIProvider>);
 }
 
 function sessionBootstrap(freshAuthExpiresAt: string) {

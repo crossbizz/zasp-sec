@@ -185,7 +185,7 @@ M3	M3-05	Complete	production-available	PROD-current-composition	audited shipped 
 M3	M3-06	Complete	production-available	PROD-current-composition	audited shipped composition: API getIntegration
 M3	M3-07	Complete	production-available	PROD-current-composition	audited shipped composition: API updateIntegration
 M3	M3-08	Complete	production-available	PROD-current-composition	audited shipped composition: API deleteIntegration
-M3	M3-09	Complete	component-only	T03-launch-connectors	audited component-only proof: API authorizeIntegration
+M3	M3-09	Complete	production-available	T03-launch-connectors	production evidence: retained scope-bound authorizeIntegration request and HTTPS provider handoff proven in the installed-browser multi-tenant gate
 M3	M3-10	Complete	production-available	T04-discovery-worker	production evidence: API syncIntegration; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-11	Complete	production-available	T04-discovery-worker	production evidence: API listIntegrationSyncs; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-12	Complete	production-available	T04-discovery-worker	production evidence: API getIntegrationSync; verified by Task 4 source/deploy review and focused race/release gates
@@ -242,7 +242,7 @@ M3	M3-48f	Complete	component-only	T10-product-ui	audited component-only proof: G
 M3	M3-48g	Complete	component-only	T10-product-ui	audited component-only proof: launch IdP setup wizard UI
 M3	M3-48h	Complete	component-only	T10-product-ui	audited component-only proof: Generic Webhook setup UI
 M3	M3-48	Complete	production-available	PROD-current-composition	audited shipped composition: Connections UI shell
-M3	M3-49	Complete	component-only	T10-product-ui	audited component-only proof: Connections UI actions
+M3	M3-49	Complete	production-available	T10-product-ui	production evidence: capability-gated authorize, sync, delete, receipt recovery, history, and freshness actions proven through shipped product APIs in the installed-browser gate
 M3	M3-50	Complete	component-only	T10-product-ui	audited component-only proof: Sensors UI shell
 M3	M3-51	Complete	component-only	T10-product-ui	audited component-only proof: Sensors UI actions
 M3	M3-52a	Complete	production-available	T04-discovery-worker	production evidence: combined AWS, Kubernetes, GitHub, and Okta fixtures traverse production provider clients, canonical collection, manifest-last artifacts, and worker decoding under race at 1f2031f

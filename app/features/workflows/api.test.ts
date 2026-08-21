@@ -12,6 +12,13 @@ const capturedScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-000
 const integration: Integration = { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "github", name: "GitHub", configuration: { authorization_mode: "github_app" }, status: "revoking", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z" };
 const referenceIntegration: Integration = { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "aws", name: "AWS", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" }, status: "active", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z" };
 
+function authorizationURLWithCredentials(): string {
+	const target = new URL("https://github.com/login/oauth/authorize?state=opaque");
+	target.username = "fixture-user";
+	target.password = "fixture-password";
+	return target.toString();
+}
+
 function referenceAuthorizationReceipt(scope = capturedScope) {
 	const [organizationID, workspaceID, environmentID] = scope.split("/");
 	return {
@@ -38,6 +45,57 @@ function referenceAuthorizationReceipt(scope = capturedScope) {
 }
 
 describe("production workflow API", () => {
+	it("starts an exact browser OAuth authorization and accepts only bounded no-store navigation authority", async () => {
+		const attempt = createWorkflowMutationAttempt();
+		const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
+		const authorization = {
+			authorization_attempt_id: "pid_70000002-0000-4000-8000-000000000002",
+			authorization_url: "https://github.com/login/oauth/authorize?state=opaque-state",
+			expires_at: expiresAt,
+		};
+		const requests: Array<{ url: string; method: string; headers: Headers; body: string }> = [];
+		const client = createAPIClient({
+			getCSRFToken: () => "csrf_12345678901234567890123456789012",
+			getExpectedScope: () => capturedScope,
+			fetch: async (value) => {
+				const copy = value.clone();
+				requests.push({ url: copy.url, method: copy.method, headers: new Headers(copy.headers), body: await copy.text() });
+				return new Response(JSON.stringify(authorization), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+			},
+		});
+
+		await expect(createIntegrationsAPI(client).authorizeIntegration(integration.id, attempt)).resolves.toEqual(authorization);
+		expect(requests).toHaveLength(1);
+		const request = requests[0]!;
+		expect(new URL(request.url).pathname).toBe(`/api/v1/integrations/${integration.id}/authorize`);
+		expect(request.method).toBe("POST");
+		expect(request.headers.get("Idempotency-Key")).toBe(attempt.idempotencyKey);
+		expect(request.headers.get("X-CSRF-Token")).toBe("csrf_12345678901234567890123456789012");
+		expect(request.headers.get("X-Zasp-Expected-Scope")).toBe(capturedScope);
+		expect(request.body).toBe("{}");
+	});
+
+	it.each([
+		["missing no-store", { authorization_url: "https://github.com/login/oauth/authorize?state=opaque" }, { "Referrer-Policy": "no-referrer" }],
+		["missing no-referrer", { authorization_url: "https://github.com/login/oauth/authorize?state=opaque" }, { "Cache-Control": "no-store" }],
+		["non-HTTPS target", { authorization_url: "http://github.com/login/oauth/authorize?state=opaque" }, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }],
+		["credential-bearing target", { authorization_url: authorizationURLWithCredentials() }, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }],
+		["fragment-bearing target", { authorization_url: "https://github.com/login/oauth/authorize?state=opaque#secret" }, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }],
+		["expired authority", { expires_at: new Date(Date.now() - 1_000).toISOString() }, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }],
+		["unbounded authority lifetime", { expires_at: new Date(Date.now() + 16 * 60_000).toISOString() }, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }],
+		["extra response field", { extra: "value" }, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }],
+	])("rejects OAuth authorization with %s", async (_name, changes, headers) => {
+		const value = {
+			authorization_attempt_id: "pid_70000002-0000-4000-8000-000000000002",
+			authorization_url: "https://github.com/login/oauth/authorize?state=opaque",
+			expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
+			...changes,
+		};
+		const POST = vi.fn(async () => ({ data: value, response: new Response(JSON.stringify(value), { status: 200, headers: { "Content-Type": "application/json", ...headers } }) }));
+
+		await expect(createIntegrationsAPI({ POST } as unknown as APIClient).authorizeIntegration(integration.id)).rejects.toMatchObject({ kind: "invalid_response" });
+	});
+
 	it("sends an exact fresh scoped reference-authorization mutation and strictly accepts its receipt", async () => {
 		const attempt = createWorkflowMutationAttempt();
 		const requests: Array<{ url: string; method: string; credentials: RequestCredentials; redirect: RequestRedirect; headers: Headers; body: string }> = [];

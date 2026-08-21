@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 347; expected 348/,
+        /production-available count is 349; expected 350/,
       );
     },
   );

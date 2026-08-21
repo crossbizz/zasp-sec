@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 348 |
-| Component-only | 319 |
+| Production-available | 350 |
+| Component-only | 317 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -137,14 +137,14 @@ production composition, not merely a component proof or external evidence.
 | M1 | 68 | 57 | 11 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
-| M3 | 75 | 49 | 24 | 2 | 0 |
+| M3 | 75 | 51 | 22 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 23 | 66 | 52 | 0 |
-| **Total** | **728** | **348** | **319** | **61** | **0** |
+| **Total** | **728** | **350** | **317** | **61** | **0** |
 
 ## Prerequisite work
 
@@ -612,7 +612,7 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 | M3-52a | August 18, 2026 | AWS, Kubernetes, GitHub, and directory fixtures compose into canonical scoped assets and freshness. |
 | M3-51 | August 18, 2026 | Sensor enrollment, one-time rotation, and confirmed deletion controls pass lifecycle UI tests. |
 | M3-50 | August 18, 2026 | Sensors routes render list, detail, enrollment, coverage, and freshness from generated types. |
-| M3-49 | August 18, 2026 | Connection authorize, sync, delete, and history actions remain capability-gated and product-branded. |
+| M3-49 | August 21, 2026 | Connection authorize, sync, delete, receipt recovery, history, and freshness actions are capability-gated and proven through shipped product APIs. |
 | M3-48 | August 18, 2026 | Connections route smoke covers catalog, connected list, detail, and provider setup navigation. |
 | M3-48h | August 18, 2026 | Generic Webhook setup fixes one signed destination and exposes delivery signature status without per-action URLs. |
 | M3-48g | August 18, 2026 | Launch-IdP setup remains visibly separate from product sign-in and Stytch SSO configuration. |
@@ -668,7 +668,7 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 | M3-12 | August 18, 2026 | Added the authorized exact integration-sync lookup API and generated client operation. |
 | M3-11 | August 18, 2026 | Added the authorized integration-sync list API and generated client operation. |
 | M3-10 | August 18, 2026 | Added the authorized idempotent integration-sync API with queued status. |
-| M3-09 | August 18, 2026 | Added the authorized integration authorization-confirmation API. |
+| M3-09 | August 21, 2026 | Added the retained scope-bound authorization request and HTTPS provider handoff to the production Connections UI. |
 | M3-08 | August 18, 2026 | Added integration deletion with exact scope checks and active-sync conflict protection. |
 | M3-07 | August 18, 2026 | Added strict scoped integration configuration update with connector-schema revalidation. |
 | M3-06 | August 18, 2026 | Added exact scoped integration lookup with cross-Organization denial. |

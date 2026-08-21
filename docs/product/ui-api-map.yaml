@@ -194,7 +194,7 @@ screens:
         availability: available
       - id: authorize_integration
         operation_id: authorizeIntegration
-        availability: api_available
+        availability: available
       - id: authorize_integration_reference
         operation_id: authorizeIntegrationReference
         availability: available

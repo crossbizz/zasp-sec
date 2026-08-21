@@ -49,6 +49,7 @@ const riskRecoverySequence = [];
 const delayedRiskDetailResponses = [];
 const lostFindingResponseKeys = [];
 const findingTicketRequests = [];
+const connectorAuthorizationRequests = [];
 const productAPIRequests = [];
 const browserConsoleErrors = [];
 const browserConsoleMessages = [];
@@ -69,6 +70,7 @@ let expireNextReceiptBeforeAcknowledgement = false;
 let malformNextIntegrationDeleteResponse = true;
 let loseNextFindingResponse = true;
 let loseNextFindingTicketResponse = true;
+let loseNextConnectorAuthorizationResponse = true;
 let failNextRiskRecoveryRefetch = false;
 let delayRiskDetailResponses = false;
 let proxyFailure;
@@ -499,15 +501,29 @@ try {
 
   const connectorUIRequestStart = productAPIRequests.length;
   await navigateBrowser(browser.cdp, `${publicOrigin}/connectors`);
-  await waitForBrowserText(browser.cdp, /Durable connector configuration with reference authorization/);
+  await waitForBrowserText(browser.cdp, /Durable connector configuration, provider authorization, and automatic inventory discovery/);
   await waitForBrowserText(browser.cdp, /Paged integration 1001/);
   assert.equal(await browserCountAriaPrefix(browser.cdp, "Open "), 1004, "integration UI did not traverse exactly 1001 paged, two revocation, and one Task4 discovery fixture IDs");
   assert.equal(workflowPageRequests.integrations.length, 11, "integration UI pagination requested an extra or missing page");
-  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Authorize|Connect GitHub|Connect Okta|Connect AWS|Connect Kubernetes)$/i), false, "Task3 connector authorization controls appeared before the Task10 product UI cutover");
-  const connectorUIRequests = productAPIRequests.slice(connectorUIRequestStart).map((request) => request.path);
-  assert.equal(connectorUIRequests.some((requestPath) => requestPath === connectorAuthorizePath || requestPath === connectorCallbackPath), false, "product UI invoked a Task3 connector authorization operation");
-  assert.doesNotMatch(await browserBodyText(browser.cdp), /authorization_(?:url|attempt_id)|code_verifier/i);
-  console.log("combined E2E: connector authorization operations remain absent from product UI");
+  await clickBrowserAria(browser.cdp, "Open Harness terminal revocation");
+  await waitForBrowserText(browser.cdp, /Provider credentials are never returned to this browser/);
+  await clickBrowserText(browser.cdp, "Authorize GitHub");
+  await waitForBrowserText(browser.cdp, /Provider authorization harness/);
+  assert.equal(await browserCurrentURL(browser.cdp), `${publicOrigin}/connector-oauth-e2e-provider`);
+  assert.equal(connectorAuthorizationRequests.length, 2, "browser OAuth response-loss replay count drifted");
+  assert.equal(new Set(connectorAuthorizationRequests.map((request) => request.idempotencyKey)).size, 1, "browser OAuth retry changed idempotency key");
+  for (const request of connectorAuthorizationRequests) {
+    assert.equal(request.body, "{}");
+    assert.equal(request.contentType, "application/json");
+    assert.match(request.csrf, /^.{32,256}$/);
+    assert.equal(request.expectedScope, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
+    assert.equal(request.origin, publicOrigin);
+  }
+  assert.equal(productAPIRequests.slice(connectorUIRequestStart).some((request) => request.path === `/api/v1/integrations/${terminalRevocationIntegrationID}/authorize`), true, "product UI did not invoke connector authorization");
+  assert.doesNotMatch(await browserBodyText(browser.cdp), /authorization_(?:url|attempt_id)|code_verifier|opaque-e2e-state/i);
+  console.log("combined E2E: browser OAuth authorization navigation and exact retained request proven");
+  await navigateBrowser(browser.cdp, `${publicOrigin}/connectors`);
+  await waitForBrowserText(browser.cdp, /Harness terminal revocation/);
 
   const expectedProductionScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
   const terminalDeleteStart = integrationDeleteRequests.length;
@@ -1664,6 +1680,11 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     // The production ingress applies this policy to every route, including middleware rejections.
     response.setHeader("Referrer-Policy", "no-referrer");
     const target = new URL(request.url ?? "/", "https://combined.invalid");
+    if (request.method === "GET" && target.pathname === "/connector-oauth-e2e-provider") {
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      response.end("<!doctype html><html><body><h1>Provider authorization harness</h1></body></html>");
+      return;
+    }
     if (target.pathname.startsWith("/api/")) productAPIRequests.push({ method: request.method, path: target.pathname, host: String(request.headers.host ?? "") });
     const browserTab = String(request.headers["x-zasp-e2e-tab"] ?? "");
     const receiptAcknowledgement = request.method === "POST" && /^\/api\/v1\/workflow-mutation-receipts\/pid_[0-9a-f-]+\/acknowledge$/.test(target.pathname);
@@ -1673,6 +1694,7 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const tokenAcknowledge = request.method === "DELETE" && /^\/api\/v1\/admin\/api-token-reveal-grants\/pid_[0-9a-f-]+$/.test(target.pathname);
     const integrationDeleteID = request.method === "DELETE" && /^\/api\/v1\/integrations\/pid_[0-9a-f-]+$/.test(target.pathname) ? target.pathname.split("/").at(-1) : undefined;
     const findingTicketRequest = request.method === "POST" && /^\/api\/v1\/findings\/pid_[0-9a-f-]+\/ticket$/.test(target.pathname);
+    const connectorAuthorizationRequest = request.method === "POST" && target.pathname === `/api/v1/integrations/${terminalRevocationIntegrationID}/authorize` && String(request.headers.cookie ?? "").includes("__Host-zasp_session=");
     if (tokenCreate) tokenMutationKeys.create.push(String(request.headers["idempotency-key"] ?? ""));
     if (tokenRotate) tokenMutationKeys.rotate.push(String(request.headers["idempotency-key"] ?? ""));
     if (request.method === "GET" && target.pathname === "/api/v1/policies") workflowPageRequests.policies.push(target.search);
@@ -1701,6 +1723,25 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
       } else {
         response.writeHead(201, { "content-type": "application/json", "cache-control": "no-store" });
         response.end(JSON.stringify({ ticket_id: "SEC-E2E-0001" }));
+      }
+      return;
+    }
+    if (connectorAuthorizationRequest) {
+      connectorAuthorizationRequests.push({
+        body: await readBody(request),
+        contentType: String(request.headers["content-type"] ?? ""),
+        csrf: String(request.headers["x-csrf-token"] ?? ""),
+        expectedScope: String(request.headers["x-zasp-expected-scope"] ?? ""),
+        idempotencyKey: String(request.headers["idempotency-key"] ?? ""),
+        origin: String(request.headers.origin ?? ""),
+      });
+      if (loseNextConnectorAuthorizationResponse) {
+        loseNextConnectorAuthorizationResponse = false;
+        response.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
+        response.end(JSON.stringify({ code: "dependency_unavailable", message: "Injected OAuth response loss", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }));
+      } else {
+        response.writeHead(200, { "content-type": "application/json", "cache-control": "no-store", "referrer-policy": "no-referrer" });
+        response.end(JSON.stringify({ authorization_attempt_id: "pid_70000002-0000-4000-8000-000000000002", authorization_url: `https://${productHostname}:${port}/connector-oauth-e2e-provider`, expires_at: new Date(Date.now() + 10 * 60_000).toISOString() }));
       }
       return;
     }
