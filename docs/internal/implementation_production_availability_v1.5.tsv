@@ -272,9 +272,9 @@ M4	M4-12	Complete	production-available	PROD-current-composition	audited shipped 
 M4	M4-13	Complete	production-available	PROD-current-composition	audited shipped composition: API listRuntimes
 M4	M4-14	Complete	production-available	PROD-current-composition	audited shipped composition: API getRuntime
 M4	M4-15	Complete	production-available	PROD-current-composition	audited shipped composition: API getAsset
-M4	M4-16	Complete	component-only	T05-inventory-cutover	audited component-only proof: capability rule model
-M4	M4-17	Complete	component-only	T05-inventory-cutover	audited component-only proof: capability graph query
-M4	M4-18	Complete	component-only	T05-inventory-cutover	audited component-only proof: capability observed upgrade
+M4	M4-16	Complete	production-available	T05-inventory-cutover	production evidence: six-category Kubernetes RBAC rules derive from canonical tenant-scoped inventory and fail closed on malformed provider authority
+M4	M4-17	Complete	production-available	T05-inventory-cutover	production evidence: API-role keyset graph query traverses Agent identity, binding, and role authority with foreign-tenant denial
+M4	M4-18	Complete	production-available	T05-inventory-cutover	production evidence: canonical provider observations upgrade reachable capabilities to observed while retaining sorted evidence authority
 M4	M4-19	Complete	component-only	T05-inventory-cutover	audited component-only proof: capability verified/blocked upgrade
 M4	M4-20	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture ownerless agent
 M4	M4-21	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture human credential

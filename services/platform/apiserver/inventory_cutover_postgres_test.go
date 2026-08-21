@@ -497,6 +497,132 @@ FROM generate_series(1,1002) item`, organizationID, workspaceID, environmentID, 
 	if entityVersion != 1 || annotationVersion != 2 || auditRows != 1 || genericRows != 0 {
 		t.Fatalf("typed agent mutation residue entity=%d annotation=%d audits=%d generic=%d", entityVersion, annotationVersion, auditRows, genericRows)
 	}
+	const (
+		serviceAccountID = "pid_84000001-0000-4000-8000-000000000001"
+		bindingID        = "pid_84000002-0000-4000-8000-000000000002"
+		roleID           = "pid_84000003-0000-4000-8000-000000000003"
+		integrationID    = "pid_76000001-0000-4000-8000-000000000001"
+		snapshotID       = "pid_78000001-0000-4000-8000-000000000001"
+	)
+	if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_inventory_entities(
+ organization_id,workspace_id,environment_id,id,kind,display_name,stable_fields,state,first_seen_at,last_seen_at,version,
+ product_kind,confidence_basis_points,winning_evidence_id,winning_snapshot_id,winning_generation,observed_at,fresh_until,projection_version,
+ winning_integration_id,winning_provider,winning_source,winning_source_native_id,winning_identity_rule,winning_source_projection)
+VALUES
+ ($1,$2,$3,$4,'identity','agent-service-account','{}','active',$10,$10,1,'identity',9500,$7,$9,1,$10,$11,1,$8,'kubernetes','kubernetes','default/agent',1,1),
+ ($1,$2,$3,$5,'asset','agent-role-binding','{}','active',$10,$10,1,'asset',9500,$12,$9,1,$10,$11,1,$8,'kubernetes','kubernetes','default/agent-binding',1,1),
+ ($1,$2,$3,$6,'asset','agent-role','{}','active',$10,$10,1,'asset',9500,$13,$9,1,$10,$11,1,$8,'kubernetes','kubernetes','agent-role',1,1)`,
+		organizationID, workspaceID, environmentID, serviceAccountID, bindingID, roleID,
+		"pid_85000001-0000-4000-8000-000000000001", integrationID, snapshotID, observed, observed.Add(15*time.Minute),
+		"pid_85000002-0000-4000-8000-000000000002", "pid_85000003-0000-4000-8000-000000000003"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_inventory_evidence(
+ organization_id,workspace_id,environment_id,id,integration_id,snapshot_id,entity_id,object_reference,checksum,media_type,schema_version,parser_version,collected_at,
+ source,generation,artifact_reference,artifact_key,artifact_version_id,size_bytes,tool_version)
+SELECT $1,$2,$3,item.evidence_id,$4,$5,item.entity_id,'s3://zasp-evidence/typed/capabilities/'||item.ordinal||'.json',digest(convert_to(item.ordinal,'UTF8'),'sha256'),
+ 'application/json','raw_v1','parser_v1',$6,'kubernetes',1,'pid_79999999-0000-4000-8000-000000000999','typed/capabilities/'||item.ordinal||'.json','version-'||item.ordinal,128,'tool_v1'
+FROM (VALUES
+ ('1',$7,$10),('2',$8,$11),('3',$9,$12)
+) item(ordinal,entity_id,evidence_id)`, organizationID, workspaceID, environmentID, integrationID, snapshotID, observed,
+		serviceAccountID, bindingID, roleID,
+		"pid_85000001-0000-4000-8000-000000000001", "pid_85000002-0000-4000-8000-000000000002", "pid_85000003-0000-4000-8000-000000000003"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_inventory_source_observations(
+ organization_id,workspace_id,environment_id,integration_id,source,entity_id,source_native_id,snapshot_id,source_state,attributes,first_seen_at,last_seen_at,
+ provider,source_kind,display_name,stable_fields,identity_namespace,product_kind,generation,content_digest,evidence_id,confidence_basis_points,observed_at,fresh_until,
+ identity_rule_version,identity_priority,source_projection_version)
+VALUES
+ ($1,$2,$3,$4,'kubernetes',$6,'default/agent',$5,'present','{}',$12,$12,'kubernetes','kubernetes_service_account','agent-service-account','{}','kubernetes_service_account','identity',1,digest(convert_to('service-account','UTF8'),'sha256'),$9,9500,$12,$13,1,80,1),
+ ($1,$2,$3,$4,'kubernetes',$7,'default/agent-binding',$5,'present','{}',$12,$12,'kubernetes','kubernetes_role_binding','agent-role-binding','{}','kubernetes_role_binding','asset',1,digest(convert_to('binding','UTF8'),'sha256'),$10,9500,$12,$13,1,80,1),
+ ($1,$2,$3,$4,'kubernetes',$8,'agent-role',$5,'present',jsonb_build_object('namespaced',false,'rules',jsonb_build_array(jsonb_build_object('api_groups',jsonb_build_array(''),'non_resource_urls',jsonb_build_array('/metrics'),'resource_names','[]'::jsonb,'resources',jsonb_build_array('pods','pods/exec','services/proxy'),'verbs',jsonb_build_array('bind','create','get','impersonate','patch')))),$12,$12,'kubernetes','kubernetes_cluster_role','agent-role','{}','kubernetes_cluster_role','asset',1,digest(convert_to('role','UTF8'),'sha256'),$11,9500,$12,$13,1,80,1)`,
+		organizationID, workspaceID, environmentID, integrationID, snapshotID, serviceAccountID, bindingID, roleID,
+		"pid_85000001-0000-4000-8000-000000000001", "pid_85000002-0000-4000-8000-000000000002", "pid_85000003-0000-4000-8000-000000000003", observed, observed.Add(15*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_inventory_relationships(organization_id,workspace_id,environment_id,id,integration_id,source,snapshot_id,from_entity_id,to_entity_id,kind,source_native_id,state,attributes,first_seen_at,last_seen_at)
+VALUES
+ ($1,$2,$3,'pid_86000001-0000-4000-8000-000000000001',$4,'kubernetes',$5,$6,$7,'uses_identity','agent:uses_identity:service-account','present','{}',$10,$10),
+ ($1,$2,$3,'pid_86000002-0000-4000-8000-000000000002',$4,'kubernetes',$5,$7,$8,'assigned_to','service-account:assigned_to:binding','present','{}',$10,$10),
+ ($1,$2,$3,'pid_86000003-0000-4000-8000-000000000003',$4,'kubernetes',$5,$8,$9,'binds','binding:binds:role','present','{}',$10,$10)`,
+		organizationID, workspaceID, environmentID, integrationID, snapshotID, agentID, serviceAccountID, bindingID, roleID, observed); err != nil {
+		t.Fatal(err)
+	}
+	parsedAgentID, _ := domain.ParseProductID(agentID)
+	if _, err := connection.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
+		t.Fatal(err)
+	}
+	var rawCapabilityPage json.RawMessage
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_agent_capabilities_page($1,$2,$3,$4,NULL,2)`, organizationID, workspaceID, environmentID, agentID).Scan(&rawCapabilityPage); err != nil {
+		t.Fatalf("direct capability authority: %v", err)
+	}
+	if len(rawCapabilityPage) == 0 {
+		t.Fatal("direct capability authority returned empty payload")
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_agent_capabilities_page($1,$2,$3,$4,NULL,2)`, "pid_83000001-0000-4000-8000-000000000001", workspaceID, environmentID, agentID).Scan(&rawCapabilityPage); err == nil {
+		t.Fatal("foreign tenant capability authority returned data")
+	}
+	capabilityAfter, capabilityPages := "", 0
+	capabilities := make([]Capability, 0, 6)
+	for {
+		page, pageErr := repository.ListAgentCapabilitiesPage(ctx, scope, parsedAgentID, capabilityAfter, 2)
+		if pageErr != nil {
+			t.Fatalf("capability page %d after=%q: %v", capabilityPages, capabilityAfter, pageErr)
+		}
+		capabilityPages++
+		capabilities = append(capabilities, page.Items...)
+		if page.NextKey == "" {
+			break
+		}
+		capabilityAfter = page.NextKey
+	}
+	if capabilityPages != 3 || len(capabilities) != 6 {
+		t.Fatalf("capability pages=%d values=%+v", capabilityPages, capabilities)
+	}
+	wantCategories := []string{"identity_assume", "action_execute", "administration", "data_read", "data_write", "network_egress"}
+	for index, capability := range capabilities {
+		if string(capability.Category) != wantCategories[index] || capability.AgentID != agentID || capability.State != "observed" || !capability.Reachable || len(capability.EvidenceIDs) < 2 {
+			t.Fatalf("capability %d=%+v", index, capability)
+		}
+		for evidenceIndex := 1; evidenceIndex < len(capability.EvidenceIDs); evidenceIndex++ {
+			if capability.EvidenceIDs[evidenceIndex] <= capability.EvidenceIDs[evidenceIndex-1] {
+				t.Fatalf("capability evidence not canonical: %+v", capability)
+			}
+		}
+	}
+	if _, err := connection.Exec(ctx, `RESET ROLE`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_source_observations SET attributes=jsonb_build_object('namespaced',false,'rules',jsonb_build_array(jsonb_build_object('api_groups',jsonb_build_array(''),'non_resource_urls','[]'::jsonb,'resource_names','[]'::jsonb,'resources',jsonb_build_array('*'),'verbs',jsonb_build_array('get')))) WHERE (organization_id,workspace_id,environment_id,entity_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, roleID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
+		t.Fatal(err)
+	}
+	readOnlyCapabilities, err := repository.ListAgentCapabilitiesPage(ctx, scope, parsedAgentID, "", 100)
+	if err != nil || readOnlyCapabilities.NextKey != "" || len(readOnlyCapabilities.Items) != 2 || readOnlyCapabilities.Items[0].Category != "identity_assume" || readOnlyCapabilities.Items[1].Category != "data_read" {
+		t.Fatalf("read-only wildcard capability authority = (%+v, %v)", readOnlyCapabilities, err)
+	}
+	if _, err := connection.Exec(ctx, `RESET ROLE`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_source_observations SET attributes='{"namespaced":false,"rules":[{"verbs":"get"}]}'::jsonb WHERE (organization_id,workspace_id,environment_id,entity_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, roleID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_agent_capabilities_page($1,$2,$3,$4,NULL,2)`, organizationID, workspaceID, environmentID, agentID).Scan(&rawCapabilityPage); err == nil {
+		t.Fatal("malformed RBAC capability authority returned data")
+	}
+	if _, err := connection.Exec(ctx, `RESET ROLE`); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestProductionTypedInventoryCutoverPostgresHydratesStableObservationTime(t *testing.T) {

@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 311 |
-| Component-only | 356 |
+| Production-available | 314 |
+| Component-only | 353 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -117,10 +117,10 @@ production composition, not merely a component proof or external evidence.
 - The customer-edge chart and live disposable three-node Kubernetes proof run
   exact-pinned Tetragon plus the non-root sensor, preserve zero drops and full
   capability reports, forward real process events, and survive leader loss.
-- Task 5 promotes only canonical asset/Agent/Tool/Identity/Runtime and
-  relationship inventory plus its golden journey. Ownership mutations,
-  capabilities, posture/findings, and attack paths remain component-only
-  because authoritative Task 5 derivation was not proven.
+- Task 5 promotes canonical asset/Agent/Tool/Identity/Runtime and relationship
+  inventory, ownership mutations, and tenant-scoped observed RBAC capabilities.
+  Verified/blocked capability transitions, posture/findings, and attack paths
+  remain component-only until their production authority is proven.
 - `docs/operations/production-deployment.md` and release contracts retain
   image, provider, DNS/TLS, secret, tracing, and public-deployment evidence as
   explicit external gates.
@@ -134,13 +134,13 @@ production composition, not merely a component proof or external evidence.
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
 | M3 | 75 | 42 | 31 | 2 | 0 |
-| M4 | 82 | 52 | 30 | 0 | 0 |
+| M4 | 82 | 55 | 27 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 23 | 66 | 52 | 0 |
-| **Total** | **728** | **311** | **356** | **61** | **0** |
+| **Total** | **728** | **314** | **353** | **61** | **0** |
 
 ## Prerequisite work
 

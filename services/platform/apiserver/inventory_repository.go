@@ -498,7 +498,7 @@ func validCapability(item Capability, agentID string) bool {
 }
 
 func capabilityKey(item Capability) string {
-	return item.TargetID + "\x1f" + item.Category + "\x1f" + item.Outcome
+	return item.TargetID + "~" + item.Category + "~" + item.Outcome
 }
 
 func validRelationship(item Relationship, agentID string) bool {

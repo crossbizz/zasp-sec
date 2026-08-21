@@ -406,10 +406,69 @@ BEGIN
 END $$;
 
 CREATE FUNCTION public.zasp_inventory_agent_capabilities_page(organization_value text,workspace_value text,environment_value text,agent_value text,after_value text,limit_value integer) RETURNS jsonb LANGUAGE plpgsql STABLE AS $$
+DECLARE result_value jsonb;
 BEGIN
- IF NOT zasp_valid_product_id(agent_value) OR after_value IS NOT NULL OR limit_value NOT BETWEEN 1 AND 100 OR zasp_inventory_scope_state(organization_value,workspace_value,environment_value)->>'phase'<>'cutover' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid typed capability page';END IF;
+ IF NOT zasp_valid_product_id(agent_value) OR limit_value NOT BETWEEN 1 AND 100 OR zasp_inventory_scope_state(organization_value,workspace_value,environment_value)->>'phase'<>'cutover'
+  OR after_value IS NOT NULL AND (array_length(string_to_array(after_value,'~'),1)<>3 OR NOT zasp_valid_product_id(split_part(after_value,'~',1)) OR split_part(after_value,'~',2) NOT IN('data_read','data_write','action_execute','identity_assume','network_egress','administration') OR split_part(after_value,'~',3) NOT IN('read','write','execute','assume','connect','administer'))
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='invalid typed capability page';END IF;
  IF NOT EXISTS(SELECT 1 FROM zasp_inventory_entities entity_value WHERE (entity_value.organization_id,entity_value.workspace_id,entity_value.environment_id,entity_value.id,entity_value.state,entity_value.product_kind)=(organization_value,workspace_value,environment_value,agent_value,'active','agent')) THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='typed agent missing';END IF;
- RETURN jsonb_build_object('items','[]'::jsonb,'next_key',NULL);
+ IF EXISTS(
+  WITH identity_paths AS (
+   SELECT identity_entity.id identity_id
+   FROM zasp_inventory_relationships uses_identity
+   JOIN zasp_inventory_entities identity_entity ON (identity_entity.organization_id,identity_entity.workspace_id,identity_entity.environment_id,identity_entity.id,identity_entity.state,identity_entity.product_kind)=(uses_identity.organization_id,uses_identity.workspace_id,uses_identity.environment_id,uses_identity.to_entity_id,'active','identity')
+   WHERE (uses_identity.organization_id,uses_identity.workspace_id,uses_identity.environment_id,uses_identity.from_entity_id,uses_identity.kind,uses_identity.state)=(organization_value,workspace_value,environment_value,agent_value,'uses_identity','present')
+  ),role_paths AS (
+   SELECT role_observation.attributes
+   FROM identity_paths
+   JOIN zasp_inventory_relationships assigned ON (assigned.organization_id,assigned.workspace_id,assigned.environment_id,assigned.from_entity_id,assigned.kind,assigned.state)=(organization_value,workspace_value,environment_value,identity_paths.identity_id,'assigned_to','present')
+   JOIN zasp_inventory_relationships binds ON (binds.organization_id,binds.workspace_id,binds.environment_id,binds.from_entity_id,binds.kind,binds.state)=(organization_value,workspace_value,environment_value,assigned.to_entity_id,'binds','present')
+   JOIN zasp_inventory_entities role_entity ON (role_entity.organization_id,role_entity.workspace_id,role_entity.environment_id,role_entity.id,role_entity.state)=(organization_value,workspace_value,environment_value,binds.to_entity_id,'active')
+   JOIN zasp_inventory_source_observations role_observation ON (role_observation.organization_id,role_observation.workspace_id,role_observation.environment_id,role_observation.integration_id,role_observation.provider,role_observation.source,role_observation.entity_id,role_observation.source_native_id,role_observation.snapshot_id,role_observation.generation,role_observation.evidence_id,role_observation.source_state)=(role_entity.organization_id,role_entity.workspace_id,role_entity.environment_id,role_entity.winning_integration_id,role_entity.winning_provider,role_entity.winning_source,role_entity.id,role_entity.winning_source_native_id,role_entity.winning_snapshot_id,role_entity.winning_generation,role_entity.winning_evidence_id,'present')
+   WHERE role_observation.source_kind IN('kubernetes_role','kubernetes_cluster_role')
+  )
+  SELECT 1 FROM role_paths WHERE jsonb_typeof(attributes)<>'object' OR NOT attributes ?& ARRAY['namespaced','rules'] OR attributes-ARRAY['namespaced','rules']<>'{}'::jsonb OR jsonb_typeof(attributes->'namespaced')<>'boolean' OR jsonb_typeof(attributes->'rules')<>'array' OR jsonb_array_length(attributes->'rules')>64
+   OR EXISTS(SELECT 1 FROM jsonb_array_elements(attributes->'rules') rule_value WHERE jsonb_typeof(rule_value)<>'object' OR NOT rule_value ?& ARRAY['api_groups','non_resource_urls','resource_names','resources','verbs'] OR rule_value-ARRAY['api_groups','non_resource_urls','resource_names','resources','verbs']<>'{}'::jsonb OR jsonb_typeof(rule_value->'api_groups')<>'array' OR jsonb_typeof(rule_value->'non_resource_urls')<>'array' OR jsonb_typeof(rule_value->'resource_names')<>'array' OR jsonb_typeof(rule_value->'resources')<>'array' OR jsonb_typeof(rule_value->'verbs')<>'array' OR EXISTS(SELECT 1 FROM jsonb_array_elements(rule_value->'api_groups') item WHERE jsonb_typeof(item)<>'string') OR EXISTS(SELECT 1 FROM jsonb_array_elements(rule_value->'non_resource_urls') item WHERE jsonb_typeof(item)<>'string') OR EXISTS(SELECT 1 FROM jsonb_array_elements(rule_value->'resource_names') item WHERE jsonb_typeof(item)<>'string') OR EXISTS(SELECT 1 FROM jsonb_array_elements(rule_value->'resources') item WHERE jsonb_typeof(item)<>'string') OR EXISTS(SELECT 1 FROM jsonb_array_elements(rule_value->'verbs') item WHERE jsonb_typeof(item)<>'string'))
+ ) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='typed capability authority malformed';END IF;
+ WITH identity_paths AS (
+  SELECT identity_entity.id identity_id,agent_entity.winning_evidence_id agent_evidence,identity_entity.winning_evidence_id identity_evidence
+  FROM zasp_inventory_entities agent_entity
+  JOIN zasp_inventory_relationships uses_identity ON (uses_identity.organization_id,uses_identity.workspace_id,uses_identity.environment_id,uses_identity.from_entity_id,uses_identity.kind,uses_identity.state)=(agent_entity.organization_id,agent_entity.workspace_id,agent_entity.environment_id,agent_entity.id,'uses_identity','present')
+  JOIN zasp_inventory_entities identity_entity ON (identity_entity.organization_id,identity_entity.workspace_id,identity_entity.environment_id,identity_entity.id,identity_entity.state,identity_entity.product_kind)=(uses_identity.organization_id,uses_identity.workspace_id,uses_identity.environment_id,uses_identity.to_entity_id,'active','identity')
+  WHERE (agent_entity.organization_id,agent_entity.workspace_id,agent_entity.environment_id,agent_entity.id,agent_entity.state,agent_entity.product_kind)=(organization_value,workspace_value,environment_value,agent_value,'active','agent')
+ ),role_paths AS (
+  SELECT identity_paths.*,binding_entity.winning_evidence_id binding_evidence,role_entity.id role_id,role_entity.winning_evidence_id role_evidence,role_observation.attributes
+  FROM identity_paths
+  JOIN zasp_inventory_relationships assigned ON (assigned.organization_id,assigned.workspace_id,assigned.environment_id,assigned.from_entity_id,assigned.kind,assigned.state)=(organization_value,workspace_value,environment_value,identity_paths.identity_id,'assigned_to','present')
+  JOIN zasp_inventory_entities binding_entity ON (binding_entity.organization_id,binding_entity.workspace_id,binding_entity.environment_id,binding_entity.id,binding_entity.state)=(assigned.organization_id,assigned.workspace_id,assigned.environment_id,assigned.to_entity_id,'active')
+  JOIN zasp_inventory_relationships binds ON (binds.organization_id,binds.workspace_id,binds.environment_id,binds.from_entity_id,binds.kind,binds.state)=(binding_entity.organization_id,binding_entity.workspace_id,binding_entity.environment_id,binding_entity.id,'binds','present')
+  JOIN zasp_inventory_entities role_entity ON (role_entity.organization_id,role_entity.workspace_id,role_entity.environment_id,role_entity.id,role_entity.state)=(binds.organization_id,binds.workspace_id,binds.environment_id,binds.to_entity_id,'active')
+  JOIN zasp_inventory_source_observations role_observation ON (role_observation.organization_id,role_observation.workspace_id,role_observation.environment_id,role_observation.integration_id,role_observation.provider,role_observation.source,role_observation.entity_id,role_observation.source_native_id,role_observation.snapshot_id,role_observation.generation,role_observation.evidence_id,role_observation.source_state)=(role_entity.organization_id,role_entity.workspace_id,role_entity.environment_id,role_entity.winning_integration_id,role_entity.winning_provider,role_entity.winning_source,role_entity.id,role_entity.winning_source_native_id,role_entity.winning_snapshot_id,role_entity.winning_generation,role_entity.winning_evidence_id,'present')
+  WHERE role_observation.source_kind IN('kubernetes_role','kubernetes_cluster_role')
+ ),rule_paths AS (
+  SELECT role_paths.*,rule_value FROM role_paths CROSS JOIN LATERAL jsonb_array_elements(role_paths.attributes->'rules') rule_value
+ ),role_categories AS (
+  SELECT rule_paths.*,category_value.category,category_value.outcome
+  FROM rule_paths CROSS JOIN LATERAL (VALUES
+   ('data_read','read',EXISTS(SELECT 1 FROM jsonb_array_elements_text(rule_value->'verbs') verb_value WHERE verb_value=ANY(ARRAY['get','list','watch','*']))),
+   ('data_write','write',EXISTS(SELECT 1 FROM jsonb_array_elements_text(rule_value->'verbs') verb_value WHERE verb_value=ANY(ARRAY['create','update','patch','delete','deletecollection','*']))),
+   ('action_execute','execute',EXISTS(SELECT 1 FROM jsonb_array_elements_text(rule_value->'verbs') verb_value WHERE verb_value=ANY(ARRAY['create','*'])) AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(rule_value->'resources') resource_value WHERE resource_value=ANY(ARRAY['pods/exec','pods/attach','jobs','cronjobs','*']))),
+   ('network_egress','connect',jsonb_array_length(rule_value->'non_resource_urls')>0 OR EXISTS(SELECT 1 FROM jsonb_array_elements_text(rule_value->'resources') resource_value WHERE resource_value=ANY(ARRAY['services/proxy','pods/proxy']))),
+   ('administration','administer',EXISTS(SELECT 1 FROM jsonb_array_elements_text(rule_value->'verbs') verb_value WHERE verb_value=ANY(ARRAY['bind','escalate','impersonate','*'])))
+  ) category_value(category,outcome,matched) WHERE category_value.matched
+ ),raw_capabilities AS (
+  SELECT agent_value agent_id,identity_id target_id,'identity' target_kind,'identity_assume' category,'assume' outcome,evidence_id FROM identity_paths CROSS JOIN LATERAL unnest(ARRAY[agent_evidence,identity_evidence]) evidence_id
+  UNION ALL
+  SELECT agent_value,role_id,'resource',category,outcome,evidence_id FROM role_categories CROSS JOIN LATERAL unnest(ARRAY[agent_evidence,identity_evidence,binding_evidence,role_evidence]) evidence_id
+ ),distinct_evidence AS (
+  SELECT DISTINCT agent_id,target_id,target_kind,category,outcome,evidence_id FROM raw_capabilities
+ ),grouped AS (
+  SELECT agent_id,target_id,target_kind,category,outcome,(array_agg(evidence_id ORDER BY evidence_id))[1:64] evidence_ids,target_id||'~'||category||'~'||outcome key_value FROM distinct_evidence GROUP BY agent_id,target_id,target_kind,category,outcome
+ ),candidates AS (
+  SELECT * FROM grouped WHERE after_value IS NULL OR key_value>after_value ORDER BY key_value LIMIT limit_value+1
+ ),visible AS (SELECT * FROM candidates ORDER BY key_value LIMIT limit_value)
+ SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('agent_id',agent_id,'target_id',target_id,'target_kind',target_kind,'category',category,'outcome',outcome,'state','observed','reachable',true,'evidence_ids',to_jsonb(evidence_ids)) ORDER BY key_value),'[]'::jsonb),'next_key',CASE WHEN (SELECT count(*) FROM candidates)>limit_value THEN (SELECT key_value FROM visible ORDER BY key_value DESC LIMIT 1) ELSE NULL END) INTO result_value FROM visible;
+ RETURN result_value;
 END $$;
 
 CREATE FUNCTION public.zasp_inventory_agent_relationships_page(organization_value text,workspace_value text,environment_value text,agent_value text,after_value text,limit_value integer) RETURNS jsonb LANGUAGE plpgsql STABLE AS $$
@@ -925,4 +984,4 @@ END $schema_marker$;
 
 INSERT INTO zasp_schema_metadata(key,value) VALUES
  ('typed_inventory_rule_catalog_digest','44820a38e96d80318165fc2333fd851cd932d2704d380a1199d569d1d0778f30'),
- ('typed_inventory_cutover_fingerprint', 'e31a3de37146cfb6f28911b4cf36bc5d80fec6e2d9bcf7944cb4b594b8548510');
+ ('typed_inventory_cutover_fingerprint', '1b99e8dcd0213e96bd7c2f22fd85af1936627b5961008a959f332d3d6735081c');
