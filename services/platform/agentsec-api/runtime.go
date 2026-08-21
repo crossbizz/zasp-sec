@@ -42,6 +42,7 @@ type RuntimeConfig struct {
 	DiscoveryParserVersion      string
 	DiscoveryToolVersion        string
 	PostgresDSN                 string
+	SecurityAgentPostgresDSN    string
 	StytchBaseURL               string
 	StytchAuthorizeURL          string
 	StytchProjectID             string
@@ -103,7 +104,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, RequestTimeout: requestTimeout, ShutdownTimeout: shutdownTimeout,
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
 		DiscoveryParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), DiscoveryToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
-		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
+		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), SecurityAgentPostgresDSN: getenv("ZASP_SECURITY_AGENT_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
 		ConnectorAWSRegion: getenv("ZASP_CONNECTOR_AWS_REGION"), ConnectorRoleARN: getenv("ZASP_CONNECTOR_ROLE_ARN"), ConnectorTokenFile: getenv("ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE"), ConnectorKMSKeyARN: getenv("ZASP_CONNECTOR_KMS_KEY_ARN"), ConnectorSecretPrefix: getenv("ZASP_CONNECTOR_SECRET_PREFIX"),
 		AWSCustomerRolePrefixes: parseAWSCustomerRolePrefixes(getenv("ZASP_AWS_CUSTOMER_ROLE_PREFIXES")), AWSCustomerRoleARNs: parseAWSCustomerRoleARNs(getenv("ZASP_AWS_CUSTOMER_ROLE_ARNS")), KubernetesEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), FindingTicketEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_FINDING_TICKET_EGRESS_CIDRS")),
 		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
@@ -168,8 +169,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 			return false
 		}
 	}
-	database, databaseErr := url.Parse(config.PostgresDSN)
-	if databaseErr != nil || database.Scheme != "postgres" && database.Scheme != "postgresql" || database.Host == "" || database.User == nil || database.Path == "" || strings.TrimSpace(config.PostgresDSN) != config.PostgresDSN {
+	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) {
 		return false
 	}
 	authorize, authorizeErr := url.Parse(config.StytchAuthorizeURL)
@@ -182,6 +182,23 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	}
 	return executionVersionPattern.MatchString(config.DiscoveryParserVersion) && executionVersionPattern.MatchString(config.DiscoveryToolVersion) &&
 		config.ProviderTimeout > 0 && config.ProviderTimeout <= 30*time.Second && config.RequestTimeout > 0 && config.RequestTimeout <= 30*time.Second && config.ShutdownTimeout > 0 && config.ShutdownTimeout <= 30*time.Second && config.ReadinessInterval >= 100*time.Millisecond && config.ReadinessMaxInterval >= config.ReadinessInterval && config.ReadinessMaxInterval <= 5*time.Minute
+}
+
+func validRuntimePostgresAuthorities(coreDSN, securityAgentDSN string) bool {
+	core, coreOK := parseRuntimePostgresDSN(coreDSN)
+	securityAgent, securityAgentOK := parseRuntimePostgresDSN(securityAgentDSN)
+	if !coreOK || !securityAgentOK || core.User.Username() == securityAgent.User.Username() {
+		return false
+	}
+	return core.Scheme == securityAgent.Scheme && core.Host == securityAgent.Host && core.Path == securityAgent.Path && core.RawQuery == securityAgent.RawQuery
+}
+
+func parseRuntimePostgresDSN(value string) (*url.URL, bool) {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme != "postgres" && parsed.Scheme != "postgresql" || parsed.Host == "" || parsed.User == nil || parsed.User.Username() == "" || parsed.Path == "" || strings.TrimSpace(value) != value || parsed.Fragment != "" {
+		return nil, false
+	}
+	return parsed, true
 }
 
 func validFindingTicketEgressCIDRs(values []string) bool {

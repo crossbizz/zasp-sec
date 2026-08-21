@@ -24,8 +24,9 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 		"ZASP_READINESS_INTERVAL": "5s", "ZASP_READINESS_MAX_INTERVAL": "1m",
 		"ZASP_DISCOVERY_PARSER_VERSION": "parser-v1", "ZASP_DISCOVERY_TOOL_VERSION": "tool-v1",
 		"ZASP_DEPLOYMENT_MODE": "saas", "ZASP_ORGANIZATION_ID": "",
-		"ZASP_POSTGRES_DSN":    "postgres://zasp@db.internal:5432/zasp?sslmode=require",
-		"ZASP_STYTCH_BASE_URL": "https://api.stytch.com", "ZASP_STYTCH_AUTHORIZE_URL": "https://api.stytch.com/v1/b2b/public/oauth/google/start", "ZASP_STYTCH_PROJECT_ID": "project-live-local", "ZASP_STYTCH_SECRET": "secret-live-local", "ZASP_STYTCH_PUBLIC_TOKEN": "public-token-live-local", "ZASP_STYTCH_ORGANIZATION_ID": "organization-live-local", "ZASP_WORKFLOW_SIGNING_KEY": "0123456789abcdef0123456789abcdef", "ZASP_TOKEN_REVEAL_KEY": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY",
+		"ZASP_POSTGRES_DSN":                "postgres://zasp@db.internal:5432/zasp?sslmode=require",
+		"ZASP_SECURITY_AGENT_POSTGRES_DSN": "postgres://zasp_security_agent_api@db.internal:5432/zasp?sslmode=require",
+		"ZASP_STYTCH_BASE_URL":             "https://api.stytch.com", "ZASP_STYTCH_AUTHORIZE_URL": "https://api.stytch.com/v1/b2b/public/oauth/google/start", "ZASP_STYTCH_PROJECT_ID": "project-live-local", "ZASP_STYTCH_SECRET": "secret-live-local", "ZASP_STYTCH_PUBLIC_TOKEN": "public-token-live-local", "ZASP_STYTCH_ORGANIZATION_ID": "organization-live-local", "ZASP_WORKFLOW_SIGNING_KEY": "0123456789abcdef0123456789abcdef", "ZASP_TOKEN_REVEAL_KEY": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY",
 		"ZASP_CONNECTOR_AWS_REGION": "us-east-1", "ZASP_CONNECTOR_ROLE_ARN": "arn:aws:iam::000000000000:role/zasp-api-connectors", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", "ZASP_CONNECTOR_KMS_KEY_ARN": "arn:aws:kms:us-east-1:000000000000:key/11111111-1111-4111-8111-111111111111", "ZASP_CONNECTOR_SECRET_PREFIX": "zasp/oauth",
 		"ZASP_AWS_CUSTOMER_ROLE_PREFIXES": `["arn:aws:iam::111111111111:role/zasp,team/","arn:aws:iam::123456789012:role/zasp/"]`, "ZASP_KUBERNETES_EGRESS_CIDRS": "203.0.113.0/24", "ZASP_FINDING_TICKET_EGRESS_CIDRS": "203.0.113.0/24",
 		"ZASP_AWS_CUSTOMER_ROLE_ARNS": `["arn:aws:iam::111111111111:role/zasp,team/customer","arn:aws:iam::123456789012:role/zasp/customer"]`,
@@ -35,7 +36,7 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadRuntimeConfig() error = %v", err)
 	}
-	if config.ProductListenAddress != ":8080" || config.InternalListenAddress != ":8081" || config.PublicOrigin != "https://app.zasp.example" || !config.CookieSecure || config.DiscoveryParserVersion != "parser-v1" || config.DiscoveryToolVersion != "tool-v1" || len(config.AWSCustomerRolePrefixes) != 2 || config.AWSCustomerRolePrefixes[0] != "arn:aws:iam::111111111111:role/zasp,team/" || config.AWSCustomerRolePrefixes[1] != "arn:aws:iam::123456789012:role/zasp/" || len(config.AWSCustomerRoleARNs) != 2 {
+	if config.ProductListenAddress != ":8080" || config.InternalListenAddress != ":8081" || config.PublicOrigin != "https://app.zasp.example" || !config.CookieSecure || config.DiscoveryParserVersion != "parser-v1" || config.DiscoveryToolVersion != "tool-v1" || config.SecurityAgentPostgresDSN != values["ZASP_SECURITY_AGENT_POSTGRES_DSN"] || len(config.AWSCustomerRolePrefixes) != 2 || config.AWSCustomerRolePrefixes[0] != "arn:aws:iam::111111111111:role/zasp,team/" || config.AWSCustomerRolePrefixes[1] != "arn:aws:iam::123456789012:role/zasp/" || len(config.AWSCustomerRoleARNs) != 2 {
 		t.Fatalf("config = %#v", config)
 	}
 	invalidCIDRs := mapsClone(values)
@@ -49,7 +50,7 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 		t.Fatalf("invalid ticket egress CIDRs error = %v", err)
 	}
 
-	for _, key := range []string{"ZASP_ENVIRONMENT", "ZASP_PRODUCT_LISTEN_ADDRESS", "ZASP_INTERNAL_LISTEN_ADDRESS", "ZASP_PUBLIC_ORIGIN", "ZASP_COOKIE_SECURE", "ZASP_TRUSTED_PROXY_CIDRS", "ZASP_REQUEST_RATE_PER_SECOND", "ZASP_REQUEST_BURST", "ZASP_PROVIDER_TIMEOUT", "ZASP_REQUEST_TIMEOUT", "ZASP_SHUTDOWN_TIMEOUT", "ZASP_READINESS_INTERVAL", "ZASP_READINESS_MAX_INTERVAL", "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION", "ZASP_DEPLOYMENT_MODE", "ZASP_POSTGRES_DSN", "ZASP_STYTCH_BASE_URL", "ZASP_STYTCH_AUTHORIZE_URL", "ZASP_STYTCH_PROJECT_ID", "ZASP_STYTCH_SECRET", "ZASP_STYTCH_PUBLIC_TOKEN", "ZASP_STYTCH_ORGANIZATION_ID", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_FINDING_TICKET_EGRESS_CIDRS", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"} {
+	for _, key := range []string{"ZASP_ENVIRONMENT", "ZASP_PRODUCT_LISTEN_ADDRESS", "ZASP_INTERNAL_LISTEN_ADDRESS", "ZASP_PUBLIC_ORIGIN", "ZASP_COOKIE_SECURE", "ZASP_TRUSTED_PROXY_CIDRS", "ZASP_REQUEST_RATE_PER_SECOND", "ZASP_REQUEST_BURST", "ZASP_PROVIDER_TIMEOUT", "ZASP_REQUEST_TIMEOUT", "ZASP_SHUTDOWN_TIMEOUT", "ZASP_READINESS_INTERVAL", "ZASP_READINESS_MAX_INTERVAL", "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION", "ZASP_DEPLOYMENT_MODE", "ZASP_POSTGRES_DSN", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_STYTCH_BASE_URL", "ZASP_STYTCH_AUTHORIZE_URL", "ZASP_STYTCH_PROJECT_ID", "ZASP_STYTCH_SECRET", "ZASP_STYTCH_PUBLIC_TOKEN", "ZASP_STYTCH_ORGANIZATION_ID", "ZASP_WORKFLOW_SIGNING_KEY", "ZASP_TOKEN_REVEAL_KEY", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_FINDING_TICKET_EGRESS_CIDRS", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"} {
 		t.Run("missing "+key, func(t *testing.T) {
 			copy := mapsClone(values)
 			delete(copy, key)
@@ -57,6 +58,11 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 				t.Fatalf("error = %v, want errInvalidRuntimeConfig", err)
 			}
 		})
+	}
+	samePrincipal := mapsClone(values)
+	samePrincipal["ZASP_SECURITY_AGENT_POSTGRES_DSN"] = values["ZASP_POSTGRES_DSN"]
+	if _, err := loadRuntimeConfig(func(key string) string { return samePrincipal[key] }); !errors.Is(err, errInvalidRuntimeConfig) {
+		t.Fatalf("shared database principal error=%v", err)
 	}
 	values["ZASP_DEPLOYMENT_MODE"] = "single_tenant"
 	values["ZASP_ORGANIZATION_ID"] = "pid_11111111-1111-4111-8111-111111111111"
@@ -307,7 +313,7 @@ func TestServeRuntimeClosesProductListenerAfterPartialStartup(t *testing.T) {
 
 func fixtureRuntimeConfig() RuntimeConfig {
 	return RuntimeConfig{Environment: "production", DeploymentMode: "saas", ProductListenAddress: ":8080", InternalListenAddress: ":8081", PublicOrigin: "https://app.zasp.example", TrustedProxyCIDRs: []string{"10.20.0.0/16"}, RequestRatePerSecond: 100, RequestBurst: 200, CookieSecure: true, ProviderTimeout: 5 * time.Second, RequestTimeout: 10 * time.Second, ShutdownTimeout: 5 * time.Second,
-		ReadinessInterval: 100 * time.Millisecond, ReadinessMaxInterval: 500 * time.Millisecond, DiscoveryParserVersion: "parser-v1", DiscoveryToolVersion: "tool-v1", PostgresDSN: "postgres://zasp@db.internal:5432/zasp?sslmode=require", StytchBaseURL: "https://api.stytch.com", StytchAuthorizeURL: "https://api.stytch.com/v1/b2b/public/oauth/google/start", StytchProjectID: "project-live-local", StytchSecret: "secret-live-local", StytchPublicToken: "public-token-live-local", StytchOrganizationID: "organization-live-local", WorkflowSigningKey: "0123456789abcdef0123456789abcdef", TokenRevealKey: []byte("0123456789abcdef0123456789abcdef"),
+		ReadinessInterval: 100 * time.Millisecond, ReadinessMaxInterval: 500 * time.Millisecond, DiscoveryParserVersion: "parser-v1", DiscoveryToolVersion: "tool-v1", PostgresDSN: "postgres://zasp@db.internal:5432/zasp?sslmode=require", SecurityAgentPostgresDSN: "postgres://zasp_security_agent_api@db.internal:5432/zasp?sslmode=require", StytchBaseURL: "https://api.stytch.com", StytchAuthorizeURL: "https://api.stytch.com/v1/b2b/public/oauth/google/start", StytchProjectID: "project-live-local", StytchSecret: "secret-live-local", StytchPublicToken: "public-token-live-local", StytchOrganizationID: "organization-live-local", WorkflowSigningKey: "0123456789abcdef0123456789abcdef", TokenRevealKey: []byte("0123456789abcdef0123456789abcdef"),
 		ConnectorAWSRegion: "us-east-1", ConnectorRoleARN: "arn:aws:iam::000000000000:role/zasp-api-connectors", ConnectorTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", ConnectorKMSKeyARN: "arn:aws:kms:us-east-1:000000000000:key/11111111-1111-4111-8111-111111111111", ConnectorSecretPrefix: "zasp/oauth", AWSCustomerRolePrefixes: []string{"arn:aws:iam::111111111111:role/zasp/", "arn:aws:iam::123456789012:role/zasp/"}, AWSCustomerRoleARNs: []string{"arn:aws:iam::111111111111:role/zasp/customer", "arn:aws:iam::123456789012:role/zasp/customer"}, KubernetesEgressCIDRs: []string{"203.0.113.0/24"}, FindingTicketEgressCIDRs: []string{"203.0.113.0/24"}, GitHubClientID: "Iv1.1234567890abcdef", GitHubSecretReference: "ref:github/app-secret-0001", GitHubAppID: "123456", GitHubPrivateKeyReference: "ref:github/app-private-key-0001", OktaClientID: "0oa1234567890abcdef", OktaSecretReference: "ref:okta/client-secret-0001"}
 }
 

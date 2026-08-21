@@ -383,6 +383,55 @@ func TestProductionHandlersPreserveDiscoveryAndTypedInventoryAtV15(t *testing.T)
 	}
 }
 
+func TestProductionHandlersRequireAndRouteV18SecurityAgentAuthority(t *testing.T) {
+	mainDatabase := &discoveryCallDatabase{schema: SecurityAgentExecutionSchemaVersion, responses: map[string]json.RawMessage{
+		postgresSecurityAgentExecutionReadinessSQL: json.RawMessage(`true`),
+		postgresDiscoveryPrincipalReadySQL:         json.RawMessage(`true`),
+	}}
+	mainRepository, err := NewPostgresRepository(mainDatabase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := CallbackProviderFunc(func(context.Context, string, string) (SessionGrant, error) { return SessionGrant{}, nil })
+	if _, _, err := NewProductionHandlers(mainRepository, provider, http.NotFoundHandler(), fixtureCookiePolicy()); !errors.Is(err, ErrRepositoryConfiguration) {
+		t.Fatalf("v18 handler without scoped security-agent authority error=%v", err)
+	}
+
+	securityDatabase := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentAuthorityReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentDefinitionPageSQL: json.RawMessage(`{"items":[{"id":"pid_78000001-0000-4000-8000-000000000001","name":"Contain compromised runtime","enabled":false}],"next_id":null}`),
+	}}
+	securityRepository, err := NewSecurityAgentPostgresRepository(securityDatabase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handlers, _, err := NewProductionHandlersWithSecurityAgent(mainRepository, securityRepository, provider, http.NotFoundHandler(), fixtureCookiePolicy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	composition, err := NewComposition(handlers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/security-agents?limit=10", nil)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request.Header.Set(expectedScopeHeader, expectedScopeValue(identity.Scope))
+	response := httptest.NewRecorder()
+	composition.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Contain compromised runtime") {
+		t.Fatalf("security-agent list status=%d body=%s", response.Code, response.Body.String())
+	}
+	if len(securityDatabase.statements) != 2 || securityDatabase.statements[1] != postgresSecurityAgentDefinitionPageSQL {
+		t.Fatalf("security-agent statements=%#v", securityDatabase.statements)
+	}
+	for _, statement := range mainDatabase.queries {
+		if statement == postgresSecurityAgentDefinitionPageSQL {
+			t.Fatalf("general API database handled security-agent definition page")
+		}
+	}
+}
+
 func TestDeploymentAuthenticatorPinsSingleTenantOrganization(t *testing.T) {
 	allowedScope := testScope(t, "8")
 	disallowedScope := testScope(t, "9")

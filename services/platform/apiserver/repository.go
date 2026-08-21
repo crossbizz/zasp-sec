@@ -18,8 +18,10 @@ const CoreSchemaVersion = "production-risk-projection-v1"
 const DiscoverySchemaVersion = "production-discovery-v1"
 const ConnectorSchemaVersion = "connector-authorization-v1"
 const RuntimeDataPlaneSchemaVersion = "runtime-data-plane-v1"
+const SecurityAgentExecutionSchemaVersion = "security-agent-execution-v1"
 
 const postgresRuntimeDataPlaneReadinessSQL = `SELECT to_jsonb(zasp_runtime_ingest_reconciliation_readiness($1,$2))`
+const postgresSecurityAgentExecutionReadinessSQL = `SELECT to_jsonb(zasp_security_agent_readiness($1,$2))`
 
 const (
 	postgresAuthenticateSessionSQL = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', session.authenticated_at + interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
@@ -51,9 +53,10 @@ type JSONDatabase interface {
 }
 
 type PostgresRepository struct {
-	database           JSONDatabase
-	schema             string
-	connectorWorkflows bool
+	database               JSONDatabase
+	schema                 string
+	connectorWorkflows     bool
+	securityAgentExecution bool
 }
 
 func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
@@ -72,6 +75,9 @@ func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
 func (repository *PostgresRepository) Ready(ctx context.Context) error {
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
+	}
+	if repository.securityAgentExecution {
+		return repository.readySecurityAgentAuthority(ctx)
 	}
 	version, err := repository.database.SchemaVersion(ctx)
 	if err != nil || !supportedProductSchema(version) || repository.schema != "" && version != repository.schema {
@@ -95,7 +101,11 @@ func isDiscoveryExecutionSchema(version string) bool {
 }
 
 func isTypedInventorySchema(version string) bool {
-	return version == TypedInventorySchemaVersion || version == RuntimeDataPlaneSchemaVersion
+	return version == TypedInventorySchemaVersion || isRuntimeDataPlaneSchema(version)
+}
+
+func isRuntimeDataPlaneSchema(version string) bool {
+	return version == RuntimeDataPlaneSchemaVersion || version == SecurityAgentExecutionSchemaVersion
 }
 
 func exactProductReadiness(version string) (string, string, string, bool) {
@@ -106,6 +116,8 @@ func exactProductReadiness(version string) (string, string, string, bool) {
 		return postgresInventoryReadinessSQL, migrations.ProductionTypedInventoryCutover().Checksum(), migrations.ProductionTypedInventoryCutoverSemanticFingerprint(), true
 	case RuntimeDataPlaneSchemaVersion:
 		return postgresRuntimeDataPlaneReadinessSQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint(), true
+	case SecurityAgentExecutionSchemaVersion:
+		return postgresSecurityAgentExecutionReadinessSQL, migrations.ProductionSecurityAgentExecution().Checksum(), migrations.ProductionSecurityAgentExecutionSemanticFingerprint(), true
 	default:
 		return "", "", "", false
 	}

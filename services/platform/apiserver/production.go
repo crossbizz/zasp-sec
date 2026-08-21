@@ -74,7 +74,19 @@ type coreRepository interface {
 }
 
 func NewProductionHandlers(repository *PostgresRepository, provider CallbackProvider, connector http.Handler, cookie CookiePolicy) (Dependencies, Authenticator, error) {
+	return newProductionHandlers(repository, nil, provider, connector, cookie)
+}
+
+func NewProductionHandlersWithSecurityAgent(repository, securityAgentRepository *PostgresRepository, provider CallbackProvider, connector http.Handler, cookie CookiePolicy) (Dependencies, Authenticator, error) {
+	return newProductionHandlers(repository, securityAgentRepository, provider, connector, cookie)
+}
+
+func newProductionHandlers(repository, securityAgentRepository *PostgresRepository, provider CallbackProvider, connector http.Handler, cookie CookiePolicy) (Dependencies, Authenticator, error) {
 	if repository == nil || nilInterface(repository.database) || nilInterface(provider) || nilInterface(connector) || len(cookie.TokenRevealKey) != 32 {
+		return Dependencies{}, nil, ErrRepositoryConfiguration
+	}
+	securityAgentSchema := repository.schema == SecurityAgentExecutionSchemaVersion
+	if securityAgentSchema != (securityAgentRepository != nil) || securityAgentRepository != nil && (nilInterface(securityAgentRepository.database) || !securityAgentRepository.securityAgentExecution || securityAgentRepository.schema != SecurityAgentExecutionSchemaVersion) {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
 	now := cookie.Clock
@@ -112,7 +124,7 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
 	}
-	if repository.schema == RuntimeDataPlaneSchemaVersion {
+	if isRuntimeDataPlaneSchema(repository.schema) {
 		sensorRepository, sensorErr := NewSensorPublicRepository(repository.database)
 		if sensorErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
@@ -123,6 +135,16 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 		}
 		workflowSurface, sensorErr = NewSensorWorkflowSurface(workflowSurface, sensorHandler)
 		if sensorErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+	}
+	if securityAgentSchema {
+		securityAgentHandler, securityAgentErr := newWorkflowHTTPHandler(securityAgentRepository, cookie.WorkflowSigningKey, cookie.Clock, workflowCapabilities)
+		if securityAgentErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		workflowSurface, securityAgentErr = NewSecurityAgentWorkflowSurface(workflowSurface, securityAgentHandler)
+		if securityAgentErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
 	}

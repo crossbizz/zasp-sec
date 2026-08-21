@@ -293,6 +293,85 @@ CREATE FUNCTION public.zasp_security_agent_principals_ready() RETURNS boolean LA
     )
 $principals_ready$;
 
+CREATE FUNCTION public.zasp_security_agent_sync_definition_trigger() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $sync_definition$
+DECLARE synchronized zasp_security_agent_definitions%ROWTYPE;
+BEGIN
+  IF NEW.kind<>'security_agent' THEN RETURN NEW;END IF;
+  INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version,deleted_at,created_at,updated_at)
+  VALUES(NEW.organization_id,NEW.workspace_id,NEW.environment_id,NEW.id,'draft',1,(NEW.body->>'definition_version')::integer,NEW.body||jsonb_build_object('enabled',false),'security-agent-actions-v1',NEW.deleted_at,NEW.created_at,NEW.updated_at)
+  ON CONFLICT(organization_id,workspace_id,environment_id,definition_id) DO UPDATE SET activation='draft',version=zasp_security_agent_definitions.version+1,definition_version=(excluded.body->>'definition_version')::integer,body=excluded.body||jsonb_build_object('enabled',false),plan_catalog_version='security-agent-actions-v1',deleted_at=excluded.deleted_at,updated_at=excluded.updated_at
+  RETURNING * INTO synchronized;
+  INSERT INTO zasp_security_agent_definition_versions(organization_id,workspace_id,environment_id,definition_id,version,activation,definition,definition_digest,actor_id,created_at)
+  VALUES(synchronized.organization_id,synchronized.workspace_id,synchronized.environment_id,synchronized.definition_id,synchronized.version,'draft',synchronized.body,digest(convert_to(synchronized.body::text,'UTF8'),'sha256'),session_user,synchronized.updated_at);
+  UPDATE zasp_security_agent_execution_state SET used_at=COALESCE(used_at,transaction_timestamp()) WHERE singleton;
+  RETURN NEW;
+END
+$sync_definition$;
+
+CREATE FUNCTION public.zasp_security_agent_guard_definition_trigger() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $guard_definition$
+BEGIN
+  IF NEW.kind='security_agent' AND NOT zasp_security_agent_principal_ready('zasp_security_agent_api') THEN
+    RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='security agent definition authority denied';
+  END IF;
+  RETURN NEW;
+END
+$guard_definition$;
+
+ALTER FUNCTION public.zasp_security_agent_sync_definition_trigger() OWNER TO zasp_discovery_authority;
+ALTER FUNCTION public.zasp_security_agent_guard_definition_trigger() OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION public.zasp_security_agent_sync_definition_trigger() FROM PUBLIC,zasp_security_agent_api,zasp_security_agent_worker;
+REVOKE ALL ON FUNCTION public.zasp_security_agent_guard_definition_trigger() FROM PUBLIC,zasp_security_agent_api,zasp_security_agent_worker;
+CREATE TRIGGER zasp_security_agent_guard_definition_v18 BEFORE INSERT OR UPDATE OF body,deleted_at ON public.zasp_workflow_records FOR EACH ROW EXECUTE FUNCTION public.zasp_security_agent_guard_definition_trigger();
+CREATE TRIGGER zasp_security_agent_sync_definition_v18 AFTER INSERT OR UPDATE OF body,deleted_at ON public.zasp_workflow_records FOR EACH ROW EXECUTE FUNCTION public.zasp_security_agent_sync_definition_trigger();
+
+CREATE FUNCTION public.zasp_security_agent_definition_page(organization_value text,workspace_value text,environment_value text,after_value text,limit_value integer) RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $definition_page$
+  WITH page AS (
+    SELECT definition_id,body FROM zasp_security_agent_definitions
+    WHERE zasp_security_agent_principal_ready('zasp_security_agent_api') AND (organization_id,workspace_id,environment_id)=(organization_value,workspace_value,environment_value) AND deleted_at IS NULL AND definition_id>COALESCE(after_value,'')
+    ORDER BY definition_id LIMIT limit_value+1
+  ), visible AS (SELECT * FROM page ORDER BY definition_id LIMIT limit_value)
+  SELECT jsonb_build_object('items',COALESCE((SELECT jsonb_agg(body ORDER BY definition_id) FROM visible),'[]'::jsonb),'next_id',CASE WHEN (SELECT count(*) FROM page)>limit_value THEN (SELECT max(definition_id) FROM visible) ELSE NULL END)
+$definition_page$;
+
+CREATE FUNCTION public.zasp_security_agent_definition_value(organization_value text,workspace_value text,environment_value text,definition_value text) RETURNS SETOF jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $definition_value$
+  SELECT jsonb_build_object('body',body,'version',version,'secret_generation',1)
+  FROM zasp_security_agent_definitions
+  WHERE zasp_security_agent_principal_ready('zasp_security_agent_api') AND (organization_id,workspace_id,environment_id,definition_id)=(organization_value,workspace_value,environment_value,definition_value) AND deleted_at IS NULL
+$definition_value$;
+
+CREATE FUNCTION public.zasp_security_agent_replay_definition(organization_value text,workspace_value text,environment_value text,principal_value text,operation_value text,idempotency_value text,intent_value jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $replay_definition$
+BEGIN
+  IF NOT zasp_security_agent_principal_ready('zasp_security_agent_api') OR operation_value NOT IN('createSecurityAgent','updateSecurityAgent','deleteSecurityAgent') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='security agent replay denied';END IF;
+  RETURN zasp_workflow_replay(organization_value,workspace_value,environment_value,principal_value,operation_value,idempotency_value,intent_value);
+END
+$replay_definition$;
+
+CREATE FUNCTION public.zasp_security_agent_mutate_definition(mutation_value text,definition_value text,organization_value text,workspace_value text,environment_value text,principal_value text,operation_value text,idempotency_value text,expected_version_value bigint,intent_value jsonb,body_value jsonb,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $mutate_definition$
+DECLARE response_value jsonb;synchronized zasp_security_agent_definitions%ROWTYPE;
+BEGIN
+  IF NOT zasp_security_agent_principal_ready('zasp_security_agent_api') OR mutation_value NOT IN('create','update','delete') OR operation_value<>(CASE mutation_value WHEN 'create' THEN 'createSecurityAgent' WHEN 'update' THEN 'updateSecurityAgent' ELSE 'deleteSecurityAgent' END)
+     OR mutation_value<>'delete' AND (jsonb_typeof(body_value)<>'object' OR body_value->>'enabled'<>'false') OR mutation_value='delete' AND body_value<>'{}'::jsonb THEN
+    RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent definition mutation rejected';
+  END IF;
+  LOCK TABLE zasp_workflow_idempotency IN ROW EXCLUSIVE MODE;
+  response_value:=zasp_workflow_mutate_v3(mutation_value,'security_agent',definition_value,organization_value,workspace_value,environment_value,principal_value,operation_value,idempotency_value,expected_version_value,intent_value,body_value,audit_value,correlation_value);
+  IF COALESCE((response_value->>'replayed')::boolean,false) THEN RETURN response_value;END IF;
+  SELECT * INTO STRICT synchronized FROM zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id,definition_id)=(organization_value,workspace_value,environment_value,definition_value);
+  response_value:=response_value||jsonb_build_object('body',synchronized.body,'version',synchronized.version);
+  IF receipt_value<>'' THEN
+    INSERT INTO zasp_workflow_receipts(organization_id,workspace_id,environment_id,principal_id,receipt_id,operation,idempotency_key,intent,result,resource_kind,resource_id,resource_version,audit_id,correlation_id)
+    VALUES(organization_value,workspace_value,environment_value,principal_value,receipt_value,operation_value,idempotency_value,intent_value,synchronized.body,'security_agent',definition_value,synchronized.version,audit_value,correlation_value);
+    response_value:=response_value||jsonb_build_object('receipt_id',receipt_value);
+  ELSE
+    UPDATE zasp_workflow_idempotency SET receipt_semantics='receiptless_incompatible' WHERE (organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key)=(organization_value,workspace_value,environment_value,principal_value,operation_value,idempotency_value);
+    IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent receipt provenance missing';END IF;
+  END IF;
+  UPDATE zasp_workflow_idempotency SET response=response_value-'replayed',receipt_semantics=CASE WHEN receipt_value='' THEN 'receiptless_incompatible' ELSE 'receipt_backed' END WHERE (organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key)=(organization_value,workspace_value,environment_value,principal_value,operation_value,idempotency_value);
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent replay authority missing';END IF;
+  RETURN response_value;
+END
+$mutate_definition$;
+
 CREATE FUNCTION public.zasp_security_agent_definition_detail(organization_value text,workspace_value text,environment_value text,definition_value text) RETURNS SETOF jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $definition_detail$
   SELECT jsonb_build_object(
     'organization_id',definition_row.organization_id,
@@ -438,14 +517,14 @@ $claim_runs$;
 DO $functions$
 DECLARE procedure_oid oid;
 BEGIN
-  FOR procedure_oid IN SELECT procedure_row.oid FROM pg_proc procedure_row JOIN pg_namespace namespace_row ON namespace_row.oid=procedure_row.pronamespace WHERE namespace_row.nspname='public' AND procedure_row.proname IN('zasp_security_agent_register_principals','zasp_security_agent_principal_ready','zasp_security_agent_principals_ready','zasp_security_agent_definition_detail','zasp_security_agent_set_kill_switch','zasp_security_agent_activate','zasp_security_agent_create_run','zasp_security_agent_claim_runs') LOOP
+  FOR procedure_oid IN SELECT procedure_row.oid FROM pg_proc procedure_row JOIN pg_namespace namespace_row ON namespace_row.oid=procedure_row.pronamespace WHERE namespace_row.nspname='public' AND procedure_row.proname IN('zasp_security_agent_register_principals','zasp_security_agent_principal_ready','zasp_security_agent_principals_ready','zasp_security_agent_definition_page','zasp_security_agent_definition_value','zasp_security_agent_replay_definition','zasp_security_agent_mutate_definition','zasp_security_agent_definition_detail','zasp_security_agent_set_kill_switch','zasp_security_agent_activate','zasp_security_agent_create_run','zasp_security_agent_claim_runs') LOOP
     EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',procedure_oid::regprocedure);
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC,zasp_security_agent_api,zasp_security_agent_worker',procedure_oid::regprocedure);
     EXECUTE format('ALTER FUNCTION %s SECURITY DEFINER',procedure_oid::regprocedure);
     EXECUTE format('ALTER FUNCTION %s SET search_path TO pg_catalog, public',procedure_oid::regprocedure);
   END LOOP;
 END $functions$;
-GRANT EXECUTE ON FUNCTION public.zasp_security_agent_principal_ready(text),public.zasp_security_agent_definition_detail(text,text,text,text),public.zasp_security_agent_set_kill_switch(text,text,text,text,boolean,bigint,text,text,text),public.zasp_security_agent_activate(text,text,text,text,bigint,text,text,timestamptz,text,text),public.zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text) TO zasp_security_agent_api;
+GRANT EXECUTE ON FUNCTION public.zasp_security_agent_principal_ready(text),public.zasp_security_agent_definition_page(text,text,text,text,integer),public.zasp_security_agent_definition_value(text,text,text,text),public.zasp_security_agent_replay_definition(text,text,text,text,text,text,jsonb),public.zasp_security_agent_mutate_definition(text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text),public.zasp_security_agent_definition_detail(text,text,text,text),public.zasp_security_agent_set_kill_switch(text,text,text,text,boolean,bigint,text,text,text),public.zasp_security_agent_activate(text,text,text,text,bigint,text,text,timestamptz,text,text),public.zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text) TO zasp_security_agent_api;
 GRANT EXECUTE ON FUNCTION public.zasp_security_agent_principal_ready(text),public.zasp_security_agent_claim_runs(text,text,integer,integer) TO zasp_security_agent_worker;
 
 CREATE FUNCTION public.zasp_security_agent_live_fingerprint() RETURNS text LANGUAGE sql STABLE SET search_path TO pg_catalog, public AS $fingerprint$
@@ -457,6 +536,10 @@ CREATE FUNCTION public.zasp_security_agent_live_fingerprint() RETURNS text LANGU
     SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid))
     FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner
     WHERE namespace.nspname='public' AND procedure.proname LIKE 'zasp_security_agent_%'
+    UNION ALL
+    SELECT concat_ws('|','trigger',trigger_row.tgname,pg_get_triggerdef(trigger_row.oid,true))
+    FROM pg_trigger trigger_row JOIN pg_class class ON class.oid=trigger_row.tgrelid JOIN pg_namespace namespace ON namespace.oid=class.relnamespace
+    WHERE namespace.nspname='public' AND trigger_row.tgname IN('zasp_security_agent_guard_definition_v18','zasp_security_agent_sync_definition_v18') AND NOT trigger_row.tgisinternal
   )
   SELECT encode(digest(convert_to(string_agg(value,E'\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities
 $fingerprint$;
@@ -465,6 +548,8 @@ CREATE FUNCTION public.zasp_security_agent_readiness(expected_checksum text,expe
   SELECT length(expected_checksum)=64 AND expected_checksum~'^[a-f0-9]{64}$'
      AND length(expected_fingerprint)=64 AND expected_fingerprint~'^[a-f0-9]{64}$'
      AND EXISTS(SELECT 1 FROM zasp_schema_versions WHERE version=18 AND name='security_agent_execution' AND checksum=expected_checksum)
+     AND EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_core_schema' AND value='security-agent-execution-v1')
+     AND NOT EXISTS(SELECT 1 FROM zasp_schema_versions WHERE version>18)
      AND (SELECT count(*) FROM pg_class class JOIN pg_namespace namespace ON namespace.oid=class.relnamespace WHERE namespace.nspname='public' AND class.relname IN('zasp_security_agent_execution_state','zasp_security_agent_principal_bindings','zasp_security_agent_definitions','zasp_security_agent_definition_versions','zasp_security_agent_kill_switches','zasp_security_agent_trigger_receipts','zasp_security_agent_runs','zasp_security_agent_plans','zasp_security_agent_steps','zasp_security_agent_approvals','zasp_security_agent_effects','zasp_security_agent_controls','zasp_security_agent_audit') AND class.relkind='r' AND class.relowner=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND class.relrowsecurity AND class.relforcerowsecurity)=13
      AND NOT EXISTS(SELECT 1 FROM pg_roles role_row WHERE role_row.rolname IN('zasp_security_agent_api','zasp_security_agent_worker') AND (role_row.rolcanlogin OR role_row.rolinherit OR role_row.rolsuper OR role_row.rolcreatedb OR role_row.rolcreaterole OR role_row.rolreplication OR role_row.rolbypassrls))
      AND zasp_security_agent_live_fingerprint()=expected_fingerprint
@@ -473,7 +558,14 @@ $readiness$;
 ALTER FUNCTION public.zasp_security_agent_live_fingerprint() OWNER TO zasp_discovery_authority;
 ALTER FUNCTION public.zasp_security_agent_readiness(text,text) OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION public.zasp_security_agent_live_fingerprint(),public.zasp_security_agent_readiness(text,text) FROM PUBLIC,zasp_security_agent_api,zasp_security_agent_worker;
-GRANT EXECUTE ON FUNCTION public.zasp_security_agent_readiness(text,text) TO zasp_security_agent_api,zasp_security_agent_worker;
+GRANT EXECUTE ON FUNCTION public.zasp_security_agent_readiness(text,text) TO zasp_discovery_api,zasp_security_agent_api,zasp_security_agent_worker;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', 'a243fadac1cb587907da58be438b6be19339cae56583f33b61252fe2dbd3f8cd')
+DO $schema_marker$
+BEGIN
+  UPDATE public.zasp_schema_metadata SET value='security-agent-execution-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='runtime-data-plane-v1';
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent schema marker drift';END IF;
+END
+$schema_marker$;
+
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', '8d47e754c6e6e40b50625ed82cae858dcd1ab83c531efc247ba43bce762633bc')
 ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
-	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 const (
@@ -24,7 +23,10 @@ const (
 var publicSensorFields = []string{"created_at", "id", "kind", "last_heartbeat_at", "mode", "name", "state", "token_expires_at", "updated_at", "version"}
 
 type SensorPublicRepository struct {
-	database JSONDatabase
+	database     JSONDatabase
+	readinessSQL string
+	checksum     string
+	fingerprint  string
 }
 
 type ProductSensor struct {
@@ -121,22 +123,26 @@ func NewSensorPublicRepository(database JSONDatabase) (*SensorPublicRepository, 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	version, err := database.SchemaVersion(ctx)
-	if err != nil || version != RuntimeDataPlaneSchemaVersion {
+	if err != nil || !isRuntimeDataPlaneSchema(version) {
 		return nil, ErrRepositoryConfiguration
 	}
-	payload, err := database.QueryJSON(ctx, postgresRuntimeDataPlaneReadinessSQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint())
+	readinessSQL, checksum, fingerprint, ok := exactProductReadiness(version)
+	if !ok {
+		return nil, ErrRepositoryConfiguration
+	}
+	payload, err := database.QueryJSON(ctx, readinessSQL, checksum, fingerprint)
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &SensorPublicRepository{database: database}, nil
+	return &SensorPublicRepository{database: database, readinessSQL: readinessSQL, checksum: checksum, fingerprint: fingerprint}, nil
 }
 
 func (repository *SensorPublicRepository) Ready(ctx context.Context) error {
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimeDataPlaneReadinessSQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint())
+	payload, err := repository.database.QueryJSON(ctx, repository.readinessSQL, repository.checksum, repository.fingerprint)
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return ErrRepositoryUnavailable

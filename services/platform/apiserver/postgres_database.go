@@ -124,6 +124,13 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = 'runtime-data
   AND zasp_runtime_ingest_reconciliation_readiness($1, $2)
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 17)`
 
+const postgresSecurityAgentExecutionSchemaVersionSQL = `SELECT metadata.value
+FROM zasp_schema_metadata AS metadata
+JOIN zasp_schema_versions AS release ON release.version = 18 AND release.name = 'security_agent_execution'
+WHERE metadata.key = 'production_core_schema' AND metadata.value = 'security-agent-execution-v1'
+  AND zasp_security_agent_readiness($1, $2)
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 18)`
+
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
 func expectedCoreSchemaFingerprint() string {
 	return migrations.ProductionRiskProjectionSemanticFingerprint()
@@ -157,6 +164,12 @@ func expectedRuntimeDataPlaneSchemaChecksum() string {
 }
 func expectedRuntimeDataPlaneSchemaFingerprint() string {
 	return migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()
+}
+func expectedSecurityAgentExecutionSchemaChecksum() string {
+	return migrations.ProductionSecurityAgentExecution().Checksum()
+}
+func expectedSecurityAgentExecutionSchemaFingerprint() string {
+	return migrations.ProductionSecurityAgentExecutionSemanticFingerprint()
 }
 
 type PostgresRow interface{ Scan(...any) error }
@@ -194,7 +207,11 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", classifyPostgresError(err)
 	}
 	var version string
-	if marker == RuntimeDataPlaneSchemaVersion {
+	if marker == SecurityAgentExecutionSchemaVersion {
+		if err := database.driver.QueryRow(ctx, postgresSecurityAgentExecutionSchemaVersionSQL, expectedSecurityAgentExecutionSchemaChecksum(), expectedSecurityAgentExecutionSchemaFingerprint()).Scan(&version); err != nil {
+			return "", classifyPostgresError(err)
+		}
+	} else if marker == RuntimeDataPlaneSchemaVersion {
 		if err := database.driver.QueryRow(ctx, postgresRuntimeDataPlaneSchemaVersionSQL, expectedRuntimeDataPlaneSchemaChecksum(), expectedRuntimeDataPlaneSchemaFingerprint()).Scan(&version); err != nil {
 			return "", classifyPostgresError(err)
 		}

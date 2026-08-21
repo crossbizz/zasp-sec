@@ -76,13 +76,28 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_principal_ready('zasp_security_agent_worker')`).Scan(&workerReady); err != nil || !workerReady {
 		t.Fatalf("worker authority ready=%t err=%v", workerReady, err)
 	}
+	actorID := "pid_78000002-0000-4000-8000-000000000002"
+	var detail json.RawMessage
+	createdDefinitionID := "pid_78000012-0000-4000-8000-000000000012"
+	createdBody := json.RawMessage(`{"id":"pid_78000012-0000-4000-8000-000000000012","name":"New discovery response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["` + environmentID + `"],"autonomy":"supervised","max_steps":3,"max_duration_seconds":300,"temporary_policy_seconds":600,"ai_token_budget":1000,"concurrency_limit":1,"allowed_actions":["create_temporary_policy"],"verification_kind":"policy_state","definition_version":1,"enabled":false}`)
+	createdIntent := json.RawMessage(`{"scope":{"organization_id":"` + organizationID + `","workspace_id":"` + workspaceID + `","environment_id":"` + environmentID + `"},"resource_id":"","expected_version":0,"body":` + string(createdBody) + `}`)
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_mutate_definition('create',$1,$2,$3,$4,$5,'createSecurityAgent','security-agent-create-0001',0,$6,$7,'audit-created','corr-created','')`, createdDefinitionID, organizationID, workspaceID, environmentID, actorID, createdIntent, createdBody).Scan(&detail); err != nil {
+		t.Fatalf("create generic security agent: %v", err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,body) VALUES($1,$2,$3,'security_agent','pid_78000013-0000-4000-8000-000000000013',$4)`, organizationID, workspaceID, environmentID, createdBody); err == nil {
+		t.Fatal("legacy database authority bypassed v18 definition guard")
+	}
+	var mirroredActivation string
+	var mirroredEnabled bool
+	if err := connection.QueryRow(ctx, `SELECT activation,(body->>'enabled')::boolean FROM zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id,definition_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, createdDefinitionID).Scan(&mirroredActivation, &mirroredEnabled); err != nil || mirroredActivation != "draft" || mirroredEnabled {
+		t.Fatalf("mirrored definition activation=%q enabled=%t err=%v", mirroredActivation, mirroredEnabled, err)
+	}
 	metadata := migrations.ProductionSecurityAgentExecution()
 	var ready bool
 	if err := connection.QueryRow(ctx, `SELECT zasp_security_agent_readiness($1,$2)`, metadata.Checksum(), migrations.ProductionSecurityAgentExecutionSemanticFingerprint()).Scan(&ready); err != nil || !ready {
 		t.Fatalf("readiness=%t err=%v", ready, err)
 	}
 
-	var detail json.RawMessage
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_definition_detail($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, definitionID).Scan(&detail); err != nil {
 		t.Fatalf("definition detail: %v", err)
 	}
@@ -99,7 +114,6 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 		t.Fatalf("legacy enabled=%t err=%v", quarantinedEnabled, err)
 	}
 
-	actorID := "pid_78000002-0000-4000-8000-000000000002"
 	var activated json.RawMessage
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,1,'validated',$5,transaction_timestamp(),'audit-validated','corr-validated')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err != nil {
 		t.Fatalf("validate definition: %v", err)

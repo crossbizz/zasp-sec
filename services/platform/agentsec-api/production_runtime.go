@@ -24,58 +24,89 @@ import (
 func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (RuntimeDependencies, error) {
 	connectCtx, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
 	defer cancel()
-	poolConfig, err := pgxpool.ParseConfig(config.PostgresDSN)
+	database, pool, err := openRuntimePostgres(connectCtx, config.PostgresDSN, config.ProviderTimeout)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	poolConfig.MaxConns = 20
-	poolConfig.MinConns = 2
-	poolConfig.HealthCheckPeriod = config.ProviderTimeout
-	pool, err := pgxpool.NewWithConfig(connectCtx, poolConfig)
+	securityAgentDatabase, securityAgentPool, err := openRuntimePostgres(connectCtx, config.SecurityAgentPostgresDSN, config.ProviderTimeout)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
-	}
-	if err := pool.Ping(connectCtx); err != nil {
-		pool.Close()
-		return RuntimeDependencies{}, errRuntimeUnavailable
-	}
-	database, err := apiserver.NewPostgresJSONDatabase(&pgxProductionDriver{pool: pool})
-	if err != nil {
-		pool.Close()
+		_ = database.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
 	authenticator, err := apiserver.NewStytchOAuthAuthenticator(config.StytchBaseURL, config.StytchProjectID, config.StytchSecret, config.ProviderTimeout, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) })
 	if err != nil {
+		_ = securityAgentDatabase.Close()
 		_ = database.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
 	repository, err := apiserver.NewPostgresRepository(database)
 	if err != nil {
+		_ = securityAgentDatabase.Close()
 		_ = database.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
 	provider, err := apiserver.NewRepositoryIdentityProviderWithStart(authenticator, repository, repository, config.StytchAuthorizeURL, config.StytchPublicToken, config.StytchOrganizationID, config.PublicOrigin+"/auth/callback")
 	if err != nil {
+		_ = securityAgentDatabase.Close()
 		_ = database.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	dependencies, err := composeRuntimeDependencies(config, database, provider)
+	dependencies, err := composeRuntimeDependenciesWithSecurityAgent(config, database, securityAgentDatabase, provider)
 	if err != nil {
+		_ = securityAgentDatabase.Close()
 		_ = database.Close()
 		return RuntimeDependencies{}, err
 	}
-	dependencies.Closers = append(dependencies.Closers, database)
+	dependencies.Closers = append(dependencies.Closers, securityAgentDatabase, database)
 	dependencies.Metrics.poolStats = func() poolSaturation {
-		stat := pool.Stat()
-		return poolSaturation{Acquired: stat.AcquiredConns(), Idle: stat.IdleConns(), Maximum: stat.MaxConns()}
+		core := pool.Stat()
+		securityAgent := securityAgentPool.Stat()
+		return poolSaturation{Acquired: core.AcquiredConns() + securityAgent.AcquiredConns(), Idle: core.IdleConns() + securityAgent.IdleConns(), Maximum: core.MaxConns() + securityAgent.MaxConns()}
 	}
 	return dependencies, nil
 }
 
+func openRuntimePostgres(ctx context.Context, dsn string, healthCheckPeriod time.Duration) (*apiserver.PostgresJSONDatabase, *pgxpool.Pool, error) {
+	poolConfig, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, nil, errRuntimeUnavailable
+	}
+	poolConfig.MaxConns = 20
+	poolConfig.MinConns = 2
+	poolConfig.HealthCheckPeriod = healthCheckPeriod
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return nil, nil, errRuntimeUnavailable
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, nil, errRuntimeUnavailable
+	}
+	database, err := apiserver.NewPostgresJSONDatabase(&pgxProductionDriver{pool: pool})
+	if err != nil {
+		pool.Close()
+		return nil, nil, errRuntimeUnavailable
+	}
+	return database, pool, nil
+}
+
 func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDatabase, provider apiserver.CallbackProvider) (RuntimeDependencies, error) {
+	return composeRuntimeDependenciesWithSecurityAgent(config, database, nil, provider)
+}
+
+func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider) (RuntimeDependencies, error) {
 	metrics := newOperationalMetrics()
 	exporter := newStructuredSpanExporter(os.Stdout)
 	tracedDatabase := &tracedJSONDatabase{next: database, metrics: metrics, exporter: exporter}
+	var securityAgentRepository *apiserver.PostgresRepository
+	if !invalidRuntimeValue(securityAgentDatabase) {
+		tracedSecurityAgentDatabase := &tracedJSONDatabase{next: securityAgentDatabase, metrics: metrics, exporter: exporter}
+		var securityAgentErr error
+		securityAgentRepository, securityAgentErr = apiserver.NewSecurityAgentPostgresRepository(tracedSecurityAgentDatabase)
+		if securityAgentErr != nil {
+			return RuntimeDependencies{}, errRuntimeUnavailable
+		}
+	}
 	tracedProvider := &tracedCallbackProvider{next: provider, metrics: metrics, exporter: exporter}
 	repository, err := apiserver.NewPostgresRepository(tracedDatabase)
 	if err != nil {
@@ -211,7 +242,14 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, tracedProvider, connectorSurface, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}, FindingTickets: ticketService})
+	cookie := apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}, FindingTickets: ticketService}
+	var handlers apiserver.Dependencies
+	var authenticate apiserver.Authenticator
+	if securityAgentRepository != nil {
+		handlers, authenticate, err = apiserver.NewProductionHandlersWithSecurityAgent(repository, securityAgentRepository, tracedProvider, connectorSurface, cookie)
+	} else {
+		handlers, authenticate, err = apiserver.NewProductionHandlers(repository, tracedProvider, connectorSurface, cookie)
+	}
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -238,6 +276,11 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 		if err := repository.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
+		if securityAgentRepository != nil {
+			if err := securityAgentRepository.Ready(ctx); err != nil {
+				return errRuntimeUnavailable
+			}
+		}
 		if err := connectorRepository.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
@@ -251,7 +294,7 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 			return errRuntimeUnavailable
 		}
 		return nil
-	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}, {Name: "aws-secrets-manager-webhook", Durable: true}}, Closers: connectorResources}, nil
+	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "postgres-security-agent", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}, {Name: "aws-secrets-manager-webhook", Durable: true}}, Closers: connectorResources}, nil
 }
 
 func newConnectorWorkerOwner(hostname string, source io.Reader) (string, error) {

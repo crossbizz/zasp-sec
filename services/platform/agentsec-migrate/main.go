@@ -143,7 +143,6 @@ func registerReleasePrincipals(ctx context.Context, queryer principalQueryer, re
 		{`SELECT zasp_execution_register_principals($1,$2,$3,$4,$5,$6)`, []any{registration.migration, registration.scheduler, registration.discovery, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch}},
 		{`SELECT zasp_runtime_register_principals($1,$2,$3,$4,$5,$6,$7)`, []any{registration.migration, registration.runtimeCoordinator, registration.runtimeArchive, registration.runtimeIndex, registration.runtimeCorrelation, registration.runtimeProjection, registration.gatewayControl}},
 		{statement: `SELECT zasp_runtime_principals_ready()`},
-		{`SELECT zasp_runtime_ingest_reconciliation_readiness($1,$2)`, []any{migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()}},
 		{`SELECT zasp_security_agent_register_principals($1,$2,$3)`, []any{registration.migration, registration.securityAgentAPI, registration.securityAgentWorker}},
 		{statement: `SELECT zasp_security_agent_principals_ready()`},
 		{`SELECT zasp_security_agent_readiness($1,$2)`, []any{migrations.ProductionSecurityAgentExecution().Checksum(), migrations.ProductionSecurityAgentExecutionSemanticFingerprint()}},

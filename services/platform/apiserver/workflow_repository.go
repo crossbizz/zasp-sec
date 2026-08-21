@@ -90,7 +90,16 @@ func (repository *PostgresRepository) ListWorkflowPage(ctx context.Context, scop
 	if repository == nil || nilInterface(repository.database) || ctx == nil || scope.Validate() != nil || !validWorkflowKind(kind) || limit < 1 || limit > 100 || afterID != "" && !validWorkflowID(kind, afterID) {
 		return WorkflowListPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowPageSQL, kind, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), afterID, limit)
+	statement := postgresWorkflowPageSQL
+	arguments := []any{kind, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), afterID, limit}
+	if repository.securityAgentExecution {
+		if kind != "security_agent" {
+			return WorkflowListPage{}, ErrRepositoryOperation
+		}
+		statement = postgresSecurityAgentDefinitionPageSQL
+		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), afterID, limit}
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return WorkflowListPage{}, err
 	}
@@ -121,7 +130,16 @@ func (repository *PostgresRepository) GetWorkflow(ctx context.Context, scope dom
 	if repository == nil || nilInterface(repository.database) || ctx == nil || scope.Validate() != nil || !validWorkflowID(kind, id) {
 		return WorkflowValue{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowGetSQL, kind, id, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
+	statement := postgresWorkflowGetSQL
+	arguments := []any{kind, id, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()}
+	if repository.securityAgentExecution {
+		if kind != "security_agent" {
+			return WorkflowValue{}, ErrRepositoryOperation
+		}
+		statement = postgresSecurityAgentDefinitionValueSQL
+		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id}
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return WorkflowValue{}, err
 	}
@@ -137,15 +155,23 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 		return WorkflowMutationResult{}, ErrRepositoryOperation
 	}
 	query := postgresWorkflowMutateSQL
-	if mutation.Kind == "integration" && repository.connectorWorkflows {
-		query = postgresConnectorWorkflowMutateSQL
-	}
-	payload, err := repository.database.QueryJSON(ctx, query,
+	arguments := []any{
 		mutation.Action, mutation.Kind, mutation.ID,
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(),
 		identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Intent, mutation.Body, mutation.AuditID, mutation.CorrelationID,
 		mutation.ReceiptID,
-	)
+	}
+	if repository.securityAgentExecution {
+		if mutation.Kind != "security_agent" {
+			return WorkflowMutationResult{}, ErrRepositoryOperation
+		}
+		query = postgresSecurityAgentDefinitionMutateSQL
+		arguments = []any{mutation.Action, mutation.ID, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Intent, mutation.Body, mutation.AuditID, mutation.CorrelationID, mutation.ReceiptID}
+	}
+	if mutation.Kind == "integration" && repository.connectorWorkflows {
+		query = postgresConnectorWorkflowMutateSQL
+	}
+	payload, err := repository.database.QueryJSON(ctx, query, arguments...)
 	if err != nil {
 		return WorkflowMutationResult{}, err
 	}
@@ -374,7 +400,11 @@ func (repository *PostgresRepository) ReplayWorkflow(ctx context.Context, identi
 	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !workflowKeyPattern.MatchString(operation) || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) || !validJSONObjectBody(intent) || containsSensitiveWorkflowField(intent) {
 		return WorkflowMutationResult{}, false, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowReplaySQL,
+	statement := postgresWorkflowReplaySQL
+	if repository.securityAgentExecution {
+		statement = postgresSecurityAgentDefinitionReplaySQL
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement,
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), operation, idempotencyKey, intent,
 	)
 	if err != nil {

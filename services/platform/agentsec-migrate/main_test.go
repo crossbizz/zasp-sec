@@ -792,14 +792,14 @@ func (queryer *scriptedPrincipalQueryer) QueryRow(_ context.Context, statement s
 
 func TestRegisterReleasePrincipalsRequiresPostRegistrationRuntimeReadiness(t *testing.T) {
 	registration := discoveryPrincipalRegistration{migration: "migration_login", api: "api_login", discovery: "discovery_login", ingest: "ingest_login", runtime: "runtime_login", outbox: "outbox_login", gateway: "gateway_login", scheduler: "scheduler_login", projectionRisk: "risk_login", projectionGraph: "graph_login", projectionSearch: "search_login", runtimeCoordinator: "runtime_coordinator_login", runtimeArchive: "runtime_archive_login", runtimeIndex: "runtime_index_login", runtimeCorrelation: "runtime_correlation_login", runtimeProjection: "runtime_projection_login", gatewayControl: "gateway_control_login", securityAgentAPI: "security_agent_api_login", securityAgentWorker: "security_agent_worker_login"}
-	queryer := &scriptedPrincipalQueryer{values: []bool{true, true, true, true, true, true, true, false}}
+	queryer := &scriptedPrincipalQueryer{values: []bool{true, true, true, true, true, true, false}}
 	if err := registerReleasePrincipals(context.Background(), queryer, registration); !errors.Is(err, errReleasePrincipalRegistration) {
 		t.Fatalf("readiness error=%v", err)
 	}
-	if len(queryer.statements) != 8 || !strings.Contains(queryer.statements[6], "zasp_security_agent_register_principals") || !strings.Contains(queryer.statements[7], "zasp_security_agent_principals_ready") {
+	if len(queryer.statements) != 7 || !strings.Contains(queryer.statements[5], "zasp_security_agent_register_principals") || !strings.Contains(queryer.statements[6], "zasp_security_agent_principals_ready") {
 		t.Fatalf("registration statements=%#v", queryer.statements)
 	}
-	queryer = &scriptedPrincipalQueryer{values: []bool{true, true, true, true, true, true, true, true, true}}
+	queryer = &scriptedPrincipalQueryer{values: []bool{true, true, true, true, true, true, true, true}}
 	if err := registerReleasePrincipals(context.Background(), queryer, registration); err != nil {
 		t.Fatalf("ready registration error=%v", err)
 	}
