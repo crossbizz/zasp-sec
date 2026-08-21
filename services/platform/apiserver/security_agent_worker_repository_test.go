@@ -56,3 +56,24 @@ func TestSecurityAgentWorkerRepositoryClaimsPlansHeartbeatsAndExecutesExactTenan
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }
+
+func TestSecurityAgentWorkerRepositoryAcceptsExactAutonomousPreparationWithoutApproval(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	claim := SecurityAgentRunClaim{
+		OrganizationID: "pid_70000001-0000-4000-8000-000000000001", WorkspaceID: "pid_70000002-0000-4000-8000-000000000002", EnvironmentID: "pid_70000003-0000-4000-8000-000000000003",
+		RunID: "pid_78000001-0000-4000-8000-000000000001", DefinitionID: "pid_78000002-0000-4000-8000-000000000002", DefinitionVersion: 4, TriggerID: "pid_78000003-0000-4000-8000-000000000003",
+		State: "planning", Version: 2, Attempt: 1, LeaseExpiresAt: now.Add(time.Minute), Prepared: false,
+	}
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentWorkerReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentPrepareRunSQL:  json.RawMessage(`{"run_id":"` + claim.RunID + `","state":"queued","version":3,"approval_id":null,"step_id":"pid_78000005-0000-4000-8000-000000000005","plan_hash":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`),
+	}}
+	repository, err := NewSecurityAgentWorkerRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := repository.PrepareSecurityAgentRun(context.Background(), claim, "security-agent-worker-1", "lease-token-000000000001", "pid_78000004-0000-4000-8000-000000000004", now.Add(15*time.Minute), "pid_78000006-0000-4000-8000-000000000006", "pid_78000007-0000-4000-8000-000000000007")
+	if err != nil || result.State != "queued" || result.ApprovalID != "" {
+		t.Fatalf("autonomous prepare=%#v err=%v", result, err)
+	}
+}

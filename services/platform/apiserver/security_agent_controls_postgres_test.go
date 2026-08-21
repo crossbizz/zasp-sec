@@ -77,15 +77,6 @@ func TestProductionSecurityAgentControlsPostgresFencesAndReplaysExactSwitches(t 
 	}
 	api := connectAs("security_agent_api_controls_login")
 	defer api.Close(context.Background())
-	worker := connectAs("security_agent_worker_controls_login")
-	defer worker.Close(context.Background())
-	workerDatabase, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: worker})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := NewSecurityAgentWorkerRepository(workerDatabase); err != nil {
-		t.Fatalf("v20 worker repository rejected current execution authority: %v", err)
-	}
 	mainDatabase, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	if err != nil {
 		t.Fatal(err)

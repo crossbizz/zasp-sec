@@ -135,6 +135,23 @@ describe("Security Agent definition surface", () => {
     await waitFor(() => expect(runSecurityAgent).toHaveBeenCalledWith(agentID, 3, { environment_id: environmentID, trigger_kind: "finding", trigger_id: evidenceID }, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
   });
 
+  it("promotes supervised execution to autonomous execution with fresh authentication", async () => {
+	const user = userEvent.setup();
+	const activateSecurityAgent = vi.fn(fixtureAPI().activateSecurityAgent);
+	const autonomousDefinition = { ...created, enabled: true };
+	const api = fixtureAPI({
+	  getSecurityAgent: async () => ({ value: autonomousDefinition, version: `"3"` }),
+	  getSecurityAgentActivation: async () => ({ id: agentID, activation: "supervised", enabled: true, version: 3 }),
+	  activateSecurityAgent,
+	});
+	render(<SecurityAgentsView api={api} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [autonomousDefinition], templates: [template], actions: [action], runs: [], approvals: [] }} fresh />);
+	await user.click(screen.getByRole("button", { name: `Open ${autonomousDefinition.name}` }));
+	await user.click(await screen.findByRole("button", { name: "Enable autonomous execution" }));
+	await waitFor(() => expect(activateSecurityAgent).toHaveBeenCalledWith(agentID, 3, "autonomous", expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+	expect(await screen.findByText(`${created.trigger_kind} · ${environmentID} · autonomous`)).toBeInTheDocument();
+	expect(await screen.findByRole("button", { name: "Start autonomous run" })).toBeInTheDocument();
+  });
+
   it("shows redacted run and approval detail, gates decisions on fresh auth, and cancels with the listed version", async () => {
     const user = userEvent.setup();
     const reauthenticate = vi.fn();

@@ -21,7 +21,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "startBrowserTab", "actual two-tab delayed out-of-order ABA stale-scope recovery proven", "X-Zasp-Expected-Scope",
     "delayedFirstTabBootstrap", "secondTabBootstrapWhileFirstDelayed", "firstTabScopeStaleResponses", "X-Zasp-E2E-Tab",
     "ZASP_DEPLOYMENT_MODE", "/administration/identity-access", "member-target-local", "Member role updated; active sessions revoked",
-    "ZASP_STYTCH_WEBHOOK_SECRET", "schema 19 identity_administration verified", "schema 20 security_agent_controls verified",
+    "ZASP_STYTCH_WEBHOOK_SECRET", "schema 19 identity_administration verified", "schema 20 security_agent_controls verified", "schema 21 security_agent_autonomous_response verified",
     "production SSO, SCIM, and group-mapping browser workflow proven",
     "signed Stytch webhook replay and tenant deprovision proven",
     "group-derived browser login scope and cross-tenant denial proven",
@@ -41,7 +41,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "browserStorageHistoryAndCaches", "indexedDB.databases", "assertResponsiveRiskLayout", "Emulation.setDeviceMetricsOverride",
     "browser console and exception stream remained clean", "hidden risk-adjacent routes canonicalized without hidden API calls",
     "/red-team/results", "/test/attack-lab", "/reports", "/guardrails/dashboard", "/prompt-hardening",
-    "schema 14 typed_inventory_cutover verified", "schema 15 runtime_data_plane verified", "schema 17 runtime_ingest_reconciliation verified", "schema 18 security_agent_execution verified", "schema 19 identity_administration verified", "schema 20 security_agent_controls verified", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN",
+    "schema 14 typed_inventory_cutover verified", "schema 15 runtime_data_plane verified", "schema 17 runtime_ingest_reconciliation verified", "schema 18 security_agent_execution verified", "schema 19 identity_administration verified", "schema 20 security_agent_controls verified", "schema 21 security_agent_autonomous_response verified", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN",
     "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION",
     "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX",
     "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS",
@@ -88,7 +88,8 @@ test("combined production E2E owns every local boundary and fixed assertion", as
 		"assertTask6SensorBrowserState", "/api/v1/sensors", "/coverage", "/rotate-token", "Runtime sensors", "Enroll sensor",
 		"Create enrollment", "Copy this token now", "Save sensor", "Rotate enrollment token", "Delete sensor",
 		"Task6 authenticated heartbeat and healthy sensor coverage proven", "Task6 token rotation and version-pinned sensor update proven",
-		"Task6 reload and deletion left no enrollment credential in persistent browser state", "zasp_runtime_sensor_heartbeat",
+    "Task6 reload and deletion left no enrollment credential in persistent browser state", "zasp_runtime_sensor_heartbeat",
+		"exerciseSecurityAgentAutomaticLifecycle", "production-e2e-security-agent", "multi-tenant supervised approval and autonomous response proven",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   const apiEnvironment = source.slice(source.indexOf("const apiEnvironment = {"), source.indexOf("api = startChild(apiBinary"));
   for (const value of ["HOSTNAME", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_FINDING_TICKET_EGRESS_CIDRS"]) assert.match(apiEnvironment, new RegExp(value));
@@ -107,6 +108,11 @@ test("combined production E2E owns every local boundary and fixed assertion", as
   const seedBoundary = source.slice(source.indexOf("async function seedPostgres"), source.indexOf("async function exercisePublicDiscoveryLifecycle"));
   assert.doesNotMatch(seedBoundary, /INSERT INTO zasp_inventory_/i);
   assert.doesNotMatch(seedBoundary, /'(?:home|agents|tools|identities|runtimes|(?:agent|tool|identity|runtime|asset):pid_[0-9a-f-]{36}|agent_(?:capabilities|relationships|sessions):pid_[0-9a-f-]{36})'/i);
+	const securityAgentBoundary = source.slice(source.indexOf("async function exerciseSecurityAgentAutomaticLifecycle"), source.indexOf("async function", source.indexOf("async function exerciseSecurityAgentAutomaticLifecycle") + 15));
+	for (const value of ["security-agent", "zasp_security_agent_worker", "30s", "Validate definition", "Enable supervised execution", "Approve", "autonomous", "pid_90000001-0000-4000-8000-000000000001"]) assert.match(securityAgentBoundary, new RegExp(value));
+	assert.doesNotMatch(securityAgentBoundary, /zasp_security_agent_(?:schedule_triggers|prepare_run|execute_run)(?:_v21)?\s*\(/i);
+	assert.match(securityAgentBoundary, /NOT EXISTS\(SELECT 1 FROM zasp_security_agent_runs run WHERE \(run\.organization_id,run\.workspace_id,run\.environment_id,run\.run_id\)=\(effect\.organization_id,effect\.workspace_id,effect\.environment_id,effect\.run_id\)\)/i);
+	assert.doesNotMatch(securityAgentBoundary, /JOIN zasp_security_agent_runs run USING\(organization_id,workspace_id,environment_id,run_id\)[\s\S]*effect\.organization_id<>run\.organization_id/i);
   for (const unsafeControl of ["Start bounded run", "waiting_approval", "Simulate policy", "Decision history"]) {
     const escaped = unsafeControl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     assert.doesNotMatch(source, new RegExp(`(?:clickBrowserText|clickBrowserTextContains|clickBrowserAria)\\([^\\n]*${escaped}`, "i"));

@@ -94,7 +94,7 @@ CREATE FUNCTION public.zasp_security_agent_controls_live_fingerprint() RETURNS t
     UNION ALL
     SELECT concat_ws('|','constraint',constraint_value.conname,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value WHERE constraint_value.conrelid='public.zasp_security_agent_request_receipts'::regclass AND constraint_value.conname='zasp_security_agent_request_receipts_operation_check'
     UNION ALL
-    SELECT concat_ws('|','table','zasp_environments',COALESCE(table_value.relacl::text,'')) FROM pg_class table_value JOIN pg_namespace namespace ON namespace.oid=table_value.relnamespace WHERE namespace.nspname='public' AND table_value.relname='zasp_environments'
+    SELECT concat_ws('|','table','zasp_environments',COALESCE(string_agg(concat_ws(':',CASE WHEN access.grantee=table_value.relowner THEN '<owner>' WHEN access.grantee=0 THEN 'PUBLIC' ELSE grantee.rolname END,access.privilege_type,access.is_grantable),',' ORDER BY CASE WHEN access.grantee=table_value.relowner THEN '<owner>' WHEN access.grantee=0 THEN 'PUBLIC' ELSE grantee.rolname END,access.privilege_type,access.is_grantable),'')) FROM pg_class table_value JOIN pg_namespace namespace ON namespace.oid=table_value.relnamespace CROSS JOIN LATERAL aclexplode(COALESCE(table_value.relacl,acldefault('r',table_value.relowner))) access LEFT JOIN pg_roles grantee ON grantee.oid=access.grantee WHERE namespace.nspname='public' AND table_value.relname='zasp_environments' GROUP BY table_value.relowner
   ) SELECT encode(digest(convert_to(string_agg(value,E'\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities
 $fingerprint$;
 
@@ -118,4 +118,4 @@ BEGIN
 END
 $schema_marker$;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_controls_fingerprint', '3ed37647773abf9c3d3b871e70e627aeb191916062da8881c09e5e867656717a') ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_controls_fingerprint', '8b228f9e7424846ef07a73d598166ab30c24e5f7e4bd74628a9d208fe41768c8') ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;

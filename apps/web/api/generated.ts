@@ -2827,7 +2827,7 @@ export type components = {
         readonly SecurityAgentPlanStep: {
             readonly action: string;
             /** @enum {string} */
-            readonly authorization: "allow" | "approval_required" | "deny";
+            readonly authorization: "allow" | "approval_required" | "autonomous" | "deny";
             readonly id: components["schemas"]["ProductID"];
             readonly index: number;
             /** @enum {string} */

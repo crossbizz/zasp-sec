@@ -33,7 +33,7 @@ describe("M7A audit, API, and builder batch", () => {
     expect(app).toContain("<ProductionSecurityAgentsView");
     expect(view).toContain('from "../../../apps/web/api/generated"');
     for (const operation of mountedOperations) expect(view).toContain(operation);
-    for (const label of ["Definition template", "Definition name", "Authorized environment", "Step limit", "Runtime seconds", "Temporary-policy seconds", "AI token budget", "Concurrency", "Production action catalog", "Template controls", "Limits", "Definition enabled", "Validate definition", "Enable supervised execution", "Zero-effect simulation", "Simulate plan", "Start supervised run", "Security Agent runs", "Pending approvals", "Expected effect", "Cancel run", "Reauthenticate to decide", "Approve", "Reject"]) expect(view).toContain(label);
+    for (const label of ["Definition template", "Definition name", "Authorized environment", "Step limit", "Runtime seconds", "Temporary-policy seconds", "AI token budget", "Concurrency", "Production action catalog", "Template controls", "Limits", "Definition enabled", "Validate definition", "Enable supervised execution", "Enable autonomous execution", "Zero-effect simulation", "Simulate plan", "Start supervised run", "Start autonomous run", "Security Agent runs", "Pending approvals", "Expected effect", "Cancel run", "Reauthenticate to decide", "Approve", "Reject"]) expect(view).toContain(label);
     expect(view).not.toMatch(/textarea|tool URL|shell command|arbitrary query/i);
   });
 

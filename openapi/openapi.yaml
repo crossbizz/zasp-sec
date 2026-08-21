@@ -2868,7 +2868,7 @@ components:
         id: { $ref: '#/components/schemas/ProductID' }
         index: { type: integer, minimum: 0, maximum: 99 }
         action: { type: string, minLength: 1, maxLength: 128 }
-        authorization: { type: string, enum: [allow, approval_required, deny] }
+        authorization: { type: string, enum: [allow, approval_required, autonomous, deny] }
         state: { type: string, enum: [queued, authorized, waiting_approval, executing, verifying, succeeded, failed, inconclusive, cancelled] }
         version: { type: integer, minimum: 1 }
     SecurityAgentPlanSummary:

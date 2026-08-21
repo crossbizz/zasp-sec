@@ -21,7 +21,7 @@ func TestSecurityAgentPostgresRepositorySimulatesWithCanonicalPlanAuthority(t *t
 	receiptID := "pid_78000004-0000-4000-8000-000000000004"
 	expiresAt := time.Now().UTC().Truncate(time.Second).Add(15 * time.Minute)
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
-		postgresSecurityAgentControlsReadySQL:      json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentAutonomousReadySQL:    json.RawMessage(`{"release":true,"principal":true}`),
 		postgresIdentityAdminSecurityAgentReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentAuthorityReadySQL:     json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentSimulateSQL:           json.RawMessage(`{"run_id":"` + runID + `","definition_id":"` + definitionID + `","definition_version":2,"plan_hash":"sha256:` + strings.Repeat("a", 64) + `","catalog_version":"security-agent-actions-v1","expires_at":"` + expiresAt.Format(time.RFC3339) + `","matched_evidence_ids":["` + evidenceID + `"],"summary":"Review exposed credential","steps":[{"index":0,"action":"create_temporary_policy","authorization":"approval_required","approval_required":true}],"side_effects":0,"version":1,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
@@ -55,7 +55,7 @@ func TestSecurityAgentPostgresRepositoryPrefersV20ScopedAuthority(t *testing.T) 
 	if err != nil || repository.schema != SecurityAgentControlsSchemaVersion {
 		t.Fatalf("repository=%#v err=%v", repository, err)
 	}
-	if len(database.statements) != 1 || database.statements[0] != postgresSecurityAgentControlsReadySQL {
+	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentAutonomousReadySQL || database.statements[1] != postgresSecurityAgentControlsReadySQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }
@@ -69,7 +69,7 @@ func TestSecurityAgentPostgresRepositoryReadsAndMutatesExactTenantControls(t *te
 	correlationID := "pid_78000003-0000-4000-8000-000000000003"
 	receiptID := "pid_78000004-0000-4000-8000-000000000004"
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
-		postgresSecurityAgentControlsReadySQL:       json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentAutonomousReadySQL:     json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentExecutionControlsSQL:   json.RawMessage(`{"global":{"target":"global","action_key":"*","enabled":true,"version":1},"environment":{"target":"environment","action_key":"*","enabled":false,"version":0},"actions":[{"target":"action","action_key":"update_finding_response","enabled":false,"version":0}]}`),
 		postgresSecurityAgentSetExecutionControlSQL: json.RawMessage(`{"target":"environment","action_key":"*","enabled":true,"version":1,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
 	}}
@@ -102,7 +102,7 @@ func TestSecurityAgentPostgresRepositoryReadsExactActivationState(t *testing.T) 
 	identity.CredentialKind = CredentialBrowserSession
 	definitionID := "pid_78000001-0000-4000-8000-000000000001"
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
-		postgresSecurityAgentControlsReadySQL:        json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentAutonomousReadySQL:      json.RawMessage(`{"release":true,"principal":true}`),
 		postgresIdentityAdminSecurityAgentReadySQL:   json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentAuthorityReadySQL:       json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentDefinitionActivationSQL: json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","definition_id":"` + definitionID + `","activation":"validated","version":2,"definition_version":1,"body":{"id":"` + definitionID + `","name":"Review exposed credential","trigger_kind":"finding","trigger_source":"credential","environment_ids":["` + identity.Scope.EnvironmentID().String() + `"],"autonomy":"supervised","max_steps":1,"max_duration_seconds":300,"temporary_policy_seconds":600,"ai_token_budget":1000,"concurrency_limit":1,"allowed_actions":["update_finding_response"],"verification_kind":"finding_state","definition_version":1,"enabled":false},"updated_at":"2026-08-21T12:00:00Z"}`),
@@ -131,7 +131,7 @@ func TestSecurityAgentPostgresRepositoryActivatesWithExactScopeAndReceiptAuthori
 	correlationID := "pid_78000003-0000-4000-8000-000000000003"
 	receiptID := "pid_78000004-0000-4000-8000-000000000004"
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
-		postgresSecurityAgentControlsReadySQL:      json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentAutonomousReadySQL:    json.RawMessage(`{"release":true,"principal":true}`),
 		postgresIdentityAdminSecurityAgentReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentAuthorityReadySQL:     json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentActivateSQL:           json.RawMessage(`{"id":"` + definitionID + `","activation":"validated","enabled":false,"version":2,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
@@ -167,7 +167,7 @@ func TestSecurityAgentPostgresRepositoryRunsAndApprovesWithExactScopedAuthority(
 	freshAuthAt := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 	expiresAt := freshAuthAt.Add(15 * time.Minute)
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
-		postgresSecurityAgentControlsReadySQL:      json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentAutonomousReadySQL:    json.RawMessage(`{"release":true,"principal":true}`),
 		postgresIdentityAdminSecurityAgentReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentAuthorityReadySQL:     json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentRunSQL:                json.RawMessage(`{"id":"` + runID + `","agent_id":"` + definitionID + `","state":"queued","evidence_ids":["` + evidenceID + `"],"definition_version":3,"version":1,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
@@ -203,7 +203,7 @@ func TestSecurityAgentPostgresRepositoryReadsExactScopedRunsAndApprovals(t *test
 	createdAt := time.Date(2026, 8, 21, 11, 59, 0, 123000, time.UTC)
 	expiresAt := time.Date(2026, 8, 21, 12, 15, 0, 0, time.UTC)
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
-		postgresSecurityAgentControlsReadySQL:      json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentAutonomousReadySQL:    json.RawMessage(`{"release":true,"principal":true}`),
 		postgresIdentityAdminSecurityAgentReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentAuthorityReadySQL:     json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentRunPageSQL:            json.RawMessage(`{"items":[{"id":"` + runID + `","agent_id":"` + definitionID + `","state":"waiting_approval","evidence_ids":["` + evidenceID + `"],"definition_version":3,"version":4}],"next_created_at":"` + createdAt.Format("2006-01-02T15:04:05.000000Z") + `","next_id":"` + runID + `"}`),
@@ -238,11 +238,34 @@ func TestSecurityAgentPostgresRepositoryReadsExactScopedRunsAndApprovals(t *test
 	}
 }
 
+func TestSecurityAgentPostgresRepositoryReadsAutonomousRunWithoutApproval(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	runID := "pid_78000006-0000-4000-8000-000000000006"
+	definitionID := "pid_78000001-0000-4000-8000-000000000001"
+	evidenceID := "pid_78000005-0000-4000-8000-000000000005"
+	stepID := "pid_78000008-0000-4000-8000-000000000008"
+	outcomeID := "pid_78000009-0000-4000-8000-000000000009"
+	expiresAt := time.Date(2026, 8, 21, 12, 15, 0, 0, time.UTC)
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentAutonomousReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentRunDetailSQL:       json.RawMessage(`{"run":{"id":"` + runID + `","agent_id":"` + definitionID + `","state":"remediated","evidence_ids":["` + evidenceID + `"],"definition_version":3,"version":4},"evidence_ids":["` + evidenceID + `"],"plan":{"plan_hash":"sha256:` + strings.Repeat("a", 64) + `","catalog_version":"security-agent-actions-v1","expires_at":"` + expiresAt.Format(time.RFC3339) + `","steps":[{"id":"` + stepID + `","index":0,"action":"update_finding_response","authorization":"autonomous","state":"succeeded","version":2}]},"authorization":"authorized","approvals":[],"execution":[{"step_id":"` + stepID + `","action":"update_finding_response","state":"succeeded","outcome_id":"` + outcomeID + `","result_digest":"sha256:` + strings.Repeat("b", 64) + `","version":2}],"verification":"verified"}`),
+	}}
+	repository, err := NewSecurityAgentPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail, err := repository.GetSecurityAgentRun(context.Background(), identity, runID)
+	if err != nil || detail.Plan == nil || detail.Plan.Steps[0].Authorization != "autonomous" || detail.Authorization != "authorized" || len(detail.Approvals) != 0 || detail.Verification != "verified" {
+		t.Fatalf("detail=%#v err=%v", detail, err)
+	}
+}
+
 func TestSecurityAgentPostgresRepositoryPreservesEmptyRunAndApprovalCollections(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	identity.CredentialKind = CredentialBrowserSession
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
-		postgresSecurityAgentControlsReadySQL:      json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentAutonomousReadySQL:    json.RawMessage(`{"release":true,"principal":true}`),
 		postgresIdentityAdminSecurityAgentReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentAuthorityReadySQL:     json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentRunPageSQL:            json.RawMessage(`{"items":[],"next_created_at":null,"next_id":null}`),
@@ -272,7 +295,7 @@ func TestSecurityAgentPostgresRepositoryCancelsWithoutExposingMutationAuthority(
 	correlationID := "pid_78000003-0000-4000-8000-000000000003"
 	receiptID := "pid_78000004-0000-4000-8000-000000000004"
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
-		postgresSecurityAgentControlsReadySQL:      json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentAutonomousReadySQL:    json.RawMessage(`{"release":true,"principal":true}`),
 		postgresIdentityAdminSecurityAgentReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentAuthorityReadySQL:     json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentCancelRunSQL:          json.RawMessage(`{"id":"` + runID + `","agent_id":"` + definitionID + `","state":"cancelled","evidence_ids":["` + evidenceID + `"],"definition_version":3,"version":5,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
@@ -320,7 +343,7 @@ func TestSecurityAgentPostgresRepositoryUsesOnlyV18ScopedAuthority(t *testing.T)
 	if err != nil || len(page.Items) != 1 || page.NextID != "" {
 		t.Fatalf("page=%#v err=%v", page, err)
 	}
-	if len(database.statements) != 4 || database.statements[0] != postgresSecurityAgentControlsReadySQL || database.statements[1] != postgresIdentityAdminSecurityAgentReadySQL || database.statements[2] != postgresSecurityAgentAuthorityReadySQL || database.statements[3] != postgresSecurityAgentDefinitionPageSQL {
+	if len(database.statements) != 5 || database.statements[0] != postgresSecurityAgentAutonomousReadySQL || database.statements[1] != postgresSecurityAgentControlsReadySQL || database.statements[2] != postgresIdentityAdminSecurityAgentReadySQL || database.statements[3] != postgresSecurityAgentAuthorityReadySQL || database.statements[4] != postgresSecurityAgentDefinitionPageSQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 	if _, err := repository.ListWorkflowPage(context.Background(), scope, "policy", "", 10); !errors.Is(err, ErrRepositoryOperation) {

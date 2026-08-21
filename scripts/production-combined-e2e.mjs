@@ -133,14 +133,15 @@ try {
     ZASP_SECURITY_AGENT_API_DB_PRINCIPAL: "zasp_e2e_security_agent_api",
     ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL: "zasp_e2e_security_agent_worker",
   } });
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, and execution-control releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, and autonomous-response releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
   console.log("combined E2E: schema 18 security_agent_execution verified");
   console.log("combined E2E: schema 19 identity_administration verified");
   console.log("combined E2E: schema 20 security_agent_controls verified");
+  console.log("combined E2E: schema 21 security_agent_autonomous_response verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -665,12 +666,8 @@ try {
   await clickBrowserText(browser.cdp, "Save Security Agent definition");
   await waitForBrowserText(browser.cdp, /Bounded response definition/);
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate plan|Start supervised run|Approve|Reject|Cancel run)$/i), false);
-
-  await navigateBrowser(browser.cdp, `${publicOrigin}/protect/approvals`);
-  const approvalsEmpty = await waitForBrowserText(browser.cdp, /Security Agent approvals/);
-  assert.match(approvalsEmpty, /No pending approvals/);
-  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Approve|Reject|Cancel run)$/i), false);
-  console.log("combined E2E: full-document receipt recovery, local integration, Security Agent definition, and empty approval authority proven");
+	await exerciseSecurityAgentAutomaticLifecycle(browser.cdp, workerBinary, postgresPort, dsn, publicOrigin);
+	console.log("combined E2E: full-document receipt recovery, local integration, and automatic Security Agent authority proven");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/identity-access`);
   const identityAccess = await waitForBrowserText(browser.cdp, /member-target-local[\s\S]*E2E Organization/);
@@ -945,8 +942,10 @@ try {
   await navigateBrowser(browser.cdp, `${publicOrigin}/protect/security-agents`);
   await waitForBrowserText(browser.cdp, /Bounded response definition/);
   await clickBrowserAria(browser.cdp, "Open Bounded response definition");
-  assert.match(await waitForBrowserText(browser.cdp, /Resource version/), /supervised/);
-  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate plan|Start supervised run|Approve|Reject|Cancel run)$/i), false);
+  const persistedSecurityAgent = await waitForBrowserText(browser.cdp, /Resource version/);
+  assert.match(persistedSecurityAgent, /finding · pid_10000003-0000-4000-8000-000000000003 · supervised/);
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate plan|Start supervised run)$/i), true);
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Approve|Reject|Cancel run)$/i), false);
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/audit-log`);
   assert.match(await waitForBrowserText(browser.cdp, /session\.revoke/), /api_token\.rotate/);
   await navigateBrowser(browser.cdp, `${publicOrigin}/compliance/evidence`);
@@ -1623,6 +1622,105 @@ async function exerciseTask4ProductionWorkerBoundaries(workerBinary, postgresPor
     WHERE sync.integration_id='${task4DiscoveryIntegrationID}' AND job.kind='discovery';`]);
   assert.equal(durable.stdout.trim(), "queued|queued|0|t|t", "managed-worker fail-closed probes claimed or completed public discovery work");
   console.log("combined E2E: real launched discovery and per-kind projection worker boundaries proven; scheduler/risk ready and managed dependencies fail closed");
+}
+
+async function exerciseSecurityAgentAutomaticLifecycle(cdp, workerBinary, postgresPort, dsn, publicOrigin) {
+	const primaryOrganization = "pid_10000001-0000-4000-8000-000000000001";
+	const primaryWorkspace = "pid_10000002-0000-4000-8000-000000000002";
+	const primaryEnvironment = "pid_10000003-0000-4000-8000-000000000003";
+	const primaryFinding = "pid_30000102-0000-4000-8000-000000000102";
+	const foreignOrganization = "pid_90000001-0000-4000-8000-000000000001";
+	const foreignWorkspace = "pid_90000002-0000-4000-8000-000000000002";
+	const foreignEnvironment = "pid_90000003-0000-4000-8000-000000000003";
+	const foreignDefinition = "pid_90000008-0000-4000-8000-000000000008";
+	const foreignFinding = "pid_90000007-0000-4000-8000-000000000007";
+
+	await clickBrowserAria(cdp, "Open Bounded response definition");
+	await clickBrowserText(cdp, "Validate definition");
+	await waitForBrowserText(cdp, /Resource version 2/);
+	await clickBrowserText(cdp, "Enable supervised execution");
+	await waitForBrowserText(cdp, /Resource version 3/);
+	await waitForBrowserText(cdp, /Start supervised run/);
+	await clickBrowserAria(cdp, "Close");
+
+	const primaryDefinition = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT definition_id FROM zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}') AND body->>'name'='Bounded response definition' AND activation='supervised' AND body->>'autonomy'='supervised' AND deleted_at IS NULL;`])).stdout.trim();
+	assert.match(primaryDefinition, /^pid_[0-9a-f-]{36}$/, "browser activation did not persist exact supervised definition authority");
+	const seed = `
+UPDATE zasp_risk_findings SET rule='credential' WHERE (organization_id,workspace_id,environment_id,id,status)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${primaryFinding}','open');
+INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
+VALUES('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignDefinition}','autonomous',1,1,
+jsonb_build_object('id','${foreignDefinition}','name','Foreign autonomous response','trigger_kind','finding','trigger_source','posture','environment_ids',jsonb_build_array('${foreignEnvironment}'),'autonomy','autonomous','max_steps',1,'max_duration_seconds',300,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('update_finding_response'),'verification_kind','finding_state','definition_version',1,'enabled',true),'security-agent-actions-v1');
+INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','*',true,'production-e2e-security-agent'),
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','update_finding_response',true,'production-e2e-security-agent'),
+('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','*',true,'production-e2e-security-agent'),
+('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','update_finding_response',true,'production-e2e-security-agent')
+ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO UPDATE SET execution_enabled=EXCLUDED.execution_enabled,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();`;
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: seed });
+
+	await assertPortAvailable(8081);
+	const worker = startTask4Worker(workerBinary, {
+		...process.env,
+		ZASP_WORKER_MODE: "security-agent",
+		ZASP_POSTGRES_DSN: `postgres://zasp_e2e_security_agent_worker@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
+		ZASP_DATABASE_AUTHORITY: "zasp_security_agent_worker",
+		ZASP_WORKER_ID: "production-e2e-security-agent",
+		ZASP_POLL_INTERVAL: "100ms",
+		ZASP_LEASE_DURATION: "30s",
+		ZASP_BATCH_SIZE: "10",
+		ZASP_SHUTDOWN_TIMEOUT: "1s",
+	});
+	await assertReadyTask4Worker(worker, "security-agent");
+
+	let approvalID = "";
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		const state = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
+			COALESCE((SELECT run.state FROM zasp_security_agent_runs run WHERE (run.organization_id,run.trigger_id)=('${primaryOrganization}','${primaryFinding}')),''),
+			COALESCE((SELECT approval.approval_id FROM zasp_security_agent_approvals approval JOIN zasp_security_agent_runs run USING(organization_id,workspace_id,environment_id,run_id) WHERE (run.organization_id,run.trigger_id,approval.state)=('${primaryOrganization}','${primaryFinding}','pending')),''),
+			COALESCE((SELECT run.state FROM zasp_security_agent_runs run WHERE (run.organization_id,run.trigger_id)=('${foreignOrganization}','${foreignFinding}')),''),
+			COALESCE((SELECT finding.status FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.id)=('${foreignOrganization}','${foreignFinding}')),''));`])).stdout.trim();
+		const [primaryState, candidateApproval, foreignState, foreignFindingState] = state.split("|");
+		if (primaryState === "waiting_approval" && /^pid_[0-9a-f-]{36}$/.test(candidateApproval) && foreignState === "remediated" && foreignFindingState === "under_review") {
+			approvalID = candidateApproval;
+			break;
+		}
+		await delay(50);
+	}
+	assert.match(approvalID, /^pid_[0-9a-f-]{36}$/, `worker did not prepare supervised authority and execute autonomous authority: ${worker.output()}`);
+
+	await navigateBrowser(cdp, `${publicOrigin}/protect/approvals`);
+	await waitForBrowserText(cdp, /Move finding to under review/);
+	await clickBrowserAria(cdp, `Open approval ${approvalID}`);
+	await clickBrowserText(cdp, "Approve");
+	await waitForBrowserText(cdp, /approved/);
+
+	let finalState = "";
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		finalState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
+			(SELECT finding.status FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.id)=('${primaryOrganization}','${primaryFinding}')),
+			(SELECT run.state FROM zasp_security_agent_runs run WHERE (run.organization_id,run.trigger_id)=('${primaryOrganization}','${primaryFinding}')),
+			(SELECT step.authorization_result FROM zasp_security_agent_steps step JOIN zasp_security_agent_runs run USING(organization_id,workspace_id,environment_id,run_id) WHERE (run.organization_id,run.trigger_id)=('${primaryOrganization}','${primaryFinding}')),
+			(SELECT approval.state FROM zasp_security_agent_approvals approval WHERE approval.approval_id='${approvalID}'),
+			(SELECT finding.status FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.id)=('${foreignOrganization}','${foreignFinding}')),
+			(SELECT run.state FROM zasp_security_agent_runs run WHERE (run.organization_id,run.trigger_id)=('${foreignOrganization}','${foreignFinding}')),
+			(SELECT step.authorization_result FROM zasp_security_agent_steps step JOIN zasp_security_agent_runs run USING(organization_id,workspace_id,environment_id,run_id) WHERE (run.organization_id,run.trigger_id)=('${foreignOrganization}','${foreignFinding}')),
+			(SELECT count(*) FROM zasp_security_agent_approvals approval WHERE approval.organization_id='${foreignOrganization}'),
+			(SELECT count(*) FROM zasp_security_agent_effects effect WHERE NOT EXISTS(SELECT 1 FROM zasp_security_agent_runs run WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.run_id))));`])).stdout.trim();
+		if (finalState === "under_review|remediated|approval_required|approved|under_review|remediated|autonomous|0|0") break;
+		await delay(50);
+	}
+	assert.equal(finalState, "under_review|remediated|approval_required|approved|under_review|remediated|autonomous|0|0", "multi-tenant automatic response did not preserve supervised, autonomous, and isolation authority");
+	await stopChild(worker);
+
+	await navigateBrowser(cdp, `${publicOrigin}/protect/security-agents`);
+	const visible = await waitForBrowserText(cdp, /remediated/);
+	assert.match(visible, /Bounded response definition/);
+	assert.doesNotMatch(visible, /Foreign autonomous response/);
+	await navigateBrowser(cdp, `${publicOrigin}/protect/approvals`);
+	const history = await waitForBrowserText(cdp, /Approval history/);
+	assert.match(history, /approved/);
+	assert.doesNotMatch(history, /Foreign autonomous response/);
+	console.log("combined E2E: multi-tenant supervised approval and autonomous response proven through the real production worker");
 }
 
 function startTask4Worker(workerBinary, environment) {

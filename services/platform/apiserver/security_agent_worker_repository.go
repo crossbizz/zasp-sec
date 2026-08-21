@@ -9,12 +9,12 @@ import (
 )
 
 const (
-	postgresSecurityAgentWorkerReadySQL      = `SELECT jsonb_build_object('release',zasp_security_agent_controls_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
-	postgresSecurityAgentScheduleTriggersSQL = `SELECT zasp_security_agent_schedule_triggers($1,$2)`
+	postgresSecurityAgentWorkerReadySQL      = `SELECT jsonb_build_object('release',zasp_security_agent_autonomous_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+	postgresSecurityAgentScheduleTriggersSQL = `SELECT zasp_security_agent_schedule_triggers_v21($1,$2)`
 	postgresSecurityAgentClaimRunsSQL        = `SELECT zasp_security_agent_claim_runs($1,$2,$3,$4)`
 	postgresSecurityAgentHeartbeatRunSQL     = `SELECT zasp_security_agent_heartbeat_run($1,$2,$3,$4,$5,$6,$7)`
-	postgresSecurityAgentPrepareRunSQL       = `SELECT zasp_security_agent_prepare_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresSecurityAgentExecuteRunSQL       = `SELECT zasp_security_agent_execute_run($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresSecurityAgentPrepareRunSQL       = `SELECT zasp_security_agent_prepare_run_v21($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentExecuteRunSQL       = `SELECT zasp_security_agent_execute_run_v21($1,$2,$3,$4,$5,$6,$7,$8)`
 )
 
 type SecurityAgentRunClaim struct {
@@ -96,7 +96,7 @@ func (repository *SecurityAgentWorkerRepository) Ready(ctx context.Context) erro
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentWorkerReadySQL, migrations.ProductionSecurityAgentControls().Checksum(), migrations.ProductionSecurityAgentControlsSemanticFingerprint())
+	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentWorkerReadySQL, migrations.ProductionSecurityAgentAutonomousResponse().Checksum(), migrations.ProductionSecurityAgentAutonomousResponseSemanticFingerprint())
 	if err != nil {
 		return ErrRepositoryUnavailable
 	}
@@ -164,7 +164,8 @@ func (repository *SecurityAgentWorkerRepository) PrepareSecurityAgentRun(ctx con
 	if !exactJSONFields(payload, "approval_id", "plan_hash", "run_id", "state", "step_id", "version") || decodeStrictDiscovery(payload, &result) != nil {
 		return SecurityAgentPrepareResult{}, ErrRepositoryUnavailable
 	}
-	if result.RunID != claim.RunID || result.State != "waiting_approval" || result.Version != claim.Version+1 || !validProductID(result.ApprovalID) || result.ApprovalID != approvalID || !validProductID(result.StepID) || !securityAgentPlanHashPattern.MatchString(result.PlanHash) {
+	validAuthorization := (result.State == "waiting_approval" && result.ApprovalID == approvalID && validProductID(result.ApprovalID)) || (result.State == "queued" && result.ApprovalID == "")
+	if result.RunID != claim.RunID || !validAuthorization || result.Version != claim.Version+1 || !validProductID(result.StepID) || !securityAgentPlanHashPattern.MatchString(result.PlanHash) {
 		return SecurityAgentPrepareResult{}, ErrRepositoryUnavailable
 	}
 	return result, nil

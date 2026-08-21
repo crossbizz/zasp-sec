@@ -383,7 +383,7 @@ func TestProductionHandlersPreserveDiscoveryAndTypedInventoryAtV15(t *testing.T)
 	}
 }
 
-func TestProductionHandlersRequireAndRouteV18SecurityAgentAuthority(t *testing.T) {
+func TestProductionHandlersRequireAndRouteCurrentSecurityAgentAuthority(t *testing.T) {
 	mainDatabase := &discoveryCallDatabase{schema: SecurityAgentExecutionSchemaVersion, responses: map[string]json.RawMessage{
 		postgresSecurityAgentExecutionReadinessSQL: json.RawMessage(`true`),
 		postgresDiscoveryPrincipalReadySQL:         json.RawMessage(`true`),
@@ -422,7 +422,7 @@ func TestProductionHandlersRequireAndRouteV18SecurityAgentAuthority(t *testing.T
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Contain compromised runtime") {
 		t.Fatalf("security-agent list status=%d body=%s", response.Code, response.Body.String())
 	}
-	if len(securityDatabase.statements) != 3 || securityDatabase.statements[2] != postgresSecurityAgentDefinitionPageSQL {
+	if len(securityDatabase.statements) != 5 || securityDatabase.statements[0] != postgresSecurityAgentAutonomousReadySQL || securityDatabase.statements[4] != postgresSecurityAgentDefinitionPageSQL {
 		t.Fatalf("security-agent statements=%#v", securityDatabase.statements)
 	}
 	for _, statement := range mainDatabase.queries {

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
@@ -560,14 +561,17 @@ func validRuntimeCompleteConfig() workerRuntimeConfig {
 type readyWorkerDatabase struct{}
 
 func (readyWorkerDatabase) SchemaVersion(context.Context) (string, error) {
-	return "production-discovery-execution-v1", nil
+	return apiserver.SecurityAgentAutonomousSchemaVersion, nil
 }
 
 func (readyWorkerDatabase) QueryJSON(_ context.Context, statement string, _ ...any) (json.RawMessage, error) {
-	if strings.Contains(statement, "zasp_security_agent_readiness") {
+	if strings.Contains(statement, "jsonb_build_object('ready'") {
+		return json.RawMessage(`{"ready":true}`), nil
+	}
+	if strings.Contains(statement, "zasp_security_agent_autonomous_readiness") || strings.Contains(statement, "zasp_security_agent_readiness") {
 		return json.RawMessage(`{"release":true,"principal":true}`), nil
 	}
-	if strings.Contains(statement, "zasp_runtime_gateway_reconciliation_readiness") {
+	if strings.Contains(statement, "zasp_runtime_ingest_reconciliation_readiness") || strings.Contains(statement, "zasp_runtime_gateway_reconciliation_readiness") {
 		return json.RawMessage(`{"ready":true}`), nil
 	}
 	return json.RawMessage(`true`), nil
@@ -581,7 +585,7 @@ type driftingWorkerDatabase struct {
 }
 
 func (*driftingWorkerDatabase) SchemaVersion(context.Context) (string, error) {
-	return "production-discovery-execution-v1", nil
+	return apiserver.SecurityAgentAutonomousSchemaVersion, nil
 }
 
 func (database *driftingWorkerDatabase) QueryJSON(_ context.Context, statement string, _ ...any) (json.RawMessage, error) {
@@ -591,7 +595,10 @@ func (database *driftingWorkerDatabase) QueryJSON(_ context.Context, statement s
 	if database.drifted {
 		return json.RawMessage(`false`), nil
 	}
-	if strings.Contains(statement, "zasp_runtime_gateway_reconciliation_readiness") {
+	if strings.Contains(statement, "jsonb_build_object('ready'") {
+		return json.RawMessage(`{"ready":true}`), nil
+	}
+	if strings.Contains(statement, "zasp_runtime_ingest_reconciliation_readiness") || strings.Contains(statement, "zasp_runtime_gateway_reconciliation_readiness") {
 		return json.RawMessage(`{"ready":true}`), nil
 	}
 	return json.RawMessage(`true`), nil
