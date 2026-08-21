@@ -206,6 +206,8 @@ const expectedMap: MapDocument = {
       actions: [
         { id: "view_security_agent_templates", operation_id: "listSecurityAgentTemplates", availability: "available" },
         { id: "view_security_actions", operation_id: "listSecurityActions", availability: "available" },
+        { id: "view_security_agent_execution_controls", operation_id: "getSecurityAgentExecutionControls", availability: "available" },
+        { id: "set_security_agent_execution_control", operation_id: "setSecurityAgentExecutionControl", availability: "available" },
         { id: "view_security_agents", operation_id: "listSecurityAgents", availability: "available" },
         { id: "create_security_agent", operation_id: "createSecurityAgent", availability: "available" },
         { id: "view_security_agent", operation_id: "getSecurityAgent", availability: "available" },
@@ -528,6 +530,8 @@ describe("M1-25 UI API map seed", () => {
       "revokeSession",
       "listSecurityAgentTemplates",
       "listSecurityActions",
+      "getSecurityAgentExecutionControls",
+      "setSecurityAgentExecutionControl",
       "listSecurityAgents",
       "createSecurityAgent",
       "getSecurityAgent",

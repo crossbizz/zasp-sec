@@ -151,7 +151,7 @@ npm run ui-api:check
 ```
 
 The current honest result is `UI/API coverage passed: planned=21
-api_available=6 available=115 public=121 internal=0.` The gate distinguishes
+api_available=6 available=117 public=123 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -1056,7 +1056,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=21 api_available=6 available=115 public=121 internal=0.
+UI/API coverage passed: planned=21 api_available=6 available=117 public=123 internal=0.
 ```
 
 M5 now has a local MVP slice for normalized Promptfoo attempts, curated packs,

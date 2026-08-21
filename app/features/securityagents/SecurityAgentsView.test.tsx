@@ -2,8 +2,8 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { SecurityAction, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentDefinition, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentSimulation, SecurityAgentTemplate } from "../../../apps/web/api/generated";
-import { decodeSecurityActionPage, decodeSecurityAgentActivationState, decodeSecurityAgentApprovalPage, decodeSecurityAgentRunDetail, decodeSecurityAgentRunPage, decodeSecurityAgentSimulation, decodeSecurityAgentPage } from "../../../apps/web/api/decoders";
+import type { SecurityAction, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentDefinition, SecurityAgentExecutionControls, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentSimulation, SecurityAgentTemplate } from "../../../apps/web/api/generated";
+import { decodeSecurityActionPage, decodeSecurityAgentActivationState, decodeSecurityAgentApprovalPage, decodeSecurityAgentExecutionControlResult, decodeSecurityAgentExecutionControls, decodeSecurityAgentRunDetail, decodeSecurityAgentRunPage, decodeSecurityAgentSimulation, decodeSecurityAgentPage } from "../../../apps/web/api/decoders";
 import { SecurityAgentsView, type SecurityAgentsAPI } from "./SecurityAgentsView";
 
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
@@ -23,11 +23,14 @@ const simulation: SecurityAgentSimulation = { run_id: "pid_40000008-0000-4000-80
 const run: SecurityAgentRun = { id: runID, agent_id: agentID, state: "waiting_approval", evidence_ids: [evidenceID], definition_version: 1, version: 4 };
 const approval: SecurityAgentApproval = { id: approvalID, run_id: runID, step_id: stepID, state: "pending", expires_at: expiresAt, version: 1, expected_effect: "Move finding to under review", reversible: true, ttl_seconds: 0, evidence_summary: [evidenceID] };
 const runDetail: SecurityAgentRunDetail = { run, evidence_ids: [evidenceID], plan: { plan_hash: `sha256:${"a".repeat(64)}`, catalog_version: "security-agent-actions-v1", expires_at: expiresAt, steps: [{ id: stepID, index: 0, action: "update_finding_response", authorization: "approval_required", state: "waiting_approval", version: 1 }] }, authorization: "approval_required", approvals: [approval], execution: [{ step_id: stepID, action: "update_finding_response", state: "waiting_approval", version: 1 }], verification: "not_started" };
+const controls: SecurityAgentExecutionControls = { global: { target: "global", action_key: "*", enabled: true, version: 1 }, environment: { target: "environment", action_key: "*", enabled: false, version: 0 }, actions: [{ target: "action", action_key: "update_finding_response", enabled: false, version: 0 }] };
 
 function fixtureAPI(overrides: Partial<SecurityAgentsAPI> = {}): SecurityAgentsAPI {
   return {
     listSecurityAgentTemplates: async () => [template],
     listSecurityActions: async () => [action],
+    getSecurityAgentExecutionControls: async () => controls,
+    setSecurityAgentExecutionControl: async (target, version, enabled) => ({ value: { target, action_key: target === "environment" ? "*" : "update_finding_response", enabled, version: version + 1, audit_id: auditID, correlation_id: "pid_40000009-0000-4000-8000-000000000009", receipt_id: receiptID, replayed: false }, version: `"${version + 1}"`, auditID, receiptID }),
     listSecurityAgents: async () => ({ items: [], page_info: { next_cursor: null, has_more: false } }),
     createSecurityAgent: async () => ({ value: created, version: `"1"`, auditID, receiptID }),
     getSecurityAgent: async () => ({ value: created, version: `"7"` }),
@@ -48,6 +51,31 @@ function fixtureAPI(overrides: Partial<SecurityAgentsAPI> = {}): SecurityAgentsA
 }
 
 describe("Security Agent definition surface", () => {
+  it("strictly decodes hierarchical execution controls without tenant-global mutation authority", () => {
+    expect(decodeSecurityAgentExecutionControls(controls)).toEqual(controls);
+    expect(decodeSecurityAgentExecutionControlResult({ target: "environment", action_key: "*", enabled: true, version: 1, audit_id: auditID, correlation_id: "pid_40000009-0000-4000-8000-000000000009", receipt_id: receiptID, replayed: false }).target).toBe("environment");
+    expect(() => decodeSecurityAgentExecutionControls({ ...controls, actions: [] })).toThrow();
+    expect(() => decodeSecurityAgentExecutionControls({ ...controls, global: { ...controls.global, version: 0 } })).toThrow();
+    expect(() => decodeSecurityAgentExecutionControlResult({ target: "global", action_key: "*", enabled: false, version: 2, audit_id: auditID, correlation_id: auditID, receipt_id: receiptID, replayed: false })).toThrow();
+  });
+
+  it("shows platform status and fresh-auth tenant execution controls only to identity administrators", async () => {
+    const user = userEvent.setup();
+    const reauthenticate = vi.fn();
+    const setSecurityAgentExecutionControl = vi.fn(fixtureAPI().setSecurityAgentExecutionControl);
+    const initialSnapshot = { agents: [], templates: [template], actions: [action], runs: [], approvals: [], controls };
+    const { rerender } = render(<SecurityAgentsView api={fixtureAPI({ setSecurityAgentExecutionControl })} environmentID={environmentID} autoLoad={false} initialSnapshot={initialSnapshot} canManageControls fresh={false} onReauthenticate={reauthenticate} />);
+    expect(screen.getByText("Platform execution enabled")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reauthenticate to change execution controls" }));
+    expect(reauthenticate).toHaveBeenCalledTimes(1);
+    rerender(<SecurityAgentsView api={fixtureAPI({ setSecurityAgentExecutionControl })} environmentID={environmentID} autoLoad={false} initialSnapshot={initialSnapshot} canManageControls fresh onReauthenticate={reauthenticate} />);
+    await user.click(screen.getByRole("button", { name: "Enable environment automation" }));
+    await waitFor(() => expect(setSecurityAgentExecutionControl).toHaveBeenCalledWith("environment", 0, true, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+    expect(await screen.findByText("Environment automation enabled")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Enable finding response action" }));
+    await waitFor(() => expect(setSecurityAgentExecutionControl).toHaveBeenLastCalledWith("action", 0, true, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+    expect(screen.queryByRole("button", { name: /platform execution/i })).not.toBeInTheDocument();
+  });
   it("strictly binds run plans, approvals, effects, and cursor pages", () => {
     expect(decodeSecurityActionPage({ items: [action] })).toEqual({ items: [action] });
     expect(decodeSecurityAgentActivationState(draftActivation)).toEqual(draftActivation);

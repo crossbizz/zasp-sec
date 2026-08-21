@@ -8,7 +8,7 @@ describe("M7A-85 through M7A-101 Security Agent MVP gate", () => {
   it("renders bounded definitions, redacted runs, and fresh-auth supervised approvals", () => {
     const securityAgents = read("app/features/securityagents/SecurityAgentsView.tsx");
     for (const value of ["Definition template", "Definition name", "Authorized environment", "Template controls", "Limits", "Resource version", "Definition enabled", "Save definition", "Delete definition", "Security Agent runs", "Pending approvals", "Expected effect", "Reauthenticate to decide", "Cancel run"]) expect(securityAgents).toContain(value);
-    for (const operation of ["listSecurityActions", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) expect(securityAgents).toContain(operation);
+    for (const operation of ["listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) expect(securityAgents).toContain(operation);
     const home = read("app/features/agents/AgentSecurityView.tsx");
     const app = read("app/components/ZaspApp.tsx");
     const productionApp = read("app/components/ZaspProductionApp.tsx");

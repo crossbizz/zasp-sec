@@ -53,8 +53,8 @@ test("current API and planned map passes honestly", async () => {
   assert.deepEqual(validateCoverage(parseMapSource(map), parseOpenAPISource(openapi)), {
     planned: 21,
     apiAvailable: 6,
-    available: 115,
-    public: 121,
+    available: 117,
+    public: 123,
     internal: 0,
   });
 });
@@ -67,8 +67,8 @@ test("all current public operations resolve and deliberate removal fails", async
   assert.deepEqual(validateCoverage(document, complete), {
     planned: 0,
     apiAvailable: 6,
-    available: 136,
-    public: 142,
+    available: 138,
+    public: 144,
     internal: 0,
   });
 
@@ -85,8 +85,8 @@ test("unmapped public operations fail while unmapped internal operations pass", 
   assert.deepEqual(validateCoverage(planned, parseOpenAPISource(futureOpenAPI(apiOperations, { internal: ["ingestEvents"] }))), {
     planned: 21,
     apiAvailable: 6,
-    available: 115,
-    public: 121,
+    available: 117,
+    public: 123,
     internal: 1,
   });
 });
@@ -113,7 +113,7 @@ test("API-available operations require OpenAPI but do not claim a wired UI", asy
     .filter((action) => action.availability !== "planned")
     .map((action) => action.operation_id);
   const result = validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations)));
-  assert.deepEqual(result, { planned: 21, apiAvailable: 6, available: 115, public: 121, internal: 0 });
+  assert.deepEqual(result, { planned: 21, apiAvailable: 6, available: 117, public: 123, internal: 0 });
   assert.throws(() => validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations.slice(1)))));
 });
 
@@ -173,7 +173,7 @@ test("CLI emits only fixed success or rejection lines", async () => {
   const successOut = captureStream();
   const successErr = captureStream();
   assert.equal(await runMain({ stdout: successOut.stream, stderr: successErr.stream }), 0);
-  assert.equal(successOut.value(), "UI/API coverage passed: planned=21 api_available=6 available=115 public=121 internal=0.\n");
+  assert.equal(successOut.value(), "UI/API coverage passed: planned=21 api_available=6 available=117 public=123 internal=0.\n");
   assert.equal(successErr.value(), "");
 
   const failureOut = captureStream();
