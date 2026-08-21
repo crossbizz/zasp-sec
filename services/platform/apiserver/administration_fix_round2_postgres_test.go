@@ -40,6 +40,7 @@ func TestAdministrationTimeAndEvidenceKeysetsTraverseBeyondResponseBoundsWithPos
 		{`INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES($2,$1,$3,$4,'Active','["view","manage_identity","view_audit","investigate_sessions","view_compliance"]'::jsonb,true)`, []any{organization, identity.PrincipalID.String(), workspace, environment}},
 		{`INSERT INTO zasp_product_sessions(token_digest,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,csrf_token,authenticated_at,expires_at) VALUES(digest('round-two-session','sha256'),'session-round-two',$2,$1,$3,$4,'["view"]'::jsonb,'cccccccccccccccccccccccccccccccc',transaction_timestamp(),transaction_timestamp()+interval '1 hour')`, []any{organization, identity.PrincipalID.String(), workspace, environment}},
 		{`INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata,occurred_at) SELECT $1,$2,$3,'pid_'||lpad(ordinal::text,8,'0')||'-0000-4000-8000-'||lpad(ordinal::text,12,'0'),$4,'round2.audit',$4,'succeeded','{}'::jsonb,'2026-08-19 00:00:00+00'::timestamptz+ordinal*interval '1 millisecond' FROM generate_series(1,151) ordinal`, []any{organization, workspace, environment, identity.PrincipalID.String()}},
+		{`UPDATE zasp_admin_audit SET metadata=jsonb_build_object('revoked_sessions',2,'event_id','event-round-two') WHERE organization_id=$1 AND id='pid_00000151-0000-4000-8000-000000000151'`, []any{organization}},
 		{`INSERT INTO zasp_session_events(organization_id,session_id,id,class,label,evidence_id,source,confidence,at) SELECT $1,'session-round-two','event-'||lpad(ordinal::text,4,'0'),'tool','event '||ordinal,'evidence-'||ordinal,'product','exact','2026-08-19 00:00:00+00'::timestamptz+ordinal*interval '1 millisecond' FROM generate_series(1,151) ordinal`, []any{organization}},
 		{`INSERT INTO zasp_compliance_controls(organization_id,id,framework,name,fresh_until) VALUES($1,'round-two-control','SOC 2','Round two control',transaction_timestamp()+interval '1 day')`, []any{organization}},
 		{`INSERT INTO zasp_compliance_evidence(organization_id,control_id,id,asset_id,source,at) SELECT $1,'round-two-control','evidence-'||lpad(ordinal::text,4,'0'),'asset-'||ordinal,'runtime',transaction_timestamp()+ordinal*interval '1 millisecond' FROM generate_series(1,151) ordinal`, []any{organization}},
@@ -57,6 +58,15 @@ func TestAdministrationTimeAndEvidenceKeysetsTraverseBeyondResponseBoundsWithPos
 	repository, err := NewPostgresRepository(database)
 	if err != nil {
 		t.Fatal(err)
+	}
+	auditPayload, err := repository.ReadAdministration(ctx, identity, "listAuditEvents", map[string]string{"limit": "1"})
+	var auditPage struct {
+		Items []struct {
+			Metadata map[string]string `json:"metadata"`
+		} `json:"items"`
+	}
+	if err != nil || json.Unmarshal(auditPayload, &auditPage) != nil || len(auditPage.Items) < 1 || auditPage.Items[0].Metadata["revoked_sessions"] != "2" || auditPage.Items[0].Metadata["event_id"] != "event-round-two" {
+		t.Fatalf("public audit metadata = %s (%v)", auditPayload, err)
 	}
 	handler := &identityHTTPHandler{administration: repository, signingKey: []byte("0123456789abcdef0123456789abcdef"), now: time.Now}
 
