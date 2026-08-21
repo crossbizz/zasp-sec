@@ -258,6 +258,18 @@ variable "kubernetes_connector_egress_cidrs" {
   }
 }
 
+variable "finding_ticket_egress_cidrs" {
+  description = "Exact canonical public webhook CIDRs admitted by both the ticket dialer and API NetworkPolicy."
+  type        = list(string)
+  default     = ["192.0.2.64/28"]
+  validation {
+    condition = length(var.finding_ticket_egress_cidrs) >= 1 && length(var.finding_ticket_egress_cidrs) <= 16 && length(distinct(var.finding_ticket_egress_cidrs)) == length(var.finding_ticket_egress_cidrs) && alltrue([
+      for cidr in var.finding_ticket_egress_cidrs : can(cidrhost(cidr, 0)) && "${cidrhost(cidr, 0)}/${split("/", cidr)[1]}" == cidr && tonumber(split("/", cidr)[1]) >= 16 && !can(regex("^(?:0|10|127|169\\.254|172\\.(?:1[6-9]|2[0-9]|3[01])|192\\.168|22[4-9]|23[0-9]|24[0-9]|25[0-5])\\.", cidr))
+    ])
+    error_message = "finding_ticket_egress_cidrs must contain one to 16 distinct canonical public IPv4 CIDRs at /16 or narrower."
+  }
+}
+
 variable "endpoint_public_access" {
   description = "Whether the EKS API has a public endpoint; production must remain false."
   type        = bool

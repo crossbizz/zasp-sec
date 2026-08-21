@@ -34,6 +34,18 @@ type riskRepositoryStub struct {
 	searchCalls   int
 }
 
+type findingTicketCreatorStub struct {
+	result  FindingTicket
+	err     error
+	command FindingTicketCommand
+	calls   int
+}
+
+func (creator *findingTicketCreatorStub) CreateFindingTicket(_ context.Context, command FindingTicketCommand) (FindingTicket, error) {
+	creator.command, creator.calls = command, creator.calls+1
+	return creator.result, creator.err
+}
+
 func (repository *riskRepositoryStub) GetRiskFinding(_ context.Context, scope domain.Scope, _ string) (RiskFinding, error) {
 	repository.scope = scope
 	return repository.finding, repository.err
@@ -94,11 +106,49 @@ func fixtureRiskPath() RiskAttackPath {
 
 func newRiskTestHandler(t *testing.T, repository *riskRepositoryStub) *riskHTTPHandler {
 	t.Helper()
-	handler, err := newRiskHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC) })
+	handler, err := newRiskHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC) }, &findingTicketCreatorStub{result: FindingTicket{TicketID: "SEC-1234"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return handler
+}
+
+func TestRiskHandlerCreatesOneReplaySafeScopedFindingTicket(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	repository := &riskRepositoryStub{}
+	creator := &findingTicketCreatorStub{result: FindingTicket{TicketID: "SEC-1234"}}
+	handler, err := newRiskHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC) }, creator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := riskRequest(t, identity, "createFindingTicket", http.MethodPost, "https://app.zasp.test/api/v1/findings/"+riskFindingID+"/ticket", "")
+	request.Header.Set("Idempotency-Key", "finding-ticket-0001")
+	request.Header.Set("If-Match", `"2"`)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusCreated || response.Body.String() != "{\"ticket_id\":\"SEC-1234\"}\n" || creator.calls != 1 {
+		t.Fatalf("ticket = %d calls=%d body=%s", response.Code, creator.calls, response.Body.String())
+	}
+	if creator.command.Identity.Scope != identity.Scope || creator.command.Identity.PrincipalID != identity.PrincipalID || creator.command.FindingID != riskFindingID || creator.command.ExpectedVersion != 2 || creator.command.IdempotencyKey != "finding-ticket-0001" || creator.command.CorrelationID != "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" {
+		t.Fatalf("ticket command = %#v", creator.command)
+	}
+
+	for _, hostile := range []struct{ target, body, idempotency, version string }{
+		{"https://app.zasp.test/api/v1/findings/" + riskFindingID + "/ticket?url=https://evil.invalid", "", "finding-ticket-0002", `"2"`},
+		{"https://app.zasp.test/api/v1/findings/" + riskFindingID + "/ticket", `{}`, "finding-ticket-0003", `"2"`},
+		{"https://app.zasp.test/api/v1/findings/" + riskFindingID + "/ticket", "", "short", `"2"`},
+		{"https://app.zasp.test/api/v1/findings/" + riskFindingID + "/ticket", "", "finding-ticket-0004", ""},
+		{"https://app.zasp.test/api/v1/findings/" + riskFindingID + "/ticket", "", "finding-ticket-0005", `"0"`},
+	} {
+		request = riskRequest(t, identity, "createFindingTicket", http.MethodPost, hostile.target, hostile.body)
+		request.Header.Set("Idempotency-Key", hostile.idempotency)
+		request.Header.Set("If-Match", hostile.version)
+		response = httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest && response.Code != http.StatusPreconditionRequired || creator.calls != 1 {
+			t.Fatalf("hostile ticket %#v = %d calls=%d body=%s", hostile, response.Code, creator.calls, response.Body.String())
+		}
+	}
 }
 
 func riskRequest(t *testing.T, identity RequestIdentity, operation, method, target, body string) *http.Request {
@@ -263,7 +313,7 @@ func TestRiskHandlerKeepsInvisibleFindingReplayNondisclosing(t *testing.T) {
 		t.Run(test.operation, func(t *testing.T) {
 			database := &invisibleRiskMutationDatabase{}
 			repository, _ := NewPostgresRepository(database)
-			handler, err := newRiskHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC) })
+			handler, err := newRiskHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC) }, &findingTicketCreatorStub{result: FindingTicket{TicketID: "SEC-1234"}})
 			if err != nil {
 				t.Fatal(err)
 			}

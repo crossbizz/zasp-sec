@@ -828,6 +828,7 @@ test("release gives only API an explicit connector identity, reference-only conf
     ...release.connectorEgressCIDRs.github,
     ...release.connectorEgressCIDRs.okta,
     ...release.connectorEgressCIDRs.kubernetes,
+		...release.findingTicketEgressCIDRs,
   ].sort());
   assert.ok(connectorEgress.spec.egress.every(({ ports }) => JSON.stringify(ports) === JSON.stringify([{ protocol: "TCP", port: 443 }])));
   assert.doesNotMatch(JSON.stringify(connectorEgress), /0\.0\.0\.0\/0|::\/0/);
@@ -837,6 +838,25 @@ test("release gives only API an explicit connector identity, reference-only conf
   assert.equal(resources.filter(({ kind }) => kind === "Deployment").some(({ metadata }) => /nango-(?:runner|persist|orchestrat|functions|webhooks|jobs)/i.test(metadata.name)), false);
   assert.doesNotMatch(rendered, /github-client-secret-value|okta-client-secret-value/);
   assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 7);
+});
+
+test("release gives finding tickets exact API-only webhook egress and secret-read authority", async () => {
+	const findingTicketEgressCIDRs = ["192.0.2.64/28"];
+	const resources = await renderRelease({ ...release, findingTicketEgressCIDRs });
+	const api = one(resources, "Deployment", "agentsec-api");
+	const env = envOf(api);
+	assert.equal(env.ZASP_FINDING_TICKET_EGRESS_CIDRS, findingTicketEgressCIDRs.join(","));
+	const egress = one(resources, "NetworkPolicy", "api-connector-egress");
+	assert.deepEqual(egress.spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)).sort(), [
+		...Object.values(release.connectorEgressCIDRs).flat(),
+		...findingTicketEgressCIDRs,
+	].sort());
+	for (const workload of resources.filter(({ kind, metadata }) => ["Deployment", "Job", "CronJob"].includes(kind) && metadata.name !== "agentsec-api")) {
+		assert.doesNotMatch(JSON.stringify(workload), /ZASP_FINDING_TICKET_EGRESS_CIDRS/);
+	}
+	const terraform = await readFile(new URL("../staging/main.tf", import.meta.url), "utf8");
+	assert.match(terraform, /secret:\$\{local\.connector_secret_root\}\/webhook\/\*/);
+	assert.match(terraform, /kms:EncryptionContext:SecretARN[\s\S]*connector_secret_root[\s\S]*webhook\/\*/);
 });
 
 test("release renders read-only synthetic and exact SLO budgets without credential values", async () => {
@@ -1064,7 +1084,7 @@ test("terraform isolates connector mutation and reference authorization behind o
   const policyStart = terraform.indexOf('resource "aws_iam_role_policy" "api_connectors"');
   const policy = terraform.slice(policyStart, terraform.indexOf("\nresource ", policyStart + 1));
   const actions = [...policy.matchAll(/Action\s*=\s*\[([\s\S]*?)\]/g)].flatMap(([, list]) => [...list.matchAll(/"([^"]+)"/g)].map(([, action]) => action)).sort();
-  assert.deepEqual(actions, ["kms:Decrypt", "kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "sts:AssumeRole"].sort());
+  assert.deepEqual(actions, ["kms:Decrypt", "kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "sts:AssumeRole"].sort());
   assert.match(policy, /Action\s*=\s*\["secretsmanager:GetSecretValue"\][\s\S]*?Resource\s*=\s*\[for secret in aws_secretsmanager_secret\.connector_provider : secret\.arn\]/);
   assert.doesNotMatch(policy, /secret:\$\{local\.connector_secret_root\}\/github\/\*/);
   assert.doesNotMatch(policy, /secret:\$\{local\.connector_secret_root\}\/okta\/\*/);
@@ -1081,6 +1101,7 @@ test("terraform isolates connector mutation and reference authorization behind o
     "secret:${local.connector_secret_root}/okta/effect-outcome/*",
     "secret:${local.connector_secret_root}/okta/refresh/*",
     "secret:${local.connector_secret_root}/okta/revoked-refresh/*",
+		"secret:${local.connector_secret_root}/webhook/*",
   ]) assert.match(policy, new RegExp(namespace.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(policy, /aws_kms_key\.connector_oauth\.arn/);
   assert.match(terraform, /connector_secret_root\s*=\s*"\$\{var\.cluster_name\}\/connectors"/);
@@ -1098,7 +1119,7 @@ test("terraform isolates connector mutation and reference authorization behind o
   assert.match(outputs, /output "connector_kms_key_arn"/);
   assert.match(outputs, /output "connector_secret_prefix"/);
   assert.match(outputs, /output "connector_runtime_config"/);
-  for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
+  for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_FINDING_TICKET_EGRESS_CIDRS", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
   assert.doesNotMatch(terraform, /aws_secretsmanager_secret_version|secret_string|secret_binary/i);
 });
 

@@ -674,12 +674,11 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 100);
-    for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) {
+    assert.equal(operations.size, 101);
+    for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [
-      "createFindingTicket",
       "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
       "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
       "simulatePolicy", "listPolicyDecisions",
@@ -697,6 +696,18 @@ describe("production workflow concurrency contract", () => {
     ]);
     assert.deepEqual(globalSearch.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SearchResultPage" });
     assert.deepEqual(document.components.schemas.SearchResult.properties.type.enum, ["asset", "agent", "tool", "identity", "runtime", "finding"]);
+
+    const findingTicket = operations.get("createFindingTicket");
+    assert.equal(findingTicket.path, "/api/v1/findings/{id}/ticket");
+    assert.equal(findingTicket.method, "post");
+    assert.deepEqual(findingTicket.operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]);
+    assert.deepEqual(findingTicket.operation.parameters, [
+      { $ref: "#/components/parameters/CSRFToken" },
+      { $ref: "#/components/parameters/IdempotencyKey" },
+      { $ref: "#/components/parameters/ResourceVersion" },
+    ]);
+    assert.equal(findingTicket.operation.requestBody, undefined);
+    assert.deepEqual(findingTicket.operation.responses["201"].content["application/json"].schema, { $ref: "#/components/schemas/FindingTicket" });
 
     const updateAgent = operations.get("updateAgent");
     assert.equal(updateAgent.path, "/api/v1/agents/{id}");

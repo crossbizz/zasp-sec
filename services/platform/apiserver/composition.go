@@ -86,6 +86,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/findings/{id}", "getFinding", "view", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
 	{OperationDefinition{"PATCH", "/api/v1/findings/{id}", "updateFinding", "manage_findings", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
 	{OperationDefinition{"POST", "/api/v1/findings/{id}/accept-risk", "acceptFindingRisk", "manage_findings", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
+	{OperationDefinition{"POST", "/api/v1/findings/{id}/ticket", "createFindingTicket", "manage_findings", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
 	{OperationDefinition{"GET", "/api/v1/attack-paths", "listAttackPaths", "view", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
 	{OperationDefinition{"GET", "/api/v1/attack-paths/{id}", "getAttackPath", "view", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
 	{OperationDefinition{"GET", "/api/v1/attack-paths/{id}/break-options", "getAttackPathBreakOptions", "view", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},

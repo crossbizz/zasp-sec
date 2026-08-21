@@ -12,6 +12,24 @@ const path = { id: "pid_30000001-0000-4000-8000-000000000001", entry_id: "pid_30
 const response = (body: unknown, headers: Record<string, string> = {}) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json", ...headers } });
 
 describe("production risk API", () => {
+	it("creates one replay-safe finding ticket with an exact bodyless request", async () => {
+		const requests: Request[] = [];
+		const client = createAPIClient({ getExpectedScope: () => scope, getCSRFToken: () => "csrf", fetch: async (request) => {
+			requests.push(request);
+			return new Response(JSON.stringify({ ticket_id: "SEC-1234" }), { status: 201, headers: { "Content-Type": "application/json" } });
+		} });
+		const ticket = await createProductionRiskAPI(client, "browser").createFindingTicket(finding.id, '"1"', { idempotencyKey: "idem-finding-ticket-0001" });
+		expect(ticket).toEqual({ ticket_id: "SEC-1234" });
+		expect(requests).toHaveLength(1);
+		expect(requests[0]!.method).toBe("POST");
+		expect(new URL(requests[0]!.url).pathname).toBe(`/api/v1/findings/${finding.id}/ticket`);
+		expect(requests[0]!.headers.get("If-Match")).toBe('"1"');
+		expect(requests[0]!.headers.get("Idempotency-Key")).toBe("idem-finding-ticket-0001");
+		expect(requests[0]!.headers.get("X-CSRF-Token")).toBe("csrf");
+		expect(requests[0]!.headers.has("Content-Type")).toBe(false);
+		expect(await requests[0]!.text()).toBe("");
+	});
+
   it("uses exact generated requests, expected scope, stable pagination, and strict response decoding", async () => {
     const requests: Request[] = [];
     const client = createAPIClient({ getExpectedScope: () => scope, fetch: async (request) => {

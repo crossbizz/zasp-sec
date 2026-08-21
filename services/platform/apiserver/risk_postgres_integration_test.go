@@ -62,7 +62,9 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler, err := newRiskHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	handler, err := newRiskHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now, FindingTicketCreatorFunc(func(context.Context, FindingTicketCommand) (FindingTicket, error) {
+		return FindingTicket{}, ErrRepositoryUnavailable
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +152,9 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 	}
 	visibilityDatabase, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: visibilityConnection})
 	visibilityRepository, _ := NewPostgresRepository(visibilityDatabase)
-	visibilityHandler, _ := newRiskHTTPHandler(visibilityRepository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	visibilityHandler, _ := newRiskHTTPHandler(visibilityRepository, []byte("0123456789abcdef0123456789abcdef"), time.Now, FindingTicketCreatorFunc(func(context.Context, FindingTicketCommand) (FindingTicket, error) {
+		return FindingTicket{}, ErrRepositoryUnavailable
+	}))
 	invisibleRequests := make([]*http.Request, 2)
 	invisibleResponses := []*httptest.ResponseRecorder{httptest.NewRecorder(), httptest.NewRecorder()}
 	for index := range invisibleRequests {
@@ -308,7 +312,9 @@ func TestRiskProjectionPostgresPaginationIsolationMutationReplayAndRollbackGuard
 	}
 	secondDatabase, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: secondConnection})
 	secondRepository, _ := NewPostgresRepository(secondDatabase)
-	secondHandler, _ := newRiskHTTPHandler(secondRepository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	secondHandler, _ := newRiskHTTPHandler(secondRepository, []byte("0123456789abcdef0123456789abcdef"), time.Now, FindingTicketCreatorFunc(func(context.Context, FindingTicketCommand) (FindingTicket, error) {
+		return FindingTicket{}, ErrRepositoryUnavailable
+	}))
 	requests := make([]*http.Request, 2)
 	responses := []*httptest.ResponseRecorder{httptest.NewRecorder(), httptest.NewRecorder()}
 	for index := range requests {

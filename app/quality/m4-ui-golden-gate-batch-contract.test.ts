@@ -17,10 +17,10 @@ describe("M4 UI and golden-gate batch", () => {
     expect(app).toContain("<ProductionRiskView");
     for (const route of ["/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes", "/violations", "/exposure/attack-paths"]) expect(app).toContain(route);
     for (const operation of ["listAgents", "getAgent", "updateAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "getHomeSummary"]) expect(productionView).toContain(operation);
-    for (const operation of ["updateFinding", "acceptFindingRisk", "getAttackPathBreakOptions"]) expect(riskView).toContain(operation);
+    for (const operation of ["updateFinding", "acceptFindingRisk", "createFindingTicket", "getAttackPathBreakOptions"]) expect(riskView).toContain(operation);
     expect(app).toContain("<ProductionGlobalSearch");
     expect(globalSearch).toContain("/api/v1/search");
-    expect(productionView + riskView).not.toContain("createFindingTicket");
+    expect(riskView).toContain("Retry retained ticket creation");
     for (const heading of ["Why", "Evidence", "Path", "Fix", "Verify"]) expect(riskView).toContain(heading);
     for (const heading of ["Effective capabilities", "Runtime policy coverage"]) expect(productionView).toContain(heading);
   });
@@ -42,6 +42,6 @@ describe("M4 UI and golden-gate batch", () => {
     for (const task of completed) expect(complete.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
     const prose = readme.replace(/\s+/g, " ");
     expect(prose).toContain("M4-51d through M4-59 are Complete");
-    expect(prose).toContain("not Neon, provider, staging, external webhook, or release-gate evidence");
+    expect(prose).toContain("live third-party webhook delivery remains an external evidence gate");
   });
 });

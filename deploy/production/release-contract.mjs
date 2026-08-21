@@ -204,6 +204,7 @@ export async function renderRelease(value) {
     ...value.connectors.awsCustomerRolePrefixes.map((prefix, index) => [`connectors.awsCustomerRolePrefixes[${index}]`, prefix]),
     ...value.connectors.awsCustomerRoleARNs.map((roleARN, index) => [`connectors.awsCustomerRoleARNs[${index}]`, roleARN]),
     ...connectorEgressKeys.flatMap((provider) => value.connectorEgressCIDRs[provider].map((cidr, index) => [`network.connectorEgressCIDRs.${provider}[${index}]`, cidr])),
+    ...value.findingTicketEgressCIDRs.map((cidr, index) => [`network.findingTicketEgressCIDRs[${index}]`, cidr]),
     ["nango.storageSecretName", value.nango.storageSecretName],
     ...value.nango.databaseEgressCIDRs.map((cidr, index) => [`nango.databaseEgressCIDRs[${index}]`, cidr]),
     ...value.nango.providerEgressCIDRs.map((cidr, index) => [`nango.providerEgressCIDRs[${index}]`, cidr]),
@@ -298,7 +299,7 @@ function validCustomerEdgeRelease(value) {
 }
 
 function validRelease(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "runtime", "nango", "telemetry", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "findingTicketEgressCIDRs", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "runtime", "nango", "telemetry", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
   if (!hostPattern.test(value.host) || !namePattern.test(value.tlsSecretName) || !namePattern.test(value.secretProviderClass)) return false;
   if (!value.images || typeof value.images !== "object" || Array.isArray(value.images) || Object.keys(value.images).sort().join("\0") !== [...imageNames].sort().join("\0")) return false;
   if (!imageNames.every((name) => digestPattern.test(value.images[name]))) return false;
@@ -351,6 +352,7 @@ function validRelease(value) {
   if (value.discovery.githubAppID !== value.connectors.githubAppID || value.discovery.githubPrivateKeyReference !== value.connectors.githubPrivateKeyReference || value.discovery.oktaClientID !== value.connectors.oktaClientID || value.discovery.oktaClientSecretReference !== value.connectors.oktaClientSecretReference) return false;
   if (!value.connectorEgressCIDRs || typeof value.connectorEgressCIDRs !== "object" || Array.isArray(value.connectorEgressCIDRs) || Object.keys(value.connectorEgressCIDRs).sort().join("\0") !== [...connectorEgressKeys].sort().join("\0")) return false;
   if (!connectorEgressKeys.every((provider) => validCIDRList(value.connectorEgressCIDRs[provider]))) return false;
+  if (!validProviderCIDRList(value.findingTicketEgressCIDRs)) return false;
   if (!value.nango || typeof value.nango !== "object" || Array.isArray(value.nango) || Object.keys(value.nango).sort().join("\0") !== [...nangoKeys].sort().join("\0") || !namePattern.test(value.nango.storageSecretName) || !validPrivateCIDRList(value.nango.databaseEgressCIDRs) || !validProviderCIDRList(value.nango.providerEgressCIDRs)) return false;
   if (hasCIDROverlap([...value.nango.databaseEgressCIDRs, ...value.nango.providerEgressCIDRs])) return false;
   if (!value.telemetry || typeof value.telemetry !== "object" || Array.isArray(value.telemetry) || Object.keys(value.telemetry).sort().join("\0") !== [...telemetryKeys].sort().join("\0")) return false;

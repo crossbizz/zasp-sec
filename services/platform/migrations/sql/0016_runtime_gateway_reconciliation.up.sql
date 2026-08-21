@@ -59,6 +59,98 @@ ALTER FUNCTION public.zasp_global_search(text,text,text,text,integer) OWNER TO z
 REVOKE ALL ON FUNCTION public.zasp_global_search(text,text,text,text,integer) FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
 GRANT EXECUTE ON FUNCTION public.zasp_global_search(text,text,text,text,integer) TO zasp_discovery_api;
 
+CREATE TABLE public.zasp_finding_ticket_deliveries(
+ organization_id text NOT NULL,
+ workspace_id text NOT NULL,
+ environment_id text NOT NULL,
+ delivery_id text NOT NULL CHECK(zasp_valid_product_id(delivery_id)),
+ principal_id text NOT NULL CHECK(zasp_valid_product_id(principal_id)),
+ finding_id text NOT NULL CHECK(zasp_valid_product_id(finding_id)),
+ expected_version bigint NOT NULL CHECK(expected_version>0),
+ idempotency_key text NOT NULL CHECK(char_length(idempotency_key) BETWEEN 16 AND 128 AND idempotency_key~'^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$'),
+ correlation_id text NOT NULL CHECK(zasp_valid_product_id(correlation_id)),
+ payload jsonb NOT NULL CHECK(jsonb_typeof(payload)='object' AND octet_length(convert_to(payload::text,'UTF8'))<=16384),
+ payload_digest bytea NOT NULL CHECK(octet_length(payload_digest)=32),
+ destination_url text NOT NULL CHECK(char_length(destination_url) BETWEEN 12 AND 2048),
+ secret_reference text NOT NULL CHECK(secret_reference~'^secret_ref_[A-Za-z0-9][A-Za-z0-9._/-]{0,115}$'),
+ state text NOT NULL CHECK(state IN('reserved','retryable','completed')),
+ attempt integer NOT NULL DEFAULT 1 CHECK(attempt BETWEEN 1 AND 10),
+ lease_token text CHECK(lease_token IS NULL OR lease_token~'^[0-9a-f]{64}$'),
+ lease_expires_at timestamptz,
+ ticket_id text CHECK(ticket_id IS NULL OR ticket_id~'^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$'),
+ created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+ updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+ completed_at timestamptz,
+ PRIMARY KEY(organization_id,workspace_id,environment_id,delivery_id),
+ UNIQUE(organization_id,workspace_id,environment_id,principal_id,idempotency_key),
+ FOREIGN KEY(organization_id,workspace_id,environment_id,finding_id) REFERENCES public.zasp_risk_findings(organization_id,workspace_id,environment_id,id) ON DELETE RESTRICT,
+ CHECK((state='reserved')=(lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)),
+ CHECK((state='completed')=(ticket_id IS NOT NULL AND completed_at IS NOT NULL))
+);
+CREATE INDEX zasp_finding_ticket_deliveries_retry_v16_idx ON public.zasp_finding_ticket_deliveries(organization_id,workspace_id,environment_id,lease_expires_at,delivery_id) WHERE state IN('reserved','retryable');
+ALTER TABLE public.zasp_finding_ticket_deliveries OWNER TO zasp_discovery_authority;
+ALTER TABLE public.zasp_finding_ticket_deliveries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.zasp_finding_ticket_deliveries FORCE ROW LEVEL SECURITY;
+CREATE POLICY zasp_finding_ticket_deliveries_authority ON public.zasp_finding_ticket_deliveries TO zasp_discovery_authority USING(true) WITH CHECK(true);
+REVOKE ALL ON TABLE public.zasp_finding_ticket_deliveries FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
+
+CREATE FUNCTION public.zasp_finding_ticket_reserve(organization_value text,workspace_value text,environment_value text,principal_value text,finding_value text,expected_version_value bigint,idempotency_value text,correlation_value text,delivery_value text,lease_token_value text,lease_seconds_value integer) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
+DECLARE delivery_row zasp_finding_ticket_deliveries%ROWTYPE;finding_row zasp_risk_findings%ROWTYPE;webhook_count integer;webhook_body jsonb;configuration_value jsonb;payload_value jsonb;payload_digest_value bytea;
+BEGIN
+ IF NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(principal_value) OR NOT zasp_valid_product_id(finding_value) OR expected_version_value<1 OR expected_version_value>1000000
+  OR idempotency_value IS NULL OR char_length(idempotency_value) NOT BETWEEN 16 AND 128 OR idempotency_value!~'^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$' OR NOT zasp_valid_product_id(correlation_value) OR NOT zasp_valid_product_id(delivery_value) OR lease_token_value!~'^[0-9a-f]{64}$' OR lease_seconds_value NOT BETWEEN 5 AND 30
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='finding ticket rejected';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),organization_value,workspace_value,environment_value,principal_value,idempotency_value),0));
+ SELECT * INTO delivery_row FROM zasp_finding_ticket_deliveries row_value WHERE (row_value.organization_id,row_value.workspace_id,row_value.environment_id,row_value.principal_id,row_value.idempotency_key)=(organization_value,workspace_value,environment_value,principal_value,idempotency_value) FOR UPDATE;
+ IF FOUND THEN
+  IF (delivery_row.finding_id,delivery_row.expected_version) IS DISTINCT FROM (finding_value,expected_version_value) THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='finding ticket intent conflict';END IF;
+  IF delivery_row.state='completed' THEN RETURN jsonb_build_object('state','completed','delivery_id',delivery_row.delivery_id,'ticket_id',delivery_row.ticket_id,'lease_expires_at',NULL);END IF;
+  IF delivery_row.state='reserved' AND delivery_row.lease_expires_at>transaction_timestamp() THEN RETURN jsonb_build_object('state','busy','delivery_id',delivery_row.delivery_id,'lease_expires_at',delivery_row.lease_expires_at,'ticket_id',NULL);END IF;
+  IF delivery_row.attempt>=10 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='finding ticket retry exhausted';END IF;
+  UPDATE zasp_finding_ticket_deliveries SET state='reserved',attempt=attempt+1,lease_token=lease_token_value,lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds_value),updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,delivery_id)=(delivery_row.organization_id,delivery_row.workspace_id,delivery_row.environment_id,delivery_row.delivery_id) RETURNING * INTO delivery_row;
+  RETURN jsonb_build_object('state','dispatch','delivery_id',delivery_row.delivery_id,'payload',delivery_row.payload::text,'payload_digest','sha256:'||encode(delivery_row.payload_digest,'hex'),'destination_url',delivery_row.destination_url,'secret_reference',delivery_row.secret_reference,'lease_expires_at',delivery_row.lease_expires_at,'ticket_id',NULL);
+ END IF;
+ SELECT * INTO finding_row FROM zasp_risk_findings row_value WHERE (row_value.organization_id,row_value.workspace_id,row_value.environment_id,row_value.id)=(organization_value,workspace_value,environment_value,finding_value) AND row_value.version=expected_version_value AND row_value.status IN('open','under_review') FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='02000',MESSAGE='finding ticket target unavailable';END IF;
+ SELECT count(*),(jsonb_agg(record_value.body ORDER BY record_value.id)->0) INTO webhook_count,webhook_body FROM zasp_workflow_records record_value WHERE (record_value.organization_id,record_value.workspace_id,record_value.environment_id,record_value.kind)=(organization_value,workspace_value,environment_value,'integration') AND record_value.deleted_at IS NULL AND record_value.body->>'connector_key'='generic-webhook' AND record_value.body->>'status'='configured';
+ IF webhook_count<>1 OR jsonb_typeof(webhook_body->'configuration')<>'object' OR (webhook_body->'configuration')-ARRAY['destination_url','signing_secret_reference']<>'{}'::jsonb THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='finding ticket webhook unavailable';END IF;
+ configuration_value:=webhook_body->'configuration';
+ IF configuration_value->>'destination_url' IS NULL OR char_length(configuration_value->>'destination_url') NOT BETWEEN 12 AND 2048 OR configuration_value->>'destination_url'!~'^https://[a-z0-9][a-z0-9.-]*(:443)?(/[^?#]*)?$' OR configuration_value->>'signing_secret_reference'!~'^secret_ref_[A-Za-z0-9][A-Za-z0-9._/-]{0,115}$' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='finding ticket webhook rejected';END IF;
+ payload_value:=jsonb_build_object('delivery_id',delivery_value,'event','finding.ticket.requested','finding',jsonb_build_object('id',finding_row.id,'severity',finding_row.severity,'title',finding_row.title,'version',finding_row.version),'requested_at',to_char(transaction_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'requested_by',principal_value,'scope',jsonb_build_object('environment_id',environment_value,'organization_id',organization_value,'workspace_id',workspace_value),'version',1);
+ payload_digest_value:=digest(convert_to(payload_value::text,'UTF8'),'sha256');
+ INSERT INTO zasp_finding_ticket_deliveries(organization_id,workspace_id,environment_id,delivery_id,principal_id,finding_id,expected_version,idempotency_key,correlation_id,payload,payload_digest,destination_url,secret_reference,state,lease_token,lease_expires_at)
+ VALUES(organization_value,workspace_value,environment_value,delivery_value,principal_value,finding_value,expected_version_value,idempotency_value,correlation_value,payload_value,payload_digest_value,configuration_value->>'destination_url',configuration_value->>'signing_secret_reference','reserved',lease_token_value,transaction_timestamp()+make_interval(secs=>lease_seconds_value)) RETURNING * INTO delivery_row;
+ RETURN jsonb_build_object('state','dispatch','delivery_id',delivery_row.delivery_id,'payload',delivery_row.payload::text,'payload_digest','sha256:'||encode(delivery_row.payload_digest,'hex'),'destination_url',delivery_row.destination_url,'secret_reference',delivery_row.secret_reference,'lease_expires_at',delivery_row.lease_expires_at,'ticket_id',NULL);
+END $$;
+
+CREATE FUNCTION public.zasp_finding_ticket_complete(organization_value text,workspace_value text,environment_value text,delivery_value text,lease_token_value text,payload_digest_value text,ticket_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
+DECLARE delivery_row zasp_finding_ticket_deliveries%ROWTYPE;decoded_digest bytea;
+BEGIN
+ IF NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(delivery_value) OR lease_token_value!~'^[0-9a-f]{64}$' OR payload_digest_value!~'^sha256:[0-9a-f]{64}$' OR ticket_value!~'^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='finding ticket completion rejected';END IF;
+ decoded_digest:=decode(substr(payload_digest_value,8),'hex');
+ SELECT * INTO delivery_row FROM zasp_finding_ticket_deliveries row_value WHERE (row_value.organization_id,row_value.workspace_id,row_value.environment_id,row_value.delivery_id)=(organization_value,workspace_value,environment_value,delivery_value) FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='02000',MESSAGE='finding ticket unavailable';END IF;
+ IF delivery_row.state='completed' THEN IF (delivery_row.payload_digest,delivery_row.ticket_id) IS DISTINCT FROM (decoded_digest,ticket_value) THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='finding ticket completion conflict';END IF;RETURN jsonb_build_object('ticket_id',delivery_row.ticket_id);END IF;
+ IF delivery_row.state<>'reserved' OR delivery_row.lease_token<>lease_token_value OR delivery_row.lease_expires_at<=transaction_timestamp() OR delivery_row.payload_digest<>decoded_digest THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='finding ticket lease lost';END IF;
+ UPDATE zasp_finding_ticket_deliveries SET state='completed',ticket_id=ticket_value,completed_at=transaction_timestamp(),lease_token=NULL,lease_expires_at=NULL,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,delivery_id)=(organization_value,workspace_value,environment_value,delivery_value) RETURNING * INTO delivery_row;
+ RETURN jsonb_build_object('ticket_id',delivery_row.ticket_id);
+END $$;
+
+CREATE FUNCTION public.zasp_finding_ticket_release(organization_value text,workspace_value text,environment_value text,delivery_value text,lease_token_value text,payload_digest_value text) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
+DECLARE released_count integer;
+BEGIN
+ IF NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(delivery_value) OR lease_token_value!~'^[0-9a-f]{64}$' OR payload_digest_value!~'^sha256:[0-9a-f]{64}$' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='finding ticket release rejected';END IF;
+ UPDATE zasp_finding_ticket_deliveries SET state='retryable',lease_token=NULL,lease_expires_at=NULL,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,delivery_id,state,lease_token,payload_digest)=(organization_value,workspace_value,environment_value,delivery_value,'reserved',lease_token_value,decode(substr(payload_digest_value,8),'hex')) AND lease_expires_at>transaction_timestamp();
+ GET DIAGNOSTICS released_count=ROW_COUNT;
+ RETURN released_count=1;
+END $$;
+
+ALTER FUNCTION public.zasp_finding_ticket_reserve(text,text,text,text,text,bigint,text,text,text,text,integer) OWNER TO zasp_discovery_authority;
+ALTER FUNCTION public.zasp_finding_ticket_complete(text,text,text,text,text,text,text) OWNER TO zasp_discovery_authority;
+ALTER FUNCTION public.zasp_finding_ticket_release(text,text,text,text,text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION public.zasp_finding_ticket_reserve(text,text,text,text,text,bigint,text,text,text,text,integer),public.zasp_finding_ticket_complete(text,text,text,text,text,text,text),public.zasp_finding_ticket_release(text,text,text,text,text,text) FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
+GRANT EXECUTE ON FUNCTION public.zasp_finding_ticket_reserve(text,text,text,text,text,bigint,text,text,text,text,integer),public.zasp_finding_ticket_complete(text,text,text,text,text,text,text),public.zasp_finding_ticket_release(text,text,text,text,text,text) TO zasp_discovery_api;
+
 CREATE TABLE public.zasp_runtime_gateway_reconciliation_state(
  singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),
  used_at timestamptz
@@ -127,24 +219,25 @@ $$;
 CREATE OR REPLACE FUNCTION public.zasp_runtime_gateway_reconciliation_security_ready() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
  SELECT zasp_runtime_data_plane_security_ready()
   AND zasp_inventory_security_ready()
-  AND NOT EXISTS(SELECT 1 FROM pg_class class_value JOIN pg_namespace namespace_value ON namespace_value.oid=class_value.relnamespace WHERE namespace_value.nspname='public' AND class_value.relname='zasp_runtime_gateway_reconciliation_state' AND (class_value.relowner<>(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') OR NOT class_value.relrowsecurity OR NOT class_value.relforcerowsecurity OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(class_value.relacl,acldefault('r',class_value.relowner))) acl WHERE acl.grantee<>class_value.relowner)))
+  AND NOT EXISTS(SELECT 1 FROM pg_class class_value JOIN pg_namespace namespace_value ON namespace_value.oid=class_value.relnamespace WHERE namespace_value.nspname='public' AND class_value.relname IN('zasp_runtime_gateway_reconciliation_state','zasp_finding_ticket_deliveries') AND (class_value.relowner<>(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') OR NOT class_value.relrowsecurity OR NOT class_value.relforcerowsecurity OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(class_value.relacl,acldefault('r',class_value.relowner))) acl WHERE acl.grantee<>class_value.relowner)))
   AND NOT EXISTS(SELECT 1 FROM pg_proc procedure_value CROSS JOIN aclexplode(COALESCE(procedure_value.proacl,acldefault('f',procedure_value.proowner))) acl WHERE procedure_value.oid IN('zasp_runtime_gateway_reconciliation_live_fingerprint()'::regprocedure,'zasp_runtime_gateway_reconciliation_security_ready()'::regprocedure) AND acl.grantee<>procedure_value.proowner)
   AND NOT EXISTS(SELECT 1 FROM pg_proc procedure_value CROSS JOIN aclexplode(COALESCE(procedure_value.proacl,acldefault('f',procedure_value.proowner))) acl WHERE procedure_value.oid='zasp_runtime_gateway_reconciliation_readiness(text,text)'::regprocedure AND acl.grantee=0)
   AND has_function_privilege('zasp_gateway_control','zasp_runtime_gateway_record_event(text,text,bigint,bigint,bytea,bigint,text,text,jsonb,timestamptz)','EXECUTE')
   AND EXISTS(SELECT 1 FROM pg_proc procedure_value WHERE procedure_value.oid='zasp_global_search(text,text,text,text,integer)'::regprocedure AND procedure_value.proowner=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND procedure_value.prosecdef AND COALESCE(procedure_value.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] AND has_function_privilege('zasp_discovery_api',procedure_value.oid,'EXECUTE') AND NOT EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure_value.proacl,acldefault('f',procedure_value.proowner))) acl WHERE acl.grantee NOT IN(procedure_value.proowner,(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_api'))))
+  AND NOT EXISTS(SELECT 1 FROM pg_proc procedure_value WHERE procedure_value.oid IN('zasp_finding_ticket_reserve(text,text,text,text,text,bigint,text,text,text,text,integer)'::regprocedure,'zasp_finding_ticket_complete(text,text,text,text,text,text,text)'::regprocedure,'zasp_finding_ticket_release(text,text,text,text,text,text)'::regprocedure) AND (procedure_value.proowner<>(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') OR NOT procedure_value.prosecdef OR NOT COALESCE(procedure_value.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] OR NOT has_function_privilege('zasp_discovery_api',procedure_value.oid,'EXECUTE') OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure_value.proacl,acldefault('f',procedure_value.proowner))) acl WHERE acl.grantee NOT IN(procedure_value.proowner,(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_api')))))
 $$;
 
 CREATE OR REPLACE FUNCTION public.zasp_runtime_gateway_reconciliation_live_fingerprint() RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
  WITH semantic_object(kind,identity,definition) AS (
   SELECT 'runtime_data_plane','live',zasp_runtime_data_plane_live_fingerprint()
-  UNION ALL SELECT 'column',table_name||'.'||column_name,concat_ws('|',data_type,udt_name,is_nullable,column_default) FROM information_schema.columns WHERE table_schema='public' AND table_name='zasp_runtime_gateway_reconciliation_state'
-  UNION ALL SELECT 'constraint',constraint_value.conrelid::regclass::text||'.'||constraint_value.conname,pg_get_constraintdef(constraint_value.oid,true) FROM pg_constraint constraint_value WHERE constraint_value.conrelid='public.zasp_runtime_gateway_reconciliation_state'::regclass
-  UNION ALL SELECT 'policy',policy_value.schemaname||'.'||policy_value.tablename||'.'||policy_value.policyname,concat_ws('|',policy_value.roles::text,policy_value.cmd,policy_value.qual,policy_value.with_check) FROM pg_policies policy_value WHERE policy_value.schemaname='public' AND policy_value.tablename='zasp_runtime_gateway_reconciliation_state'
-  UNION ALL SELECT 'index',index_value.oid::regclass::text,pg_get_indexdef(index_value.oid) FROM pg_class index_value WHERE index_value.oid IN('zasp_inventory_entities_global_search_v16_idx'::regclass,'zasp_risk_findings_global_search_v16_idx'::regclass)
+  UNION ALL SELECT 'column',table_name||'.'||column_name,concat_ws('|',data_type,udt_name,is_nullable,column_default) FROM information_schema.columns WHERE table_schema='public' AND table_name IN('zasp_runtime_gateway_reconciliation_state','zasp_finding_ticket_deliveries')
+  UNION ALL SELECT 'constraint',constraint_value.conrelid::regclass::text||'.'||constraint_value.conname,pg_get_constraintdef(constraint_value.oid,true) FROM pg_constraint constraint_value WHERE constraint_value.conrelid IN('public.zasp_runtime_gateway_reconciliation_state'::regclass,'public.zasp_finding_ticket_deliveries'::regclass)
+  UNION ALL SELECT 'policy',policy_value.schemaname||'.'||policy_value.tablename||'.'||policy_value.policyname,concat_ws('|',policy_value.roles::text,policy_value.cmd,policy_value.qual,policy_value.with_check) FROM pg_policies policy_value WHERE policy_value.schemaname='public' AND policy_value.tablename IN('zasp_runtime_gateway_reconciliation_state','zasp_finding_ticket_deliveries')
+  UNION ALL SELECT 'index',index_value.oid::regclass::text,pg_get_indexdef(index_value.oid) FROM pg_class index_value WHERE index_value.oid IN('zasp_inventory_entities_global_search_v16_idx'::regclass,'zasp_risk_findings_global_search_v16_idx'::regclass,'zasp_finding_ticket_deliveries_retry_v16_idx'::regclass)
   UNION ALL SELECT 'inherited_function',procedure_value.oid::regprocedure::text,pg_get_functiondef(procedure_value.oid) FROM pg_proc procedure_value WHERE procedure_value.oid IN('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure,'public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure)
-  UNION ALL SELECT 'function',procedure_value.oid::regprocedure::text,pg_get_functiondef(procedure_value.oid) FROM pg_proc procedure_value WHERE procedure_value.oid='public.zasp_global_search(text,text,text,text,integer)'::regprocedure
+  UNION ALL SELECT 'function',procedure_value.oid::regprocedure::text,pg_get_functiondef(procedure_value.oid) FROM pg_proc procedure_value WHERE procedure_value.oid IN('public.zasp_global_search(text,text,text,text,integer)'::regprocedure,'public.zasp_finding_ticket_reserve(text,text,text,text,text,bigint,text,text,text,text,integer)'::regprocedure,'public.zasp_finding_ticket_complete(text,text,text,text,text,text,text)'::regprocedure,'public.zasp_finding_ticket_release(text,text,text,text,text,text)'::regprocedure)
   UNION ALL SELECT 'function',procedure_value.oid::regprocedure::text,pg_get_functiondef(procedure_value.oid) FROM pg_proc procedure_value JOIN pg_namespace namespace_value ON namespace_value.oid=procedure_value.pronamespace WHERE namespace_value.nspname='public' AND procedure_value.proname IN('zasp_runtime_gateway_reconciliation_security_ready','zasp_runtime_gateway_reconciliation_readiness')
-  UNION ALL SELECT 'function_acl',procedure_value.oid::regprocedure::text,COALESCE(array_to_string(procedure_value.proacl,','),'') FROM pg_proc procedure_value JOIN pg_namespace namespace_value ON namespace_value.oid=procedure_value.pronamespace WHERE namespace_value.nspname='public' AND procedure_value.proname IN('zasp_global_search','zasp_runtime_gateway_reconciliation_live_fingerprint','zasp_runtime_gateway_reconciliation_security_ready','zasp_runtime_gateway_reconciliation_readiness')
+  UNION ALL SELECT 'function_acl',procedure_value.oid::regprocedure::text,COALESCE(array_to_string(procedure_value.proacl,','),'') FROM pg_proc procedure_value JOIN pg_namespace namespace_value ON namespace_value.oid=procedure_value.pronamespace WHERE namespace_value.nspname='public' AND procedure_value.proname IN('zasp_global_search','zasp_finding_ticket_reserve','zasp_finding_ticket_complete','zasp_finding_ticket_release','zasp_runtime_gateway_reconciliation_live_fingerprint','zasp_runtime_gateway_reconciliation_security_ready','zasp_runtime_gateway_reconciliation_readiness')
  ) SELECT encode(digest(convert_to(string_agg(kind||chr(31)||identity||chr(31)||definition,chr(30) ORDER BY kind,identity,definition),'UTF8'),'sha256'),'hex') FROM semantic_object
 $$;
 
@@ -154,4 +247,4 @@ ALTER FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(text,text) O
 REVOKE ALL ON FUNCTION public.zasp_runtime_gateway_reconciliation_live_fingerprint(),public.zasp_runtime_gateway_reconciliation_security_ready(),public.zasp_runtime_gateway_reconciliation_readiness(text,text) FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
 GRANT EXECUTE ON FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(text,text) TO zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_gateway_reconciliation_fingerprint', 'a4c8edadeb2b311a8ac8bdc08685a78b604c565571162ad7a4b6c248ff7252ee');
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_gateway_reconciliation_fingerprint', '625c5da616e2d069d35e80efbeaae60f5fd4132d8d1b5be73d0b33d5786f78be');

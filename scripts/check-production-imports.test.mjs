@@ -43,6 +43,23 @@ test("source graph rejects transitive demo, fixture, and browser storage imports
   }
 });
 
+test("source graph permits only the exact scoped ticket recovery storage boundary", async () => {
+  const approved = await fixture({
+    "app/page.tsx": 'export { Risk } from "./features/risk/ProductionRiskView";',
+    "app/[...path]/page.tsx": "export {};",
+    "app/features/risk/ProductionRiskView.tsx": 'export const Risk = window.sessionStorage.getItem("zasp:finding-ticket:v1");',
+  });
+  const result = await checkSourceGraph({ root: approved });
+  assert.ok(result.files.includes("app/features/risk/ProductionRiskView.tsx"));
+
+  const unapproved = await fixture({
+    "app/page.tsx": 'export { Risk } from "./features/risk/OtherRiskView";',
+    "app/[...path]/page.tsx": "export {};",
+    "app/features/risk/OtherRiskView.tsx": 'export const Risk = window.sessionStorage.getItem("state");',
+  });
+  await assert.rejects(() => checkSourceGraph({ root: unapproved }), /browser storage/);
+});
+
 test("source graph accepts the production sensor surface but rejects its demo sibling", async () => {
   const production = await fixture({
     "app/page.tsx": 'export { ProductionSensorView } from "./features/sensors/ProductionSensorView";',

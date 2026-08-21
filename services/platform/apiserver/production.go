@@ -57,6 +57,7 @@ type CookiePolicy struct {
 	ConnectorCapabilities  ConnectorCapabilities
 	DiscoveryParserVersion string
 	DiscoveryToolVersion   string
+	FindingTickets         FindingTicketCreator
 }
 
 type sessionRepository interface {
@@ -137,7 +138,7 @@ func NewProductionHandlers(repository *PostgresRepository, provider CallbackProv
 		}
 		inventorySurface = inventoryHandler
 	}
-	risk, err := newRiskHTTPHandler(repository, cookie.WorkflowSigningKey, cookie.Clock)
+	risk, err := newRiskHTTPHandler(repository, cookie.WorkflowSigningKey, cookie.Clock, cookie.FindingTickets)
 	if err != nil {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}

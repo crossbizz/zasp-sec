@@ -102,7 +102,7 @@ dependencies:
   - ecosystem: go
     manifest: services/event-ingest/go.mod
     name: github.com/aws/aws-sdk-go-v2
-    version: v1.43.6
+    version: v1.43.7
     license: Apache-2.0
     owner: platform-data
     scope: runtime

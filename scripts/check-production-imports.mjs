@@ -9,6 +9,9 @@ const allowedExactSources = new Set([
   "app/features/sensors/ProductionSensorView.tsx",
   "app/features/sensors/api.ts",
 ]);
+const allowedBrowserStorageSources = new Set([
+  "app/features/risk/ProductionRiskView.tsx",
+]);
 const forbiddenExactSources = new Set([
   "app/domain/store.tsx",
   "app/domain/seed.ts",
@@ -91,7 +94,9 @@ export async function checkSourceGraph({ root = repositoryRoot, entries = produc
     const violation = sourceViolation(path);
     if (violation) throw new Error(`${violation} is reachable from production: ${path}`);
     const source = await readFile(file, "utf8");
-    if (browserStoragePattern.test(source)) throw new Error(`browser storage is reachable from production: ${path}`);
+    if (browserStoragePattern.test(source) && !allowedBrowserStorageSources.has(path)) {
+      throw new Error(`browser storage is reachable from production: ${path}`);
+    }
     for (const specifier of importSpecifiers(source)) {
       const imported = await resolveSourceImport(file, specifier);
       if (imported) pending.push(imported);

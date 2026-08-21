@@ -180,6 +180,7 @@ spec:
 {{- $connectorGitHub := required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github }}
 {{- $connectorOkta := required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta }}
 {{- $connectorKubernetes := required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes }}
+{{- $findingTickets := required "network.findingTicketEgressCIDRs is required" .Values.network.findingTicketEgressCIDRs }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -188,13 +189,13 @@ metadata:
   labels: { app.kubernetes.io/part-of: zasp }
   annotations:
     zasp.io/network-policy-boundary: native-cidr-snapshot
-    zasp.io/endpoint-groups: aws-sts-secretsmanager,github-oauth-api,okta-tenant,kubernetes-customer-api
+    zasp.io/endpoint-groups: aws-sts-secretsmanager,github-oauth-api,okta-tenant,kubernetes-customer-api,finding-ticket-webhooks
 spec:
   podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
   policyTypes: [Egress]
   egress:
     - to:
-      {{- range $cidr := concat $connectorAWS $connectorGitHub $connectorOkta $connectorKubernetes }}
+      {{- range $cidr := concat $connectorAWS $connectorGitHub $connectorOkta $connectorKubernetes $findingTickets }}
         - ipBlock: { cidr: {{ $cidr | quote }} }
       {{- end }}
       ports: [{ protocol: TCP, port: 443 }]

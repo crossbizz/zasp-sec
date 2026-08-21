@@ -11,18 +11,14 @@ const selected = [
 ];
 
 describe("M4 risk and Agent UI completion batch", () => {
-  it("keeps mounted risk and Home operations while hiding external actions", async () => {
+  it("keeps mounted risk, Home, and ticket operations", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
     ]);
-    for (const operation of ["updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary", "globalSearch"]) {
+    for (const operation of ["updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary", "globalSearch"]) {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
-    }
-    for (const operation of ["createFindingTicket"]) {
-      expect(openapi).not.toContain(`operationId: ${operation}`);
-      expect(generated).not.toContain(` ${operation}:`);
     }
   });
 

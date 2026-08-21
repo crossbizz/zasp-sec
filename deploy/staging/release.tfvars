@@ -24,3 +24,4 @@ github_app_id                     = "123456"
 aws_reference_role_prefixes       = ["arn:aws:iam::111111111111:role/zasp-reference/", "arn:aws:iam::222222222222:role/zasp-reference/"]
 aws_reference_role_arns           = ["arn:aws:iam::111111111111:role/zasp-reference/customer-0001", "arn:aws:iam::222222222222:role/zasp-reference/customer-0002"]
 kubernetes_connector_egress_cidrs = ["203.0.113.0/28"]
+finding_ticket_egress_cidrs       = ["192.0.2.64/28"]

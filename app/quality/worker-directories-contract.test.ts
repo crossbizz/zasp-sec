@@ -99,7 +99,9 @@ describe("M1-01b worker directories repository contract", () => {
     expect(pythonProject).toContain("dependencies = []");
     expect(pythonProject).toContain('security-worker = "security_worker.__main__:cli"');
     expect(pythonCommand).toContain('output.write("security-worker health ok\\n")');
-    expect(pythonCommand).not.toMatch(/os\.environ|socket|http|queue|cartography|prowler/i);
+    const pythonHealthCommand = pythonCommand.match(/def run\([\s\S]*?(?=\ndef run_binary\()/)?.[0] ?? "";
+    expect(pythonHealthCommand).toContain('if list(arguments) != ["health"]:');
+    expect(pythonHealthCommand).not.toMatch(/os\.environ|socket|http|queue|cartography|prowler/i);
     expect(pythonTest).toContain("test_writer_failure_is_contained_by_main");
 
     expect(nodeManifest).toMatchObject({

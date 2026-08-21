@@ -112,7 +112,7 @@ export async function verifyReleaseSources() {
 
   const definitions = await Promise.all(["web", "api", "worker", "event-ingest", "gateway-control", "runtime-gateway", "sensor-agent"].map((name) => source(`deploy/production/${name}.Dockerfile`)));
   const imageReferences = new Set(definitions.flatMap((definition) => [...definition.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1])));
-  if (imageReferences.size !== 3 || [...imageReferences].some((reference) => !/@sha256:[0-9a-f]{64}$/.test(reference))) throw new Error("image definition gate rejected");
+  if (imageReferences.size !== 4 || [...imageReferences].some((reference) => !/@sha256:[0-9a-f]{64}$/.test(reference))) throw new Error("image definition gate rejected");
 
   return deepFreeze({ canary: true, documentation: true, imageDefinitions: builds.length, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, goSpdx, requiredCI: true, task4Deployment: true, task6Deployment: true, privateDependencies: true });
 }

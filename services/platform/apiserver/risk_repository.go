@@ -3,8 +3,14 @@ package apiserver
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"io"
+	"net"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -14,14 +20,25 @@ import (
 )
 
 const (
-	postgresRiskFindingGetSQL      = `SELECT zasp_risk_finding_get($1, $2, $3, $4)`
-	postgresRiskFindingPageSQL     = `SELECT zasp_risk_finding_page($1, $2, $3, NULLIF($4, ''), $5)`
-	postgresRiskAttackPathGetSQL   = `SELECT zasp_risk_attack_path_get($1, $2, $3, $4)`
-	postgresRiskAttackPathPageSQL  = `SELECT zasp_risk_attack_path_page($1, $2, $3, NULLIF($4, ''), $5)`
-	postgresRiskBreakOptionsGetSQL = `SELECT zasp_risk_break_options_get($1, $2, $3, $4)`
-	postgresRiskHighPathCountSQL   = `SELECT to_jsonb(zasp_risk_high_path_count($1, $2, $3))`
-	postgresRiskFindingMutateSQL   = `SELECT zasp_risk_mutate($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), NULLIF($10, ''), $11, $12, NULLIF($13, ''))`
-	postgresGlobalSearchSQL        = `SELECT zasp_global_search($1, $2, $3, $4, $5)`
+	postgresRiskFindingGetSQL        = `SELECT zasp_risk_finding_get($1, $2, $3, $4)`
+	postgresRiskFindingPageSQL       = `SELECT zasp_risk_finding_page($1, $2, $3, NULLIF($4, ''), $5)`
+	postgresRiskAttackPathGetSQL     = `SELECT zasp_risk_attack_path_get($1, $2, $3, $4)`
+	postgresRiskAttackPathPageSQL    = `SELECT zasp_risk_attack_path_page($1, $2, $3, NULLIF($4, ''), $5)`
+	postgresRiskBreakOptionsGetSQL   = `SELECT zasp_risk_break_options_get($1, $2, $3, $4)`
+	postgresRiskHighPathCountSQL     = `SELECT to_jsonb(zasp_risk_high_path_count($1, $2, $3))`
+	postgresRiskFindingMutateSQL     = `SELECT zasp_risk_mutate($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), NULLIF($10, ''), $11, $12, NULLIF($13, ''))`
+	postgresGlobalSearchSQL          = `SELECT zasp_global_search($1, $2, $3, $4, $5)`
+	postgresFindingTicketReserveSQL  = `SELECT zasp_finding_ticket_reserve($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+	postgresFindingTicketCompleteSQL = `SELECT zasp_finding_ticket_complete($1, $2, $3, $4, $5, $6, $7)`
+	postgresFindingTicketReleaseSQL  = `SELECT zasp_finding_ticket_release($1, $2, $3, $4, $5, $6)`
+)
+
+var (
+	findingTicketDigestPattern     = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	findingTicketHostnamePattern   = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$`)
+	findingTicketLeaseTokenPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	findingTicketReferencePattern  = regexp.MustCompile(`^secret_ref_[A-Za-z0-9][A-Za-z0-9._/-]{0,115}$`)
+	findingTicketProviderIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)
 )
 
 type RiskFactor struct {
@@ -107,6 +124,98 @@ type GlobalSearchResult struct {
 
 type GlobalSearchPage struct {
 	Items []GlobalSearchResult `json:"items"`
+}
+
+type FindingTicketReservation struct {
+	State           string
+	DeliveryID      string
+	Payload         string
+	PayloadDigest   string
+	DestinationURL  string
+	SecretReference string
+	LeaseExpiresAt  time.Time
+	TicketID        string
+}
+
+func (repository *PostgresRepository) ReserveFindingTicket(ctx context.Context, command FindingTicketCommand, deliveryID, leaseToken string, leaseSeconds int) (FindingTicketReservation, error) {
+	if !validFindingTicketRepository(repository, ctx) || !validFindingTicketCommand(command) || !validProductID(deliveryID) || !findingTicketLeaseTokenPattern.MatchString(leaseToken) || leaseSeconds < 5 || leaseSeconds > 30 {
+		return FindingTicketReservation{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresFindingTicketReserveSQL,
+		command.Identity.Scope.OrganizationID().String(), command.Identity.Scope.WorkspaceID().String(), command.Identity.Scope.EnvironmentID().String(), command.Identity.PrincipalID.String(),
+		command.FindingID, command.ExpectedVersion, command.IdempotencyKey, command.CorrelationID, deliveryID, leaseToken, leaseSeconds,
+	)
+	if err != nil {
+		return FindingTicketReservation{}, riskProviderError(err)
+	}
+	var response struct {
+		State           string     `json:"state"`
+		DeliveryID      string     `json:"delivery_id"`
+		Payload         string     `json:"payload"`
+		PayloadDigest   string     `json:"payload_digest"`
+		DestinationURL  string     `json:"destination_url"`
+		SecretReference string     `json:"secret_reference"`
+		LeaseExpiresAt  *time.Time `json:"lease_expires_at"`
+		TicketID        *string    `json:"ticket_id"`
+	}
+	if decodeStrictRisk(payload, &response) != nil || !validProductID(response.DeliveryID) {
+		return FindingTicketReservation{}, ErrRepositoryUnavailable
+	}
+	result := FindingTicketReservation{State: response.State, DeliveryID: response.DeliveryID}
+	switch response.State {
+	case "dispatch":
+		if response.TicketID != nil || response.LeaseExpiresAt == nil || !validLeaseExpiration(*response.LeaseExpiresAt, leaseSeconds) || !validFindingTicketPayload(response.Payload, response.PayloadDigest, command, response.DeliveryID) || !validFindingTicketDestination(response.DestinationURL) || !findingTicketReferencePattern.MatchString(response.SecretReference) {
+			return FindingTicketReservation{}, ErrRepositoryUnavailable
+		}
+		result.Payload = response.Payload
+		result.PayloadDigest = response.PayloadDigest
+		result.DestinationURL = response.DestinationURL
+		result.SecretReference = response.SecretReference
+		result.LeaseExpiresAt = response.LeaseExpiresAt.UTC()
+	case "completed":
+		if response.TicketID == nil || !findingTicketProviderIDPattern.MatchString(*response.TicketID) || response.Payload != "" || response.PayloadDigest != "" || response.DestinationURL != "" || response.SecretReference != "" || response.LeaseExpiresAt != nil {
+			return FindingTicketReservation{}, ErrRepositoryUnavailable
+		}
+		result.TicketID = *response.TicketID
+	case "busy":
+		if response.TicketID != nil || response.Payload != "" || response.PayloadDigest != "" || response.DestinationURL != "" || response.SecretReference != "" || response.LeaseExpiresAt == nil || !validLeaseExpiration(*response.LeaseExpiresAt, leaseSeconds) {
+			return FindingTicketReservation{}, ErrRepositoryUnavailable
+		}
+		result.LeaseExpiresAt = response.LeaseExpiresAt.UTC()
+	default:
+		return FindingTicketReservation{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+
+func (repository *PostgresRepository) CompleteFindingTicket(ctx context.Context, scope domain.Scope, deliveryID, leaseToken, payloadDigest, ticketID string) (FindingTicket, error) {
+	if !validFindingTicketRepository(repository, ctx) || scope.Validate() != nil || !validProductID(deliveryID) || !findingTicketLeaseTokenPattern.MatchString(leaseToken) || !findingTicketDigestPattern.MatchString(payloadDigest) || !findingTicketProviderIDPattern.MatchString(ticketID) {
+		return FindingTicket{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresFindingTicketCompleteSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deliveryID, leaseToken, payloadDigest, ticketID)
+	if err != nil {
+		return FindingTicket{}, riskProviderError(err)
+	}
+	var result FindingTicket
+	if decodeStrictRisk(payload, &result) != nil || result.TicketID != ticketID {
+		return FindingTicket{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+
+func (repository *PostgresRepository) ReleaseFindingTicket(ctx context.Context, scope domain.Scope, deliveryID, leaseToken, payloadDigest string) error {
+	if !validFindingTicketRepository(repository, ctx) || scope.Validate() != nil || !validProductID(deliveryID) || !findingTicketLeaseTokenPattern.MatchString(leaseToken) || !findingTicketDigestPattern.MatchString(payloadDigest) {
+		return ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresFindingTicketReleaseSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deliveryID, leaseToken, payloadDigest)
+	if err != nil {
+		return riskProviderError(err)
+	}
+	var released bool
+	if decodeStrictRisk(payload, &released) != nil || !released {
+		return ErrRepositoryUnavailable
+	}
+	return nil
 }
 
 func (repository *PostgresRepository) SearchGlobal(ctx context.Context, scope domain.Scope, query string, limit int) (GlobalSearchPage, error) {
@@ -313,6 +422,65 @@ func validRiskRead(repository *PostgresRepository, ctx context.Context, scope do
 
 func validRiskPage(repository *PostgresRepository, ctx context.Context, scope domain.Scope, afterID string, limit int) bool {
 	return repository != nil && !nilInterface(repository.database) && ctx != nil && scope.Validate() == nil && limit >= 1 && limit <= 100 && (afterID == "" || validProductID(afterID))
+}
+
+func validFindingTicketRepository(repository *PostgresRepository, ctx context.Context) bool {
+	return repository != nil && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil
+}
+
+func validFindingTicketCommand(command FindingTicketCommand) bool {
+	return validRequestIdentity(command.Identity, false) && validProductID(command.FindingID) && command.ExpectedVersion >= 1 && command.ExpectedVersion <= 1000000 && len(command.IdempotencyKey) >= 16 && len(command.IdempotencyKey) <= 128 && workflowKeyPattern.MatchString(command.IdempotencyKey) && validProductID(command.CorrelationID)
+}
+
+func validFindingTicketPayload(payload, encodedDigest string, command FindingTicketCommand, deliveryID string) bool {
+	if len(payload) < 2 || len(payload) > 16<<10 || !findingTicketDigestPattern.MatchString(encodedDigest) {
+		return false
+	}
+	decodedDigest, err := hex.DecodeString(strings.TrimPrefix(encodedDigest, "sha256:"))
+	if err != nil || len(decodedDigest) != sha256.Size {
+		return false
+	}
+	actualDigest := sha256.Sum256([]byte(payload))
+	if subtle.ConstantTimeCompare(actualDigest[:], decodedDigest) != 1 {
+		return false
+	}
+	var body struct {
+		DeliveryID string `json:"delivery_id"`
+		Event      string `json:"event"`
+		Finding    struct {
+			ID       string `json:"id"`
+			Severity string `json:"severity"`
+			Title    string `json:"title"`
+			Version  int64  `json:"version"`
+		} `json:"finding"`
+		RequestedAt time.Time `json:"requested_at"`
+		RequestedBy string    `json:"requested_by"`
+		Scope       struct {
+			EnvironmentID  string `json:"environment_id"`
+			OrganizationID string `json:"organization_id"`
+			WorkspaceID    string `json:"workspace_id"`
+		} `json:"scope"`
+		Version int `json:"version"`
+	}
+	if decodeStrictRisk(json.RawMessage(payload), &body) != nil {
+		return false
+	}
+	return body.DeliveryID == deliveryID && body.Event == "finding.ticket.requested" && body.Version == 1 && body.Finding.ID == command.FindingID && body.Finding.Version == command.ExpectedVersion && stringIn(body.Finding.Severity, "critical", "high", "medium", "low") && validGlobalSearchName(body.Finding.Title) && body.RequestedBy == command.Identity.PrincipalID.String() && body.Scope.OrganizationID == command.Identity.Scope.OrganizationID().String() && body.Scope.WorkspaceID == command.Identity.Scope.WorkspaceID().String() && body.Scope.EnvironmentID == command.Identity.Scope.EnvironmentID().String() && body.RequestedAt.Location() == time.UTC && validPastServerTime(body.RequestedAt)
+}
+
+func validFindingTicketDestination(raw string) bool {
+	if len(raw) < 12 || len(raw) > 2048 {
+		return false
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Opaque != "" || parsed.Port() != "" && parsed.Port() != "443" {
+		return false
+	}
+	hostname := parsed.Hostname()
+	if hostname == "" || hostname != strings.ToLower(hostname) || !findingTicketHostnamePattern.MatchString(hostname) || net.ParseIP(hostname) != nil || hostname == "localhost" || strings.HasSuffix(hostname, ".localhost") || strings.HasSuffix(hostname, ".local") || strings.Contains(hostname, "..") {
+		return false
+	}
+	return parsed.Path != "" && strings.HasPrefix(parsed.Path, "/")
 }
 
 func validGlobalSearchName(value string) bool {

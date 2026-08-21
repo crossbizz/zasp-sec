@@ -18,6 +18,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (RuntimeDependencies, error) {
@@ -93,6 +94,30 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
 	secretsDriver := &connectorSecretsDriver{client: secretsClient}
+	ticketSecrets, err := newFindingTicketSecretResolver(secretsDriver, config.ConnectorSecretPrefix, config.ProviderTimeout)
+	if err != nil {
+		secretsTransport.CloseIdleConnections()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	ticketWebhook, err := apiserver.NewProductionFindingTicketWebhook(config.FindingTicketEgressCIDRs, config.ProviderTimeout)
+	if err != nil {
+		secretsTransport.CloseIdleConnections()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	ticketService, err := apiserver.NewFindingTicketService(apiserver.FindingTicketServiceConfig{
+		Repository:   repository,
+		Secrets:      ticketSecrets,
+		Webhook:      ticketWebhook,
+		LeaseSeconds: 15,
+		NewDeliveryID: func(domain.Scope, string) (string, error) {
+			return newFindingTicketDeliveryID()
+		},
+		NewLeaseToken: newFindingTicketLeaseToken,
+	})
+	if err != nil {
+		secretsTransport.CloseIdleConnections()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
 	secretStore, err := apiserver.NewDurableOAuthSecretStore(secretsDriver, config.ConnectorSecretPrefix, config.ConnectorKMSKeyARN, config.ProviderTimeout, func() time.Time { return time.Now().UTC() })
 	if err != nil {
 		secretsTransport.CloseIdleConnections()
@@ -186,7 +211,7 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, tracedProvider, connectorSurface, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}})
+	handlers, authenticate, err := apiserver.NewProductionHandlers(repository, tracedProvider, connectorSurface, apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}, FindingTickets: ticketService})
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -226,7 +251,7 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 			return errRuntimeUnavailable
 		}
 		return nil
-	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}}, Closers: connectorResources}, nil
+	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}, {Name: "aws-secrets-manager-webhook", Durable: true}}, Closers: connectorResources}, nil
 }
 
 func newConnectorWorkerOwner(hostname string, source io.Reader) (string, error) {

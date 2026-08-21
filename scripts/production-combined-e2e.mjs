@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
+import { reloadBrowserPage } from "./browser-e2e-helpers.mjs";
 
 const FIXED_NODE_VERSION = "v22.23.1";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -16,6 +17,7 @@ const platform = path.join(root, "services", "platform");
 const postgresBin = "/opt/homebrew/bin";
 const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const productHostname = "zasp.production-e2e.test";
+const findingTicketOperation = "/api/v1/findings/{id}/ticket";
 const terminalRevocationIntegrationID = "pid_72000001-0000-4000-8000-000000000001";
 const reloadRevocationIntegrationID = "pid_72000002-0000-4000-8000-000000000002";
 const task4DiscoveryIntegrationID = "pid_73000001-0000-4000-8000-000000000001";
@@ -46,6 +48,7 @@ const riskPageRequests = { findings: [], attackPaths: [] };
 const riskRecoverySequence = [];
 const delayedRiskDetailResponses = [];
 const lostFindingResponseKeys = [];
+const findingTicketRequests = [];
 const productAPIRequests = [];
 const browserConsoleErrors = [];
 const browserConsoleMessages = [];
@@ -65,6 +68,7 @@ let injectLaterReceiptOnNextAcknowledgement = false;
 let expireNextReceiptBeforeAcknowledgement = false;
 let malformNextIntegrationDeleteResponse = true;
 let loseNextFindingResponse = true;
+let loseNextFindingTicketResponse = true;
 let failNextRiskRecoveryRefetch = false;
 let delayRiskDetailResponses = false;
 let proxyFailure;
@@ -158,6 +162,7 @@ try {
     ZASP_AWS_CUSTOMER_ROLE_PREFIXES: '["arn:aws:iam::123456789012:role/zasp-reference/"]',
     ZASP_AWS_CUSTOMER_ROLE_ARNS: '["arn:aws:iam::123456789012:role/zasp-reference/production-e2e"]',
     ZASP_KUBERNETES_EGRESS_CIDRS: "203.0.113.0/24",
+    ZASP_FINDING_TICKET_EGRESS_CIDRS: "192.0.2.64/28",
     ZASP_GITHUB_CLIENT_ID: "Iv1.1234567890abcdef",
     ZASP_GITHUB_CLIENT_SECRET_REFERENCE: "ref:github/client-secret",
     ZASP_GITHUB_APP_ID: "123456",
@@ -328,6 +333,24 @@ try {
   const findingDetail = await waitForBrowserText(browser.cdp, /Public production input/);
   assert.match(findingDetail, /Public production input/);
   assert.match(findingDetail, /pid_70000001-0000-4000-8000-000000000001/);
+  await clickBrowserText(browser.cdp, "Create ticket");
+  await waitForBrowserText(browser.cdp, /Injected finding ticket response loss/);
+  await clickBrowserText(browser.cdp, "Retry retained ticket creation");
+  await waitForBrowserText(browser.cdp, /Ticket SEC-E2E-0001 created/);
+  assert.equal(findingTicketRequests.length, 2, "finding ticket response-loss retry did not make exactly two bodyless requests");
+  assert.match(findingTicketRequests[0].idempotencyKey, /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/);
+  assert.equal(new Set(findingTicketRequests.map((request) => request.idempotencyKey)).size, 1, "finding ticket retry changed its idempotency key");
+  assert.equal(new Set(findingTicketRequests.map((request) => request.ifMatch)).size, 1, "finding ticket retry changed If-Match");
+  assert.equal(findingTicketRequests[0].ifMatch, '"1"');
+  assert.equal(findingTicketRequests.every((request) => request.body === "" && request.contentType === ""), true, "finding ticket request was not bodyless");
+  assert.equal(findingTicketRequests.every((request) => request.csrf.length >= 16 && request.expectedScope === "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003"), true, "finding ticket request lost browser CSRF or exact scope authority");
+  assert.equal(findingTicketRequests.every((request) => request.origin === publicOrigin), true, "finding ticket request escaped the browser origin");
+  await reloadBrowser(browser.cdp);
+  await waitForBrowserText(browser.cdp, /Production credential exposure 0102/);
+  await clickBrowserText(browser.cdp, "Production credential exposure 0001");
+  await waitForBrowserText(browser.cdp, /Ticket SEC-E2E-0001 created/);
+  assert.equal(findingTicketRequests.length, 2, "finding ticket reload emitted a duplicate delivery");
+  console.log("combined E2E: finding ticket retained one idempotency key across retry and reload");
   await clickBrowserText(browser.cdp, "Mark under review");
   await waitForBrowserText(browser.cdp, /network error/);
   assert.equal(lostFindingResponseKeys.length, 1, "committed finding response was not interrupted exactly once");
@@ -1184,10 +1207,10 @@ async function exerciseTypedInventoryDiscoveryLifecycle(publicOrigin, dsn, postg
 	const home = await requestHTTPSJSON(`${publicOrigin}/api/v1/home/summary`, { method: "GET", headers });
 	assert.equal(home.status, 200, `typed inventory home failed: ${JSON.stringify(home)}`);
 	assert.equal(home.body.agent_count, 1, `typed home disagreed with current inventory: ${typedState.stdout.trim()}`);
-  const agents = await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/agents", "Support agent", "agent");
-  await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/tools", "Automation repository", "tool");
-  await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/identities", "Security operators", "identity");
-  await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/runtimes", "Production runtime", "runtime");
+  const agents = await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/agents", [["Support agent", "agent"]]);
+  await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/tools", [["Automation repository", "tool"]]);
+  await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/identities", [["Support agent identity", "identity"], ["Security operators", "identity"]]);
+  await assertTypedInventoryPage(publicOrigin, headers, "/api/v1/runtimes", [["Production runtime", "runtime"]]);
   assert.equal(agents[0].id, "pid_21000001-0000-4000-8000-000000000001");
 
   const agentDetail = await requestHTTPSJSON(`${publicOrigin}/api/v1/agents/pid_21000001-0000-4000-8000-000000000001`, { method: "GET", headers });
@@ -1203,7 +1226,7 @@ async function exerciseTypedInventoryDiscoveryLifecycle(publicOrigin, dsn, postg
   assert.equal(relationships.status, 200, `typed relationship page failed: ${JSON.stringify(relationships)}`);
   assert.deepEqual(relationships.body.page_info, { has_more: false, next_cursor: null });
   assert.equal(relationships.body.items.length, 1);
-  assert.equal(relationships.body.items[0].to_id, "pid_21000002-0000-4000-8000-000000000002");
+  assert.equal(relationships.body.items[0].to_id, "pid_21000004-0000-4000-8000-000000000004");
 
   const completedSync = await requestHTTPSJSON(`${publicOrigin}/api/v1/integrations/${task4DiscoveryIntegrationID}/syncs/${task4Public.syncID}`, { method: "GET", headers });
   assert.equal(completedSync.status, 200);
@@ -1226,7 +1249,7 @@ async function exerciseTypedInventoryDiscoveryLifecycle(publicOrigin, dsn, postg
     (SELECT count(*) FROM zasp_inventory_evidence evidence JOIN zasp_inventory_source_observations observation ON (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.snapshot_id,observation.entity_id,observation.evidence_id)=(evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.integration_id,evidence.snapshot_id,evidence.entity_id,evidence.id) WHERE observation.source_state='present'),
     (SELECT count(*) FROM zasp_inventory_relationships WHERE state='present')
   );`]);
-  assert.equal(forensics.stdout.trim(), "0|1|1|1|1|1|5|6|6|1", "typed inventory authority was not derived from exact complete snapshots");
+  assert.equal(forensics.stdout.trim(), "0|1|1|2|1|1|5|7|7|1", "typed inventory authority was not derived from exact complete snapshots");
   assert.equal(completed.length, 4);
   console.log("combined E2E: typed inventory public routes derive only from complete discovery snapshots");
   console.log("combined E2E: typed inventory database forensics proved exact current source/snapshot/evidence bindings");
@@ -1308,14 +1331,12 @@ async function runDeterministicLocalDiscovery(workerE2EBinary, postgresPort, dsn
   console.log(`combined E2E: deterministic local provider and artifact authority completed public sync (${scenario})`);
 }
 
-async function assertTypedInventoryPage(publicOrigin, headers, pathValue, expectedName, expectedKind) {
+async function assertTypedInventoryPage(publicOrigin, headers, pathValue, expectedItems) {
   const response = await requestHTTPSJSON(`${publicOrigin}${pathValue}?limit=100`, { method: "GET", headers });
   assert.equal(response.status, 200, `typed inventory page failed: ${pathValue} ${JSON.stringify(response)}`);
   assert.deepEqual(response.body.page_info, { has_more: false, next_cursor: null });
-  assert.equal(response.body.items.length, 1);
-  assert.equal(response.body.items[0].name, expectedName);
-  assert.equal(response.body.items[0].kind, expectedKind);
-  assert.match(response.body.items[0].evidence_id, /^pid_[0-9a-f-]{36}$/);
+  assert.deepEqual(response.body.items.map((item) => [item.name, item.kind]), expectedItems);
+  assert.equal(response.body.items.every((item) => /^pid_[0-9a-f-]{36}$/.test(item.evidence_id)), true);
   return response.body.items;
 }
 
@@ -1651,6 +1672,7 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const tokenReveal = request.method === "POST" && /^\/api\/v1\/admin\/api-token-reveal-grants\/pid_[0-9a-f-]+\/reveal$/.test(target.pathname);
     const tokenAcknowledge = request.method === "DELETE" && /^\/api\/v1\/admin\/api-token-reveal-grants\/pid_[0-9a-f-]+$/.test(target.pathname);
     const integrationDeleteID = request.method === "DELETE" && /^\/api\/v1\/integrations\/pid_[0-9a-f-]+$/.test(target.pathname) ? target.pathname.split("/").at(-1) : undefined;
+    const findingTicketRequest = request.method === "POST" && /^\/api\/v1\/findings\/pid_[0-9a-f-]+\/ticket$/.test(target.pathname);
     if (tokenCreate) tokenMutationKeys.create.push(String(request.headers["idempotency-key"] ?? ""));
     if (tokenRotate) tokenMutationKeys.rotate.push(String(request.headers["idempotency-key"] ?? ""));
     if (request.method === "GET" && target.pathname === "/api/v1/policies") workflowPageRequests.policies.push(target.search);
@@ -1660,6 +1682,28 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const findingRecoveryRefetch = request.method === "GET" && target.pathname === "/api/v1/findings/pid_30000001-0000-4000-8000-000000000001";
     const riskDetailKind = request.method === "GET" && target.pathname === "/api/v1/attack-paths/pid_40000001-0000-4000-8000-000000000001" ? "path"
       : request.method === "GET" && target.pathname === "/api/v1/attack-paths/pid_40000001-0000-4000-8000-000000000001/break-options" ? "options" : undefined;
+    if (findingTicketRequest) {
+      const body = await readBody(request);
+      findingTicketRequests.push({
+        body,
+        contentType: String(request.headers["content-type"] ?? ""),
+        csrf: String(request.headers["x-csrf-token"] ?? ""),
+        expectedScope: String(request.headers["x-zasp-expected-scope"] ?? ""),
+        idempotencyKey: String(request.headers["idempotency-key"] ?? ""),
+        ifMatch: String(request.headers["if-match"] ?? ""),
+        origin: String(request.headers.origin ?? ""),
+        operation: findingTicketOperation,
+      });
+      if (loseNextFindingTicketResponse) {
+        loseNextFindingTicketResponse = false;
+        response.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
+        response.end(JSON.stringify({ code: "dependency_unavailable", message: "Injected finding ticket response loss", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }));
+      } else {
+        response.writeHead(201, { "content-type": "application/json", "cache-control": "no-store" });
+        response.end(JSON.stringify({ ticket_id: "SEC-E2E-0001" }));
+      }
+      return;
+    }
     if (findingRecoveryRefetch && failNextRiskRecoveryRefetch) {
       failNextRiskRecoveryRefetch = false;
       riskRecoverySequence.push("GET:503");
@@ -2100,7 +2144,7 @@ async function navigateBrowser(cdp, url) {
 
 async function reloadBrowser(cdp) {
   browserStage = "reload";
-  await cdp.replaceTarget(await browserCurrentURL(cdp));
+  await reloadBrowserPage(cdp);
 }
 
 async function browserStorageAndHistoryText(cdp) {

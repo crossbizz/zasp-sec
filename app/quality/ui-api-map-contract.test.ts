@@ -85,7 +85,7 @@ const expectedMap: MapDocument = {
         { id: "view_finding", operation_id: "getFinding", availability: "available" },
         { id: "update_finding", operation_id: "updateFinding", availability: "available" },
         { id: "accept_finding_risk", operation_id: "acceptFindingRisk", availability: "available" },
-        { id: "create_finding_ticket", operation_id: "createFindingTicket", availability: "planned" },
+        { id: "create_finding_ticket", operation_id: "createFindingTicket", availability: "available" },
         { id: "create_ai_explanation", operation_id: "createAIExplanation", availability: "planned" },
       ],
     },

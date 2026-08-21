@@ -6,12 +6,11 @@ import { describe, expect, it } from "vitest";
 const root = resolve(import.meta.dirname, "../..");
 const operations = [
   "listFindings", "getFinding", "updateFinding", "acceptFindingRisk",
-  "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary", "globalSearch",
+  "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary", "globalSearch",
 ] as const;
-const hiddenOperations = ["createFindingTicket"] as const;
 
 describe("M4 risk, path, home, and search batch", () => {
-  it("publishes nine mounted product operations and hides the external ticket action", async () => {
+  it("publishes all ten mounted finding, path, Home, search, and ticket operations", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
@@ -19,10 +18,6 @@ describe("M4 risk, path, home, and search batch", () => {
     for (const operation of operations) {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
-    }
-    for (const operation of hiddenOperations) {
-      expect(openapi).not.toContain(`operationId: ${operation}`);
-      expect(generated).not.toContain(` ${operation}:`);
     }
   });
 
@@ -57,6 +52,6 @@ describe("M4 risk, path, home, and search batch", () => {
     for (const task of completed) expect(active.match(new RegExp(`^\\| ${task} \\|`, "gm")) ?? []).toHaveLength(0);
     const prose = readme.replace(/\s+/g, " ");
     expect(prose).toContain("M4-36 through M4-50 and M4-51a through M4-51c are Complete");
-    expect(prose).toContain("No external webhook delivery, Neon, provider, staging, or release-gate success is claimed");
+    expect(prose).toContain("The tenant-scoped finding-ticket action uses the production signed-webhook path");
   });
 });

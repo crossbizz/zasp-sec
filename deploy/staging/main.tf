@@ -695,6 +695,11 @@ resource "aws_iam_role_policy" "api_connectors" {
         Resource = [for secret in aws_secretsmanager_secret.connector_reference : secret.arn]
       },
       {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = ["arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/webhook/*"]
+      },
+      {
         Effect = "Allow"
         Action = [
           "secretsmanager:CreateSecret",
@@ -735,6 +740,7 @@ resource "aws_iam_role_policy" "api_connectors" {
               "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/effect-outcome/*",
               "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/refresh/*",
               "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/okta/revoked-refresh/*",
+              "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:${local.connector_secret_root}/webhook/*",
             ]
           }
         }

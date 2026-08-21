@@ -74,7 +74,7 @@ describe("M1-31 LocalStack client factory", () => {
     }
 
     for (const [name, version] of [
-      ["github.com/aws/aws-sdk-go-v2", "v1.43.6"],
+      ["github.com/aws/aws-sdk-go-v2", "v1.43.7"],
       ["github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6"],
       ["github.com/aws/aws-sdk-go-v2/service/opensearch", "v1.75.6"],
       ["github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2"],

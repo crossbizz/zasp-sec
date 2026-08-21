@@ -29,14 +29,37 @@ type riskRepository interface {
 	SearchGlobal(context.Context, domain.Scope, string, int) (GlobalSearchPage, error)
 }
 
+type FindingTicket struct {
+	TicketID string `json:"ticket_id"`
+}
+
+type FindingTicketCommand struct {
+	Identity        RequestIdentity
+	FindingID       string
+	ExpectedVersion int64
+	IdempotencyKey  string
+	CorrelationID   string
+}
+
+type FindingTicketCreator interface {
+	CreateFindingTicket(context.Context, FindingTicketCommand) (FindingTicket, error)
+}
+
+type FindingTicketCreatorFunc func(context.Context, FindingTicketCommand) (FindingTicket, error)
+
+func (creator FindingTicketCreatorFunc) CreateFindingTicket(ctx context.Context, command FindingTicketCommand) (FindingTicket, error) {
+	return creator(ctx, command)
+}
+
 type riskHTTPHandler struct {
 	repository riskRepository
+	tickets    FindingTicketCreator
 	signingKey []byte
 	now        func() time.Time
 }
 
-func newRiskHTTPHandler(repository riskRepository, signingKey []byte, now func() time.Time) (*riskHTTPHandler, error) {
-	if nilInterface(repository) || len(signingKey) < 32 || len(signingKey) > 4096 {
+func newRiskHTTPHandler(repository riskRepository, signingKey []byte, now func() time.Time, tickets FindingTicketCreator) (*riskHTTPHandler, error) {
+	if nilInterface(repository) || nilInterface(tickets) || len(signingKey) < 32 || len(signingKey) > 4096 {
 		return nil, ErrRepositoryConfiguration
 	}
 	if now == nil {
@@ -45,7 +68,7 @@ func newRiskHTTPHandler(repository riskRepository, signingKey []byte, now func()
 	if now().IsZero() {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &riskHTTPHandler{repository: repository, signingKey: append([]byte(nil), signingKey...), now: now}, nil
+	return &riskHTTPHandler{repository: repository, tickets: tickets, signingKey: append([]byte(nil), signingKey...), now: now}, nil
 }
 
 func (handler *riskHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -64,6 +87,8 @@ func (handler *riskHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *h
 		handler.finding(writer, request, identity, routed)
 	case "updateFinding", "acceptFindingRisk":
 		handler.mutateFinding(writer, request, identity, routed)
+	case "createFindingTicket":
+		handler.createFindingTicket(writer, request, identity, routed)
 	case "listAttackPaths":
 		handler.pathPage(writer, request, identity, routed)
 	case "getAttackPath":
@@ -75,6 +100,34 @@ func (handler *riskHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *h
 	default:
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 	}
+}
+
+func (handler *riskHTTPHandler) createFindingTicket(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
+	id := routed.PathParameters["id"]
+	if request.Method != http.MethodPost || request.URL.RawQuery != "" || !validProductID(id) || request.ContentLength != 0 || request.Header.Get("Content-Type") != "" {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	idempotencyKey := request.Header.Get("Idempotency-Key")
+	if len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) {
+		writeProductionStatusError(writer, request, http.StatusBadRequest, "operation_rejected", "Operation rejected", false)
+		return
+	}
+	expectedVersion, err := parseVersion(request.Header.Get("If-Match"))
+	if err != nil {
+		writeWorkflowMutationError(writer, request, errPreconditionRequired)
+		return
+	}
+	ticket, err := handler.tickets.CreateFindingTicket(request.Context(), FindingTicketCommand{Identity: identity, FindingID: id, ExpectedVersion: expectedVersion, IdempotencyKey: idempotencyKey, CorrelationID: correlationIDFromContext(request.Context())})
+	if err != nil {
+		writeWorkflowMutationError(writer, request, err)
+		return
+	}
+	if len(ticket.TicketID) < 1 || len(ticket.TicketID) > 128 || strings.TrimSpace(ticket.TicketID) != ticket.TicketID {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	writeJSONValue(writer, request, http.StatusCreated, ticket, nil)
 }
 
 func (handler *riskHTTPHandler) globalSearch(writer http.ResponseWriter, request *http.Request, identity RequestIdentity) {

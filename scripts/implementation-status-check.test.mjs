@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 344; expected 345/,
+        /production-available count is 347; expected 348/,
       );
     },
   );
@@ -211,24 +211,21 @@ test("rejects a same-owner same-milestone audited class swap", async () => {
   );
 });
 
-test("rejects swapping a shipped posture row with the unfinished M4 gate", async () => {
-  await withLedger(
-    (ledger) => ledger
-      .replace(
-        "M4\tM4-19\tComplete\tproduction-available\tT05-inventory-cutover",
-        "M4\tM4-19\tComplete\tcomponent-only\tT05-inventory-cutover",
-      )
-      .replace(
-        "M4\tM4-59\tComplete\tcomponent-only\tT05-inventory-cutover",
-        "M4\tM4-59\tComplete\tproduction-available\tT05-inventory-cutover",
+test("rejects demotion of the shipped finding ticket and final M4 gate", async () => {
+  for (const id of ["M4-38", "M4-39", "M4-59"]) {
+    await withLedger(
+      (ledger) => ledger.replace(
+        new RegExp(`(M4\\t${id}\\tComplete\\t)production-available`),
+        "$1component-only",
       ),
-    async (ledgerPath) => {
-      await assert.rejects(
-        () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production class component-only does not match audited production-available for M4-19/,
-      );
-    },
-  );
+      async (ledgerPath) => {
+        await assert.rejects(
+          () => validateLedger({ ledgerPath, sourcePlanPath }),
+          new RegExp(`production class component-only does not match audited production-available for ${id}`),
+        );
+      },
+    );
+  }
 });
 
 test("rejects demotion of audited shipped deployment tasks", async () => {

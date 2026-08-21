@@ -97,7 +97,8 @@ describe("M1-01 repository skeleton contract", () => {
     expect(buildSource).toContain('GOTOOLCHAIN: "local"');
     expect(buildSource).toContain('GOPROXY: "off"');
     expect(buildSource).toContain('GOWORK: "off"');
-    expect(buildSource).toContain('["-I", "-B", "-u", "workers/security-python/security_worker/__main__.py", "health"]');
+    expect(buildSource).toContain('["-B", "-u", "-m", "security_worker", "health"]');
+    expect(buildSource).toContain('PYTHONPATH: resolve(repositoryRoot, "workers/security-python")');
     for (const forbidden of ["npm install", "npm ci", "go get", "go install", "pip install", "docker", "kubectl", "aws "]) {
       expect(buildSource).not.toContain(forbidden);
     }

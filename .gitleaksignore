@@ -126,3 +126,14 @@ db1a6dd76020d6724b8831b635db38ed6aa88203:services/platform/apiserver/connector_a
 ab62e1b533a0a581a9e35574cb1457fbe9207fd4:services/platform/apiserver/sensor_public_repository_test.go:generic-api-key:83
 b69107ece17090ba344576f52da05cee9724ae1c:services/platform/apiserver/runtime_data_plane_postgres_test.go:generic-api-key:292
 b69107ece17090ba344576f52da05cee9724ae1c:services/platform/apiserver/runtime_data_plane_postgres_test.go:generic-api-key:294
+
+# The AWS discovery and Prowler boundaries use one impossible fixed access key
+# with repeated secret/token bytes only inside hermetic tests. Ignore only the
+# exact introduction findings; new, changed, or relocated values still fail.
+37c597b5b4056d7368625a9ae15447c240fb6218:services/platform/agentsec-worker/discovery_aws_inventory_test.go:aws-access-token:95
+37c597b5b4056d7368625a9ae15447c240fb6218:services/platform/agentsec-worker/discovery_aws_security_test.go:aws-access-token:65
+37c597b5b4056d7368625a9ae15447c240fb6218:services/platform/connectors/awsdiscovery/inventory_collection_api_test.go:aws-access-token:59
+14746ab3d2dfc6807bf384a9fa69dabc6d1d072a:services/platform/connectors/awsdiscovery/security_runner_test.go:aws-access-token:20
+14746ab3d2dfc6807bf384a9fa69dabc6d1d072a:services/platform/connectors/awsdiscovery/security_runner_test.go:aws-access-token:51
+14746ab3d2dfc6807bf384a9fa69dabc6d1d072a:services/platform/connectors/awsdiscovery/security_runner_test.go:aws-access-token:82
+14746ab3d2dfc6807bf384a9fa69dabc6d1d072a:workers/security-python/tests/test_prowler_aws.py:aws-access-token:23

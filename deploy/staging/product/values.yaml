@@ -278,6 +278,7 @@ network:
     github: []
     okta: []
     kubernetes: []
+  findingTicketEgressCIDRs: []
 canary:
   enabled: true
   schedule: "*/5 * * * *"

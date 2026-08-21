@@ -19,8 +19,8 @@ source modules and compiled client/server chunks.
 
 ## Production support boundary
 
-The production API publishes and mounts exactly 92 operations. The UI/API map
-reports `planned=40 api_available=7 available=93 public=100 internal=0`.
+The production API publishes and mounts exactly 93 operations. The UI/API map
+reports `planned=39 api_available=7 available=94 public=101 internal=0`.
 Findings and attack paths are the Batch 4 production risk slice:
 
 | Surface | Production support |
@@ -108,7 +108,7 @@ M1-36a is Complete. It reuses the reviewed clean checkout repository build:
 npm run build:repo
 ```
 
-The completed gate compiled or executed all eight targets from locked source
+The completed gate compiled or executed all nine targets from locked source
 and dependency state without adding a duplicate build runner or product
 behavior. M1-36b is Complete and owns the separate schema-validation gate.
 
@@ -150,8 +150,8 @@ npm run ui-api:test
 npm run ui-api:check
 ```
 
-The current honest result is `UI/API coverage passed: planned=40
-api_available=7 available=93 public=100 internal=0.` The gate distinguishes
+The current honest result is `UI/API coverage passed: planned=39
+api_available=7 available=94 public=101 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -355,15 +355,16 @@ contracts; they make no Neon, live-provider, staging, or release-gate claim.
 M4-36 through M4-50 and M4-51a through M4-51c are Complete. Reviewed finding
 actions, attack paths, Home/search, Agent table/filter, coverage, identity,
 tool, runtime, and capability suites pass through generated product contracts.
-No external webhook delivery, Neon, provider, staging, or release-gate success
-is claimed by these injected local fixtures.
+The tenant-scoped finding-ticket action uses the production signed-webhook path,
+including durable idempotent retry and response-loss recovery. Live third-party
+webhook delivery remains an external evidence gate.
 
 M4-51d through M4-59 are Complete. The reviewed generated-schema Agent Security
 surface covers Agent detail, Tools and MCP, Identities, Runtimes, Findings,
 Attack Paths, and stale-aware Home state. Its canonical fixture passes the
 five-check local M4 gate across Inventory, Capability, Posture, Attack Path,
-and Exposure UX. This is coherent local MVP evidence, not Neon, provider,
-staging, external webhook, or release-gate evidence.
+and Exposure UX. The installed-browser production gate also covers the signed
+ticket path; live third-party webhook delivery remains an external evidence gate.
 
 M5-01 through M5-35 are Complete. The reviewed Red Team and Attack Lab boundary
 validates test/run/attempt state, strict Promptfoo normalization, safe worker
@@ -1055,7 +1056,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=40 api_available=7 available=93 public=100 internal=0.
+UI/API coverage passed: planned=39 api_available=7 available=94 public=101 internal=0.
 ```
 
 M5 now has a local MVP slice for normalized Promptfoo attempts, curated packs,

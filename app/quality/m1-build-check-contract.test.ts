@@ -18,7 +18,7 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
 }
 
 describe("M1-36a clean-checkout build check", () => {
-  it("binds the exact source task, selected design, and eight-target build", async () => {
+  it("binds the exact source task, selected design, and current nine-target build", async () => {
     const [source, design, plan, buildSource] = await Promise.all([
       readFile(resolve(repositoryRoot, "docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/internal/2026-08-18-m1-36a-m1-build-check-design.md"), "utf8"),
@@ -57,7 +57,8 @@ describe("M1-36a clean-checkout build check", () => {
       expect(designProse).toContain(boundary);
     }
     expect(plan).toContain("Use genuine tests-first RED/GREEN");
-    expect(buildSource).toContain('export const successLine = "Repository build passed: targets=8\\n"');
+    expect(buildSource).toContain('export const successLine = "Repository build passed: targets=9\\n"');
+    expect(buildSource).toContain('target("security-python-tests"');
     expect(buildSource).toContain("return targets.length");
   });
 
@@ -102,7 +103,7 @@ describe("M1-36a clean-checkout build check", () => {
     expect(Object.keys(packageJson.scripts).filter((name) => /m1.*build|build.*check/i.test(name))).toEqual([]);
     expect(section).toContain("npm run build:repo");
     expect(prose).toContain("clean checkout");
-    expect(prose).toContain("all eight targets");
+    expect(prose).toContain("all nine targets");
     expect(prose).toContain("M1-36b is Complete");
     expect(prose).not.toMatch(/schema validation passed|OpenAPI drift passed|UI\/API coverage passed|local infrastructure healthy/i);
   });

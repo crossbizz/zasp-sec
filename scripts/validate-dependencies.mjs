@@ -140,7 +140,7 @@ for (const [manifest, name, version] of [
   });
 }
 for (const [manifest, name, version, license] of [
-  ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2", "v1.43.6", "Apache-2.0"],
+  ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2", "v1.43.7", "Apache-2.0"],
   ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6", "Apache-2.0"],
   ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2", "Apache-2.0"],
   ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2/service/sts", "v1.41.6", "Apache-2.0"],
@@ -453,7 +453,7 @@ function validatePythonRuntimeLocks(files) {
         const hashLine = lines[index];
         const continued = hashLine.endsWith(" \\");
         const hash = hashLine.slice("    --hash=sha256:".length, continued ? -2 : undefined);
-        assert(/^    --hash=sha256:[0-9a-f]{64}(?: \\)?$/.test(hashLine));
+        assert(/^ {4}--hash=sha256:[0-9a-f]{64}(?: \\)?$/.test(hashLine));
         assert(hash > previousHash);
         previousHash = hash;
         hashes += 1;

@@ -6,6 +6,7 @@ import type { AttackPath, BreakOption, Finding } from "../../../apps/web/api/gen
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { Badge, Button, Card, Drawer, Field, PageHeader } from "../../components/ui";
+import { workflowIdempotencyKey } from "../workflows/api";
 import { useRetainedWorkflowMutation } from "../workflows/useRetainedWorkflowMutation";
 import { createProductionRiskAPI, type ProductionRiskAPI, type VersionedRisk } from "./api";
 
@@ -20,12 +21,15 @@ function ProductionFindingsView({ api, canWrite, onNavigate }: { api: Production
   const [detail, setDetail] = useState<VersionedRisk<Finding> | null>(null);
   const [detailState, setDetailState] = useState<"idle" | "loading" | "error">("idle");
   const [mutationError, setMutationError] = useState<string | null>(null);
+	const [ticketID, setTicketID] = useState<string | null>(null);
+	const [ticketAttempt, setTicketAttempt] = useState<StoredFindingTicketAttempt | null>(null);
   const [reason, setReason] = useState("");
   const detailRequest = useRef<AbortController | null>(null);
-  const { invalidate } = useAPI();
+	const { invalidate, queryScopeKey } = useAPI();
   const update = useRetainedWorkflowMutation<{ id: string; status: "under_review"; version: string }>("finding:update", canWrite);
   const accept = useRetainedWorkflowMutation<{ id: string; reason: string; version: string }>("finding:accept", canWrite);
-  const locked = update.isUnresolved || accept.isUnresolved;
+	const ticket = useRetainedWorkflowMutation<{ id: string; version: string; idempotencyKey: string }>("finding:ticket", canWrite);
+  const locked = update.isUnresolved || accept.isUnresolved || ticket.isUnresolved;
 
   useEffect(() => () => {
     detailRequest.current?.abort();
@@ -34,11 +38,12 @@ function ProductionFindingsView({ api, canWrite, onNavigate }: { api: Production
 
   const open = async (finding: Finding) => {
     detailRequest.current?.abort(); const controller = new AbortController(); detailRequest.current = controller;
-    setDetailState("loading"); setMutationError(null);
+		setDetailState("loading"); setMutationError(null); setTicketID(null);
     try {
       const value = await api.getFinding(finding.id, controller.signal);
       if (controller.signal.aborted || detailRequest.current !== controller) return;
-      setDetail(value); setDetailState("idle");
+			const retainedTicket = loadFindingTicketAttempt(queryScopeKey, value.value.id, value.version);
+			setDetail(value); setTicketAttempt(retainedTicket); setTicketID(retainedTicket?.ticket_id ?? null); setDetailState("idle");
     } catch (error) {
       if (!controller.signal.aborted && detailRequest.current === controller) { setDetailState("error"); setMutationError(message(error, "Finding detail is unavailable.")); }
     }
@@ -60,12 +65,63 @@ function ProductionFindingsView({ api, canWrite, onNavigate }: { api: Production
       setDetail({ value: result.value, version: result.version }); setReason(""); invalidate(["risk:findings"]);
     } catch (error) { setMutationError(message(error, "Risk acceptance failed.")); }
   };
+	const createTicket = async () => {
+		if (!canWrite || !detail || locked) return;
+		setMutationError(null);
+		try {
+			const retained = ticketAttempt ?? { version: 1 as const, finding_version: detail.version, idempotency_key: workflowIdempotencyKey(), ticket_id: null };
+			storeFindingTicketAttempt(queryScopeKey, detail.value.id, retained);
+			setTicketAttempt(retained);
+			const result = await ticket.execute({ id: detail.value.id, version: detail.version, idempotencyKey: retained.idempotency_key }, (intent) => api.createFindingTicket(intent.id, intent.version, { idempotencyKey: intent.idempotencyKey }));
+			const completed = { ...retained, ticket_id: result.ticket_id };
+			storeFindingTicketAttempt(queryScopeKey, detail.value.id, completed);
+			setTicketAttempt(completed); setTicketID(result.ticket_id);
+		} catch (error) { setMutationError(message(error, "Ticket creation failed.")); }
+	};
+	const retryTicket = async () => {
+		setMutationError(null);
+		try {
+			const result = await ticket.retry<Awaited<ReturnType<ProductionRiskAPI["createFindingTicket"]>>>();
+			if (detail && ticketAttempt) {
+				const completed = { ...ticketAttempt, ticket_id: result.ticket_id };
+				storeFindingTicketAttempt(queryScopeKey, detail.value.id, completed);
+				setTicketAttempt(completed);
+			}
+			setTicketID(result.ticket_id);
+		} catch (error) { setMutationError(message(error, "Ticket creation failed.")); }
+	};
 
   if (query.status === "loading" || query.status === "idle") return <RiskState title="Findings" status="Loading authorized findings…" />;
   if (query.status === "forbidden") return <RiskState title="Findings" alert="Findings are not authorized in this scope." />;
   if (query.status === "error") return <RiskState title="Findings" alert="Findings are unavailable." retry={() => void query.retry()} />;
   const findings = query.data ?? [];
-  return <div className="page"><PageHeader title="Findings" description="Authoritative scoped findings and their exact evidence." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale findings. Retry before making decisions.</div>}<Card>{findings.length === 0 ? <p>No findings in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Finding</th><th>Severity</th><th>Status</th><th>Updated</th></tr></thead><tbody>{findings.map((finding) => <tr key={finding.id}><td><button className="row-title" aria-label={`Open ${finding.title}`} onClick={() => void open(finding)}>{finding.title}</button></td><td><Badge tone={finding.severity}>{finding.severity}</Badge></td><td>{finding.status.replace("_", " ")}</td><td>{finding.updated_at}</td></tr>)}</tbody></table></div>}</Card>{detailState === "loading" && <p role="status">Loading finding detail…</p>}{detailState === "error" && <p role="alert">{mutationError}</p>}{detail && <Drawer open title={detail.value.title} closeDisabled={locked} onClose={close}><FindingDetail finding={detail.value} onNavigate={onNavigate} />{canWrite && <section aria-label="Finding controls"><h3>Change status</h3><Button disabled={locked || detail.value.status === "under_review"} onClick={() => void markUnderReview()}>Mark under review</Button><h3>Accept risk</h3><Field multiline label="Risk acceptance reason" value={reason} disabled={locked} maxLength={512} onChange={(event) => setReason(event.target.value)} /><Button variant="danger" disabled={locked || reason.length < 1 || reason.trim() !== reason} onClick={() => void acceptRisk()}>Accept risk</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}{update.canRetry && <Button onClick={() => void update.retry()}>Retry retained finding update</Button>}{accept.canRetry && <Button onClick={() => void accept.retry()}>Retry retained risk acceptance</Button>}{locked && <p role="status">Reconciling finding change…</p>}</Drawer>}</div>;
+	return <div className="page"><PageHeader title="Findings" description="Authoritative scoped findings and their exact evidence." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale findings. Retry before making decisions.</div>}<Card>{findings.length === 0 ? <p>No findings in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Finding</th><th>Severity</th><th>Status</th><th>Updated</th></tr></thead><tbody>{findings.map((finding) => <tr key={finding.id}><td><button className="row-title" aria-label={`Open ${finding.title}`} onClick={() => void open(finding)}>{finding.title}</button></td><td><Badge tone={finding.severity}>{finding.severity}</Badge></td><td>{finding.status.replace("_", " ")}</td><td>{finding.updated_at}</td></tr>)}</tbody></table></div>}</Card>{detailState === "loading" && <p role="status">Loading finding detail…</p>}{detailState === "error" && <p role="alert">{mutationError}</p>}{detail && <Drawer open title={detail.value.title} closeDisabled={locked} onClose={close}><FindingDetail finding={detail.value} onNavigate={onNavigate} />{canWrite && <section aria-label="Finding controls"><h3>Create ticket</h3><Button disabled={locked || ticketID !== null} onClick={() => void createTicket()}>{ticketAttempt && ticketAttempt.ticket_id === null ? "Retry ticket creation" : "Create ticket"}</Button>{ticketID && <p>Ticket {ticketID} created.</p>}<h3>Change status</h3><Button disabled={locked || detail.value.status === "under_review"} onClick={() => void markUnderReview()}>Mark under review</Button><h3>Accept risk</h3><Field multiline label="Risk acceptance reason" value={reason} disabled={locked} maxLength={512} onChange={(event) => setReason(event.target.value)} /><Button variant="danger" disabled={locked || reason.length < 1 || reason.trim() !== reason} onClick={() => void acceptRisk()}>Accept risk</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}{ticket.canRetry && <Button onClick={() => void retryTicket()}>Retry retained ticket creation</Button>}{update.canRetry && <Button onClick={() => void update.retry()}>Retry retained finding update</Button>}{accept.canRetry && <Button onClick={() => void accept.retry()}>Retry retained risk acceptance</Button>}{locked && <p role="status">Reconciling finding change…</p>}</Drawer>}</div>;
+}
+
+type StoredFindingTicketAttempt = Readonly<{ version: 1; finding_version: string; idempotency_key: string; ticket_id: string | null }>;
+
+function findingTicketStorageKey(scopeKey: string | null, findingID: string): string | null {
+	return scopeKey && scopeKey !== "__unscoped__" && /^[A-Za-z0-9/._:-]{1,512}$/.test(scopeKey) && /^pid_[0-9a-f-]{36}$/.test(findingID) ? `zasp:finding-ticket:${scopeKey}:${findingID}` : null;
+}
+
+function loadFindingTicketAttempt(scopeKey: string | null, findingID: string, findingVersion: string): StoredFindingTicketAttempt | null {
+	const key = findingTicketStorageKey(scopeKey, findingID);
+	if (!key || typeof window === "undefined") return null;
+	try {
+		const value = JSON.parse(window.sessionStorage.getItem(key) ?? "null") as unknown;
+		if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+		const record = value as Record<string, unknown>;
+		if (Object.keys(record).length !== 4 || record.version !== 1) return null;
+		if (record.finding_version !== findingVersion) { window.sessionStorage.removeItem(key); return null; }
+		if (typeof record.idempotency_key !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/.test(record.idempotency_key) || record.ticket_id !== null && (typeof record.ticket_id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(record.ticket_id))) return null;
+		return { version: 1, finding_version: findingVersion, idempotency_key: record.idempotency_key, ticket_id: record.ticket_id as string | null };
+	} catch { return null; }
+}
+
+function storeFindingTicketAttempt(scopeKey: string | null, findingID: string, attempt: StoredFindingTicketAttempt): void {
+	const key = findingTicketStorageKey(scopeKey, findingID);
+	if (!key || typeof window === "undefined") return;
+	try { window.sessionStorage.setItem(key, JSON.stringify(attempt)); } catch { /* The in-memory attempt still supports exact replay in this page. */ }
 }
 
 function FindingDetail({ finding, onNavigate }: { finding: Finding; onNavigate: (path: string) => void }) {

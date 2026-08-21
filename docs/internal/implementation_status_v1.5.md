@@ -2,7 +2,7 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
-**Last updated:** August 20, 2026
+**Last updated:** August 21, 2026
 **Execution branch:** `codex/production-auto-discovery`
 
 This file preserves the authoritative historical execution evidence for the
@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 345 |
-| Component-only | 322 |
+| Production-available | 348 |
+| Component-only | 319 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -122,8 +122,9 @@ production composition, not merely a component proof or external evidence.
   inventory, ownership mutations, tenant-scoped observed/verified/blocked RBAC
   capabilities, all 12 evidence-backed posture rules, risk factors, bounded
   attack paths, ranked break options, and the production exposure drawer.
-  Ticket webhooks and the final installed-browser M4 gate remain
-  component-only.
+  The finding-ticket action is mounted end to end with exact tenant scope,
+  response-loss replay, HMAC-signed redacted webhooks, pinned outbound
+  authority, and same-tab reload proof in installed Chrome.
 - `docs/operations/production-deployment.md` and release contracts retain
   image, provider, DNS/TLS, secret, tracing, and public-deployment evidence as
   explicit external gates.
@@ -137,13 +138,13 @@ production composition, not merely a component proof or external evidence.
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
 | M3 | 75 | 49 | 24 | 2 | 0 |
-| M4 | 82 | 79 | 3 | 0 | 0 |
+| M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 23 | 66 | 52 | 0 |
-| **Total** | **728** | **345** | **322** | **61** | **0** |
+| **Total** | **728** | **348** | **319** | **61** | **0** |
 
 ## Prerequisite work
 

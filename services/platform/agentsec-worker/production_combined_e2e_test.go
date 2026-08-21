@@ -86,7 +86,7 @@ func TestProductionCombinedE2EDiscoveryWorker(t *testing.T) {
 	}
 	wantAcknowledged := scenario != "partial"
 	if queue.acknowledged != wantAcknowledged {
-		t.Fatalf("scenario %q acknowledged=%v want %v", scenario, queue.acknowledged, wantAcknowledged)
+		t.Fatalf("scenario %q acknowledged=%v want %v; database trace=%s; postgres trace=%s", scenario, queue.acknowledged, wantAcknowledged, tracedDatabase.Trace(), postgresTrace.String())
 	}
 	t.Log("deterministic local provider and artifact authority completed public sync")
 }
@@ -155,6 +155,40 @@ func TestProductionCombinedE2EProviderFixturesAreCanonical(t *testing.T) {
 				t.Fatalf("collect: outcome=%T err=%v", outcome, collectErr)
 			}
 		})
+	}
+}
+
+func TestProductionCombinedE2EPartialFixtureProducesDurablePartialOutcome(t *testing.T) {
+	scope := workerScope(t)
+	input := workerExecutionInput(scope, "pid_10000003-0000-4000-8000-000000000003")
+	input.Provider = collection.ProviderKubernetes
+	input.CredentialClass = collection.CredentialKubernetesCluster
+	input.CredentialReference = "ref:kubernetes/cluster/e2e-partial"
+	input.SubjectKind = "kubernetes_cluster"
+	input.SubjectID = "prod.example/cluster-partial"
+	input.ExpectedSubject = collection.SubjectBinding{Kind: input.SubjectKind, ID: input.SubjectID}
+	input.CursorProvider, input.CursorVersion, input.CursorValue = nil, nil, nil
+	input.ParserVersion, input.ToolVersion = "inventory-parser-2026.08.20", "collector-tool-2026.08.20"
+	input.Configuration = json.RawMessage(`{"cluster":"prod.example/cluster-partial"}`)
+	factory, err := newCombinedE2ECollectorFactory("partial", input.ParserVersion, input.ToolVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	collector, err := factory.BuildDiscoveryCollector(context.Background(), discoveryCollectorBinding{Scope: scope, Input: input, WorkerID: "production-e2e-local-discovery", LeaseToken: "0123456789abcdef"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer collector.Destroy()
+	request, ok := collectionRequest(scope, input)
+	if !ok {
+		t.Fatal("partial fixture request was invalid")
+	}
+	outcome, err := collector.Collect(context.Background(), request)
+	if err != nil {
+		t.Fatalf("partial fixture returned %T: %v", err, err)
+	}
+	if _, ok := outcome.(collection.PartialResult); !ok {
+		t.Fatalf("partial fixture outcome = %T, want collection.PartialResult", outcome)
 	}
 }
 
@@ -236,7 +270,21 @@ func (database *combinedE2ETracingDatabase) SchemaVersion(ctx context.Context) (
 
 func (database *combinedE2ETracingDatabase) QueryJSON(ctx context.Context, query string, arguments ...any) (json.RawMessage, error) {
 	value, err := database.delegate.QueryJSON(ctx, query, arguments...)
-	database.record(combinedE2EDatabaseStage(query), err)
+	stage := combinedE2EDatabaseStage(query)
+	if err == nil && (stage == "zasp_execution_claim_delivery" || stage == "zasp_execution_finish_job") {
+		if stage == "zasp_execution_finish_job" && len(arguments) == 11 {
+			stage = fmt.Sprintf("%s:%v:%v", stage, arguments[6], arguments[8])
+		}
+		var result struct {
+			Attempt     int    `json:"attempt"`
+			Disposition string `json:"disposition"`
+			State       string `json:"state"`
+		}
+		if json.Unmarshal(value, &result) == nil {
+			stage = fmt.Sprintf("%s:%s:%s:%d", stage, result.Disposition, result.State, result.Attempt)
+		}
+	}
+	database.record(stage, err)
 	return value, err
 }
 
@@ -417,7 +465,7 @@ func combinedE2EPageValues(provider collection.Provider, scenario string) ([]jso
 		}
 		entities := make([]json.RawMessage, 1000)
 		for index := range entities {
-			entities[index] = combinedE2EMarshal(combinedE2EEntity{ID: fmt.Sprintf("pid_%08x-0000-4000-8000-%012x", 0x25000000+index, index+1), Kind: "kubernetes_resource", SourceNativeID: fmt.Sprintf("partial-%04d", index), DisplayName: fmt.Sprintf("Partial resource %04d", index), StableFields: json.RawMessage(fmt.Sprintf(`{"cluster":"prod.example/cluster-a","name":"partial-%04d","namespace":"partial","resource_kind":"ConfigMap"}`, index)), Attributes: json.RawMessage(`{"namespaced":true,"state":"active"}`)})
+			entities[index] = combinedE2EMarshal(combinedE2EEntity{ID: fmt.Sprintf("pid_%08x-0000-4000-8000-%012x", 0x25000000+index, index+1), Kind: "kubernetes_resource", SourceNativeID: fmt.Sprintf("partial-%04d", index), DisplayName: fmt.Sprintf("Partial resource %04d", index), StableFields: json.RawMessage(fmt.Sprintf(`{"api_group":"core","api_version":"v1","cluster":"prod.example/cluster-a","name":"partial-%04d","namespace":"partial","resource_kind":"ConfigMap"}`, index)), Attributes: json.RawMessage(`{"namespaced":true,"state":"active"}`)})
 		}
 		return entities, []json.RawMessage{}, false, nil
 	}

@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 98 || len(public) != 98 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 98/98", len(seen), len(public))
+	if len(seen) != 101 || len(public) != 101 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 101/101", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -135,7 +135,6 @@ func TestTaskSixCompositionHasExactRiskDiscoveryAndSensorSurfacesWithoutLaterOve
 		}
 	}
 	for _, operationID := range []string{
-		"createFindingTicket",
 		"listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
 		"listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
 		"simulatePolicy", "listPolicyDecisions",
@@ -145,6 +144,9 @@ func TestTaskSixCompositionHasExactRiskDiscoveryAndSensorSurfacesWithoutLaterOve
 		if _, mounted := definitions[operationID]; mounted {
 			t.Errorf("incomplete operation %q remains mounted", operationID)
 		}
+	}
+	if definition, ok := definitions["createFindingTicket"]; !ok || definition.Permission != "manage_findings" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
+		t.Errorf("finding ticket security/permission = %v/%q exists=%v", definition.Security, definition.Permission, ok)
 	}
 	if definition, ok := definitions["globalSearch"]; !ok || definition.Permission != "view" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
 		t.Errorf("global search security/permission = %v/%q exists=%v", definition.Security, definition.Permission, ok)
@@ -366,6 +368,7 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		{method: "POST", path: "/api/v1/session/sign-out", body: "session"},
 		{method: "GET", path: "/api/v1/me", body: "identity"},
 		{method: "GET", path: "/api/v1/home/summary", body: "inventory"},
+		{method: "GET", path: "/api/v1/search?q=production", body: "risk"},
 		{method: "GET", path: "/api/v1/agents", body: "inventory"},
 		{method: "GET", path: "/api/v1/agents/pid_20000001-0000-4000-8000-000000000001", body: "inventory"},
 		{method: "GET", path: "/api/v1/tools", body: "inventory"},
@@ -402,7 +405,7 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		}
 	}
 
-	for _, path := range []string{"/internal/health/live", "/api/v1/sensors/heartbeat", "/api/v1/security-actions", "/api/v1/security-agent-runs", "/api/v1/security-agent-approvals", "/api/v1/runtime/events", "/api/v1/policy/bundle", "/api/v1/webhooks/stytch", "/api/v1/search"} {
+	for _, path := range []string{"/internal/health/live", "/api/v1/sensors/heartbeat", "/api/v1/security-actions", "/api/v1/security-agent-runs", "/api/v1/security-agent-approvals", "/api/v1/runtime/events", "/api/v1/policy/bundle", "/api/v1/webhooks/stytch"} {
 		response := httptest.NewRecorder()
 		composition.ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, nil))
 		if response.Code != http.StatusNotFound {

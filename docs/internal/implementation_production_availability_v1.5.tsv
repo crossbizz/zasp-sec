@@ -294,8 +294,8 @@ M4	M4-34	Complete	production-available	PROD-current-composition	audited shipped 
 M4	M4-35	Complete	production-available	PROD-current-composition	audited shipped composition: API getFinding
 M4	M4-36	Complete	production-available	PROD-current-composition	audited shipped composition: API updateFinding
 M4	M4-37	Complete	production-available	PROD-current-composition	audited shipped composition: API acceptFindingRisk
-M4	M4-38	Complete	component-only	T14-data-workflows	audited component-only proof: API createFindingTicket
-M4	M4-39	Complete	component-only	T14-data-workflows	audited component-only proof: ticket webhook action
+M4	M4-38	Complete	production-available	T14-data-workflows	production evidence: mounted tenant-scoped BrowserSession/PAT createFindingTicket API enforces If-Match, idempotency, CSRF, exact replay, and a strict generated contract
+M4	M4-39	Complete	production-available	T14-data-workflows	production evidence: exact-one scoped generic webhook uses an opaque Secrets Manager reference, pinned DNS/CIDR TLS egress, HMAC redacted payloads, fenced leases, and replay without duplicate delivery
 M4	M4-40	Complete	production-available	T05-inventory-cutover	production evidence: discovery reconciliation derives deterministic bounded finding-to-role attack paths from exact entry, sink, node, and evidence sets at 18d4e9d
 M4	M4-41	Complete	production-available	T05-inventory-cutover	production evidence: tenant PostgreSQL path reads preserve observed and blocked state, exact node order, evidence, replay, complete-empty cleanup, and foreign-tenant isolation at 18d4e9d
 M4	M4-42	Complete	production-available	T05-inventory-cutover	production evidence: derived paths persist deterministic ranked remove-node and enforce-policy options bound to the exact path evidence at 18d4e9d
@@ -332,7 +332,7 @@ M4	M4-59b	Complete	production-available	T05-inventory-cutover	production evidenc
 M4	M4-59c	Complete	production-available	T05-inventory-cutover	production evidence: canonical agent fixture raises all applicable posture findings with exact evidence and risk factors, then resolves them without cross-tenant mutation at 2b768d6
 M4	M4-59d	Complete	production-available	T05-inventory-cutover	production evidence: canonical Prowler finding derives a bounded evidence-state attack path and ranked break options in production PostgreSQL at 18d4e9d
 M4	M4-59e	Complete	production-available	T05-inventory-cutover	production evidence: mounted ProductionRiskView renders Why, Evidence, Path, Fix, and Verify from authorized product APIs with path navigation at 2b768d6
-M4	M4-59	Complete	component-only	T05-inventory-cutover	audited component-only proof: M4 gate
+M4	M4-59	Complete	production-available	T05-inventory-cutover	installed-Chrome v16 M4 gate proves tenant-scoped inventory, findings, paths, response-loss ticket retry, same-tab reload persistence, zero duplicate webhook delivery, and clean browser state
 M5	M5-01	Complete	component-only	T12-red-team	audited component-only proof: test domain
 M5	M5-02	Complete	component-only	T12-red-team	audited component-only proof: Promptfoo adapter
 M5	M5-03	Complete	component-only	T12-red-team	audited component-only proof: curated pack selector

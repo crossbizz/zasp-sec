@@ -155,7 +155,7 @@ screens:
         availability: available
       - id: create_finding_ticket
         operation_id: createFindingTicket
-        availability: planned
+        availability: available
       - id: create_ai_explanation
         operation_id: createAIExplanation
         availability: planned

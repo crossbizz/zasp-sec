@@ -60,6 +60,7 @@ output "connector_runtime_config" {
     ZASP_AWS_CUSTOMER_ROLE_PREFIXES        = jsonencode(sort(tolist(var.aws_reference_role_prefixes)))
     ZASP_AWS_CUSTOMER_ROLE_ARNS            = jsonencode(sort(tolist(var.aws_reference_role_arns)))
     ZASP_KUBERNETES_EGRESS_CIDRS           = join(",", var.kubernetes_connector_egress_cidrs)
+    ZASP_FINDING_TICKET_EGRESS_CIDRS       = join(",", var.finding_ticket_egress_cidrs)
     ZASP_GITHUB_CLIENT_ID                  = var.connector_client_ids.github
     ZASP_GITHUB_CLIENT_SECRET_REFERENCE    = "ref:github/client-secret"
     ZASP_GITHUB_APP_ID                     = var.github_app_id

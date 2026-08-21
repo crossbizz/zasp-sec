@@ -67,7 +67,7 @@ func TestProductionRuntimeDataPlanePostgresKeepsInheritedProductAuthorityReady(t
 		var liveFingerprint string
 		var securityReady bool
 		_ = connection.QueryRow(ctx, `SELECT zasp_runtime_gateway_reconciliation_live_fingerprint(),zasp_runtime_gateway_reconciliation_security_ready()`).Scan(&liveFingerprint, &securityReady)
-		t.Fatalf("v16 migration: %v (%v) live=%q expected=%q security=%t", err, detail, liveFingerprint, migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint(), securityReady)
+		t.Fatalf("v16 migration: %v (%T %#v) live=%q expected=%q security=%t", err, detail, detail, liveFingerprint, migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint(), securityReady)
 	}
 
 	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})

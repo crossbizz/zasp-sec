@@ -287,7 +287,9 @@ func newProductionTestServer(t *testing.T, database *persistentJSONDatabase) *ht
 }
 
 func fixtureCookiePolicy() CookiePolicy {
-	return CookiePolicy{Secure: true, WorkflowSigningKey: []byte("0123456789abcdef0123456789abcdef"), TokenRevealKey: []byte("0123456789abcdef0123456789abcdef"), Clock: func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) }, DeploymentMode: "saas", DiscoveryParserVersion: "parser-v1", DiscoveryToolVersion: "tool-v1"}
+	return CookiePolicy{Secure: true, WorkflowSigningKey: []byte("0123456789abcdef0123456789abcdef"), TokenRevealKey: []byte("0123456789abcdef0123456789abcdef"), Clock: func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) }, DeploymentMode: "saas", DiscoveryParserVersion: "parser-v1", DiscoveryToolVersion: "tool-v1", FindingTickets: FindingTicketCreatorFunc(func(context.Context, FindingTicketCommand) (FindingTicket, error) {
+		return FindingTicket{}, ErrRepositoryUnavailable
+	})}
 }
 
 func TestProductionHandlersMountDiscoveryLifecycleAtV13(t *testing.T) {

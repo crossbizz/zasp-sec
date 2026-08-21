@@ -1,7 +1,7 @@
 import type { APIClient } from "../../../apps/web/api/client";
 import { APITransportError, requireAPIData } from "../../../apps/web/api/client";
 import { decodeAttackPath, decodeAttackPathPage, decodeBreakOptionPage, decodeFinding, decodeFindingPage } from "../../../apps/web/api/decoders";
-import type { AttackPath, BreakOption, Finding } from "../../../apps/web/api/generated";
+import type { AttackPath, BreakOption, Finding, FindingTicket } from "../../../apps/web/api/generated";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 
 const quotedVersion = /^"[1-9][0-9]*"$/;
@@ -19,6 +19,7 @@ export type ProductionRiskAPI = Readonly<{
   getFinding(id: string, signal?: AbortSignal): Promise<VersionedRisk<Finding>>;
   updateFinding(id: string, status: "open" | "under_review" | "resolved", version: string, attempt: RiskMutationAttempt, signal?: AbortSignal): Promise<RiskMutationResult>;
   acceptFindingRisk(id: string, reason: string, version: string, attempt: RiskMutationAttempt, signal?: AbortSignal): Promise<RiskMutationResult>;
+	createFindingTicket(id: string, version: string, attempt: RiskMutationAttempt, signal?: AbortSignal): Promise<FindingTicket>;
   listAttackPaths(signal?: AbortSignal): Promise<readonly AttackPath[]>;
   getAttackPath(id: string, signal?: AbortSignal): Promise<AttackPath>;
   getAttackPathBreakOptions(path: AttackPath, signal?: AbortSignal): Promise<readonly BreakOption[]>;
@@ -42,6 +43,10 @@ export function createProductionRiskAPI(client: APIClient, credentialKind: Crede
       const result = await client.POST("/api/v1/findings/{id}/accept-risk", { params: { path: { id }, header: mutationHeaders(version, attempt, credentialKind) }, body: { reason }, signal });
       return requireRiskMutation(result, credentialKind);
     },
+		async createFindingTicket(id, version, attempt, signal) {
+			const result = await client.POST("/api/v1/findings/{id}/ticket", { params: { path: { id }, header: mutationHeaders(version, attempt, credentialKind) }, signal });
+			return requireAPIData(result, decodeFindingTicket);
+		},
     async listAttackPaths(signal) {
       const loaded = await loadAllCursorPages(async (cursor) => requireAPIData(await client.GET("/api/v1/attack-paths", { params: { query: { cursor, limit: 100 } }, signal }), decodeAttackPathPage), { maximumItems: 10_000, maximumPages: 100 });
       return loaded.items;
@@ -53,6 +58,15 @@ export function createProductionRiskAPI(client: APIClient, credentialKind: Crede
       return requireAPIData(await client.GET("/api/v1/attack-paths/{id}/break-options", { params: { path: { id: path.id } }, signal }), (value) => decodeBreakOptionPage(value, path)).items;
     },
   };
+}
+
+function decodeFindingTicket(value: unknown): FindingTicket {
+	if (!value || typeof value !== "object" || Array.isArray(value)) throw new APITransportError("invalid_response", "Finding ticket response was invalid");
+	const record = value as Record<string, unknown>;
+	if (Object.keys(record).length !== 1 || typeof record.ticket_id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(record.ticket_id)) {
+		throw new APITransportError("invalid_response", "Finding ticket response was invalid");
+	}
+	return { ticket_id: record.ticket_id };
 }
 
 function requireRiskVersioned<T>(result: APIResult, decode: (value: unknown) => T): VersionedRisk<T> {

@@ -2,11 +2,15 @@ package apiserver
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -115,6 +119,63 @@ func TestRiskRepositorySearchesOnlyTheExactScopeAndRejectsResultDrift(t *testing
 		database.response = json.RawMessage(payload)
 		if _, err := repository.SearchGlobal(context.Background(), identity.Scope, "Production credential", 7); err != ErrRepositoryUnavailable {
 			t.Fatalf("global search drift %s error = %v", payload, err)
+		}
+	}
+}
+
+func TestRiskRepositoryReservesCompletesAndReleasesExactTicketAuthority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	deliveryID := "pid_41000001-0000-4000-8000-000000000001"
+	newCandidateID := "pid_41000002-0000-4000-8000-000000000002"
+	leaseToken := strings.Repeat("a", 64)
+	requestedAt := time.Now().UTC().Truncate(time.Microsecond)
+	leaseExpiresAt := requestedAt.Add(15 * time.Second)
+	payload := `{"delivery_id":"` + deliveryID + `","event":"finding.ticket.requested","finding":{"id":"` + riskFindingID + `","severity":"high","title":"Production credential exposed","version":2},"requested_at":"` + requestedAt.Format(time.RFC3339Nano) + `","requested_by":"` + identity.PrincipalID.String() + `","scope":{"environment_id":"` + identity.Scope.EnvironmentID().String() + `","organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `"},"version":1}`
+	payloadHash := sha256.Sum256([]byte(payload))
+	payloadDigest := "sha256:" + hex.EncodeToString(payloadHash[:])
+	database := &workflowCallDatabase{response: json.RawMessage(`{"state":"dispatch","delivery_id":"` + deliveryID + `","payload":` + strconv.Quote(payload) + `,"payload_digest":"` + payloadDigest + `","destination_url":"https://tickets.example.test/zasp","secret_reference":"secret_ref_ticket_prod","lease_expires_at":"` + leaseExpiresAt.Format(time.RFC3339Nano) + `","ticket_id":null}`)}
+	repository, _ := NewPostgresRepository(database)
+	command := FindingTicketCommand{Identity: identity, FindingID: riskFindingID, ExpectedVersion: 2, IdempotencyKey: "finding-ticket-0001", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}
+
+	reservation, err := repository.ReserveFindingTicket(context.Background(), command, deliveryID, leaseToken, 15)
+	if err != nil || reservation.State != "dispatch" || reservation.DeliveryID != deliveryID || reservation.Payload != payload || reservation.PayloadDigest != payloadDigest || reservation.DestinationURL != "https://tickets.example.test/zasp" || reservation.SecretReference != "secret_ref_ticket_prod" || reservation.LeaseExpiresAt.IsZero() {
+		t.Fatalf("ticket reservation = (%#v, %v)", reservation, err)
+	}
+	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), riskFindingID, int64(2), command.IdempotencyKey, command.CorrelationID, deliveryID, leaseToken, 15}
+	if database.query != postgresFindingTicketReserveSQL || !reflect.DeepEqual(database.args, want) {
+		t.Fatalf("ticket reserve = %q/%#v, want %q/%#v", database.query, database.args, postgresFindingTicketReserveSQL, want)
+	}
+
+	database.response = json.RawMessage(`{"state":"dispatch","delivery_id":"` + deliveryID + `","payload":` + strconv.Quote(payload) + `,"payload_digest":"` + payloadDigest + `","destination_url":"https://tickets.example.test/zasp","secret_reference":"secret_ref_ticket_prod","lease_expires_at":"` + leaseExpiresAt.Format(time.RFC3339Nano) + `","ticket_id":null}`)
+	retryReservation, err := repository.ReserveFindingTicket(context.Background(), command, newCandidateID, leaseToken, 15)
+	if err != nil || retryReservation.State != "dispatch" || retryReservation.DeliveryID != deliveryID || database.args[8] != newCandidateID {
+		t.Fatalf("ticket retry reservation = (%#v, %v) args=%#v", retryReservation, err, database.args)
+	}
+	database.response = json.RawMessage(`{"state":"completed","delivery_id":"` + deliveryID + `","ticket_id":"SEC-1234","lease_expires_at":null}`)
+	completedReplay, err := repository.ReserveFindingTicket(context.Background(), command, newCandidateID, leaseToken, 15)
+	if err != nil || completedReplay.State != "completed" || completedReplay.DeliveryID != deliveryID || completedReplay.TicketID != "SEC-1234" {
+		t.Fatalf("ticket completed reservation = (%#v, %v)", completedReplay, err)
+	}
+
+	database.response = json.RawMessage(`{"ticket_id":"SEC-1234"}`)
+	ticket, err := repository.CompleteFindingTicket(context.Background(), identity.Scope, deliveryID, leaseToken, payloadDigest, "SEC-1234")
+	if err != nil || ticket.TicketID != "SEC-1234" || database.query != postgresFindingTicketCompleteSQL || !reflect.DeepEqual(database.args, []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), deliveryID, leaseToken, payloadDigest, "SEC-1234"}) {
+		t.Fatalf("ticket completion = (%#v, %v) query=%q args=%#v", ticket, err, database.query, database.args)
+	}
+
+	database.response = json.RawMessage(`true`)
+	if err := repository.ReleaseFindingTicket(context.Background(), identity.Scope, deliveryID, leaseToken, payloadDigest); err != nil || database.query != postgresFindingTicketReleaseSQL {
+		t.Fatalf("ticket release = %v query=%q", err, database.query)
+	}
+
+	for _, drift := range []string{
+		`{"state":"dispatch","delivery_id":"` + deliveryID + `","payload":"{}","payload_digest":"` + payloadDigest + `","destination_url":"http://tickets.example.test/zasp","secret_reference":"secret_ref_ticket_prod","lease_expires_at":"` + leaseExpiresAt.Format(time.RFC3339Nano) + `","ticket_id":null}`,
+		`{"state":"dispatch","delivery_id":"` + deliveryID + `","payload":"{}","payload_digest":"sha256:` + strings.Repeat("c", 64) + `","destination_url":"https://tickets.example.test/zasp","secret_reference":"secret_ref_ticket_prod","lease_expires_at":"` + leaseExpiresAt.Format(time.RFC3339Nano) + `","ticket_id":null,"secret":"leak"}`,
+		`{"state":"completed","delivery_id":"` + deliveryID + `","payload":"{}","payload_digest":"` + payloadDigest + `","destination_url":"https://tickets.example.test/zasp","secret_reference":"secret_ref_ticket_prod","lease_expires_at":null,"ticket_id":"SEC-1234"}`,
+	} {
+		database.response = json.RawMessage(drift)
+		if _, err := repository.ReserveFindingTicket(context.Background(), command, deliveryID, leaseToken, 15); !errors.Is(err, ErrRepositoryUnavailable) {
+			t.Fatalf("ticket reservation drift %s error = %v", drift, err)
 		}
 	}
 }

@@ -22,6 +22,12 @@ func TestProductionRuntimeGatewayReconciliationRegistersImmutableV16Authority(t 
 		"zasp_global_search",
 		"zasp_inventory_entities_global_search_v16_idx",
 		"zasp_risk_findings_global_search_v16_idx",
+		"zasp_finding_ticket_deliveries",
+		"zasp_finding_ticket_deliveries_retry_v16_idx",
+		"zasp_finding_ticket_reserve",
+		"zasp_finding_ticket_complete",
+		"zasp_finding_ticket_release",
+		"zasp_finding_ticket_deliveries_authority",
 		"zasp_inventory_record_capability_evidence",
 		"capability_category",
 		"capability_outcome",
@@ -49,7 +55,7 @@ func TestProductionRuntimeGatewayReconciliationRegistersImmutableV16Authority(t 
 	if !strings.Contains(metadata.DownSQL(), "PERFORM zasp_inventory_record_capability_evidence") {
 		t.Fatal("v16 down does not restore v15 capability evidence authority")
 	}
-	for _, fragment := range []string{"DROP FUNCTION public.zasp_global_search", "DROP INDEX public.zasp_risk_findings_global_search_v16_idx", "DROP INDEX public.zasp_inventory_entities_global_search_v16_idx"} {
+	for _, fragment := range []string{"DROP FUNCTION public.zasp_global_search", "DROP INDEX public.zasp_risk_findings_global_search_v16_idx", "DROP INDEX public.zasp_inventory_entities_global_search_v16_idx", "DROP FUNCTION public.zasp_finding_ticket_reserve", "DROP FUNCTION public.zasp_finding_ticket_complete", "DROP FUNCTION public.zasp_finding_ticket_release", "DROP TABLE public.zasp_finding_ticket_deliveries"} {
 		if !strings.Contains(metadata.DownSQL(), fragment) {
 			t.Fatalf("v16 down does not remove search authority %q", fragment)
 		}

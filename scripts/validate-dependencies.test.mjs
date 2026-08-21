@@ -114,7 +114,7 @@ const platformDependencies = [
 }));
 
 const eventIngestDependencies = [
-  ["github.com/aws/aws-sdk-go-v2", "v1.43.6", "Apache-2.0"],
+  ["github.com/aws/aws-sdk-go-v2", "v1.43.7", "Apache-2.0"],
   ["github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6", "Apache-2.0"],
   ["github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2", "Apache-2.0"],
   ["github.com/aws/aws-sdk-go-v2/service/sts", "v1.41.6", "Apache-2.0"],

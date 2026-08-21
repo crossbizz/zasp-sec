@@ -72,6 +72,7 @@ export const productionReleaseFixture = Object.freeze({
     okta: Object.freeze(["198.51.100.0/28"]),
     kubernetes: Object.freeze(["203.0.113.0/28"]),
   }),
+  findingTicketEgressCIDRs: Object.freeze(["192.0.2.64/28"]),
   nango: Object.freeze({
     storageSecretName: "nango-storage",
     databaseEgressCIDRs: Object.freeze(["10.30.0.0/24"]),

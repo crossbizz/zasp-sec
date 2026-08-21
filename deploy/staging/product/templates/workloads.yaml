@@ -89,6 +89,7 @@ spec:
             - { name: ZASP_AWS_CUSTOMER_ROLE_PREFIXES, value: {{ toJson (required "connectors.awsCustomerRolePrefixes is required" $root.Values.connectors.awsCustomerRolePrefixes) | quote }} }
             - { name: ZASP_AWS_CUSTOMER_ROLE_ARNS, value: {{ toJson (required "connectors.awsCustomerRoleARNs is required" $root.Values.connectors.awsCustomerRoleARNs) | quote }} }
             - { name: ZASP_KUBERNETES_EGRESS_CIDRS, value: {{ join "," (required "network.connectorEgressCIDRs.kubernetes is required" $root.Values.network.connectorEgressCIDRs.kubernetes) | quote }} }
+            - { name: ZASP_FINDING_TICKET_EGRESS_CIDRS, value: {{ join "," (required "network.findingTicketEgressCIDRs is required" $root.Values.network.findingTicketEgressCIDRs) | quote }} }
             - { name: ZASP_GITHUB_CLIENT_ID, value: {{ required "connectors.githubClientID is required" $root.Values.connectors.githubClientID | quote }} }
             - { name: ZASP_GITHUB_CLIENT_SECRET_REFERENCE, value: {{ required "connectors.githubClientSecretReference is required" $root.Values.connectors.githubClientSecretReference | quote }} }
             - { name: ZASP_GITHUB_APP_ID, value: {{ required "connectors.githubAppID is required" $root.Values.connectors.githubAppID | quote }} }
