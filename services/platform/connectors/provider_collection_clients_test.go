@@ -20,7 +20,7 @@ func TestProviderPackagesExposeTheTrustedRedactedPageBoundary(t *testing.T) {
 	t.Parallel()
 	subject := collection.SubjectBinding{Kind: "aws_account", ID: "123456789012"}
 	cursor := collection.Cursor{Provider: collection.ProviderAWS, Version: "cursor_v1", Value: "done"}
-	entity := json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{},"attributes":{}}`)
+	entity := json.RawMessage(`{"id":"pid_40000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012"},"attributes":{}}`)
 	page, err := awsdiscovery.NewCollectionPage(subject, cursor, true, []json.RawMessage{entity}, nil)
 	if err != nil || len(page.Raw) == 0 || !bytes.Contains(page.Raw, entity) {
 		t.Fatalf("NewCollectionPage() = %#v, %v", page, err)

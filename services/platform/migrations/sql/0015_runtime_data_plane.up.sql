@@ -1,7 +1,7 @@
 DO $release_guard$ BEGIN
   IF NOT zasp_inventory_readiness(
-    '259ca9816f7b7a624bda8596f13efb6e082f43a0b01f0d56295882edf31e49c7',
-    '5af5a13f62d001edf5b32a1ddea84565f8a1ebfb70e786bfe286ff481a8b5982'
+    'bef17cf95f5e842e4b4c06d3c4776f537b2cd2c94c95be0aef6969b6230ec51a',
+    '241edfe37e761d95126df666d3c3317f4b123c0178d1b3b46b753f393f9da00d'
   ) THEN
     RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='typed inventory release required';
   END IF;
@@ -1116,15 +1116,15 @@ $$;
 ALTER FUNCTION public.zasp_runtime_data_plane_security_ready() OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION public.zasp_runtime_data_plane_security_ready() FROM PUBLIC;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_data_plane_fingerprint', '3e86b35ff7b5459f7fe506dc68e40e1aeb4c8d27dee5812f536eed633e7c1b64');
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_data_plane_fingerprint', 'b36b69186c23497a10dda6ff28b5271baf6c78444b5492916a9cdbeb9389f190');
 DO $schema_marker$ BEGIN UPDATE zasp_schema_metadata SET value='runtime-data-plane-v1' WHERE key='production_core_schema' AND value='typed-inventory-cutover-v1';IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime data plane schema marker drift';END IF;END $schema_marker$;
 
 CREATE FUNCTION public.zasp_runtime_data_plane_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
  SELECT length(expected_checksum)=64 AND length(expected_fingerprint)=64
   AND EXISTS(SELECT 1 FROM zasp_schema_versions release WHERE (release.version,release.name,release.checksum)=(15,'runtime_data_plane',expected_checksum) AND NOT EXISTS(SELECT 1 FROM zasp_schema_versions later WHERE later.version>15))
-	  AND EXISTS(SELECT 1 FROM zasp_schema_versions release WHERE (release.version,release.name,release.checksum)=(14,'typed_inventory_cutover','259ca9816f7b7a624bda8596f13efb6e082f43a0b01f0d56295882edf31e49c7'))
-	  AND EXISTS(SELECT 1 FROM zasp_schema_metadata metadata WHERE (metadata.key,metadata.value)=('typed_inventory_cutover_fingerprint','5af5a13f62d001edf5b32a1ddea84565f8a1ebfb70e786bfe286ff481a8b5982'))
-	  AND zasp_inventory_live_fingerprint()='778f6b69aa70b83f2364fb33ae9353be7ae50644f99b7a3cbb72b5d7ffec26b1'
+	  AND EXISTS(SELECT 1 FROM zasp_schema_versions release WHERE (release.version,release.name,release.checksum)=(14,'typed_inventory_cutover','bef17cf95f5e842e4b4c06d3c4776f537b2cd2c94c95be0aef6969b6230ec51a'))
+	  AND EXISTS(SELECT 1 FROM zasp_schema_metadata metadata WHERE (metadata.key,metadata.value)=('typed_inventory_cutover_fingerprint','241edfe37e761d95126df666d3c3317f4b123c0178d1b3b46b753f393f9da00d'))
+	  AND zasp_inventory_live_fingerprint()='e4504e2568e42f9448719b635eb8f6047d12e9cd3a4def101af096252a6bccff'
 	  AND zasp_inventory_security_ready()
   AND EXISTS(SELECT 1 FROM zasp_schema_metadata metadata WHERE (metadata.key,metadata.value)=('production_core_schema','runtime-data-plane-v1'))
   AND EXISTS(SELECT 1 FROM zasp_schema_metadata metadata WHERE (metadata.key,metadata.value)=('runtime_data_plane_fingerprint',expected_fingerprint))

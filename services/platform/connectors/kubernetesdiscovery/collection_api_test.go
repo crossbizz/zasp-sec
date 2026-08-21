@@ -188,6 +188,48 @@ func TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload(t *
 	}
 }
 
+func TestKubernetesCollectionAPIDerivesExactAgentPostureFactsFromWorkloadAuthority(t *testing.T) {
+	t.Parallel()
+	subject := collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "cluster.example/prod"}
+	body := `{"apiVersion":"apps/v1","kind":"DeploymentList","metadata":{"continue":""},"items":[{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"uid":"26000000-0000-4000-8000-000000000099","namespace":"production","name":"release-agent","labels":{"zasp.ai/entity-kind":"agent","zasp.ai/runtime-policy":"supported"}},"spec":{"template":{"spec":{"serviceAccountName":"release-agent","hostNetwork":true,"containers":[{"name":"runner","command":["/bin/sh","-c"],"securityContext":{"privileged":true}}],"volumes":[{"name":"workspace","hostPath":{"path":"/var/lib/builds"}}]}}}}]}`
+	roundTripper := &kubernetesRoundTripper{responses: []kubernetesHTTPResponse{{status: http.StatusOK, body: body}}}
+	api, err := newKubernetesCollectionAPI("https://cluster.example", roundTripper, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := CollectionPageRequest{Provider: collection.ProviderKubernetes, Subject: subject, Cursor: nextKubernetesPageCursor(subject, "deployments", 7, "start"), Page: 7, RemainingItems: 4, RemainingRelationships: 8, RemainingBytes: 1 << 20}
+	page, err := api.FetchCollectionPage(context.Background(), []byte("kubernetes-bearer-secret-value"), request)
+	if err != nil || len(page.Entities) != 1 {
+		t.Fatalf("agent posture page=%#v err=%v", page, err)
+	}
+	var entity struct {
+		Kind       string `json:"kind"`
+		Attributes struct {
+			Namespaced bool `json:"namespaced"`
+			Posture    struct {
+				HumanCredential       bool   `json:"human_credential"`
+				CredentialFingerprint string `json:"credential_fingerprint"`
+				ShellExecution        bool   `json:"shell_execution"`
+				ProductionCredential  bool   `json:"production_credential"`
+				UnrestrictedEgress    bool   `json:"unrestricted_egress"`
+				RuntimeControl        bool   `json:"runtime_control"`
+				ProductionAgent       bool   `json:"production_agent"`
+				RuntimePolicy         bool   `json:"runtime_policy_supported"`
+				HostFilesystem        bool   `json:"host_filesystem"`
+				Privileged            bool   `json:"privileged"`
+				CredentialActive      bool   `json:"credential_active"`
+			} `json:"posture"`
+		} `json:"attributes"`
+	}
+	if err := json.Unmarshal(page.Entities[0], &entity); err != nil {
+		t.Fatal(err)
+	}
+	posture := entity.Attributes.Posture
+	if entity.Kind != "kubernetes_agent" || !entity.Attributes.Namespaced || posture.HumanCredential || !strings.HasPrefix(posture.CredentialFingerprint, "sha256:") || len(posture.CredentialFingerprint) != 71 || !posture.ShellExecution || !posture.ProductionCredential || !posture.UnrestrictedEgress || !posture.RuntimeControl || !posture.ProductionAgent || !posture.RuntimePolicy || !posture.HostFilesystem || !posture.Privileged || !posture.CredentialActive {
+		t.Fatalf("agent posture entity=%s", page.Entities[0])
+	}
+}
+
 func TestKubernetesCollectionAPIClassifiesOnlyExactlyLabeledAgentDeployments(t *testing.T) {
 	t.Parallel()
 	body := `{"apiVersion":"apps/v1","kind":"DeploymentList","metadata":{"continue":""},"items":[` +

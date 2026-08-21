@@ -31,10 +31,11 @@ const (
 )
 
 var (
-	errConfiguration    = errors.New("provider collection configuration rejected")
-	ErrPageCapacity     = errors.New("provider collection page capacity reached")
-	versionPattern      = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
-	findingCheckPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
+	errConfiguration             = errors.New("provider collection configuration rejected")
+	ErrPageCapacity              = errors.New("provider collection page capacity reached")
+	versionPattern               = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
+	findingCheckPattern          = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
+	credentialFingerprintPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 )
 
 type API interface {
@@ -682,7 +683,9 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 			return providerEntityDefinition{stable: requiredStringFields("cluster", "name", "namespace"), attributes: state}, true
 		case "kubernetes_resource", "kubernetes_service_account":
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), attributes: namespaced}, true
-		case "kubernetes_agent", "kubernetes_workload":
+		case "kubernetes_agent":
+			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: mergeInventorySchemas(namespaced, inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true)})}, true
+		case "kubernetes_workload":
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: namespaced}, true
 		case "kubernetes_role":
 			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), inventoryObjectSchema{"scope": enumInventoryField(true, "namespace")}), attributes: mergeInventorySchemas(namespaced, inventoryObjectSchema{"rules": kubernetesRulesInventoryField(true)})}, true
@@ -833,6 +836,10 @@ func validInventoryObject(raw json.RawMessage, schema inventoryObjectSchema) boo
 			if !validCanonicalKubernetesRules(value) {
 				return false
 			}
+		case "kubernetes_agent_posture":
+			if !validKubernetesAgentPosture(value) {
+				return false
+			}
 		default:
 			return false
 		}
@@ -887,6 +894,32 @@ func boolInventoryField(required bool, values ...bool) inventoryFieldRule {
 
 func kubernetesRulesInventoryField(required bool) inventoryFieldRule {
 	return inventoryFieldRule{kind: "kubernetes_rules", required: required}
+}
+
+func kubernetesAgentPostureInventoryField(required bool) inventoryFieldRule {
+	return inventoryFieldRule{kind: "kubernetes_agent_posture", required: required}
+}
+
+func validKubernetesAgentPosture(value any) bool {
+	posture, ok := value.(map[string]any)
+	if !ok || len(posture) != 18 {
+		return false
+	}
+	credentialFingerprint, ok := posture["credential_fingerprint"].(string)
+	if !ok || credentialFingerprint != "" && !credentialFingerprintPattern.MatchString(credentialFingerprint) {
+		return false
+	}
+	for _, field := range []string{
+		"human_credential", "untrusted_input", "production_write", "shell_execution", "production_credential",
+		"unrestricted_egress", "sensitive_data_reach", "unapproved_remote_tool", "destructive_tool", "runtime_control",
+		"production_agent", "runtime_policy_supported", "host_filesystem", "privileged", "cicd_write",
+		"production_secret_reach", "credential_active",
+	} {
+		if _, ok := posture[field].(bool); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func validCanonicalKubernetesRules(value any) bool {

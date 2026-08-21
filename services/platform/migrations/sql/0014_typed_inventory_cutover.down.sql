@@ -1,5 +1,5 @@
 DO $semantic_guard$ BEGIN
- IF zasp_inventory_live_fingerprint()<>'5af5a13f62d001edf5b32a1ddea84565f8a1ebfb70e786bfe286ff481a8b5982' OR NOT zasp_inventory_security_ready() THEN
+ IF zasp_inventory_live_fingerprint()<>'241edfe37e761d95126df666d3c3317f4b123c0178d1b3b46b753f393f9da00d' OR NOT zasp_inventory_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='typed inventory semantic drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_inventory_cutover_state WHERE phase='cutover') THEN
@@ -23,6 +23,7 @@ DROP FUNCTION zasp_inventory_equivalence_scope(text,text,text);
 DROP FUNCTION zasp_core_inventory_cutover(text,text,text,bytea);
 
 DROP FUNCTION zasp_inventory_readiness(text,text);
+DROP FUNCTION zasp_inventory_refresh_posture_findings(text,text,text);
 DROP FUNCTION zasp_inventory_apply_findings(text,text,text,jsonb);
 DROP FUNCTION zasp_inventory_home_summary(text,text,text);
 DROP FUNCTION zasp_inventory_agent_sessions_page(text,text,text,text,text,integer);
@@ -89,6 +90,7 @@ ALTER TABLE zasp_inventory_entities
  DROP COLUMN winning_source_projection,
  DROP COLUMN winning_identity_rule,
  DROP COLUMN winning_source_native_id,
+ DROP COLUMN winning_attributes,
  DROP COLUMN winning_source,
  DROP COLUMN winning_provider,
  DROP COLUMN winning_integration_id,

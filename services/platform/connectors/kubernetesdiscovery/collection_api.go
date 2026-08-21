@@ -245,19 +245,58 @@ type canonicalKubernetesPolicyRule struct {
 
 type kubernetesCollectionSpec struct {
 	Template struct {
-		Spec struct {
-			ServiceAccountName string `json:"serviceAccountName"`
-		} `json:"spec"`
+		Spec kubernetesCollectionPodSpec `json:"spec"`
 	} `json:"template"`
 	JobTemplate struct {
 		Spec struct {
 			Template struct {
-				Spec struct {
-					ServiceAccountName string `json:"serviceAccountName"`
-				} `json:"spec"`
+				Spec kubernetesCollectionPodSpec `json:"spec"`
 			} `json:"template"`
 		} `json:"spec"`
 	} `json:"jobTemplate"`
+}
+
+type kubernetesCollectionPodSpec struct {
+	ServiceAccountName string                          `json:"serviceAccountName"`
+	HostNetwork        bool                            `json:"hostNetwork"`
+	Containers         []kubernetesCollectionContainer `json:"containers"`
+	Volumes            []kubernetesCollectionVolume    `json:"volumes"`
+}
+
+type kubernetesCollectionContainer struct {
+	Name            string   `json:"name"`
+	Command         []string `json:"command"`
+	SecurityContext struct {
+		Privileged bool `json:"privileged"`
+	} `json:"securityContext"`
+}
+
+type kubernetesCollectionVolume struct {
+	Name     string `json:"name"`
+	HostPath *struct {
+		Path string `json:"path"`
+	} `json:"hostPath"`
+}
+
+type kubernetesAgentPosture struct {
+	HumanCredential        bool   `json:"human_credential"`
+	CredentialFingerprint  string `json:"credential_fingerprint"`
+	UntrustedInput         bool   `json:"untrusted_input"`
+	ProductionWrite        bool   `json:"production_write"`
+	ShellExecution         bool   `json:"shell_execution"`
+	ProductionCredential   bool   `json:"production_credential"`
+	UnrestrictedEgress     bool   `json:"unrestricted_egress"`
+	SensitiveDataReach     bool   `json:"sensitive_data_reach"`
+	UnapprovedRemoteTool   bool   `json:"unapproved_remote_tool"`
+	DestructiveTool        bool   `json:"destructive_tool"`
+	RuntimeControl         bool   `json:"runtime_control"`
+	ProductionAgent        bool   `json:"production_agent"`
+	RuntimePolicySupported bool   `json:"runtime_policy_supported"`
+	HostFilesystem         bool   `json:"host_filesystem"`
+	Privileged             bool   `json:"privileged"`
+	CICDWrite              bool   `json:"cicd_write"`
+	ProductionSecretReach  bool   `json:"production_secret_reach"`
+	CredentialActive       bool   `json:"credential_active"`
 }
 
 func normalizeKubernetesCollectionPage(subject collection.SubjectBinding, phase string, includeCluster bool, payload kubernetesCollectionList) ([]json.RawMessage, []json.RawMessage, bool) {
@@ -649,14 +688,15 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 	if !ok || item.APIVersion != definition[0] || item.Kind != definition[1] || !kubernetesNamePattern.MatchString(item.Metadata.Namespace) {
 		return nil, nil, false
 	}
-	serviceAccount := item.Spec.Template.Spec.ServiceAccountName
+	podSpec := item.Spec.Template.Spec
 	if phase == "cronjobs" {
-		serviceAccount = item.Spec.JobTemplate.Spec.Template.Spec.ServiceAccountName
+		podSpec = item.Spec.JobTemplate.Spec.Template.Spec
 	}
+	serviceAccount := podSpec.ServiceAccountName
 	if serviceAccount == "" {
 		serviceAccount = "default"
 	}
-	if !kubernetesNamePattern.MatchString(serviceAccount) {
+	if !kubernetesNamePattern.MatchString(serviceAccount) || !validKubernetesAgentPodSpec(podSpec) {
 		return nil, nil, false
 	}
 	entityKind := "kubernetes_workload"
@@ -673,7 +713,15 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 		ResourceKind   string `json:"resource_kind"`
 		ServiceAccount string `json:"service_account"`
 	}{definition[2], "v1", subject.ID, item.Metadata.Name, item.Metadata.Namespace, definition[1], serviceAccount})
-	entity, err := marshalKubernetesEntity(entityID, entityKind, "kubernetes:"+strings.ToLower(definition[1])+":"+item.Metadata.UID, item.Metadata.Namespace+"/"+item.Metadata.Name, stable, json.RawMessage(`{"namespaced":true}`))
+	attributes := json.RawMessage(`{"namespaced":true}`)
+	if entityKind == "kubernetes_agent" {
+		posture := deriveKubernetesAgentPosture(subject, item.Metadata.Namespace, serviceAccount, item.Metadata.Labels, podSpec)
+		attributes, _ = json.Marshal(struct {
+			Namespaced bool                   `json:"namespaced"`
+			Posture    kubernetesAgentPosture `json:"posture"`
+		}{true, posture})
+	}
+	entity, err := marshalKubernetesEntity(entityID, entityKind, "kubernetes:"+strings.ToLower(definition[1])+":"+item.Metadata.UID, item.Metadata.Namespace+"/"+item.Metadata.Name, stable, attributes)
 	if err != nil {
 		return nil, nil, false
 	}
@@ -688,6 +736,77 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 		return nil, nil, false
 	}
 	return entity, []json.RawMessage{attached, usesIdentity}, true
+}
+
+func validKubernetesAgentPodSpec(spec kubernetesCollectionPodSpec) bool {
+	if len(spec.Containers) > 256 || len(spec.Volumes) > 256 {
+		return false
+	}
+	for _, container := range spec.Containers {
+		if !kubernetesNamePattern.MatchString(container.Name) || len(container.Command) > 64 {
+			return false
+		}
+		for _, command := range container.Command {
+			if len(command) < 1 || len(command) > 1024 || !validKubernetesRuleText(command) {
+				return false
+			}
+		}
+	}
+	for _, volume := range spec.Volumes {
+		if !kubernetesNamePattern.MatchString(volume.Name) {
+			return false
+		}
+		if volume.HostPath != nil && !validKubernetesHostPath(volume.HostPath.Path) {
+			return false
+		}
+	}
+	return true
+}
+
+func validKubernetesHostPath(value string) bool {
+	if len(value) < 1 || len(value) > 4096 || !utf8.ValidString(value) || !strings.HasPrefix(value, "/") || strings.TrimSpace(value) != value {
+		return false
+	}
+	for _, character := range value {
+		if unicode.IsControl(character) {
+			return false
+		}
+	}
+	return true
+}
+
+func deriveKubernetesAgentPosture(subject collection.SubjectBinding, namespace, serviceAccount string, labels map[string]string, spec kubernetesCollectionPodSpec) kubernetesAgentPosture {
+	credentialDigest := sha256.Sum256([]byte("kubernetes-service-account-v1\x1f" + subject.ID + "\x1f" + namespace + "\x1f" + serviceAccount))
+	production := namespace == "prod" || namespace == "production"
+	runtimeSupported := labels["zasp.ai/runtime-policy"] == "supported"
+	posture := kubernetesAgentPosture{
+		CredentialFingerprint:  fmt.Sprintf("sha256:%x", credentialDigest),
+		ProductionCredential:   production,
+		UnrestrictedEgress:     spec.HostNetwork,
+		RuntimeControl:         runtimeSupported,
+		ProductionAgent:        production,
+		RuntimePolicySupported: runtimeSupported,
+		CredentialActive:       true,
+	}
+	for _, container := range spec.Containers {
+		posture.Privileged = posture.Privileged || container.SecurityContext.Privileged
+		if len(container.Command) > 0 && kubernetesShellCommand(container.Command[0]) {
+			posture.ShellExecution = true
+		}
+	}
+	for _, volume := range spec.Volumes {
+		posture.HostFilesystem = posture.HostFilesystem || volume.HostPath != nil
+	}
+	return posture
+}
+
+func kubernetesShellCommand(value string) bool {
+	switch value {
+	case "sh", "bash", "dash", "zsh", "/bin/sh", "/bin/bash", "/bin/dash", "/bin/zsh", "/usr/bin/sh", "/usr/bin/bash", "/usr/bin/dash", "/usr/bin/zsh":
+		return true
+	default:
+		return false
+	}
 }
 
 func validKubernetesSubjectName(value string) bool {

@@ -12,6 +12,7 @@ import (
 
 func TestProviderSchemaAcceptsRequiredLaunchInventoryKinds(t *testing.T) {
 	t.Parallel()
+	agentPosture := `{"human_credential":false,"credential_fingerprint":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","untrusted_input":false,"production_write":false,"shell_execution":true,"production_credential":true,"unrestricted_egress":false,"sensitive_data_reach":false,"unapproved_remote_tool":false,"destructive_tool":false,"runtime_control":true,"production_agent":true,"runtime_policy_supported":true,"host_filesystem":false,"privileged":false,"cicd_write":false,"production_secret_reach":false,"credential_active":true}`
 	tests := []struct {
 		name     string
 		provider collection.Provider
@@ -22,6 +23,7 @@ func TestProviderSchemaAcceptsRequiredLaunchInventoryKinds(t *testing.T) {
 	}{
 		{"aws policy", collection.ProviderAWS, collection.SubjectBinding{Kind: "aws_account", ID: "123456789012"}, "aws_policy", `{"account_id":"123456789012","arn":"arn:aws:iam::123456789012:policy/read","name":"read","policy_type":"managed"}`, `{}`},
 		{"kubernetes service account", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_service_account", `{"api_group":"core","api_version":"v1","cluster":"api.example.com/production","name":"agent","namespace":"default","resource_kind":"ServiceAccount"}`, `{"namespaced":true}`},
+		{"kubernetes agent posture", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_agent", `{"api_group":"apps","api_version":"v1","cluster":"api.example.com/production","name":"agent","namespace":"production","resource_kind":"Deployment","service_account":"agent"}`, `{"namespaced":true,"posture":` + agentPosture + `}`},
 		{"kubernetes user", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_user", `{"cluster":"api.example.com/production","name":"alice@example.com","scope":"cluster","subject_type":"User"}`, `{}`},
 		{"kubernetes group", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_group", `{"cluster":"api.example.com/production","name":"developers","scope":"cluster","subject_type":"Group"}`, `{}`},
 		{"kubernetes role", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_role", `{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/production","name":"reader","namespace":"default","resource_kind":"Role","scope":"namespace"}`, `{"namespaced":true,"rules":[]}`},
@@ -45,6 +47,23 @@ func TestProviderSchemaAcceptsRequiredLaunchInventoryKinds(t *testing.T) {
 				t.Fatalf("required %s entity rejected: %v", test.kind, err)
 			}
 		})
+	}
+}
+
+func TestProviderSchemaRejectsIncompleteOrUnboundedKubernetesAgentPosture(t *testing.T) {
+	t.Parallel()
+	stable := `{"api_group":"apps","api_version":"v1","cluster":"api.example.com/production","name":"agent","namespace":"production","resource_kind":"Deployment","service_account":"agent"}`
+	base := `{"human_credential":false,"credential_fingerprint":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","untrusted_input":false,"production_write":false,"shell_execution":true,"production_credential":true,"unrestricted_egress":false,"sensitive_data_reach":false,"unapproved_remote_tool":false,"destructive_tool":false,"runtime_control":true,"production_agent":true,"runtime_policy_supported":true,"host_filesystem":false,"privileged":false,"cicd_write":false,"production_secret_reach":false,"credential_active":true}`
+	cursor := collection.Cursor{Provider: collection.ProviderKubernetes, Version: "cursor_v1", Value: "complete"}
+	for name, attributes := range map[string]string{
+		"missing posture": `{"namespaced":true}`,
+		"bad fingerprint": `{"namespaced":true,"posture":` + string(bytes.ReplaceAll([]byte(base), []byte("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), []byte("credential-secret"))) + `}`,
+		"extra field":     `{"namespaced":true,"posture":` + base[:len(base)-1] + `,"credential_value":"secret"}}`,
+	} {
+		entity := json.RawMessage(fmt.Sprintf(`{"id":"pid_44600000-0000-4000-8000-000000000001","kind":"kubernetes_agent","source_native_id":"deployment/agent","display_name":"production/agent","stable_fields":%s,"attributes":%s}`, stable, attributes))
+		if _, err := NewPage(collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, cursor, true, []json.RawMessage{entity}, nil); !errors.Is(err, collection.ErrContract) {
+			t.Fatalf("%s error = %v", name, err)
+		}
 	}
 }
 
