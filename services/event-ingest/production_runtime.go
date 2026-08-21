@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent/s3rawstore"
@@ -325,10 +326,21 @@ func (database *productionJSONDatabase) QueryJSON(ctx context.Context, statement
 		return nil, errors.New("database unavailable")
 	}
 	var payload []byte
-	if err := database.pool.QueryRow(ctx, statement, arguments...).Scan(&payload); err != nil || len(payload) == 0 || !json.Valid(payload) {
+	if err := database.pool.QueryRow(ctx, statement, arguments...).Scan(&payload); err != nil {
+		return nil, productionDatabaseQueryError(err)
+	}
+	if len(payload) == 0 || !json.Valid(payload) {
 		return nil, errors.New("database unavailable")
 	}
 	return append(json.RawMessage(nil), payload...), nil
+}
+
+func productionDatabaseQueryError(err error) error {
+	var postgresError *pgconn.PgError
+	if errors.As(err, &postgresError) && postgresError.Code == "53300" && postgresError.Message == "runtime batch rate limited" {
+		return runtimeevent.ErrProductionIngestRateLimited
+	}
+	return errors.New("database unavailable")
 }
 
 func (database *productionJSONDatabase) Close() {

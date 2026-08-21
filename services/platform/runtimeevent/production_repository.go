@@ -119,6 +119,9 @@ func (repository *PostgresProductionIngestRepository) Reserve(ctx context.Contex
 		Replayed      bool   `json:"replayed"`
 	}
 	if queryErr != nil || strictProductionJSON(payload, &wire) != nil {
+		if errors.Is(queryErr, ErrProductionIngestRateLimited) {
+			return IngestReservation{}, ErrProductionIngestRateLimited
+		}
 		var postgresError *pgconn.PgError
 		if errors.As(queryErr, &postgresError) && postgresError.Code == "53300" && postgresError.Message == "runtime batch rate limited" {
 			return IngestReservation{}, ErrProductionIngestRateLimited

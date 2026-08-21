@@ -58,14 +58,19 @@ func TestPostgresProductionIngestRepositoryRejectsHostileOutput(t *testing.T) {
 }
 
 func TestPostgresProductionIngestRepositoryClassifiesRateLimitWithoutDatabaseDetail(t *testing.T) {
-	database := &productionIngestDatabaseStub{errors: []error{&pgconn.PgError{Code: "53300", Message: "runtime batch rate limited", Detail: "tenant-secret"}}}
-	repository, _ := NewPostgresProductionIngestRepository(database)
-	credential, _ := sensor.NewTokenCredential(bytes.Repeat([]byte{0x31}, 16), bytes.Repeat([]byte{0x41}, 32))
-	defer credential.Destroy()
-	digest := sha256.Sum256([]byte("body"))
-	_, err := repository.Reserve(context.Background(), credential, IngestReserveRequest{Scope: fixtureScope(t, 90), BatchID: fixtureID(t, 96), IdempotencyKey: "runtime-event-request-0001", ContentDigest: digest, Source: "tetragon", MediaType: "application/json", SchemaVersion: "runtime-event-v1", PayloadSize: 4, EventCount: 1})
-	if !errors.Is(err, ErrProductionIngestRateLimited) || bytes.Contains([]byte(err.Error()), []byte("tenant-secret")) {
-		t.Fatalf("rate limit err=%v", err)
+	for _, databaseError := range []error{
+		&pgconn.PgError{Code: "53300", Message: "runtime batch rate limited", Detail: "tenant-secret"},
+		ErrProductionIngestRateLimited,
+	} {
+		database := &productionIngestDatabaseStub{errors: []error{databaseError}}
+		repository, _ := NewPostgresProductionIngestRepository(database)
+		credential, _ := sensor.NewTokenCredential(bytes.Repeat([]byte{0x31}, 16), bytes.Repeat([]byte{0x41}, 32))
+		digest := sha256.Sum256([]byte("body"))
+		_, err := repository.Reserve(context.Background(), credential, IngestReserveRequest{Scope: fixtureScope(t, 90), BatchID: fixtureID(t, 96), IdempotencyKey: "runtime-event-request-0001", ContentDigest: digest, Source: "tetragon", MediaType: "application/json", SchemaVersion: "runtime-event-v1", PayloadSize: 4, EventCount: 1})
+		credential.Destroy()
+		if !errors.Is(err, ErrProductionIngestRateLimited) || bytes.Contains([]byte(err.Error()), []byte("tenant-secret")) {
+			t.Fatalf("database error=%T rate limit err=%v", databaseError, err)
+		}
 	}
 }
 

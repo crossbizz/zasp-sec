@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,7 +16,26 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
+
+func TestProductionDatabaseQueryErrorPreservesOnlyStableRateLimit(t *testing.T) {
+	rateError := productionDatabaseQueryError(&pgconn.PgError{Code: "53300", Message: "runtime batch rate limited", Detail: "tenant-secret"})
+	if !errors.Is(rateError, runtimeevent.ErrProductionIngestRateLimited) || strings.Contains(rateError.Error(), "tenant-secret") {
+		t.Fatalf("rate error=%v", rateError)
+	}
+	for _, input := range []error{
+		&pgconn.PgError{Code: "53300", Message: "different", Detail: "tenant-secret"},
+		&pgconn.PgError{Code: "23505", Message: "runtime batch rate limited", Detail: "tenant-secret"},
+		errors.New("tenant-secret"),
+	} {
+		classified := productionDatabaseQueryError(input)
+		if errors.Is(classified, runtimeevent.ErrProductionIngestRateLimited) || strings.Contains(classified.Error(), "tenant-secret") {
+			t.Fatalf("database error=%v classified=%v", input, classified)
+		}
+	}
+}
 
 func TestProductionIngestCloudReadinessBindsRoleBucketVersioningEncryptionAndKMS(t *testing.T) {
 	config, err := loadProductionIngestConfig(func(key string) string { return validProductionIngestEnvironment()[key] })
