@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import hashlib
 import json
 import struct
 import unittest
@@ -24,7 +25,7 @@ AUTHORITY = {
     "remaining_bytes": 1048576,
     "remaining_entities": 100,
     "remaining_relationships": 200,
-    "source_digest": "a" * 64,
+    "source_digest": "0" * 64,
     "subject_id": "123456789012",
     "subject_kind": "aws_account",
     "workspace_id": "pid_10000002-0000-4000-8000-000000000002",
@@ -32,18 +33,21 @@ AUTHORITY = {
 
 
 def request_document(*, credential: bool = False) -> dict[str, object]:
+    source = {
+        "instances": [],
+        "roles": [
+            {
+                "arn": "arn:aws:iam::123456789012:role/reader",
+                "name": "reader",
+            }
+        ],
+    }
+    authority = dict(AUTHORITY)
+    authority["source_digest"] = hashlib.sha256(protocol._canonical(source)).hexdigest()
     value: dict[str, object] = {
-        "authority": dict(AUTHORITY),
+        "authority": authority,
         "protocol_version": 1,
-        "source": {
-            "instances": [],
-            "roles": [
-                {
-                    "arn": "arn:aws:iam::123456789012:role/reader",
-                    "name": "reader",
-                }
-            ],
-        },
+        "source": source,
     }
     if credential:
         value["credential"] = "ZXBoZW1lcmFsLWF3cy1zZXNzaW9u"
@@ -51,9 +55,7 @@ def request_document(*, credential: bool = False) -> dict[str, object]:
 
 
 def canonical(value: object) -> bytes:
-    return json.dumps(
-        value, ensure_ascii=False, separators=(",", ":"), sort_keys=True
-    ).encode("utf-8")
+    return protocol._canonical(value)
 
 
 def frame(value: object) -> bytes:
@@ -69,20 +71,26 @@ class FragmentedReader(io.BytesIO):
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_canonical_json_matches_go_html_and_line_separator_escaping(self) -> None:
+        self.assertEqual(
+            protocol._canonical({"value": "<tag>&\u2028\u2029"}),
+            b'{"value":"\\u003ctag\\u003e\\u0026\\u2028\\u2029"}',
+        )
+
     def test_reads_fragmented_canonical_request_and_writes_exact_frame(self) -> None:
         parsed = protocol.read_request(
             FragmentedReader(frame(request_document(credential=True))),
             protocol.MODE_PROWLER,
         )
 
-        self.assertEqual(parsed["authority"], AUTHORITY)
+        self.assertEqual(parsed["authority"], request_document(credential=True)["authority"])
         self.assertEqual(parsed["credential"], "ZXBoZW1lcmFsLWF3cy1zZXNzaW9u")
         output = io.BytesIO()
         response = {
-            "authority": AUTHORITY,
+            "authority": parsed["authority"],
             "protocol_version": 1,
             "result": {"findings": []},
-            "source_digest": "a" * 64,
+            "source_digest": parsed["authority"]["source_digest"],
         }
         protocol.write_response(output, response)
         self.assertEqual(output.getvalue(), frame(response))
@@ -134,7 +142,11 @@ class ProtocolTests(unittest.TestCase):
                 protocol.read_request(io.BytesIO(frame(value)), protocol.MODE_CARTOGRAPHY)
 
         leading_zero = request_document()
-        leading_zero["authority"] = {**AUTHORITY, "subject_id": "012345678901"}
+        leading_zero["authority"] = {**leading_zero["authority"], "subject_id": "012345678901"}
+        leading_zero["source"] = {**leading_zero["source"], "account_id": "012345678901"}
+        leading_zero["authority"]["source_digest"] = hashlib.sha256(
+            protocol._canonical(leading_zero["source"])
+        ).hexdigest()
         parsed = protocol.read_request(
             io.BytesIO(frame(leading_zero)), protocol.MODE_CARTOGRAPHY
         )

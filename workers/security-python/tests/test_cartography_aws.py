@@ -16,6 +16,9 @@ def request_document() -> dict[str, object]:
     return {
         "authority": {
             "phase": "iam",
+            "remaining_bytes": 1_048_576,
+            "remaining_entities": 100,
+            "remaining_relationships": 200,
             "source_digest": "a" * 64,
             "subject_id": ACCOUNT_ID,
         },
@@ -224,6 +227,14 @@ class CartographyTransformTests(unittest.TestCase):
 
         with self.assertRaises(cartography_aws.CollectionError):
             cartography_aws.transform(request_document(), DriftedAPI())
+
+    def test_rejects_result_beyond_item_relationship_or_byte_budget(self) -> None:
+        for key in ("remaining_entities", "remaining_relationships", "remaining_bytes"):
+            with self.subTest(key=key):
+                request = request_document()
+                request["authority"] = {**request["authority"], key: 0}
+                with self.assertRaises(cartography_aws.CollectionError):
+                    cartography_aws.transform(request, FakeCartographyAPI())
 
 
 if __name__ == "__main__":

@@ -37,6 +37,10 @@ manifests:
   - ecosystem: npm
     path: workers/redteam-node/package.json
   - ecosystem: python
+    path: workers/security-python/cartography/pyproject.toml
+  - ecosystem: python
+    path: workers/security-python/prowler/pyproject.toml
+  - ecosystem: python
     path: workers/security-python/pyproject.toml
 dependencies:
   - ecosystem: npm
@@ -259,6 +263,22 @@ dependencies:
     manifest: services/sensor-agent/go.mod
     name: k8s.io/client-go
     version: v0.35.5
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: python
+    manifest: workers/security-python/cartography/pyproject.toml
+    name: cartography
+    version: 0.139.1
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: python
+    manifest: workers/security-python/prowler/pyproject.toml
+    name: prowler
+    version: 5.39.1
     license: Apache-2.0
     owner: platform-data
     scope: runtime

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import re
 import struct
@@ -73,6 +74,8 @@ def read_request(stream: BinaryIO, mode: str) -> dict[str, object]:
     if type(source) is not dict:
         raise ProtocolError("invalid protocol")
     _bounded_json(source, 1)
+    if hashlib.sha256(_canonical(source)).hexdigest() != authority["source_digest"]:
+        raise ProtocolError("invalid protocol")
     if mode == MODE_PROWLER:
         credential = document["credential"]
         if type(credential) is not str or _CREDENTIAL.fullmatch(credential) is None:
@@ -246,13 +249,22 @@ def _bounded_json(value: object, depth: int) -> None:
 
 def _canonical(value: object) -> bytes:
     try:
-        return json.dumps(
+        encoded = json.dumps(
             value,
             ensure_ascii=False,
             separators=(",", ":"),
             sort_keys=True,
             allow_nan=False,
-        ).encode("utf-8")
+        )
+        # Match Go encoding/json canonical output at the cross-language boundary.
+        encoded = (
+            encoded.replace("&", r"\u0026")
+            .replace("<", r"\u003c")
+            .replace(">", r"\u003e")
+            .replace("\u2028", r"\u2028")
+            .replace("\u2029", r"\u2029")
+        )
+        return encoded.encode("utf-8")
     except (TypeError, ValueError, UnicodeEncodeError) as exc:
         raise ProtocolError("invalid protocol") from exc
 

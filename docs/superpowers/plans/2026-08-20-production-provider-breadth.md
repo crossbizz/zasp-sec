@@ -4,9 +4,9 @@
 
 **Goal:** Complete production collection and normalization for AWS, Kubernetes, GitHub, and Okta so an authorized sync cannot report complete until every required launch-provider phase has produced exact source-scoped entities, relationships, and evidence.
 
-**Architecture:** Extend the existing job-bound provider clients and subject-bound cursor protocol. Native provider APIs collect bounded launch-provider inventory; exact-pinned Cartography and Prowler runners add AWS graph and posture evidence through a closed length-delimited subprocess boundary. All results continue through the existing immutable raw-page, manifest-last, checkpoint/resume, complete-snapshot, and independent projection path.
+**Architecture:** Extend the existing job-bound provider clients and subject-bound cursor protocol. Go owns bounded AWS pagination, authorization failures, and completion. Two isolated Python 3.13 environments run exact-pinned Cartography transforms and fixed Prowler checks through separate closed length-delimited subprocess boundaries. Cartography never owns a shared Neo4j staging graph, and Prowler runs against the exact native snapshot through guarded in-memory clients. All results continue through the existing immutable raw-page, manifest-last, checkpoint/resume, complete-snapshot, posture-evidence, and independent projection path.
 
-**Tech Stack:** Go 1.25, Python 3.13, Cartography 0.139.1, Prowler 5.39.0, AWS SDK v2, Kubernetes client-go, bounded HTTPS clients, PostgreSQL v16 authority, S3 artifact manifests, SQS discovery jobs.
+**Tech Stack:** Go 1.25, Python 3.13, Cartography 0.139.1, Prowler 5.39.1, AWS SDK v2, Kubernetes client-go, bounded HTTPS clients, PostgreSQL v16 authority, S3 artifact manifests, SQS discovery jobs.
 
 **Spec:** `.superpowers/sdd/2026-08-19-production-auto-discovery-and-response/task-4-brief.md`
 
@@ -18,6 +18,7 @@
 - Raw pages are immutable and manifest-last; only a complete manifest may replace current inventory.
 - Live provider and managed AWS evidence remains typed NOT RUN until real credentials and infrastructure are supplied.
 - Do not amend migrations v10 through v16.
+- Preserve the original provider breadth. Upstream isolation and pin corrections may expand implementation files, but may not remove inventory phases, findings, multi-tenant authority, or automatic sync behavior.
 
 ---
 
@@ -64,22 +65,33 @@
 **Files:**
 - Modify: `workers/security-python/pyproject.toml`
 - Create: `workers/security-python/security_worker/protocol.py`
-- Create: `workers/security-python/security_worker/aws_collection.py`
+- Create: `workers/security-python/security_worker/cartography_aws.py`
+- Create: `workers/security-python/security_worker/prowler_aws.py`
 - Modify: `workers/security-python/security_worker/__main__.py`
 - Create: `workers/security-python/tests/test_protocol.py`
-- Create: `workers/security-python/tests/test_aws_collection.py`
+- Create: `workers/security-python/tests/test_cartography_aws.py`
+- Create: `workers/security-python/tests/test_prowler_aws.py`
 - Create: `services/platform/connectors/awsdiscovery/security_runner.go`
 - Create: `services/platform/connectors/awsdiscovery/security_runner_test.go`
+- Modify: `deploy/production/worker.Dockerfile`
+- Modify: `scripts/build-repo.mjs`
+- Modify: `scripts/build-repo.test.mjs`
+- Modify: `scripts/validate-dependencies.mjs`
+- Modify: `scripts/validate-dependencies.test.mjs`
+- Modify: `build/dependencies.lock.yaml`
 
 **Interfaces:**
-- Produces Python command `security-worker collect-aws` that reads one canonical length-delimited request from stdin and writes one canonical length-delimited response to stdout.
+- Produces Python commands `security-worker cartography-aws-v1` and `security-worker prowler-aws-v1`. Each reads one canonical length-delimited request from stdin and writes one canonical length-delimited response to stdout from its own dependency environment.
 - Produces Go `SecurityRunner.Collect(context.Context, CollectionSecurityRequest, []byte) (CollectionSecurityResult, error)` with cloned/cleared credential bytes, bounded child lifetime, fixed executable/arguments, and stable typed failures.
 
-- [ ] Write Python RED tests for exact protocol keys, version binding, scope/subject/job binding, byte/count limits, timeout/cancellation, unknown output, duplicate objects, secret-bearing output, and redacted errors.
-- [ ] Add exact direct dependencies `cartography==0.139.1` and `prowler==5.39.0`; implement the minimal runner using explicit job credential material and fixed AWS modules/check groups.
-- [ ] Write Go RED tests for stdin-only credentials, no environment credential propagation, exact executable/arguments, bounded stdout/stderr, cancellation, panic, malformed output, and zeroized request material.
-- [ ] Implement the Go runner adapter and map failures to `collection.FailureCancelled`, `FailureRetryable`, `FailureRateLimited`, `FailureDenied`, or `FailureMalformed`.
-- [ ] Run Python unit tests, dependency validation, Go race, vet, and secret scans for the runner boundary.
+- [x] Write Python RED tests for exact protocol keys, version binding, scope/subject/job binding, byte/count limits, timeout/cancellation, unknown output, duplicate objects, secret-bearing output, and redacted errors.
+- [x] Add isolated, hash-locked Python 3.13 dependency environments for `cartography==0.139.1` and `prowler==5.39.1`; prove clean install and exact import/version identity for both.
+- [x] Import only reviewed Cartography pure transforms. Reject any Cartography sync/load/cleanup/Neo4j/socket path.
+- [x] Execute fixed Prowler checks over the exact bounded native IAM/EC2 snapshot using guarded clients; never invoke Prowler's eager provider scan or swallowed-error collection path.
+- [x] Write Go RED tests for stdin-only credentials, no environment credential propagation, exact executable/arguments, bounded stdout/stderr, cancellation, panic, malformed output, and zeroized request material.
+- [x] Implement the Go runner adapter and map failures to `collection.FailureCancelled`, `FailureRetryable`, `FailureRateLimited`, `FailureDenied`, or `FailureMalformed`.
+- [x] Run Python unit tests, dependency validation, Go race, vet, and focused secret-safe subprocess gates for the runner boundary.
+- [ ] Build the production worker image with two non-root Python environments and prove exact interpreter, package, SBOM, license, and CVE authority.
 
 ### Task 4: Complete AWS collection and normalization
 
@@ -96,6 +108,7 @@
 - [ ] Write failing tests proving identity-only output is partial and exact complete output requires Cartography graph plus Prowler evidence.
 - [ ] Write two-Organization tests with identical native ARNs proving distinct product IDs and zero cross-scope edges.
 - [ ] Implement the AWS phases, canonical normalization, Prowler relevance filter, cursor lineage, and budget-aware partial completion.
+- [ ] Extend raw pages, checkpoint/resume, complete snapshots, and risk input projection with first-class source-owned Prowler findings bound to entity ID, check ID, severity, status, observation time, and immutable artifact evidence.
 - [ ] Add hostile stale-subject, wrong-account, unknown-resource, missing-edge, evidence/resource mismatch, timeout, rate-limit, denied, and malformed-output tests.
 - [ ] Run AWS/shared connector race and vet gates.
 

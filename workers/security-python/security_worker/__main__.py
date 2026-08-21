@@ -34,6 +34,9 @@ def run_binary(
             {
                 "authority": {
                     "phase": authority["phase"],
+                    "remaining_bytes": authority["remaining_bytes"],
+                    "remaining_entities": authority["remaining_entities"],
+                    "remaining_relationships": authority["remaining_relationships"],
                     "source_digest": authority["source_digest"],
                     "subject_id": authority["subject_id"],
                 },
@@ -48,6 +51,9 @@ def run_binary(
                 "authority": {
                     "credential_expires_at": authority["credential_expires_at"],
                     "phase": authority["phase"],
+                    "remaining_bytes": authority["remaining_bytes"],
+                    "remaining_entities": authority["remaining_entities"],
+                    "remaining_relationships": authority["remaining_relationships"],
                     "source_digest": authority["source_digest"],
                     "subject_id": authority["subject_id"],
                 },

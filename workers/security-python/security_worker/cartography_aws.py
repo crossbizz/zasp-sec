@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.metadata
+import json
 import re
 from dataclasses import dataclass
 from typing import Callable
@@ -62,9 +63,20 @@ def transform(request: dict[str, object], api: object | None = None) -> dict[str
             roles, authority["subject_id"]
         )
         transformed_policies = selected_api.transform_policy_data(policies, "managed")
-        return _normalize_transforms(
+        result = _normalize_transforms(
             source, roles, policies, transformed_roles, transformed_policies
         )
+        relationships = sum(
+            len(role["trusted_role_arns"]) for role in result["roles"]
+        ) + sum(len(policy["principal_arns"]) for policy in result["policies"])
+        if (
+            len(result["roles"]) + len(result["policies"])
+            > authority["remaining_entities"]
+            or relationships > authority["remaining_relationships"]
+            or len(_go_canonical(result)) > authority["remaining_bytes"]
+        ):
+            raise CollectionError("collection unavailable")
+        return result
     except CollectionError:
         raise
     except Exception as exc:
@@ -87,12 +99,28 @@ def _validate_request(
     source = request["source"]
     if (
         type(authority) is not dict
-        or frozenset(authority) != frozenset(("phase", "source_digest", "subject_id"))
+        or frozenset(authority)
+        != frozenset(
+            (
+                "phase",
+                "remaining_bytes",
+                "remaining_entities",
+                "remaining_relationships",
+                "source_digest",
+                "subject_id",
+            )
+        )
         or authority["phase"] != "iam"
         or type(authority["source_digest"]) is not str
         or re.fullmatch(r"[0-9a-f]{64}", authority["source_digest"]) is None
         or type(authority["subject_id"]) is not str
         or re.fullmatch(r"[0-9]{12}", authority["subject_id"]) is None
+        or type(authority["remaining_bytes"]) is not int
+        or not 0 <= authority["remaining_bytes"] <= 64 * 1024 * 1024
+        or type(authority["remaining_entities"]) is not int
+        or not 0 <= authority["remaining_entities"] <= 1_000
+        or type(authority["remaining_relationships"]) is not int
+        or not 0 <= authority["remaining_relationships"] <= 2_000
         or type(source) is not dict
         or frozenset(source)
         != frozenset(("account_id", "managed_policies", "roles"))
@@ -150,6 +178,20 @@ def _validate_request(
             ):
                 raise CollectionError("collection unavailable")
     return authority, source, roles, policies
+
+
+def _go_canonical(value: object) -> bytes:
+    encoded = json.dumps(
+        value, ensure_ascii=False, separators=(",", ":"), sort_keys=True, allow_nan=False
+    )
+    return (
+        encoded.replace("&", r"\u0026")
+        .replace("<", r"\u003c")
+        .replace(">", r"\u003e")
+        .replace("\u2028", r"\u2028")
+        .replace("\u2029", r"\u2029")
+        .encode("utf-8")
+    )
 
 
 def _normalize_transforms(

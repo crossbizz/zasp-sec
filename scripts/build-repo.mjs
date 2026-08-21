@@ -7,7 +7,7 @@ const defaultRepositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.ur
 const defaultTimeoutMilliseconds = 120_000;
 const defaultMaxOutputBytes = 1_048_576;
 
-export const successLine = "Repository build passed: targets=8\n";
+export const successLine = "Repository build passed: targets=9\n";
 export const failureLine = "Repository build rejected\n";
 
 function requiredEnvironmentValue(environment, name) {
@@ -62,6 +62,11 @@ export function createBuildTargets({
     NPM_CONFIG_USERCONFIG: nullDevice,
     NPM_CONFIG_UPDATE_NOTIFIER: "false",
   };
+  const securityPythonEnvironment = {
+    ...base,
+    PYTHONDONTWRITEBYTECODE: "1",
+    PYTHONPATH: resolve(repositoryRoot, "workers/security-python"),
+  };
   const target = (name, command, args, targetEnvironment, expectedStdout, expectedStderr) => ({
     name,
     command,
@@ -79,7 +84,8 @@ export function createBuildTargets({
     target("agentsec-worker", "go", ["-C", "services/platform", "build", "-trimpath", "-o", nullDevice, "./agentsec-worker"], goEnvironment, "", ""),
     target("event-ingest", "go", ["-C", "services/event-ingest", "build", "-trimpath", "-o", nullDevice, "."], goEnvironment, "", ""),
     target("runtime-gateway", "go", ["-C", "services/runtime-gateway", "build", "-trimpath", "-o", nullDevice, "."], goEnvironment, "", ""),
-    target("security-python", "python3", ["-I", "-B", "-u", "workers/security-python/security_worker/__main__.py", "health"], base, "security-worker health ok\n", ""),
+    target("security-python", "python3", ["-B", "-u", "-m", "security_worker", "health"], securityPythonEnvironment, "security-worker health ok\n", ""),
+    target("security-python-tests", "python3", ["-B", "-u", "-m", "unittest", "discover", "-s", "workers/security-python/tests", "-p", "test_*.py"], securityPythonEnvironment),
     target("redteam-node", nodeExecutable, ["workers/redteam-node/health.mjs", "health"], base, "redteam-worker health ok\n", ""),
     target("web", "npm", ["--prefix", "apps/web", "run", "build"], webEnvironment),
     target("agentsecctl", "go", ["-C", "cmd/agentsecctl", "build", "-trimpath", "-o", nullDevice, "."], goEnvironment, "", ""),

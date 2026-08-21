@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import json
 import struct
@@ -10,7 +11,7 @@ from unittest import mock
 from security_worker import __main__ as command
 
 
-def authority(phase: str) -> dict[str, object]:
+def authority(phase: str, source: dict[str, object]) -> dict[str, object]:
     return {
         "attempt": 1,
         "cartography_version": "0.139.1",
@@ -27,7 +28,7 @@ def authority(phase: str) -> dict[str, object]:
         "remaining_bytes": 1024,
         "remaining_entities": 10,
         "remaining_relationships": 20,
-        "source_digest": "c" * 64,
+        "source_digest": hashlib.sha256(command.protocol._canonical(source)).hexdigest(),
         "subject_id": "123456789012",
         "subject_kind": "aws_account",
         "workspace_id": "pid_00000002-0000-4000-8000-000000000002",
@@ -47,10 +48,11 @@ def decode_frame(payload: bytes) -> dict[str, object]:
 
 class SecurityWorkerCommandTests(unittest.TestCase):
     def test_cartography_command_reads_and_writes_one_exact_frame(self) -> None:
+        source = {"account_id": "123456789012", "roles": []}
         request = {
-            "authority": authority("iam"),
+            "authority": authority("iam", source),
             "protocol_version": 1,
-            "source": {"account_id": "123456789012", "roles": []},
+            "source": source,
         }
         output = io.BytesIO()
         with mock.patch.object(
@@ -67,7 +69,10 @@ class SecurityWorkerCommandTests(unittest.TestCase):
             {
                 "authority": {
                     "phase": "iam",
-                    "source_digest": "c" * 64,
+                    "remaining_bytes": 1024,
+                    "remaining_entities": 10,
+                    "remaining_relationships": 20,
+                    "source_digest": request["authority"]["source_digest"],
                     "subject_id": "123456789012",
                 },
                 "source": request["source"],
@@ -79,17 +84,18 @@ class SecurityWorkerCommandTests(unittest.TestCase):
                 "authority": request["authority"],
                 "protocol_version": 1,
                 "result": {"roles": [], "version": "0.139.1"},
-                "source_digest": "c" * 64,
+                "source_digest": request["authority"]["source_digest"],
             },
         )
 
     def test_prowler_command_passes_only_scoped_credential_request(self) -> None:
         credential = base64.urlsafe_b64encode(b"credential-material").rstrip(b"=").decode()
+        source = {"account_id": "123456789012", "instances": [], "roles": []}
         request = {
-            "authority": authority("posture"),
+            "authority": authority("posture", source),
             "credential": credential,
             "protocol_version": 1,
-            "source": {"account_id": "123456789012", "instances": [], "roles": []},
+            "source": source,
         }
         output = io.BytesIO()
         with mock.patch.object(
@@ -107,7 +113,10 @@ class SecurityWorkerCommandTests(unittest.TestCase):
                 "authority": {
                     "credential_expires_at": "2026-08-20T00:15:00Z",
                     "phase": "posture",
-                    "source_digest": "c" * 64,
+                    "remaining_bytes": 1024,
+                    "remaining_entities": 10,
+                    "remaining_relationships": 20,
+                    "source_digest": request["authority"]["source_digest"],
                     "subject_id": "123456789012",
                 },
                 "credential": credential,
@@ -128,10 +137,11 @@ class SecurityWorkerCommandTests(unittest.TestCase):
                 )
                 self.assertEqual(output.getvalue(), b"")
 
+        source = {}
         request = {
-            "authority": authority("iam"),
+            "authority": authority("iam", source),
             "protocol_version": 1,
-            "source": {},
+            "source": source,
         }
         output = io.BytesIO()
         with mock.patch.object(
@@ -150,13 +160,14 @@ class SecurityWorkerCommandTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), b"")
 
     def test_typed_failures_map_to_stable_process_statuses(self) -> None:
+        source = {"account_id": "123456789012", "instances": [], "roles": []}
         request = {
-            "authority": authority("posture"),
+            "authority": authority("posture", source),
             "credential": base64.urlsafe_b64encode(b"credential-material")
             .rstrip(b"=")
             .decode(),
             "protocol_version": 1,
-            "source": {"account_id": "123456789012", "instances": [], "roles": []},
+            "source": source,
         }
         for code, expected in (
             ("retryable", 10),

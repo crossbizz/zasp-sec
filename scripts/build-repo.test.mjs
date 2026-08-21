@@ -33,7 +33,7 @@ function resultFor(target) {
   return successfulResult();
 }
 
-test("builds the exact eight targets in dependency order", () => {
+test("builds the exact nine targets in dependency order", () => {
   const observed = [];
   const count = buildRepository({
     repositoryRoot: root,
@@ -46,13 +46,14 @@ test("builds the exact eight targets in dependency order", () => {
     },
   });
 
-  assert.equal(count, 8);
+  assert.equal(count, 9);
   assert.deepEqual(observed.map(({ name }) => name), [
     "agentsec-api",
     "agentsec-worker",
     "event-ingest",
     "runtime-gateway",
     "security-python",
+    "security-python-tests",
     "redteam-node",
     "web",
     "agentsecctl",
@@ -62,7 +63,8 @@ test("builds the exact eight targets in dependency order", () => {
     ["go", ["-C", "services/platform", "build", "-trimpath", "-o", "/safe/null", "./agentsec-worker"]],
     ["go", ["-C", "services/event-ingest", "build", "-trimpath", "-o", "/safe/null", "."]],
     ["go", ["-C", "services/runtime-gateway", "build", "-trimpath", "-o", "/safe/null", "."]],
-    ["python3", ["-I", "-B", "-u", "workers/security-python/security_worker/__main__.py", "health"]],
+    ["python3", ["-B", "-u", "-m", "security_worker", "health"]],
+    ["python3", ["-B", "-u", "-m", "unittest", "discover", "-s", "workers/security-python/tests", "-p", "test_*.py"]],
     ["/safe/node", ["workers/redteam-node/health.mjs", "health"]],
     ["npm", ["--prefix", "apps/web", "run", "build"]],
     ["go", ["-C", "cmd/agentsecctl", "build", "-trimpath", "-o", "/safe/null", "."]],
@@ -100,11 +102,15 @@ test("passes only allowlisted target environment", () => {
       CGO_ENABLED: "0",
     });
   }
-  assert.deepEqual(targets.find(({ name }) => name === "security-python")?.environment, {
+  const expectedSecurityEnvironment = {
     PATH: environment.PATH,
     HOME: environment.HOME,
     LANG: environment.LANG,
-  });
+    PYTHONDONTWRITEBYTECODE: "1",
+    PYTHONPATH: "/safe/repository/workers/security-python",
+  };
+  assert.deepEqual(targets.find(({ name }) => name === "security-python")?.environment, expectedSecurityEnvironment);
+  assert.deepEqual(targets.find(({ name }) => name === "security-python-tests")?.environment, expectedSecurityEnvironment);
   assert.deepEqual(targets.find(({ name }) => name === "web")?.environment, {
     PATH: environment.PATH,
     HOME: environment.HOME,

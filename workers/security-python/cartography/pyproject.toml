@@ -1,0 +1,5 @@
+[project]
+name = "zasp-security-cartography-runtime"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = ["cartography==0.139.1"]

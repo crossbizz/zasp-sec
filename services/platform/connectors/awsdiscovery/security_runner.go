@@ -3,15 +3,18 @@ package awsdiscovery
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
 	"reflect"
 	"regexp"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,10 +37,12 @@ const (
 )
 
 var (
-	securityAccountPattern      = regexp.MustCompile(`^[0-9]{12}$`)
-	securityAccessKeyPattern    = regexp.MustCompile(`^(?:ASIA|AKIA)[A-Z0-9]{16}$`)
-	securitySecretKeyPattern    = regexp.MustCompile(`^[A-Za-z0-9/+=]{40}$`)
-	securitySessionTokenPattern = regexp.MustCompile(`^[A-Za-z0-9/+=_-]+$`)
+	securityAccountPattern     = regexp.MustCompile(`^[0-9]{12}$`)
+	securityCredentialPattern  = regexp.MustCompile(`^\{"access_key_id":"((?:ASIA|AKIA)[A-Z0-9]{16})","expires_at":"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)","secret_access_key":"([A-Za-z0-9/+=]{40})","session_token":"([A-Za-z0-9/+=_-]{32,})"\}$`)
+	securityRoleARNPattern     = regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/([A-Za-z0-9+=,.@_/-]{1,512})$`)
+	securityPolicyARNPattern   = regexp.MustCompile(`^arn:aws:iam::(?:aws|[0-9]{12}):policy/[A-Za-z0-9+=,.@_/-]{1,512}$`)
+	securityInstanceARNPattern = regexp.MustCompile(`^arn:aws:ec2:([a-z]{2}(?:-gov)?-[a-z]+-[1-9]):([0-9]{12}):instance/(i-[0-9a-f]{17})$`)
+	securityNamePattern        = regexp.MustCompile(`^[A-Za-z0-9+=,.@_-]{1,64}$`)
 )
 
 type SecurityMode string
@@ -119,7 +124,7 @@ type cartographySecurityEnvelope struct {
 
 type prowlerSecurityEnvelope struct {
 	Authority       securityAuthority `json:"authority"`
-	Credential      string            `json:"credential"`
+	Credential      json.RawMessage   `json:"credential"`
 	ProtocolVersion int               `json:"protocol_version"`
 	Source          json.RawMessage   `json:"source"`
 }
@@ -131,11 +136,36 @@ type securityResponseEnvelope struct {
 	SourceDigest    string          `json:"source_digest"`
 }
 
-type prowlerCredentialDocument struct {
-	AccessKeyID     string `json:"access_key_id"`
-	ExpiresAt       string `json:"expires_at"`
-	SecretAccessKey string `json:"secret_access_key"`
-	SessionToken    string `json:"session_token"`
+type cartographySecurityResult struct {
+	Policies []cartographySecurityPolicy `json:"policies"`
+	Roles    []cartographySecurityRole   `json:"roles"`
+	Version  string                      `json:"version"`
+}
+
+type cartographySecurityPolicy struct {
+	ARN           string   `json:"arn"`
+	Name          string   `json:"name"`
+	PrincipalARNs []string `json:"principal_arns"`
+}
+
+type cartographySecurityRole struct {
+	ARN             string   `json:"arn"`
+	Name            string   `json:"name"`
+	TrustedRoleARNs []string `json:"trusted_role_arns"`
+}
+
+type prowlerSecurityResult struct {
+	Findings []prowlerSecurityFinding `json:"findings"`
+	Version  string                   `json:"version"`
+}
+
+type prowlerSecurityFinding struct {
+	CheckID     string `json:"check_id"`
+	ResourceARN string `json:"resource_arn"`
+	ResourceID  string `json:"resource_id"`
+	Region      string `json:"region"`
+	Severity    string `json:"severity"`
+	Status      string `json:"status"`
 }
 
 func NewSecurityRunner(timeout time.Duration) (*SecurityRunner, error) {
@@ -186,22 +216,31 @@ func (runner *SecurityRunner) Collect(ctx context.Context, request CollectionSec
 			clear(fragment)
 		}
 	}()
-	input, spec, encodedCredential, err := securityInput(request, authority, borrowedCredential)
+	privateHome, err := os.MkdirTemp("/tmp", "zasp-security-")
+	if err != nil || os.Chmod(privateHome, 0o700) != nil {
+		if privateHome != "" {
+			_ = os.RemoveAll(privateHome)
+		}
+		return CollectionSecurityResult{}, stableSecurityFailure(collection.FailureRetryable, time.Time{})
+	}
+	defer os.RemoveAll(privateHome)
+	input, spec, encodedCredential, err := securityInput(request, authority, borrowedCredential, privateHome)
 	if err != nil {
 		return CollectionSecurityResult{}, stableSecurityFailure(collection.FailureMalformed, time.Time{})
 	}
 	defer clear(input)
+	defer clear(encodedCredential)
 	bounded, cancel := context.WithTimeout(ctx, runner.timeout)
 	defer cancel()
 	output, err := runner.process.Run(bounded, spec, input)
 	if err != nil || bounded.Err() != nil {
 		return CollectionSecurityResult{}, runner.classifyProcessFailure(ctx, bounded, err)
 	}
-	if len(output) < 6 || len(output) > maximumSecurityFrameBytes+4 || len(credential) != 0 && bytes.Contains(output, credential) || encodedCredential != "" && bytes.Contains(output, []byte(encodedCredential)) || containsSecurityFragment(output, credentialFragments) {
+	if len(output) < 6 || len(output) > maximumSecurityFrameBytes+4 || len(credential) != 0 && bytes.Contains(output, credential) || len(encodedCredential) != 0 && bytes.Contains(output, encodedCredential) || containsSecurityFragment(output, credentialFragments) {
 		return CollectionSecurityResult{}, stableSecurityFailure(collection.FailureMalformed, time.Time{})
 	}
 	response, ok := decodeSecurityResponse(output, authorityJSON, request.SourceDigest)
-	if !ok {
+	if !ok || !validSecurityResult(request, response.Result) {
 		return CollectionSecurityResult{}, stableSecurityFailure(collection.FailureMalformed, time.Time{})
 	}
 	return CollectionSecurityResult{Mode: request.Mode, SourceDigest: request.SourceDigest, Result: bytes.Clone(response.Result)}, nil
@@ -211,17 +250,11 @@ func securityCredentialFragments(request CollectionSecurityRequest, credential [
 	if request.Mode == SecurityModeCartographyAWS {
 		return nil, nil
 	}
-	decoder := json.NewDecoder(bytes.NewReader(credential))
-	decoder.DisallowUnknownFields()
-	var document prowlerCredentialDocument
-	if decoder.Decode(&document) != nil || decoder.Decode(new(any)) != io.EOF || !securityAccessKeyPattern.MatchString(document.AccessKeyID) || !securitySecretKeyPattern.MatchString(document.SecretAccessKey) || len(document.SessionToken) < 32 || len(document.SessionToken) > 4096 || !securitySessionTokenPattern.MatchString(document.SessionToken) || document.ExpiresAt != request.CredentialExpiresAt.Format(time.RFC3339) {
+	match := securityCredentialPattern.FindSubmatch(credential)
+	if len(match) != 5 || len(match[4]) > 4096 || !bytes.Equal(match[2], []byte(request.CredentialExpiresAt.Format(time.RFC3339))) {
 		return nil, ErrInvalid
 	}
-	canonical, err := json.Marshal(document)
-	if err != nil || !bytes.Equal(canonical, credential) {
-		return nil, ErrInvalid
-	}
-	return [][]byte{[]byte(document.AccessKeyID), []byte(document.SecretAccessKey), []byte(document.SessionToken)}, nil
+	return [][]byte{bytes.Clone(match[1]), bytes.Clone(match[3]), bytes.Clone(match[4])}, nil
 }
 
 func containsSecurityFragment(output []byte, fragments [][]byte) bool {
@@ -234,7 +267,7 @@ func containsSecurityFragment(output []byte, fragments [][]byte) bool {
 }
 
 func validSecurityRunnerRequest(request CollectionSecurityRequest, credential []byte) bool {
-	if request.Scope.Validate() != nil || request.IntegrationID.IsZero() || request.ConnectionID.IsZero() || request.JobID.IsZero() || request.Attempt < 1 || request.Attempt > 100 || request.CursorLineage < 1 || request.CursorLineage > 1_000_000 || request.Subject.Kind != "aws_account" || !securityAccountPattern.MatchString(request.Subject.ID) || request.RemainingBytes < 0 || request.RemainingBytes > 64*1024*1024 || request.RemainingEntities < 0 || request.RemainingEntities > 1_000 || request.RemainingRelationships < 0 || request.RemainingRelationships > 2_000 || request.SourceDigest == ([32]byte{}) || !exactUTCSecurityTime(request.ObservedAt) || !exactUTCSecurityTime(request.CredentialExpiresAt) || !request.CredentialExpiresAt.After(request.ObservedAt) || !canonicalSecurityObject(request.Source) {
+	if request.Scope.Validate() != nil || request.IntegrationID.IsZero() || request.ConnectionID.IsZero() || request.JobID.IsZero() || request.Attempt < 1 || request.Attempt > 100 || request.CursorLineage < 1 || request.CursorLineage > 1_000_000 || request.Subject.Kind != "aws_account" || !securityAccountPattern.MatchString(request.Subject.ID) || request.RemainingBytes < 0 || request.RemainingBytes > 64*1024*1024 || request.RemainingEntities < 0 || request.RemainingEntities > 1_000 || request.RemainingRelationships < 0 || request.RemainingRelationships > 2_000 || request.SourceDigest == ([32]byte{}) || sha256.Sum256(request.Source) != request.SourceDigest || !exactUTCSecurityTime(request.ObservedAt) || !exactUTCSecurityTime(request.CredentialExpiresAt) || !request.CredentialExpiresAt.After(request.ObservedAt) || !canonicalSecurityObject(request.Source) {
 		return false
 	}
 	switch request.Mode {
@@ -242,6 +275,91 @@ func validSecurityRunnerRequest(request CollectionSecurityRequest, credential []
 		return request.Phase == "iam" && len(credential) == 0
 	case SecurityModeProwlerAWS:
 		return request.Phase == "posture" && len(credential) >= 12 && len(credential) <= 16*1024
+	default:
+		return false
+	}
+}
+
+func validSecurityResult(request CollectionSecurityRequest, raw json.RawMessage) bool {
+	if len(raw) > int(request.RemainingBytes) {
+		return false
+	}
+	if request.Mode == SecurityModeCartographyAWS {
+		var result cartographySecurityResult
+		if !decodeExactSecurityResult(raw, &result) || result.Version != "0.139.1" || result.Policies == nil || result.Roles == nil || len(result.Policies)+len(result.Roles) > request.RemainingEntities {
+			return false
+		}
+		roles := make(map[string]bool, len(result.Roles))
+		previous := ""
+		relationships := 0
+		for _, role := range result.Roles {
+			match := securityRoleARNPattern.FindStringSubmatch(role.ARN)
+			if len(match) != 3 || match[1] != request.Subject.ID || !strings.HasSuffix(match[2], "/"+role.Name) && match[2] != role.Name || !securityNamePattern.MatchString(role.Name) || role.ARN <= previous || role.TrustedRoleARNs == nil {
+				return false
+			}
+			previous = role.ARN
+			roles[role.ARN] = true
+		}
+		for _, role := range result.Roles {
+			prior := ""
+			for _, trusted := range role.TrustedRoleARNs {
+				if !roles[trusted] || trusted <= prior {
+					return false
+				}
+				prior = trusted
+				relationships++
+			}
+		}
+		previous = ""
+		for _, policy := range result.Policies {
+			if !securityPolicyARNPattern.MatchString(policy.ARN) || policy.ARN <= previous || !securityNamePattern.MatchString(policy.Name) || !strings.HasSuffix(policy.ARN, "/"+policy.Name) || policy.PrincipalARNs == nil {
+				return false
+			}
+			previous = policy.ARN
+			prior := ""
+			for _, principal := range policy.PrincipalARNs {
+				if !roles[principal] || principal <= prior {
+					return false
+				}
+				prior = principal
+				relationships++
+			}
+		}
+		return relationships <= request.RemainingRelationships
+	}
+	var result prowlerSecurityResult
+	if !decodeExactSecurityResult(raw, &result) || result.Version != "5.39.1" || result.Findings == nil || len(result.Findings) > request.RemainingEntities {
+		return false
+	}
+	previous := ""
+	for _, finding := range result.Findings {
+		identity := finding.CheckID + "\x00" + finding.ResourceARN
+		if identity <= previous || finding.Severity != "high" || finding.Status != "PASS" && finding.Status != "FAIL" || !validProwlerSecurityResource(request.Subject.ID, finding) {
+			return false
+		}
+		previous = identity
+	}
+	return true
+}
+
+func decodeExactSecurityResult(raw []byte, destination any) bool {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(destination) != nil || decoder.Decode(new(any)) != io.EOF {
+		return false
+	}
+	canonical, err := json.Marshal(destination)
+	return err == nil && bytes.Equal(canonical, raw)
+}
+
+func validProwlerSecurityResource(accountID string, finding prowlerSecurityFinding) bool {
+	switch finding.CheckID {
+	case "iam_role_administratoraccess_policy", "iam_role_cross_service_confused_deputy_prevention":
+		match := securityRoleARNPattern.FindStringSubmatch(finding.ResourceARN)
+		return len(match) == 3 && match[1] == accountID && finding.Region == "global" && securityNamePattern.MatchString(finding.ResourceID) && (match[2] == finding.ResourceID || strings.HasSuffix(match[2], "/"+finding.ResourceID))
+	case "ec2_instance_imdsv2_enabled":
+		match := securityInstanceARNPattern.FindStringSubmatch(finding.ResourceARN)
+		return len(match) == 4 && match[2] == accountID && finding.Region == match[1] && finding.ResourceID == match[3]
 	default:
 		return false
 	}
@@ -259,22 +377,34 @@ func securityAuthorityForRequest(request CollectionSecurityRequest) securityAuth
 	}
 }
 
-func securityInput(request CollectionSecurityRequest, authority securityAuthority, credential []byte) ([]byte, securityProcessSpec, string, error) {
-	environment := []string{"HOME=/tmp", "LANG=C.UTF-8", "PATH=/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE=1", "PYTHONUNBUFFERED=1"}
+func securityInput(request CollectionSecurityRequest, authority securityAuthority, credential []byte, privateHome string) ([]byte, securityProcessSpec, []byte, error) {
+	environment := []string{
+		"AWS_CONFIG_FILE=/dev/null", "AWS_DEFAULT_REGION=us-east-1", "AWS_EC2_METADATA_DISABLED=true",
+		"AWS_REGION=us-east-1", "AWS_SDK_LOAD_CONFIG=0", "AWS_SHARED_CREDENTIALS_FILE=/dev/null",
+		"BOTO_CONFIG=/dev/null", "HOME=" + privateHome, "LANG=C.UTF-8", "NO_PROXY=sts.us-east-1.amazonaws.com",
+		"PATH=/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE=1", "PYTHONUNBUFFERED=1", "TMPDIR=" + privateHome,
+		"XDG_CONFIG_HOME=" + privateHome,
+	}
 	var document any
 	var executable string
-	encoded := ""
+	var encoded []byte
+	var quotedCredential []byte
 	if request.Mode == SecurityModeCartographyAWS {
 		executable = cartographySecurityExecutable
 		document = cartographySecurityEnvelope{Authority: authority, ProtocolVersion: 1, Source: request.Source}
 	} else {
 		executable = prowlerSecurityExecutable
-		encoded = base64.RawURLEncoding.EncodeToString(credential)
-		document = prowlerSecurityEnvelope{Authority: authority, Credential: encoded, ProtocolVersion: 1, Source: request.Source}
+		encoded = make([]byte, base64.RawURLEncoding.EncodedLen(len(credential)))
+		base64.RawURLEncoding.Encode(encoded, credential)
+		quotedCredential = make([]byte, len(encoded)+2)
+		quotedCredential[0], quotedCredential[len(quotedCredential)-1] = '"', '"'
+		copy(quotedCredential[1:], encoded)
+		document = prowlerSecurityEnvelope{Authority: authority, Credential: quotedCredential, ProtocolVersion: 1, Source: request.Source}
 	}
 	body, err := json.Marshal(document)
+	clear(quotedCredential)
 	if err != nil || len(body) < 2 || len(body) > maximumSecurityFrameBytes {
-		return nil, securityProcessSpec{}, "", ErrInvalid
+		return nil, securityProcessSpec{}, nil, ErrInvalid
 	}
 	framed := make([]byte, 4+len(body))
 	binary.BigEndian.PutUint32(framed[:4], uint32(len(body)))

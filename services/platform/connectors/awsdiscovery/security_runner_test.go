@@ -3,11 +3,17 @@ package awsdiscovery
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -19,6 +25,7 @@ func TestSecurityRunnerUsesExactProwlerProcessAuthorityAndClearsInput(t *testing
 	request := securityRequestFixture(t, SecurityModeProwlerAWS)
 	credential := []byte(`{"access_key_id":"ASIAABCDEFGHIJKLMNOP","expires_at":"2026-08-20T00:15:00Z","secret_access_key":"ssssssssssssssssssssssssssssssssssssssss","session_token":"tttttttttttttttttttttttttttttttt"}`)
 	process := &recordingSecurityProcess{}
+	privateHome := ""
 	process.respond = func(spec securityProcessSpec, input []byte) []byte {
 		document := decodeSecurityFrameForTest(t, input)
 		encoded, ok := document["credential"].(string)
@@ -29,9 +36,21 @@ func TestSecurityRunnerUsesExactProwlerProcessAuthorityAndClearsInput(t *testing
 		if err != nil || !bytes.Equal(decoded, credential) {
 			t.Fatalf("credential = %q, decode error = %v", decoded, err)
 		}
-		if strings.Contains(strings.Join(spec.Environment, "\n"), "AWS_") || strings.Contains(strings.Join(spec.Environment, "\n"), string(credential)) {
+		environment := strings.Join(spec.Environment, "\n")
+		if strings.Contains(environment, string(credential)) || !strings.Contains(environment, "AWS_CONFIG_FILE=/dev/null") || !strings.Contains(environment, "AWS_SHARED_CREDENTIALS_FILE=/dev/null") || !strings.Contains(environment, "AWS_EC2_METADATA_DISABLED=true") || !strings.Contains(environment, "NO_PROXY=sts.us-east-1.amazonaws.com") {
 			t.Fatalf("environment leaked AWS authority: %#v", spec.Environment)
 		}
+		for _, entry := range spec.Environment {
+			if strings.HasPrefix(entry, "HOME=") {
+				privateHome = strings.TrimPrefix(entry, "HOME=")
+				info, statErr := os.Stat(privateHome)
+				if statErr != nil || info.Mode().Perm() != 0o700 {
+					t.Fatalf("private HOME = %q, info = %#v, error = %v", entry, info, statErr)
+				}
+				return securityResponseFrameForTest(t, document, json.RawMessage(`{"findings":[],"version":"5.39.1"}`))
+			}
+		}
+		t.Fatal("private HOME was not configured")
 		return securityResponseFrameForTest(t, document, json.RawMessage(`{"findings":[],"version":"5.39.1"}`))
 	}
 	runner := newSecurityRunnerForTest(process, 5*time.Second, func() time.Time {
@@ -54,6 +73,12 @@ func TestSecurityRunnerUsesExactProwlerProcessAuthorityAndClearsInput(t *testing
 	if len(process.borrowed) != 1 || bytes.Count(process.borrowed[0], []byte{0}) != len(process.borrowed[0]) {
 		t.Fatal("runner-owned stdin was not cleared")
 	}
+	if privateHome == "" {
+		t.Fatal("private HOME was not observed")
+	}
+	if _, err := os.Stat(privateHome); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("private HOME survived collection: %v", err)
+	}
 }
 
 func TestSecurityRunnerUsesCredentialFreeCartographyProcess(t *testing.T) {
@@ -74,6 +99,45 @@ func TestSecurityRunnerUsesCredentialFreeCartographyProcess(t *testing.T) {
 	}
 	if len(process.specs) != 1 || process.specs[0].Executable != cartographySecurityExecutable || process.specs[0].Arguments[0] != "cartography-aws-v1" {
 		t.Fatalf("process specs = %#v", process.specs)
+	}
+}
+
+func TestSecurityRunnerBindsSourceDigestAndOutputBudgets(t *testing.T) {
+	validRole := json.RawMessage(`{"policies":[],"roles":[{"arn":"arn:aws:iam::123456789012:role/reader","name":"reader","trusted_role_arns":[]}],"version":"0.139.1"}`)
+	trustedRoles := json.RawMessage(`{"policies":[],"roles":[{"arn":"arn:aws:iam::123456789012:role/a","name":"a","trusted_role_arns":["arn:aws:iam::123456789012:role/b"]},{"arn":"arn:aws:iam::123456789012:role/b","name":"b","trusted_role_arns":[]}],"version":"0.139.1"}`)
+	for name, mutate := range map[string]func(*CollectionSecurityRequest) json.RawMessage{
+		"source digest drift": func(request *CollectionSecurityRequest) json.RawMessage {
+			request.Source = json.RawMessage(`{"account_id":"123456789012","managed_policies":{},"roles":[{}]}`)
+			return validRole
+		},
+		"entity budget exhausted": func(request *CollectionSecurityRequest) json.RawMessage {
+			request.RemainingEntities = 0
+			return validRole
+		},
+		"relationship budget exhausted": func(request *CollectionSecurityRequest) json.RawMessage {
+			request.RemainingRelationships = 0
+			return trustedRoles
+		},
+		"byte budget exhausted": func(request *CollectionSecurityRequest) json.RawMessage {
+			request.RemainingBytes = int64(len(validRole) - 1)
+			return validRole
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			request := securityRequestFixture(t, SecurityModeCartographyAWS)
+			response := mutate(&request)
+			process := &recordingSecurityProcess{respond: func(_ securityProcessSpec, input []byte) []byte {
+				return securityResponseFrameForTest(t, decodeSecurityFrameForTest(t, input), response)
+			}}
+			runner := newSecurityRunnerForTest(process, time.Second, time.Now)
+			_, err := runner.Collect(context.Background(), request, nil)
+			if securityFailureCode(err) != collection.FailureMalformed {
+				t.Fatalf("Collect() error = %v", err)
+			}
+			if name == "source digest drift" && len(process.specs) != 0 {
+				t.Fatalf("process calls = %d, want 0", len(process.specs))
+			}
+		})
 	}
 }
 
@@ -125,6 +189,13 @@ func TestSecurityRunnerFailsClosedForContextProcessAndOutputErrors(t *testing.T)
 			},
 			want: collection.FailureMalformed,
 		},
+		"wrong result schema": {
+			respond: func(_ securityProcessSpec, input []byte) []byte {
+				document := decodeSecurityFrameForTest(t, input)
+				return securityResponseFrameForTest(t, document, json.RawMessage(`{}`))
+			},
+			want: collection.FailureMalformed,
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			candidate := &recordingSecurityProcess{err: test.processErr, respond: test.respond, panic: test.panic}
@@ -143,6 +214,78 @@ func TestSecurityRunnerFailsClosedForContextProcessAndOutputErrors(t *testing.T)
 	if _, err := malformedRunner.Collect(context.Background(), request, []byte(`{"secret_access_key":"secret"}`)); securityFailureCode(err) != collection.FailureMalformed || len(invalid.specs) != 0 {
 		t.Fatalf("malformed credential error = %v, process calls = %d", err, len(invalid.specs))
 	}
+}
+
+func TestExecSecurityProcessBoundsOutputAndKillsCancelledProcessGroup(t *testing.T) {
+	directory := t.TempDir()
+	writeScript := func(name, source string) string {
+		t.Helper()
+		path := filepath.Join(directory, name)
+		if err := os.WriteFile(path, []byte("#!/bin/sh\n"+source+"\n"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	process := &execSecurityProcess{}
+	input := []byte("framed")
+	oversized := writeScript("oversized", fmt.Sprintf("head -c %d /dev/zero", maximumSecurityFrameBytes+5))
+	if output, err := process.Run(context.Background(), securityProcessSpec{Executable: oversized, Arguments: []string{"run"}, Environment: []string{"PATH=/usr/bin:/bin"}}, input); output != nil || securityProcessExitCode(err) != securityExitMalformed {
+		t.Fatalf("oversized Run() = %d bytes, %v", len(output), err)
+	}
+
+	pidFile := filepath.Join(directory, "child.pid")
+	blocking := writeScript("blocking", fmt.Sprintf("sleep 30 &\nchild=$!\nprintf '%%s' \"$child\" > %q\nwait \"$child\"", pidFile))
+	ctx, cancel := context.WithCancel(context.Background())
+	type processResult struct {
+		output []byte
+		err    error
+	}
+	done := make(chan processResult, 1)
+	started := time.Now()
+	go func() {
+		output, err := process.Run(ctx, securityProcessSpec{Executable: blocking, Arguments: []string{"run"}, Environment: []string{"PATH=/usr/bin:/bin"}}, input)
+		done <- processResult{output: output, err: err}
+	}()
+	var pidText []byte
+	for time.Since(started) < 2*time.Second {
+		pidText, _ = os.ReadFile(pidFile)
+		if len(pidText) != 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(pidText) == 0 {
+		cancel()
+		t.Fatal("child process did not start")
+	}
+	cancel()
+	select {
+	case result := <-done:
+		if result.err == nil || len(result.output) != 0 || time.Since(started) > 3*time.Second {
+			t.Fatalf("cancelled Run() = %d bytes, %v, elapsed = %s", len(result.output), result.err, time.Since(started))
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("cancelled process group did not stop")
+	}
+	pid, err := strconv.Atoi(string(pidText))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for syscall.Kill(pid, 0) == nil && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err := syscall.Kill(pid, 0); !errors.Is(err, syscall.ESRCH) {
+		t.Fatalf("child process %d survived cancellation: %v", pid, err)
+	}
+}
+
+func securityProcessExitCode(err error) int {
+	var failure *securityProcessError
+	if errors.As(err, &failure) {
+		return failure.ExitCode
+	}
+	return -1
 }
 
 type recordingSecurityProcess struct {
@@ -201,7 +344,7 @@ func securityRequestFixture(t *testing.T, mode SecurityMode) CollectionSecurityR
 		Phase:   phase, ObservedAt: time.Date(2026, 8, 20, 0, 0, 0, 0, time.UTC),
 		CredentialExpiresAt: time.Date(2026, 8, 20, 0, 15, 0, 0, time.UTC),
 		RemainingBytes:      1024, RemainingEntities: 10, RemainingRelationships: 20,
-		SourceDigest: [32]byte{1, 2, 3}, Source: source,
+		SourceDigest: sha256.Sum256(source), Source: source,
 	}
 }
 

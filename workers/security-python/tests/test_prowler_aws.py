@@ -36,6 +36,9 @@ def request_document() -> dict[str, object]:
         "authority": {
             "credential_expires_at": "2026-08-20T00:15:00Z",
             "phase": "posture",
+            "remaining_bytes": 1_048_576,
+            "remaining_entities": 100,
+            "remaining_relationships": 200,
             "source_digest": "b" * 64,
             "subject_id": ACCOUNT_ID,
         },
@@ -210,6 +213,14 @@ class ProwlerScanTests(unittest.TestCase):
             prowler_aws.CollectionError, "^collection unavailable$"
         ):
             prowler_aws.scan(request_document(), DuplicateAPI())
+
+    def test_rejects_result_beyond_item_or_byte_budget(self) -> None:
+        for key in ("remaining_entities", "remaining_bytes"):
+            with self.subTest(key=key):
+                request = request_document()
+                request["authority"] = {**request["authority"], key: 0}
+                with self.assertRaises(prowler_aws.CollectionError):
+                    prowler_aws.scan(request, FakeProwlerAPI())
 
 
 if __name__ == "__main__":

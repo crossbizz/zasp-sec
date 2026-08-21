@@ -106,6 +106,9 @@ class RuntimeProwlerAPI:
             )
             sts = session.client(
                 "sts",
+                endpoint_url="https://sts.us-east-1.amazonaws.com",
+                use_ssl=True,
+                verify=True,
                 config=config_type(
                     connect_timeout=5,
                     read_timeout=5,
@@ -241,7 +244,13 @@ def scan(request: dict[str, object], api: object | None = None) -> dict[str, obj
                 observed.add(identity)
                 findings.append(finding)
         findings.sort(key=lambda item: (item["check_id"], item["resource_arn"]))
-        return {"findings": findings, "version": EXPECTED_VERSION}
+        result = {"findings": findings, "version": EXPECTED_VERSION}
+        if (
+            len(findings) > authority["remaining_entities"]
+            or len(protocol._canonical(result)) > authority["remaining_bytes"]
+        ):
+            raise CollectionError("collection unavailable")
+        return result
     except CollectionError:
         raise
     except Exception as exc:
@@ -267,6 +276,9 @@ def _validate_request(
             (
                 "credential_expires_at",
                 "phase",
+                "remaining_bytes",
+                "remaining_entities",
+                "remaining_relationships",
                 "source_digest",
                 "subject_id",
             )
@@ -278,6 +290,12 @@ def _validate_request(
         or _ACCOUNT_ID.fullmatch(authority["subject_id"]) is None
         or type(authority["credential_expires_at"]) is not str
         or type(request["credential"]) is not str
+        or type(authority["remaining_bytes"]) is not int
+        or not 0 <= authority["remaining_bytes"] <= 64 * 1024 * 1024
+        or type(authority["remaining_entities"]) is not int
+        or not 0 <= authority["remaining_entities"] <= 1_000
+        or type(authority["remaining_relationships"]) is not int
+        or not 0 <= authority["remaining_relationships"] <= 2_000
         or type(source) is not dict
         or frozenset(source) != frozenset(("account_id", "instances", "roles"))
         or source["account_id"] != authority["subject_id"]

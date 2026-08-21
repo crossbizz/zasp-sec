@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { test } from "node:test";
 import { tmpdir } from "node:os";
@@ -25,8 +26,23 @@ const manifests = [
   { ecosystem: "go", path: "services/runtime-gateway/go.mod" },
   { ecosystem: "go", path: "services/sensor-agent/go.mod" },
   { ecosystem: "npm", path: "workers/redteam-node/package.json" },
+  { ecosystem: "python", path: "workers/security-python/cartography/pyproject.toml" },
+  { ecosystem: "python", path: "workers/security-python/prowler/pyproject.toml" },
   { ecosystem: "python", path: "workers/security-python/pyproject.toml" },
 ];
+
+const cartographyLock = readFileSync(
+  new URL("../workers/security-python/cartography/requirements.lock", import.meta.url),
+  "utf8",
+);
+const buildLock = readFileSync(
+  new URL("../workers/security-python/build-requirements.lock", import.meta.url),
+  "utf8",
+);
+const prowlerLock = readFileSync(
+  new URL("../workers/security-python/prowler/requirements.lock", import.meta.url),
+  "utf8",
+);
 
 const npmDependencies = [
   ["drizzle-orm", "0.45.2", "Apache-2.0", "platform-data"],
@@ -144,6 +160,29 @@ const sensorDependencies = ["api", "apimachinery", "client-go"].map((name) => ({
   review: "approved",
 }));
 
+const securityRuntimeDependencies = [
+  {
+    ecosystem: "python",
+    manifest: "workers/security-python/cartography/pyproject.toml",
+    name: "cartography",
+    version: "0.139.1",
+    license: "Apache-2.0",
+    owner: "platform-data",
+    scope: "runtime",
+    review: "approved",
+  },
+  {
+    ecosystem: "python",
+    manifest: "workers/security-python/prowler/pyproject.toml",
+    name: "prowler",
+    version: "5.39.1",
+    license: "Apache-2.0",
+    owner: "platform-data",
+    scope: "runtime",
+    review: "approved",
+  },
+];
+
 const dependencies = [
   ...npmDependencies,
   ...eventIngestDependencies,
@@ -153,6 +192,7 @@ const dependencies = [
   ...platformDependencies,
   ...runtimeGatewayDependencies,
   ...sensorDependencies,
+  ...securityRuntimeDependencies,
 ].sort((left, right) =>
   `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`),
 );
@@ -192,6 +232,21 @@ function filesFixture() {
     }),
     "apps/web/package.json": JSON.stringify({ name: "@zasp/web" }),
     "workers/redteam-node/package.json": JSON.stringify({ name: "@zasp/redteam-worker" }),
+    "workers/security-python/build-requirements.lock": buildLock,
+    "workers/security-python/cartography/pyproject.toml": [
+      "[project]",
+      'name = "zasp-security-cartography-runtime"',
+      'dependencies = ["cartography==0.139.1"]',
+      "",
+    ].join("\n"),
+    "workers/security-python/cartography/requirements.lock": cartographyLock,
+    "workers/security-python/prowler/pyproject.toml": [
+      "[project]",
+      'name = "zasp-security-prowler-runtime"',
+      'dependencies = ["prowler==5.39.1"]',
+      "",
+    ].join("\n"),
+    "workers/security-python/prowler/requirements.lock": prowlerLock,
     "workers/security-python/pyproject.toml": [
       "[project]",
       'name = "zasp-security-worker"',
@@ -286,7 +341,40 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 11, dependencies: 28 });
+  assert.deepEqual(validate(), { manifests: 13, dependencies: 30 });
+});
+
+test("binds exact hash-locked isolated Cartography and Prowler runtimes", async (t) => {
+  for (const dependency of securityRuntimeDependencies) {
+    await t.test(dependency.name, () => {
+      const retained = lockFixture().dependencies.find(
+        ({ manifest, name }) => manifest === dependency.manifest && name === dependency.name,
+      );
+      assert.deepEqual(retained, dependency);
+    });
+  }
+  for (const [name, mutate] of [
+    ["cartography lock byte drift", (files) => {
+      files["workers/security-python/cartography/requirements.lock"] += "# drift\n";
+    }],
+    ["prowler lock byte drift", (files) => {
+      files["workers/security-python/prowler/requirements.lock"] = files[
+        "workers/security-python/prowler/requirements.lock"
+      ].replace("prowler==5.39.1", "prowler==5.39.0");
+    }],
+    ["missing runtime lock", (files) => {
+      delete files["workers/security-python/cartography/requirements.lock"];
+    }],
+    ["build tool lock drift", (files) => {
+      files["workers/security-python/build-requirements.lock"] += "# drift\n";
+    }],
+  ]) {
+    await t.test(name, () => {
+      const files = filesFixture();
+      mutate(files);
+      assert.throws(() => validate(lockFixture(), files));
+    });
+  }
 });
 
 test("binds the exact seven AWS SDK product dependencies", async (t) => {
@@ -507,11 +595,11 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 11, dependencies: 30 });
+  assert.deepEqual(validate(lock, files), { manifests: 13, dependencies: 32 });
 });
 
 test("accepts only exact repository-owned module requirements and replacements outside the third-party lock", async (t) => {
-  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 11, dependencies: 28 });
+  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 13, dependencies: 30 });
 
   for (const [name, mutate] of [
     ["missing health replacement", (files) => {

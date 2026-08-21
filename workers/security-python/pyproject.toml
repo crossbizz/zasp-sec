@@ -6,3 +6,6 @@ dependencies = []
 
 [project.scripts]
 security-worker = "security_worker.__main__:cli"
+
+[tool.setuptools]
+packages = ["security_worker"]
