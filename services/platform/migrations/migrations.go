@@ -12,60 +12,65 @@ import (
 )
 
 const (
-	baselineVersion         = int64(1)
-	baselineName            = "schema_versions"
-	coreVersion             = int64(2)
-	coreName                = "production_core"
-	workflowVersion         = int64(3)
-	workflowName            = "production_workflows"
-	receiptVersion          = int64(4)
-	receiptName             = "workflow_receipts"
-	safetyVersion           = int64(5)
-	safetyName              = "workflow_receipt_safety"
-	provenanceVersion       = int64(6)
-	provenanceName          = "workflow_receipt_provenance"
-	administrationVersion   = int64(7)
-	administrationName      = "production_administration"
-	revealGrantsVersion     = int64(8)
-	revealGrantsName        = "api_token_reveal_grants"
-	riskProjectionVersion   = int64(9)
-	riskProjectionName      = "production_risk_projection"
-	discoveryVersion        = int64(10)
-	discoveryName           = "production_discovery"
-	connectorVersion        = int64(11)
-	connectorName           = "connector_authorization"
-	referenceVersion        = int64(12)
-	referenceName           = "reference_authorization"
-	executionVersion        = int64(13)
-	executionName           = "production_discovery_execution"
-	typedInventoryVersion   = int64(14)
-	typedInventoryName      = "typed_inventory_cutover"
-	runtimeDataPlaneVersion = int64(15)
-	runtimeDataPlaneName    = "runtime_data_plane"
-	rollbackTimeout         = 5 * time.Second
+	baselineVersion                     = int64(1)
+	baselineName                        = "schema_versions"
+	coreVersion                         = int64(2)
+	coreName                            = "production_core"
+	workflowVersion                     = int64(3)
+	workflowName                        = "production_workflows"
+	receiptVersion                      = int64(4)
+	receiptName                         = "workflow_receipts"
+	safetyVersion                       = int64(5)
+	safetyName                          = "workflow_receipt_safety"
+	provenanceVersion                   = int64(6)
+	provenanceName                      = "workflow_receipt_provenance"
+	administrationVersion               = int64(7)
+	administrationName                  = "production_administration"
+	revealGrantsVersion                 = int64(8)
+	revealGrantsName                    = "api_token_reveal_grants"
+	riskProjectionVersion               = int64(9)
+	riskProjectionName                  = "production_risk_projection"
+	discoveryVersion                    = int64(10)
+	discoveryName                       = "production_discovery"
+	connectorVersion                    = int64(11)
+	connectorName                       = "connector_authorization"
+	referenceVersion                    = int64(12)
+	referenceName                       = "reference_authorization"
+	executionVersion                    = int64(13)
+	executionName                       = "production_discovery_execution"
+	typedInventoryVersion               = int64(14)
+	typedInventoryName                  = "typed_inventory_cutover"
+	runtimeDataPlaneVersion             = int64(15)
+	runtimeDataPlaneName                = "runtime_data_plane"
+	runtimeGatewayReconciliationVersion = int64(16)
+	runtimeGatewayReconciliationName    = "runtime_gateway_reconciliation"
+	rollbackTimeout                     = 5 * time.Second
 
-	tableExistsSQL                     = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
-	countRowsSQL                       = `SELECT count(*) FROM "public"."zasp_schema_versions"`
-	readRowSQL                         = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`
-	readVersionSQL                     = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`
-	lockTableSQL                       = `LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`
-	lockWorkflowMutationsSQL           = `LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`
-	lockAdministrationSQL              = `LOCK TABLE "public"."zasp_identity_memberships", "public"."zasp_product_sessions", "public"."zasp_product_api_tokens", "public"."zasp_organizations", "public"."zasp_workspaces", "public"."zasp_environments", "public"."zasp_group_mappings", "public"."zasp_admin_audit", "public"."zasp_session_events", "public"."zasp_compliance_controls", "public"."zasp_compliance_evidence", "public"."zasp_data_controls" IN ACCESS EXCLUSIVE MODE`
-	lockRevealGrantsSQL                = `LOCK TABLE "public"."zasp_admin_idempotency", "public"."zasp_api_token_reveal_grants", "public"."zasp_product_api_tokens" IN ACCESS EXCLUSIVE MODE`
-	lockRiskProjectionSQL              = `LOCK TABLE "public"."zasp_risk_findings", "public"."zasp_risk_finding_evidence", "public"."zasp_risk_finding_factors", "public"."zasp_risk_attack_paths", "public"."zasp_risk_attack_path_nodes", "public"."zasp_risk_attack_path_evidence", "public"."zasp_risk_break_options", "public"."zasp_workflow_idempotency", "public"."zasp_workflow_audit", "public"."zasp_workflow_receipts" IN ACCESS EXCLUSIVE MODE`
-	lockDiscoverySQL                   = `LOCK TABLE "public"."zasp_discovery_principal_bindings", "public"."zasp_integrations", "public"."zasp_integration_connections", "public"."zasp_discovery_schedules", "public"."zasp_discovery_syncs", "public"."zasp_discovery_jobs", "public"."zasp_discovery_snapshots", "public"."zasp_discovery_cursors", "public"."zasp_inventory_entities", "public"."zasp_inventory_source_observations", "public"."zasp_inventory_relationships", "public"."zasp_inventory_evidence", "public"."zasp_sensors", "public"."zasp_sensor_tokens", "public"."zasp_sensor_heartbeats", "public"."zasp_runtime_batches", "public"."zasp_runtime_stages", "public"."zasp_discovery_outbox", "public"."zasp_projection_work", "public"."zasp_gateway_devices", "public"."zasp_gateway_enrollment_tokens", "public"."zasp_gateway_credentials", "public"."zasp_gateway_policy_subscriptions" IN ACCESS EXCLUSIVE MODE`
-	lockConnectorSQL                   = `LOCK TABLE "public"."zasp_connector_oauth_attempts", "public"."zasp_connector_effects", "public"."zasp_connector_credentials", "public"."zasp_connector_audit" IN ACCESS EXCLUSIVE MODE`
-	lockExecutionSQL                   = `LOCK TABLE "public"."zasp_discovery_execution_principals", "public"."zasp_discovery_connection_subjects", "public"."zasp_discovery_execution_quotas", "public"."zasp_discovery_generation_reservations", "public"."zasp_discovery_job_authorities", "public"."zasp_discovery_job_checkpoints", "public"."zasp_discovery_upgrade_transitions", "public"."zasp_discovery_snapshot_inputs", "public"."zasp_discovery_snapshot_projection_items", "public"."zasp_discovery_projection_cursors" IN ACCESS EXCLUSIVE MODE`
-	lockTypedInventorySQL              = `LOCK TABLE "public"."zasp_inventory_cutover_state" IN ACCESS EXCLUSIVE MODE`
-	lockRuntimeDataPlaneSQL            = `LOCK TABLE "public"."zasp_runtime_data_plane_state" IN ACCESS EXCLUSIVE MODE`
-	insertRowSQL                       = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
-	deleteRowSQL                       = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
-	referenceAuthorizationReadinessSQL = `SELECT zasp_reference_authorization_readiness($1,$2)`
-	discoveryExecutionReadinessSQL     = `SELECT zasp_execution_readiness($1,$2)`
-	typedInventoryReadinessSQL         = `SELECT zasp_inventory_readiness($1,$2)`
-	runtimeDataPlaneReadinessSQL       = `SELECT zasp_runtime_data_plane_readiness($1,$2)`
-	typedInventoryRollbackAllowedSQL   = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_inventory_cutover_state" WHERE "phase" = 'cutover')`
-	runtimeDataPlaneRollbackAllowedSQL = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_data_plane_state" WHERE "used_at" IS NOT NULL)`
+	tableExistsSQL                                 = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
+	countRowsSQL                                   = `SELECT count(*) FROM "public"."zasp_schema_versions"`
+	readRowSQL                                     = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`
+	readVersionSQL                                 = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`
+	lockTableSQL                                   = `LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`
+	lockWorkflowMutationsSQL                       = `LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`
+	lockAdministrationSQL                          = `LOCK TABLE "public"."zasp_identity_memberships", "public"."zasp_product_sessions", "public"."zasp_product_api_tokens", "public"."zasp_organizations", "public"."zasp_workspaces", "public"."zasp_environments", "public"."zasp_group_mappings", "public"."zasp_admin_audit", "public"."zasp_session_events", "public"."zasp_compliance_controls", "public"."zasp_compliance_evidence", "public"."zasp_data_controls" IN ACCESS EXCLUSIVE MODE`
+	lockRevealGrantsSQL                            = `LOCK TABLE "public"."zasp_admin_idempotency", "public"."zasp_api_token_reveal_grants", "public"."zasp_product_api_tokens" IN ACCESS EXCLUSIVE MODE`
+	lockRiskProjectionSQL                          = `LOCK TABLE "public"."zasp_risk_findings", "public"."zasp_risk_finding_evidence", "public"."zasp_risk_finding_factors", "public"."zasp_risk_attack_paths", "public"."zasp_risk_attack_path_nodes", "public"."zasp_risk_attack_path_evidence", "public"."zasp_risk_break_options", "public"."zasp_workflow_idempotency", "public"."zasp_workflow_audit", "public"."zasp_workflow_receipts" IN ACCESS EXCLUSIVE MODE`
+	lockDiscoverySQL                               = `LOCK TABLE "public"."zasp_discovery_principal_bindings", "public"."zasp_integrations", "public"."zasp_integration_connections", "public"."zasp_discovery_schedules", "public"."zasp_discovery_syncs", "public"."zasp_discovery_jobs", "public"."zasp_discovery_snapshots", "public"."zasp_discovery_cursors", "public"."zasp_inventory_entities", "public"."zasp_inventory_source_observations", "public"."zasp_inventory_relationships", "public"."zasp_inventory_evidence", "public"."zasp_sensors", "public"."zasp_sensor_tokens", "public"."zasp_sensor_heartbeats", "public"."zasp_runtime_batches", "public"."zasp_runtime_stages", "public"."zasp_discovery_outbox", "public"."zasp_projection_work", "public"."zasp_gateway_devices", "public"."zasp_gateway_enrollment_tokens", "public"."zasp_gateway_credentials", "public"."zasp_gateway_policy_subscriptions" IN ACCESS EXCLUSIVE MODE`
+	lockConnectorSQL                               = `LOCK TABLE "public"."zasp_connector_oauth_attempts", "public"."zasp_connector_effects", "public"."zasp_connector_credentials", "public"."zasp_connector_audit" IN ACCESS EXCLUSIVE MODE`
+	lockExecutionSQL                               = `LOCK TABLE "public"."zasp_discovery_execution_principals", "public"."zasp_discovery_connection_subjects", "public"."zasp_discovery_execution_quotas", "public"."zasp_discovery_generation_reservations", "public"."zasp_discovery_job_authorities", "public"."zasp_discovery_job_checkpoints", "public"."zasp_discovery_upgrade_transitions", "public"."zasp_discovery_snapshot_inputs", "public"."zasp_discovery_snapshot_projection_items", "public"."zasp_discovery_projection_cursors" IN ACCESS EXCLUSIVE MODE`
+	lockTypedInventorySQL                          = `LOCK TABLE "public"."zasp_inventory_cutover_state" IN ACCESS EXCLUSIVE MODE`
+	lockRuntimeDataPlaneSQL                        = `LOCK TABLE "public"."zasp_runtime_data_plane_state" IN ACCESS EXCLUSIVE MODE`
+	lockRuntimeGatewayReconciliationSQL            = `LOCK TABLE "public"."zasp_runtime_gateway_reconciliation_state" IN ACCESS EXCLUSIVE MODE`
+	insertRowSQL                                   = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
+	deleteRowSQL                                   = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
+	referenceAuthorizationReadinessSQL             = `SELECT zasp_reference_authorization_readiness($1,$2)`
+	discoveryExecutionReadinessSQL                 = `SELECT zasp_execution_readiness($1,$2)`
+	typedInventoryReadinessSQL                     = `SELECT zasp_inventory_readiness($1,$2)`
+	runtimeDataPlaneReadinessSQL                   = `SELECT zasp_runtime_data_plane_readiness($1,$2)`
+	runtimeGatewayReconciliationReadinessSQL       = `SELECT zasp_runtime_gateway_reconciliation_readiness($1,$2)`
+	typedInventoryRollbackAllowedSQL               = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_inventory_cutover_state" WHERE "phase" = 'cutover')`
+	runtimeDataPlaneRollbackAllowedSQL             = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_data_plane_state" WHERE "used_at" IS NOT NULL)`
+	runtimeGatewayReconciliationRollbackAllowedSQL = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_gateway_reconciliation_state" WHERE "used_at" IS NOT NULL)`
 )
 
 var (
@@ -168,6 +173,12 @@ var runtimeDataPlaneUpSQL string
 
 //go:embed sql/0015_runtime_data_plane.down.sql
 var runtimeDataPlaneDownSQL string
+
+//go:embed sql/0016_runtime_gateway_reconciliation.up.sql
+var runtimeGatewayReconciliationUpSQL string
+
+//go:embed sql/0016_runtime_gateway_reconciliation.down.sql
+var runtimeGatewayReconciliationDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -294,6 +305,13 @@ func ProductionRuntimeDataPlane() Metadata {
 	return Metadata{version: runtimeDataPlaneVersion, name: runtimeDataPlaneName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionRuntimeGatewayReconciliation() Metadata {
+	up := strings.TrimSpace(runtimeGatewayReconciliationUpSQL)
+	down := strings.TrimSpace(runtimeGatewayReconciliationDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: runtimeGatewayReconciliationVersion, name: runtimeGatewayReconciliationName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -358,6 +376,10 @@ func ProductionTypedInventoryCutoverSemanticFingerprint() string {
 
 func ProductionRuntimeDataPlaneSemanticFingerprint() string {
 	return semanticFingerprint(runtimeDataPlaneUpSQL, "runtime_data_plane_fingerprint")
+}
+
+func ProductionRuntimeGatewayReconciliationSemanticFingerprint() string {
+	return semanticFingerprint(runtimeGatewayReconciliationUpSQL, "runtime_gateway_reconciliation_fingerprint")
 }
 
 func semanticFingerprint(source, key string) string {
@@ -461,7 +483,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 15 {
+	if count < 1 || count > 16 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -494,6 +516,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover())
 	} else if count == 15 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane())
+	} else if count == 16 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -1337,6 +1361,73 @@ func (runner *Runner) DownProductionRuntimeDataPlane(ctx context.Context) error 
 	})
 }
 
+func (runner *Runner) UpProductionRuntimeGatewayReconciliation(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockRuntimeDataPlaneSQL, lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionRuntimeDataPlaneState(ctx, transaction); err != nil {
+			return err
+		}
+		if err := requireMigrationReadiness(ctx, transaction, runtimeDataPlaneReadinessSQL, ProductionRuntimeDataPlane().Checksum(), ProductionRuntimeDataPlaneSemanticFingerprint()); err != nil {
+			return err
+		}
+		metadata := ProductionRuntimeGatewayReconciliation()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionRuntimeGatewayReconciliationState(ctx, transaction); err != nil {
+			return err
+		}
+		return requireMigrationReadiness(ctx, transaction, runtimeGatewayReconciliationReadinessSQL, metadata.Checksum(), ProductionRuntimeGatewayReconciliationSemanticFingerprint())
+	})
+}
+
+func (runner *Runner) DownProductionRuntimeGatewayReconciliation(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockRuntimeGatewayReconciliationSQL, lockRuntimeDataPlaneSQL, lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionRuntimeGatewayReconciliationState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionRuntimeGatewayReconciliation()
+		if err := requireMigrationReadiness(ctx, transaction, runtimeGatewayReconciliationReadinessSQL, metadata.Checksum(), ProductionRuntimeGatewayReconciliationSemanticFingerprint()); err != nil {
+			return err
+		}
+		var rollbackAllowed bool
+		if err := scanRow(ctx, transaction, runtimeGatewayReconciliationRollbackAllowedSQL, nil, &rollbackAllowed); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if !rollbackAllowed {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionRuntimeDataPlaneState(ctx, transaction); err != nil {
+			return err
+		}
+		return requireMigrationReadiness(ctx, transaction, runtimeDataPlaneReadinessSQL, ProductionRuntimeDataPlane().Checksum(), ProductionRuntimeDataPlaneSemanticFingerprint())
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -1520,6 +1611,10 @@ func readProductionTypedInventoryCutoverState(ctx context.Context, queryer Query
 
 func readProductionRuntimeDataPlaneState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane()})
+}
+
+func readProductionRuntimeGatewayReconciliationState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

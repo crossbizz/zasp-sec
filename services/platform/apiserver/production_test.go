@@ -147,7 +147,7 @@ func TestProductionBootstrapAdvertisesOnlyMountedDurableCapabilities(t *testing.
 	if err := json.NewDecoder(response.Body).Decode(&bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read", "findings.write"}
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read", "findings.write"}
 	if response.StatusCode != http.StatusOK || !reflect.DeepEqual(bootstrap.Capabilities, want) {
 		t.Fatalf("bootstrap = (%d, %#v)", response.StatusCode, bootstrap.Capabilities)
 	}

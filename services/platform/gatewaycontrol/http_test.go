@@ -116,6 +116,33 @@ func TestSignedHTTPControlBindsAuthorityPolicyAndDecisionWithoutCallerScope(t *t
 	}
 }
 
+func TestSignedHTTPControlReturnsOnlyExactAuthenticatedExpiredOutcome(t *testing.T) {
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	publicKey, privateKey := fixtureGatewayKey(t)
+	authority := fixtureAuthority(publicKey)
+	repository := &controlRepositoryStub{authority: authority, recordErr: ErrRecordExpired}
+	handler, err := NewHTTPHandler(HTTPHandlerConfig{Repository: repository, Clock: func() time.Time { return now }, OperationTimeout: time.Second, MaximumBodyBytes: 16 * 1024})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := newHTTPClient(HTTPClientConfig{
+		BaseURL: "https://gateway-control.zasp.example", OrganizationID: authority.OrganizationID, WorkspaceID: authority.WorkspaceID,
+		EnvironmentID: authority.EnvironmentID, DeviceID: authority.DeviceID, CredentialID: authority.CredentialID, KeyID: authority.KeyID,
+		PrivateKey: privateKey, OperationTimeout: time.Second, Clock: func() time.Time { return now },
+	}, &http.Client{Transport: handlerRoundTripper{handler: handler}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	event := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(6), ExpectedFloor: 7, NextFloor: 8, PolicyVersion: 3, Decision: "block", ActionKind: "http", Classification: map[string]string{"category": "access", "route_class": "admin", "resource_class": "secret", "outcome": "blocked"}, OccurredAt: now.Add(-24 * time.Hour)}
+	if err := client.Record(context.Background(), event); !errors.Is(err, ErrRecordExpired) || repository.recordCalls != 1 {
+		t.Fatalf("record err=%v calls=%d", err, repository.recordCalls)
+	}
+	repository.recordErr = errors.New("database unavailable")
+	if err := client.Record(context.Background(), event); !errors.Is(err, errHTTPControl) || errors.Is(err, ErrRecordExpired) || repository.recordCalls != 2 {
+		t.Fatalf("ambiguous record err=%v calls=%d", err, repository.recordCalls)
+	}
+}
+
 func TestHTTPClientRejectsAuthorityKeyIDDrift(t *testing.T) {
 	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
 	publicKey, privateKey := fixtureGatewayKey(t)
@@ -278,6 +305,7 @@ type controlRepositoryStub struct {
 	policyCalls    int
 	policyAfter    uint64
 	recordCalls    int
+	recordErr      error
 	readyErr       error
 	readyCalls     int
 }
@@ -312,7 +340,7 @@ func (repository *controlRepositoryStub) Policy(_ context.Context, credentialID 
 func (repository *controlRepositoryStub) Record(_ context.Context, event DecisionEvent) error {
 	repository.recordCalls++
 	repository.recorded = cloneDecisionEvent(event)
-	return nil
+	return repository.recordErr
 }
 
 type handlerRoundTripper struct {

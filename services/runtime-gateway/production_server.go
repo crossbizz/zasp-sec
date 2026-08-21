@@ -14,7 +14,7 @@ import (
 const productionGatewayListenAddress = ":8080"
 
 func serveProductionGateway(ctx context.Context, output io.Writer, version string, config productionGatewayConfig, dependencies productionGatewayDependencies, listen func(string, string) (net.Listener, error)) (resultErr error) {
-	if invalidRuntimeValue(ctx) || invalidRuntimeValue(output) || !validBuildVersion(version) || !validProductionGatewayConfig(config) || invalidRuntimeValue(dependencies.Handler) || dependencies.Ready == nil || dependencies.Run == nil || dependencies.Drain == nil || dependencies.Close == nil || listen == nil {
+	if invalidRuntimeValue(ctx) || invalidRuntimeValue(output) || !validBuildVersion(version) || !validProductionGatewayConfig(config) || invalidRuntimeValue(dependencies.Handler) || dependencies.Ready == nil || dependencies.Metrics == nil || dependencies.Run == nil || dependencies.Drain == nil || dependencies.Close == nil || listen == nil {
 		return errRuntimeUnavailable
 	}
 	defer func() {
@@ -51,6 +51,7 @@ func serveProductionGateway(ctx context.Context, output io.Writer, version strin
 	health, err := healthserver.New(healthserver.Config{
 		Service: "runtime-gateway", Version: version, ReadyInterval: time.Second, ReadyMaxInterval: 30 * time.Second,
 		ReadyCheck: func(readyCtx context.Context) bool { return dependencies.Ready(readyCtx) == nil },
+		Metrics:    dependencies.Metrics,
 	})
 	if err != nil {
 		_ = privateListener.Close()

@@ -5,8 +5,10 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,7 +39,7 @@ func TestBuildProductionGatewayDependenciesUsesExactHTTPSAuthorityAndClosesOnce(
 	config := productionGatewayConfig{
 		ControlPlaneURL: "https://gateway-control.zasp.example",
 		OrganizationID:  gatewayRuntimeID(1), WorkspaceID: gatewayRuntimeID(2), EnvironmentID: gatewayRuntimeID(3), DeviceID: gatewayRuntimeID(4), CredentialID: credentialID,
-		PrivateKeyFile: credentialPath, PolicyKeysFile: policyKeyPath, PolicyCacheFile: filepath.Join(directory, "policy-cache.json"), BootstrapFailureMode: "closed",
+		PrivateKeyFile: credentialPath, PolicyKeysFile: policyKeyPath, PolicyCacheFile: filepath.Join(directory, "policy-cache.json"), EvidenceStoreDirectory: filepath.Join(directory, "evidence"), EvidenceMaximumBytes: 8 << 30, BootstrapFailureMode: "closed",
 		MaximumRequestBytes: 16 * 1024, MaximumPendingEvents: 16, OperationTimeout: time.Second, SyncInterval: time.Second, ShutdownTimeout: time.Second,
 	}
 	client := &gatewayHTTPClientStub{authority: gatewaycontrol.Authority{
@@ -51,8 +53,11 @@ func TestBuildProductionGatewayDependenciesUsesExactHTTPSAuthorityAndClosesOnce(
 		captured.PrivateKey = append(ed25519.PrivateKey(nil), value.PrivateKey...)
 		return client, nil
 	})
-	if err != nil || dependencies.Handler == nil || dependencies.Ready == nil || dependencies.Run == nil || dependencies.Drain == nil || dependencies.Close == nil {
+	if err != nil || dependencies.Handler == nil || dependencies.Ready == nil || dependencies.Run == nil || dependencies.Drain == nil || dependencies.Close == nil || dependencies.Metrics == nil || dependencies.AcknowledgeQuarantine == nil {
 		t.Fatalf("dependencies=%#v factory=%#v close_calls=%d err=%v", dependencies, captured, client.closeCalls, err)
+	}
+	if metrics := dependencies.Metrics(); !strings.Contains(metrics, "zasp_gateway_evidence_receipt_capacity_bytes 8589934592\n") || !strings.Contains(metrics, "zasp_gateway_evidence_database_capacity_bytes 17179869184\n") {
+		t.Fatalf("metrics=%q", metrics)
 	}
 	if captured.BaseURL != config.ControlPlaneURL || captured.OrganizationID != config.OrganizationID || captured.WorkspaceID != config.WorkspaceID || captured.EnvironmentID != config.EnvironmentID || captured.DeviceID != config.DeviceID || captured.CredentialID != config.CredentialID || captured.KeyID != "gateway-key-1" || !bytes.Equal(captured.PrivateKey, privateKey) {
 		t.Fatalf("captured=%#v", captured)
@@ -66,9 +71,23 @@ func TestBuildProductionGatewayDependenciesUsesExactHTTPSAuthorityAndClosesOnce(
 	}
 }
 
+func TestGatewayHTTPControlPreservesOnlyExactExpiredRecordOutcome(t *testing.T) {
+	client := &gatewayHTTPClientStub{recordErr: gatewaycontrol.ErrRecordExpired}
+	control := gatewayHTTPControl{next: client}
+	event := gatewayDecisionEvent{CredentialID: gatewayRuntimeID(5), DeviceID: gatewayRuntimeID(4), EventID: gatewayRuntimeID(6), ExpectedFloor: 0, NextFloor: 1, PolicyVersion: 1, Decision: "block", ActionKind: "mcp", Classification: gatewayRuntimeClassification("blocked"), OccurredAt: gatewayRuntimeTime()}
+	if err := control.Record(context.Background(), event); !errors.Is(err, errGatewayRecordExpired) {
+		t.Fatalf("expired record=%v", err)
+	}
+	client.recordErr = errors.New("temporary transport failure")
+	if err := control.Record(context.Background(), event); !errors.Is(err, errGatewayRuntime) || errors.Is(err, errGatewayRecordExpired) {
+		t.Fatalf("ambiguous record=%v", err)
+	}
+}
+
 type gatewayHTTPClientStub struct {
 	authority  gatewaycontrol.Authority
 	closeCalls int
+	recordErr  error
 }
 
 func (*gatewayHTTPClientStub) Ready(context.Context) error { return nil }
@@ -81,7 +100,9 @@ func (*gatewayHTTPClientStub) Policy(context.Context, string, uint64) (*policy.G
 	return nil, nil
 }
 
-func (*gatewayHTTPClientStub) Record(context.Context, gatewaycontrol.DecisionEvent) error { return nil }
+func (client *gatewayHTTPClientStub) Record(context.Context, gatewaycontrol.DecisionEvent) error {
+	return client.recordErr
+}
 
 func (client *gatewayHTTPClientStub) Close() error {
 	client.closeCalls++

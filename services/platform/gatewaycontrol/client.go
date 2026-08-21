@@ -159,6 +159,16 @@ func (client *HTTPClient) Record(ctx context.Context, event DecisionEvent) error
 		return errHTTPControl
 	}
 	defer response.Body.Close()
+	if response.StatusCode == http.StatusUnprocessableEntity && response.Header.Get("Content-Type") == JSONMediaType && response.Header.Get("Cache-Control") == "no-store" {
+		raw, readErr := io.ReadAll(io.LimitReader(response.Body, maximumResponseBytes+1))
+		var payload struct {
+			Error string `json:"error"`
+		}
+		if readErr == nil && len(raw) <= maximumResponseBytes && strictJSON(raw, &payload) == nil && payload.Error == "record_window_expired" {
+			return ErrRecordExpired
+		}
+		return errHTTPControl
+	}
 	if response.StatusCode != http.StatusNoContent || response.Header.Get("Cache-Control") != "no-store" {
 		return errHTTPControl
 	}

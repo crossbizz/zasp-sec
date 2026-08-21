@@ -35,8 +35,8 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 	if !strings.Contains(postgresTypedInventorySchemaVersionSQL, "release.version = 14") || !strings.Contains(postgresTypedInventorySchemaVersionSQL, "release.name = 'typed_inventory_cutover'") || !strings.Contains(postgresTypedInventorySchemaVersionSQL, "zasp_inventory_readiness($1, $2)") {
 		t.Fatalf("v14 schema readiness query does not require typed inventory readiness: %s", postgresTypedInventorySchemaVersionSQL)
 	}
-	if !strings.Contains(postgresRuntimeDataPlaneSchemaVersionSQL, "release.version = 15") || !strings.Contains(postgresRuntimeDataPlaneSchemaVersionSQL, "release.name = 'runtime_data_plane'") || !strings.Contains(postgresRuntimeDataPlaneSchemaVersionSQL, "zasp_runtime_data_plane_readiness($1, $2)") {
-		t.Fatalf("v15 schema readiness query does not require runtime data plane readiness: %s", postgresRuntimeDataPlaneSchemaVersionSQL)
+	if !strings.Contains(postgresRuntimeDataPlaneSchemaVersionSQL, "release.version = 16") || !strings.Contains(postgresRuntimeDataPlaneSchemaVersionSQL, "release.name = 'runtime_gateway_reconciliation'") || !strings.Contains(postgresRuntimeDataPlaneSchemaVersionSQL, "zasp_runtime_gateway_reconciliation_readiness($1, $2)") {
+		t.Fatalf("v16 schema readiness query does not require runtime gateway reconciliation readiness: %s", postgresRuntimeDataPlaneSchemaVersionSQL)
 	}
 	if !strings.Contains(postgresSchemaVersionSQL, "production_discovery_release_fingerprint") || !strings.Contains(postgresSchemaVersionSQL, "COALESCE(release_fingerprint.value, expected_fingerprint.value)") {
 		t.Fatalf("schema readiness query does not recognize the v11-to-v10 compatibility contract: %s", postgresSchemaVersionSQL)

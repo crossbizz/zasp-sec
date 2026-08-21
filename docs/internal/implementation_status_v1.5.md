@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 307 |
-| Component-only | 360 |
+| Production-available | 309 |
+| Component-only | 358 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -85,9 +85,11 @@ production composition, not merely a component proof or external evidence.
 
 ## Production-availability audit basis
 
-- Immutable releases through v15 supply the shipped PostgreSQL discovery,
+- Immutable releases through v16 supply the shipped PostgreSQL discovery,
   typed-inventory, sensor, runtime-pipeline, and gateway authority with strict
-  repositories, scoped database principals, guarded upgrade, and rollback.
+  repositories, scoped database principals, guarded upgrade and rollback, and
+  exact late replay of committed gateway events without admitting new expired
+  events.
 - `services/platform/agentsec-worker` composes scheduler, discovery, outbox,
   independent risk/graph/search projections, and the archive/index/correlate/
   project/complete runtime-event stages. Task 4 promotes only 18 reviewed rows;
@@ -96,8 +98,8 @@ production composition, not merely a component proof or external evidence.
 - Public sensor management, hashed audience-bound sensor credentials, private
   heartbeat/ingest, signed gateway policy, and durable event-stage receipts are
   mounted behind distinct v15 database and cloud identities. Task 6 promotes
-  33 reviewed rows; upload reconciliation, durable
-  correlation/risk state, offline evidence, and public policy operations remain
+  35 reviewed rows; upload reconciliation, durable
+  correlation/risk state, ingest rate authority, and public policy operations remain
   incomplete.
 - `app/components/ZaspProductionApp.tsx` exposes capability-gated typed
   inventory routes backed by the mounted production API. The installed-Chrome
@@ -128,17 +130,17 @@ production composition, not merely a component proof or external evidence.
 | Milestone | Total | Production-available | Component-only | Blocked/external | Missing |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 7 | 17 | 3 | 0 |
-| M1 | 68 | 56 | 12 | 0 | 0 |
+| M1 | 68 | 57 | 11 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
 | M3 | 75 | 42 | 31 | 2 | 0 |
 | M4 | 82 | 50 | 32 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
-| M6 | 36 | 21 | 15 | 0 | 0 |
+| M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 23 | 66 | 52 | 0 |
-| **Total** | **728** | **307** | **360** | **61** | **0** |
+| **Total** | **728** | **309** | **358** | **61** | **0** |
 
 ## Prerequisite work
 

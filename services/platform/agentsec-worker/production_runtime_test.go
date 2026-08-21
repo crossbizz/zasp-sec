@@ -553,7 +553,7 @@ func (readyWorkerDatabase) SchemaVersion(context.Context) (string, error) {
 }
 
 func (readyWorkerDatabase) QueryJSON(_ context.Context, statement string, _ ...any) (json.RawMessage, error) {
-	if strings.Contains(statement, "zasp_runtime_data_plane_readiness") {
+	if strings.Contains(statement, "zasp_runtime_gateway_reconciliation_readiness") {
 		return json.RawMessage(`{"ready":true}`), nil
 	}
 	return json.RawMessage(`true`), nil
@@ -577,7 +577,7 @@ func (database *driftingWorkerDatabase) QueryJSON(_ context.Context, statement s
 	if database.drifted {
 		return json.RawMessage(`false`), nil
 	}
-	if strings.Contains(statement, "zasp_runtime_data_plane_readiness") {
+	if strings.Contains(statement, "zasp_runtime_gateway_reconciliation_readiness") {
 		return json.RawMessage(`{"ready":true}`), nil
 	}
 	return json.RawMessage(`true`), nil

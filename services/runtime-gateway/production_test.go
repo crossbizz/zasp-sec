@@ -13,38 +13,42 @@ import (
 func TestLoadProductionGatewayConfigRequiresExactAuthority(t *testing.T) {
 	directory := t.TempDir()
 	values := map[string]string{
-		"ZASP_GATEWAY_CONTROL_BASE_URL":       "https://gateway-control.zasp.example",
-		"ZASP_GATEWAY_ORGANIZATION_ID":        gatewayRuntimeID(1),
-		"ZASP_GATEWAY_WORKSPACE_ID":           gatewayRuntimeID(2),
-		"ZASP_GATEWAY_ENVIRONMENT_ID":         gatewayRuntimeID(3),
-		"ZASP_GATEWAY_DEVICE_ID":              gatewayRuntimeID(4),
-		"ZASP_GATEWAY_CREDENTIAL_ID":          gatewayRuntimeID(5),
-		"ZASP_GATEWAY_PRIVATE_KEY_FILE":       filepath.Join(directory, "credential.json"),
-		"ZASP_GATEWAY_POLICY_KEYS_FILE":       filepath.Join(directory, "keys.json"),
-		"ZASP_GATEWAY_POLICY_CACHE_FILE":      filepath.Join(directory, "cache.json"),
-		"ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE": "closed",
-		"ZASP_GATEWAY_MAX_REQUEST_BYTES":      "16384",
-		"ZASP_GATEWAY_MAX_PENDING_EVENTS":     "256",
-		"ZASP_GATEWAY_OPERATION_TIMEOUT":      "3s",
-		"ZASP_GATEWAY_SYNC_INTERVAL":          "30s",
-		"ZASP_GATEWAY_SHUTDOWN_TIMEOUT":       "10s",
+		"ZASP_GATEWAY_CONTROL_BASE_URL":         "https://gateway-control.zasp.example",
+		"ZASP_GATEWAY_ORGANIZATION_ID":          gatewayRuntimeID(1),
+		"ZASP_GATEWAY_WORKSPACE_ID":             gatewayRuntimeID(2),
+		"ZASP_GATEWAY_ENVIRONMENT_ID":           gatewayRuntimeID(3),
+		"ZASP_GATEWAY_DEVICE_ID":                gatewayRuntimeID(4),
+		"ZASP_GATEWAY_CREDENTIAL_ID":            gatewayRuntimeID(5),
+		"ZASP_GATEWAY_PRIVATE_KEY_FILE":         filepath.Join(directory, "credential.json"),
+		"ZASP_GATEWAY_POLICY_KEYS_FILE":         filepath.Join(directory, "keys.json"),
+		"ZASP_GATEWAY_POLICY_CACHE_FILE":        filepath.Join(directory, "cache.json"),
+		"ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY": filepath.Join(directory, "evidence"),
+		"ZASP_GATEWAY_EVIDENCE_MAX_BYTES":       "8589934592",
+		"ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE":   "closed",
+		"ZASP_GATEWAY_MAX_REQUEST_BYTES":        "16384",
+		"ZASP_GATEWAY_MAX_PENDING_EVENTS":       "256",
+		"ZASP_GATEWAY_OPERATION_TIMEOUT":        "3s",
+		"ZASP_GATEWAY_SYNC_INTERVAL":            "30s",
+		"ZASP_GATEWAY_SHUTDOWN_TIMEOUT":         "10s",
 	}
 	config, err := loadProductionGatewayConfig(func(key string) string { return values[key] })
-	if err != nil || config.ControlPlaneURL != "https://gateway-control.zasp.example" || config.MaximumRequestBytes != 16*1024 || config.MaximumPendingEvents != 256 || config.SyncInterval != 30*time.Second {
+	if err != nil || config.ControlPlaneURL != "https://gateway-control.zasp.example" || config.MaximumRequestBytes != 16*1024 || config.MaximumPendingEvents != 256 || config.EvidenceMaximumBytes != 8<<30 || config.EvidenceStoreDirectory != filepath.Join(directory, "evidence") || config.SyncInterval != 30*time.Second {
 		t.Fatalf("config=%#v err=%v", config, err)
 	}
 	for key, replacement := range map[string]string{
-		"ZASP_GATEWAY_CONTROL_BASE_URL":       "http://gateway-control.zasp.example",
-		"ZASP_GATEWAY_CREDENTIAL_ID":          "credential",
-		"ZASP_GATEWAY_PRIVATE_KEY_FILE":       "credential.json",
-		"ZASP_GATEWAY_POLICY_KEYS_FILE":       "keys.json",
-		"ZASP_GATEWAY_POLICY_CACHE_FILE":      directory,
-		"ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE": "fallback",
-		"ZASP_GATEWAY_MAX_REQUEST_BYTES":      "999999",
-		"ZASP_GATEWAY_MAX_PENDING_EVENTS":     "0",
-		"ZASP_GATEWAY_OPERATION_TIMEOUT":      "31s",
-		"ZASP_GATEWAY_SYNC_INTERVAL":          "500ms",
-		"ZASP_GATEWAY_SHUTDOWN_TIMEOUT":       "0s",
+		"ZASP_GATEWAY_CONTROL_BASE_URL":         "http://gateway-control.zasp.example",
+		"ZASP_GATEWAY_CREDENTIAL_ID":            "credential",
+		"ZASP_GATEWAY_PRIVATE_KEY_FILE":         "credential.json",
+		"ZASP_GATEWAY_POLICY_KEYS_FILE":         "keys.json",
+		"ZASP_GATEWAY_POLICY_CACHE_FILE":        directory,
+		"ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY": "evidence",
+		"ZASP_GATEWAY_EVIDENCE_MAX_BYTES":       "1048575",
+		"ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE":   "fallback",
+		"ZASP_GATEWAY_MAX_REQUEST_BYTES":        "999999",
+		"ZASP_GATEWAY_MAX_PENDING_EVENTS":       "0",
+		"ZASP_GATEWAY_OPERATION_TIMEOUT":        "31s",
+		"ZASP_GATEWAY_SYNC_INTERVAL":            "500ms",
+		"ZASP_GATEWAY_SHUTDOWN_TIMEOUT":         "0s",
 	} {
 		prior := values[key]
 		values[key] = replacement
@@ -53,6 +57,12 @@ func TestLoadProductionGatewayConfigRequiresExactAuthority(t *testing.T) {
 		}
 		values[key] = prior
 	}
+	priorEvidence := values["ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY"]
+	values["ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY"] = values["ZASP_GATEWAY_POLICY_CACHE_FILE"]
+	if candidate, err := loadProductionGatewayConfig(func(name string) string { return values[name] }); err == nil || candidate.ControlPlaneURL != "" {
+		t.Fatalf("shared state files candidate=%#v err=%v", candidate, err)
+	}
+	values["ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY"] = priorEvidence
 }
 
 func TestLoadGatewayCredentialUsesCanonicalPrivateFileAndExactConfiguredIdentity(t *testing.T) {

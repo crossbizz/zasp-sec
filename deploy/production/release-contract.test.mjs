@@ -42,6 +42,7 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   assert.equal(container.image, edgeRelease.image);
   assert.equal(pod.serviceAccountName, "runtime-gateway");
   assert.equal(pod.automountServiceAccountToken, false);
+  assert.equal(pod.securityContext.fsGroupChangePolicy, "OnRootMismatch");
   assert.equal(container.securityContext.readOnlyRootFilesystem, true);
   assert.deepEqual(envOf(deployment), {
     ZASP_GATEWAY_CONTROL_BASE_URL: edgeRelease.controlPlaneURL,
@@ -53,6 +54,8 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
     ZASP_GATEWAY_PRIVATE_KEY_FILE: "/var/run/secrets/zasp-config/credential.json",
     ZASP_GATEWAY_POLICY_KEYS_FILE: "/var/run/secrets/zasp-config/policy-keys.json",
     ZASP_GATEWAY_POLICY_CACHE_FILE: "/var/lib/zasp/policy/cache.json",
+    ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY: "/var/lib/zasp/policy/evidence",
+    ZASP_GATEWAY_EVIDENCE_MAX_BYTES: "8589934592",
     ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE: "closed", ZASP_GATEWAY_MAX_REQUEST_BYTES: "65536",
     ZASP_GATEWAY_MAX_PENDING_EVENTS: "1024", ZASP_GATEWAY_OPERATION_TIMEOUT: "10s",
     ZASP_GATEWAY_SYNC_INTERVAL: "30s", ZASP_GATEWAY_SHUTDOWN_TIMEOUT: "15s",
@@ -66,7 +69,7 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   assert.equal(pod.volumes.find(({ name }) => name === "policy-cache").persistentVolumeClaim.claimName, "runtime-gateway-cache");
   const claim = one(resources, "PersistentVolumeClaim", "runtime-gateway-cache");
   assert.equal(claim.spec.storageClassName, edgeRelease.storageClassName);
-  assert.equal(claim.spec.resources.requests.storage, "1Gi");
+  assert.equal(claim.spec.resources.requests.storage, "32Gi");
   assert.equal(resources.some(({ kind }) => kind === "Ingress"), false);
   assert.equal(resources.some(({ kind }) => kind === "PodDisruptionBudget"), false);
   const egress = one(resources, "NetworkPolicy", "runtime-gateway-control-plane");
@@ -125,7 +128,40 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   assert.deepEqual(one(resources, "NetworkPolicy", "sensor-agent-node-metrics").spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)), edgeRelease.nodeCIDRs);
   assert.equal(one(resources, "ServiceMonitor", "sensor-agent").spec.endpoints[0].path, "/metrics");
   const edgeAlerts = one(resources, "PrometheusRule", "zasp-customer-edge").spec.groups.flatMap(({ rules }) => rules);
-  assert.deepEqual(edgeAlerts.map(({ alert }) => alert), ["ZaspSensorAgentNotReady", "ZaspEdgeDaemonSetUnavailable"]);
+  assert.deepEqual(edgeAlerts.map(({ alert }) => alert), [
+    "ZaspRuntimeGatewayNotReady",
+    "ZaspRuntimeGatewayEvidenceCapacityWarning",
+    "ZaspRuntimeGatewayEvidenceCapacityCritical",
+    "ZaspRuntimeGatewayEvidenceDatabaseCapacityCritical",
+    "ZaspRuntimeGatewayEvidenceVolumeFreeCritical",
+    "ZaspRuntimeGatewayEvidenceQuarantined",
+    "ZaspSensorAgentNotReady",
+    "ZaspEdgeDaemonSetUnavailable",
+  ]);
+  assert.equal(
+    edgeAlerts.find(({ alert }) => alert === "ZaspRuntimeGatewayNotReady").expr,
+    'agentsec_ready{namespace="agentsec",service="runtime-gateway"} == 0 or absent(agentsec_ready{namespace="agentsec",service="runtime-gateway"})',
+  );
+  assert.equal(
+    edgeAlerts.find(({ alert }) => alert === "ZaspRuntimeGatewayEvidenceCapacityWarning").expr,
+    'zasp_gateway_evidence_receipt_utilization_ratio{namespace="agentsec",service="runtime-gateway"} >= 0.8',
+  );
+  assert.equal(
+    edgeAlerts.find(({ alert }) => alert === "ZaspRuntimeGatewayEvidenceCapacityCritical").expr,
+    'zasp_gateway_evidence_receipt_utilization_ratio{namespace="agentsec",service="runtime-gateway"} >= 0.95',
+  );
+  assert.equal(
+    edgeAlerts.find(({ alert }) => alert === "ZaspRuntimeGatewayEvidenceDatabaseCapacityCritical").expr,
+    'zasp_gateway_evidence_database_utilization_ratio{namespace="agentsec",service="runtime-gateway"} >= 0.8',
+  );
+  assert.equal(
+    edgeAlerts.find(({ alert }) => alert === "ZaspRuntimeGatewayEvidenceVolumeFreeCritical").expr,
+    'kubelet_volume_stats_available_bytes{namespace="agentsec",persistentvolumeclaim="runtime-gateway-cache"} / kubelet_volume_stats_capacity_bytes{namespace="agentsec",persistentvolumeclaim="runtime-gateway-cache"} <= 0.25',
+  );
+  assert.equal(
+    edgeAlerts.find(({ alert }) => alert === "ZaspRuntimeGatewayEvidenceQuarantined").expr,
+    'zasp_gateway_evidence_quarantined{namespace="agentsec",service="runtime-gateway"} > 0',
+  );
   const tracingPolicies = resources.filter(({ kind }) => kind === "TracingPolicy");
   assert.deepEqual(tracingPolicies.map(({ metadata }) => metadata.name).sort(), ["zasp-network-connect", "zasp-sensitive-file"]);
   assert.equal(tracingPolicies.every(({ spec }) => JSON.stringify(spec.podSelector) === "{}"), true);
@@ -350,7 +386,7 @@ test("production release renders private Nango dependency plus a fail-closed loc
 test("rendered release rejects an unreviewed job identity", async () => {
   const resources = await renderRelease(release);
   const names = resources.filter(({ kind }) => kind === "Job").map(({ metadata }) => metadata.name).sort();
-  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v15", "nango-migrate", "zasp-canary-secret-sync"]);
+  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v16", "nango-migrate", "zasp-canary-secret-sync"]);
   assert.throws(() => validateRenderedRelease([...resources, {
     apiVersion: "batch/v1",
     kind: "Job",
@@ -431,9 +467,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.deepEqual(one(resources, "Service", "agentsec-api").spec.ports.map(({ name, port }) => [name, port]), [["product", 8080], ["internal", 8081]]);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Ingress").map(({ metadata }) => metadata.name).sort(), ["zasp-product", "zasp-runtime"]);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Service" && ["neo4j", "nango", "otel-collector"].includes(metadata.name) && metadata.annotations?.["service.beta.kubernetes.io/aws-load-balancer-type"]), false);
-  assert.equal(one(resources, "Job", "agentsec-schema-v15").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
-  assert.match(one(resources, "Job", "agentsec-schema-v15").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
-  const migration = one(resources, "Job", "agentsec-schema-v15");
+  assert.equal(one(resources, "Job", "agentsec-schema-v16").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.match(one(resources, "Job", "agentsec-schema-v16").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
+  const migration = one(resources, "Job", "agentsec-schema-v16");
   assert.equal(migration.spec.template.spec.serviceAccountName, "agentsec-migration");
   assert.equal(migration.spec.template.spec.containers[0].env.some(({ valueFrom }) => valueFrom?.secretKeyRef), false);
   assert.equal(migration.spec.template.spec.containers[0].volumeMounts[0].mountPath, "/var/run/secrets/zasp-migration");
@@ -457,13 +493,13 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL: "zasp_runtime_projection_runtime",
     ZASP_GATEWAY_CONTROL_DB_PRINCIPAL: "zasp_gateway_control_runtime",
   });
-  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v15", "-10"]]) {
+  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v16", "-10"]]) {
     const resource = one(resources, kind, name);
     assert.equal(resource.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
     assert.equal(resource.metadata.annotations["helm.sh/hook-weight"], weight);
   }
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "15");
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "15");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "16");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "16");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
   assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 7);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-migration-secrets").spec.secretObjects[0].data.length, 1);

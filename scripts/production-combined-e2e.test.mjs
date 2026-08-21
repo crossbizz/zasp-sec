@@ -37,7 +37,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "browserStorageHistoryAndCaches", "indexedDB.databases", "assertResponsiveRiskLayout", "Emulation.setDeviceMetricsOverride",
     "browser console and exception stream remained clean", "hidden risk-adjacent routes canonicalized without hidden API calls",
     "/red-team/results", "/test/attack-lab", "/reports", "/guardrails/dashboard", "/prompt-hardening",
-    "schema 14 typed_inventory_cutover verified", "schema 15 runtime_data_plane verified", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN",
+    "schema 14 typed_inventory_cutover verified", "schema 15 runtime_data_plane verified", "schema 16 runtime_gateway_reconciliation verified", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN",
     "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION",
     "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX",
     "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS",

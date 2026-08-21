@@ -369,6 +369,8 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		{method: "POST", path: "/api/v1/policies", body: "workflow"},
 		{method: "GET", path: "/api/v1/policies/policy-bounded", body: "workflow"},
 		{method: "GET", path: "/api/v1/integration-catalog", body: "workflow"},
+		{method: "GET", path: "/api/v1/sensors", body: "workflow"},
+		{method: "POST", path: "/api/v1/sensors", body: "workflow"},
 		{method: "GET", path: "/api/v1/security-agents", body: "workflow"},
 		{method: "POST", path: "/api/v1/integrations/pid_70000001-0000-4000-8000-000000000001/authorize", body: "connector"},
 		{method: "GET", path: "/api/v1/integrations/oauth/callback", body: "connector"},
@@ -394,7 +396,7 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		}
 	}
 
-	for _, path := range []string{"/internal/health/live", "/api/v1/sensors", "/api/v1/sensors/heartbeat", "/api/v1/security-actions", "/api/v1/security-agent-runs", "/api/v1/security-agent-approvals", "/api/v1/runtime/events", "/api/v1/policy/bundle", "/api/v1/webhooks/stytch", "/api/v1/search"} {
+	for _, path := range []string{"/internal/health/live", "/api/v1/sensors/heartbeat", "/api/v1/security-actions", "/api/v1/security-agent-runs", "/api/v1/security-agent-approvals", "/api/v1/runtime/events", "/api/v1/policy/bundle", "/api/v1/webhooks/stytch", "/api/v1/search"} {
 		response := httptest.NewRecorder()
 		composition.ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, nil))
 		if response.Code != http.StatusNotFound {

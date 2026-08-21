@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	productionIngestReadySQL        = `SELECT jsonb_build_object('ready',zasp_runtime_data_plane_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_runtime_ingest'))`
+	productionIngestReadySQL        = `SELECT jsonb_build_object('ready',zasp_runtime_gateway_reconciliation_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_runtime_ingest'))`
 	productionIngestAuthenticateSQL = `SELECT zasp_runtime_authenticate_sensor($1,$2,'event-ingest')`
 	productionIngestReserveSQL      = `SELECT zasp_runtime_reserve_batch($1,$2,'event-ingest',$3,$4,$5,$6,$7,$8,$9,$10)`
 	productionIngestFinalizeSQL     = `SELECT zasp_runtime_finalize_batch($1,$2,'event-ingest',$3,$4,$5,$6,$7,$8,$9,$10,$11)`
@@ -48,7 +48,7 @@ func (repository *PostgresProductionIngestRepository) Ready(ctx context.Context)
 	if !validProductionRepository(repository, ctx) {
 		return ErrProductionIngestUnavailable
 	}
-	payload, err := safeProductionQuery(repository.database, ctx, productionIngestReadySQL, migrations.ProductionRuntimeDataPlane().Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint())
+	payload, err := safeProductionQuery(repository.database, ctx, productionIngestReadySQL, migrations.ProductionRuntimeGatewayReconciliation().Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint())
 	var result struct {
 		Ready bool `json:"ready"`
 	}

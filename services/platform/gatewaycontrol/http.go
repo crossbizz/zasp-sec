@@ -211,7 +211,10 @@ func (handler *httpHandler) writeDecision(ctx context.Context, writer http.Respo
 		writeError(writer, http.StatusBadRequest, "invalid_request")
 		return
 	}
-	if err := handler.repository.Record(ctx, cloneDecisionEvent(event)); err != nil || ctx.Err() != nil {
+	if err := handler.repository.Record(ctx, cloneDecisionEvent(event)); errors.Is(err, ErrRecordExpired) && ctx.Err() == nil {
+		writeError(writer, http.StatusUnprocessableEntity, "record_window_expired")
+		return
+	} else if err != nil || ctx.Err() != nil {
 		writeError(writer, http.StatusServiceUnavailable, "service_unavailable")
 		return
 	}

@@ -232,6 +232,14 @@ dependencies:
     scope: runtime
     review: approved
   - ecosystem: go
+    manifest: services/runtime-gateway/go.mod
+    name: github.com/dgraph-io/badger/v4
+    version: v4.9.1
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
     manifest: services/sensor-agent/go.mod
     name: k8s.io/api
     version: v0.35.5

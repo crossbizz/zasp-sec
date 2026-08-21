@@ -8,7 +8,7 @@ Run a restore drill at least quarterly into a newly created isolated database. A
 
 ## Application rollback
 
-Stop promotion when error, latency, auth, dependency or canary budgets fail. Preserve correlation and trace IDs. If schema v15 remains compatible, use Helm rollback to the previously attested image digests and verify every API, gateway, ingest, and worker readiness check plus the read-only synthetic before reopening traffic.
+Stop promotion when error, latency, auth, dependency or canary budgets fail. Preserve correlation and trace IDs. If schema v16 remains compatible, use Helm rollback to the previously attested image digests and verify every API, gateway, ingest, and worker readiness check plus the read-only synthetic before reopening traffic.
 
 Do not run `agentsec-migrate down` as a routine rollback. The command removes migrations through the baseline and is destructive. When a release cannot run safely on the current schema, block writes, restore the pre-release snapshot into a new isolated database, validate it, switch the secret reference atomically, and keep the failed database for investigation. Prefer a forward-compatible repair migration whenever possible.
 

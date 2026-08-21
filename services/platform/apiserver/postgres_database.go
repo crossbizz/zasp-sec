@@ -119,10 +119,10 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = 'typed-invent
 
 const postgresRuntimeDataPlaneSchemaVersionSQL = `SELECT metadata.value
 FROM zasp_schema_metadata AS metadata
-JOIN zasp_schema_versions AS release ON release.version = 15 AND release.name = 'runtime_data_plane'
+JOIN zasp_schema_versions AS release ON release.version = 16 AND release.name = 'runtime_gateway_reconciliation'
 WHERE metadata.key = 'production_core_schema' AND metadata.value = 'runtime-data-plane-v1'
-  AND zasp_runtime_data_plane_readiness($1, $2)
-  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 15)`
+  AND zasp_runtime_gateway_reconciliation_readiness($1, $2)
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 16)`
 
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
 func expectedCoreSchemaFingerprint() string {
@@ -153,10 +153,10 @@ func expectedTypedInventorySchemaFingerprint() string {
 	return migrations.ProductionTypedInventoryCutoverSemanticFingerprint()
 }
 func expectedRuntimeDataPlaneSchemaChecksum() string {
-	return migrations.ProductionRuntimeDataPlane().Checksum()
+	return migrations.ProductionRuntimeGatewayReconciliation().Checksum()
 }
 func expectedRuntimeDataPlaneSchemaFingerprint() string {
-	return migrations.ProductionRuntimeDataPlaneSemanticFingerprint()
+	return migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint()
 }
 
 type PostgresRow interface{ Scan(...any) error }

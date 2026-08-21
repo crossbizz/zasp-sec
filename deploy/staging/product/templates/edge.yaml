@@ -35,7 +35,7 @@ metadata: { name: runtime-gateway-cache, labels: { app.kubernetes.io/name: runti
 spec:
   accessModes: [ReadWriteOnce]
   storageClassName: {{ required "runtimeGateway.policyCache.storageClassName is required" .Values.runtimeGateway.policyCache.storageClassName | quote }}
-  resources: { requests: { storage: 1Gi } }
+  resources: { requests: { storage: 32Gi } }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -53,7 +53,7 @@ spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
       terminationGracePeriodSeconds: 30
-      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, fsGroupChangePolicy: OnRootMismatch, seccompProfile: { type: RuntimeDefault } }
       initContainers:
         - name: materialize-config
           image: {{ required "global.productImages.runtimeGateway must be an immutable digest" .Values.global.productImages.runtimeGateway | quote }}
@@ -88,6 +88,8 @@ spec:
             - { name: ZASP_GATEWAY_PRIVATE_KEY_FILE, value: /var/run/secrets/zasp-config/credential.json }
             - { name: ZASP_GATEWAY_POLICY_KEYS_FILE, value: /var/run/secrets/zasp-config/policy-keys.json }
             - { name: ZASP_GATEWAY_POLICY_CACHE_FILE, value: /var/lib/zasp/policy/cache.json }
+            - { name: ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY, value: /var/lib/zasp/policy/evidence }
+            - { name: ZASP_GATEWAY_EVIDENCE_MAX_BYTES, value: "8589934592" }
             - { name: ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE, value: closed }
             - { name: ZASP_GATEWAY_MAX_REQUEST_BYTES, value: "65536" }
             - { name: ZASP_GATEWAY_MAX_PENDING_EVENTS, value: "1024" }
@@ -361,6 +363,7 @@ spec:
   selector: { matchLabels: { app.kubernetes.io/name: sensor-agent, app.kubernetes.io/part-of: zasp } }
   namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
   endpoints: [{ port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }]
+{{- end }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -369,6 +372,37 @@ spec:
   groups:
     - name: zasp.customer-edge
       rules:
+        - alert: ZaspRuntimeGatewayNotReady
+          expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service="runtime-gateway"} == 0 or absent(agentsec_ready{namespace="{{ .Release.Namespace }}",service="runtime-gateway"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "The customer-edge runtime gateway is not ready" }
+        - alert: ZaspRuntimeGatewayEvidenceCapacityWarning
+          expr: zasp_gateway_evidence_receipt_utilization_ratio{namespace="{{ .Release.Namespace }}",service="runtime-gateway"} >= 0.8
+          for: 10m
+          labels: { severity: warning }
+          annotations: { summary: "The runtime gateway evidence store exceeds 80 percent capacity" }
+        - alert: ZaspRuntimeGatewayEvidenceCapacityCritical
+          expr: zasp_gateway_evidence_receipt_utilization_ratio{namespace="{{ .Release.Namespace }}",service="runtime-gateway"} >= 0.95
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "The runtime gateway evidence store exceeds 95 percent capacity" }
+        - alert: ZaspRuntimeGatewayEvidenceDatabaseCapacityCritical
+          expr: zasp_gateway_evidence_database_utilization_ratio{namespace="{{ .Release.Namespace }}",service="runtime-gateway"} >= 0.8
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "The runtime gateway evidence database exceeds its physical safety boundary" }
+        - alert: ZaspRuntimeGatewayEvidenceVolumeFreeCritical
+          expr: kubelet_volume_stats_available_bytes{namespace="{{ .Release.Namespace }}",persistentvolumeclaim="runtime-gateway-cache"} / kubelet_volume_stats_capacity_bytes{namespace="{{ .Release.Namespace }}",persistentvolumeclaim="runtime-gateway-cache"} <= 0.25
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "The runtime gateway evidence volume has less than 25 percent free space" }
+        - alert: ZaspRuntimeGatewayEvidenceQuarantined
+          expr: zasp_gateway_evidence_quarantined{namespace="{{ .Release.Namespace }}",service="runtime-gateway"} > 0
+          for: 1m
+          labels: { severity: page }
+          annotations: { summary: "The runtime gateway has quarantined decision evidence" }
+{{- if .Values.sensorAgent.enabled }}
         - alert: ZaspSensorAgentNotReady
           expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service="sensor-agent"} == 0 or absent(agentsec_ready{namespace="{{ .Release.Namespace }}",service="sensor-agent"})
           for: 5m

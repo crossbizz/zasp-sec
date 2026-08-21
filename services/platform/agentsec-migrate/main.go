@@ -76,6 +76,8 @@ type releaseMigrationRunner interface {
 	DownProductionTypedInventoryCutover(context.Context) error
 	UpProductionRuntimeDataPlane(context.Context) error
 	DownProductionRuntimeDataPlane(context.Context) error
+	UpProductionRuntimeGatewayReconciliation(context.Context) error
+	DownProductionRuntimeGatewayReconciliation(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -134,7 +136,7 @@ func registerReleasePrincipals(ctx context.Context, queryer principalQueryer, re
 		{`SELECT zasp_execution_register_principals($1,$2,$3,$4,$5,$6)`, []any{registration.migration, registration.scheduler, registration.discovery, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch}},
 		{`SELECT zasp_runtime_register_principals($1,$2,$3,$4,$5,$6,$7)`, []any{registration.migration, registration.runtimeCoordinator, registration.runtimeArchive, registration.runtimeIndex, registration.runtimeCorrelation, registration.runtimeProjection, registration.gatewayControl}},
 		{statement: `SELECT zasp_runtime_principals_ready()`},
-		{`SELECT zasp_runtime_data_plane_readiness($1,$2)`, []any{migrations.ProductionRuntimeDataPlane().Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint()}},
+		{`SELECT zasp_runtime_gateway_reconciliation_readiness($1,$2)`, []any{migrations.ProductionRuntimeGatewayReconciliation().Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint()}},
 	}
 	for _, check := range checks {
 		ready = false
@@ -288,10 +290,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 15
 		}
-		if version != 15 {
+		if version == 15 {
+			if err := runner.UpProductionRuntimeGatewayReconciliation(ctx); err != nil {
+				return err
+			}
+			version = 16
+		}
+		if version != 16 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 16 {
+			if err := runner.DownProductionRuntimeGatewayReconciliation(ctx); err != nil {
+				return err
+			}
+			version = 15
+		}
 		if version == 15 {
 			if err := runner.DownProductionRuntimeDataPlane(ctx); err != nil {
 				return err

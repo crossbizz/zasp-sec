@@ -16,6 +16,11 @@ proofs/localstack-iam-compat/sdk_test.go:generic-api-key:61
 proofs/nango-oauth/run.test.mjs:generic-api-key:33
 8320a197d070dff0dd7c2a612325184985f0675e:proofs/nango-oauth/run.test.mjs:generic-api-key:28
 
+# The OTel production redaction proof uses one fixed hostile schema value to
+# prove collector metadata stripping. Ignore only its exact introduction
+# finding; changed or relocated values remain detectable.
+58f794d9b751e45d7fb42feaa0b07de251c21354:deploy/production/otel-redaction-proof.mjs:generic-api-key:21
+
 # Batch 2 uses fixed synthetic workflow-signing bytes and descriptive
 # idempotency values only inside hermetic local tests. Ignore only the exact
 # introduction-commit findings; changed or relocated values remain detectable.
@@ -101,6 +106,8 @@ e17eb5670ce1a04d2daf071c460164858aeaa10b:services/platform/apiserver/workflow_ha
 # changed, or relocated values remain detectable by the full-history gate.
 3d6c759e353ec9a0fe0753b53e23f259e9228dd4:services/platform/apiserver/workflow_repository_test.go:generic-api-key:224
 af141b8648b87bba64cf338131da43352a86dc63:services/platform/agentsec-api/runtime_test.go:generic-api-key:305
+60fefd2d1a1c4044c5a0e75a95e0b761cf92fb83:services/platform/apiserver/workflow_repository_test.go:generic-api-key:224
+6aff76ad0f0092d88347db393f987eb4ba233f81:services/platform/agentsec-api/runtime_test.go:generic-api-key:305
 68ddcd935f346e3f7db20f711713e28b7522b373:services/platform/apiserver/workflow_handler_test.go:generic-api-key:462
 68ddcd935f346e3f7db20f711713e28b7522b373:services/platform/apiserver/workflow_handler_test.go:generic-api-key:480
 db1a6dd76020d6724b8831b635db38ed6aa88203:services/platform/apiserver/connector_authorization_risk_postgres_test.go:generic-api-key:47

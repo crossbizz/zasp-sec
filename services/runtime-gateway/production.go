@@ -25,21 +25,23 @@ const (
 var gatewayCredentialKeyIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`)
 
 type productionGatewayConfig struct {
-	ControlPlaneURL      string
-	OrganizationID       string
-	WorkspaceID          string
-	EnvironmentID        string
-	DeviceID             string
-	CredentialID         string
-	PrivateKeyFile       string
-	PolicyKeysFile       string
-	PolicyCacheFile      string
-	BootstrapFailureMode string
-	MaximumRequestBytes  int64
-	MaximumPendingEvents int
-	OperationTimeout     time.Duration
-	SyncInterval         time.Duration
-	ShutdownTimeout      time.Duration
+	ControlPlaneURL        string
+	OrganizationID         string
+	WorkspaceID            string
+	EnvironmentID          string
+	DeviceID               string
+	CredentialID           string
+	PrivateKeyFile         string
+	PolicyKeysFile         string
+	PolicyCacheFile        string
+	EvidenceStoreDirectory string
+	EvidenceMaximumBytes   uint64
+	BootstrapFailureMode   string
+	MaximumRequestBytes    int64
+	MaximumPendingEvents   int
+	OperationTimeout       time.Duration
+	SyncInterval           time.Duration
+	ShutdownTimeout        time.Duration
 }
 
 func loadProductionGatewayConfig(getenv func(string) string) (productionGatewayConfig, error) {
@@ -48,27 +50,30 @@ func loadProductionGatewayConfig(getenv func(string) string) (productionGatewayC
 	}
 	maximumRequestBytes, requestErr := strconv.ParseInt(getenv("ZASP_GATEWAY_MAX_REQUEST_BYTES"), 10, 64)
 	maximumPendingEvents, pendingErr := strconv.Atoi(getenv("ZASP_GATEWAY_MAX_PENDING_EVENTS"))
+	evidenceMaximumBytes, evidenceBytesErr := strconv.ParseUint(getenv("ZASP_GATEWAY_EVIDENCE_MAX_BYTES"), 10, 64)
 	operationTimeout, operationErr := time.ParseDuration(getenv("ZASP_GATEWAY_OPERATION_TIMEOUT"))
 	syncInterval, syncErr := time.ParseDuration(getenv("ZASP_GATEWAY_SYNC_INTERVAL"))
 	shutdownTimeout, shutdownErr := time.ParseDuration(getenv("ZASP_GATEWAY_SHUTDOWN_TIMEOUT"))
 	config := productionGatewayConfig{
-		ControlPlaneURL:      getenv("ZASP_GATEWAY_CONTROL_BASE_URL"),
-		OrganizationID:       getenv("ZASP_GATEWAY_ORGANIZATION_ID"),
-		WorkspaceID:          getenv("ZASP_GATEWAY_WORKSPACE_ID"),
-		EnvironmentID:        getenv("ZASP_GATEWAY_ENVIRONMENT_ID"),
-		DeviceID:             getenv("ZASP_GATEWAY_DEVICE_ID"),
-		CredentialID:         getenv("ZASP_GATEWAY_CREDENTIAL_ID"),
-		PrivateKeyFile:       getenv("ZASP_GATEWAY_PRIVATE_KEY_FILE"),
-		PolicyKeysFile:       getenv("ZASP_GATEWAY_POLICY_KEYS_FILE"),
-		PolicyCacheFile:      getenv("ZASP_GATEWAY_POLICY_CACHE_FILE"),
-		BootstrapFailureMode: getenv("ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE"),
-		MaximumRequestBytes:  maximumRequestBytes,
-		MaximumPendingEvents: maximumPendingEvents,
-		OperationTimeout:     operationTimeout,
-		SyncInterval:         syncInterval,
-		ShutdownTimeout:      shutdownTimeout,
+		ControlPlaneURL:        getenv("ZASP_GATEWAY_CONTROL_BASE_URL"),
+		OrganizationID:         getenv("ZASP_GATEWAY_ORGANIZATION_ID"),
+		WorkspaceID:            getenv("ZASP_GATEWAY_WORKSPACE_ID"),
+		EnvironmentID:          getenv("ZASP_GATEWAY_ENVIRONMENT_ID"),
+		DeviceID:               getenv("ZASP_GATEWAY_DEVICE_ID"),
+		CredentialID:           getenv("ZASP_GATEWAY_CREDENTIAL_ID"),
+		PrivateKeyFile:         getenv("ZASP_GATEWAY_PRIVATE_KEY_FILE"),
+		PolicyKeysFile:         getenv("ZASP_GATEWAY_POLICY_KEYS_FILE"),
+		PolicyCacheFile:        getenv("ZASP_GATEWAY_POLICY_CACHE_FILE"),
+		EvidenceStoreDirectory: getenv("ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY"),
+		EvidenceMaximumBytes:   evidenceMaximumBytes,
+		BootstrapFailureMode:   getenv("ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE"),
+		MaximumRequestBytes:    maximumRequestBytes,
+		MaximumPendingEvents:   maximumPendingEvents,
+		OperationTimeout:       operationTimeout,
+		SyncInterval:           syncInterval,
+		ShutdownTimeout:        shutdownTimeout,
 	}
-	if requestErr != nil || pendingErr != nil || operationErr != nil || syncErr != nil || shutdownErr != nil || !validProductionGatewayConfig(config) {
+	if requestErr != nil || pendingErr != nil || evidenceBytesErr != nil || operationErr != nil || syncErr != nil || shutdownErr != nil || !validProductionGatewayConfig(config) {
 		return productionGatewayConfig{}, errRuntimeUnavailable
 	}
 	return config, nil
@@ -80,11 +85,22 @@ func validProductionGatewayConfig(config productionGatewayConfig) bool {
 		return false
 	}
 	return validGatewayProductID(config.OrganizationID) && validGatewayProductID(config.WorkspaceID) && validGatewayProductID(config.EnvironmentID) &&
-		validGatewayProductID(config.DeviceID) && validGatewayProductID(config.CredentialID) && validGatewayPath(config.PrivateKeyFile, false) && validGatewayPath(config.PolicyKeysFile, false) && validGatewayPath(config.PolicyCacheFile, true) &&
+		validGatewayProductID(config.DeviceID) && validGatewayProductID(config.CredentialID) && validGatewayPath(config.PrivateKeyFile, false) && validGatewayPath(config.PolicyKeysFile, false) && validGatewayPath(config.PolicyCacheFile, true) && validGatewayDirectoryPath(config.EvidenceStoreDirectory) && config.EvidenceStoreDirectory != config.PolicyCacheFile && config.EvidenceMaximumBytes >= 1024*1024 && config.EvidenceMaximumBytes <= 64<<30 &&
 		(config.BootstrapFailureMode == "open" || config.BootstrapFailureMode == "closed") &&
 		config.MaximumRequestBytes >= 1024 && config.MaximumRequestBytes <= 64*1024 && config.MaximumPendingEvents >= 1 && config.MaximumPendingEvents <= 1024 &&
 		config.OperationTimeout >= time.Second && config.OperationTimeout <= 30*time.Second && config.SyncInterval >= time.Second && config.SyncInterval <= 5*time.Minute &&
 		config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= time.Minute
+}
+
+func validGatewayDirectoryPath(path string) bool {
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path || filepath.Base(path) == "." || filepath.Base(path) == string(filepath.Separator) {
+		return false
+	}
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return true
+	}
+	return err == nil && info.IsDir() && info.Mode().Perm() == 0o700 && info.Mode()&os.ModeSymlink == 0
 }
 
 type gatewayCredential struct {

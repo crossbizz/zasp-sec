@@ -122,6 +122,17 @@ const gatewayDependencies = [{
   review: "approved",
 }];
 
+const runtimeGatewayDependencies = [{
+  ecosystem: "go",
+  manifest: "services/runtime-gateway/go.mod",
+  name: "github.com/dgraph-io/badger/v4",
+  version: "v4.9.1",
+  license: "Apache-2.0",
+  owner: "platform-data",
+  scope: "runtime",
+  review: "approved",
+}];
+
 const sensorDependencies = ["api", "apimachinery", "client-go"].map((name) => ({
   ecosystem: "go",
   manifest: "services/sensor-agent/go.mod",
@@ -140,6 +151,7 @@ const dependencies = [
   ...awsDependencies,
   ...policyDependencies,
   ...platformDependencies,
+  ...runtimeGatewayDependencies,
   ...sensorDependencies,
 ].sort((left, right) =>
   `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`),
@@ -241,6 +253,8 @@ function filesFixture() {
       "",
       "require github.com/zasp-ai/zasp-sec/services/health v0.0.0",
       "require github.com/zasp-ai/zasp-sec/services/platform v0.0.0",
+      `require ${runtimeGatewayDependencies[0].name} ${runtimeGatewayDependencies[0].version}`,
+      "require github.com/google/flatbuffers v25.2.10+incompatible // indirect",
       "",
       "replace github.com/zasp-ai/zasp-sec/services/health => ../health",
       "",
@@ -272,7 +286,7 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 11, dependencies: 27 });
+  assert.deepEqual(validate(), { manifests: 11, dependencies: 28 });
 });
 
 test("binds the exact seven AWS SDK product dependencies", async (t) => {
@@ -337,6 +351,7 @@ test("binds exact metadata for every newly reviewed service dependency", async (
   for (const { manifest, name } of [
     ...eventIngestDependencies,
     ...gatewayDependencies,
+    ...runtimeGatewayDependencies,
     ...sensorDependencies,
   ]) {
     await t.test(`${manifest}:${name}`, () => {
@@ -492,11 +507,11 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 11, dependencies: 29 });
+  assert.deepEqual(validate(lock, files), { manifests: 11, dependencies: 30 });
 });
 
 test("accepts only exact repository-owned module requirements and replacements outside the third-party lock", async (t) => {
-  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 11, dependencies: 27 });
+  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 11, dependencies: 28 });
 
   for (const [name, mutate] of [
     ["missing health replacement", (files) => {

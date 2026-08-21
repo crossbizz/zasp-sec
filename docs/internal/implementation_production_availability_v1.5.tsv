@@ -29,7 +29,7 @@ M0	M0-23	Complete	production-available	T02-discovery-authority	Task 2 production
 M1	M1-01d	Complete	production-available	PROD-current-composition	audited shipped composition: platform API command
 M1	M1-01e	Complete	production-available	T04-discovery-worker	production evidence: platform worker command; verified by Task 4 source/deploy review and focused race/release gates
 M1	M1-01f	Complete	component-only	T06-runtime-data-plane	audited component-only proof: event ingest command
-M1	M1-01a	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime gateway command
+M1	M1-01a	Complete	production-available	T06-runtime-data-plane	production runtime gateway command with signed disk cache, crash-durable bounded evidence queue, durable clock floor and evaluation replay receipts, exact authority replay, expired-event quarantine, customer-edge PVC, race/release gates
 M1	M1-01b	Complete	component-only	T04-discovery-worker	audited component-only proof: worker directories
 M1	M1-01c	Complete	component-only	T10-product-ui	audited component-only proof: web and CLI directories
 M1	M1-01	Complete	production-available	T02-discovery-authority	shipped platform v10 discovery/runtime authority, strict repositories, exact principal composition, and recovery state machines at 48d9768
@@ -409,7 +409,7 @@ M6	M6-31a	Complete	component-only	T06-runtime-data-plane	audited component-only 
 M6	M6-31b	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy monitor gate
 M6	M6-31c	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy enforce gate
 M6	M6-31d	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy retest gate
-M6	M6-31e	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy outage gate
+M6	M6-31e	Complete	production-available	T06-runtime-data-plane	production cached-outage gate: signed Block decision survives offline restart, persists exact decision evidence and bounded lost-response replay, rejects wall-clock rollback, drains under monotonic authority, and quarantines out-of-window evidence without falsifying timestamps
 M6	M6-31	Complete	component-only	T06-runtime-data-plane	audited component-only proof: M6 gate
 M7	M7-01	Complete	production-available	PROD-current-composition	audited shipped composition: session projection
 M7	M7-02	Complete	production-available	PROD-current-composition	audited shipped composition: API listSessions

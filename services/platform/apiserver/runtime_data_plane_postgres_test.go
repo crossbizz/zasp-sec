@@ -61,6 +61,9 @@ func TestProductionRuntimeDataPlanePostgresKeepsInheritedProductAuthorityReady(t
 			}
 		})
 	}
+	if err := runner.UpProductionRuntimeGatewayReconciliation(ctx); err != nil {
+		t.Fatalf("v16 migration: %v", err)
+	}
 
 	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	if err != nil {
@@ -101,8 +104,9 @@ func TestProductionRuntimeDataPlanePostgresKeepsInheritedProductAuthorityReady(t
 		t.Fatal(err)
 	}
 	var ready bool
-	if err := connection.QueryRow(ctx, `SELECT zasp_runtime_data_plane_readiness($1,$2)`, metadata.Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint()).Scan(&ready); err != nil || ready {
-		t.Fatalf("v15 inherited-authority drift readiness=%t err=%v", ready, err)
+	latest := migrations.ProductionRuntimeGatewayReconciliation()
+	if err := connection.QueryRow(ctx, `SELECT zasp_runtime_gateway_reconciliation_readiness($1,$2)`, latest.Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint()).Scan(&ready); err != nil || ready {
+		t.Fatalf("v16 inherited-authority drift readiness=%t err=%v", ready, err)
 	}
 }
 
@@ -118,6 +122,9 @@ func TestProductionRuntimeDataPlanePostgresSensorPublicAuthority(t *testing.T) {
 	runner := migrateToTypedInventoryCutover(t, ctx, connection)
 	if err := runner.UpProductionRuntimeDataPlane(ctx); err != nil {
 		t.Fatalf("v15 migration: %v", err)
+	}
+	if err := runner.UpProductionRuntimeGatewayReconciliation(ctx); err != nil {
+		t.Fatalf("v16 migration: %v", err)
 	}
 	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
 	if err != nil {
@@ -372,6 +379,9 @@ func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t 
 	var registered bool
 	if err := connection.QueryRow(ctx, `SELECT zasp_runtime_register_principals($1,$2,$3,$4,$5,$6,$7)`, migrationPrincipal, principalNames[0], principalNames[1], principalNames[2], principalNames[3], principalNames[4], principalNames[5]).Scan(&registered); err != nil || !registered {
 		t.Fatalf("register runtime principals=%t err=%v", registered, err)
+	}
+	if err := runner.UpProductionRuntimeGatewayReconciliation(ctx); err != nil {
+		t.Fatalf("v16 migration: %v", err)
 	}
 	archiveConnection := connectRuntimeDataPlanePrincipal(t, ctx, dsn, principalNames[1])
 	defer archiveConnection.Close(context.Background())
@@ -861,4 +871,135 @@ func pgErrorSignature(t *testing.T, err error) string {
 		t.Fatalf("not PostgreSQL error: %v", err)
 	}
 	return pgError.Code + ":" + pgError.Message
+}
+
+func TestProductionRuntimeGatewayReconciliationPostgresReplaysExpiredCommittedEvent(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(context.Background())
+	runner := migrateToTypedInventoryCutover(t, ctx, connection)
+	scope := fixtureRequestIdentity(t).Scope
+	deviceID := "pid_76000201-0000-4000-8000-000000000201"
+	if _, err := connection.Exec(ctx, `SELECT zasp_discovery_create_gateway_device($1,$2,$3,$4,'runtime-gateway')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deviceID); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpProductionRuntimeDataPlane(ctx); err != nil {
+		t.Fatalf("v15 up: %v", err)
+	}
+	principalNames := []string{"reconcile_coordinator", "reconcile_archive", "reconcile_index", "reconcile_correlation", "reconcile_projection", "reconcile_gateway"}
+	for _, principal := range principalNames {
+		if _, err := connection.Exec(ctx, fmt.Sprintf(`CREATE ROLE %s LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`, principal)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var migrationPrincipal string
+	if err := connection.QueryRow(ctx, `SELECT session_user`).Scan(&migrationPrincipal); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `SELECT zasp_runtime_register_principals($1,$2,$3,$4,$5,$6,$7)`, migrationPrincipal, principalNames[0], principalNames[1], principalNames[2], principalNames[3], principalNames[4], principalNames[5]); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpProductionRuntimeGatewayReconciliation(ctx); err != nil {
+		t.Fatalf("v16 up: %v", err)
+	}
+	metadata := migrations.ProductionRuntimeGatewayReconciliation()
+	var ready bool
+	if err := connection.QueryRow(ctx, `SELECT zasp_runtime_gateway_reconciliation_readiness($1,$2)`, metadata.Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint()).Scan(&ready); err != nil || !ready {
+		t.Fatalf("v16 readiness=%t err=%v", ready, err)
+	}
+
+	credentialID := "pid_76000202-0000-4000-8000-000000000202"
+	enrollmentID := "pid_76000203-0000-4000-8000-000000000203"
+	if _, err := connection.Exec(ctx, `UPDATE zasp_gateway_devices SET state='active',replay_floor=2 WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deviceID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,id,device_id,audience,salt,token_hash,expires_at,consumed_at) VALUES($1,$2,$3,$4,$5,'runtime-gateway-enroll',$6,$7,transaction_timestamp()+interval '1 day',transaction_timestamp())`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), enrollmentID, deviceID, bytes.Repeat([]byte{0x91}, 32), bytes.Repeat([]byte{0x92}, 32)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id,id,device_id,enrollment_token_id,enrollment_digest,audience,key_reference,public_key,expires_at,format_version,credential_generation,key_id,algorithm,v15_issued_at) VALUES($1,$2,$3,$4,$5,$6,$7,'runtime-gateway','ref:gateway/test-key',$8,transaction_timestamp()+interval '1 day',1,1,'gateway-key-1','Ed25519',transaction_timestamp())`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), credentialID, deviceID, enrollmentID, bytes.Repeat([]byte{0x93}, 32), bytes.Repeat([]byte{0x94}, 32)); err != nil {
+		t.Fatal(err)
+	}
+
+	classification := json.RawMessage(`{"category":"process","outcome":"blocked"}`)
+	occurredAt := time.Now().UTC().Add(-25 * time.Hour).Truncate(time.Microsecond)
+	gatewayConnection := connectRuntimeDataPlanePrincipal(t, ctx, dsn, principalNames[5])
+	defer gatewayConnection.Close(context.Background())
+	newEventID := "pid_76000205-0000-4000-8000-000000000205"
+	var newEventDigest []byte
+	if err := connection.QueryRow(ctx, `SELECT digest(convert_to(jsonb_build_object('credential_id',$1::text,'device_id',$2::text,'event_id',$3::text,'expected_floor',2::bigint,'next_floor',3::bigint,'policy_version',1::bigint,'decision','block','action_kind','http','classification',$4::jsonb,'occurred_at',to_char($5::timestamptz AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))::text,'UTF8'),'sha256')`, credentialID, deviceID, newEventID, classification, occurredAt).Scan(&newEventDigest); err != nil {
+		t.Fatal(err)
+	}
+	var expired json.RawMessage
+	var expiredOutcome struct {
+		EventID string `json:"event_id"`
+		Outcome string `json:"outcome"`
+	}
+	expiredErr := gatewayConnection.QueryRow(ctx, `SELECT zasp_runtime_gateway_record_event($1,$2,2,3,$3,1,'block','http',$4::jsonb,$5)`, credentialID, newEventID, newEventDigest, classification, occurredAt).Scan(&expired)
+	decodeErr := json.Unmarshal(expired, &expiredOutcome)
+	if expiredErr != nil || decodeErr != nil || expiredOutcome.EventID != newEventID || expiredOutcome.Outcome != "record_window_expired" {
+		t.Fatalf("fresh expired outcome=%s err=%v decode=%v", expired, expiredErr, decodeErr)
+	}
+	if err := runner.DownProductionRuntimeGatewayReconciliation(ctx); !errors.Is(err, migrations.ErrInvalidState) {
+		t.Fatalf("expired-only v16 rollback error=%v", err)
+	}
+
+	eventID := "pid_76000204-0000-4000-8000-000000000204"
+	var eventDigest []byte
+	if err := connection.QueryRow(ctx, `SELECT digest(convert_to(jsonb_build_object('credential_id',$1::text,'device_id',$2::text,'event_id',$3::text,'expected_floor',1::bigint,'next_floor',2::bigint,'policy_version',1::bigint,'decision','block','action_kind','http','classification',$4::jsonb,'occurred_at',to_char($5::timestamptz AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))::text,'UTF8'),'sha256')`, credentialID, deviceID, eventID, classification, occurredAt).Scan(&eventDigest); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment_id,device_id,credential_id,event_id,sequence,request_digest,policy_version,decision,action_kind,classification,occurred_at) VALUES($1,$2,$3,$4,$5,$6,2,$7,1,'block','http',$8,$9)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deviceID, credentialID, eventID, eventDigest, classification, occurredAt); err != nil {
+		t.Fatal(err)
+	}
+	recordEventSQL := `SELECT zasp_runtime_gateway_record_event($1,$2,1,2,$3,1,'block','http',$4::jsonb,$5)`
+	var recorded json.RawMessage
+	if err := gatewayConnection.QueryRow(ctx, recordEventSQL, credentialID, eventID, eventDigest, classification, occurredAt).Scan(&recorded); err != nil || !bytes.Contains(recorded, []byte(`"replayed": true`)) && !bytes.Contains(recorded, []byte(`"replayed":true`)) {
+		t.Fatalf("expired exact replay=%s err=%v", recorded, err)
+	}
+	var eventCount int
+	var replayFloor int64
+	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_runtime_gateway_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3),(SELECT replay_floor FROM zasp_gateway_devices WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), deviceID).Scan(&eventCount, &replayFloor); err != nil || eventCount != 1 || replayFloor != 2 {
+		t.Fatalf("event count=%d floor=%d err=%v", eventCount, replayFloor, err)
+	}
+	if err := runner.DownProductionRuntimeGatewayReconciliation(ctx); !errors.Is(err, migrations.ErrInvalidState) {
+		t.Fatalf("used v16 rollback error=%v", err)
+	}
+}
+
+func TestProductionRuntimeGatewayReconciliationPostgresUnusedDownRestoresV15AndReapplies(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(context.Background())
+	runner := migrateToTypedInventoryCutover(t, ctx, connection)
+	if err := runner.UpProductionRuntimeDataPlane(ctx); err != nil {
+		t.Fatalf("v15 up: %v", err)
+	}
+	if err := runner.UpProductionRuntimeGatewayReconciliation(ctx); err != nil {
+		t.Fatalf("v16 up: %v", err)
+	}
+	if err := runner.DownProductionRuntimeGatewayReconciliation(ctx); err != nil {
+		t.Fatalf("unused v16 down: %v", err)
+	}
+	var ready bool
+	v15 := migrations.ProductionRuntimeDataPlane()
+	if err := connection.QueryRow(ctx, `SELECT zasp_runtime_data_plane_readiness($1,$2)`, v15.Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint()).Scan(&ready); err != nil || !ready {
+		t.Fatalf("restored v15 readiness=%t err=%v", ready, err)
+	}
+	if err := runner.UpProductionRuntimeGatewayReconciliation(ctx); err != nil {
+		t.Fatalf("v16 re-up: %v", err)
+	}
+	v16 := migrations.ProductionRuntimeGatewayReconciliation()
+	if err := connection.QueryRow(ctx, `SELECT zasp_runtime_gateway_reconciliation_readiness($1,$2)`, v16.Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint()).Scan(&ready); err != nil || !ready {
+		t.Fatalf("restored v16 readiness=%t err=%v", ready, err)
+	}
 }

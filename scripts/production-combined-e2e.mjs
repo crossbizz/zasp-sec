@@ -111,10 +111,11 @@ try {
     ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL: "zasp_e2e_runtime_projection",
     ZASP_GATEWAY_CONTROL_DB_PRINCIPAL: "zasp_e2e_gateway_control",
   } });
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane", "combined E2E did not migrate through the typed inventory and runtime data-plane releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation", "combined E2E did not migrate through the typed inventory, runtime data-plane, and gateway reconciliation releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
+  console.log("combined E2E: schema 16 runtime_gateway_reconciliation verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 

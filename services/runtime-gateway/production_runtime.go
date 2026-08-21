@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sync"
 	"time"
@@ -76,6 +77,9 @@ func (control gatewayHTTPControl) Record(ctx context.Context, event gatewayDecis
 		Decision: event.Decision, ActionKind: event.ActionKind, Classification: cloneGatewayStrings(event.Classification), OccurredAt: event.OccurredAt,
 	}
 	if err := control.next.Record(ctx, value); err != nil {
+		if errors.Is(err, gatewaycontrol.ErrRecordExpired) {
+			return errGatewayRecordExpired
+		}
 		return errGatewayRuntime
 	}
 	return nil
@@ -119,11 +123,13 @@ func (control boundGatewayControl) Record(ctx context.Context, event gatewayDeci
 }
 
 type productionGatewayDependencies struct {
-	Handler http.Handler
-	Ready   func(context.Context) error
-	Run     func(context.Context) error
-	Drain   func(context.Context) error
-	Close   func() error
+	Handler               http.Handler
+	Ready                 func(context.Context) error
+	Metrics               func() string
+	AcknowledgeQuarantine func(context.Context, gatewayQuarantineAcknowledgment) error
+	Run                   func(context.Context) error
+	Drain                 func(context.Context) error
+	Close                 func() error
 }
 
 func buildProductionGatewayDependencies(ctx context.Context, config productionGatewayConfig) (productionGatewayDependencies, error) {
@@ -173,25 +179,36 @@ func buildProductionGatewayDependenciesWithFactory(ctx context.Context, config p
 		_ = client.Close()
 		return productionGatewayDependencies{}, errRuntimeUnavailable
 	}
+	evidence, err := newGatewayEvidenceDiskStore(config.EvidenceStoreDirectory, expected, config.MaximumPendingEvents, config.EvidenceMaximumBytes)
+	if err != nil {
+		return failCache()
+	}
+	failEvidence := func() (productionGatewayDependencies, error) {
+		_ = evidence.Close()
+		return failCache()
+	}
 	control := boundGatewayControl{next: gatewayHTTPControl{next: client}, expected: expected}
 	runtime, err := newGatewayRuntime(gatewayRuntimeConfig{
-		Control: control, Cache: cache, CredentialID: config.CredentialID, BootstrapFailureMode: config.BootstrapFailureMode,
+		Control: control, Cache: cache, Evidence: evidence, ExpectedAuthority: expected, CredentialID: config.CredentialID, BootstrapFailureMode: config.BootstrapFailureMode,
 		MaximumPendingEvents: config.MaximumPendingEvents, Now: gatewayUTCNow,
 	})
 	if err != nil {
-		return failCache()
+		return failEvidence()
 	}
 	// A cold control plane must not prevent deterministic local failure-mode
 	// enforcement. A successful refresh is required only to emit durable events.
 	_ = runtime.SyncOnce(ctx)
 	handler, err := newGatewayHandler(runtime, config.MaximumRequestBytes)
 	if err != nil {
-		return failCache()
+		return failEvidence()
 	}
 	var closeOnce sync.Once
 	var closeErr error
 	closeDependencies := func() error {
 		closeOnce.Do(func() {
+			if err := evidence.Close(); err != nil {
+				closeErr = errRuntimeUnavailable
+			}
 			if err := cache.Close(); err != nil {
 				closeErr = errRuntimeUnavailable
 			}
@@ -202,8 +219,10 @@ func buildProductionGatewayDependenciesWithFactory(ctx context.Context, config p
 		return closeErr
 	}
 	return productionGatewayDependencies{
-		Handler: handler,
-		Ready:   runtime.Ready,
+		Handler:               handler,
+		Ready:                 runtime.Ready,
+		Metrics:               runtime.Metrics,
+		AcknowledgeQuarantine: runtime.AcknowledgeQuarantine,
 		Run: func(runCtx context.Context) error {
 			return runtime.Run(runCtx, config.SyncInterval, gatewayEvidenceRecordInterval)
 		},

@@ -13,7 +13,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
-func TestPostgresRepositoryUsesExactV15ReadinessAndAuthority(t *testing.T) {
+func TestPostgresRepositoryUsesExactV16ReadinessAndAuthority(t *testing.T) {
 	authority := fixtureAuthority(make([]byte, 32))
 	database := &postgresDatabaseStub{responses: []any{
 		true,
@@ -27,8 +27,8 @@ func TestPostgresRepositoryUsesExactV15ReadinessAndAuthority(t *testing.T) {
 	if err != nil || actual.ReplayFloor != 7 || !sameAuthority(actual, authority) {
 		t.Fatalf("authority=%#v err=%v", actual, err)
 	}
-	metadata := migrations.ProductionRuntimeDataPlane()
-	if !reflect.DeepEqual(database.calls[0].arguments, []any{metadata.Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint()}) || database.calls[1].arguments[0] != authority.CredentialID {
+	metadata := migrations.ProductionRuntimeGatewayReconciliation()
+	if !reflect.DeepEqual(database.calls[0].arguments, []any{metadata.Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint()}) || database.calls[1].arguments[0] != authority.CredentialID {
 		t.Fatalf("calls=%#v", database.calls)
 	}
 }
@@ -66,6 +66,24 @@ func TestPostgresRepositoryRecordsThroughServerCanonicalDigest(t *testing.T) {
 	}
 	if call.arguments[0] != event.CredentialID || call.arguments[1] != event.EventID || call.arguments[2] != event.ExpectedFloor || call.arguments[3] != event.NextFloor {
 		t.Fatalf("arguments=%#v", call.arguments)
+	}
+}
+
+func TestPostgresRepositoryReturnsOnlyExactExpiredRecordOutcome(t *testing.T) {
+	authority := fixtureAuthority(make([]byte, 32))
+	event := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "monitor", ActionKind: "mcp", Classification: map[string]string{"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "monitored"}, OccurredAt: time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)}
+	for _, test := range []struct {
+		raw  string
+		want error
+	}{
+		{raw: `{"event_id":"` + event.EventID + `","outcome":"record_window_expired"}`, want: ErrRecordExpired},
+		{raw: `{"event_id":"` + fixtureID(8) + `","outcome":"record_window_expired"}`, want: errPostgresRepository},
+		{raw: `{"event_id":"` + event.EventID + `","outcome":"record_window_expired","detail":"secret"}`, want: errPostgresRepository},
+	} {
+		repository, _ := NewPostgresRepository(&postgresDatabaseStub{responses: []any{json.RawMessage(test.raw)}}, time.Second)
+		if err := repository.Record(context.Background(), event); !errors.Is(err, test.want) {
+			t.Fatalf("raw=%s err=%v want=%v", test.raw, err, test.want)
+		}
 	}
 }
 

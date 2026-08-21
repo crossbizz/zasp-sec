@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"errors"
 	"regexp"
 	"strings"
 	"time"
@@ -11,6 +12,8 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
+
+var ErrRecordExpired = errors.New("gateway control record expired")
 
 const (
 	GatewayAudience     = "runtime-gateway"

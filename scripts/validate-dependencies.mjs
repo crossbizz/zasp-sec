@@ -104,6 +104,7 @@ for (const [manifest, name, version, license] of [
   ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2/service/sts", "v1.41.6", "Apache-2.0"],
   ["services/event-ingest/go.mod", "github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
   ["services/gateway-control/go.mod", "github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
+  ["services/runtime-gateway/go.mod", "github.com/dgraph-io/badger/v4", "v4.9.1", "Apache-2.0"],
   ["services/sensor-agent/go.mod", "k8s.io/api", "v0.35.5", "Apache-2.0"],
   ["services/sensor-agent/go.mod", "k8s.io/apimachinery", "v0.35.5", "Apache-2.0"],
   ["services/sensor-agent/go.mod", "k8s.io/client-go", "v0.35.5", "Apache-2.0"],
@@ -222,7 +223,7 @@ function exactVersion(ecosystem, version) {
     return /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version);
   }
   if (ecosystem === "go") {
-    return /^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(version);
+    return /^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+incompatible)?$/.test(version);
   }
   return /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:[0-9A-Za-z.-]+)?$/.test(version);
 }
