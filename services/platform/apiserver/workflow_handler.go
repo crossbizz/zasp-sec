@@ -715,12 +715,9 @@ func workflowTemplates() []map[string]any {
 }
 
 func workflowActions() []map[string]any {
-	values := securityagent.BuiltInResponseActionMetadata()
+	values := securityagent.ProductionActionMetadata()
 	result := make([]map[string]any, 0, len(values))
 	for _, value := range values {
-		if !servedWorkflowActions([]string{value.Key}) {
-			continue
-		}
 		result = append(result, map[string]any{"key": value.Key, "risk_class": value.RiskClass, "target_types": value.TargetTypes, "approval_floor": value.ApprovalFloor, "reversible": value.Reversible, "verification_kind": value.VerificationKind})
 	}
 	return result
@@ -762,9 +759,8 @@ func exactWorkflowEnvironment(values []string, environmentID string) bool {
 }
 
 func servedWorkflowActions(values []string) bool {
-	served := map[string]struct{}{"update_finding_response": {}}
 	for _, value := range values {
-		if _, ok := served[value]; !ok {
+		if !securityagent.ProductionActionAvailable(value, securityagent.AutonomySupervised) {
 			return false
 		}
 	}

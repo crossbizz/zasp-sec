@@ -165,8 +165,11 @@ func NewTemporaryPolicyAction(service TemporaryPolicyService) (*TemporaryPolicyA
 	}
 	return &TemporaryPolicyAction{service: service, results: map[string]ActionResult{}}, nil
 }
-func (action *TemporaryPolicyAction) Metadata() ActionMetadata {
+func TemporaryPolicyActionMetadata() ActionMetadata {
 	return ActionMetadata{Key: "create_temporary_policy", InputSchema: map[string]string{"mode": "enum:monitor,block", "scope": "string", "ttl": "duration"}, RiskClass: "containment", TargetTypes: []string{"environment"}, ApprovalFloor: "operator", Reversible: true, Idempotent: true, VerificationKind: "policy_state"}
+}
+func (action *TemporaryPolicyAction) Metadata() ActionMetadata {
+	return TemporaryPolicyActionMetadata()
 }
 func (action *TemporaryPolicyAction) Validate(ctx context.Context, request ActionRequest) error {
 	if action == nil || action.service == nil || invalidContext(ctx) || request.ActionKey != "create_temporary_policy" || !bounded(request.OrganizationID, 128) || !bounded(request.RunID, 128) || !bounded(request.StepID, 128) || len(request.Parameters) != 3 {

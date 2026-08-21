@@ -1,0 +1,10 @@
+action_key	production_state	maximum_autonomy	provider	reversible	approval_floor	verification_kind	cleanup_kind	current_evidence
+create_evidence_export	component-only	none	evidence_export	true	none	export	artifact_expiry	component contract only; durable export worker and canary pending
+create_temporary_policy	component-only	none	runtime_policy	true	operator	policy_state	ttl_disable	component contract only; signed distribution verification and cleanup pending
+isolate_session	component-only	none	runtime_gateway	true	operator	gateway_decision	ttl_release	component contract only; gateway enforcement verification and cleanup pending
+rerun_test	component-only	none	red_team	true	none	test_run	none	component contract only; durable test worker and canary pending
+revoke_integration_connection	component-only	none	connector_broker	false	admin	connection_state	provider_reconciliation	component contract only; approved broker execution and provider canary pending
+run_test	component-only	none	red_team	true	none	test_run	none	component contract only; durable test worker and canary pending
+send_response_webhook	component-only	none	configured_webhook	false	operator	signed_delivery	delivery_reconciliation	component contract only; destination authority delivery receipt and canary pending
+start_attack_lab	component-only	none	attack_lab	true	operator	attack_lab_run	sandbox_cleanup	component contract only; isolated sandbox deployment and canary pending
+update_finding_response	production-available	autonomous	risk_store	true	none	finding_state	state_revert	v21 tenant-scoped supervised and autonomous execution with exact finding-state verification and browser E2E at 95477059
