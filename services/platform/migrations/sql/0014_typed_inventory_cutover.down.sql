@@ -1,5 +1,5 @@
 DO $semantic_guard$ BEGIN
- IF zasp_inventory_live_fingerprint()<>'1b99e8dcd0213e96bd7c2f22fd85af1936627b5961008a959f332d3d6735081c' OR NOT zasp_inventory_security_ready() THEN
+ IF zasp_inventory_live_fingerprint()<>'5af5a13f62d001edf5b32a1ddea84565f8a1ebfb70e786bfe286ff481a8b5982' OR NOT zasp_inventory_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='typed inventory semantic drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_inventory_cutover_state WHERE phase='cutover') THEN
@@ -28,6 +28,8 @@ DROP FUNCTION zasp_inventory_home_summary(text,text,text);
 DROP FUNCTION zasp_inventory_agent_sessions_page(text,text,text,text,text,integer);
 DROP FUNCTION zasp_inventory_agent_relationships_page(text,text,text,text,text,integer);
 DROP FUNCTION zasp_inventory_agent_capabilities_page(text,text,text,text,text,integer);
+DROP FUNCTION zasp_inventory_record_capability_evidence(text,text,text,text,text,text,text,text,text,timestamptz);
+DROP FUNCTION zasp_inventory_agent_capability_edges(text,text,text,text);
 DROP FUNCTION zasp_inventory_update_agent(text,text,text,text,text,text,bigint,text,text,jsonb,text,text);
 DROP FUNCTION zasp_inventory_detail(text,text,text,text,text);
 DROP FUNCTION zasp_inventory_page(text,text,text,text,text,integer);
@@ -43,6 +45,8 @@ DROP FUNCTION zasp_inventory_bind_typed_entities(text,text,text,text,text,jsonb)
 DROP FUNCTION zasp_inventory_validate_typed_entities(text,jsonb);
 DROP INDEX zasp_inventory_observations_identity_v14_idx;
 DROP INDEX zasp_inventory_entities_kind_page_v14_idx;
+DROP INDEX zasp_inventory_capability_evidence_edge_v14_idx;
+DROP TABLE zasp_inventory_capability_evidence;
 DROP TABLE zasp_inventory_annotations;
 DROP TABLE zasp_inventory_identity_bindings;
 DROP TABLE zasp_inventory_identity_rules;

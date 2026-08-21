@@ -598,6 +598,63 @@ VALUES
 	if _, err := connection.Exec(ctx, `RESET ROLE`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := connection.Exec(ctx, `SET ROLE zasp_discovery_authority`); err != nil {
+		t.Fatal(err)
+	}
+	const (
+		attackLabEvidenceID = "pid_87000001-0000-4000-8000-000000000001"
+		policyEvidenceID    = "pid_87000002-0000-4000-8000-000000000002"
+	)
+	var capabilityTransition json.RawMessage
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_record_capability_evidence($1,$2,$3,$4,$5,'identity_assume','assume','attack_lab',$6,$7)`, organizationID, workspaceID, environmentID, agentID, serviceAccountID, attackLabEvidenceID, observed.Add(time.Minute)).Scan(&capabilityTransition); err != nil {
+		t.Fatalf("record Attack Lab capability evidence: %v", err)
+	}
+	if string(capabilityTransition) == "" || !bytes.Contains(capabilityTransition, []byte(`"state": "verified"`)) || !bytes.Contains(capabilityTransition, []byte(`"replayed": false`)) {
+		t.Fatalf("Attack Lab capability transition = %s", capabilityTransition)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_record_capability_evidence($1,$2,$3,$4,$5,'identity_assume','assume','attack_lab',$6,$7)`, organizationID, workspaceID, environmentID, agentID, serviceAccountID, attackLabEvidenceID, observed.Add(time.Minute)).Scan(&capabilityTransition); err != nil || !bytes.Contains(capabilityTransition, []byte(`"replayed": true`)) {
+		t.Fatalf("replay Attack Lab capability evidence = (%s, %v)", capabilityTransition, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_record_capability_evidence($1,$2,$3,$4,$5,'identity_assume','assume','attack_lab',$6,$7)`, organizationID, workspaceID, environmentID, agentID, roleID, attackLabEvidenceID, observed.Add(time.Minute)).Scan(&capabilityTransition); err == nil {
+		t.Fatal("capability evidence identity drift succeeded")
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_record_capability_evidence($1,$2,$3,$4,$5,'identity_assume','assume','attack_lab',$6,$7)`, "pid_83000001-0000-4000-8000-000000000001", workspaceID, environmentID, agentID, serviceAccountID, "pid_87000003-0000-4000-8000-000000000003", observed.Add(time.Minute)).Scan(&capabilityTransition); err == nil {
+		t.Fatal("foreign-tenant capability evidence succeeded")
+	}
+	if _, err := connection.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_record_capability_evidence($1,$2,$3,$4,$5,'identity_assume','assume','attack_lab',$6,$7)`, organizationID, workspaceID, environmentID, agentID, serviceAccountID, "pid_87000004-0000-4000-8000-000000000004", observed.Add(time.Minute)).Scan(&capabilityTransition); err == nil {
+		t.Fatal("public API forged capability evidence")
+	}
+	verifiedCapabilities, err := repository.ListAgentCapabilitiesPage(ctx, scope, parsedAgentID, "", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifiedIdentity := capabilityByCategory(t, verifiedCapabilities.Items, "identity_assume")
+	if verifiedIdentity.State != "verified" || !verifiedIdentity.Reachable || !containsString(verifiedIdentity.EvidenceIDs, attackLabEvidenceID) {
+		t.Fatalf("verified capability = %+v", verifiedIdentity)
+	}
+	if _, err := connection.Exec(ctx, `RESET ROLE; SET ROLE zasp_discovery_authority`); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_record_capability_evidence($1,$2,$3,$4,$5,'identity_assume','assume','runtime_policy',$6,$7)`, organizationID, workspaceID, environmentID, agentID, serviceAccountID, policyEvidenceID, observed.Add(2*time.Minute)).Scan(&capabilityTransition); err != nil || !bytes.Contains(capabilityTransition, []byte(`"state": "blocked"`)) {
+		t.Fatalf("record runtime-policy capability evidence = (%s, %v)", capabilityTransition, err)
+	}
+	if _, err := connection.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
+		t.Fatal(err)
+	}
+	blockedCapabilities, err := repository.ListAgentCapabilitiesPage(ctx, scope, parsedAgentID, "", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blockedIdentity := capabilityByCategory(t, blockedCapabilities.Items, "identity_assume")
+	if blockedIdentity.State != "blocked" || !blockedIdentity.Reachable || !containsString(blockedIdentity.EvidenceIDs, policyEvidenceID) {
+		t.Fatalf("blocked capability = %+v", blockedIdentity)
+	}
+	if _, err := connection.Exec(ctx, `RESET ROLE`); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_source_observations SET attributes=jsonb_build_object('namespaced',false,'rules',jsonb_build_array(jsonb_build_object('api_groups',jsonb_build_array(''),'non_resource_urls','[]'::jsonb,'resource_names','[]'::jsonb,'resources',jsonb_build_array('*'),'verbs',jsonb_build_array('get')))) WHERE (organization_id,workspace_id,environment_id,entity_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, roleID); err != nil {
 		t.Fatal(err)
 	}
@@ -623,6 +680,26 @@ VALUES
 	if _, err := connection.Exec(ctx, `RESET ROLE`); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func capabilityByCategory(t *testing.T, values []Capability, category string) Capability {
+	t.Helper()
+	for _, value := range values {
+		if value.Category == category {
+			return value
+		}
+	}
+	t.Fatalf("capability category %q missing from %+v", category, values)
+	return Capability{}
+}
+
+func containsString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func TestProductionTypedInventoryCutoverPostgresHydratesStableObservationTime(t *testing.T) {
