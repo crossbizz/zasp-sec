@@ -61,6 +61,7 @@ secrets:
   canaryProviderClassName: zasp-production-canary-secrets
   region: us-west-2
   apiPostgresDSNObjectName: ""
+  securityAgentAPIPostgresDSNObjectName: ""
   migrationPostgresDSNObjectName: ""
   workerPostgresDSNObjectName: ""
   schedulerPostgresDSNObjectName: ""
@@ -173,11 +174,13 @@ runtime:
   projectionRoleArn: ""
   completeRoleArn: ""
 schema:
-  expectedVersion: 17
+  expectedVersion: 18
   migrationTimeout: 10m
 databasePrincipals:
   migration: ""
   api: ""
+  securityAgentAPI: ""
+  securityAgentWorker: ""
   discoveryWorker: ""
   runtimeIngest: ""
   runtimeWorker: ""

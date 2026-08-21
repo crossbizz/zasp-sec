@@ -138,3 +138,8 @@ b69107ece17090ba344576f52da05cee9724ae1c:services/platform/apiserver/runtime_dat
 14746ab3d2dfc6807bf384a9fa69dabc6d1d072a:services/platform/connectors/awsdiscovery/security_runner_test.go:aws-access-token:51
 14746ab3d2dfc6807bf384a9fa69dabc6d1d072a:services/platform/connectors/awsdiscovery/security_runner_test.go:aws-access-token:82
 14746ab3d2dfc6807bf384a9fa69dabc6d1d072a:workers/security-python/tests/test_prowler_aws.py:aws-access-token:23
+
+# The v18 API construction tests use fixed synthetic signing and reveal keys.
+# Ignore only their exact introduction findings so moved or changed values fail.
+27a2a1444f2edb324c70e50c70463cee15ee2ad4:services/platform/agentsec-api/runtime_test.go:generic-api-key:29
+27a2a1444f2edb324c70e50c70463cee15ee2ad4:services/platform/agentsec-api/runtime_test.go:generic-api-key:316

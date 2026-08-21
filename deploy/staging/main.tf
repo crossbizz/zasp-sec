@@ -18,45 +18,50 @@ provider "aws" {
 
 locals {
   database_principals = {
-    migration           = var.database_principals.migration
-    api                 = var.database_principals.api
-    discovery_worker    = var.database_principals.discovery_worker
-    runtime_ingest      = var.database_principals.runtime_ingest
-    runtime_worker      = var.database_principals.runtime_worker
-    outbox_worker       = var.database_principals.outbox_worker
-    runtime_gateway     = var.database_principals.runtime_gateway
-    discovery_scheduler = var.database_principals.discovery_scheduler
-    projection_risk     = var.database_principals.projection_risk
-    projection_graph    = var.database_principals.projection_graph
-    projection_search   = var.database_principals.projection_search
-    runtime_coordinator = var.database_principals.runtime_coordinator
-    runtime_archive     = var.database_principals.runtime_archive
-    runtime_index       = var.database_principals.runtime_index
-    runtime_correlation = var.database_principals.runtime_correlation
-    runtime_projection  = var.database_principals.runtime_projection
-    gateway_control     = var.database_principals.gateway_control
+    migration             = var.database_principals.migration
+    api                   = var.database_principals.api
+    security_agent_api    = var.database_principals.security_agent_api
+    security_agent_worker = var.database_principals.security_agent_worker
+    discovery_worker      = var.database_principals.discovery_worker
+    runtime_ingest        = var.database_principals.runtime_ingest
+    runtime_worker        = var.database_principals.runtime_worker
+    outbox_worker         = var.database_principals.outbox_worker
+    runtime_gateway       = var.database_principals.runtime_gateway
+    discovery_scheduler   = var.database_principals.discovery_scheduler
+    projection_risk       = var.database_principals.projection_risk
+    projection_graph      = var.database_principals.projection_graph
+    projection_search     = var.database_principals.projection_search
+    runtime_coordinator   = var.database_principals.runtime_coordinator
+    runtime_archive       = var.database_principals.runtime_archive
+    runtime_index         = var.database_principals.runtime_index
+    runtime_correlation   = var.database_principals.runtime_correlation
+    runtime_projection    = var.database_principals.runtime_projection
+    gateway_control       = var.database_principals.gateway_control
   }
   postgres_secret_principals = {
-    postgres-api-dsn                 = local.database_principals.api
-    postgres-worker-dsn              = local.database_principals.discovery_worker
-    postgres-migration-dsn           = local.database_principals.migration
-    postgres-runtime-ingest-dsn      = local.database_principals.runtime_ingest
-    postgres-runtime-worker-dsn      = local.database_principals.runtime_worker
-    postgres-outbox-worker-dsn       = local.database_principals.outbox_worker
-    postgres-runtime-gateway-dsn     = local.database_principals.runtime_gateway
-    postgres-scheduler-dsn           = local.database_principals.discovery_scheduler
-    postgres-projection-risk-dsn     = local.database_principals.projection_risk
-    postgres-projection-graph-dsn    = local.database_principals.projection_graph
-    postgres-projection-search-dsn   = local.database_principals.projection_search
-    postgres-runtime-coordinator-dsn = local.database_principals.runtime_coordinator
-    postgres-runtime-archive-dsn     = local.database_principals.runtime_archive
-    postgres-runtime-index-dsn       = local.database_principals.runtime_index
-    postgres-runtime-correlation-dsn = local.database_principals.runtime_correlation
-    postgres-runtime-projection-dsn  = local.database_principals.runtime_projection
-    postgres-gateway-control-dsn     = local.database_principals.gateway_control
+    postgres-api-dsn                   = local.database_principals.api
+    postgres-security-agent-api-dsn    = local.database_principals.security_agent_api
+    postgres-security-agent-worker-dsn = local.database_principals.security_agent_worker
+    postgres-worker-dsn                = local.database_principals.discovery_worker
+    postgres-migration-dsn             = local.database_principals.migration
+    postgres-runtime-ingest-dsn        = local.database_principals.runtime_ingest
+    postgres-runtime-worker-dsn        = local.database_principals.runtime_worker
+    postgres-outbox-worker-dsn         = local.database_principals.outbox_worker
+    postgres-runtime-gateway-dsn       = local.database_principals.runtime_gateway
+    postgres-scheduler-dsn             = local.database_principals.discovery_scheduler
+    postgres-projection-risk-dsn       = local.database_principals.projection_risk
+    postgres-projection-graph-dsn      = local.database_principals.projection_graph
+    postgres-projection-search-dsn     = local.database_principals.projection_search
+    postgres-runtime-coordinator-dsn   = local.database_principals.runtime_coordinator
+    postgres-runtime-archive-dsn       = local.database_principals.runtime_archive
+    postgres-runtime-index-dsn         = local.database_principals.runtime_index
+    postgres-runtime-correlation-dsn   = local.database_principals.runtime_correlation
+    postgres-runtime-projection-dsn    = local.database_principals.runtime_projection
+    postgres-gateway-control-dsn       = local.database_principals.gateway_control
   }
   api_secret_names = toset([
     "postgres-api-dsn",
+    "postgres-security-agent-api-dsn",
     "stytch-project-id",
     "stytch-secret",
     "stytch-public-token",
@@ -371,6 +376,8 @@ resource "aws_s3_bucket_policy" "runtime_raw" {
 resource "aws_secretsmanager_secret" "product" {
   for_each = toset([
     "postgres-api-dsn",
+    "postgres-security-agent-api-dsn",
+    "postgres-security-agent-worker-dsn",
     "postgres-worker-dsn",
     "postgres-migration-dsn",
     "postgres-runtime-ingest-dsn",

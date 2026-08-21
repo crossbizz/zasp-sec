@@ -64,6 +64,8 @@ spec:
             - { name: ZASP_MIGRATION_TIMEOUT, value: {{ .Values.schema.migrationTimeout | quote }} }
             - { name: ZASP_MIGRATION_DB_PRINCIPAL, value: {{ required "databasePrincipals.migration is required" .Values.databasePrincipals.migration | quote }} }
             - { name: ZASP_DISCOVERY_API_DB_PRINCIPAL, value: {{ required "databasePrincipals.api is required" .Values.databasePrincipals.api | quote }} }
+            - { name: ZASP_SECURITY_AGENT_API_DB_PRINCIPAL, value: {{ required "databasePrincipals.securityAgentAPI is required" .Values.databasePrincipals.securityAgentAPI | quote }} }
+            - { name: ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.securityAgentWorker is required" .Values.databasePrincipals.securityAgentWorker | quote }} }
             - { name: ZASP_DISCOVERY_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.discoveryWorker is required" .Values.databasePrincipals.discoveryWorker | quote }} }
             - { name: ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL, value: {{ required "databasePrincipals.discoveryScheduler is required" .Values.databasePrincipals.discoveryScheduler | quote }} }
             - { name: ZASP_PROJECTION_RISK_DB_PRINCIPAL, value: {{ required "databasePrincipals.projectionRisk is required" .Values.databasePrincipals.projectionRisk | quote }} }

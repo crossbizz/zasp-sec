@@ -83,49 +83,53 @@ variable "environment" {
 variable "database_principals" {
   description = "Stable PostgreSQL login names provisioned outside Terraform; credentials may rotate, identities must not."
   type = object({
-    migration           = string
-    api                 = string
-    discovery_worker    = string
-    runtime_ingest      = string
-    runtime_worker      = string
-    outbox_worker       = string
-    runtime_gateway     = string
-    discovery_scheduler = string
-    projection_risk     = string
-    projection_graph    = string
-    projection_search   = string
-    runtime_coordinator = string
-    runtime_archive     = string
-    runtime_index       = string
-    runtime_correlation = string
-    runtime_projection  = string
-    gateway_control     = string
+    migration             = string
+    api                   = string
+    security_agent_api    = string
+    security_agent_worker = string
+    discovery_worker      = string
+    runtime_ingest        = string
+    runtime_worker        = string
+    outbox_worker         = string
+    runtime_gateway       = string
+    discovery_scheduler   = string
+    projection_risk       = string
+    projection_graph      = string
+    projection_search     = string
+    runtime_coordinator   = string
+    runtime_archive       = string
+    runtime_index         = string
+    runtime_correlation   = string
+    runtime_projection    = string
+    gateway_control       = string
   })
   default = {
-    migration           = "zasp_migration"
-    api                 = "zasp_api_runtime"
-    discovery_worker    = "zasp_discovery_runtime"
-    runtime_ingest      = "zasp_ingest_runtime"
-    runtime_worker      = "zasp_runtime_worker_runtime"
-    outbox_worker       = "zasp_outbox_runtime"
-    runtime_gateway     = "zasp_gateway_runtime"
-    discovery_scheduler = "zasp_scheduler_runtime"
-    projection_risk     = "zasp_projection_risk_runtime"
-    projection_graph    = "zasp_projection_graph_runtime"
-    projection_search   = "zasp_projection_search_runtime"
-    runtime_coordinator = "zasp_runtime_coordinator_runtime"
-    runtime_archive     = "zasp_runtime_archive_runtime"
-    runtime_index       = "zasp_runtime_index_runtime"
-    runtime_correlation = "zasp_runtime_correlation_runtime"
-    runtime_projection  = "zasp_runtime_projection_runtime"
-    gateway_control     = "zasp_gateway_control_runtime"
+    migration             = "zasp_migration"
+    api                   = "zasp_api_runtime"
+    security_agent_api    = "zasp_security_agent_api_runtime"
+    security_agent_worker = "zasp_security_agent_worker_runtime"
+    discovery_worker      = "zasp_discovery_runtime"
+    runtime_ingest        = "zasp_ingest_runtime"
+    runtime_worker        = "zasp_runtime_worker_runtime"
+    outbox_worker         = "zasp_outbox_runtime"
+    runtime_gateway       = "zasp_gateway_runtime"
+    discovery_scheduler   = "zasp_scheduler_runtime"
+    projection_risk       = "zasp_projection_risk_runtime"
+    projection_graph      = "zasp_projection_graph_runtime"
+    projection_search     = "zasp_projection_search_runtime"
+    runtime_coordinator   = "zasp_runtime_coordinator_runtime"
+    runtime_archive       = "zasp_runtime_archive_runtime"
+    runtime_index         = "zasp_runtime_index_runtime"
+    runtime_correlation   = "zasp_runtime_correlation_runtime"
+    runtime_projection    = "zasp_runtime_projection_runtime"
+    gateway_control       = "zasp_gateway_control_runtime"
   }
 
   validation {
-    condition = length(distinct(values(var.database_principals))) == 17 && alltrue([
+    condition = length(distinct(values(var.database_principals))) == 19 && alltrue([
       for principal in values(var.database_principals) : can(regex("^[a-z][a-z0-9_]{2,62}$", principal))
     ])
-    error_message = "database_principals must contain seventeen distinct bounded PostgreSQL login names."
+    error_message = "database_principals must contain nineteen distinct bounded PostgreSQL login names."
   }
 }
 

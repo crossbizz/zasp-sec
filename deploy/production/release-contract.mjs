@@ -89,6 +89,7 @@ export async function renderRelease(value) {
     ["ingress.host", value.host], ["ingress.tlsSecretName", value.tlsSecretName],
     ["secrets.providerClassName", value.secretProviderClass],
     ["secrets.apiPostgresDSNObjectName", "zasp/production/postgres-api-dsn"],
+    ["secrets.securityAgentAPIPostgresDSNObjectName", "zasp/production/postgres-security-agent-api-dsn"],
     ["secrets.workerPostgresDSNObjectName", "zasp/production/postgres-worker-dsn"],
     ["secrets.schedulerPostgresDSNObjectName", "zasp/production/postgres-scheduler-dsn"],
     ["secrets.projectionRiskPostgresDSNObjectName", "zasp/production/postgres-projection-risk-dsn"],
@@ -112,6 +113,8 @@ export async function renderRelease(value) {
     ["secrets.canaryReadTokenObjectName", "zasp/production/canary-read-token"],
     ["databasePrincipals.migration", "zasp_migration"],
     ["databasePrincipals.api", "zasp_api_runtime"],
+    ["databasePrincipals.securityAgentAPI", "zasp_security_agent_api_runtime"],
+    ["databasePrincipals.securityAgentWorker", "zasp_security_agent_worker_runtime"],
     ["databasePrincipals.discoveryWorker", "zasp_discovery_runtime"],
     ["databasePrincipals.runtimeIngest", "zasp_ingest_runtime"],
     ["databasePrincipals.runtimeWorker", "zasp_runtime_worker_runtime"],
@@ -423,7 +426,7 @@ export function validateRenderedRelease(resources, platformAccountID) {
     if (!rendered || (role === null ? roleArn !== undefined : roleArn !== `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`)) throw new Error("release rejected");
   }
   const jobIdentities = new Map([
-    ["agentsec-schema-v17", "agentsec-migration"],
+    ["agentsec-schema-v18", "agentsec-migration"],
     ["agentsec-projection-graph-init-v1", "agentsec-projection-graph-init"],
     ["agentsec-projection-search-init-v1", "agentsec-projection-search-init"],
     ["nango-migrate", "nango-migrate"],

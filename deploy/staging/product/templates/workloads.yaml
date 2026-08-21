@@ -105,6 +105,7 @@ spec:
           args:
             - |
               export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp/postgres-dsn)"
+              export ZASP_SECURITY_AGENT_POSTGRES_DSN="$(cat /var/run/secrets/zasp/security-agent-postgres-dsn)"
               export ZASP_STYTCH_PROJECT_ID="$(cat /var/run/secrets/zasp/stytch-project-id)"
               export ZASP_STYTCH_SECRET="$(cat /var/run/secrets/zasp/stytch-secret)"
               export ZASP_STYTCH_PUBLIC_TOKEN="$(cat /var/run/secrets/zasp/stytch-public-token)"
