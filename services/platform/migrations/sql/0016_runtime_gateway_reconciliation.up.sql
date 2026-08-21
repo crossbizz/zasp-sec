@@ -1,7 +1,7 @@
 DO $release_guard$ BEGIN
  IF NOT zasp_runtime_data_plane_readiness(
-  'b8c47137186b407f944760949a44564e27c89b8065171eb7af614b44ab4b0657',
-  'c73433ada0f49a186f6772922caf87e1df457f1cb0a4ebfaea7db0cce7cf1b1d'
+  'b71a54258346f3382012b7e597cce43102d93f3e93352ba15014f78df5c472f3',
+  '2262d5f74a9ec4b15f19b30861699f890b6fba01da5a6f1dff62b1d3382a18e3'
  ) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime data plane release required';END IF;
 END $release_guard$;
 
@@ -66,7 +66,7 @@ CREATE FUNCTION public.zasp_runtime_gateway_reconciliation_security_ready() RETU
 CREATE FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
  SELECT length(expected_checksum)=64 AND length(expected_fingerprint)=64
   AND EXISTS(SELECT 1 FROM zasp_schema_versions release WHERE (release.version,release.name,release.checksum)=(16,'runtime_gateway_reconciliation',expected_checksum) AND NOT EXISTS(SELECT 1 FROM zasp_schema_versions later WHERE later.version>16))
-  AND EXISTS(SELECT 1 FROM zasp_schema_versions release WHERE (release.version,release.name,release.checksum)=(15,'runtime_data_plane','b8c47137186b407f944760949a44564e27c89b8065171eb7af614b44ab4b0657'))
+  AND EXISTS(SELECT 1 FROM zasp_schema_versions release WHERE (release.version,release.name,release.checksum)=(15,'runtime_data_plane','b71a54258346f3382012b7e597cce43102d93f3e93352ba15014f78df5c472f3'))
   AND EXISTS(SELECT 1 FROM zasp_schema_metadata metadata WHERE (metadata.key,metadata.value)=('production_core_schema','runtime-data-plane-v1'))
   AND EXISTS(SELECT 1 FROM zasp_schema_metadata metadata WHERE (metadata.key,metadata.value)=('runtime_gateway_reconciliation_fingerprint',expected_fingerprint))
   AND zasp_runtime_gateway_reconciliation_live_fingerprint()=expected_fingerprint
@@ -100,4 +100,4 @@ ALTER FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(text,text) O
 REVOKE ALL ON FUNCTION public.zasp_runtime_gateway_reconciliation_live_fingerprint(),public.zasp_runtime_gateway_reconciliation_security_ready(),public.zasp_runtime_gateway_reconciliation_readiness(text,text) FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
 GRANT EXECUTE ON FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(text,text) TO zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_gateway_reconciliation_fingerprint', '625ecdecabfb17dd321093d7ab0cfe3a5bee2e83d94141abd1a1df400f870fb8');
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_gateway_reconciliation_fingerprint', '845bd4412d39db4bdc51d1db210684bcbfe5744f3d3eaf84fdd0dfdf801c3732');

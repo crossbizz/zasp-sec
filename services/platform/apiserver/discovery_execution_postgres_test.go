@@ -1267,11 +1267,25 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_claim_projection_work('risk','projection-risk-01','projection-risk-token-0001',30,1)`).Scan(&payload); err != nil {
 		t.Fatal(err)
 	}
-	riskItems := json.RawMessage(`[{"section":"entities","id":"pid_82000000-0000-4000-8000-000000000002","payload":{"id":"pid_82000000-0000-4000-8000-000000000002","kind":"role"}}]`)
+	var riskItems json.RawMessage
+	if err := connection.QueryRow(ctx, `SELECT COALESCE(jsonb_agg(jsonb_build_object('section',section,'id',item_id,'payload',payload) ORDER BY section,item_id),'[]'::jsonb) FROM zasp_discovery_snapshot_projection_items WHERE (organization_id,workspace_id,environment_id,snapshot_id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID).Scan(&riskItems); err != nil {
+		t.Fatal(err)
+	}
 	applyRisk := func(items json.RawMessage) ([]byte, error) {
 		var result []byte
 		err := connection.QueryRow(ctx, `SELECT zasp_execution_apply_risk_projection($1,$2,$3,$4,'v1','projection-risk-01','projection-risk-token-0001',$5,'aws',$6,$7,$8::jsonb)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID, integrationID, reserved.Generation, applied.CandidateDigest, items).Scan(&result)
 		return result, err
+	}
+	var omittedRiskItems json.RawMessage
+	if err := connection.QueryRow(ctx, `SELECT jsonb_agg(jsonb_build_object('section',section,'id',item_id,'payload',payload) ORDER BY section,item_id) FROM zasp_discovery_snapshot_projection_items WHERE (organization_id,workspace_id,environment_id,snapshot_id,section)=($1,$2,$3,$4,'entities')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID).Scan(&omittedRiskItems); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := applyRisk(omittedRiskItems); err == nil {
+		t.Fatal("omitted snapshot risk input succeeded")
+	}
+	var riskProjectionResidue int
+	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_discovery_risk_projection_current WHERE snapshot_id=$1)+(SELECT count(*) FROM zasp_discovery_risk_projection_items WHERE snapshot_id=$1)+(SELECT count(*) FROM zasp_risk_findings WHERE id=$2)`, snapshotID, findingID).Scan(&riskProjectionResidue); err != nil || riskProjectionResidue != 0 {
+		t.Fatalf("omitted risk projection residue=%d err=%v", riskProjectionResidue, err)
 	}
 	firstRisk, err := applyRisk(riskItems)
 	if err != nil || !bytes.Contains(firstRisk, []byte(`"replayed": false`)) || !bytes.Contains(firstRisk, []byte(`"driver_receipt": "postgres:risk-input:`+snapshotID+`:sha256:`)) {
@@ -1281,13 +1295,26 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err != nil || !bytes.Contains(replayedRisk, []byte(`"replayed": true`)) || !bytes.Equal(bytes.Replace(firstRisk, []byte(`false`), []byte(`true`), 1), replayedRisk) {
 		t.Fatalf("risk input replay=%s err=%v", replayedRisk, err)
 	}
-	conflictingRisk := json.RawMessage(`[{"section":"entities","id":"pid_82000000-0000-4000-8000-000000000002","payload":{"id":"pid_82000000-0000-4000-8000-000000000002","kind":"changed"}}]`)
+	var conflictingRisk json.RawMessage
+	if err := connection.QueryRow(ctx, `SELECT jsonb_agg(jsonb_build_object('section',section,'id',item_id,'payload',CASE WHEN section='entities' THEN payload||'{"display_name":"Changed account"}'::jsonb ELSE payload END) ORDER BY section,item_id) FROM zasp_discovery_snapshot_projection_items WHERE (organization_id,workspace_id,environment_id,snapshot_id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID).Scan(&conflictingRisk); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := applyRisk(conflictingRisk); err == nil {
 		t.Fatal("same-generation risk input drift succeeded")
 	}
-	var storedRiskKind string
-	if err := connection.QueryRow(ctx, `SELECT payload->>'kind' FROM zasp_discovery_risk_projection_items WHERE snapshot_id=$1`, snapshotID).Scan(&storedRiskKind); err != nil || storedRiskKind != "role" {
-		t.Fatalf("risk input residue kind=%q err=%v", storedRiskKind, err)
+	var storedRiskName string
+	if err := connection.QueryRow(ctx, `SELECT payload->>'display_name' FROM zasp_discovery_risk_projection_items WHERE snapshot_id=$1 AND section='entities' AND item_id=$2`, snapshotID, entityID).Scan(&storedRiskName); err != nil || storedRiskName != "Production account" {
+		t.Fatalf("risk input residue name=%q err=%v", storedRiskName, err)
+	}
+	var findingSource, findingRule, findingSeverity, findingStatus, findingContext, findingEvidence string
+	if err := connection.QueryRow(ctx, `SELECT finding.source,finding.rule,finding.severity,finding.status,finding.compliance_context,evidence.evidence_id FROM zasp_risk_findings finding JOIN zasp_risk_finding_evidence evidence ON (evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.finding_id)=(finding.organization_id,finding.workspace_id,finding.environment_id,finding.id) WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), findingID).Scan(&findingSource, &findingRule, &findingSeverity, &findingStatus, &findingContext, &findingEvidence); err != nil || findingSource != "prowler" || findingRule != "iam_role_administratoraccess_policy" || findingSeverity != "high" || findingStatus != "open" || findingContext != "zasp-discovery:aws:iam_role_administratoraccess_policy" || findingEvidence != findingEvidenceID {
+		t.Fatalf("public finding source=%q rule=%q severity=%q status=%q context=%q evidence=%q err=%v", findingSource, findingRule, findingSeverity, findingStatus, findingContext, findingEvidence, err)
+	}
+	acceptedFindingID := "pid_79000035-0000-4000-8000-000000000035"
+	foreignOrganizationID := "pid_79000036-0000-4000-8000-000000000036"
+	foreignFindingID := "pid_79000037-0000-4000-8000-000000000037"
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status,compliance_context,acceptance_reason) VALUES($1,$2,$3,$4,'prowler','accepted_control','Accepted discovered control','high','accepted','zasp-discovery:aws:accepted_control','documented exception'),($5,$2,$3,$6,'prowler','foreign_control','Foreign discovered control','high','open','zasp-discovery:aws:foreign_control',NULL)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), acceptedFindingID, foreignOrganizationID, foreignFindingID); err != nil {
+		t.Fatal(err)
 	}
 	emptySnapshotID := "pid_79000020-0000-4000-8000-000000000020"
 	emptyDigest := sha256.Sum256([]byte("risk-empty-successor"))
@@ -1311,6 +1338,13 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := connection.QueryRow(ctx, `SELECT current.snapshot_id,current.item_count,(SELECT count(*) FROM zasp_discovery_risk_projection_items item WHERE (item.organization_id,item.workspace_id,item.environment_id,item.integration_id,item.source)=(current.organization_id,current.workspace_id,current.environment_id,current.integration_id,current.source)) FROM zasp_discovery_risk_projection_current current WHERE integration_id=$1 AND source='aws'`, integrationID).Scan(&currentRiskSnapshot, &currentRiskCount, &riskItemCount); err != nil || currentRiskSnapshot != emptySnapshotID || currentRiskCount != 0 || riskItemCount != 0 {
 		t.Fatalf("complete-empty current=%q counts=%d/%d err=%v", currentRiskSnapshot, currentRiskCount, riskItemCount, err)
 	}
+	if err := connection.QueryRow(ctx, `SELECT status FROM zasp_risk_findings WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), findingID).Scan(&findingStatus); err != nil || findingStatus != "resolved" {
+		t.Fatalf("complete-empty public finding status=%q err=%v", findingStatus, err)
+	}
+	var acceptedStatus, acceptanceReason, foreignStatus string
+	if err := connection.QueryRow(ctx, `SELECT accepted.status,accepted.acceptance_reason,foreign_finding.status FROM zasp_risk_findings accepted CROSS JOIN zasp_risk_findings foreign_finding WHERE (accepted.organization_id,accepted.workspace_id,accepted.environment_id,accepted.id)=($1,$2,$3,$4) AND (foreign_finding.organization_id,foreign_finding.workspace_id,foreign_finding.environment_id,foreign_finding.id)=($5,$2,$3,$6)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), acceptedFindingID, foreignOrganizationID, foreignFindingID).Scan(&acceptedStatus, &acceptanceReason, &foreignStatus); err != nil || acceptedStatus != "accepted" || acceptanceReason != "documented exception" || foreignStatus != "open" {
+		t.Fatalf("complete-empty preserved accepted=%q reason=%q foreign=%q err=%v", acceptedStatus, acceptanceReason, foreignStatus, err)
+	}
 	if _, err := applyRisk(riskItems); err == nil {
 		t.Fatal("stale risk generation succeeded")
 	}
@@ -1324,10 +1358,13 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 		SELECT organization_id,workspace_id,environment_id,$2,integration_id,'okta',1,$3,manifest_reference,manifest_key||'-okta','version-okta',manifest_checksum,manifest_size_bytes,manifest_media_type,manifest_schema_version,parser_version,tool_version,'[]'::jsonb,'[]'::jsonb,'[]'::jsonb FROM zasp_discovery_snapshot_inputs WHERE snapshot_id=$1`, snapshotID, oktaRiskSnapshotID, oktaRiskDigest[:]); err != nil {
 		t.Fatal(err)
 	}
+	oktaRiskItems := json.RawMessage(`[{"section":"entities","id":"pid_82000000-0000-4000-8000-000000000003","payload":{"id":"pid_82000000-0000-4000-8000-000000000003","kind":"user"}}]`)
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_snapshot_projection_items(organization_id,workspace_id,environment_id,snapshot_id,integration_id,source,section,item_id,payload) VALUES($1,$2,$3,$4,$5,'okta','entities','pid_82000000-0000-4000-8000-000000000003',$6::jsonb)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), oktaRiskSnapshotID, integrationID, json.RawMessage(`{"id":"pid_82000000-0000-4000-8000-000000000003","kind":"user"}`)); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_projection_work(organization_id,workspace_id,environment_id,snapshot_id,kind,version,input_digest,state,attempt,lease_owner,lease_token,lease_expires_at) VALUES($1,$2,$3,$4,'risk','v1',$5,'leased',1,'projection-risk-03','projection-risk-token-0003',transaction_timestamp()+interval '30 seconds')`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), oktaRiskSnapshotID, oktaRiskDigest[:]); err != nil {
 		t.Fatal(err)
 	}
-	oktaRiskItems := json.RawMessage(`[{"section":"entities","id":"pid_82000000-0000-4000-8000-000000000003","payload":{"id":"pid_82000000-0000-4000-8000-000000000003","kind":"user"}}]`)
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_apply_risk_projection($1,$2,$3,$4,'v1','projection-risk-03','projection-risk-token-0003',$5,'okta',1,$6,$7::jsonb)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), oktaRiskSnapshotID, integrationID, oktaRiskDigest[:], oktaRiskItems).Scan(&payload); err != nil {
 		t.Fatal(err)
 	}
