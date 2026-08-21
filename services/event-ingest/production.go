@@ -24,16 +24,18 @@ var (
 )
 
 type productionIngestConfig struct {
-	DatabaseURL         string
-	Region              string
-	RoleARN             string
-	TokenFile           string
-	Bucket              string
-	ExpectedBucketOwner string
-	KMSKeyARN           string
-	MaximumBytes        int64
-	OperationTimeout    time.Duration
-	ShutdownTimeout     time.Duration
+	DatabaseURL            string
+	Region                 string
+	RoleARN                string
+	TokenFile              string
+	Bucket                 string
+	ExpectedBucketOwner    string
+	KMSKeyARN              string
+	MaximumBytes           int64
+	OperationTimeout       time.Duration
+	ShutdownTimeout        time.Duration
+	ReconcilerID           string
+	ReconciliationInterval time.Duration
 }
 
 type productionIngestRepository interface {
@@ -70,19 +72,22 @@ func loadProductionIngestConfig(getenv func(string) string) (productionIngestCon
 	maximumBytes, maximumBytesErr := strconv.ParseInt(getenv("ZASP_EVENT_INGEST_MAX_BYTES"), 10, 64)
 	operationTimeout, operationTimeoutErr := time.ParseDuration(getenv("ZASP_EVENT_INGEST_OPERATION_TIMEOUT"))
 	shutdownTimeout, shutdownTimeoutErr := time.ParseDuration(getenv("ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT"))
+	reconciliationInterval, reconciliationIntervalErr := time.ParseDuration(getenv("ZASP_EVENT_INGEST_RECONCILIATION_INTERVAL"))
 	config := productionIngestConfig{
-		DatabaseURL:         getenv("ZASP_DATABASE_URL"),
-		Region:              getenv("ZASP_AWS_REGION"),
-		RoleARN:             getenv("ZASP_EVENT_INGEST_ROLE_ARN"),
-		TokenFile:           getenv("ZASP_EVENT_INGEST_WEB_IDENTITY_TOKEN_FILE"),
-		Bucket:              getenv("ZASP_RUNTIME_RAW_BUCKET"),
-		ExpectedBucketOwner: getenv("ZASP_RUNTIME_RAW_BUCKET_OWNER"),
-		KMSKeyARN:           getenv("ZASP_RUNTIME_RAW_KMS_KEY_ARN"),
-		MaximumBytes:        maximumBytes,
-		OperationTimeout:    operationTimeout,
-		ShutdownTimeout:     shutdownTimeout,
+		DatabaseURL:            getenv("ZASP_DATABASE_URL"),
+		Region:                 getenv("ZASP_AWS_REGION"),
+		RoleARN:                getenv("ZASP_EVENT_INGEST_ROLE_ARN"),
+		TokenFile:              getenv("ZASP_EVENT_INGEST_WEB_IDENTITY_TOKEN_FILE"),
+		Bucket:                 getenv("ZASP_RUNTIME_RAW_BUCKET"),
+		ExpectedBucketOwner:    getenv("ZASP_RUNTIME_RAW_BUCKET_OWNER"),
+		KMSKeyARN:              getenv("ZASP_RUNTIME_RAW_KMS_KEY_ARN"),
+		MaximumBytes:           maximumBytes,
+		OperationTimeout:       operationTimeout,
+		ShutdownTimeout:        shutdownTimeout,
+		ReconcilerID:           getenv("ZASP_EVENT_INGEST_RECONCILER_ID"),
+		ReconciliationInterval: reconciliationInterval,
 	}
-	if maximumBytesErr != nil || operationTimeoutErr != nil || shutdownTimeoutErr != nil || !validProductionIngestConfig(config) {
+	if maximumBytesErr != nil || operationTimeoutErr != nil || shutdownTimeoutErr != nil || reconciliationIntervalErr != nil || !validProductionIngestConfig(config) {
 		return productionIngestConfig{}, errRuntimeUnavailable
 	}
 	return config, nil
@@ -95,7 +100,8 @@ func validProductionIngestConfig(config productionIngestConfig) bool {
 	return databaseErr == nil && database.String() == config.DatabaseURL && (database.Scheme == "postgres" || database.Scheme == "postgresql") && database.User != nil && database.Hostname() != "" && database.Path != "" && database.Fragment == "" && database.RawQuery == "sslmode=verify-full" &&
 		productionRegionPattern.MatchString(config.Region) && len(role) == 2 && len(kms) == 3 && role[1] == config.ExpectedBucketOwner && kms[1] == config.Region && kms[2] == config.ExpectedBucketOwner &&
 		config.TokenFile == projectedServiceAccountTokenPath && productionBucketPattern.MatchString(config.Bucket) && productionAccountPattern.MatchString(config.ExpectedBucketOwner) &&
-		config.MaximumBytes >= 1<<20 && config.MaximumBytes <= 64<<20 && config.OperationTimeout >= time.Second && config.OperationTimeout <= 30*time.Second && config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= time.Minute
+		config.MaximumBytes >= 1<<20 && config.MaximumBytes <= 64<<20 && config.OperationTimeout >= time.Second && config.OperationTimeout <= 30*time.Second && config.ShutdownTimeout >= config.OperationTimeout && config.ShutdownTimeout <= time.Minute &&
+		productionWorkerIDPattern.MatchString(config.ReconcilerID) && config.ReconciliationInterval >= 100*time.Millisecond && config.ReconciliationInterval <= 30*time.Second
 }
 
 type readinessGatedIngestHandler struct {

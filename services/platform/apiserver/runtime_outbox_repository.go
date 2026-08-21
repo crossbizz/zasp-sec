@@ -11,7 +11,7 @@ import (
 const RuntimeOutboxTopic = "runtime-events"
 
 const (
-	postgresRuntimeOutboxReadySQL     = `SELECT jsonb_build_object('ready',zasp_runtime_gateway_reconciliation_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresRuntimeOutboxReadySQL     = `SELECT jsonb_build_object('ready',zasp_runtime_ingest_reconciliation_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
 	postgresRuntimeClaimOutboxSQL     = `SELECT zasp_runtime_claim_outbox($1,$2,$3,$4,$5)`
 	postgresRuntimeHeartbeatOutboxSQL = `SELECT zasp_runtime_heartbeat_outbox($1,$2,$3,$4,$5)`
 	postgresRuntimeAckOutboxSQL       = `SELECT zasp_runtime_ack_outbox($1,$2,$3,$4,$5,$6,$7,$8)`
@@ -39,7 +39,7 @@ func (repository *RuntimeOutboxRepository) Ready(ctx context.Context) error {
 	if !validRuntimeOutboxRepository(repository, ctx) {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimeOutboxReadySQL, migrations.ProductionRuntimeGatewayReconciliation().Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint(), DiscoveryDatabaseAuthorityOutbox)
+	payload, err := repository.database.QueryJSON(ctx, postgresRuntimeOutboxReadySQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint(), DiscoveryDatabaseAuthorityOutbox)
 	var result struct {
 		Ready bool `json:"ready"`
 	}

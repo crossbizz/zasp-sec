@@ -124,7 +124,7 @@ func NewSensorPublicRepository(database JSONDatabase) (*SensorPublicRepository, 
 	if err != nil || version != RuntimeDataPlaneSchemaVersion {
 		return nil, ErrRepositoryConfiguration
 	}
-	payload, err := database.QueryJSON(ctx, postgresRuntimeDataPlaneReadinessSQL, migrations.ProductionRuntimeGatewayReconciliation().Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint())
+	payload, err := database.QueryJSON(ctx, postgresRuntimeDataPlaneReadinessSQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint())
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return nil, ErrRepositoryConfiguration
@@ -136,7 +136,7 @@ func (repository *SensorPublicRepository) Ready(ctx context.Context) error {
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimeDataPlaneReadinessSQL, migrations.ProductionRuntimeGatewayReconciliation().Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint())
+	payload, err := repository.database.QueryJSON(ctx, postgresRuntimeDataPlaneReadinessSQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint())
 	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return ErrRepositoryUnavailable

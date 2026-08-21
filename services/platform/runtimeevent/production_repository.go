@@ -21,11 +21,15 @@ import (
 )
 
 const (
-	productionIngestReadySQL        = `SELECT jsonb_build_object('ready',zasp_runtime_gateway_reconciliation_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_runtime_ingest'))`
-	productionIngestAuthenticateSQL = `SELECT zasp_runtime_authenticate_sensor($1,$2,'event-ingest')`
-	productionIngestReserveSQL      = `SELECT zasp_runtime_reserve_batch($1,$2,'event-ingest',$3,$4,$5,$6,$7,$8,$9,$10)`
-	productionIngestFinalizeSQL     = `SELECT zasp_runtime_finalize_batch($1,$2,'event-ingest',$3,$4,$5,$6,$7,$8,$9,$10,$11)`
-	productionIngestHeartbeatSQL    = `SELECT zasp_runtime_sensor_heartbeat($1,$2,'event-ingest',$3,$4,$5,$6,$7,$8,$9)`
+	productionIngestReadySQL                    = `SELECT jsonb_build_object('ready',zasp_runtime_ingest_reconciliation_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_runtime_ingest'))`
+	productionIngestAuthenticateSQL             = `SELECT zasp_runtime_authenticate_sensor($1,$2,'event-ingest')`
+	productionIngestReserveSQL                  = `SELECT zasp_runtime_reserve_batch_v17($1,$2,'event-ingest',$3,$4,$5,$6,$7,$8,$9,$10)`
+	productionIngestFinalizeSQL                 = `SELECT zasp_runtime_finalize_batch_v17($1,$2,'event-ingest',$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+	productionIngestHeartbeatSQL                = `SELECT zasp_runtime_sensor_heartbeat($1,$2,'event-ingest',$3,$4,$5,$6,$7,$8,$9)`
+	productionIngestClaimReconciliationSQL      = `SELECT zasp_runtime_claim_reconciliation($1,$2,$3,$4)`
+	productionIngestReleaseReconciliationSQL    = `SELECT zasp_runtime_release_reconciliation($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	productionIngestFinishReconciliationSQL     = `SELECT zasp_runtime_finish_reconciliation($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
+	productionIngestQuarantineReconciliationSQL = `SELECT zasp_runtime_quarantine_reconciliation($1,$2,$3,$4,$5,$6,$7)`
 )
 
 var (
@@ -50,7 +54,7 @@ func (repository *PostgresProductionIngestRepository) Ready(ctx context.Context)
 	if !validProductionRepository(repository, ctx) {
 		return ErrProductionIngestUnavailable
 	}
-	payload, err := safeProductionQuery(repository.database, ctx, productionIngestReadySQL, migrations.ProductionRuntimeGatewayReconciliation().Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint())
+	payload, err := safeProductionQuery(repository.database, ctx, productionIngestReadySQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint())
 	var result struct {
 		Ready bool `json:"ready"`
 	}
@@ -202,6 +206,104 @@ func (repository *PostgresProductionIngestRepository) RecordAuthenticatedHeartbe
 	return nil
 }
 
+func (repository *PostgresProductionIngestRepository) ClaimReconciliation(ctx context.Context, workerID, leaseToken string, leaseSeconds, limit int) ([]IngestReconciliationLease, error) {
+	if !validProductionRepository(repository, ctx) || !productionWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) || leaseSeconds < 60 || leaseSeconds > 300 || limit < 1 || limit > 10 {
+		return nil, ErrProductionIngest
+	}
+	payload, err := safeProductionQuery(repository.database, ctx, productionIngestClaimReconciliationSQL, workerID, leaseToken, leaseSeconds, limit)
+	if err != nil {
+		return nil, ErrProductionIngestUnavailable
+	}
+	var wire []struct {
+		OrganizationID string    `json:"organization_id"`
+		WorkspaceID    string    `json:"workspace_id"`
+		EnvironmentID  string    `json:"environment_id"`
+		BatchID        string    `json:"batch_id"`
+		Generation     int64     `json:"generation"`
+		Attempt        int       `json:"attempt"`
+		LeaseExpiresAt time.Time `json:"lease_expires_at"`
+		RequestDigest  string    `json:"request_digest"`
+		ArtifactKey    string    `json:"artifact_key"`
+		ContentDigest  string    `json:"content_digest"`
+		PayloadSize    int64     `json:"payload_size_bytes"`
+		MediaType      string    `json:"media_type"`
+		SchemaVersion  string    `json:"schema_version"`
+	}
+	if strictProductionJSON(payload, &wire) != nil || len(wire) > limit {
+		return nil, ErrProductionIngestUnavailable
+	}
+	result := make([]IngestReconciliationLease, 0, len(wire))
+	for _, value := range wire {
+		organizationID, organizationErr := domain.ParseProductID(value.OrganizationID)
+		workspaceID, workspaceErr := domain.ParseProductID(value.WorkspaceID)
+		environmentID, environmentErr := domain.ParseProductID(value.EnvironmentID)
+		batchID, batchErr := domain.ParseProductID(value.BatchID)
+		scope, scopeErr := domain.NewScope(organizationID, workspaceID, environmentID)
+		requestDigest, requestOK := decodeProductionDigest(value.RequestDigest)
+		contentDigest, contentOK := decodeProductionDigest(value.ContentDigest)
+		lease := IngestReconciliationLease{Scope: scope, BatchID: batchID, Generation: value.Generation, Attempt: value.Attempt, LeaseExpiresAt: value.LeaseExpiresAt, RequestDigest: requestDigest, ArtifactKey: value.ArtifactKey, ContentDigest: contentDigest, PayloadSize: value.PayloadSize, MediaType: value.MediaType, SchemaVersion: value.SchemaVersion}
+		if organizationErr != nil || workspaceErr != nil || environmentErr != nil || batchErr != nil || scopeErr != nil || !requestOK || !contentOK || !validIngestReconciliationLease(lease) {
+			return nil, ErrProductionIngestUnavailable
+		}
+		result = append(result, lease)
+	}
+	return result, nil
+}
+
+func (repository *PostgresProductionIngestRepository) ReleaseReconciliation(ctx context.Context, lease IngestReconciliationLease, workerID, leaseToken string, delay time.Duration, code string) error {
+	seconds := int(delay / time.Second)
+	if !validProductionRepository(repository, ctx) || !validIngestReconciliationLease(lease) || !productionWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) || delay != time.Duration(seconds)*time.Second || seconds < 5 || seconds > 300 || code != "not_found" && code != "dependency_unavailable" && code != "outcome_unknown" {
+		return ErrProductionIngest
+	}
+	payload, err := safeProductionQuery(repository.database, ctx, productionIngestReleaseReconciliationSQL, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.BatchID.String(), lease.Generation, workerID, leaseToken, seconds, code)
+	if err != nil || !validReconciliationTransition(payload, lease, "retryable", "exhausted") {
+		return ErrProductionIngestUnavailable
+	}
+	return nil
+}
+
+func (repository *PostgresProductionIngestRepository) FinishReconciliation(ctx context.Context, lease IngestReconciliationLease, workerID, leaseToken string, jobID, outboxID domain.ProductID, artifact RawArtifact) error {
+	if !validProductionRepository(repository, ctx) || !validIngestReconciliationLease(lease) || !productionWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) || jobID.IsZero() || outboxID.IsZero() || jobID == outboxID || !validRawArtifact(artifact, lease.Scope, lease.ArtifactKey, lease.ContentDigest, lease.PayloadSize) {
+		return ErrProductionIngest
+	}
+	payload, err := safeProductionQuery(repository.database, ctx, productionIngestFinishReconciliationSQL, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.BatchID.String(), lease.Generation, workerID, leaseToken, jobID.String(), outboxID.String(), artifact.Reference, artifact.Key, artifact.VersionID, artifact.ContentDigest[:], artifact.Size, artifact.KMSKeyARN)
+	if err != nil || !validReconciliationTransition(payload, lease, "queued") {
+		return ErrProductionIngestUnknown
+	}
+	return nil
+}
+
+func (repository *PostgresProductionIngestRepository) QuarantineReconciliation(ctx context.Context, lease IngestReconciliationLease, workerID, leaseToken string) error {
+	if !validProductionRepository(repository, ctx) || !validIngestReconciliationLease(lease) || !productionWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) {
+		return ErrProductionIngest
+	}
+	payload, err := safeProductionQuery(repository.database, ctx, productionIngestQuarantineReconciliationSQL, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.BatchID.String(), lease.Generation, workerID, leaseToken)
+	if err != nil || !validReconciliationTransition(payload, lease, "quarantined") {
+		return ErrProductionIngestUnknown
+	}
+	return nil
+}
+
+func validReconciliationTransition(payload json.RawMessage, lease IngestReconciliationLease, states ...string) bool {
+	var wire struct {
+		BatchID    string `json:"batch_id"`
+		Generation int64  `json:"generation"`
+		State      string `json:"state"`
+		Attempt    int    `json:"attempt,omitempty"`
+		ErrorCode  string `json:"error_code,omitempty"`
+		Replayed   bool   `json:"replayed"`
+	}
+	if strictProductionJSON(payload, &wire) != nil || wire.BatchID != lease.BatchID.String() || wire.Generation != lease.Generation {
+		return false
+	}
+	for _, state := range states {
+		if wire.State == state {
+			return true
+		}
+	}
+	return false
+}
+
 func validReserveRequest(request IngestReserveRequest) bool {
 	return request.Scope.Validate() == nil && !request.BatchID.IsZero() && productionIdempotencyPattern.MatchString(request.IdempotencyKey) && request.ContentDigest != [sha256.Size]byte{} && (request.Source == "tetragon" || request.Source == "otlp") && request.MediaType == "application/json" && request.SchemaVersion == productionRuntimeSchema && request.PayloadSize >= 1 && request.PayloadSize <= maximumProductionIngestBytes && request.EventCount >= 1 && request.EventCount <= maximumProductionEvents
 }
@@ -260,3 +362,4 @@ func nilProductionDatabase(value any) bool {
 
 var _ ProductionIngestRepository = (*PostgresProductionIngestRepository)(nil)
 var _ sensor.PrivateHeartbeatAuthority = (*PostgresProductionIngestRepository)(nil)
+var _ ProductionIngestReconciliationRepository = (*PostgresProductionIngestRepository)(nil)

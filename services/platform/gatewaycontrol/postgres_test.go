@@ -27,8 +27,8 @@ func TestPostgresRepositoryUsesExactV16ReadinessAndAuthority(t *testing.T) {
 	if err != nil || actual.ReplayFloor != 7 || !sameAuthority(actual, authority) {
 		t.Fatalf("authority=%#v err=%v", actual, err)
 	}
-	metadata := migrations.ProductionRuntimeGatewayReconciliation()
-	if !reflect.DeepEqual(database.calls[0].arguments, []any{metadata.Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint()}) || database.calls[1].arguments[0] != authority.CredentialID {
+	metadata := migrations.ProductionRuntimeIngestReconciliation()
+	if !reflect.DeepEqual(database.calls[0].arguments, []any{metadata.Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()}) || database.calls[1].arguments[0] != authority.CredentialID {
 		t.Fatalf("calls=%#v", database.calls)
 	}
 }

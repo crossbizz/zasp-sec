@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"reflect"
 	"regexp"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
@@ -82,8 +84,50 @@ func (store *Store) Put(ctx context.Context, request runtimeevent.RawArtifactPut
 	return runtimeevent.RawArtifact{Scope: request.Scope, Key: request.Key, Reference: "s3://" + store.config.Bucket + "/" + request.Key, VersionID: versionID, ContentDigest: request.ContentDigest, Size: int64(len(request.Body)), MediaType: request.MediaType, KMSKeyARN: store.config.KMSKeyARN}, nil
 }
 
+func (store *Store) Inspect(ctx context.Context, request runtimeevent.RawArtifactInspect) (artifact runtimeevent.RawArtifact, resultErr error) {
+	defer func() {
+		if recover() != nil {
+			artifact = runtimeevent.RawArtifact{}
+			resultErr = runtimeevent.ErrProductionIngestUnavailable
+		}
+	}()
+	if store == nil || nilValue(store.api) || ctx == nil || ctx.Err() != nil || !validInspect(request, store.config.MaximumBytes) {
+		return runtimeevent.RawArtifact{}, runtimeevent.ErrProductionIngest
+	}
+	bounded, cancel := context.WithTimeout(ctx, store.config.OperationTimeout)
+	defer cancel()
+	head, headErr := store.api.HeadObject(bounded, &s3.HeadObjectInput{Bucket: aws.String(store.config.Bucket), Key: aws.String(request.Key), ExpectedBucketOwner: aws.String(store.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled}, func(options *s3.Options) { options.Retryer = aws.NopRetryer{} })
+	if headErr != nil {
+		if missingObject(headErr) {
+			return runtimeevent.RawArtifact{}, runtimeevent.ErrProductionIngestArtifactNotFound
+		}
+		return runtimeevent.RawArtifact{}, runtimeevent.ErrProductionIngestUnavailable
+	}
+	if !validHeadInspect(head, request, store.config) {
+		return runtimeevent.RawArtifact{}, runtimeevent.ErrProductionIngestArtifactDrift
+	}
+	return runtimeevent.RawArtifact{Scope: request.Scope, Key: request.Key, Reference: "s3://" + store.config.Bucket + "/" + request.Key, VersionID: aws.ToString(head.VersionId), ContentDigest: request.ContentDigest, Size: request.Size, MediaType: request.MediaType, KMSKeyARN: store.config.KMSKeyARN}, nil
+}
+
+func missingObject(err error) bool {
+	var apiError smithy.APIError
+	if !errors.As(err, &apiError) {
+		return false
+	}
+	switch apiError.ErrorCode() {
+	case "NoSuchKey", "NoSuchVersion", "NotFound":
+		return true
+	default:
+		return false
+	}
+}
+
 func validPut(request runtimeevent.RawArtifactPut, maximumBytes int64) bool {
 	return request.Scope.Validate() == nil && validRuntimeKey(request.Scope, request.Key) && request.MediaType == "application/json" && len(request.Body) > 0 && int64(len(request.Body)) <= maximumBytes && request.ContentDigest != [sha256.Size]byte{} && request.ContentDigest == sha256.Sum256(request.Body)
+}
+
+func validInspect(request runtimeevent.RawArtifactInspect, maximumBytes int64) bool {
+	return request.Scope.Validate() == nil && validRuntimeKey(request.Scope, request.Key) && request.MediaType == "application/json" && request.Size > 0 && request.Size <= maximumBytes && request.ContentDigest != [sha256.Size]byte{}
 }
 
 func validRuntimeKey(scope domain.Scope, key string) bool {
@@ -102,6 +146,11 @@ func validPutOutput(output *s3.PutObjectOutput, kmsKey, checksum string) bool {
 
 func validHead(output *s3.HeadObjectOutput, request runtimeevent.RawArtifactPut, config Config) bool {
 	return output != nil && validVersion(aws.ToString(output.VersionId)) && aws.ToInt64(output.ContentLength) == int64(len(request.Body)) && aws.ToString(output.ContentType) == request.MediaType && aws.ToString(output.ChecksumSHA256) == checksumText(request.ContentDigest) && output.ServerSideEncryption == s3types.ServerSideEncryptionAwsKms && aws.ToString(output.SSEKMSKeyId) == config.KMSKeyARN && exactMap(output.Metadata, rawMetadata(request))
+}
+
+func validHeadInspect(output *s3.HeadObjectOutput, request runtimeevent.RawArtifactInspect, config Config) bool {
+	metadata := rawMetadata(runtimeevent.RawArtifactPut{Scope: request.Scope, Key: request.Key, MediaType: request.MediaType, ContentDigest: request.ContentDigest})
+	return output != nil && validVersion(aws.ToString(output.VersionId)) && aws.ToInt64(output.ContentLength) == request.Size && aws.ToString(output.ContentType) == request.MediaType && aws.ToString(output.ChecksumSHA256) == checksumText(request.ContentDigest) && output.ServerSideEncryption == s3types.ServerSideEncryptionAwsKms && aws.ToString(output.SSEKMSKeyId) == config.KMSKeyARN && exactMap(output.Metadata, metadata)
 }
 
 func validVersion(value string) bool {
@@ -141,3 +190,4 @@ func nilValue(value any) bool {
 }
 
 var _ runtimeevent.RawArtifactAuthority = (*Store)(nil)
+var _ runtimeevent.RawArtifactInspector = (*Store)(nil)

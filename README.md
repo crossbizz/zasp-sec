@@ -43,7 +43,7 @@ API, worker, event-ingest, gateway-control, and customer-edge runtime-gateway
 and sensor-agent boundaries. Separate TLS ingress routes the public product and authenticated
 runtime control/data-plane paths while health, readiness, and metrics remain
 private on 8081. Secrets are resolved through secret-manager CSI references,
-schema v16 is a blocking release Job, and the hosted chart renders 17 isolated
+schema v17 is a blocking release Job, and the hosted chart renders 17 isolated
 deployments with default-deny network policy, disruption/spread/drain controls,
 read-only canaries, security headers, SLO alerts, and exact cloud identities.
 The customer-edge profile contains the database-free runtime gateway plus a

@@ -26,12 +26,14 @@ const (
 )
 
 var (
-	ErrProductionIngest            = errors.New("production runtime ingest rejected")
-	ErrProductionIngestDenied      = errors.New("production runtime ingest authentication rejected")
-	ErrProductionIngestRateLimited = errors.New("production runtime ingest rate limited")
-	ErrProductionIngestUnknown     = errors.New("production runtime ingest outcome unknown")
-	ErrProductionIngestUnavailable = errors.New("production runtime ingest unavailable")
-	productionIdempotencyPattern   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$`)
+	ErrProductionIngest                 = errors.New("production runtime ingest rejected")
+	ErrProductionIngestDenied           = errors.New("production runtime ingest authentication rejected")
+	ErrProductionIngestRateLimited      = errors.New("production runtime ingest rate limited")
+	ErrProductionIngestArtifactNotFound = errors.New("production runtime ingest artifact not found")
+	ErrProductionIngestArtifactDrift    = errors.New("production runtime ingest artifact drift")
+	ErrProductionIngestUnknown          = errors.New("production runtime ingest outcome unknown")
+	ErrProductionIngestUnavailable      = errors.New("production runtime ingest unavailable")
+	productionIdempotencyPattern        = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$`)
 )
 
 type IngestAuthority struct {
@@ -72,6 +74,14 @@ type RawArtifactPut struct {
 	ContentDigest [sha256.Size]byte
 }
 
+type RawArtifactInspect struct {
+	Scope         domain.Scope
+	Key           string
+	ContentDigest [sha256.Size]byte
+	Size          int64
+	MediaType     string
+}
+
 type RawArtifact struct {
 	Scope         domain.Scope
 	Key           string
@@ -106,6 +116,10 @@ type ProductionIngestRepository interface {
 
 type RawArtifactAuthority interface {
 	Put(context.Context, RawArtifactPut) (RawArtifact, error)
+}
+
+type RawArtifactInspector interface {
+	Inspect(context.Context, RawArtifactInspect) (RawArtifact, error)
 }
 
 type ProductionIngestConfig struct {

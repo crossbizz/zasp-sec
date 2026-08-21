@@ -22,7 +22,7 @@ const expectedWorkloads = Object.freeze([
   Object.freeze({ name: "otel-collector", serviceAccount: "otel-collector", role: null, image: "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5" }),
 ]);
 const expectedJobIdentities = Object.freeze([
-  Object.freeze({ name: "agentsec-schema-v16", serviceAccount: "agentsec-migration", role: "migration" }),
+  Object.freeze({ name: "agentsec-schema-v17", serviceAccount: "agentsec-migration", role: "migration" }),
   Object.freeze({ name: "agentsec-projection-graph-init-v1", serviceAccount: "agentsec-projection-graph-init", role: "projection-graph-init" }),
   Object.freeze({ name: "agentsec-projection-search-init-v1", serviceAccount: "agentsec-projection-search-init", role: "projection-search-init" }),
   Object.freeze({ name: "nango-migrate", serviceAccount: "nango-migrate", role: null }),

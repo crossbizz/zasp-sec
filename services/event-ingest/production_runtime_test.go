@@ -133,10 +133,19 @@ func TestServeProductionIngestRunsPrivateAndHealthListenersAndDrains(t *testing.
 		return listener, listenErr
 	}
 	closes := 0
+	reconciles := make(chan struct{}, 1)
 	dependencies := productionIngestDependencies{
 		Handler: http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) { response.WriteHeader(http.StatusNoContent) }),
 		Ready:   func(context.Context) error { return nil },
-		Close:   func() error { closes++; return nil },
+		Reconcile: func(context.Context) error {
+			select {
+			case reconciles <- struct{}{}:
+			default:
+			}
+			return nil
+		},
+		ReconcileInterval: config.ReconciliationInterval,
+		Close:             func() error { closes++; return nil },
 	}
 	var output bytes.Buffer
 	result := make(chan error, 1)
@@ -151,6 +160,11 @@ func TestServeProductionIngestRunsPrivateAndHealthListenersAndDrains(t *testing.
 		}
 	}
 	waitForHealthStatus(t, "http://"+listeners[healthListenAddress].Addr().String()+"/readyz", http.StatusOK)
+	select {
+	case <-reconciles:
+	case <-time.After(2 * time.Second):
+		t.Fatal("reconciler did not run")
+	}
 	response, err := healthTestClient.Post("http://"+listeners[productionIngestListenAddress].Addr().String()+"/anything", "application/json", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -167,6 +181,25 @@ func TestServeProductionIngestRunsPrivateAndHealthListenersAndDrains(t *testing.
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("production server did not drain")
+	}
+}
+
+func TestProductionReconciliationLoopFailsClosedAndStopsBeforeAnotherClaim(t *testing.T) {
+	stop := make(chan struct{})
+	calls := 0
+	err := runProductionReconciliationLoop(context.Background(), stop, time.Millisecond, func(context.Context) error {
+		calls++
+		if calls == 1 {
+			close(stop)
+		}
+		return nil
+	})
+	if err != nil || calls != 1 {
+		t.Fatalf("err=%v calls=%d", err, calls)
+	}
+	want := errors.New("reconcile failed")
+	if err := runProductionReconciliationLoop(context.Background(), make(chan struct{}), time.Millisecond, func(context.Context) error { return want }); !errors.Is(err, want) {
+		t.Fatalf("err=%v", err)
 	}
 }
 

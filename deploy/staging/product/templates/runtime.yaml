@@ -90,6 +90,9 @@ spec:
             - { name: ZASP_EVENT_INGEST_MAX_BYTES, value: "67108864" }
             - { name: ZASP_EVENT_INGEST_OPERATION_TIMEOUT, value: "10s" }
             - { name: ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT, value: "15s" }
+            - name: ZASP_EVENT_INGEST_RECONCILER_ID
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - { name: ZASP_EVENT_INGEST_RECONCILIATION_INTERVAL, value: "1s" }
           volumeMounts:
             - { name: database, mountPath: /var/run/secrets/zasp-runtime-ingest, readOnly: true }
             - { name: web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }

@@ -6,7 +6,10 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
@@ -88,14 +91,44 @@ func TestPostgresProductionIngestRepositoryRecordsTokenAuthenticatedHeartbeat(t 
 	}
 }
 
-type productionIngestDatabaseStub struct {
-	responses []json.RawMessage
-	errors    []error
-	calls     int
-	arguments [][]any
+func TestPostgresProductionIngestRepositoryClaimsAndTransitionsExactReconciliationLease(t *testing.T) {
+	lease := reconciliationLease(t)
+	leaseJSON := `[{"organization_id":"` + lease.Scope.OrganizationID().String() + `","workspace_id":"` + lease.Scope.WorkspaceID().String() + `","environment_id":"` + lease.Scope.EnvironmentID().String() + `","batch_id":"` + lease.BatchID.String() + `","generation":2,"attempt":1,"lease_expires_at":"` + lease.LeaseExpiresAt.Format(time.RFC3339Nano) + `","request_digest":"` + fmt.Sprintf("%x", lease.RequestDigest) + `","artifact_key":"` + lease.ArtifactKey + `","content_digest":"` + fmt.Sprintf("%x", lease.ContentDigest) + `","payload_size_bytes":23,"media_type":"application/json","schema_version":"runtime-event-v1"}]`
+	database := &productionIngestDatabaseStub{responses: []json.RawMessage{
+		json.RawMessage(leaseJSON),
+		json.RawMessage(`{"batch_id":"` + lease.BatchID.String() + `","generation":2,"state":"retryable","attempt":1,"error_code":"not_found","replayed":false}`),
+		json.RawMessage(`{"batch_id":"` + lease.BatchID.String() + `","generation":2,"state":"queued","replayed":false}`),
+		json.RawMessage(`{"batch_id":"` + lease.BatchID.String() + `","generation":2,"state":"quarantined","replayed":false}`),
+	}}
+	repository, _ := NewPostgresProductionIngestRepository(database)
+	claims, err := repository.ClaimReconciliation(context.Background(), "ingest-reconciler-1", "runtime-reconciliation-token-0001", 60, 1)
+	if err != nil || len(claims) != 1 || claims[0] != lease {
+		t.Fatalf("claims=%#v err=%v", claims, err)
+	}
+	if err := repository.ReleaseReconciliation(context.Background(), lease, "ingest-reconciler-1", "runtime-reconciliation-token-0001", 30*time.Second, "not_found"); err != nil {
+		t.Fatal(err)
+	}
+	artifact := RawArtifact{Scope: lease.Scope, Key: lease.ArtifactKey, Reference: "s3://runtime/" + lease.ArtifactKey, VersionID: "version-17", ContentDigest: lease.ContentDigest, Size: lease.PayloadSize, MediaType: lease.MediaType, KMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111"}
+	if err := repository.FinishReconciliation(context.Background(), lease, "ingest-reconciler-1", "runtime-reconciliation-token-0001", reconciliationTestID(t, 1), reconciliationTestID(t, 2), artifact); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.QuarantineReconciliation(context.Background(), lease, "ingest-reconciler-1", "runtime-reconciliation-token-0001"); err != nil {
+		t.Fatal(err)
+	}
+	if database.calls != 4 || !strings.Contains(database.statements[0], "zasp_runtime_claim_reconciliation") || !strings.Contains(database.statements[1], "zasp_runtime_release_reconciliation") || !strings.Contains(database.statements[2], "zasp_runtime_finish_reconciliation") || !strings.Contains(database.statements[3], "zasp_runtime_quarantine_reconciliation") {
+		t.Fatalf("statements=%#v", database.statements)
+	}
 }
 
-func (stub *productionIngestDatabaseStub) QueryJSON(_ context.Context, _ string, arguments ...any) (json.RawMessage, error) {
+type productionIngestDatabaseStub struct {
+	responses  []json.RawMessage
+	errors     []error
+	calls      int
+	arguments  [][]any
+	statements []string
+}
+
+func (stub *productionIngestDatabaseStub) QueryJSON(_ context.Context, statement string, arguments ...any) (json.RawMessage, error) {
 	index := stub.calls
 	stub.calls++
 	retained := append([]any(nil), arguments...)
@@ -105,6 +138,7 @@ func (stub *productionIngestDatabaseStub) QueryJSON(_ context.Context, _ string,
 		}
 	}
 	stub.arguments = append(stub.arguments, retained)
+	stub.statements = append(stub.statements, statement)
 	if index < len(stub.errors) && stub.errors[index] != nil {
 		return nil, stub.errors[index]
 	}

@@ -44,6 +44,8 @@ const (
 	runtimeDataPlaneName                = "runtime_data_plane"
 	runtimeGatewayReconciliationVersion = int64(16)
 	runtimeGatewayReconciliationName    = "runtime_gateway_reconciliation"
+	runtimeIngestReconciliationVersion  = int64(17)
+	runtimeIngestReconciliationName     = "runtime_ingest_reconciliation"
 	rollbackTimeout                     = 5 * time.Second
 
 	tableExistsSQL                                 = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
@@ -61,6 +63,7 @@ const (
 	lockTypedInventorySQL                          = `LOCK TABLE "public"."zasp_inventory_cutover_state" IN ACCESS EXCLUSIVE MODE`
 	lockRuntimeDataPlaneSQL                        = `LOCK TABLE "public"."zasp_runtime_data_plane_state" IN ACCESS EXCLUSIVE MODE`
 	lockRuntimeGatewayReconciliationSQL            = `LOCK TABLE "public"."zasp_runtime_gateway_reconciliation_state" IN ACCESS EXCLUSIVE MODE`
+	lockRuntimeIngestReconciliationSQL             = `LOCK TABLE "public"."zasp_runtime_ingest_reconciliation_state", "public"."zasp_runtime_ingest_reconciliation_work" IN ACCESS EXCLUSIVE MODE`
 	insertRowSQL                                   = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
 	deleteRowSQL                                   = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
 	referenceAuthorizationReadinessSQL             = `SELECT zasp_reference_authorization_readiness($1,$2)`
@@ -68,9 +71,11 @@ const (
 	typedInventoryReadinessSQL                     = `SELECT zasp_inventory_readiness($1,$2)`
 	runtimeDataPlaneReadinessSQL                   = `SELECT zasp_runtime_data_plane_readiness($1,$2)`
 	runtimeGatewayReconciliationReadinessSQL       = `SELECT zasp_runtime_gateway_reconciliation_readiness($1,$2)`
+	runtimeIngestReconciliationReadinessSQL        = `SELECT zasp_runtime_ingest_reconciliation_readiness($1,$2)`
 	typedInventoryRollbackAllowedSQL               = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_inventory_cutover_state" WHERE "phase" = 'cutover')`
 	runtimeDataPlaneRollbackAllowedSQL             = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_data_plane_state" WHERE "used_at" IS NOT NULL)`
 	runtimeGatewayReconciliationRollbackAllowedSQL = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_gateway_reconciliation_state" WHERE "used_at" IS NOT NULL)`
+	runtimeIngestReconciliationRollbackAllowedSQL  = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_ingest_reconciliation_state" WHERE "used_at" IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_ingest_reconciliation_work" WHERE "state" = 'leased')`
 )
 
 var (
@@ -179,6 +184,12 @@ var runtimeGatewayReconciliationUpSQL string
 
 //go:embed sql/0016_runtime_gateway_reconciliation.down.sql
 var runtimeGatewayReconciliationDownSQL string
+
+//go:embed sql/0017_runtime_ingest_reconciliation.up.sql
+var runtimeIngestReconciliationUpSQL string
+
+//go:embed sql/0017_runtime_ingest_reconciliation.down.sql
+var runtimeIngestReconciliationDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -312,6 +323,13 @@ func ProductionRuntimeGatewayReconciliation() Metadata {
 	return Metadata{version: runtimeGatewayReconciliationVersion, name: runtimeGatewayReconciliationName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionRuntimeIngestReconciliation() Metadata {
+	up := strings.TrimSpace(runtimeIngestReconciliationUpSQL)
+	down := strings.TrimSpace(runtimeIngestReconciliationDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: runtimeIngestReconciliationVersion, name: runtimeIngestReconciliationName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -380,6 +398,10 @@ func ProductionRuntimeDataPlaneSemanticFingerprint() string {
 
 func ProductionRuntimeGatewayReconciliationSemanticFingerprint() string {
 	return semanticFingerprint(runtimeGatewayReconciliationUpSQL, "runtime_gateway_reconciliation_fingerprint")
+}
+
+func ProductionRuntimeIngestReconciliationSemanticFingerprint() string {
+	return semanticFingerprint(runtimeIngestReconciliationUpSQL, "runtime_ingest_reconciliation_fingerprint")
 }
 
 func semanticFingerprint(source, key string) string {
@@ -483,7 +505,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 16 {
+	if count < 1 || count > 17 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -518,6 +540,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane())
 	} else if count == 16 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation())
+	} else if count == 17 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -1428,6 +1452,75 @@ func (runner *Runner) DownProductionRuntimeGatewayReconciliation(ctx context.Con
 	})
 }
 
+func (runner *Runner) UpProductionRuntimeIngestReconciliation(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockRuntimeGatewayReconciliationSQL, lockRuntimeDataPlaneSQL, lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionRuntimeGatewayReconciliationState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionRuntimeGatewayReconciliation()
+		if err := requireMigrationReadiness(ctx, transaction, runtimeGatewayReconciliationReadinessSQL, prior.Checksum(), ProductionRuntimeGatewayReconciliationSemanticFingerprint()); err != nil {
+			return err
+		}
+		metadata := ProductionRuntimeIngestReconciliation()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionRuntimeIngestReconciliationState(ctx, transaction); err != nil {
+			return err
+		}
+		return requireMigrationReadiness(ctx, transaction, runtimeIngestReconciliationReadinessSQL, metadata.Checksum(), ProductionRuntimeIngestReconciliationSemanticFingerprint())
+	})
+}
+
+func (runner *Runner) DownProductionRuntimeIngestReconciliation(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockRuntimeIngestReconciliationSQL, lockRuntimeGatewayReconciliationSQL, lockRuntimeDataPlaneSQL, lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionRuntimeIngestReconciliationState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionRuntimeIngestReconciliation()
+		if err := requireMigrationReadiness(ctx, transaction, runtimeIngestReconciliationReadinessSQL, metadata.Checksum(), ProductionRuntimeIngestReconciliationSemanticFingerprint()); err != nil {
+			return err
+		}
+		var rollbackAllowed bool
+		if err := scanRow(ctx, transaction, runtimeIngestReconciliationRollbackAllowedSQL, nil, &rollbackAllowed); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if !rollbackAllowed {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionRuntimeGatewayReconciliationState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionRuntimeGatewayReconciliation()
+		return requireMigrationReadiness(ctx, transaction, runtimeGatewayReconciliationReadinessSQL, prior.Checksum(), ProductionRuntimeGatewayReconciliationSemanticFingerprint())
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -1615,6 +1708,10 @@ func readProductionRuntimeDataPlaneState(ctx context.Context, queryer Queryer) e
 
 func readProductionRuntimeGatewayReconciliationState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation()})
+}
+
+func readProductionRuntimeIngestReconciliationState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

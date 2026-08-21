@@ -17,7 +17,7 @@ import (
 var errPostgresRepository = errors.New("gateway control repository unavailable")
 
 const (
-	postgresReadySQL     = `SELECT zasp_runtime_gateway_reconciliation_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_gateway_control')`
+	postgresReadySQL     = `SELECT zasp_runtime_ingest_reconciliation_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_gateway_control')`
 	postgresAuthoritySQL = `SELECT zasp_runtime_gateway_credential_authority($1,'runtime-gateway')`
 	postgresPolicySQL    = `SELECT zasp_runtime_gateway_policy_bundle($1,$2)`
 	postgresRecordSQL    = `SELECT zasp_runtime_gateway_record_event(
@@ -54,9 +54,9 @@ func (repository *PostgresRepository) Ready(ctx context.Context) error {
 	}
 	operation, cancel := context.WithTimeout(ctx, repository.timeout)
 	defer cancel()
-	metadata := migrations.ProductionRuntimeGatewayReconciliation()
+	metadata := migrations.ProductionRuntimeIngestReconciliation()
 	var ready bool
-	if err := repository.database.QueryRow(operation, postgresReadySQL, metadata.Checksum(), migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint()).Scan(&ready); err != nil || !ready || operation.Err() != nil {
+	if err := repository.database.QueryRow(operation, postgresReadySQL, metadata.Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()).Scan(&ready); err != nil || !ready || operation.Err() != nil {
 		return errPostgresRepository
 	}
 	return nil

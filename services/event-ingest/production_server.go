@@ -14,7 +14,7 @@ import (
 const productionIngestListenAddress = ":8080"
 
 func serveProductionIngest(ctx context.Context, output io.Writer, version string, config productionIngestConfig, dependencies productionIngestDependencies, listen func(string, string) (net.Listener, error)) (resultErr error) {
-	if invalidRuntimeValue(ctx) || invalidRuntimeValue(output) || !validBuildVersion(version) || !validProductionIngestConfig(config) || invalidRuntimeValue(dependencies.Handler) || dependencies.Ready == nil || dependencies.Close == nil || listen == nil {
+	if invalidRuntimeValue(ctx) || invalidRuntimeValue(output) || !validBuildVersion(version) || !validProductionIngestConfig(config) || invalidRuntimeValue(dependencies.Handler) || dependencies.Ready == nil || dependencies.Reconcile == nil || dependencies.ReconcileInterval != config.ReconciliationInterval || dependencies.Close == nil || listen == nil {
 		return errRuntimeUnavailable
 	}
 	defer func() {
@@ -63,13 +63,19 @@ func serveProductionIngest(ctx context.Context, output io.Writer, version string
 	}
 	runtimeCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	reconciliationCtx, cancelReconciliation := context.WithCancel(context.WithoutCancel(ctx))
+	defer cancelReconciliation()
+	stopReconciliation := make(chan struct{})
 	type serveResult struct {
 		name string
 		err  error
 	}
-	results := make(chan serveResult, 2)
+	results := make(chan serveResult, 3)
 	go func() { results <- serveResult{name: "private", err: private.Serve(privateListener)} }()
 	go func() { results <- serveResult{name: "health", err: health.Serve(runtimeCtx, healthListener)} }()
+	go func() {
+		results <- serveResult{name: "reconciliation", err: runProductionReconciliationLoop(reconciliationCtx, stopReconciliation, dependencies.ReconcileInterval, dependencies.Reconcile)}
+	}()
 
 	first := serveResult{}
 	select {
@@ -77,6 +83,7 @@ func serveProductionIngest(ctx context.Context, output io.Writer, version string
 	case first = <-results:
 		cancel()
 	}
+	close(stopReconciliation)
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), config.ShutdownTimeout)
 	shutdownErr := private.Shutdown(shutdownCtx)
 	shutdownCancel()
@@ -90,7 +97,7 @@ func serveProductionIngest(ctx context.Context, output io.Writer, version string
 	}
 	deadline := time.NewTimer(config.ShutdownTimeout)
 	defer deadline.Stop()
-	for seen < 2 {
+	for seen < 3 {
 		select {
 		case value := <-results:
 			seen++
@@ -98,6 +105,7 @@ func serveProductionIngest(ctx context.Context, output io.Writer, version string
 				first = value
 			}
 		case <-deadline.C:
+			cancelReconciliation()
 			return errRuntimeUnavailable
 		}
 	}
@@ -108,4 +116,32 @@ func serveProductionIngest(ctx context.Context, output io.Writer, version string
 		return nil
 	}
 	return errRuntimeUnavailable
+}
+
+func runProductionReconciliationLoop(ctx context.Context, stop <-chan struct{}, interval time.Duration, reconcile func(context.Context) error) error {
+	if ctx == nil || ctx.Err() != nil || stop == nil || interval < time.Millisecond || reconcile == nil {
+		return errRuntimeUnavailable
+	}
+	for {
+		select {
+		case <-stop:
+			return nil
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+		if err := reconcile(ctx); err != nil {
+			return err
+		}
+		timer := time.NewTimer(interval)
+		select {
+		case <-stop:
+			timer.Stop()
+			return nil
+		case <-ctx.Done():
+			timer.Stop()
+			return nil
+		case <-timer.C:
+		}
+	}
 }

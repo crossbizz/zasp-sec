@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
@@ -71,6 +72,47 @@ func TestStoreReconcilesLostPutAcknowledgementAndRejectsDrift(t *testing.T) {
 	}
 }
 
+func TestStoreInspectsExactPinnedRuntimeArtifactAndClassifiesDrift(t *testing.T) {
+	request := rawPut(t)
+	inspect := runtimeevent.RawArtifactInspect{Scope: request.Scope, Key: request.Key, ContentDigest: request.ContentDigest, Size: int64(len(request.Body)), MediaType: request.MediaType}
+	for _, test := range []struct {
+		name    string
+		head    *s3.HeadObjectOutput
+		wantErr error
+	}{
+		{name: "exact", head: exactHead(request, "version-v15-inspect")},
+		{name: "drift", head: exactHead(request, "version-v15-drift"), wantErr: runtimeevent.ErrProductionIngestArtifactDrift},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.wantErr != nil {
+				test.head.ChecksumSHA256 = aws.String(checksumText(sha256.Sum256([]byte("drift"))))
+			}
+			api := &rawS3Stub{head: test.head}
+			store, _ := New(api, Config{Bucket: "zasp-runtime-prod", ExpectedBucketOwner: "123456789012", KMSKeyARN: rawKMSKey, MaximumBytes: 1 << 20, OperationTimeout: time.Second})
+			artifact, err := store.Inspect(context.Background(), inspect)
+			if test.wantErr != nil {
+				if !errors.Is(err, test.wantErr) || artifact != (runtimeevent.RawArtifact{}) {
+					t.Fatalf("artifact=%#v err=%v", artifact, err)
+				}
+				return
+			}
+			if err != nil || artifact.VersionID != "version-v15-inspect" || artifact.Reference != "s3://zasp-runtime-prod/"+request.Key || api.putCalls != 0 || api.headCalls != 1 {
+				t.Fatalf("artifact=%#v err=%v calls=%d/%d", artifact, err, api.putCalls, api.headCalls)
+			}
+		})
+	}
+}
+
+func TestStoreInspectClassifiesMissingWithoutProviderDetail(t *testing.T) {
+	request := rawPut(t)
+	api := &rawS3Stub{headErr: &smithy.GenericAPIError{Code: "NotFound", Message: "provider-secret"}}
+	store, _ := New(api, Config{Bucket: "zasp-runtime-prod", ExpectedBucketOwner: "123456789012", KMSKeyARN: rawKMSKey, MaximumBytes: 1 << 20, OperationTimeout: time.Second})
+	artifact, err := store.Inspect(context.Background(), runtimeevent.RawArtifactInspect{Scope: request.Scope, Key: request.Key, ContentDigest: request.ContentDigest, Size: int64(len(request.Body)), MediaType: request.MediaType})
+	if !errors.Is(err, runtimeevent.ErrProductionIngestArtifactNotFound) || artifact != (runtimeevent.RawArtifact{}) || bytes.Contains([]byte(err.Error()), []byte("provider-secret")) {
+		t.Fatalf("artifact=%#v err=%v", artifact, err)
+	}
+}
+
 const rawKMSKey = "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111"
 
 func rawPut(t *testing.T) runtimeevent.RawArtifactPut {
@@ -99,6 +141,7 @@ func exactHead(request runtimeevent.RawArtifactPut, version string) *s3.HeadObje
 type rawS3Stub struct {
 	put       func(context.Context, *s3.PutObjectInput) (*s3.PutObjectOutput, error)
 	head      *s3.HeadObjectOutput
+	headErr   error
 	putCalls  int
 	headCalls int
 }
@@ -109,5 +152,5 @@ func (stub *rawS3Stub) PutObject(ctx context.Context, input *s3.PutObjectInput, 
 }
 func (stub *rawS3Stub) HeadObject(context.Context, *s3.HeadObjectInput, ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
 	stub.headCalls++
-	return stub.head, nil
+	return stub.head, stub.headErr
 }

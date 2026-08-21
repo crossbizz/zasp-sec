@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -29,7 +31,10 @@ import (
 
 const productionIngestReadinessTTL = 30 * time.Second
 
-var productionWebTokenPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
+var (
+	productionWebTokenPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
+	productionWorkerIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
+)
 
 type productionAssumeRoleAPI interface {
 	AssumeRoleWithWebIdentity(context.Context, *sts.AssumeRoleWithWebIdentityInput, ...func(*sts.Options)) (*sts.AssumeRoleWithWebIdentityOutput, error)
@@ -217,9 +222,11 @@ func (readiness *productionReadinessCache) Ready(ctx context.Context) error {
 }
 
 type productionIngestDependencies struct {
-	Handler http.Handler
-	Ready   func(context.Context) error
-	Close   func() error
+	Handler           http.Handler
+	Ready             func(context.Context) error
+	Reconcile         func(context.Context) error
+	ReconcileInterval time.Duration
+	Close             func() error
 }
 
 type cachedProductionIngestRepository struct {
@@ -228,6 +235,18 @@ type cachedProductionIngestRepository struct {
 }
 
 func (repository cachedProductionIngestRepository) Ready(ctx context.Context) error {
+	if repository.ready == nil {
+		return errRuntimeUnavailable
+	}
+	return repository.ready(ctx)
+}
+
+type cachedProductionIngestReconciliationRepository struct {
+	runtimeevent.ProductionIngestReconciliationRepository
+	ready func(context.Context) error
+}
+
+func (repository cachedProductionIngestReconciliationRepository) Ready(ctx context.Context) error {
 	if repository.ready == nil {
 		return errRuntimeUnavailable
 	}
@@ -295,6 +314,14 @@ func buildProductionIngestDependencies(ctx context.Context, config productionIng
 	if err != nil {
 		return failCloud()
 	}
+	reconciler, err := runtimeevent.NewProductionIngestReconciler(runtimeevent.ProductionIngestReconcilerConfig{
+		Repository: cachedProductionIngestReconciliationRepository{ProductionIngestReconciliationRepository: repository, ready: readiness.Ready},
+		Artifacts:  artifacts, WorkerID: config.ReconcilerID, LeaseSeconds: 60, ClaimLimit: 10,
+		OperationTimeout: config.OperationTimeout, NewLeaseToken: newProductionReconciliationLeaseToken,
+	})
+	if err != nil {
+		return failCloud()
+	}
 	var closeOnce sync.Once
 	var closeErr error
 	closeDependencies := func() error {
@@ -307,7 +334,18 @@ func buildProductionIngestDependencies(ctx context.Context, config productionIng
 		})
 		return closeErr
 	}
-	return productionIngestDependencies{Handler: readinessGatedIngestHandler{ready: readiness.Ready, next: router}, Ready: readiness.Ready, Close: closeDependencies}, nil
+	return productionIngestDependencies{
+		Handler: readinessGatedIngestHandler{ready: readiness.Ready, next: router}, Ready: readiness.Ready,
+		Reconcile: reconciler.RunOnce, ReconcileInterval: config.ReconciliationInterval, Close: closeDependencies,
+	}, nil
+}
+
+func newProductionReconciliationLeaseToken() (string, error) {
+	value := make([]byte, 16)
+	if _, err := rand.Read(value); err != nil {
+		return "", errRuntimeUnavailable
+	}
+	return hex.EncodeToString(value), nil
 }
 
 type productionJSONDatabase struct {

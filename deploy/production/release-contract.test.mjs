@@ -386,7 +386,7 @@ test("production release renders private Nango dependency plus a fail-closed loc
 test("rendered release rejects an unreviewed job identity", async () => {
   const resources = await renderRelease(release);
   const names = resources.filter(({ kind }) => kind === "Job").map(({ metadata }) => metadata.name).sort();
-  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v16", "nango-migrate", "zasp-canary-secret-sync"]);
+  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v17", "nango-migrate", "zasp-canary-secret-sync"]);
   assert.throws(() => validateRenderedRelease([...resources, {
     apiVersion: "batch/v1",
     kind: "Job",
@@ -467,9 +467,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.deepEqual(one(resources, "Service", "agentsec-api").spec.ports.map(({ name, port }) => [name, port]), [["product", 8080], ["internal", 8081]]);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Ingress").map(({ metadata }) => metadata.name).sort(), ["zasp-product", "zasp-runtime"]);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Service" && ["neo4j", "nango", "otel-collector"].includes(metadata.name) && metadata.annotations?.["service.beta.kubernetes.io/aws-load-balancer-type"]), false);
-  assert.equal(one(resources, "Job", "agentsec-schema-v16").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
-  assert.match(one(resources, "Job", "agentsec-schema-v16").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
-  const migration = one(resources, "Job", "agentsec-schema-v16");
+  assert.equal(one(resources, "Job", "agentsec-schema-v17").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.match(one(resources, "Job", "agentsec-schema-v17").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
+  const migration = one(resources, "Job", "agentsec-schema-v17");
   assert.equal(migration.spec.template.spec.serviceAccountName, "agentsec-migration");
   assert.equal(migration.spec.template.spec.containers[0].env.some(({ valueFrom }) => valueFrom?.secretKeyRef), false);
   assert.equal(migration.spec.template.spec.containers[0].volumeMounts[0].mountPath, "/var/run/secrets/zasp-migration");
@@ -493,13 +493,13 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL: "zasp_runtime_projection_runtime",
     ZASP_GATEWAY_CONTROL_DB_PRINCIPAL: "zasp_gateway_control_runtime",
   });
-  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v16", "-10"]]) {
+  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v17", "-10"]]) {
     const resource = one(resources, kind, name);
     assert.equal(resource.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
     assert.equal(resource.metadata.annotations["helm.sh/hook-weight"], weight);
   }
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "16");
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "16");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "17");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "17");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
   assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 7);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-migration-secrets").spec.secretObjects[0].data.length, 1);
@@ -619,6 +619,7 @@ test("release ships the complete v15 runtime data plane behind exact workload au
     ZASP_RUNTIME_RAW_BUCKET: release.runtime.rawBucket, ZASP_RUNTIME_RAW_BUCKET_OWNER: release.runtime.rawBucketOwner,
     ZASP_RUNTIME_RAW_KMS_KEY_ARN: release.runtime.rawKMSKeyArn, ZASP_EVENT_INGEST_MAX_BYTES: "67108864",
     ZASP_EVENT_INGEST_OPERATION_TIMEOUT: "10s", ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT: "15s",
+    ZASP_EVENT_INGEST_RECONCILER_ID: "fieldRef:metadata.name", ZASP_EVENT_INGEST_RECONCILIATION_INTERVAL: "1s",
   });
 });
 

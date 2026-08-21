@@ -18,10 +18,10 @@ func TestLoadProductionIngestConfigRequiresExactAuthority(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.DatabaseURL != values["ZASP_DATABASE_URL"] || config.Region != "us-west-2" || config.RoleARN != values["ZASP_EVENT_INGEST_ROLE_ARN"] || config.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || config.Bucket != "zasp-runtime-prod" || config.ExpectedBucketOwner != "123456789012" || config.KMSKeyARN != values["ZASP_RUNTIME_RAW_KMS_KEY_ARN"] || config.MaximumBytes != 64<<20 || config.OperationTimeout != 10*time.Second || config.ShutdownTimeout != 20*time.Second {
+	if config.DatabaseURL != values["ZASP_DATABASE_URL"] || config.Region != "us-west-2" || config.RoleARN != values["ZASP_EVENT_INGEST_ROLE_ARN"] || config.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || config.Bucket != "zasp-runtime-prod" || config.ExpectedBucketOwner != "123456789012" || config.KMSKeyARN != values["ZASP_RUNTIME_RAW_KMS_KEY_ARN"] || config.MaximumBytes != 64<<20 || config.OperationTimeout != 10*time.Second || config.ShutdownTimeout != 20*time.Second || config.ReconcilerID != "event-ingest-pod-1" || config.ReconciliationInterval != time.Second {
 		t.Fatalf("config=%#v", config)
 	}
-	for _, key := range []string{"ZASP_DATABASE_URL", "ZASP_AWS_REGION", "ZASP_EVENT_INGEST_ROLE_ARN", "ZASP_EVENT_INGEST_WEB_IDENTITY_TOKEN_FILE", "ZASP_RUNTIME_RAW_BUCKET", "ZASP_RUNTIME_RAW_BUCKET_OWNER", "ZASP_RUNTIME_RAW_KMS_KEY_ARN", "ZASP_EVENT_INGEST_MAX_BYTES", "ZASP_EVENT_INGEST_OPERATION_TIMEOUT", "ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT"} {
+	for _, key := range []string{"ZASP_DATABASE_URL", "ZASP_AWS_REGION", "ZASP_EVENT_INGEST_ROLE_ARN", "ZASP_EVENT_INGEST_WEB_IDENTITY_TOKEN_FILE", "ZASP_RUNTIME_RAW_BUCKET", "ZASP_RUNTIME_RAW_BUCKET_OWNER", "ZASP_RUNTIME_RAW_KMS_KEY_ARN", "ZASP_EVENT_INGEST_MAX_BYTES", "ZASP_EVENT_INGEST_OPERATION_TIMEOUT", "ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT", "ZASP_EVENT_INGEST_RECONCILER_ID", "ZASP_EVENT_INGEST_RECONCILIATION_INTERVAL"} {
 		t.Run(key, func(t *testing.T) {
 			candidate := validProductionIngestEnvironment()
 			candidate[key] = ""
@@ -142,5 +142,7 @@ func validProductionIngestEnvironment() map[string]string {
 		"ZASP_EVENT_INGEST_MAX_BYTES":               "67108864",
 		"ZASP_EVENT_INGEST_OPERATION_TIMEOUT":       "10s",
 		"ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT":        "20s",
+		"ZASP_EVENT_INGEST_RECONCILER_ID":           "event-ingest-pod-1",
+		"ZASP_EVENT_INGEST_RECONCILIATION_INTERVAL": "1s",
 	}
 }

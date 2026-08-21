@@ -55,7 +55,7 @@ export async function verifyReleaseSources() {
 
   const requiredDocs = ["production-deployment.md", "backup-restore-rollback.md", "observability-and-canaries.md", "authentication-and-support.md", "supported-workflows.md"];
   const docs = await Promise.all(requiredDocs.map((name) => source(`docs/operations/${name}`)));
-  for (const phrase of ["schema v16", "Do not run `agentsec-migrate down`", "correlation ID", "must not ask", "not supported production workflows"]) {
+  for (const phrase of ["schema v17", "Do not run `agentsec-migrate down`", "correlation ID", "must not ask", "not supported production workflows"]) {
     if (!docs.some((document) => document.includes(phrase))) throw new Error("documentation gate rejected");
   }
 
