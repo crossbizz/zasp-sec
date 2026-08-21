@@ -7,11 +7,10 @@ const root = resolve(import.meta.dirname, "../..");
 
 describe("M4 UI and golden-gate batch", () => {
   it("wires production inventory and risk routes without importing demo actions", async () => {
-    const [app, productionView, riskView, demoView] = await Promise.all([
+    const [app, productionView, riskView] = await Promise.all([
       readFile(resolve(root, "app/components/ZaspProductionApp.tsx"), "utf8"),
       readFile(resolve(root, "app/features/agents/ProductionAgentSecurityView.tsx"), "utf8"),
       readFile(resolve(root, "app/features/risk/ProductionRiskView.tsx"), "utf8"),
-      readFile(resolve(root, "app/features/agents/AgentSecurityView.tsx"), "utf8"),
     ]);
     expect(app).toContain("<ProductionAgentSecurityView");
     expect(app).toContain("<ProductionRiskView");
@@ -19,7 +18,8 @@ describe("M4 UI and golden-gate batch", () => {
     for (const operation of ["listAgents", "getAgent", "updateAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "getHomeSummary"]) expect(productionView).toContain(operation);
     for (const operation of ["updateFinding", "acceptFindingRisk", "getAttackPathBreakOptions"]) expect(riskView).toContain(operation);
     for (const hidden of ["createFindingTicket", "globalSearch"]) expect(productionView + riskView).not.toContain(hidden);
-    for (const heading of ["Why", "Evidence", "Path", "Fix", "Verify", "Effective capabilities", "Runtime policy coverage"]) expect(demoView).toContain(heading);
+    for (const heading of ["Why", "Evidence", "Path", "Fix", "Verify"]) expect(riskView).toContain(heading);
+    for (const heading of ["Effective capabilities", "Runtime policy coverage"]) expect(productionView).toContain(heading);
   });
 
   it("implements one coherent five-stage local M4 gate", async () => {

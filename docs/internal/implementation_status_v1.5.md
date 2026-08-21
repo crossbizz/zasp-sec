@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 314 |
-| Component-only | 353 |
+| Production-available | 343 |
+| Component-only | 324 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -92,9 +92,10 @@ production composition, not merely a component proof or external evidence.
   events.
 - `services/platform/agentsec-worker` composes scheduler, discovery, outbox,
   independent risk/graph/search projections, and the archive/index/correlate/
-  project/complete runtime-event stages. Task 4 promotes only 18 reviewed rows;
-  provider breadth, finalization renewal, aggregate readiness, separate images,
-  and live managed dependencies remain component or external evidence.
+  project/complete runtime-event stages. Exact tenant-bound AWS Cartography and
+  Prowler input, AWS/Kubernetes/GitHub/Okta normalization, checkpoint resume,
+  and the combined provider worker path pass focused race and PostgreSQL gates.
+  Live managed dependencies remain external evidence.
 - Public sensor management, hashed audience-bound sensor credentials, private
   heartbeat/ingest, signed gateway policy, and durable event-stage receipts are
   mounted behind distinct v15 database and cloud identities. Task 6 promotes
@@ -118,9 +119,11 @@ production composition, not merely a component proof or external evidence.
   exact-pinned Tetragon plus the non-root sensor, preserve zero drops and full
   capability reports, forward real process events, and survive leader loss.
 - Task 5 promotes canonical asset/Agent/Tool/Identity/Runtime and relationship
-  inventory, ownership mutations, and tenant-scoped observed RBAC capabilities.
-  Verified/blocked capability transitions, posture/findings, and attack paths
-  remain component-only until their production authority is proven.
+  inventory, ownership mutations, tenant-scoped observed/verified/blocked RBAC
+  capabilities, all 12 evidence-backed posture rules, risk factors, bounded
+  attack paths, ranked break options, and the production exposure drawer.
+  Ticket webhooks, global search, and the final installed-browser M4 gate remain
+  component-only.
 - `docs/operations/production-deployment.md` and release contracts retain
   image, provider, DNS/TLS, secret, tracing, and public-deployment evidence as
   explicit external gates.
@@ -133,14 +136,14 @@ production composition, not merely a component proof or external evidence.
 | M1 | 68 | 57 | 11 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
-| M3 | 75 | 42 | 31 | 2 | 0 |
-| M4 | 82 | 55 | 27 | 0 | 0 |
+| M3 | 75 | 49 | 24 | 2 | 0 |
+| M4 | 82 | 77 | 5 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 23 | 66 | 52 | 0 |
-| **Total** | **728** | **314** | **353** | **61** | **0** |
+| **Total** | **728** | **343** | **324** | **61** | **0** |
 
 ## Prerequisite work
 

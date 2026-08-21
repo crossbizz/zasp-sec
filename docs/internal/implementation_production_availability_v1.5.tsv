@@ -191,12 +191,12 @@ M3	M3-11	Complete	production-available	T04-discovery-worker	production evidence:
 M3	M3-12	Complete	production-available	T04-discovery-worker	production evidence: API getIntegrationSync; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-13	Complete	production-available	T04-discovery-worker	production evidence: integration job payload; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-14	Blocked	blocked/external	EXT-live-aws	audited external evidence gate: AWS credential adapter
-M3	M3-15	Complete	component-only	T04-discovery-worker	audited component-only proof: Cartography runner
-M3	M3-16	Complete	component-only	T04-discovery-worker	audited component-only proof: Prowler runner
-M3	M3-17	Complete	component-only	T04-discovery-worker	audited component-only proof: AWS normalization
-M3	M3-18	Complete	component-only	T04-discovery-worker	audited component-only proof: Kubernetes normalization
-M3	M3-19	Complete	component-only	T04-discovery-worker	audited component-only proof: GitHub normalization
-M3	M3-20	Complete	component-only	T04-discovery-worker	audited component-only proof: IdP normalization
+M3	M3-15	Complete	production-available	T04-discovery-worker	production evidence: credential-free Cartography process authority and identical AWS ARNs remain isolated across Organizations in the combined discovery worker gate at 1f2031f
+M3	M3-16	Complete	production-available	T04-discovery-worker	production evidence: bounded Prowler process output persists canonical finding and version-pinned artifact evidence without credential echo in the combined discovery gate at 1f2031f
+M3	M3-17	Complete	production-available	T04-discovery-worker	production evidence: multi-region AWS inventory and security sources normalize stable account, role, policy, resource, and evidence relationships under exact tenant scope at 1f2031f
+M3	M3-18	Complete	production-available	T04-discovery-worker	production evidence: all Kubernetes launch phases normalize cluster, namespace, service-account, RBAC, workload, and posture relationships with exact cursor lineage at 1f2031f
+M3	M3-19	Complete	production-available	T04-discovery-worker	production evidence: GitHub installation, repository, workflow, environment, permission, and identity relationships pass exact subject-bound pagination and resume gates at 1f2031f
+M3	M3-20	Complete	production-available	T04-discovery-worker	production evidence: Okta users, groups, applications, assignments, roles, and service principals normalize with exact issuer/subject scope and cursor lineage at 1f2031f
 M3	M3-21	Complete	production-available	T04-discovery-worker	production evidence: integration freshness; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-22a	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango private deployment
 M3	M3-22b	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango free feature boundary
@@ -245,7 +245,7 @@ M3	M3-48	Complete	production-available	PROD-current-composition	audited shipped 
 M3	M3-49	Complete	component-only	T10-product-ui	audited component-only proof: Connections UI actions
 M3	M3-50	Complete	component-only	T10-product-ui	audited component-only proof: Sensors UI shell
 M3	M3-51	Complete	component-only	T10-product-ui	audited component-only proof: Sensors UI actions
-M3	M3-52a	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 connector E2E
+M3	M3-52a	Complete	production-available	T04-discovery-worker	production evidence: combined AWS, Kubernetes, GitHub, and Okta fixtures traverse production provider clients, canonical collection, manifest-last artifacts, and worker decoding under race at 1f2031f
 M3	M3-52b	Complete	component-only	T06-runtime-data-plane	audited component-only proof: M3 sensor E2E
 M3	M3-52c	Complete	component-only	T06-runtime-data-plane	audited component-only proof: M3 OTLP eBPF ingest E2E
 M3	M3-52d	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 queue index E2E
@@ -275,30 +275,30 @@ M4	M4-15	Complete	production-available	PROD-current-composition	audited shipped 
 M4	M4-16	Complete	production-available	T05-inventory-cutover	production evidence: six-category Kubernetes RBAC rules derive from canonical tenant-scoped inventory and fail closed on malformed provider authority
 M4	M4-17	Complete	production-available	T05-inventory-cutover	production evidence: API-role keyset graph query traverses Agent identity, binding, and role authority with foreign-tenant denial
 M4	M4-18	Complete	production-available	T05-inventory-cutover	production evidence: canonical provider observations upgrade reachable capabilities to observed while retaining sorted evidence authority
-M4	M4-19	Complete	component-only	T05-inventory-cutover	audited component-only proof: capability verified/blocked upgrade
-M4	M4-20	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture ownerless agent
-M4	M4-21	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture human credential
-M4	M4-22	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture shared credential
-M4	M4-23	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture untrusted write
-M4	M4-24	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture shell credential
-M4	M4-25	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture egress sensitive
-M4	M4-26	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture unapproved tool
-M4	M4-27	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture destructive no control
-M4	M4-28	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture no runtime coverage
-M4	M4-29	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture weak runtime isolation
-M4	M4-30	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture cicd production secret
-M4	M4-31	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture zombie credential
-M4	M4-32	Complete	component-only	T05-inventory-cutover	audited component-only proof: Prowler relevance filter
-M4	M4-33	Complete	component-only	T05-inventory-cutover	audited component-only proof: finding risk factors
+M4	M4-19	Complete	production-available	T05-inventory-cutover	production evidence: tenant-scoped PostgreSQL capability authority upgrades observed reachability to verified and blocked while retaining underlying reachability and exact evidence at e8a046b
+M4	M4-20	Complete	production-available	T05-inventory-cutover	production evidence: source-owned ownerless-agent posture refresh persists exact tenant evidence, risk factor, resolution, and foreign-tenant isolation at 2b768d6
+M4	M4-21	Complete	production-available	T05-inventory-cutover	production evidence: source-owned human-credential posture refresh persists and resolves exact evidence-backed findings at 2b768d6
+M4	M4-22	Complete	production-available	T05-inventory-cutover	production evidence: shared credential fingerprint across active agents produces exact evidence-backed finding authority and clears on false posture at 2b768d6
+M4	M4-23	Complete	production-available	T05-inventory-cutover	production evidence: untrusted input plus production write produces an exact evidence-backed tenant finding and deterministic risk factor at 2b768d6
+M4	M4-24	Complete	production-available	T05-inventory-cutover	production evidence: shell execution plus production credential produces an exact evidence-backed tenant finding and deterministic risk factor at 2b768d6
+M4	M4-25	Complete	production-available	T05-inventory-cutover	production evidence: unrestricted egress plus sensitive-data reach produces an exact evidence-backed tenant finding and deterministic risk factor at 2b768d6
+M4	M4-26	Complete	production-available	T05-inventory-cutover	production evidence: unapproved remote tool reach produces an exact evidence-backed tenant finding and deterministic risk factor at 2b768d6
+M4	M4-27	Complete	production-available	T05-inventory-cutover	production evidence: destructive tool reach without runtime control produces an exact evidence-backed tenant finding and deterministic risk factor at 2b768d6
+M4	M4-28	Complete	production-available	T05-inventory-cutover	production evidence: production agent without supported runtime policy produces exact evidence and clears after supported coverage appears at 2b768d6
+M4	M4-29	Complete	production-available	T05-inventory-cutover	production evidence: host filesystem or privileged runtime posture produces exact isolation evidence and deterministic risk factor at 2b768d6
+M4	M4-30	Complete	production-available	T05-inventory-cutover	production evidence: CI/CD write plus production-secret reach produces exact evidence and deterministic risk factor at 2b768d6
+M4	M4-31	Complete	production-available	T05-inventory-cutover	production evidence: inactive agent with active credential produces exact source evidence and resolves after credential deactivation at 2b768d6
+M4	M4-32	Complete	production-available	T05-inventory-cutover	production evidence: only Prowler records bound to exact inventory entity and version-pinned artifact evidence enter the default tenant finding set at 18d4e9d
+M4	M4-33	Complete	production-available	T05-inventory-cutover	production evidence: PostgreSQL finding detail returns exact explainable factor name and evidence ID for every persisted posture finding at 2b768d6
 M4	M4-34	Complete	production-available	PROD-current-composition	audited shipped composition: API listFindings
 M4	M4-35	Complete	production-available	PROD-current-composition	audited shipped composition: API getFinding
 M4	M4-36	Complete	production-available	PROD-current-composition	audited shipped composition: API updateFinding
 M4	M4-37	Complete	production-available	PROD-current-composition	audited shipped composition: API acceptFindingRisk
 M4	M4-38	Complete	component-only	T14-data-workflows	audited component-only proof: API createFindingTicket
 M4	M4-39	Complete	component-only	T14-data-workflows	audited component-only proof: ticket webhook action
-M4	M4-40	Complete	component-only	T05-inventory-cutover	audited component-only proof: attack path templates
-M4	M4-41	Complete	component-only	T05-inventory-cutover	audited component-only proof: attack path query
-M4	M4-42	Complete	component-only	T05-inventory-cutover	audited component-only proof: break path options
+M4	M4-40	Complete	production-available	T05-inventory-cutover	production evidence: discovery reconciliation derives deterministic bounded finding-to-role attack paths from exact entry, sink, node, and evidence sets at 18d4e9d
+M4	M4-41	Complete	production-available	T05-inventory-cutover	production evidence: tenant PostgreSQL path reads preserve observed and blocked state, exact node order, evidence, replay, complete-empty cleanup, and foreign-tenant isolation at 18d4e9d
+M4	M4-42	Complete	production-available	T05-inventory-cutover	production evidence: derived paths persist deterministic ranked remove-node and enforce-policy options bound to the exact path evidence at 18d4e9d
 M4	M4-43	Complete	production-available	PROD-current-composition	audited shipped composition: API listAttackPaths
 M4	M4-44	Complete	production-available	PROD-current-composition	audited shipped composition: API getAttackPath
 M4	M4-45	Complete	production-available	PROD-current-composition	audited shipped composition: API getAttackPathBreakOptions
@@ -328,10 +328,10 @@ M4	M4-56	Complete	production-available	PROD-current-composition	audited shipped 
 M4	M4-57	Complete	production-available	PROD-current-composition	audited shipped composition: Attack Paths UI
 M4	M4-58	Complete	production-available	PROD-current-composition	audited shipped composition: Home UI
 M4	M4-59a	Complete	production-available	T05-inventory-cutover	installed-Chrome v14 golden journey proves typed lists, detail, deep-link reload, multi-source retention, partial/failed retention, and complete-empty removal
-M4	M4-59b	Complete	component-only	T05-inventory-cutover	audited component-only proof: capability golden test
-M4	M4-59c	Complete	component-only	T05-inventory-cutover	audited component-only proof: posture golden test
-M4	M4-59d	Complete	component-only	T05-inventory-cutover	audited component-only proof: attack path golden test
-M4	M4-59e	Complete	component-only	T05-inventory-cutover	audited component-only proof: exposure UX golden test
+M4	M4-59b	Complete	production-available	T05-inventory-cutover	production evidence: canonical Kubernetes agent fixture derives observed, verified, and blocked effective capabilities with sorted evidence in PostgreSQL at e8a046b
+M4	M4-59c	Complete	production-available	T05-inventory-cutover	production evidence: canonical agent fixture raises all applicable posture findings with exact evidence and risk factors, then resolves them without cross-tenant mutation at 2b768d6
+M4	M4-59d	Complete	production-available	T05-inventory-cutover	production evidence: canonical Prowler finding derives a bounded evidence-state attack path and ranked break options in production PostgreSQL at 18d4e9d
+M4	M4-59e	Complete	production-available	T05-inventory-cutover	production evidence: mounted ProductionRiskView renders Why, Evidence, Path, Fix, and Verify from authorized product APIs with path navigation at 2b768d6
 M4	M4-59	Complete	component-only	T05-inventory-cutover	audited component-only proof: M4 gate
 M5	M5-01	Complete	component-only	T12-red-team	audited component-only proof: test domain
 M5	M5-02	Complete	component-only	T12-red-team	audited component-only proof: Promptfoo adapter

@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 313; expected 314/,
+        /production-available count is 342; expected 343/,
       );
     },
   );
@@ -206,6 +206,26 @@ test("rejects a same-owner same-milestone audited class swap", async () => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
         /production class component-only does not match audited production-available for M3-41/,
+      );
+    },
+  );
+});
+
+test("rejects swapping a shipped posture row with the unfinished M4 gate", async () => {
+  await withLedger(
+    (ledger) => ledger
+      .replace(
+        "M4\tM4-19\tComplete\tproduction-available\tT05-inventory-cutover",
+        "M4\tM4-19\tComplete\tcomponent-only\tT05-inventory-cutover",
+      )
+      .replace(
+        "M4\tM4-59\tComplete\tcomponent-only\tT05-inventory-cutover",
+        "M4\tM4-59\tComplete\tproduction-available\tT05-inventory-cutover",
+      ),
+    async (ledgerPath) => {
+      await assert.rejects(
+        () => validateLedger({ ledgerPath, sourcePlanPath }),
+        /production class component-only does not match audited production-available for M4-19/,
       );
     },
   );
