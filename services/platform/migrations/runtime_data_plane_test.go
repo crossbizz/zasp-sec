@@ -30,6 +30,8 @@ func TestProductionRuntimeDataPlaneRegistersImmutableV15Authority(t *testing.T) 
 		"zasp_runtime_public_delete_sensor",
 		"zasp_runtime_public_rotate_sensor",
 		"zasp_runtime_reconcile_batch",
+		"zasp_runtime_batches_sensor_rate_v15_idx",
+		"runtime batch rate limited",
 		"zasp_runtime_commit_reserved_batch",
 		"zasp_runtime_claim_outbox",
 		"zasp_runtime_heartbeat_outbox",

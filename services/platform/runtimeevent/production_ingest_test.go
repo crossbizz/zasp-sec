@@ -193,10 +193,13 @@ func TestProductionIngestFailsClosedAcrossReserveArtifactAndFinalize(t *testing.
 		repositoryErr error
 		artifactErr   error
 		finalizeErr   error
+		wantStatus    int
+		wantRetry     string
 		wantPuts      int
 		wantFinalizes int
 	}{
 		{name: "reserve", repositoryErr: ErrProductionIngestUnavailable},
+		{name: "rate limited", repositoryErr: ErrProductionIngestRateLimited, wantStatus: http.StatusTooManyRequests, wantRetry: "1"},
 		{name: "artifact", artifactErr: ErrProductionIngestUnknown, wantPuts: 1},
 		{name: "finalize", finalizeErr: ErrProductionIngestUnknown, wantPuts: 1, wantFinalizes: 1},
 	} {
@@ -211,7 +214,11 @@ func TestProductionIngestFailsClosedAcrossReserveArtifactAndFinalize(t *testing.
 			request.Header.Set("Idempotency-Key", "runtime-event-request-0001")
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, request)
-			if recorder.Code != http.StatusServiceUnavailable || artifacts.putCalls != test.wantPuts || repository.finalizeCalls != test.wantFinalizes || recorder.Body.String() == "" {
+			wantStatus := test.wantStatus
+			if wantStatus == 0 {
+				wantStatus = http.StatusServiceUnavailable
+			}
+			if recorder.Code != wantStatus || recorder.Header().Get("Retry-After") != test.wantRetry || artifacts.putCalls != test.wantPuts || repository.finalizeCalls != test.wantFinalizes || recorder.Body.String() == "" {
 				t.Fatalf("response=%d put=%d finalize=%d body=%s", recorder.Code, artifacts.putCalls, repository.finalizeCalls, recorder.Body.String())
 			}
 		})

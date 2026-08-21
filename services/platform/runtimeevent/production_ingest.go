@@ -28,6 +28,7 @@ const (
 var (
 	ErrProductionIngest            = errors.New("production runtime ingest rejected")
 	ErrProductionIngestDenied      = errors.New("production runtime ingest authentication rejected")
+	ErrProductionIngestRateLimited = errors.New("production runtime ingest rate limited")
 	ErrProductionIngestUnknown     = errors.New("production runtime ingest outcome unknown")
 	ErrProductionIngestUnavailable = errors.New("production runtime ingest unavailable")
 	productionIdempotencyPattern   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$`)
@@ -201,6 +202,11 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 		return
 	}
 	reservation, err := safeProductionReserve(ctx, handler.config.Repository, credential, IngestReserveRequest{Scope: authority.Scope, BatchID: batchID, IdempotencyKey: idempotencyKey, ContentDigest: digest, Source: input.Source, MediaType: "application/json", SchemaVersion: productionRuntimeSchema, PayloadSize: int64(len(archivedBody)), EventCount: len(input.Events)})
+	if errors.Is(err, ErrProductionIngestRateLimited) {
+		writer.Header().Set("Retry-After", "1")
+		writeProductionIngestError(writer, http.StatusTooManyRequests, true)
+		return
+	}
 	if err != nil || !validReservation(reservation, batchID) {
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
 		return

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"reflect"
 	"regexp"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
@@ -117,6 +119,10 @@ func (repository *PostgresProductionIngestRepository) Reserve(ctx context.Contex
 		Replayed      bool   `json:"replayed"`
 	}
 	if queryErr != nil || strictProductionJSON(payload, &wire) != nil {
+		var postgresError *pgconn.PgError
+		if errors.As(queryErr, &postgresError) && postgresError.Code == "53300" && postgresError.Message == "runtime batch rate limited" {
+			return IngestReservation{}, ErrProductionIngestRateLimited
+		}
 		return IngestReservation{}, ErrProductionIngestUnavailable
 	}
 	batchID, parseErr := domain.ParseProductID(wire.BatchID)
