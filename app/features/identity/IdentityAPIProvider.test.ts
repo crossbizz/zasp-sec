@@ -8,17 +8,22 @@ const page = (items: unknown[]) => ({ items, page_info: { next_cursor: null, has
 
 describe("production identity provider administration API", () => {
   it("strictly maps tenant connection pages and sends fresh mutation authority", async () => {
-    const GET = vi.fn(async (path: string) => path.includes("sso")
-      ? ok(page([{ id: "saml-connection-live-a", status: "active", display_name: "Corporate SAML", protocol: "saml", identity_provider: "okta" }]))
-      : ok(page([{ id: "scim-connection-live-a", status: "active", display_name: "Corporate SCIM", identity_provider: "okta", base_url: "https://scim.stytch.com/v2/live-a" }])));
+    const GET = vi.fn(async (path: string) => path.includes("group-mappings")
+			? ok(page([{ group_reference: "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31", role: "security_engineer", workspace_id: "pid_10000001-0000-4000-8000-000000000001", environment_id: "pid_10000002-0000-4000-8000-000000000002", version: 1 }]))
+			: path.includes("sso")
+        ? ok(page([{ id: "saml-connection-live-a", status: "active", display_name: "Corporate SAML", protocol: "saml", identity_provider: "okta" }]))
+        : ok(page([{ id: "scim-connection-live-a", status: "active", display_name: "Corporate SCIM", identity_provider: "okta", base_url: "https://scim.stytch.com/v2/live-a" }])));
     const POST = vi.fn(async (path: string) => path.includes("scim")
       ? ok({ id: "scim-connection-created", status: "active", display_name: "SCIM", identity_provider: "okta", base_url: "https://scim.stytch.com/v2/created", bearer_token: "scim_bearer_token_live", audit_correlation_id: "pid_10000001-0000-4000-8000-000000000001" }, 201)
       : ok({ id: "saml-connection-created", status: "pending", display_name: "SSO", protocol: "saml", identity_provider: "okta", audit_correlation_id: "pid_10000001-0000-4000-8000-000000000001" }, 201));
     const DELETE = vi.fn(async (_path: string, options: { params: { path: { id: string }; header: Record<string, string> } }) => ok({ id: options.params.path.id, audit_correlation_id: "pid_10000001-0000-4000-8000-000000000001" }));
-    const api = createIdentityAdminAPI({ GET, POST, DELETE } as unknown as APIClient);
+		const PATCH = vi.fn(async () => ok({ group_reference: "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31", role: "security_engineer", workspace_id: "pid_10000001-0000-4000-8000-000000000001", environment_id: "pid_10000002-0000-4000-8000-000000000002", version: 2, audit_correlation_id: "pid_10000003-0000-4000-8000-000000000003" }));
+    const api = createIdentityAdminAPI({ GET, POST, DELETE, PATCH } as unknown as APIClient);
 
     await expect(api.listSSOConnections()).resolves.toMatchObject([{ displayName: "Corporate SAML", protocol: "saml" }]);
     await expect(api.listSCIMConnections()).resolves.toMatchObject([{ displayName: "Corporate SCIM", baseURL: "https://scim.stytch.com/v2/live-a" }]);
+		await expect(api.listGroupMappings()).resolves.toMatchObject([{ groupReference: "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31", role: "security_engineer", version: 1 }]);
+		await expect(api.updateGroupMapping({ groupReference: "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31", role: "security_engineer", workspaceID: "pid_10000001-0000-4000-8000-000000000001", environmentID: "pid_10000002-0000-4000-8000-000000000002", expectedVersion: 1 })).resolves.toMatchObject({ version: 2 });
     await api.createSSOConnection({ displayName: "SSO", protocol: "saml", identityProvider: "okta" });
     await api.createSCIMConnection({ displayName: "SCIM", identityProvider: "okta" });
     await api.deleteSSOConnection("saml-connection-live-a");

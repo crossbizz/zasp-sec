@@ -652,3 +652,19 @@ func testScope(t *testing.T, suffix string) domain.Scope {
 	}
 	return scope
 }
+
+func TestAdministrationGroupReferenceRequiresStytchSCIMResourceID(t *testing.T) {
+	for _, reference := range []string{
+		"scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31",
+		"scim-group-live-018f85a0-2c17-7ba3-91d1-7f0382dd7c32",
+	} {
+		if !validAdministrationGroupReference(reference) {
+			t.Fatalf("valid Stytch SCIM group rejected: %q", reference)
+		}
+	}
+	for _, reference := range []string{"idp-group-platform", "scim-group-stage-a", "scim-group-test-"} {
+		if validAdministrationGroupReference(reference) {
+			t.Fatalf("foreign group reference accepted: %q", reference)
+		}
+	}
+}

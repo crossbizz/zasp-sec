@@ -2,6 +2,7 @@ package identity
 
 import (
 	"errors"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -27,6 +28,7 @@ type DriverSession struct {
 	MemberReference       string
 	OrganizationReference string
 	SessionReference      string
+	GroupReferences       []string
 	AuthenticatedAt       time.Time
 	ExpiresAt             time.Time
 	Active                bool
@@ -82,14 +84,19 @@ type ExternalPrincipal struct {
 	memberReference       string
 	organizationReference string
 	sessionReference      string
+	groupReferences       string
 	authenticatedAt       time.Time
 	expiresAt             time.Time
 }
 
 func newExternalPrincipal(session DriverSession) (ExternalPrincipal, error) {
+	groups, ok := canonicalGroupReferences(session.GroupReferences)
+	if !ok {
+		return ExternalPrincipal{}, ErrAuthentication
+	}
 	principal := ExternalPrincipal{
 		memberReference: session.MemberReference, organizationReference: session.OrganizationReference,
-		sessionReference: session.SessionReference, authenticatedAt: session.AuthenticatedAt, expiresAt: session.ExpiresAt,
+		sessionReference: session.SessionReference, groupReferences: groups, authenticatedAt: session.AuthenticatedAt, expiresAt: session.ExpiresAt,
 	}
 	if !session.Active || !principal.valid() {
 		return ExternalPrincipal{}, ErrAuthentication
@@ -101,6 +108,7 @@ func (principal ExternalPrincipal) valid() bool {
 	return validReference(principal.memberReference, "member-") &&
 		validReference(principal.organizationReference, "organization-") &&
 		validReference(principal.sessionReference, "member-session-") &&
+		validCanonicalGroupReferences(principal.groupReferences) &&
 		canonicalTime(principal.authenticatedAt) && canonicalTime(principal.expiresAt) &&
 		principal.expiresAt.After(principal.authenticatedAt)
 }
@@ -109,7 +117,13 @@ func (principal ExternalPrincipal) MemberReference() string { return principal.m
 func (principal ExternalPrincipal) OrganizationReference() string {
 	return principal.organizationReference
 }
-func (principal ExternalPrincipal) SessionReference() string   { return principal.sessionReference }
+func (principal ExternalPrincipal) SessionReference() string { return principal.sessionReference }
+func (principal ExternalPrincipal) GroupReferences() []string {
+	if principal.groupReferences == "" {
+		return []string{}
+	}
+	return strings.Split(principal.groupReferences, "\n")
+}
 func (principal ExternalPrincipal) AuthenticatedAt() time.Time { return principal.authenticatedAt }
 func (principal ExternalPrincipal) ExpiresAt() time.Time       { return principal.expiresAt }
 
@@ -254,6 +268,32 @@ func validReference(value, prefix string) bool {
 		}
 	}
 	return true
+}
+
+func canonicalGroupReferences(values []string) (string, bool) {
+	if len(values) > 100 {
+		return "", false
+	}
+	copy := append([]string(nil), values...)
+	sort.Strings(copy)
+	for index, value := range copy {
+		if !validGroupReference(value) || index > 0 && value == copy[index-1] {
+			return "", false
+		}
+	}
+	return strings.Join(copy, "\n"), true
+}
+
+func validGroupReference(value string) bool {
+	return validReference(value, "scim-group-test-") || validReference(value, "scim-group-live-")
+}
+
+func validCanonicalGroupReferences(value string) bool {
+	if value == "" {
+		return true
+	}
+	canonical, ok := canonicalGroupReferences(strings.Split(value, "\n"))
+	return ok && canonical == value
 }
 
 func validName(value string) bool {

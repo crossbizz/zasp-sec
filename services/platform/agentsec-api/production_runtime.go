@@ -264,7 +264,15 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	operational, err := newOperationalMiddleware(os.Stdout, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, exporter, product)
+	stytchWebhook, err := apiserver.NewProductionStytchWebhookHandler(repository, config.StytchProjectID, config.StytchWebhookSecret, func() time.Time { return time.Now().UTC().Truncate(time.Second) })
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	publicSurface, err := mountPublicSurface(product, stytchWebhook)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	operational, err := newOperationalMiddleware(os.Stdout, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, exporter, publicSurface)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -296,6 +304,19 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 		}
 		return nil
 	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "postgres-security-agent", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}, {Name: "aws-secrets-manager-webhook", Durable: true}}, Closers: connectorResources}, nil
+}
+
+func mountPublicSurface(product, stytchWebhook http.Handler) (http.Handler, error) {
+	if product == nil || stytchWebhook == nil {
+		return nil, errRuntimeUnavailable
+	}
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request != nil && request.URL != nil && request.URL.Path == "/api/v1/webhooks/stytch" {
+			stytchWebhook.ServeHTTP(writer, request)
+			return
+		}
+		product.ServeHTTP(writer, request)
+	}), nil
 }
 
 func newConnectorWorkerOwner(hostname string, source io.Reader) (string, error) {

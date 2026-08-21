@@ -8,6 +8,9 @@ import type {
   BuiltInRolePage,
   ConnectionDeletion,
   ConnectionTest,
+  GroupMapping,
+  GroupMappingInput,
+  GroupMappingPage,
   Principal,
   PrincipalPage,
   ScimConnectionCredential,
@@ -17,7 +20,7 @@ import type {
   SsoConnectionMutation,
   SsoConnectionPage,
 } from "../../../apps/web/api/generated";
-import { decodeBuiltInRolePage, decodeConnectionDeletion, decodeConnectionTest, decodePrincipal, decodePrincipalPage, decodeSCIMConnectionCredential, decodeSCIMConnectionPage, decodeSSOConnectionMutation, decodeSSOConnectionPage } from "../../../apps/web/api/administration-decoders";
+import { decodeBuiltInRolePage, decodeConnectionDeletion, decodeConnectionTest, decodeGroupMapping, decodeGroupMappingPage, decodePrincipal, decodePrincipalPage, decodeSCIMConnectionCredential, decodeSCIMConnectionPage, decodeSSOConnectionMutation, decodeSSOConnectionPage } from "../../../apps/web/api/administration-decoders";
 import type { IdentityAdminAPI } from "./IdentityAccessView";
 
 const IdentityAPIContext = createContext<IdentityAdminAPI | null>(null);
@@ -71,7 +74,19 @@ export function createIdentityAdminAPI(client: APIClient): IdentityAdminAPI {
     async deleteSCIMConnection(id) {
       await mutation(`delete-scim:${id}`, async (key) => requireAPIData<ConnectionDeletion>(await client.DELETE("/api/v1/admin/scim-connections/{id}", { params: { path: { id }, header: identityMutationHeaders(key) } }), decodeConnectionDeletion));
     },
+    async listGroupMappings() {
+      const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<GroupMappingPage>(await client.GET("/api/v1/admin/group-mappings", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }), decodeGroupMappingPage), { maximumItems: 2_000, maximumPages: 20 });
+      return loaded.items.map(groupMapping);
+    },
+    async updateGroupMapping(input) {
+      const body: GroupMappingInput = { group_reference: input.groupReference, role: input.role as GroupMappingInput["role"], workspace_id: input.workspaceID, environment_id: input.environmentID, expected_version: input.expectedVersion };
+      return groupMapping(requireAPIData<GroupMapping>(await client.PATCH("/api/v1/admin/group-mappings", { params: { header: { "X-CSRF-Token": "", "X-Zasp-Fresh-Auth": "confirmed" } }, body }), decodeGroupMapping));
+    },
   };
+}
+
+function groupMapping(item: GroupMapping) {
+  return { groupReference: item.group_reference, role: item.role, workspaceID: item.workspace_id, environmentID: item.environment_id, version: item.version };
 }
 
 function identityMutationHeaders(key: string): { "Idempotency-Key": string; "X-CSRF-Token": string; "X-Zasp-Fresh-Auth": "confirmed" } {

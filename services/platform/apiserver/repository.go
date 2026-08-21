@@ -30,17 +30,22 @@ const postgresSecurityAgentExecutionReadinessSQL = `SELECT to_jsonb(zasp_securit
 const postgresIdentityAdministrationReadinessSQL = `SELECT to_jsonb(zasp_identity_administration_readiness($1,$2))`
 
 const (
-	postgresAuthenticateSessionSQL = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', session.authenticated_at + interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
-	postgresAuthenticatePATSQL     = `WITH used AS (UPDATE zasp_product_api_tokens SET last_used_at=transaction_timestamp() WHERE token_digest=digest($1,'sha256') AND revoked_at IS NULL AND expires_at>now() RETURNING *) SELECT jsonb_build_object('principal_id', token.principal_id, 'organization_id', token.organization_id, 'workspace_id', token.workspace_id, 'environment_id', token.environment_id, 'permissions', (SELECT COALESCE(jsonb_agg(permission ORDER BY permission), '[]'::jsonb) FROM jsonb_array_elements_text(token.permissions) AS permission WHERE zasp_effective_scope_permissions(scope.permissions, membership.role) ? permission)) FROM used AS token JOIN zasp_identity_memberships AS membership ON membership.principal_id = token.principal_id AND membership.organization_id = token.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = token.principal_id AND scope.organization_id = token.organization_id AND scope.workspace_id = token.workspace_id AND scope.environment_id = token.environment_id`
-	postgresCreateSessionSQL       = `WITH created AS (SELECT zasp_create_product_session($1, $2, $3, $4, $5, $6, $7::jsonb, $8) AS value) SELECT value || jsonb_build_object('fresh_authenticated', true, 'fresh_auth_expires_at', transaction_timestamp() + interval '5 minutes') FROM created`
-	postgresBootstrapSQL           = `SELECT payload || jsonb_build_object('principal', jsonb_build_object('id', membership.principal_id, 'organization_id', membership.organization_id, 'organization_reference', membership.organization_reference, 'member_reference', membership.member_reference, 'role', membership.role, 'active', membership.active)) FROM zasp_core_payloads AS payloads JOIN zasp_identity_memberships AS membership ON membership.principal_id = $1 AND membership.organization_id = $2 AND membership.active WHERE payloads.organization_id = $2 AND payloads.workspace_id = $3 AND payloads.environment_id = $4 AND payloads.operation = 'session_bootstrap:' || $1`
-	postgresCoreReadSQL            = `SELECT zasp_core_read($1, $2, $3, $4)`
-	postgresRevokeSessionSQL       = `UPDATE zasp_product_sessions SET revoked_at = now() WHERE token_digest = digest($1, 'sha256') AND organization_id = $2 AND principal_id = $3`
-	postgresListScopesSQL          = `SELECT jsonb_build_object('items', COALESCE(jsonb_agg(jsonb_build_object('organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'label', label) ORDER BY label, workspace_id, environment_id), '[]'::jsonb)) FROM zasp_authorized_scopes WHERE principal_id = $1 AND organization_id = $2`
-	postgresSwitchScopeSQL         = `WITH authorized AS (SELECT scope.workspace_id, scope.environment_id, zasp_effective_scope_permissions(scope.permissions, membership.role) AS permissions FROM zasp_authorized_scopes AS scope JOIN zasp_identity_memberships AS membership ON membership.principal_id = scope.principal_id AND membership.organization_id = scope.organization_id AND membership.active WHERE scope.principal_id = $3 AND scope.organization_id = $4 AND scope.workspace_id = $5 AND scope.environment_id = $6), updated AS (UPDATE zasp_product_sessions AS session SET workspace_id = authorized.workspace_id, environment_id = authorized.environment_id, permissions = authorized.permissions, csrf_token = $2 FROM authorized WHERE session.token_digest = digest($1, 'sha256') AND session.principal_id = $3 AND session.organization_id = $4 AND session.revoked_at IS NULL AND session.expires_at > now() RETURNING session.principal_id, session.organization_id, session.workspace_id, session.environment_id, session.permissions, session.csrf_token, session.authenticated_at) SELECT jsonb_build_object('principal_id', principal_id, 'organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'permissions', permissions, 'csrf_token', csrf_token, 'fresh_authenticated', authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', authenticated_at + interval '5 minutes') FROM updated`
-	postgresResolveIdentitySQL     = `SELECT jsonb_build_object('principal_id', membership.principal_id, 'organization_id', membership.organization_id, 'organization_reference', membership.organization_reference, 'member_reference', membership.member_reference, 'role', membership.role, 'active', membership.active, 'workspace_id', scope.workspace_id, 'environment_id', scope.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role)) FROM zasp_identity_memberships AS membership JOIN zasp_authorized_scopes AS scope ON scope.principal_id = membership.principal_id AND scope.organization_id = membership.organization_id AND scope.is_default WHERE membership.organization_reference = $1 AND membership.member_reference = $2`
-	postgresBeginIdentitySQL       = `INSERT INTO zasp_identity_states (state_digest, return_path, expires_at) VALUES (digest($1, 'sha256'), $2, now() + interval '10 minutes')`
-	postgresConsumeIdentitySQL     = `WITH consumed AS (UPDATE zasp_identity_states SET consumed_at = now() WHERE state_digest = digest($1, 'sha256') AND consumed_at IS NULL AND expires_at > now() RETURNING return_path) SELECT jsonb_build_object('return_path', return_path) FROM consumed`
+	postgresAuthenticateSessionSQL    = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', session.authenticated_at + interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
+	postgresAuthenticateSessionV19SQL = `SELECT jsonb_build_object('principal_id',session.principal_id,'organization_id',session.organization_id,'workspace_id',session.workspace_id,'environment_id',session.environment_id,'permissions',scope.permissions,'csrf_token',session.csrf_token,'fresh_authenticated',session.authenticated_at>now()-interval '5 minutes','fresh_auth_expires_at',session.authenticated_at+interval '5 minutes') FROM zasp_product_sessions session JOIN zasp_identity_memberships membership ON membership.principal_id=session.principal_id AND membership.organization_id=session.organization_id AND membership.active JOIN LATERAL zasp_identity_admin_effective_scopes(session.principal_id,session.organization_id) scope ON scope.workspace_id=session.workspace_id AND scope.environment_id=session.environment_id WHERE session.token_digest=digest($1,'sha256') AND session.revoked_at IS NULL AND session.expires_at>now()`
+	postgresAuthenticatePATSQL        = `WITH used AS (UPDATE zasp_product_api_tokens SET last_used_at=transaction_timestamp() WHERE token_digest=digest($1,'sha256') AND revoked_at IS NULL AND expires_at>now() RETURNING *) SELECT jsonb_build_object('principal_id', token.principal_id, 'organization_id', token.organization_id, 'workspace_id', token.workspace_id, 'environment_id', token.environment_id, 'permissions', (SELECT COALESCE(jsonb_agg(permission ORDER BY permission), '[]'::jsonb) FROM jsonb_array_elements_text(token.permissions) AS permission WHERE zasp_effective_scope_permissions(scope.permissions, membership.role) ? permission)) FROM used AS token JOIN zasp_identity_memberships AS membership ON membership.principal_id = token.principal_id AND membership.organization_id = token.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = token.principal_id AND scope.organization_id = token.organization_id AND scope.workspace_id = token.workspace_id AND scope.environment_id = token.environment_id`
+	postgresCreateSessionSQL          = `WITH created AS (SELECT zasp_create_product_session($1, $2, $3, $4, $5, $6, $7::jsonb, $8) AS value) SELECT value || jsonb_build_object('fresh_authenticated', true, 'fresh_auth_expires_at', transaction_timestamp() + interval '5 minutes') FROM created`
+	postgresBootstrapSQL              = `SELECT payload || jsonb_build_object('principal', jsonb_build_object('id', membership.principal_id, 'organization_id', membership.organization_id, 'organization_reference', membership.organization_reference, 'member_reference', membership.member_reference, 'role', membership.role, 'active', membership.active)) FROM zasp_core_payloads AS payloads JOIN zasp_identity_memberships AS membership ON membership.principal_id = $1 AND membership.organization_id = $2 AND membership.active WHERE payloads.organization_id = $2 AND payloads.workspace_id = $3 AND payloads.environment_id = $4 AND payloads.operation = 'session_bootstrap:' || $1`
+	postgresBootstrapV19SQL           = `SELECT jsonb_build_object('correlation_id',$5::text,'principal',jsonb_build_object('id',membership.principal_id,'organization_id',membership.organization_id,'organization_reference',membership.organization_reference,'member_reference',membership.member_reference,'role',membership.role,'active',membership.active)) FROM zasp_identity_memberships membership JOIN LATERAL zasp_identity_admin_effective_scopes(membership.principal_id,membership.organization_id) scope ON scope.workspace_id=$3 AND scope.environment_id=$4 WHERE membership.principal_id=$1 AND membership.organization_id=$2 AND membership.active`
+	postgresCoreReadSQL               = `SELECT zasp_core_read($1, $2, $3, $4)`
+	postgresRevokeSessionSQL          = `UPDATE zasp_product_sessions SET revoked_at = now() WHERE token_digest = digest($1, 'sha256') AND organization_id = $2 AND principal_id = $3`
+	postgresListScopesSQL             = `SELECT jsonb_build_object('items', COALESCE(jsonb_agg(jsonb_build_object('organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'label', label) ORDER BY label, workspace_id, environment_id), '[]'::jsonb)) FROM zasp_authorized_scopes WHERE principal_id = $1 AND organization_id = $2`
+	postgresListScopesV19SQL          = `SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'label',label) ORDER BY label,workspace_id,environment_id),'[]'::jsonb)) FROM zasp_identity_admin_effective_scopes($1,$2)`
+	postgresSwitchScopeSQL            = `WITH authorized AS (SELECT scope.workspace_id, scope.environment_id, zasp_effective_scope_permissions(scope.permissions, membership.role) AS permissions FROM zasp_authorized_scopes AS scope JOIN zasp_identity_memberships AS membership ON membership.principal_id = scope.principal_id AND membership.organization_id = scope.organization_id AND membership.active WHERE scope.principal_id = $3 AND scope.organization_id = $4 AND scope.workspace_id = $5 AND scope.environment_id = $6), updated AS (UPDATE zasp_product_sessions AS session SET workspace_id = authorized.workspace_id, environment_id = authorized.environment_id, permissions = authorized.permissions, csrf_token = $2 FROM authorized WHERE session.token_digest = digest($1, 'sha256') AND session.principal_id = $3 AND session.organization_id = $4 AND session.revoked_at IS NULL AND session.expires_at > now() RETURNING session.principal_id, session.organization_id, session.workspace_id, session.environment_id, session.permissions, session.csrf_token, session.authenticated_at) SELECT jsonb_build_object('principal_id', principal_id, 'organization_id', organization_id, 'workspace_id', workspace_id, 'environment_id', environment_id, 'permissions', permissions, 'csrf_token', csrf_token, 'fresh_authenticated', authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', authenticated_at + interval '5 minutes') FROM updated`
+	postgresSwitchScopeV19SQL         = `WITH authorized AS (SELECT workspace_id,environment_id,permissions FROM zasp_identity_admin_effective_scopes($3,$4) WHERE workspace_id=$5 AND environment_id=$6),updated AS (UPDATE zasp_product_sessions session SET workspace_id=authorized.workspace_id,environment_id=authorized.environment_id,permissions=authorized.permissions,csrf_token=$2 FROM authorized WHERE session.token_digest=digest($1,'sha256') AND session.principal_id=$3 AND session.organization_id=$4 AND session.revoked_at IS NULL AND session.expires_at>now() RETURNING session.principal_id,session.organization_id,session.workspace_id,session.environment_id,session.permissions,session.csrf_token,session.authenticated_at) SELECT jsonb_build_object('principal_id',principal_id,'organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'permissions',permissions,'csrf_token',csrf_token,'fresh_authenticated',authenticated_at>now()-interval '5 minutes','fresh_auth_expires_at',authenticated_at+interval '5 minutes') FROM updated`
+	postgresResolveIdentitySQL        = `SELECT jsonb_build_object('principal_id', membership.principal_id, 'organization_id', membership.organization_id, 'organization_reference', membership.organization_reference, 'member_reference', membership.member_reference, 'role', membership.role, 'active', membership.active, 'workspace_id', scope.workspace_id, 'environment_id', scope.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role)) FROM zasp_identity_memberships AS membership JOIN zasp_authorized_scopes AS scope ON scope.principal_id = membership.principal_id AND scope.organization_id = membership.organization_id AND scope.is_default WHERE membership.organization_reference = $1 AND membership.member_reference = $2`
+	postgresResolveIdentityV19SQL     = `SELECT zasp_identity_admin_resolve_session($1,$2,$3::jsonb)`
+	postgresBeginIdentitySQL          = `INSERT INTO zasp_identity_states (state_digest, return_path, expires_at) VALUES (digest($1, 'sha256'), $2, now() + interval '10 minutes')`
+	postgresConsumeIdentitySQL        = `WITH consumed AS (UPDATE zasp_identity_states SET consumed_at = now() WHERE state_digest = digest($1, 'sha256') AND consumed_at IS NULL AND expires_at > now() RETURNING return_path) SELECT jsonb_build_object('return_path', return_path) FROM consumed`
 )
 
 var (
@@ -142,6 +147,8 @@ func (repository *PostgresRepository) Authenticate(ctx context.Context, credenti
 	statement := postgresAuthenticateSessionSQL
 	if credential.Kind == CredentialBearerToken {
 		statement = postgresAuthenticatePATSQL
+	} else if repository.schema == IdentityAdministrationSchemaVersion {
+		statement = postgresAuthenticateSessionV19SQL
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, credential.Value)
 	if err != nil {
@@ -245,9 +252,21 @@ func (repository *PostgresRepository) Bootstrap(ctx context.Context, identity Re
 	if !validRequestIdentity(identity, false) {
 		return nil, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresBootstrapSQL, identity.PrincipalID.String(), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String())
+	statement := postgresBootstrapSQL
+	arguments := []any{identity.PrincipalID.String(), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()}
+	correlationID := ""
+	if repository.schema == IdentityAdministrationSchemaVersion {
+		generated, err := newWorkflowProductID()
+		if err != nil {
+			return nil, ErrRepositoryUnavailable
+		}
+		correlationID = generated
+		statement = postgresBootstrapV19SQL
+		arguments = append(arguments, correlationID)
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	payload, err = validJSONObject(payload, err)
-	if err != nil || validateBootstrapMembership(payload, identity) != nil {
+	if err != nil || validateBootstrapMembership(payload, identity) != nil || correlationID != "" && !bootstrapCorrelationMatches(payload, correlationID) {
 		return nil, ErrRepositoryOperation
 	}
 	return payload, nil
@@ -272,7 +291,11 @@ func (repository *PostgresRepository) ListScopes(ctx context.Context, identity R
 	if !validRequestIdentity(identity, true) {
 		return nil, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresListScopesSQL, identity.PrincipalID.String(), identity.Scope.OrganizationID().String())
+	statement := postgresListScopesSQL
+	if repository.schema == IdentityAdministrationSchemaVersion {
+		statement = postgresListScopesV19SQL
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, identity.PrincipalID.String(), identity.Scope.OrganizationID().String())
 	return validJSONObject(payload, err)
 }
 
@@ -281,7 +304,11 @@ func (repository *PostgresRepository) SwitchScope(ctx context.Context, identity 
 		return RequestIdentity{}, ErrRepositoryNotFound
 	}
 	csrf := identity.CSRFToken
-	payload, err := repository.database.QueryJSON(ctx, postgresSwitchScopeSQL, token, csrf, identity.PrincipalID.String(), identity.Scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
+	statement := postgresSwitchScopeSQL
+	if repository.schema == IdentityAdministrationSchemaVersion {
+		statement = postgresSwitchScopeV19SQL
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, token, csrf, identity.PrincipalID.String(), identity.Scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
 	if err != nil {
 		if errors.Is(err, ErrRepositoryNotFound) {
 			return RequestIdentity{}, ErrRepositoryNotFound
@@ -299,7 +326,17 @@ func (repository *PostgresRepository) ResolveIdentity(ctx context.Context, exter
 	if repository == nil || external.OrganizationReference() == "" || external.MemberReference() == "" {
 		return SessionGrant{}, ErrRepositoryAuthentication
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresResolveIdentitySQL, external.OrganizationReference(), external.MemberReference())
+	statement := postgresResolveIdentitySQL
+	arguments := []any{external.OrganizationReference(), external.MemberReference()}
+	if repository.schema == IdentityAdministrationSchemaVersion {
+		groups, marshalErr := json.Marshal(external.GroupReferences())
+		if marshalErr != nil {
+			return SessionGrant{}, ErrRepositoryAuthentication
+		}
+		statement = postgresResolveIdentityV19SQL
+		arguments = append(arguments, json.RawMessage(groups))
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
 		return SessionGrant{}, ErrRepositoryAuthentication
 	}
@@ -352,6 +389,13 @@ func validateBootstrapMembership(payload json.RawMessage, identity RequestIdenti
 		return ErrRepositoryOperation
 	}
 	return nil
+}
+
+func bootstrapCorrelationMatches(payload json.RawMessage, expected string) bool {
+	var value struct {
+		CorrelationID string `json:"correlation_id"`
+	}
+	return validProductID(expected) && json.Unmarshal(payload, &value) == nil && value.CorrelationID == expected
 }
 
 func validMembershipRole(value string) bool {

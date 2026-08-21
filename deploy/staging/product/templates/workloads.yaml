@@ -108,6 +108,7 @@ spec:
               export ZASP_SECURITY_AGENT_POSTGRES_DSN="$(cat /var/run/secrets/zasp/security-agent-postgres-dsn)"
               export ZASP_STYTCH_PROJECT_ID="$(cat /var/run/secrets/zasp/stytch-project-id)"
               export ZASP_STYTCH_SECRET="$(cat /var/run/secrets/zasp/stytch-secret)"
+              export ZASP_STYTCH_WEBHOOK_SECRET="$(cat /var/run/secrets/zasp/stytch-webhook-secret)"
               export ZASP_STYTCH_PUBLIC_TOKEN="$(cat /var/run/secrets/zasp/stytch-public-token)"
               export ZASP_STYTCH_ORGANIZATION_ID="$(cat /var/run/secrets/zasp/stytch-organization-id)"
               export ZASP_WORKFLOW_SIGNING_KEY="$(cat /var/run/secrets/zasp/workflow-signing-key)"

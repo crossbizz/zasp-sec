@@ -81,6 +81,7 @@ secrets:
   gatewayControlPostgresDSNObjectName: ""
   stytchProjectIDObjectName: ""
   stytchSecretObjectName: ""
+  stytchWebhookSecretObjectName: ""
   stytchPublicTokenObjectName: ""
   stytchOrganizationIDObjectName: ""
   workflowSigningKeyObjectName: ""

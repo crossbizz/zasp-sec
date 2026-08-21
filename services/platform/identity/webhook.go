@@ -33,13 +33,21 @@ type WebhookHeaders struct {
 }
 
 type WebhookEvent struct {
-	ProjectID  string `json:"project_id"`
-	EventID    string `json:"event_id"`
-	Action     string `json:"action"`
-	ObjectType string `json:"object_type"`
-	Source     string `json:"source"`
-	ObjectID   string `json:"id"`
-	Timestamp  string `json:"timestamp"`
+	ProjectID   string          `json:"project_id"`
+	EventID     string          `json:"event_id"`
+	Action      string          `json:"action"`
+	ObjectType  string          `json:"object_type"`
+	Source      string          `json:"source"`
+	ObjectID    string          `json:"id"`
+	Timestamp   string          `json:"timestamp"`
+	Vertical    string          `json:"vertical"`
+	WorkspaceID string          `json:"workspace_id"`
+	Details     WebhookDetails  `json:"details"`
+	Member      json.RawMessage `json:"member,omitempty"`
+}
+
+type WebhookDetails struct {
+	OrganizationReference string `json:"organization_id"`
 }
 
 func (event WebhookEvent) Kind() string {
@@ -139,7 +147,10 @@ func readWebhookClock(clock func() time.Time) (value time.Time, ok bool) {
 	return clock(), true
 }
 
-func (verifier *WebhookVerifier) release(eventID string) {
+func (verifier *WebhookVerifier) Release(eventID string) {
+	if verifier == nil || !validWebhookEventID(eventID) {
+		return
+	}
 	verifier.mu.Lock()
 	defer verifier.mu.Unlock()
 	delete(verifier.seenEvents, eventID)
@@ -164,14 +175,23 @@ type DeprovisionReconciler struct {
 }
 
 type WebhookHTTPHandler struct {
-	reconciler *DeprovisionReconciler
+	reconciler WebhookReconciler
+	path       string
+}
+
+type WebhookReconciler interface {
+	Handle(context.Context, []byte, WebhookHeaders) (bool, error)
 }
 
 func NewWebhookHTTPHandler(reconciler *DeprovisionReconciler) (*WebhookHTTPHandler, error) {
-	if reconciler == nil || reconciler.store == nil || reconciler.verifier == nil || nilInterface(reconciler.auditor) {
+	return NewWebhookHTTPHandlerForPath(reconciler, "/internal/v1/stytch/webhooks")
+}
+
+func NewWebhookHTTPHandlerForPath(reconciler WebhookReconciler, path string) (*WebhookHTTPHandler, error) {
+	if nilInterface(reconciler) || path != "/internal/v1/stytch/webhooks" && path != "/api/v1/webhooks/stytch" {
 		return nil, ErrConfiguration
 	}
-	return &WebhookHTTPHandler{reconciler: reconciler}, nil
+	return &WebhookHTTPHandler{reconciler: reconciler, path: path}, nil
 }
 
 func (handler *WebhookHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -179,7 +199,7 @@ func (handler *WebhookHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 		http.Error(writer, "", http.StatusInternalServerError)
 		return
 	}
-	if request.Method != http.MethodPost || request.URL.Path != "/internal/v1/stytch/webhooks" ||
+	if request.Method != http.MethodPost || request.URL.Path != handler.path ||
 		request.URL.EscapedPath() != request.URL.Path || request.URL.RawQuery != "" {
 		http.NotFound(writer, request)
 		return
@@ -200,13 +220,17 @@ func (handler *WebhookHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 		Signature: request.Header.Get("Svix-Signature"),
 	})
 	if err != nil {
-		writeWebhookResult(writer, http.StatusUnauthorized, false, true)
+		if errors.Is(err, ErrWebhookVerification) {
+			writeWebhookResult(writer, http.StatusUnauthorized, false, true)
+			return
+		}
+		writeWebhookUnavailable(writer)
 		return
 	}
 	writeWebhookResult(writer, http.StatusAccepted, processed, false)
 }
 
-func handleWebhookSafely(reconciler *DeprovisionReconciler, ctx context.Context, body []byte, headers WebhookHeaders) (processed bool, resultErr error) {
+func handleWebhookSafely(reconciler WebhookReconciler, ctx context.Context, body []byte, headers WebhookHeaders) (processed bool, resultErr error) {
 	defer func() {
 		if recover() != nil {
 			processed = false
@@ -231,6 +255,14 @@ func writeWebhookResult(writer http.ResponseWriter, status int, processed, rejec
 	_, _ = io.WriteString(writer, "{\"processed\":false}\n")
 }
 
+func writeWebhookUnavailable(writer http.ResponseWriter) {
+	writer.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("X-Content-Type-Options", "nosniff")
+	writer.Header().Set("Retry-After", "5")
+	writer.WriteHeader(http.StatusServiceUnavailable)
+	_, _ = io.WriteString(writer, "{\"code\":\"webhook_unavailable\"}\n")
+}
+
 func NewDeprovisionReconciler(store *MemoryStore, verifier *WebhookVerifier, auditor DeprovisionAuditor) (*DeprovisionReconciler, error) {
 	if store == nil || verifier == nil || nilInterface(auditor) {
 		return nil, ErrConfiguration
@@ -250,18 +282,18 @@ func (reconciler *DeprovisionReconciler) Handle(ctx context.Context, body []byte
 		return false, nil
 	}
 	if event.Kind() != "scim.member.delete" {
-		reconciler.verifier.release(event.EventID)
+		reconciler.verifier.Release(event.EventID)
 		return false, ErrDeprovision
 	}
 	if err := reconciler.store.deprovisionMember(ctx, event.EventID, event.ObjectID, reconciler.auditor); err != nil {
-		reconciler.verifier.release(event.EventID)
+		reconciler.verifier.Release(event.EventID)
 		return false, ErrDeprovision
 	}
 	return true, nil
 }
 
 func (store *MemoryStore) deprovisionMember(ctx context.Context, eventID, memberReference string, auditor DeprovisionAuditor) error {
-	if store == nil || !validContext(ctx) || !validUUID(eventID) || !validReference(memberReference, "member-") || nilInterface(auditor) {
+	if store == nil || !validContext(ctx) || !validWebhookEventID(eventID) || !validReference(memberReference, "member-") || nilInterface(auditor) {
 		return ErrDeprovision
 	}
 	store.mu.RLock()
@@ -341,36 +373,33 @@ func recordDeprovisionAudit(auditor DeprovisionAuditor, ctx context.Context, eve
 func validWebhookEvent(event WebhookEvent, projectID string, now time.Time, tolerance time.Duration) bool {
 	parsed, err := time.Parse(time.RFC3339Nano, event.Timestamp)
 	if err != nil || parsed.Location() != time.UTC || parsed.Format(time.RFC3339Nano) != event.Timestamp ||
-		parsed.Before(now.Add(-tolerance)) || parsed.After(now.Add(tolerance)) || event.ProjectID != projectID || !validUUID(event.EventID) || event.Source != "SCIM" {
+		parsed.Before(now.Add(-tolerance)) || parsed.After(now.Add(tolerance)) || event.ProjectID != projectID || !validWebhookEventID(event.EventID) || event.Source != "SCIM" || event.Vertical != "B2B" || !validReference(event.WorkspaceID, "workspace-") || !validReference(event.Details.OrganizationReference, "organization-") {
 		return false
 	}
-	switch event.ObjectType {
-	case "member":
-		return validReference(event.ObjectID, "member-") && (event.Action == "CREATE" || event.Action == "UPDATE" || event.Action == "DELETE")
-	case "idp_group":
-		return validReference(event.ObjectID, "idp-group-") && (event.Action == "CREATE" || event.Action == "UPDATE" || event.Action == "DELETE")
-	default:
+	return event.ObjectType == "member" && validReference(event.ObjectID, "member-") && validWebhookMember(event)
+}
+
+func validWebhookMember(event WebhookEvent) bool {
+	if event.Action == "DELETE" {
+		return len(event.Member) == 0
+	}
+	if event.Action != "CREATE" && event.Action != "UPDATE" || len(event.Member) == 0 || len(event.Member) > maximumWebhookBytes {
 		return false
 	}
+	var member struct {
+		MemberReference       string `json:"member_id"`
+		OrganizationReference string `json:"organization_id"`
+	}
+	return json.Unmarshal(event.Member, &member) == nil && member.MemberReference == event.ObjectID &&
+		member.OrganizationReference == event.Details.OrganizationReference
 }
 
 func validWebhookMessageID(value string) bool {
 	return len(value) > 4 && len(value) <= 128 && strings.HasPrefix(value, "msg_") && validTokenCharacters(value)
 }
 
-func validUUID(value string) bool {
-	if len(value) != 36 || value[8] != '-' || value[13] != '-' || value[18] != '-' || value[23] != '-' {
-		return false
-	}
-	for index, character := range value {
-		if index == 8 || index == 13 || index == 18 || index == 23 {
-			continue
-		}
-		if !(character >= '0' && character <= '9') && !(character >= 'a' && character <= 'f') {
-			return false
-		}
-	}
-	return true
+func validWebhookEventID(value string) bool {
+	return len(value) >= 24 && len(value) <= 128 && (strings.HasPrefix(value, "webhook-event-live-") || strings.HasPrefix(value, "webhook-event-test-")) && validTokenCharacters(value)
 }
 
 func validTokenCharacters(value string) bool {

@@ -196,8 +196,19 @@ func (driver *stytchSessionDriver) AuthenticateJWT(ctx context.Context, jwt stri
 			AuthenticatedAt       string `json:"started_at"`
 			ExpiresAt             string `json:"expires_at"`
 		} `json:"member_session"`
+		Member struct {
+			MemberReference       string `json:"member_id"`
+			OrganizationReference string `json:"organization_id"`
+			SCIMRegistration      struct {
+				SCIMAttributes struct {
+					Groups []struct {
+						Value string `json:"value"`
+					} `json:"groups"`
+				} `json:"scim_attributes"`
+			} `json:"scim_registration"`
+		} `json:"member"`
 	}
-	if response.StatusCode != http.StatusOK || !jsonResponse(response) || decodeBoundedJSON(response.Body, &value) != nil || value.StatusCode != http.StatusOK {
+	if response.StatusCode != http.StatusOK || !jsonResponse(response) || decodeBoundedJSON(response.Body, &value) != nil || value.StatusCode != http.StatusOK || value.Member.MemberReference != value.MemberSession.MemberReference || value.Member.OrganizationReference != value.MemberSession.OrganizationReference {
 		return platformidentity.DriverSession{}, platformidentity.ErrProvider
 	}
 	authenticated, authenticatedErr := time.Parse(time.RFC3339, value.MemberSession.AuthenticatedAt)
@@ -205,9 +216,13 @@ func (driver *stytchSessionDriver) AuthenticateJWT(ctx context.Context, jwt stri
 	if authenticatedErr != nil || expiresErr != nil {
 		return platformidentity.DriverSession{}, platformidentity.ErrProvider
 	}
+	groups := make([]string, len(value.Member.SCIMRegistration.SCIMAttributes.Groups))
+	for index, group := range value.Member.SCIMRegistration.SCIMAttributes.Groups {
+		groups[index] = group.Value
+	}
 	return platformidentity.DriverSession{
 		MemberReference: value.MemberSession.MemberReference, OrganizationReference: value.MemberSession.OrganizationReference,
-		SessionReference: value.MemberSession.SessionReference, AuthenticatedAt: authenticated, ExpiresAt: expires, Active: true,
+		SessionReference: value.MemberSession.SessionReference, GroupReferences: groups, AuthenticatedAt: authenticated, ExpiresAt: expires, Active: true,
 	}, nil
 }
 

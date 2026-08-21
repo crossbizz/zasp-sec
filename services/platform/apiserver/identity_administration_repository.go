@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"time"
+
+	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 )
 
 const (
@@ -15,7 +17,28 @@ const (
 	postgresIdentityConnectionPageSQL       = `SELECT zasp_identity_admin_connection_page($1,$2,$3,NULLIF($4,''),$5)`
 	postgresIdentityRevealSecretSQL         = `SELECT zasp_identity_admin_reveal_secret($1,$2,$3)`
 	postgresIdentityAcknowledgeSecretSQL    = `SELECT zasp_identity_admin_ack_secret($1,$2,$3)`
+	postgresIdentityReconcileWebhookSQL     = `SELECT zasp_identity_admin_reconcile_deprovision($1,$2,$3,$4,$5,$6)`
 )
+
+func (repository *PostgresRepository) ReconcileStytchWebhook(ctx context.Context, event platformidentity.WebhookEvent, digest []byte, auditID string) (bool, error) {
+	if repository == nil || repository.schema != IdentityAdministrationSchemaVersion || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || event.Kind() != "scim.member.delete" || event.Vertical != "B2B" || !validStytchReference(event.ProjectID, "project-") || !validStytchReference(event.WorkspaceID, "workspace-") || !validStytchReference(event.Details.OrganizationReference, "organization-") || !validStytchReference(event.ObjectID, "member-") || len(digest) != 32 || !validProductID(auditID) {
+		return false, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresIdentityReconcileWebhookSQL, event.ProjectID, event.EventID, event.Details.OrganizationReference, event.ObjectID, digest, auditID)
+	if err != nil {
+		return false, discoveryProviderError(err)
+	}
+	var result struct {
+		Processed       bool `json:"processed"`
+		Replayed        bool `json:"replayed"`
+		RevokedSessions int  `json:"revoked_sessions"`
+		RevokedTokens   int  `json:"revoked_tokens"`
+	}
+	if decodeStrictIdentityAdministration(payload, &result) != nil || result.Processed == result.Replayed || result.RevokedSessions < 0 || result.RevokedTokens < 0 {
+		return false, ErrRepositoryUnavailable
+	}
+	return result.Processed, nil
+}
 
 type identityProviderMutation struct {
 	Operation, IdempotencyKey, MutationID, AuditID, CorrelationID, ReceiptID string

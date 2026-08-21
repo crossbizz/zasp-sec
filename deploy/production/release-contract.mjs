@@ -108,6 +108,7 @@ export async function renderRelease(value) {
     ["secrets.migrationPostgresDSNObjectName", "zasp/production/postgres-migration-dsn"],
     ["secrets.stytchProjectIDObjectName", "zasp/production/stytch-project-id"],
     ["secrets.stytchSecretObjectName", "zasp/production/stytch-secret"],
+    ["secrets.stytchWebhookSecretObjectName", "zasp/production/stytch-webhook-secret"],
     ["secrets.stytchPublicTokenObjectName", "zasp/production/stytch-public-token"],
     ["secrets.stytchOrganizationIDObjectName", "zasp/production/stytch-organization-id"],
     ["secrets.workflowSigningKeyObjectName", "zasp/production/workflow-signing-key"],

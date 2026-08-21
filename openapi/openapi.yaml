@@ -389,6 +389,37 @@ paths:
         '200': { description: Updated member., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Principal' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/admin/group-mappings:
+    get:
+      operationId: listGroupMappings
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: List tenant IdP group mappings
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200': { description: Tenant group mapping page., content: { application/json: { schema: { $ref: '#/components/schemas/GroupMappingPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    patch:
+      operationId: updateGroupMappings
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Create or replace a tenant IdP group mapping and revoke active sessions
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GroupMappingInput' } } }
+      responses:
+        '200': { description: Updated group mapping., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/GroupMapping' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/admin/roles:
     get:
       operationId: listBuiltInRoles
@@ -3447,9 +3478,9 @@ components:
       properties:
         group_reference:
           type: string
-          minLength: 11
+          minLength: 17
           maxLength: 128
-          pattern: '^idp-group-[A-Za-z0-9_-]+$'
+          pattern: '^scim-group-(test|live)-[A-Za-z0-9_-]+$'
         role:
           $ref: '#/components/schemas/BuiltInRoleName'
         workspace_id:
@@ -3466,9 +3497,9 @@ components:
       properties:
         group_reference:
           type: string
-          minLength: 11
+          minLength: 17
           maxLength: 128
-          pattern: '^idp-group-[A-Za-z0-9_-]+$'
+          pattern: '^scim-group-(test|live)-[A-Za-z0-9_-]+$'
         role:
           $ref: '#/components/schemas/BuiltInRoleName'
         workspace_id:

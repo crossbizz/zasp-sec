@@ -503,7 +503,10 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "19");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "19");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
-  assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 8);
+  const apiSecretProvider = one(resources, "SecretProviderClass", release.secretProviderClass);
+  assert.equal(apiSecretProvider.spec.secretObjects[0].data.length, 9);
+  assert.match(JSON.stringify(apiSecretProvider), /zasp\/production\/stytch-webhook-secret/);
+  assert.match(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].args[0], /export ZASP_STYTCH_WEBHOOK_SECRET="\$\(cat \/var\/run\/secrets\/zasp\/stytch-webhook-secret\)"/);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-migration-secrets").spec.secretObjects[0].data.length, 1);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-worker-secrets").spec.secretObjects[0].data.length, 1);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-scheduler-secrets").spec.secretObjects[0].data.length, 1);
@@ -886,7 +889,7 @@ test("release gives only API an explicit connector identity, reference-only conf
   for (const workload of resources.filter(({ kind, metadata }) => ["Deployment", "Job", "CronJob"].includes(kind) && !["nango", "nango-migrate"].includes(metadata.name))) assert.doesNotMatch(JSON.stringify(workload), /NANGO_/);
   assert.equal(resources.filter(({ kind }) => kind === "Deployment").some(({ metadata }) => /nango-(?:runner|persist|orchestrat|functions|webhooks|jobs)/i.test(metadata.name)), false);
   assert.doesNotMatch(rendered, /github-client-secret-value|okta-client-secret-value/);
-  assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 8);
+  assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 9);
 });
 
 test("release gives finding tickets exact API-only webhook egress and secret-read authority", async () => {
@@ -1092,6 +1095,7 @@ test("terraform binds each shipped secret consumer to one exact least-privilege 
   const apiSecrets = terraform.slice(terraform.indexOf("api_secret_names"), terraform.indexOf("queue_contract"));
   assert.match(apiSecrets, /postgres-api-dsn/);
   assert.match(apiSecrets, /postgres-security-agent-api-dsn/);
+  assert.match(apiSecrets, /stytch-webhook-secret/);
   assert.doesNotMatch(apiSecrets, /postgres-worker-dsn|postgres-security-agent-worker-dsn|postgres-migration-dsn/);
   assert.match(terraform, /database_principals\s*=\s*\{/);
   for (const principal of ["migration", "api", "security_agent_api", "security_agent_worker", "discovery_worker", "runtime_ingest", "runtime_worker", "outbox_worker", "runtime_gateway", "discovery_scheduler", "projection_risk", "projection_graph", "projection_search"]) {

@@ -20,6 +20,8 @@ const expectedOperations = new Map([
   ["listMembers", ["/api/v1/admin/members", "get"]],
   ["updateMemberRole", ["/api/v1/admin/members/{id}", "patch"]],
   ["listBuiltInRoles", ["/api/v1/admin/roles", "get"]],
+  ["listGroupMappings", ["/api/v1/admin/group-mappings", "get"]],
+  ["updateGroupMappings", ["/api/v1/admin/group-mappings", "patch"]],
   ["listAPITokens", ["/api/v1/admin/api-tokens", "get"]],
   ["createAPIToken", ["/api/v1/admin/api-tokens", "post"]],
   ["listAPITokenRevealGrants", ["/api/v1/admin/api-token-reveal-grants", "get"]],
@@ -37,14 +39,12 @@ const expectedOperations = new Map([
   ["deleteSCIMConnection", ["/api/v1/admin/scim-connections/{id}", "delete"]],
 ]);
 
-const hiddenOperations = [
-  "listGroupMappings", "updateGroupMappings",
-  "createAuditExport", "getAuditExport",
-];
+const hiddenOperations = ["createAuditExport", "getAuditExport"];
 
 const identityUIOperations = new Set([
   "getOrganization", "listWorkspaces", "createWorkspace", "updateWorkspace", "listEnvironments", "createEnvironment", "updateEnvironment",
   "listMembers", "updateMemberRole", "listBuiltInRoles",
+  "listGroupMappings", "updateGroupMappings",
   "listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection",
   "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection",
   "listAPITokens", "createAPIToken", "listAPITokenRevealGrants", "revealAPIToken", "acknowledgeAPITokenRevealGrant", "rotateAPIToken", "revokeAPIToken", "listAuditEvents",
@@ -94,6 +94,10 @@ test("uses strict product schemas and the shared stable error response", async (
   assert.equal(document.components.schemas.ComplianceEvidence.properties.evidence.minItems, 1);
   assert.equal(document.components.schemas.ComplianceEvidence.properties.evidence.maxItems, 1);
   assert.equal(document.components.schemas.WorkspaceMutation.properties.initial_environment_id.$ref, "#/components/schemas/ProductID");
+  assert.equal(document.components.schemas.GroupMappingInput.properties.group_reference.pattern,
+    "^scim-group-(test|live)-[A-Za-z0-9_-]+$");
+  assert.equal(document.components.schemas.GroupMapping.properties.group_reference.pattern,
+    "^scim-group-(test|live)-[A-Za-z0-9_-]+$");
   const environmentList = document.paths["/api/v1/environments"].get;
   assert.deepEqual(environmentList.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
   assert.equal(environmentList.parameters.find((parameter) => parameter.name === "workspace_id")?.required, true);

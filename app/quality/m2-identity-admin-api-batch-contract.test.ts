@@ -43,7 +43,8 @@ describe("M2 identity and administration API batch", () => {
     expect(view).toContain("Add SSO connection");
     expect(view).toContain("Add SCIM connection");
     expect(view).toContain("Connections are isolated to this organization");
-    expect(view).toContain("Group mappings are hidden");
+    expect(view).toContain("Map a verified SCIM group");
+    expect(view).toContain("Save group mapping");
   });
 
   it("preserves this batch inside the current M2 completion boundary", () => {

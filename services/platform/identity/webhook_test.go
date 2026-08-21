@@ -25,7 +25,7 @@ func TestWebhookVerifierRejectsInvalidSignatureAndMarksReplay(t *testing.T) {
 	body := webhookFixtureBody()
 	headers := signWebhookFixture(body, secret, "msg_fixture", fixtureNow)
 	event, replay, err := verifier.Verify(body, headers)
-	if err != nil || replay || event.EventID != "018f85a0-2c17-7ba3-91d1-7f0382dd7c31" || event.Kind() != "scim.member.delete" {
+	if err != nil || replay || event.EventID != "webhook-event-live-018f85a0-2c17-7ba3-91d1-7f0382dd7c31" || event.Kind() != "scim.member.delete" || event.Details.OrganizationReference != "organization-live-a" {
 		t.Fatalf("Verify() = %#v, %v, %v", event, replay, err)
 	}
 	if _, replay, err := verifier.Verify(body, headers); err != nil || !replay {
@@ -53,6 +53,23 @@ func TestWebhookVerifierContainsClockPanics(t *testing.T) {
 	headers := signWebhookFixture(body, webhookFixtureSecret(), "msg_fixture", fixtureNow)
 	if _, _, err := verifier.Verify(body, headers); err != ErrWebhookVerification {
 		t.Fatalf("Verify() error = %v", err)
+	}
+}
+
+func TestWebhookVerifierRejectsNoncanonicalProviderEnvelopeAuthority(t *testing.T) {
+	secret := webhookFixtureSecret()
+	verifier, err := NewWebhookVerifier("project-live-platform", secret, func() time.Time { return fixtureNow }, 5*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index, body := range [][]byte{
+		[]byte(`{"action":"DELETE","event_id":"webhook-event-live-018f85a0-2c17-7ba3-91d1-7f0382dd7c31","id":"member-live-a","object_type":"member","organization_id":"organization-live-a","project_id":"project-live-platform","source":"SCIM","timestamp":"2026-08-18T13:00:00Z","vertical":"B2B","workspace_id":"workspace-live-platform"}`),
+		[]byte(`{"action":"DELETE","details":{"organization_id":"organization-live-a"},"event_id":"018f85a0-2c17-7ba3-91d1-7f0382dd7c31","id":"member-live-a","object_type":"member","project_id":"project-live-platform","source":"SCIM","timestamp":"2026-08-18T13:00:00Z","vertical":"B2B","workspace_id":"workspace-live-platform"}`),
+	} {
+		headers := signWebhookFixture(body, secret, "msg_hostile_"+strconv.Itoa(index), fixtureNow)
+		if _, _, err := verifier.Verify(body, headers); err != ErrWebhookVerification {
+			t.Fatalf("Verify(hostile %d) error = %v", index, err)
+		}
 	}
 }
 
@@ -171,7 +188,7 @@ func webhookFixtureSecret() string {
 }
 
 func webhookFixtureBody() []byte {
-	return []byte(`{"project_id":"project-live-platform","event_id":"018f85a0-2c17-7ba3-91d1-7f0382dd7c31","action":"DELETE","object_type":"member","source":"SCIM","id":"member-live-a","timestamp":"2026-08-18T13:00:00Z"}`)
+	return []byte(`{"action":"DELETE","details":{"organization_id":"organization-live-a"},"event_id":"webhook-event-live-018f85a0-2c17-7ba3-91d1-7f0382dd7c31","id":"member-live-a","object_type":"member","project_id":"project-live-platform","source":"SCIM","timestamp":"2026-08-18T13:00:00Z","vertical":"B2B","workspace_id":"workspace-live-platform"}`)
 }
 
 func signWebhookFixture(body []byte, secret, messageID string, timestamp time.Time) WebhookHeaders {

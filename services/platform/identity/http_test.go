@@ -106,7 +106,7 @@ func TestIdentityHTTPHandlerReturnsOneStableAuthenticationErrorForEveryOperation
 		{http.MethodPost, "/api/v1/admin/scim-connections", `{"display_name":"Corporate","identity_provider":"generic"}`},
 		{http.MethodDelete, "/api/v1/admin/scim-connections/scim-connection-live-a", ""},
 		{http.MethodGet, "/api/v1/admin/group-mappings", ""},
-		{http.MethodPatch, "/api/v1/admin/group-mappings", `{"group_reference":"idp-group-engineering","role":"security_engineer","workspace_id":"` + workspace.ID().String() + `","environment_id":"` + environments[0].ID().String() + `","expected_version":0}`},
+		{http.MethodPatch, "/api/v1/admin/group-mappings", `{"group_reference":"scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c32","role":"security_engineer","workspace_id":"` + workspace.ID().String() + `","environment_id":"` + environments[0].ID().String() + `","expected_version":0}`},
 		{http.MethodGet, "/api/v1/admin/api-tokens", ""},
 		{http.MethodPost, "/api/v1/admin/api-tokens", `{"name":"CI","workspace_id":"` + workspace.ID().String() + `","environment_id":"` + environments[0].ID().String() + `","permissions":["view"],"expires_at":"2030-01-01T00:00:00Z"}`},
 		{http.MethodDelete, "/api/v1/admin/api-tokens/" + fixtureID(t, 999).String(), ""},
@@ -204,10 +204,10 @@ func TestIdentityHTTPHandlerServesGroupTokenAndAuditAdministration(t *testing.T)
 		t.Fatal(err)
 	}
 
-	groupBody := `{"group_reference":"idp-group-engineering","role":"security_engineer","workspace_id":"` + workspace.ID().String() +
+	groupBody := `{"group_reference":"scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c32","role":"security_engineer","workspace_id":"` + workspace.ID().String() +
 		`","environment_id":"` + environments[0].ID().String() + `","expected_version":0}`
 	assertHTTPContains(t, handler, http.MethodPatch, "/api/v1/admin/group-mappings", groupBody, http.StatusOK,
-		`"group_reference":"idp-group-engineering"`, `"version":1`, `"audit_correlation_id"`)
+		`"group_reference":"scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c32"`, `"version":1`, `"audit_correlation_id"`)
 	assertHTTPContains(t, handler, http.MethodGet, "/api/v1/admin/group-mappings", "", http.StatusOK,
 		`"role":"security_engineer"`, `"has_more":false`)
 

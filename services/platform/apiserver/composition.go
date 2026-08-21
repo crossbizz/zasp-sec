@@ -61,6 +61,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/admin/members", "listMembers", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/admin/roles", "listBuiltInRoles", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"PATCH", "/api/v1/admin/members/{id}", "updateMemberRole", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/admin/group-mappings", "listGroupMappings", "manage_identity", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"PATCH", "/api/v1/admin/group-mappings", "updateGroupMappings", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/admin/sso-connections", "listSSOConnections", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"POST", "/api/v1/admin/sso-connections", "createSSOConnection", "manage_identity", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"DELETE", "/api/v1/admin/sso-connections/{id}", "deleteSSOConnection", "manage_identity", []string{"BrowserSession"}}, identityDependency},
@@ -232,7 +234,7 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
 func requiresFreshAuthentication(operationID string) bool {
 	switch operationID {
 	case "createWorkspace", "updateWorkspace", "createEnvironment", "updateEnvironment",
-		"updateMemberRole", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
+		"updateMemberRole", "updateGroupMappings", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
 		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true

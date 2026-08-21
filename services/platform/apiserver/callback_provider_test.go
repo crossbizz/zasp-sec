@@ -101,6 +101,13 @@ func TestStytchOAuthAuthenticatorUsesProviderFaithfulExchangeAndIdentityAdapter(
 					"last_accessed_at": now.Format(time.RFC3339), "expires_at": now.Add(time.Hour).Format(time.RFC3339),
 					"roles": []string{"provider-admin-must-not-authorize"},
 				},
+				"member": map[string]any{
+					"member_id": "member-test-local", "organization_id": "organization-test-local",
+					"scim_registration": map[string]any{"scim_attributes": map[string]any{"groups": []any{
+						map[string]any{"value": "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c32", "display": "Security"},
+						map[string]any{"value": "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31", "display": "Platform"},
+					}}},
+				},
 			})
 		default:
 			t.Fatalf("unexpected Stytch path %s", request.URL.Path)
@@ -113,7 +120,7 @@ func TestStytchOAuthAuthenticatorUsesProviderFaithfulExchangeAndIdentityAdapter(
 		t.Fatal(err)
 	}
 	principal, err := authenticator.Authenticate(context.Background(), "provider-token")
-	if err != nil || principal.OrganizationReference() != "organization-test-local" || principal.MemberReference() != "member-test-local" || principal.SessionReference() != "member-session-test-local" || principal.ExpiresAt() != now.Add(time.Hour) {
+	if err != nil || principal.OrganizationReference() != "organization-test-local" || principal.MemberReference() != "member-test-local" || principal.SessionReference() != "member-session-test-local" || principal.ExpiresAt() != now.Add(time.Hour) || !reflect.DeepEqual(principal.GroupReferences(), []string{"scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31", "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c32"}) {
 		t.Fatalf("external principal = (%#v, %v)", principal, err)
 	}
 	if err := authenticator.Ready(context.Background()); err != nil || headRequests.Load() != 0 {

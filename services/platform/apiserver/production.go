@@ -632,7 +632,7 @@ func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWri
 			EnvironmentID  string `json:"environment_id"`
 			Expected       int64  `json:"expected_version"`
 		}
-		if decodeProductionJSON(request, &input) != nil || len(input.GroupReference) < 11 || len(input.GroupReference) > 128 || !strings.HasPrefix(input.GroupReference, "idp-group-") || !validAdministrationRole(input.Role) || !validAdministrationProductID(input.WorkspaceID) || !validAdministrationProductID(input.EnvironmentID) || input.Expected < 0 {
+		if decodeProductionJSON(request, &input) != nil || !validAdministrationGroupReference(input.GroupReference) || !validAdministrationRole(input.Role) || !validAdministrationProductID(input.WorkspaceID) || !validAdministrationProductID(input.EnvironmentID) || input.Expected < 0 {
 			writeProductionError(writer, request, ErrRepositoryOperation)
 			return
 		}
@@ -841,7 +841,7 @@ func newAdministrationToken(previous error) (string, error) {
 
 func administrationPagedOperation(operation string) bool {
 	switch operation {
-	case "listWorkspaces", "listEnvironments", "listMembers", "listAPITokens", "listAPITokenRevealGrants", "listAuditEvents", "listSessions", "listSessionEvents", "listComplianceControls", "listComplianceEvidence", "listSSOConnections", "listSCIMConnections":
+	case "listWorkspaces", "listEnvironments", "listMembers", "listGroupMappings", "listAPITokens", "listAPITokenRevealGrants", "listAuditEvents", "listSessions", "listSessionEvents", "listComplianceControls", "listComplianceEvidence", "listSSOConnections", "listSCIMConnections":
 		return true
 	default:
 		return false
@@ -910,11 +910,12 @@ func (handler *identityHTTPHandler) decodeAdministrationCursor(value string, ide
 
 func administrationCursorPosition(operation string, item json.RawMessage) (administrationCursor, bool) {
 	var value struct {
-		ID         string `json:"id"`
-		GrantID    string `json:"grant_id"`
-		OccurredAt string `json:"occurred_at"`
-		At         string `json:"at"`
-		Control    struct {
+		ID             string `json:"id"`
+		GrantID        string `json:"grant_id"`
+		GroupReference string `json:"group_reference"`
+		OccurredAt     string `json:"occurred_at"`
+		At             string `json:"at"`
+		Control        struct {
 			ID string `json:"id"`
 		} `json:"control"`
 		Evidence []struct {
@@ -926,6 +927,8 @@ func administrationCursorPosition(operation string, item json.RawMessage) (admin
 	}
 	position := administrationCursor{AfterID: value.ID}
 	switch operation {
+	case "listGroupMappings":
+		position.AfterID = value.GroupReference
 	case "listAPITokenRevealGrants":
 		position.AfterID = value.GrantID
 	case "listComplianceEvidence":
@@ -947,6 +950,9 @@ func validAdministrationCursorPosition(operation string, cursor administrationCu
 	if len(cursor.AfterID) < 1 || len(cursor.AfterID) > 256 || strings.TrimSpace(cursor.AfterID) != cursor.AfterID {
 		return false
 	}
+	if operation == "listGroupMappings" && !validAdministrationGroupReference(cursor.AfterID) {
+		return false
+	}
 	requiresTime := operation == "listAuditEvents" || operation == "listSessionEvents"
 	requiresParent := operation == "listComplianceEvidence"
 	if requiresParent != (cursor.AfterParentID != "") || cursor.AfterParentID != "" && (len(cursor.AfterParentID) > 256 || strings.TrimSpace(cursor.AfterParentID) != cursor.AfterParentID) {
@@ -957,6 +963,25 @@ func validAdministrationCursorPosition(operation string, cursor administrationCu
 	}
 	parsed, err := time.Parse(time.RFC3339Nano, cursor.AfterTime)
 	return err == nil && parsed.Location() == time.UTC && parsed.Format(time.RFC3339Nano) == cursor.AfterTime
+}
+
+func validAdministrationGroupReference(value string) bool {
+	if len(value) < 17 || len(value) > 128 ||
+		!strings.HasPrefix(value, "scim-group-test-") && !strings.HasPrefix(value, "scim-group-live-") {
+		return false
+	}
+	for _, character := range value {
+		if character < 'a' || character > 'z' {
+			if character < 'A' || character > 'Z' {
+				if character < '0' || character > '9' {
+					if character != '-' && character != '_' {
+						return false
+					}
+				}
+			}
+		}
+	}
+	return true
 }
 
 func canonicalAdministrationTime(value string) (string, bool) {

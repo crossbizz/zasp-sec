@@ -69,7 +69,7 @@ const (
 	lockRuntimeGatewayReconciliationSQL            = `LOCK TABLE "public"."zasp_runtime_gateway_reconciliation_state" IN ACCESS EXCLUSIVE MODE`
 	lockRuntimeIngestReconciliationSQL             = `LOCK TABLE "public"."zasp_runtime_ingest_reconciliation_state", "public"."zasp_runtime_ingest_reconciliation_work" IN ACCESS EXCLUSIVE MODE`
 	lockSecurityAgentExecutionSQL                  = `LOCK TABLE "public"."zasp_security_agent_execution_state", "public"."zasp_security_agent_definitions", "public"."zasp_security_agent_runs", "public"."zasp_security_agent_effects", "public"."zasp_security_agent_controls" IN ACCESS EXCLUSIVE MODE`
-	lockIdentityAdministrationSQL                  = `LOCK TABLE "public"."zasp_identity_administration_state", "public"."zasp_identity_provider_connections", "public"."zasp_identity_provider_mutations", "public"."zasp_identity_secret_reveal_grants", "public"."zasp_identity_webhook_events" IN ACCESS EXCLUSIVE MODE`
+	lockIdentityAdministrationSQL                  = `LOCK TABLE "public"."zasp_identity_administration_state", "public"."zasp_identity_provider_connections", "public"."zasp_identity_provider_mutations", "public"."zasp_identity_secret_reveal_grants", "public"."zasp_identity_webhook_events", "public"."zasp_identity_member_groups" IN ACCESS EXCLUSIVE MODE`
 	insertRowSQL                                   = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
 	deleteRowSQL                                   = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
 	referenceAuthorizationReadinessSQL             = `SELECT zasp_reference_authorization_readiness($1,$2)`
@@ -85,7 +85,7 @@ const (
 	runtimeGatewayReconciliationRollbackAllowedSQL = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_gateway_reconciliation_state" WHERE "used_at" IS NOT NULL)`
 	runtimeIngestReconciliationRollbackAllowedSQL  = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_ingest_reconciliation_state" WHERE "used_at" IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_ingest_reconciliation_work" WHERE "state" = 'leased')`
 	securityAgentExecutionRollbackAllowedSQL       = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_execution_state" WHERE "used_at" IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_runs") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_effects")`
-	identityAdministrationRollbackAllowedSQL       = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_administration_state" WHERE "used_at" IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_provider_mutations") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_webhook_events")`
+	identityAdministrationRollbackAllowedSQL       = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_administration_state" WHERE "used_at" IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_provider_mutations") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_webhook_events") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_member_groups")`
 )
 
 var (

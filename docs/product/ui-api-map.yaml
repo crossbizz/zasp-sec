@@ -95,10 +95,10 @@ screens:
         availability: available
       - id: view_group_mappings
         operation_id: listGroupMappings
-        availability: planned
+        availability: available
       - id: update_group_mapping
         operation_id: updateGroupMappings
-        availability: planned
+        availability: available
       - id: view_api_tokens
         operation_id: listAPITokens
         availability: available

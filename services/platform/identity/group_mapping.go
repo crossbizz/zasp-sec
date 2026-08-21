@@ -33,7 +33,7 @@ func (mapping GroupMapping) EnvironmentID() domain.ProductID  { return mapping.e
 func (mapping GroupMapping) Version() uint64                  { return mapping.version }
 
 func (mapping GroupMapping) valid() bool {
-	return validProductID(mapping.organizationID) && validReference(mapping.groupReference, "idp-group-") &&
+	return validProductID(mapping.organizationID) && validGroupReference(mapping.groupReference) &&
 		mapping.role.valid() && validProductID(mapping.workspaceID) && validProductID(mapping.environmentID) &&
 		mapping.organizationID != mapping.workspaceID && mapping.organizationID != mapping.environmentID &&
 		mapping.workspaceID != mapping.environmentID && mapping.version > 0
@@ -54,7 +54,7 @@ func NewGroupMappingStore(identity *MemoryStore) (*GroupMappingStore, error) {
 
 func (store *GroupMappingStore) Upsert(ctx context.Context, organizationID domain.ProductID, input GroupMappingInput) (GroupMapping, error) {
 	if store == nil || store.identity == nil || !validContext(ctx) || !validProductID(organizationID) ||
-		!validReference(input.GroupReference, "idp-group-") || !input.Role.valid() ||
+		!validGroupReference(input.GroupReference) || !input.Role.valid() ||
 		!validProductID(input.WorkspaceID) || !validProductID(input.EnvironmentID) {
 		return GroupMapping{}, ErrInvalidRecord
 	}
@@ -111,7 +111,7 @@ func (store *GroupMappingStore) Resolve(ctx context.Context, organizationID doma
 	}
 	wanted := make(map[string]struct{}, len(groupReferences))
 	for _, reference := range groupReferences {
-		if !validReference(reference, "idp-group-") {
+		if !validGroupReference(reference) {
 			return nil, ErrInvalidRecord
 		}
 		if _, duplicate := wanted[reference]; duplicate {

@@ -39,6 +39,22 @@ export interface IdentitySCIMCredential extends IdentitySCIMConnection {
   bearerToken: string;
 }
 
+export interface IdentityGroupMapping {
+  groupReference: string;
+  role: string;
+  workspaceID: string;
+  environmentID: string;
+  version: number;
+}
+
+export interface IdentityGroupMappingInput {
+  groupReference: string;
+  role: string;
+  workspaceID: string;
+  environmentID: string;
+  expectedVersion: number;
+}
+
 export interface IdentityAdminAPI {
   listMembers(): Promise<IdentityMember[]>;
   updateMemberRole(id: string, role: string, version: number): Promise<IdentityMember>;
@@ -50,6 +66,8 @@ export interface IdentityAdminAPI {
   listSCIMConnections(): Promise<IdentitySCIMConnection[]>;
   createSCIMConnection(input: { displayName: string; identityProvider: string }): Promise<IdentitySCIMCredential>;
   deleteSCIMConnection(id: string): Promise<void>;
+  listGroupMappings(): Promise<IdentityGroupMapping[]>;
+  updateGroupMapping(input: IdentityGroupMappingInput): Promise<IdentityGroupMapping>;
 }
 
 interface LoadedState {
@@ -57,9 +75,10 @@ interface LoadedState {
   roles: IdentityRole[];
   ssoConnections: IdentitySSOConnection[];
   scimConnections: IdentitySCIMConnection[];
+  groupMappings: IdentityGroupMapping[];
 }
 
-const emptyState: LoadedState = { members: [], roles: [], ssoConnections: [], scimConnections: [] };
+const emptyState: LoadedState = { members: [], roles: [], ssoConnections: [], scimConnections: [], groupMappings: [] };
 
 export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAPI }) {
   const contextAPI = useOptionalIdentityAdminAPI();
@@ -77,14 +96,18 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
   const [scimDisplayName, setSCIMDisplayName] = useState("");
   const [scimProvider, setSCIMProvider] = useState("generic");
   const [revealedCredential, setRevealedCredential] = useState<IdentitySCIMCredential | null>(null);
+  const [groupReference, setGroupReference] = useState("");
+  const [groupRole, setGroupRole] = useState("organization_admin");
+  const [groupWorkspaceID, setGroupWorkspaceID] = useState("");
+  const [groupEnvironmentID, setGroupEnvironmentID] = useState("");
 
   const load = useCallback(async () => {
     try {
       if (!api) throw new Error("identity API unavailable");
-      const [members, roles, ssoConnections, scimConnections] = await Promise.all([
-        api.listMembers(), api.listRoles(), api.listSSOConnections(), api.listSCIMConnections(),
+      const [members, roles, ssoConnections, scimConnections, groupMappings] = await Promise.all([
+        api.listMembers(), api.listRoles(), api.listSSOConnections(), api.listSCIMConnections(), api.listGroupMappings(),
       ]);
-      setState({ members, roles, ssoConnections, scimConnections });
+      setState({ members, roles, ssoConnections, scimConnections, groupMappings });
       setRoleDrafts(Object.fromEntries(members.map((member) => [member.id, member.role])));
     } catch {
       setError("Identity data could not be loaded");
@@ -153,8 +176,20 @@ export function IdentityAccessView({ api: suppliedAPI }: { api?: IdentityAdminAP
         {state.scimConnections.length === 0 ? <EmptyState title="No SCIM connections" description="Add the first provisioning connection for this organization." /> : <ul className="identity-list">{state.scimConnections.map((connection) => <li key={connection.id}><span><strong>{connection.displayName}</strong><small>{connection.identityProvider} · {connection.baseURL}</small></span><div className="row-actions"><Badge tone={connection.status === "active" ? "success" : "warning"}>{connection.status}</Badge><Button variant="danger" disabled={!fresh} onClick={() => void action(async () => { if (!api) throw new Error(); await api.deleteSCIMConnection(connection.id); setState((current) => ({ ...current, scimConnections: current.scimConnections.filter((item) => item.id !== connection.id) })); }, "SCIM connection deleted")}>Delete {connection.displayName}</Button></div></li>)}</ul>}
       </Card>
       <Card id="identity-groups" title={<h2>Group mappings</h2>}>
-        <Badge tone="neutral">Unavailable</Badge>
-		<p>Group mappings are hidden until verified provider group claims participate in effective authorization and deprovisioning.</p>
+        <p>Map a verified SCIM group to one tenant workspace, environment, and built-in role.</p>
+        <div className="form-grid">
+          <Field label="Stytch SCIM group ID" value={groupReference} maxLength={128} disabled={!fresh} onChange={(event) => setGroupReference(event.target.value)} />
+          <Select label="Mapped role" value={groupRole} disabled={!fresh} onChange={(event) => setGroupRole(event.target.value)}>{state.roles.map((roleValue) => <option key={roleValue.role} value={roleValue.role}>{roleValue.role.replaceAll("_", " ")}</option>)}</Select>
+          <Field label="Workspace ID" value={groupWorkspaceID} maxLength={128} disabled={!fresh} onChange={(event) => setGroupWorkspaceID(event.target.value)} />
+          <Field label="Environment ID" value={groupEnvironmentID} maxLength={128} disabled={!fresh} onChange={(event) => setGroupEnvironmentID(event.target.value)} />
+          <Button disabled={!fresh || groupReference.trim().length === 0 || groupWorkspaceID.trim().length === 0 || groupEnvironmentID.trim().length === 0} onClick={() => void action(async () => {
+            if (!api) throw new Error();
+            const existing = state.groupMappings.find((mapping) => mapping.groupReference === groupReference.trim());
+            const updated = await api.updateGroupMapping({ groupReference: groupReference.trim(), role: groupRole, workspaceID: groupWorkspaceID.trim(), environmentID: groupEnvironmentID.trim(), expectedVersion: existing?.version ?? 0 });
+            setState((current) => ({ ...current, groupMappings: [...current.groupMappings.filter((mapping) => mapping.groupReference !== updated.groupReference), updated].sort((left, right) => left.groupReference.localeCompare(right.groupReference)) }));
+          }, "Group mapping saved; affected sessions revoked")}>Save group mapping</Button>
+        </div>
+        {state.groupMappings.length === 0 ? <EmptyState title="No group mappings" description="Add a verified provider group mapping for this organization." /> : <ul className="identity-list">{state.groupMappings.map((mapping) => <li key={mapping.groupReference}><span><strong>{mapping.groupReference}</strong><small>{mapping.role.replaceAll("_", " ")} · {mapping.workspaceID} · {mapping.environmentID} · version {mapping.version}</small></span><Button disabled={!fresh} onClick={() => { setGroupReference(mapping.groupReference); setGroupRole(mapping.role); setGroupWorkspaceID(mapping.workspaceID); setGroupEnvironmentID(mapping.environmentID); }}>Edit {mapping.groupReference}</Button></li>)}</ul>}
       </Card>
     </div>
   </div>;

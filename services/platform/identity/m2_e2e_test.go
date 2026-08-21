@@ -34,7 +34,7 @@ func TestM2IdentityTokenAndAuditLifecycle(t *testing.T) {
 
 	assertHTTPContains(t, handler, http.MethodPost, "/api/v1/admin/sso-connections", `{"display_name":"Corporate","protocol":"saml","identity_provider":"generic"}`, http.StatusCreated, `"audit_correlation_id"`)
 	assertHTTPContains(t, handler, http.MethodPost, "/api/v1/admin/scim-connections", `{"display_name":"Provisioning","identity_provider":"generic"}`, http.StatusCreated, `"bearer_token"`)
-	groupBody := `{"group_reference":"idp-group-platform","role":"security_engineer","workspace_id":"` + workspace.ID().String() + `","environment_id":"` + environments[0].ID().String() + `","expected_version":0}`
+	groupBody := `{"group_reference":"scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31","role":"security_engineer","workspace_id":"` + workspace.ID().String() + `","environment_id":"` + environments[0].ID().String() + `","expected_version":0}`
 	assertHTTPContains(t, handler, http.MethodPatch, "/api/v1/admin/group-mappings", groupBody, http.StatusOK, `"version":1`)
 
 	expires := fixtureNow.Add(time.Hour).Format(time.RFC3339)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
@@ -140,6 +141,172 @@ func TestProductionIdentityAdministrationPostgresInstallsExactTenantAuthority(t 
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_identity_admin_connection_page($1,$2,'sso',NULL,50)`, organization, principal).Scan(&page); err != nil || jsonContainsString(page, "reference", "saml-connection-tenant-a") {
 		t.Fatalf("deleted connection remained visible: %s err=%v", page, err)
+	}
+}
+
+func TestProductionIdentityAdministrationReconcilesVerifiedGroupsIntoTenantScopes(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(context.Background())
+	runner := migrateToTypedInventoryCutover(t, ctx, connection)
+	for _, apply := range []func(context.Context) error{runner.UpProductionRuntimeDataPlane, runner.UpProductionRuntimeGatewayReconciliation, runner.UpProductionRuntimeIngestReconciliation, runner.UpProductionSecurityAgentExecution, runner.UpProductionIdentityAdministration} {
+		if err := apply(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	identity := fixtureRequestIdentity(t)
+	organization, principal := identity.Scope.OrganizationID().String(), identity.PrincipalID.String()
+	workspace, environment := identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role,active) VALUES($1,$2,'organization-groups-a','member-groups-a','read_only_viewer',true)`, principal, organization); err != nil {
+		t.Fatal(err)
+	}
+	for _, seed := range []struct {
+		statement string
+		arguments []any
+	}{
+		{`INSERT INTO zasp_organizations(id,name,domain) VALUES($1,'Groups tenant','groups.invalid')`, []any{organization}},
+		{`INSERT INTO zasp_workspaces(id,organization_id,name) VALUES($2,$1,'Production')`, []any{organization, workspace}},
+		{`INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES($3,$1,$2,'Production','production')`, []any{organization, workspace, environment}},
+	} {
+		if _, err := connection.Exec(ctx, seed.statement, seed.arguments...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_group_mappings(organization_id,group_reference,role,workspace_id,environment_id) VALUES($1,'scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c39','security_engineer','pid_79000057-0000-4000-8000-000000000057','pid_79000058-0000-4000-8000-000000000058')`, organization); err == nil {
+		t.Fatal("group mapping accepted a nonexistent tenant scope")
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_group_mappings(organization_id,group_reference,role,workspace_id,environment_id) VALUES($1,'scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31','security_engineer',$2,$3)`, organization, workspace, environment); err != nil {
+		t.Fatal(err)
+	}
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC().Truncate(time.Second)
+	driver := &callbackIdentityDriver{session: platformidentity.DriverSession{MemberReference: "member-groups-a", OrganizationReference: "organization-groups-a", SessionReference: "member-session-groups-a", GroupReferences: []string{"scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31"}, AuthenticatedAt: now, ExpiresAt: now.Add(time.Hour), Active: true}}
+	adapter, err := platformidentity.NewAdapter(driver, func() time.Time { return now })
+	if err != nil {
+		t.Fatal(err)
+	}
+	external, err := adapter.Authenticate(ctx, "header.payload.signature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant, err := repository.ResolveIdentity(ctx, external)
+	if err != nil || grant.Scope != identity.Scope || !stringIn("manage_workflows", grant.Permissions...) {
+		t.Fatalf("group grant=%#v err=%v", grant, err)
+	}
+	token, err := repository.CreateSession(ctx, grant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authenticated, err := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: token})
+	if err != nil || authenticated.Scope != identity.Scope || !stringIn("manage_workflows", authenticated.Permissions...) {
+		t.Fatalf("group session=%#v err=%v", authenticated, err)
+	}
+	scopes, err := repository.ListScopes(ctx, authenticated)
+	if err != nil || !jsonContainsString(scopes, "label", "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31") {
+		t.Fatalf("group scope list=%s err=%v", scopes, err)
+	}
+	groupOnlyPrincipal := "pid_79000055-0000-4000-8000-000000000055"
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role,active) VALUES($1,$2,'organization-groups-a','member-groups-only','read_only_viewer',true)`, groupOnlyPrincipal, organization); err != nil {
+		t.Fatal(err)
+	}
+	groupOnlyDriver := &callbackIdentityDriver{session: platformidentity.DriverSession{MemberReference: "member-groups-only", OrganizationReference: "organization-groups-a", SessionReference: "member-session-groups-only", GroupReferences: []string{"scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31"}, AuthenticatedAt: now, ExpiresAt: now.Add(time.Hour), Active: true}}
+	groupOnlyAdapter, err := platformidentity.NewAdapter(groupOnlyDriver, func() time.Time { return now })
+	if err != nil {
+		t.Fatal(err)
+	}
+	groupOnlyExternal, err := groupOnlyAdapter.Authenticate(ctx, "header.payload.signature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	groupOnlyGrant, err := repository.ResolveIdentity(ctx, groupOnlyExternal)
+	if err != nil || groupOnlyGrant.PrincipalID.String() != groupOnlyPrincipal || groupOnlyGrant.Scope != identity.Scope || !stringIn("manage_workflows", groupOnlyGrant.Permissions...) {
+		t.Fatalf("group-only grant=%#v err=%v", groupOnlyGrant, err)
+	}
+	groupOnlyToken, err := repository.CreateSession(ctx, groupOnlyGrant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	groupOnlyIdentity, err := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: groupOnlyToken})
+	if err != nil || groupOnlyIdentity.PrincipalID.String() != groupOnlyPrincipal || groupOnlyIdentity.Scope != identity.Scope {
+		t.Fatalf("group-only session=%#v err=%v", groupOnlyIdentity, err)
+	}
+	bootstrap, err := repository.Bootstrap(ctx, groupOnlyIdentity)
+	if err != nil || !jsonContainsString(bootstrap, "id", groupOnlyPrincipal) {
+		t.Fatalf("group-only bootstrap=%s err=%v", bootstrap, err)
+	}
+	groupOnlyWorkspaces, err := repository.ReadAdministration(ctx, groupOnlyIdentity, "listWorkspaces", map[string]string{"limit": "50"})
+	if err != nil || !jsonContainsString(groupOnlyWorkspaces, "id", workspace) {
+		t.Fatalf("group-only workspaces=%s schema=%s err=%v", groupOnlyWorkspaces, repository.schema, err)
+	}
+	groupOnlyEnvironments, err := repository.ReadAdministration(ctx, groupOnlyIdentity, "listEnvironments", map[string]string{"workspace_id": workspace, "limit": "50"})
+	if err != nil || !jsonContainsString(groupOnlyEnvironments, "id", environment) {
+		t.Fatalf("group-only environments=%s err=%v", groupOnlyEnvironments, err)
+	}
+	apiAuthority, err := connection.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer apiAuthority.Rollback(context.Background())
+	if _, err := apiAuthority.Exec(ctx, `SET LOCAL ROLE zasp_discovery_api`); err != nil {
+		t.Fatal(err)
+	}
+	var authorityBootstrap, authorityWorkspaces []byte
+	if err := apiAuthority.QueryRow(ctx, postgresBootstrapV19SQL, groupOnlyPrincipal, organization, workspace, environment, "pid_79000056-0000-4000-8000-000000000056").Scan(&authorityBootstrap); err != nil || !jsonContainsString(authorityBootstrap, "id", groupOnlyPrincipal) {
+		t.Fatalf("API authority bootstrap=%s err=%v", authorityBootstrap, err)
+	}
+	if err := apiAuthority.QueryRow(ctx, postgresListWorkspacesV19SQL, organization, groupOnlyPrincipal, "", 51).Scan(&authorityWorkspaces); err != nil || !jsonContainsString(authorityWorkspaces, "id", workspace) {
+		t.Fatalf("API authority workspaces=%s err=%v", authorityWorkspaces, err)
+	}
+	if err := apiAuthority.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var groupCount int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_identity_member_groups WHERE organization_id=$1 AND principal_id=$2`, organization, principal).Scan(&groupCount); err != nil || groupCount != 1 {
+		t.Fatalf("member groups=%d err=%v", groupCount, err)
+	}
+	var resolved []byte
+	if err := connection.QueryRow(ctx, `SELECT zasp_identity_admin_resolve_session('organization-groups-a','member-groups-a','[]'::jsonb)`).Scan(&resolved); err != nil || len(resolved) != 0 {
+		t.Fatalf("removed group scope=%s err=%v", resolved, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_identity_member_groups WHERE organization_id=$1 AND principal_id=$2`, organization, principal).Scan(&groupCount); err != nil || groupCount != 0 {
+		t.Fatalf("removed member groups=%d err=%v", groupCount, err)
+	}
+	if _, err := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: token}); err == nil {
+		t.Fatal("session survived verified group removal")
+	}
+	for _, hostile := range []string{`["scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31","scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31"]`, `["idp-group-platform"]`, `{"scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31":true}`} {
+		if err := connection.QueryRow(ctx, `SELECT zasp_identity_admin_resolve_session('organization-groups-a','member-groups-a',$1::jsonb)`, hostile).Scan(&resolved); err == nil {
+			t.Fatalf("hostile group claims accepted: %s", hostile)
+		}
+	}
+	foreign := platformidentity.WebhookEvent{ProjectID: "project-live-platform", EventID: "webhook-event-live-018f85a0-2c17-7ba3-91d1-7f0382dd7c41", Action: "DELETE", ObjectType: "member", Source: "SCIM", ObjectID: "member-groups-a", Timestamp: now.Format(time.RFC3339Nano), Vertical: "B2B", WorkspaceID: "workspace-live-platform", Details: platformidentity.WebhookDetails{OrganizationReference: "organization-foreign"}}
+	if processed, err := repository.ReconcileStytchWebhook(ctx, foreign, make([]byte, 32), "pid_79000054-0000-4000-8000-000000000054"); err == nil || processed {
+		t.Fatalf("foreign tenant deprovision=%t err=%v", processed, err)
+	}
+	webhook := platformidentity.WebhookEvent{ProjectID: "project-live-platform", EventID: "webhook-event-live-018f85a0-2c17-7ba3-91d1-7f0382dd7c40", Action: "DELETE", ObjectType: "member", Source: "SCIM", ObjectID: "member-groups-a", Timestamp: now.Format(time.RFC3339Nano), Vertical: "B2B", WorkspaceID: "workspace-live-platform", Details: platformidentity.WebhookDetails{OrganizationReference: "organization-groups-a"}}
+	processed, err := repository.ReconcileStytchWebhook(ctx, webhook, make([]byte, 32), "pid_79000040-0000-4000-8000-000000000040")
+	if err != nil || !processed {
+		t.Fatalf("deprovision=%t err=%v", processed, err)
+	}
+	processed, err = repository.ReconcileStytchWebhook(ctx, webhook, make([]byte, 32), "pid_79000041-0000-4000-8000-000000000041")
+	if err != nil || processed {
+		t.Fatalf("deprovision replay=%t err=%v", processed, err)
+	}
+	var active bool
+	if err := connection.QueryRow(ctx, `SELECT active FROM zasp_identity_memberships WHERE organization_id=$1 AND principal_id=$2`, organization, principal).Scan(&active); err != nil || active {
+		t.Fatalf("deprovisioned member active=%t err=%v", active, err)
 	}
 }
 

@@ -16,6 +16,8 @@ function fixtureAPI(overrides: Partial<IdentityAdminAPI> = {}): IdentityAdminAPI
     listSCIMConnections: async () => [{ id: "scim-connection-live-a", status: "active", displayName: "Corporate SCIM", identityProvider: "okta", baseURL: "https://scim.stytch.com/v2/live-a" }],
     createSCIMConnection: async (input) => ({ id: "scim-connection-created", status: "active", ...input, baseURL: "https://scim.stytch.com/v2/created", bearerToken: "scim_bearer_token_recoverable" }),
     deleteSCIMConnection: async () => undefined,
+		listGroupMappings: async () => [{ groupReference: "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31", role: "organization_admin", workspaceID: "pid_workspace", environmentID: "pid_environment", version: 1 }],
+		updateGroupMapping: async (input) => ({ ...input, version: input.expectedVersion + 1 }),
     ...overrides,
   };
 }
@@ -28,13 +30,24 @@ describe("Identity & Access product surface", () => {
       expect(await screen.findByRole("heading", { name: label })).toBeInTheDocument();
       expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", expect.stringMatching(/^#identity-/));
     }
-    expect(screen.getAllByText("Unavailable")).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Add SSO connection" })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Add SSO connection" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add SCIM connection" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Test Corporate SAML" })).toBeInTheDocument();
-    expect(screen.getByText(/hidden until verified provider group claims/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText("IdP group reference")).not.toBeInTheDocument();
+		expect(screen.getByLabelText("Stytch SCIM group ID")).toBeInTheDocument();
+		expect(screen.getByText("scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c31")).toBeInTheDocument();
   });
+
+	it("creates a tenant group mapping with fresh authorization inputs", async () => {
+		const user = userEvent.setup();
+		const updateGroupMapping = vi.fn(fixtureAPI().updateGroupMapping);
+		render(<IdentityAccessView api={fixtureAPI({ listGroupMappings: async () => [], updateGroupMapping })} />);
+		await user.type(await screen.findByLabelText("Stytch SCIM group ID"), "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c32");
+		await user.type(screen.getByLabelText("Workspace ID"), "pid_workspace");
+		await user.type(screen.getByLabelText("Environment ID"), "pid_environment");
+		await user.click(screen.getByRole("button", { name: "Save group mapping" }));
+		expect(updateGroupMapping).toHaveBeenCalledWith({ groupReference: "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c32", role: "organization_admin", workspaceID: "pid_workspace", environmentID: "pid_environment", expectedVersion: 0 });
+		expect(await screen.findByText("Group mapping saved; affected sessions revoked")).toBeInTheDocument();
+	});
 
   it("creates, tests, and deletes provider connections without exposing provider errors", async () => {
     const user = userEvent.setup();

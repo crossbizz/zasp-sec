@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 119 || len(public) != 119 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 119/119", len(seen), len(public))
+	if len(seen) != 121 || len(public) != 121 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 121/121", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -321,6 +321,7 @@ func TestBatchThreeCompositionExposesOnlyCompleteDurableOperations(t *testing.T)
 		"listWorkspaces", "createWorkspace", "getWorkspace", "updateWorkspace",
 		"listEnvironments", "createEnvironment", "getEnvironment", "updateEnvironment",
 		"listMembers", "listBuiltInRoles", "updateMemberRole",
+		"listGroupMappings", "updateGroupMappings",
 		"listAPITokens", "createAPIToken", "rotateAPIToken", "revokeAPIToken",
 		"listAPITokenRevealGrants", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
 		"listAuditEvents",
@@ -344,7 +345,6 @@ func TestBatchThreeCompositionExposesOnlyCompleteDurableOperations(t *testing.T)
 	}
 
 	for _, operationID := range []string{
-		"listGroupMappings", "updateGroupMappings",
 		"createAuditExport", "getAuditExport",
 		"createComplianceExport", "getComplianceExport",
 		"updateExternalDataFlows",

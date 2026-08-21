@@ -43,9 +43,10 @@ describe("M2 identity governance and UI batch", () => {
       "listAPITokens", "createAPIToken", "listAPITokenRevealGrants", "revealAPIToken",
       "acknowledgeAPITokenRevealGrant", "rotateAPIToken", "revokeAPIToken", "listAuditEvents",
     ]) expect(openapi).toContain(`operationId: ${operation}`);
-    for (const hidden of ["listGroupMappings", "updateGroupMappings", "createAuditExport", "getAuditExport"]) expect(openapi).not.toContain(`operationId: ${hidden}`);
-    expect(map.match(/availability: planned/g)).toHaveLength(23);
-    expect(map.match(/availability: available/g)).toHaveLength(113);
+    for (const mounted of ["listGroupMappings", "updateGroupMappings"]) expect(openapi).toContain(`operationId: ${mounted}`);
+    for (const hidden of ["createAuditExport", "getAuditExport"]) expect(openapi).not.toContain(`operationId: ${hidden}`);
+    expect(map.match(/availability: planned/g)).toHaveLength(21);
+    expect(map.match(/availability: available/g)).toHaveLength(115);
     expect(map.match(/availability: api_available/g)).toHaveLength(6);
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
     expect(readme).toContain("M3-01 through M3-13 are Complete");
@@ -63,7 +64,8 @@ describe("M2 identity governance and UI batch", () => {
     }
     expect(view).toContain("Add SSO connection");
     expect(view).toContain("Add SCIM connection");
-    expect(view).toContain("Group mappings are hidden");
+    expect(view).toContain("Map a verified SCIM group");
+    expect(view).toContain("Save group mapping");
     expect(provider).toContain("client ? createIdentityAdminAPI(client)");
     expect(provider).not.toContain("createAPIClient()");
     expect(provider).not.toMatch(/mock|fixture/i);
