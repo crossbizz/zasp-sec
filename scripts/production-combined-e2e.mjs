@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { once } from "node:events";
 import { chmod, mkdtemp, readFile, rm } from "node:fs/promises";
 import http from "node:http";
@@ -27,6 +28,8 @@ const task5KubernetesPartialIntegrationID = "pid_74000003-0000-4000-8000-0000000
 const task5KubernetesFailedIntegrationID = "pid_74000004-0000-4000-8000-000000000004";
 const task5GitHubIntegrationID = "pid_75000001-0000-4000-8000-000000000001";
 const task5OktaIntegrationID = "pid_76000001-0000-4000-8000-000000000001";
+const identityGroupReference = "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c88";
+const stytchWebhookSecret = "whsec_MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=";
 
 if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined E2E requires Node ${FIXED_NODE_VERSION}`);
 
@@ -57,6 +60,17 @@ const administrationRequests = [];
 const lostTokenResponses = { create: false, rotate: false, reveal: false, acknowledge: false };
 const tokenMutationKeys = { create: [], rotate: [] };
 let identityOAuthStarts = 0;
+let nextIdentityLogin = "admin";
+let pendingIdentityLogin = "admin";
+const stytchProviderRequests = [];
+const stytchSSOConnections = [{
+  organization_id: "organization-test-local",
+  connection_id: "saml-connection-live-e2e",
+  status: "active",
+  display_name: "Corporate SAML",
+  identity_provider: "okta",
+}];
+let stytchSCIMConnection;
 let browserStage = "startup";
 const scopeOverlapProof = {
   delayNextFirstTabBootstrap: false,
@@ -116,12 +130,16 @@ try {
     ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL: "zasp_e2e_correlation",
     ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL: "zasp_e2e_runtime_projection",
     ZASP_GATEWAY_CONTROL_DB_PRINCIPAL: "zasp_e2e_gateway_control",
+    ZASP_SECURITY_AGENT_API_DB_PRINCIPAL: "zasp_e2e_security_agent_api",
+    ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL: "zasp_e2e_security_agent_worker",
   } });
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation", "combined E2E did not migrate through the typed inventory, runtime data-plane, gateway reconciliation, and ingest reconciliation releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, and identity administration releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
+  console.log("combined E2E: schema 18 security_agent_execution verified");
+  console.log("combined E2E: schema 19 identity_administration verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -148,10 +166,12 @@ try {
     ZASP_DISCOVERY_PARSER_VERSION: "inventory-parser-2026.08.20",
     ZASP_DISCOVERY_TOOL_VERSION: "collector-tool-2026.08.20",
     ZASP_POSTGRES_DSN: apiDSN,
+    ZASP_SECURITY_AGENT_POSTGRES_DSN: `postgres://zasp_e2e_security_agent_api@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
     ZASP_STYTCH_BASE_URL: `http://127.0.0.1:${identityPort}`,
     ZASP_STYTCH_AUTHORIZE_URL: `http://127.0.0.1:${identityPort}/v1/b2b/public/oauth/google/start`,
     ZASP_STYTCH_PROJECT_ID: "project-test-local",
     ZASP_STYTCH_SECRET: "secret-test-local",
+    ZASP_STYTCH_WEBHOOK_SECRET: stytchWebhookSecret,
     ZASP_STYTCH_PUBLIC_TOKEN: "public-token-test-local",
     ZASP_STYTCH_ORGANIZATION_ID: "organization-test-local",
     ZASP_WORKFLOW_SIGNING_KEY: "0123456789abcdef0123456789abcdef",
@@ -266,6 +286,15 @@ try {
   assert.doesNotMatch(signedIn, /Product API unavailable|Sign-in failed/);
   assert.doesNotMatch(signedIn, /Recover committed operations|PAT E2E boundary/);
   console.log("combined E2E: browser callback, cookie, bootstrap, and durable data proven");
+  const securityAgentCookie = await getBrowserSessionCookie(browser.cdp, publicOrigin);
+  const securityAgentHeaders = { cookie: `__Host-zasp_session=${securityAgentCookie.value}`, "x-zasp-expected-scope": "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003" };
+  const securityAgentPage = await requestHTTPSJSON(`${publicOrigin}/api/v1/security-agents?limit=50`, { method: "GET", headers: securityAgentHeaders });
+  assert.equal(securityAgentPage.status, 200, `security agent public page failed: ${JSON.stringify(securityAgentPage)}`);
+  assert.deepEqual(securityAgentPage.body, { items: [], page_info: { has_more: false, next_cursor: null } }, "security agent public page was not the exact empty scoped state");
+  for (const target of ["/api/v1/security-agent-templates", "/api/v1/security-actions", "/api/v1/security-agent-runs?limit=100", "/api/v1/security-agent-approvals?limit=100"]) {
+    const catalog = await requestHTTPSJSON(`${publicOrigin}${target}`, { method: "GET", headers: securityAgentHeaders });
+    assert.equal(catalog.status, 200, `security agent catalog failed at ${target}: ${JSON.stringify(catalog)}`);
+  }
   await assertTask4BrowserPublicState(browser.cdp, publicOrigin, task4Public.syncID);
   await assertTypedInventoryBrowserState(browser.cdp, publicOrigin);
   await assertTask6SensorBrowserState(browser.cdp, publicOrigin, dsn);
@@ -630,23 +659,53 @@ try {
   await clickBrowserAria(browser.cdp, "Close");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/protect/security-agents`);
-  await waitForBrowserText(browser.cdp, /Durable, scoped response definitions/);
+  await waitForBrowserText(browser.cdp, /Tenant-scoped response definitions/);
   await clickBrowserText(browser.cdp, "Create Security Agent");
   await clickBrowserText(browser.cdp, "Save Security Agent definition");
   await waitForBrowserText(browser.cdp, /Bounded response definition/);
-  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Run Security Agent|Simulate Security Agent|Approve|Start bounded run|Runs|Approvals)$/i), false);
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate plan|Start supervised run|Approve|Reject|Cancel run)$/i), false);
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/protect/approvals`);
-  const approvalsHidden = await waitForBrowserText(browser.cdp, /Security overview/);
-  assert.doesNotMatch(approvalsHidden, /Approve|Pending approvals/);
-  console.log("combined E2E: full-document receipt recovery, local integration, Security Agent definition, and hidden unsafe response controls proven");
+  const approvalsEmpty = await waitForBrowserText(browser.cdp, /Security Agent approvals/);
+  assert.match(approvalsEmpty, /No pending approvals/);
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Approve|Reject|Cancel run)$/i), false);
+  console.log("combined E2E: full-document receipt recovery, local integration, Security Agent definition, and empty approval authority proven");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/identity-access`);
   const identityAccess = await waitForBrowserText(browser.cdp, /member-target-local[\s\S]*E2E Organization/);
   assert.match(identityAccess, /E2E Organization/);
-  assert.match(identityAccess, /Enterprise identity\s+Unavailable/);
-  assert.match(identityAccess, /Group mappings\s+Unavailable/);
-  assert.doesNotMatch(identityAccess, /Configure SSO|Enable SCIM|Rotate webhook/);
+  assert.match(identityAccess, /Enterprise identity[\s\S]*Configured/);
+  assert.match(identityAccess, /Corporate SAML[\s\S]*active/);
+  assert.match(identityAccess, /No SCIM connections/);
+  await clickBrowserText(browser.cdp, "Test Corporate SAML");
+  await waitForBrowserText(browser.cdp, /Corporate SAML connection is healthy/);
+  await fillBrowserLabel(browser.cdp, "SSO display name", "E2E SSO");
+  await clickBrowserText(browser.cdp, "Add SSO connection");
+  assert.match(await waitForBrowserText(browser.cdp, /SSO connection created/), /E2E SSO/);
+  await fillBrowserLabel(browser.cdp, "SCIM display name", "E2E SCIM");
+  await clickBrowserText(browser.cdp, "Add SCIM connection");
+  const scimCreated = await waitForBrowserText(browser.cdp, /Copy the SCIM bearer token now/);
+  assert.match(scimCreated, /scim_bearer_token_e2e_only_copy_once/);
+  await clickBrowserText(browser.cdp, "Hide token");
+  await waitForBrowserTextMissing(browser.cdp, "scim_bearer_token_e2e_only_copy_once");
+  const providerConnectionProof = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
+    (SELECT count(*) FROM zasp_identity_provider_connections WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND connection_reference IN('saml-connection-e2e-created','scim-connection-e2e-created')),
+    (SELECT count(*) FROM zasp_identity_provider_mutations WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND state='completed' AND operation IN('createSSOConnection','createSCIMConnection','testSSOConnection')),
+    (SELECT count(*) FROM zasp_identity_secret_reveal_grants WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND acknowledged_at IS NULL AND ciphertext IS NOT NULL AND position(convert_to('scim_bearer_token_e2e_only_copy_once','UTF8') IN ciphertext)=0),
+    (SELECT count(*) FROM zasp_identity_provider_mutations WHERE response::text LIKE '%scim_bearer_token_e2e_only_copy_once%')
+  );`]);
+  assert.equal(providerConnectionProof.stdout.trim(), "2|3|1|0", "SSO/SCIM mutations were not durably bound or retained a raw bearer credential");
+  assert.deepEqual(stytchProviderRequests.map((request) => `${request.method} ${request.path}`).sort(), [
+    "GET /v1/b2b/scim/organization-test-local/connection",
+    "GET /v1/b2b/scim/organization-test-local/connection",
+    "GET /v1/b2b/sso/organization-test-local",
+    "GET /v1/b2b/sso/organization-test-local",
+    "GET /v1/b2b/sso/organization-test-local",
+    "GET /v1/b2b/sso/organization-test-local",
+    "POST /v1/b2b/scim/organization-test-local/connection",
+    "POST /v1/b2b/sso/saml/organization-test-local",
+  ]);
+  console.log("combined E2E: production SSO and SCIM browser workflow proven");
   assert.doesNotMatch(identityAccess, /Unpermitted environment/, "scope selector exposed an environment without an authorized-scope row");
   await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_product_sessions SET authenticated_at=transaction_timestamp()-interval '10 minutes' WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
   await reloadBrowser(browser.cdp);
@@ -667,6 +726,7 @@ try {
   await waitForBrowserText(browser.cdp, /Member role updated; active sessions revoked/);
   const roleResult = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT role || '|' || (SELECT count(*) FROM zasp_product_sessions WHERE session_id='session-role-change-e2e' AND revoked_at IS NOT NULL) FROM zasp_identity_memberships WHERE principal_id='pid_10000005-0000-4000-8000-000000000005';`]);
   assert.equal(roleResult.stdout.trim(), "read_only_viewer|1", "member role and session revocation were not atomic");
+  await exerciseStytchDeprovision(publicOrigin, dsn);
   await fillBrowserLabel(browser.cdp, "New workspace name", "E2E Workspace");
   await clickBrowserText(browser.cdp, "Create workspace");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized workspace", "E2E Workspace");
@@ -677,20 +737,26 @@ try {
   await clickBrowserText(browser.cdp, "Create environment");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "E2E Development");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized environment", "E2E Development");
+  const onboardedDevelopmentScope = await browserSelectedOptionValue(browser.cdp, "Authorized scope");
+  assert.notEqual(onboardedDevelopmentScope, "pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003", "environment onboarding did not select its new scope");
+  await waitForBrowserScope(browser.cdp, `pid_10000001-0000-4000-8000-000000000001/${onboardedDevelopmentScope}`);
   await selectBrowserOption(browser.cdp, "Authorized scope", "Production");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized workspace", "Production Workspace");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized environment", "Production");
+  await waitForBrowserScope(browser.cdp, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/api-access`);
   await waitForBrowserText(browser.cdp, /Create scoped automation credentials/);
-  const seededTokenCount = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT count(*) FROM zasp_product_api_tokens WHERE organization_id='pid_10000001-0000-4000-8000-000000000001';`]);
-  assert.equal(seededTokenCount.stdout.trim(), "1");
+  const seededTokenCount = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT count(*) || '|' || count(*) FILTER (WHERE revoked_at IS NULL) || '|' || count(*) FILTER (WHERE revoked_at IS NOT NULL) FROM zasp_product_api_tokens WHERE organization_id='pid_10000001-0000-4000-8000-000000000001';`]);
+  assert.equal(seededTokenCount.stdout.trim(), "2|1|1", "identity deprovision did not preserve one revoked token while retaining the active administrator token");
   const browserTokenInventory = await browserFetchJSON(browser.cdp, "/api/v1/admin/api-tokens", {
     "X-Zasp-Expected-Scope": "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003",
   });
   assert.equal(browserTokenInventory.status, 200, JSON.stringify(browserTokenInventory.body));
-  assert.equal(browserTokenInventory.body.items.length, 1);
+  assert.equal(browserTokenInventory.body.items.length, 2);
+  assert.equal(browserTokenInventory.body.items.filter((item) => item.revoked_at === null).length, 1, "API token inventory omitted or duplicated the active administrator token");
+  assert.equal(browserTokenInventory.body.items.filter((item) => item.revoked_at !== null).length, 1, "API token inventory omitted the deprovisioned member's revoked audit state");
   await waitForBrowserText(browser.cdp, /New credentials use the authenticated active scope/);
   assert.equal(await browserLabeledControlDisabled(browser.cdp, "Workspace ID"), null, "token create exposed an editable workspace ID");
   assert.equal(await browserLabeledControlDisabled(browser.cdp, "Environment ID"), null, "token create exposed an editable environment ID");
@@ -767,6 +833,7 @@ try {
   api = startChild(apiBinary, [], { env: apiEnvironment });
   await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
   await navigateBrowser(browser.cdp, restartReloadURL);
+  await waitForBrowserScope(browser.cdp, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
   const restartPendingGrant = await waitForBrowserText(browser.cdp, /Rotated token/);
   assert.doesNotMatch(restartPendingGrant, /zasp_pat_/, "restart-pending reveal grant exposed a token before reveal");
   assert.equal(await browserTextControlDisabled(browser.cdp, "Create API token"), true, "restart-pending reveal grant did not lock token mutations");
@@ -791,9 +858,11 @@ try {
   assert.equal(tokenMutationKeys.rotate.length, 1, "lost rotate recovery sent a second mutation instead of reconciling its grant");
   const reloadedAPIInventory = await waitForBrowserText(browser.cdp, /E2E API token/);
   assert.doesNotMatch(reloadedAPIInventory, /zasp_pat_/, "one-time API token survived a browser reload");
+  await waitForBrowserScope(browser.cdp, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
 
   await seedInvestigationSession(dsn);
   await navigateBrowser(browser.cdp, `${publicOrigin}/investigate/sessions`);
+  await waitForBrowserScope(browser.cdp, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
   const investigation = await waitForBrowserText(browser.cdp, /Shell requested by E2E/);
   assert.match(investigation, /evidence-session-e2e/);
   await clickBrowserAria(browser.cdp, "Revoke session session-investigation-e2e");
@@ -801,8 +870,20 @@ try {
   assert.match(sessionRevokeOutcome, /Session revoked/, `administration requests: ${JSON.stringify(administrationRequests)}`);
   const revokedSession = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT (revoked_at IS NOT NULL)::text || '|' || version FROM zasp_product_sessions WHERE session_id='session-investigation-e2e';`]);
   assert.equal(revokedSession.stdout.trim(), "true|2");
+	await waitForBrowserScope(browser.cdp, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
 
-  await navigateBrowser(browser.cdp, `${publicOrigin}/administration/audit-log`);
+	const auditInventory = await browserFetchJSON(browser.cdp, "/api/v1/audit-events?limit=100", {
+		"X-Zasp-Expected-Scope": "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003",
+	});
+	assert.equal(auditInventory.status, 200, JSON.stringify(auditInventory.body));
+	assert.equal(auditInventory.body.items.every((item) => Object.values(item.metadata).every((value) => typeof value === "string")), true, "public audit metadata escaped its string-only contract");
+	const auditActions = new Set(auditInventory.body.items.map((item) => item.action));
+	for (const action of ["session.revoke", "member.role.update", "api_token.create", "api_token.rotate", "identity.member.deprovision"]) assert.equal(auditActions.has(action), true, `public audit inventory omitted ${action}`);
+	await navigateBrowser(browser.cdp, `${publicOrigin}/administration/audit-log`);
+	await waitForBrowserScope(browser.cdp, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
+	await waitForBrowserAction(browser.cdp, `document.querySelector('select[aria-label="Authorized scope"]')?.value === "pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003"`);
+	const auditSelectedScope = await browserSelectedOptionValue(browser.cdp, "Authorized scope");
+	assert.equal(auditSelectedScope, "pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003", "audit target retained stale scope after server reconciliation");
   const auditLog = await waitForBrowserText(browser.cdp, /session\.revoke/);
   assert.match(auditLog, /member\.role\.update/);
   assert.match(auditLog, /api_token\.create/);
@@ -851,11 +932,20 @@ try {
   assert.match(await waitForBrowserText(browser.cdp, /Policy detail · policy-production/), /enforced/);
   await navigateBrowser(browser.cdp, `${publicOrigin}/connectors`);
   assert.match(await waitForBrowserText(browser.cdp, /Generic Webhook[\s\S]*configured/), /configured/);
+	const reloadedSecurityAgentID = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT definition_id FROM zasp_security_agent_definitions WHERE body->>'name'='Bounded response definition' AND deleted_at IS NULL;`])).stdout.trim();
+	assert.match(reloadedSecurityAgentID, /^pid_[0-9a-f-]{36}$/);
+	const reloadedSecurityAgentCookie = await getBrowserSessionCookie(browser.cdp, publicOrigin);
+	const reloadedSecurityAgentHeaders = { cookie: `__Host-zasp_session=${reloadedSecurityAgentCookie.value}`, "x-zasp-expected-scope": "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003" };
+	const reloadedSecurityAgentDefinition = await requestHTTPSJSON(`${publicOrigin}/api/v1/security-agents/${reloadedSecurityAgentID}`, { method: "GET", headers: reloadedSecurityAgentHeaders });
+	const reloadedSecurityAgentActivation = await requestHTTPSJSON(`${publicOrigin}/api/v1/security-agents/${reloadedSecurityAgentID}/activation`, { method: "GET", headers: reloadedSecurityAgentHeaders });
+	assert.equal(reloadedSecurityAgentDefinition.status, 200, `reloaded Security Agent definition failed: ${JSON.stringify(reloadedSecurityAgentDefinition)}`);
+	assert.equal(reloadedSecurityAgentActivation.status, 200, `reloaded Security Agent activation failed: ${JSON.stringify(reloadedSecurityAgentActivation)}`);
+	assert.equal(reloadedSecurityAgentDefinition.headers.etag, `"${reloadedSecurityAgentActivation.body.version}"`, "reloaded Security Agent definition and activation versions diverged");
   await navigateBrowser(browser.cdp, `${publicOrigin}/protect/security-agents`);
   await waitForBrowserText(browser.cdp, /Bounded response definition/);
   await clickBrowserAria(browser.cdp, "Open Bounded response definition");
   assert.match(await waitForBrowserText(browser.cdp, /Resource version/), /supervised/);
-  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Run Security Agent|Simulate Security Agent|Approve|Start bounded run|Runs|Approvals)$/i), false);
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate plan|Start supervised run|Approve|Reject|Cancel run)$/i), false);
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/audit-log`);
   assert.match(await waitForBrowserText(browser.cdp, /session\.revoke/), /api_token\.rotate/);
   await navigateBrowser(browser.cdp, `${publicOrigin}/compliance/evidence`);
@@ -874,13 +964,58 @@ try {
   assert.equal(deniedFinding.status, 404);
   assert.equal(deniedFinding.body.code, "not_found");
   assert.doesNotMatch(JSON.stringify(deniedFinding.body), /Foreign tenant finding/);
+
+  await navigateBrowser(browser.cdp, `${publicOrigin}/administration/identity-access`);
+  const identityForGroupMapping = await waitForBrowserText(browser.cdp, /member-group-e2e/);
+  if (/Fresh authentication expired/.test(identityForGroupMapping)) {
+    await clickBrowserText(browser.cdp, "Reauthenticate");
+    await waitForBrowserText(browser.cdp, /Continue through the configured identity provider/);
+    await clickBrowserText(browser.cdp, "Continue to sign in");
+    await waitForBrowserText(browser.cdp, /member-group-e2e/);
+  }
+  await fillBrowserLabel(browser.cdp, "Stytch SCIM group ID", identityGroupReference);
+  await selectBrowserOption(browser.cdp, "Mapped role", "read only viewer");
+  await fillBrowserLabel(browser.cdp, "Workspace ID", "pid_10000002-0000-4000-8000-000000000002");
+  await fillBrowserLabel(browser.cdp, "Environment ID", "pid_10000003-0000-4000-8000-000000000003");
+  await clickBrowserText(browser.cdp, "Save group mapping");
+  await waitForBrowserText(browser.cdp, /Group mapping saved; affected sessions revoked/);
+
+  nextIdentityLogin = "group";
+  await navigateBrowser(browser.cdp, `${publicOrigin}/sign-in?return_to=%2F`);
+  await waitForBrowserText(browser.cdp, /Sign in to Zasp[\s\S]*Continue through the configured identity provider/);
+  await clickBrowserText(browser.cdp, "Continue to sign in");
+  const groupOnlyHome = await waitForBrowserText(browser.cdp, /Security overview/);
+  nextIdentityLogin = "admin";
+	assert.doesNotMatch(groupOnlyHome, /Scope unavailable|Session unavailable|No product capabilities/);
+	await waitForBrowserScope(browser.cdp, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
+	assert.doesNotMatch(await browserBodyText(browser.cdp), /Staging|Unpermitted environment/, "group-only session exposed an unmapped tenant scope");
+  const staleForeignScope = await browserFetchJSON(browser.cdp, "/api/v1/agents", {
+    "X-Zasp-Expected-Scope": "pid_90000001-0000-4000-8000-000000000001/pid_90000002-0000-4000-8000-000000000002/pid_90000003-0000-4000-8000-000000000003",
+  });
+  assert.equal(staleForeignScope.status, 409);
+  assert.equal(staleForeignScope.body.code, "scope_stale");
+  const foreignAgentFromGroupSession = await browserFetchJSON(browser.cdp, "/api/v1/agents/pid_90000001-0000-4000-8000-000000000001", {
+    "X-Zasp-Expected-Scope": "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003",
+  });
+  assert.equal(foreignAgentFromGroupSession.status, 404);
+  assert.equal(foreignAgentFromGroupSession.body.code, "not_found");
+  const groupAuthorityProof = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
+    (SELECT count(*) FROM zasp_group_mappings WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND group_reference='${identityGroupReference}' AND role='read_only_viewer' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003'),
+    (SELECT count(*) FROM zasp_identity_member_groups WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND principal_id='pid_10000007-0000-4000-8000-000000000007' AND group_reference='${identityGroupReference}'),
+    (SELECT count(*) FROM zasp_authorized_scopes WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND principal_id='pid_10000007-0000-4000-8000-000000000007'),
+    (SELECT count(*) FROM zasp_product_sessions WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND principal_id='pid_10000007-0000-4000-8000-000000000007' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003' AND permissions @> '["view"]'::jsonb AND revoked_at IS NULL)
+  );`]);
+  assert.equal(groupAuthorityProof.stdout.trim(), "1|1|0|1", "group-only login did not derive its exact tenant scope from the verified provider group");
+  console.log("combined E2E: production SSO, SCIM, and group-mapping browser workflow proven");
+  console.log("combined E2E: group-derived browser login scope and cross-tenant denial proven");
+
   const connectorForensics = await browserConnectorForensics(browser.cdp);
   assert.deepEqual(connectorForensics.local, {});
   assert.deepEqual(connectorForensics.session, {});
   assert.deepEqual(connectorForensics.cacheKeys, []);
   assert.deepEqual(connectorForensics.indexedDatabases, []);
   const connectorBrowserSurface = JSON.stringify({ connectorForensics, browserConsoleMessages });
-  assert.doesNotMatch(connectorBrowserSurface, /zasp_pat_|access_token|refresh_token|code_verifier|client_secret|authorization_url|authorization_attempt_id|connector-(?:code|state|cross-scope)|secret-test-local|ref:(?:github\/(?:client-secret|app-private-key)|okta\/client-secret)|MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY/i);
+  assert.doesNotMatch(connectorBrowserSurface, /zasp_pat_|scim_bearer_token|access_token|refresh_token|code_verifier|client_secret|authorization_url|authorization_attempt_id|connector-(?:code|state|cross-scope)|secret-test-local|ref:(?:github\/(?:client-secret|app-private-key)|okta\/client-secret)|MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY/i);
   assert.equal(connectorForensics.navigationHistory.some((entry) => /[?&](?:code|state)=/i.test(`${entry.url} ${entry.userTypedURL}`)), false, "connector code/state remained in browser navigation history");
   console.log("combined E2E: connector tokens, state, verifier, and secrets absent from DOM, URL/history, storage, caches, IndexedDB, and console");
   assert.deepEqual(browserConsoleErrors, [], `browser console/exception errors: ${JSON.stringify(browserConsoleErrors)}`);
@@ -963,6 +1098,8 @@ CREATE ROLE zasp_e2e_index LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOR
 CREATE ROLE zasp_e2e_correlation LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 CREATE ROLE zasp_e2e_runtime_projection LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 CREATE ROLE zasp_e2e_gateway_control LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_security_agent_api LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_security_agent_worker LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 `;
   await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
 }
@@ -972,10 +1109,13 @@ async function seedPostgres(dsn) {
 INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id, environment_id, label, permissions, is_default) VALUES
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Production','["view","manage_workflows","manage_findings"]'::jsonb,true),
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','Staging','["view","manage_workflows","manage_findings"]'::jsonb,false),
+('pid_10000006-0000-4000-8000-000000000006','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Webhook member production','["view"]'::jsonb,true),
 ('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','Foreign','["view"]'::jsonb,true);
 INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-test-local','security_admin'),
-('pid_10000005-0000-4000-8000-000000000005','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-target-local','security_engineer');
+('pid_10000005-0000-4000-8000-000000000005','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-target-local','security_engineer'),
+('pid_10000006-0000-4000-8000-000000000006','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-webhook-e2e','security_engineer'),
+('pid_10000007-0000-4000-8000-000000000007','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-group-e2e','read_only_viewer');
 INSERT INTO zasp_organizations(id,name,domain) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','E2E Organization','e2e.invalid');
 INSERT INTO zasp_workspaces(id,organization_id,name) VALUES
@@ -993,9 +1133,11 @@ INSERT INTO zasp_compliance_controls(organization_id,id,framework,name,fresh_unt
 INSERT INTO zasp_compliance_evidence(organization_id,control_id,id,asset_id,source,at) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','access-control','evidence-membership','pid_10000004-0000-4000-8000-000000000004','product-membership',transaction_timestamp());
 INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES
-(digest('target-role-session','sha256'),'target-role-csrf-with-at-least-32-bytes','session-role-change-e2e','pid_10000005-0000-4000-8000-000000000005','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view"]'::jsonb,transaction_timestamp()+interval '1 hour');
+(digest('target-role-session','sha256'),'target-role-csrf-with-at-least-32-bytes','session-role-change-e2e','pid_10000005-0000-4000-8000-000000000005','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view"]'::jsonb,transaction_timestamp()+interval '1 hour'),
+(digest('webhook-member-session-e2e','sha256'),'webhook-member-csrf-at-least-32-bytes','session-webhook-member-e2e','pid_10000006-0000-4000-8000-000000000006','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view"]'::jsonb,transaction_timestamp()+interval '1 hour');
 INSERT INTO zasp_product_api_tokens (token_digest, principal_id, organization_id, workspace_id, environment_id, permissions, expires_at) VALUES
-(digest('production-e2e-product-token-with-at-least-32-bytes', 'sha256'),'pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view","manage_workflows","manage_findings"]'::jsonb,transaction_timestamp() + interval '1 hour');
+(digest('production-e2e-product-token-with-at-least-32-bytes', 'sha256'),'pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view","manage_workflows","manage_findings"]'::jsonb,transaction_timestamp() + interval '1 hour'),
+(digest('webhook-member-product-token-with-at-least-32-bytes','sha256'),'pid_10000006-0000-4000-8000-000000000006','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view"]'::jsonb,transaction_timestamp()+interval '1 hour');
 INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"cccccccccccccccccccccccccccccccc","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000022-0000-4000-8000-000000000022","environment_id":"pid_10000023-0000-4000-8000-000000000023","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"dddddddddddddddddddddddddddddddd","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb);
@@ -1652,6 +1794,7 @@ async function startIdentityServer(port, publicOrigin) {
     const target = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
     if (request.method === "GET" && target.pathname === "/v1/b2b/public/oauth/google/start") {
       identityOAuthStarts += 1;
+      pendingIdentityLogin = nextIdentityLogin;
       assert.equal(target.searchParams.get("public_token"), "public-token-test-local");
       assert.equal(target.searchParams.get("organization_id"), "organization-test-local");
       const callback = new URL(target.searchParams.get("login_redirect_url"));
@@ -1659,24 +1802,89 @@ async function startIdentityServer(port, publicOrigin) {
       assert.equal(callback.pathname, "/auth/callback");
       assert.equal(target.searchParams.get("signup_redirect_url"), callback.toString());
       assert.ok((callback.searchParams.get("state") ?? "").length >= 32);
-      callback.searchParams.set("token", "local-oauth-token");
+      callback.searchParams.set("token", pendingIdentityLogin === "group" ? "group-only-oauth-token" : "local-oauth-token");
       response.writeHead(302, { location: callback.toString() });
       response.end();
       return;
     }
     if (request.method === "POST" && target.pathname === "/v1/b2b/oauth/authenticate") {
       assert.equal(request.headers.authorization, `Basic ${Buffer.from("project-test-local:secret-test-local").toString("base64")}`);
-      assert.deepEqual(JSON.parse(await readBody(request)), { oauth_token: "local-oauth-token", session_duration_minutes: 60 });
+      const groupLogin = pendingIdentityLogin === "group";
+      assert.deepEqual(JSON.parse(await readBody(request)), { oauth_token: groupLogin ? "group-only-oauth-token" : "local-oauth-token", session_duration_minutes: 60 });
       response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({ status_code: 200, request_id: "request-id-test-oauth", member_id: "member-test-local", organization_id: "organization-test-local", session_jwt: "header.payload.signature" }));
+      response.end(JSON.stringify({
+        status_code: 200,
+        request_id: groupLogin ? "request-id-group-oauth" : "request-id-test-oauth",
+        member_id: groupLogin ? "member-group-e2e" : "member-test-local",
+        organization_id: "organization-test-local",
+        session_jwt: groupLogin ? "group.header.payload" : "header.payload.signature",
+      }));
       return;
     }
     if (request.method === "POST" && target.pathname === "/v1/b2b/sessions/authenticate") {
       assert.equal(request.headers.authorization, `Basic ${Buffer.from("project-test-local:secret-test-local").toString("base64")}`);
-      assert.deepEqual(JSON.parse(await readBody(request)), { session_jwt: "header.payload.signature" });
+      const input = JSON.parse(await readBody(request));
+      const groupLogin = input.session_jwt === "group.header.payload";
+      assert.ok(groupLogin || input.session_jwt === "header.payload.signature", "unexpected Stytch session JWT");
       const now = new Date();
+      const memberReference = groupLogin ? "member-group-e2e" : "member-test-local";
       response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({ status_code: 200, request_id: "request-id-test-session", session_jwt: "header.payload.signature", member_session: { member_session_id: "member-session-test-local", member_id: "member-test-local", organization_id: "organization-test-local", started_at: now.toISOString(), last_accessed_at: now.toISOString(), expires_at: new Date(now.getTime() + 3_600_000).toISOString() } }));
+      response.end(JSON.stringify({
+        status_code: 200,
+        request_id: groupLogin ? "request-id-group-session" : "request-id-test-session",
+        session_jwt: input.session_jwt,
+        member_session: {
+          member_session_id: groupLogin ? "member-session-group-e2e" : "member-session-test-local",
+          member_id: memberReference,
+          organization_id: "organization-test-local",
+          started_at: now.toISOString(),
+          last_accessed_at: now.toISOString(),
+          expires_at: new Date(now.getTime() + 3_600_000).toISOString(),
+        },
+        member: {
+          member_id: memberReference,
+          organization_id: "organization-test-local",
+          scim_registration: { scim_attributes: { groups: groupLogin ? [{ value: identityGroupReference, display: "Production readers" }] : [] } },
+        },
+      }));
+      return;
+    }
+    if (target.pathname.startsWith("/v1/b2b/")) {
+      assert.equal(request.headers.authorization, `Basic ${Buffer.from("project-test-local:secret-test-local").toString("base64")}`);
+      const requestBody = request.method === "GET" ? undefined : JSON.parse(await readBody(request));
+      stytchProviderRequests.push({ method: request.method, path: target.pathname, body: requestBody });
+      response.setHeader("content-type", "application/json");
+      if (request.method === "GET" && target.pathname === "/v1/b2b/sso/organization-test-local") {
+        response.end(JSON.stringify({ status_code: 200, request_id: "request-list-sso-e2e", saml_connections: stytchSSOConnections, oidc_connections: [] }));
+        return;
+      }
+      if (request.method === "POST" && target.pathname === "/v1/b2b/sso/saml/organization-test-local") {
+        assert.deepEqual(requestBody, { display_name: "E2E SSO", identity_provider: "generic" });
+        const connection = { organization_id: "organization-test-local", connection_id: "saml-connection-e2e-created", status: "pending", display_name: "E2E SSO", identity_provider: "generic" };
+        stytchSSOConnections.push(connection);
+        response.end(JSON.stringify({ status_code: 200, request_id: "request-create-sso-e2e", connection }));
+        return;
+      }
+      if (request.method === "GET" && target.pathname === "/v1/b2b/scim/organization-test-local/connection") {
+        response.end(JSON.stringify({ status_code: 200, request_id: "request-list-scim-e2e", connection: stytchSCIMConnection ?? null }));
+        return;
+      }
+      if (request.method === "POST" && target.pathname === "/v1/b2b/scim/organization-test-local/connection") {
+        assert.deepEqual(requestBody, { display_name: "E2E SCIM", identity_provider: "generic" });
+        stytchSCIMConnection = {
+          organization_id: "organization-test-local",
+          connection_id: "scim-connection-e2e-created",
+          status: "active",
+          display_name: "E2E SCIM",
+          identity_provider: "generic",
+          base_url: "https://scim.stytch.com/v2/production-e2e",
+          bearer_token: "scim_bearer_token_e2e_only_copy_once",
+        };
+        response.end(JSON.stringify({ status_code: 200, request_id: "request-create-scim-e2e", connection: stytchSCIMConnection }));
+        return;
+      }
+      response.writeHead(404);
+      response.end(JSON.stringify({ status_code: 404 }));
       return;
     }
     response.writeHead(404);
@@ -1704,7 +1912,7 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const tokenRotate = request.method === "POST" && /^\/api\/v1\/admin\/api-tokens\/pid_[0-9a-f-]+\/rotate$/.test(target.pathname);
     const tokenReveal = request.method === "POST" && /^\/api\/v1\/admin\/api-token-reveal-grants\/pid_[0-9a-f-]+\/reveal$/.test(target.pathname);
     const tokenAcknowledge = request.method === "DELETE" && /^\/api\/v1\/admin\/api-token-reveal-grants\/pid_[0-9a-f-]+$/.test(target.pathname);
-    const integrationDeleteID = request.method === "DELETE" && /^\/api\/v1\/integrations\/pid_[0-9a-f-]+$/.test(target.pathname) ? target.pathname.split("/").at(-1) : undefined;
+		const integrationDeleteID = request.method === "DELETE" && /^\/api\/v1\/integrations\/pid_[0-9a-f-]+$/.test(target.pathname) ? target.pathname.split("/").at(-1) : undefined;
     const findingTicketRequest = request.method === "POST" && /^\/api\/v1\/findings\/pid_[0-9a-f-]+\/ticket$/.test(target.pathname);
     const connectorAuthorizationRequest = request.method === "POST" && target.pathname === `/api/v1/integrations/${terminalRevocationIntegrationID}/authorize` && String(request.headers.cookie ?? "").includes("__Host-zasp_session=");
     if (tokenCreate) tokenMutationKeys.create.push(String(request.headers["idempotency-key"] ?? ""));
@@ -1888,7 +2096,7 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
       upstreamResponse.pipe(response);
     });
     upstream.on("error", () => { response.writeHead(502); response.end("upstream unavailable"); });
-    request.pipe(upstream);
+		request.pipe(upstream);
   });
   server.listen(port, "127.0.0.1");
   await once(server, "listening");
@@ -2352,6 +2560,25 @@ async function waitForBrowserSelectedOption(cdp, label, text) {
   await waitForBrowserAction(cdp, `(() => { const labelText = ${JSON.stringify(label)}; const field = [...document.querySelectorAll('label')].find((candidate) => [...candidate.querySelectorAll('span')].some((span) => span.textContent?.trim() === labelText)); const select = document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)}) ?? field?.querySelector('select'); return Boolean(select && select.options[select.selectedIndex]?.textContent?.trim() === ${JSON.stringify(text)} && !select.disabled); })()`);
 }
 
+async function browserSelectedOptionValue(cdp, label) {
+  const evaluated = await cdp.send("Runtime.evaluate", { expression: `document.querySelector(${JSON.stringify(`select[aria-label="${label}"]`)})?.value ?? ""`, returnByValue: true });
+  const value = evaluated.result?.value;
+  assert.equal(typeof value, "string");
+  assert.notEqual(value, "");
+  return value;
+}
+
+async function waitForBrowserScope(cdp, expectedScope) {
+  const [organizationID, workspaceID, environmentID] = expectedScope.split("/");
+  let last;
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    last = await browserFetchJSON(cdp, "/api/v1/session/bootstrap", { "X-Zasp-Expected-Scope": expectedScope });
+    if (last.status === 200 && last.body?.organization_id === organizationID && last.body?.workspace_id === workspaceID && last.body?.environment_id === environmentID) return;
+    await delay(25);
+  }
+	throw new Error(`browser scope did not reconcile to ${expectedScope}: ${JSON.stringify(last)}`);
+}
+
 async function browserCountAriaPrefix(cdp, prefix) {
   const evaluated = await cdp.send("Runtime.evaluate", { expression: `document.querySelectorAll(${JSON.stringify(`[aria-label^="${prefix}"]`)}).length`, returnByValue: true });
   return evaluated.result?.value;
@@ -2418,6 +2645,50 @@ async function requestHTTPSJSON(target, options, body) {
     request.on("error", reject);
     request.end(body);
   });
+}
+
+async function exerciseStytchDeprovision(publicOrigin, dsn) {
+  const messageID = "msg_task11_deprovision_0001";
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const event = {
+    action: "DELETE",
+    details: { organization_id: "organization-test-local" },
+    event_id: "webhook-event-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c90",
+    id: "member-webhook-e2e",
+    object_type: "member",
+    project_id: "project-test-local",
+    source: "SCIM",
+    timestamp: new Date(Number(timestamp) * 1000).toISOString().replace(".000Z", "Z"),
+    vertical: "B2B",
+    workspace_id: "workspace-test-local",
+  };
+  const body = JSON.stringify(event);
+  const key = Buffer.from(stytchWebhookSecret.slice("whsec_".length), "base64");
+  const signature = `v1,${createHmac("sha256", key).update(`${messageID}.${timestamp}.${body}`).digest("base64")}`;
+  const options = {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "content-length": String(Buffer.byteLength(body)),
+      "svix-id": messageID,
+      "svix-timestamp": timestamp,
+      "svix-signature": signature,
+    },
+  };
+  const processed = await requestHTTPSJSON(`${publicOrigin}/api/v1/webhooks/stytch`, options, body);
+  const replayed = await requestHTTPSJSON(`${publicOrigin}/api/v1/webhooks/stytch`, options, body);
+  assert.deepEqual({ status: processed.status, body: processed.body }, { status: 202, body: { processed: true } });
+  assert.deepEqual({ status: replayed.status, body: replayed.body }, { status: 202, body: { processed: false } });
+  const proof = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
+    (SELECT active::text FROM zasp_identity_memberships WHERE principal_id='pid_10000006-0000-4000-8000-000000000006'),
+    (SELECT count(*) FROM zasp_product_sessions WHERE principal_id='pid_10000006-0000-4000-8000-000000000006' AND revoked_at IS NOT NULL),
+    (SELECT count(*) FROM zasp_product_api_tokens WHERE principal_id='pid_10000006-0000-4000-8000-000000000006' AND revoked_at IS NOT NULL),
+    (SELECT count(*) FROM zasp_authorized_scopes WHERE principal_id='pid_10000006-0000-4000-8000-000000000006'),
+    (SELECT count(*) FROM zasp_identity_webhook_events WHERE event_id='webhook-event-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c90'),
+    (SELECT count(*) FROM zasp_admin_audit WHERE action='identity.member.deprovision' AND target_id='pid_10000006-0000-4000-8000-000000000006')
+  );`]);
+  assert.equal(proof.stdout.trim(), "false|1|1|0|1|1", "signed deprovision did not atomically disable the member and revoke tenant authority");
+  console.log("combined E2E: signed Stytch webhook replay and tenant deprovision proven");
 }
 
 function assertRejectedConnectorResponse(response, status, code, label) {

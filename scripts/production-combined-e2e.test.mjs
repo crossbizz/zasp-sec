@@ -13,7 +13,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "initdb", "postgres", "agentsec-migrate", "agentsec-api", "vinext", "Google Chrome",
     "/api/v1/session/start", "/auth/callback", "__Host-zasp_session", "Support agent",
     "not_found", "SIGTERM", "pg_ctl", "FIXED_NODE_VERSION", "Roll to monitor",
-    "Save Security Agent definition", "configured", "Durable, scoped response definitions",
+    "Save Security Agent definition", "configured", "Tenant-scoped response definitions",
     "lostPolicyResponseKeys", "replaceTarget", "Recover committed operations", "Acknowledge recovered result", "full-document receipt recovery", "two lost browser responses changed idempotency key", "1|2|2|1",
     "Input.dispatchKeyEvent", "browserDialogIsolation", "keyboard focus trap and restoration",
     "PAT success, replay, and zero browser receipts", "1|1|0", "workflowPageRequests", "Paged policy 1000", "Paged integration 1001",
@@ -21,10 +21,14 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "startBrowserTab", "actual two-tab delayed out-of-order ABA stale-scope recovery proven", "X-Zasp-Expected-Scope",
     "delayedFirstTabBootstrap", "secondTabBootstrapWhileFirstDelayed", "firstTabScopeStaleResponses", "X-Zasp-E2E-Tab",
     "ZASP_DEPLOYMENT_MODE", "/administration/identity-access", "member-target-local", "Member role updated; active sessions revoked",
+    "ZASP_STYTCH_WEBHOOK_SECRET", "schema 19 identity_administration verified",
+    "production SSO, SCIM, and group-mapping browser workflow proven",
+    "signed Stytch webhook replay and tenant deprovision proven",
+    "group-derived browser login scope and cross-tenant denial proven",
     "E2E Workspace", "workspace onboarding did not atomically create its first authorized environment and reload boundary", "E2E Development",
     "/administration/api-access", "ZASP_TOKEN_REVEAL_KEY", "lostTokenResponses", "Save API token", "Copy token",
     "Acknowledgement failed", "Rotate E2E API token", "old API token remained valid after rotation", "api_token.reveal.acknowledge", "restartReloadURL",
-    "Fresh authentication expired", "Reauthenticate", "configured provider remained falsely healthy", "CDP request timed out", "navigateBrowser", "reloadBrowser", "Target.attachToTarget", "Target.closeTarget", "sessionId", "cdp.replaceTarget",
+    "Fresh authentication expired", "Reauthenticate", "configured provider remained falsely healthy", "CDP request timed out", "navigateBrowser", "reloadBrowser", "waitForBrowserScope", "Target.attachToTarget", "Target.closeTarget", "sessionId", "cdp.replaceTarget",
     "session-investigation-e2e", "Shell requested by E2E", "Revoke session session-investigation-e2e",
     "/administration/audit-log", "Audit exports unavailable", "/compliance/evidence", "Evidence exports unavailable",
     "/administration/data-retention", "Data deletion unavailable", "/administration/external-data-flows", "identity-provider",
@@ -37,7 +41,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "browserStorageHistoryAndCaches", "indexedDB.databases", "assertResponsiveRiskLayout", "Emulation.setDeviceMetricsOverride",
     "browser console and exception stream remained clean", "hidden risk-adjacent routes canonicalized without hidden API calls",
     "/red-team/results", "/test/attack-lab", "/reports", "/guardrails/dashboard", "/prompt-hardening",
-    "schema 14 typed_inventory_cutover verified", "schema 15 runtime_data_plane verified", "schema 17 runtime_ingest_reconciliation verified", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN",
+    "schema 14 typed_inventory_cutover verified", "schema 15 runtime_data_plane verified", "schema 17 runtime_ingest_reconciliation verified", "schema 18 security_agent_execution verified", "schema 19 identity_administration verified", "ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN",
     "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION",
     "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX",
     "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS",
@@ -74,6 +78,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "ZASP_RUNTIME_INGEST_DB_PRINCIPAL", "ZASP_RUNTIME_WORKER_DB_PRINCIPAL", "ZASP_OUTBOX_WORKER_DB_PRINCIPAL", "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL",
     "ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL", "ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL", "ZASP_RUNTIME_INDEX_DB_PRINCIPAL",
     "ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL", "ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL", "ZASP_GATEWAY_CONTROL_DB_PRINCIPAL",
+    "ZASP_SECURITY_AGENT_API_DB_PRINCIPAL", "ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL", "ZASP_SECURITY_AGENT_POSTGRES_DSN",
     "provisionPostgresPrincipals", "apiDSN", "zasp.production-e2e.test", "--host-resolver-rules", "SIGQUIT",
     "schema 14 typed_inventory_cutover verified", "agentsec-worker-e2e", "runDeterministicLocalDiscovery",
     "deterministic local provider and artifact authority completed public sync", "typed inventory public routes derive only from complete discovery snapshots",
@@ -86,7 +91,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
 		"Task6 reload and deletion left no enrollment credential in persistent browser state", "zasp_runtime_sensor_heartbeat",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   const apiEnvironment = source.slice(source.indexOf("const apiEnvironment = {"), source.indexOf("api = startChild(apiBinary"));
-  for (const value of ["HOSTNAME", "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_FINDING_TICKET_EGRESS_CIDRS"]) assert.match(apiEnvironment, new RegExp(value));
+  for (const value of ["HOSTNAME", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_FINDING_TICKET_EGRESS_CIDRS"]) assert.match(apiEnvironment, new RegExp(value));
   const outboxBoundary = source.slice(source.indexOf("const outbox = startTask4Worker"), source.indexOf("for (const candidate of", source.indexOf("const outbox = startTask4Worker")));
   assert.match(outboxBoundary, /waitForChildExit\(outbox, 10_000\)/);
   assert.match(outboxBoundary, /status: 1, signal: null/);
