@@ -90,7 +90,9 @@ type executionReadinessOnlyDatabase struct {
 	schemaCalls    int
 	inventoryCalls int
 	executionCalls int
+	identityCalls  int
 	inventoryReady json.RawMessage
+	identityReady  json.RawMessage
 	ready          json.RawMessage
 	principal      json.RawMessage
 }
@@ -111,10 +113,30 @@ func (database *executionReadinessOnlyDatabase) QueryJSON(_ context.Context, que
 	case postgresExecutionReadySQL:
 		database.executionCalls++
 		return database.ready, nil
+	case postgresIdentityAdministrationReadinessSQL:
+		database.identityCalls++
+		return database.identityReady, nil
 	case postgresExecutionPrincipalReadySQL, postgresDiscoveryPrincipalReadySQL:
 		return database.principal, nil
 	default:
 		return nil, errors.New("unexpected query")
+	}
+}
+
+func TestDiscoveryExecutionConstructorsAcceptCurrentV19Readiness(t *testing.T) {
+	database := &executionReadinessOnlyDatabase{
+		identityReady: json.RawMessage(`true`),
+		principal:     json.RawMessage(`true`),
+	}
+	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+	if err != nil {
+		t.Fatalf("v19 constructor error=%v", err)
+	}
+	if err := repository.Ready(context.Background()); err != nil {
+		t.Fatalf("v19 Ready() error=%v", err)
+	}
+	if database.schemaCalls != 0 || database.identityCalls != 2 || database.inventoryCalls != 0 || database.executionCalls != 0 {
+		t.Fatalf("readiness calls schema=%d identity=%d inventory=%d execution=%d", database.schemaCalls, database.identityCalls, database.inventoryCalls, database.executionCalls)
 	}
 }
 
