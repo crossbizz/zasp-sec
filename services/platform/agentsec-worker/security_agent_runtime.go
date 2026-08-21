@@ -34,6 +34,9 @@ func (processor *securityAgentProcessor) RunOnce(ctx context.Context) error {
 	if processor == nil || ctx == nil || ctx.Err() != nil {
 		return errWorkerExecution
 	}
+	if _, err := processor.config.Authority.ScheduleSecurityAgentTriggers(ctx, processor.config.WorkerID, processor.config.BatchSize); err != nil {
+		return errWorkerExecution
+	}
 	leaseToken, err := processor.config.NewLeaseToken()
 	if err != nil || len(leaseToken) < 16 || len(leaseToken) > 128 {
 		return errWorkerExecution

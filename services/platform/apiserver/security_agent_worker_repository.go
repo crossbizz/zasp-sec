@@ -9,11 +9,12 @@ import (
 )
 
 const (
-	postgresSecurityAgentWorkerReadySQL  = `SELECT jsonb_build_object('release',zasp_security_agent_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
-	postgresSecurityAgentClaimRunsSQL    = `SELECT zasp_security_agent_claim_runs($1,$2,$3,$4)`
-	postgresSecurityAgentHeartbeatRunSQL = `SELECT zasp_security_agent_heartbeat_run($1,$2,$3,$4,$5,$6,$7)`
-	postgresSecurityAgentPrepareRunSQL   = `SELECT zasp_security_agent_prepare_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresSecurityAgentExecuteRunSQL   = `SELECT zasp_security_agent_execute_run($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresSecurityAgentWorkerReadySQL      = `SELECT jsonb_build_object('release',zasp_security_agent_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+	postgresSecurityAgentScheduleTriggersSQL = `SELECT zasp_security_agent_schedule_triggers($1,$2)`
+	postgresSecurityAgentClaimRunsSQL        = `SELECT zasp_security_agent_claim_runs($1,$2,$3,$4)`
+	postgresSecurityAgentHeartbeatRunSQL     = `SELECT zasp_security_agent_heartbeat_run($1,$2,$3,$4,$5,$6,$7)`
+	postgresSecurityAgentPrepareRunSQL       = `SELECT zasp_security_agent_prepare_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentExecuteRunSQL       = `SELECT zasp_security_agent_execute_run($1,$2,$3,$4,$5,$6,$7,$8)`
 )
 
 type SecurityAgentRunClaim struct {
@@ -52,10 +53,28 @@ type SecurityAgentExecuteResult struct {
 
 type SecurityAgentWorkerAuthority interface {
 	Ready(context.Context) error
+	ScheduleSecurityAgentTriggers(context.Context, string, int) (int, error)
 	ClaimSecurityAgentRuns(context.Context, string, string, int, int) ([]SecurityAgentRunClaim, error)
 	HeartbeatSecurityAgentRun(context.Context, SecurityAgentRunClaim, string, string, int) error
 	PrepareSecurityAgentRun(context.Context, SecurityAgentRunClaim, string, string, string, time.Time, string, string) (SecurityAgentPrepareResult, error)
 	ExecuteSecurityAgentRun(context.Context, SecurityAgentRunClaim, string, string, string, string) (SecurityAgentExecuteResult, error)
+}
+
+func (repository *SecurityAgentWorkerRepository) ScheduleSecurityAgentTriggers(ctx context.Context, workerID string, limit int) (int, error) {
+	if repository == nil || ctx == nil || ctx.Err() != nil || !validSecurityAgentText(workerID, 128) || limit < 1 || limit > 25 {
+		return 0, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentScheduleTriggersSQL, workerID, limit)
+	if err != nil {
+		return 0, discoveryProviderError(err)
+	}
+	var result struct {
+		Created int `json:"created"`
+	}
+	if !exactJSONFields(payload, "created") || decodeStrictDiscovery(payload, &result) != nil || result.Created < 0 || result.Created > limit {
+		return 0, ErrRepositoryUnavailable
+	}
+	return result.Created, nil
 }
 
 type SecurityAgentWorkerRepository struct{ database JSONDatabase }

@@ -69,8 +69,8 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	defer apiConnection.Close(context.Background())
 	workerConnection := connectAs("security_agent_worker_login")
 	defer workerConnection.Close(context.Background())
-	var apiReady, workerReady, apiCanClaim, apiCanLegacyCreate, apiCanRun bool
-	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_principal_ready('zasp_security_agent_api'),zasp_security_agent_principal_ready('zasp_security_agent_worker'),has_function_privilege(session_user,'zasp_security_agent_claim_runs(text,text,integer,integer)','EXECUTE'),has_function_privilege(session_user,'zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text)','EXECUTE'),has_function_privilege(session_user,'zasp_security_agent_run(text,text,text,text,text,text,bigint,text,text,text,text,text,text)','EXECUTE')`).Scan(&apiReady, &workerReady, &apiCanClaim, &apiCanLegacyCreate, &apiCanRun); err != nil || !apiReady || workerReady || apiCanClaim || apiCanLegacyCreate || !apiCanRun {
+	var apiReady, workerReady, apiCanClaim, apiCanSchedule, apiCanLegacyCreate, apiCanRun bool
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_principal_ready('zasp_security_agent_api'),zasp_security_agent_principal_ready('zasp_security_agent_worker'),has_function_privilege(session_user,'zasp_security_agent_claim_runs(text,text,integer,integer)','EXECUTE'),has_function_privilege(session_user,'zasp_security_agent_schedule_triggers(text,integer)','EXECUTE'),has_function_privilege(session_user,'zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text)','EXECUTE'),has_function_privilege(session_user,'zasp_security_agent_run(text,text,text,text,text,text,bigint,text,text,text,text,text,text)','EXECUTE')`).Scan(&apiReady, &workerReady, &apiCanClaim, &apiCanSchedule, &apiCanLegacyCreate, &apiCanRun); err != nil || !apiReady || workerReady || apiCanClaim || apiCanSchedule || apiCanLegacyCreate || !apiCanRun {
 		t.Fatalf("api authority ready=%t worker=%t claim=%t legacy_create=%t run=%t err=%v", apiReady, workerReady, apiCanClaim, apiCanLegacyCreate, apiCanRun, err)
 	}
 	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_principal_ready('zasp_security_agent_worker')`).Scan(&workerReady); err != nil || !workerReady {
@@ -327,5 +327,28 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	err = apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_run($1,$2,$3,$4,$5,'security-agent-run-idem-foreign',3,'pid_78000004-0000-4000-8000-000000000004','finding',$6,'audit-run-foreign','corr-run-foreign','receipt-run-foreign')`, foreignOrganization, workspaceID, environmentID, definitionID, actorID, evidenceID).Scan(&detail)
 	if !errors.As(err, &postgresError) || postgresError.Code != "22023" {
 		t.Fatalf("foreign create error=%v", err)
+	}
+
+	var changedRunVersion int64
+	if err := connection.QueryRow(ctx, `SELECT version FROM zasp_security_agent_runs WHERE run_id=$1`, changedRunID).Scan(&changedRunVersion); err != nil {
+		t.Fatal(err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_cancel_run($1,$2,$3,$4,$5,'cancel-changed-run-0001',$6,'pid_78000078-0000-4000-8000-000000000078','pid_78000079-0000-4000-8000-000000000079','pid_78000080-0000-4000-8000-000000000080')`, organizationID, workspaceID, environmentID, changedRunID, actorID, changedRunVersion).Scan(&detail); err != nil {
+		t.Fatalf("cancel changed run: %v", err)
+	}
+	automaticFindingID := "pid_78000081-0000-4000-8000-000000000081"
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status) VALUES($1,$2,$3,$4,'posture','credential','Automatically discovered credential exposure','high','open')`, organizationID, workspaceID, environmentID, automaticFindingID); err != nil {
+		t.Fatal(err)
+	}
+	var scheduled json.RawMessage
+	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_schedule_triggers('worker-auto',10)`).Scan(&scheduled); err != nil || !strings.Contains(string(scheduled), `"created": 1`) {
+		t.Fatalf("schedule automatic finding=%s err=%v", scheduled, err)
+	}
+	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_schedule_triggers('worker-auto',10)`).Scan(&scheduled); err != nil || !strings.Contains(string(scheduled), `"created": 0`) {
+		t.Fatalf("replay automatic finding=%s err=%v", scheduled, err)
+	}
+	var automaticRunID, automaticTriggerID, automaticState string
+	if err := connection.QueryRow(ctx, `SELECT run.run_id,run.trigger_id,run.state FROM zasp_security_agent_runs run WHERE (run.organization_id,run.workspace_id,run.environment_id,run.definition_id,run.trigger_id)=($1,$2,$3,$4,$5)`, organizationID, workspaceID, environmentID, definitionID, automaticFindingID).Scan(&automaticRunID, &automaticTriggerID, &automaticState); err != nil || !validProductID(automaticRunID) || automaticTriggerID != automaticFindingID || automaticState != "queued" {
+		t.Fatalf("automatic run=%q trigger=%q state=%q err=%v", automaticRunID, automaticTriggerID, automaticState, err)
 	}
 }

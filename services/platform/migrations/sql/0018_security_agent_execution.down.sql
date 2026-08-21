@@ -1,6 +1,6 @@
 DO $guard$
 BEGIN
-  IF public.zasp_security_agent_live_fingerprint()<>'6849308904dfab78dff862d4281281cc4c2a8a91a7dc9e75825b8d7f0fb083f1'
+  IF public.zasp_security_agent_live_fingerprint()<>'6034f34d37788264be0cb038f8754bb75a87785a74553771f067390b81028ba7'
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_execution_state WHERE used_at IS NOT NULL)
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_runs)
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_effects) THEN
@@ -30,6 +30,7 @@ DROP FUNCTION public.zasp_security_agent_prepare_run(text,text,text,text,text,te
 DROP FUNCTION public.zasp_security_agent_heartbeat_run(text,text,text,text,text,text,integer);
 DROP FUNCTION public.zasp_security_agent_run(text,text,text,text,text,text,bigint,text,text,text,text,text,text);
 DROP FUNCTION public.zasp_security_agent_claim_runs(text,text,integer,integer);
+DROP FUNCTION public.zasp_security_agent_schedule_triggers(text,integer);
 DROP FUNCTION public.zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text);
 DROP FUNCTION public.zasp_security_agent_simulate(text,text,text,text,text,text,bigint,text,text,jsonb,timestamptz,text,text,text);
 DROP FUNCTION public.zasp_security_agent_activate(text,text,text,text,text,text,bigint,text,timestamptz,text,text,text);
