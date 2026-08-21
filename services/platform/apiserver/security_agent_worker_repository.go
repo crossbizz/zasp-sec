@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	postgresSecurityAgentWorkerReadySQL      = `SELECT jsonb_build_object('release',zasp_security_agent_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+	postgresSecurityAgentWorkerReadySQL      = `SELECT jsonb_build_object('release',zasp_security_agent_controls_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
 	postgresSecurityAgentScheduleTriggersSQL = `SELECT zasp_security_agent_schedule_triggers($1,$2)`
 	postgresSecurityAgentClaimRunsSQL        = `SELECT zasp_security_agent_claim_runs($1,$2,$3,$4)`
 	postgresSecurityAgentHeartbeatRunSQL     = `SELECT zasp_security_agent_heartbeat_run($1,$2,$3,$4,$5,$6,$7)`
@@ -96,7 +96,7 @@ func (repository *SecurityAgentWorkerRepository) Ready(ctx context.Context) erro
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentWorkerReadySQL, migrations.ProductionSecurityAgentExecution().Checksum(), migrations.ProductionSecurityAgentExecutionSemanticFingerprint())
+	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentWorkerReadySQL, migrations.ProductionSecurityAgentControls().Checksum(), migrations.ProductionSecurityAgentControlsSemanticFingerprint())
 	if err != nil {
 		return ErrRepositoryUnavailable
 	}
