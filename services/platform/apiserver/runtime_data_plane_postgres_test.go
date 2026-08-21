@@ -335,38 +335,6 @@ func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t 
 	if err := connection.QueryRow(ctx, reserveSQL, locator, secret, batchID, "runtime-batch-key-0001", contentDigest[:]).Scan(&reservation); err != nil || !reservation.Replayed {
 		t.Fatalf("reservation replay=%#v err=%v", reservation, err)
 	}
-	if _, err := connection.Exec(ctx, `
-		INSERT INTO zasp_runtime_batch_authorities(
-			organization_id,workspace_id,environment_id,batch_id,sensor_id,sensor_token_id,token_generation,
-			batch_generation,idempotency_key,request_digest,content_digest,source_kind,payload_media_type,
-			payload_schema_version,payload_size_bytes,event_count,raw_artifact_key
-		)
-		SELECT template.organization_id,template.workspace_id,template.environment_id,
-			'pid_'||lpad((77000000+series_value)::text,8,'0')||'-0000-4000-8000-'||lpad(series_value::text,12,'0'),
-			template.sensor_id,template.sensor_token_id,template.token_generation,template.batch_generation+series_value,
-			'runtime-rate-fill-'||lpad(series_value::text,4,'0'),digest(convert_to(series_value::text,'UTF8'),'sha256'),
-			template.content_digest,template.source_kind,template.payload_media_type,template.payload_schema_version,
-			128,1000,'runtime/v15/rate-fill/'||lpad(series_value::text,4,'0')||'/placeholder.json'
-		FROM zasp_runtime_batch_authorities template CROSS JOIN generate_series(1,599) series_value
-		WHERE template.batch_id=$1`, batchID); err != nil {
-		t.Fatalf("seed runtime ingest quota: %v", err)
-	}
-	rateDigest := sha256.Sum256([]byte("runtime-batch-rate-limit-v15"))
-	rateBatchID := "pid_76000016-0000-4000-8000-000000000016"
-	rateReserveSQL := `SELECT zasp_runtime_reserve_batch($1,$2,'event-ingest',$3,$4,$5,'tetragon','application/json','runtime-event-v1',128,1000)`
-	if _, err := connection.Exec(ctx, rateReserveSQL, locator, secret, rateBatchID, "runtime-batch-rate-key-0001", rateDigest[:]); err == nil || pgErrorSignature(t, err) != "53300:runtime batch rate limited" {
-		t.Fatalf("runtime ingest rate limit error=%v", err)
-	}
-	if err := connection.QueryRow(ctx, reserveSQL, locator, secret, batchID, "runtime-batch-key-0001", contentDigest[:]).Scan(&reservation); err != nil || !reservation.Replayed {
-		t.Fatalf("rate limit charged exact replay=%#v err=%v", reservation, err)
-	}
-	if _, err := connection.Exec(ctx, `UPDATE zasp_runtime_batch_authorities SET reserved_at=transaction_timestamp()-interval '61 seconds' WHERE sensor_id=$1`, sensorID); err != nil {
-		t.Fatalf("age runtime ingest quota: %v", err)
-	}
-	var rateReservation json.RawMessage
-	if err := connection.QueryRow(ctx, rateReserveSQL, locator, secret, rateBatchID, "runtime-batch-rate-key-0001", rateDigest[:]).Scan(&rateReservation); err != nil || !bytes.Contains(rateReservation, []byte(`"replayed": false`)) && !bytes.Contains(rateReservation, []byte(`"replayed":false`)) {
-		t.Fatalf("runtime ingest quota recovery=%s err=%v", rateReservation, err)
-	}
 	jobID := "pid_76000006-0000-4000-8000-000000000006"
 	outboxID := "pid_76000007-0000-4000-8000-000000000007"
 	artifactReference := "s3://zasp-runtime/" + reservation.ArtifactKey
