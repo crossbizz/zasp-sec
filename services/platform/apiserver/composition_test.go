@@ -140,11 +140,14 @@ func TestTaskSixCompositionHasExactRiskDiscoveryAndSensorSurfacesWithoutLaterOve
 		"listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
 		"simulatePolicy", "listPolicyDecisions",
 		"listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
-		"globalSearch", "createAIExplanation",
+		"createAIExplanation",
 	} {
 		if _, mounted := definitions[operationID]; mounted {
 			t.Errorf("incomplete operation %q remains mounted", operationID)
 		}
+	}
+	if definition, ok := definitions["globalSearch"]; !ok || definition.Permission != "view" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
+		t.Errorf("global search security/permission = %v/%q exists=%v", definition.Security, definition.Permission, ok)
 	}
 }
 

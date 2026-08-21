@@ -7,6 +7,8 @@ import (
 	"io"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
@@ -19,6 +21,7 @@ const (
 	postgresRiskBreakOptionsGetSQL = `SELECT zasp_risk_break_options_get($1, $2, $3, $4)`
 	postgresRiskHighPathCountSQL   = `SELECT to_jsonb(zasp_risk_high_path_count($1, $2, $3))`
 	postgresRiskFindingMutateSQL   = `SELECT zasp_risk_mutate($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), NULLIF($10, ''), $11, $12, NULLIF($13, ''))`
+	postgresGlobalSearchSQL        = `SELECT zasp_global_search($1, $2, $3, $4, $5)`
 )
 
 type RiskFactor struct {
@@ -94,6 +97,42 @@ type RiskFindingMutationResult struct {
 	CorrelationID string      `json:"correlation_id"`
 	ReceiptID     string      `json:"receipt_id,omitempty"`
 	Replayed      bool        `json:"replayed"`
+}
+
+type GlobalSearchResult struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
+
+type GlobalSearchPage struct {
+	Items []GlobalSearchResult `json:"items"`
+}
+
+func (repository *PostgresRepository) SearchGlobal(ctx context.Context, scope domain.Scope, query string, limit int) (GlobalSearchPage, error) {
+	if repository == nil || nilInterface(repository.database) || ctx == nil || scope.Validate() != nil || strings.TrimSpace(query) != query || !globalSearchQueryPattern.MatchString(query) || limit < 1 || limit > 100 {
+		return GlobalSearchPage{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresGlobalSearchSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), query, limit)
+	if err != nil {
+		return GlobalSearchPage{}, riskProviderError(err)
+	}
+	var result GlobalSearchPage
+	if decodeStrictRisk(payload, &result) != nil || result.Items == nil || len(result.Items) > limit {
+		return GlobalSearchPage{}, ErrRepositoryUnavailable
+	}
+	seen := make(map[string]struct{}, len(result.Items))
+	for _, item := range result.Items {
+		if !validProductID(item.ID) || !stringIn(item.Type, "asset", "agent", "tool", "identity", "runtime", "finding") || !validGlobalSearchName(item.Name) {
+			return GlobalSearchPage{}, ErrRepositoryUnavailable
+		}
+		key := item.Type + "\x00" + item.ID
+		if _, duplicate := seen[key]; duplicate {
+			return GlobalSearchPage{}, ErrRepositoryUnavailable
+		}
+		seen[key] = struct{}{}
+	}
+	return result, nil
 }
 
 func (repository *PostgresRepository) GetRiskFinding(ctx context.Context, scope domain.Scope, id string) (RiskFinding, error) {
@@ -274,6 +313,18 @@ func validRiskRead(repository *PostgresRepository, ctx context.Context, scope do
 
 func validRiskPage(repository *PostgresRepository, ctx context.Context, scope domain.Scope, afterID string, limit int) bool {
 	return repository != nil && !nilInterface(repository.database) && ctx != nil && scope.Validate() == nil && limit >= 1 && limit <= 100 && (afterID == "" || validProductID(afterID))
+}
+
+func validGlobalSearchName(value string) bool {
+	if len(value) < 1 || len(value) > 256 || !utf8.ValidString(value) || strings.TrimSpace(value) != value {
+		return false
+	}
+	for _, character := range value {
+		if unicode.IsControl(character) {
+			return false
+		}
+	}
+	return true
 }
 
 func validProductID(value string) bool {

@@ -7,11 +7,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
+
+var globalSearchQueryPattern = regexp.MustCompile(`^[A-Za-z0-9 .:_/-]{2,128}$`)
 
 type riskRepository interface {
 	coreRepository
@@ -22,6 +26,7 @@ type riskRepository interface {
 	GetRiskBreakOptions(context.Context, domain.Scope, string) ([]RiskBreakOption, error)
 	CountHighRiskPaths(context.Context, domain.Scope) (int64, error)
 	MutateRiskFinding(context.Context, RequestIdentity, RiskFindingMutation) (RiskFindingMutationResult, error)
+	SearchGlobal(context.Context, domain.Scope, string, int) (GlobalSearchPage, error)
 }
 
 type riskHTTPHandler struct {
@@ -65,9 +70,39 @@ func (handler *riskHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *h
 		handler.path(writer, request, identity, routed)
 	case "getAttackPathBreakOptions":
 		handler.breakOptions(writer, request, identity, routed)
+	case "globalSearch":
+		handler.globalSearch(writer, request, identity)
 	default:
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 	}
+}
+
+func (handler *riskHTTPHandler) globalSearch(writer http.ResponseWriter, request *http.Request, identity RequestIdentity) {
+	if request.Method != http.MethodGet {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	query, ok := exactWorkflowQuery(request.URL.RawQuery, map[string]int{"q": 128, "limit": 3})
+	values, present := query["q"]
+	if !ok || !present || len(values) != 1 || strings.TrimSpace(values[0]) != values[0] || !globalSearchQueryPattern.MatchString(values[0]) {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	limit := 20
+	if limits, present := query["limit"]; present {
+		if len(limits) != 1 {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		parsed, err := strconv.Atoi(limits[0])
+		if err != nil || parsed < 1 || parsed > 100 {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		limit = parsed
+	}
+	page, err := handler.repository.SearchGlobal(request.Context(), identity.Scope, values[0], limit)
+	writeJSONValue(writer, request, http.StatusOK, page, err)
 }
 
 func (handler *riskHTTPHandler) home(writer http.ResponseWriter, request *http.Request, identity RequestIdentity) {

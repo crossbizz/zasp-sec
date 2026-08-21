@@ -29,6 +29,9 @@ type riskRepositoryStub struct {
 	pageCalls     int
 	mutation      RiskFindingMutation
 	mutationCalls int
+	search        GlobalSearchPage
+	searchQuery   string
+	searchCalls   int
 }
 
 func (repository *riskRepositoryStub) GetRiskFinding(_ context.Context, scope domain.Scope, _ string) (RiskFinding, error) {
@@ -71,6 +74,12 @@ func (repository *riskRepositoryStub) MutateRiskFinding(_ context.Context, _ Req
 	finding.Status = mutation.Status
 	finding.AcceptanceReason = mutation.Reason
 	return RiskFindingMutationResult{Body: finding, Version: finding.Version, AuditID: mutation.AuditID, CorrelationID: mutation.CorrelationID, ReceiptID: mutation.ReceiptID}, repository.err
+}
+
+func (repository *riskRepositoryStub) SearchGlobal(_ context.Context, scope domain.Scope, query string, limit int) (GlobalSearchPage, error) {
+	repository.scope, repository.searchQuery, repository.limit = scope, query, limit
+	repository.searchCalls++
+	return repository.search, repository.err
 }
 
 func fixtureRiskFinding() RiskFinding {
@@ -154,6 +163,36 @@ func TestRiskHandlerGetsTypedRiskRecordsAndETag(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"2"` || repository.scope != identity.Scope {
 		t.Fatalf("finding = %d headers=%v body=%s", response.Code, response.Header(), response.Body.String())
+	}
+}
+
+func TestRiskHandlerSearchesTheExactTenantScopeWithSafeBoundedInput(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	repository := &riskRepositoryStub{search: GlobalSearchPage{Items: []GlobalSearchResult{{ID: riskFindingID, Type: "finding", Name: "Production credential exposed"}}}}
+	handler := newRiskTestHandler(t, repository)
+
+	request := riskRequest(t, identity, "globalSearch", http.MethodGet, "https://app.zasp.test/api/v1/search?q=Production%20credential&limit=7", "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || repository.searchCalls != 1 || repository.scope != identity.Scope || repository.searchQuery != "Production credential" || repository.limit != 7 || response.Body.String() != `{"items":[{"id":"`+riskFindingID+`","type":"finding","name":"Production credential exposed"}]}`+"\n" {
+		t.Fatalf("search = %d calls=%d scope=%#v query=%q limit=%d body=%s", response.Code, repository.searchCalls, repository.scope, repository.searchQuery, repository.limit, response.Body.String())
+	}
+
+	for _, target := range []string{
+		"https://app.zasp.test/api/v1/search?q=a",
+		"https://app.zasp.test/api/v1/search?q=%20prod",
+		"https://app.zasp.test/api/v1/search?q=prod%20",
+		"https://app.zasp.test/api/v1/search?q=prod%25",
+		"https://app.zasp.test/api/v1/search?q=prod&limit=101",
+		"https://app.zasp.test/api/v1/search?q=prod&q=other",
+		"https://app.zasp.test/api/v1/search?q=prod&cursor=raw-graph",
+	} {
+		request = riskRequest(t, identity, "globalSearch", http.MethodGet, target, "")
+		response = httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest || repository.searchCalls != 1 {
+			t.Fatalf("unsafe search %q = %d calls=%d body=%s", target, response.Code, repository.searchCalls, response.Body.String())
+		}
 	}
 }
 

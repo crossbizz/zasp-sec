@@ -18,6 +18,7 @@ import { ProductionSensorSurface } from "../features/sensors/ProductionSensorVie
 import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/workflows/ProductionWorkflowViews";
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
 import { Button, LoadingState } from "./ui";
+import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
 
 const productionRoutes = [
   { path: "/", label: "Overview", capability: "inventory.read" },
@@ -71,6 +72,7 @@ function ProductionScopeSelector() {
 
 function ProductionAppContent() {
   const session = useSession();
+  const { client } = useAPI();
   const [path, setPath] = useState(() => { const candidate = typeof window === "undefined" ? "/" : window.location.pathname; return productionRoutes.some((route) => route.path === candidate) ? candidate : "/"; });
   useEffect(() => { if (!productionRoutes.some((route) => route.path === window.location.pathname)) window.history.replaceState({}, "", "/"); }, []);
   useEffect(() => {
@@ -98,7 +100,7 @@ function ProductionAppContent() {
   const navigate = (nextPath: string) => { if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextPath); setPath(nextPath); };
   const workflowScopeKey = `${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
   const expectedScope = `${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
-  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}><div className="app-shell production-app"><header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><ProductionScopeSelector /><Button onClick={() => void session.signOut()}>Sign out</Button></header><aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside><main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} navigate={navigate} />}</main></div></ProductionWorkflowMutationProvider>;
+  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}><div className="app-shell production-app"><header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><ProductionScopeSelector /><ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} /><Button onClick={() => void session.signOut()}>Sign out</Button></header><aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside><main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} navigate={navigate} />}</main></div></ProductionWorkflowMutationProvider>;
 }
 
 export function ZaspProductionApp({ client }: { client?: APIClient } = {}) {

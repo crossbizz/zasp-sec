@@ -93,16 +93,16 @@ test("reproduces the committed bytes and rejects changed or missing output witho
   }
 });
 
-test("exports the Task 6 sensor and collection APIs without later-task overclaims", async () => {
+test("exports the Task 6 sensor, collection, and global search APIs without later-task overclaims", async () => {
   const generated = await readFile(generatedPath, "utf8");
-  for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "authorizeIntegrationReference", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) {
+  for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) {
     assert.match(generated, new RegExp(`\\b${operationId}:`), operationId);
   }
   for (const operationId of [
     "createFindingTicket", "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
     "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun", "simulatePolicy", "listPolicyDecisions",
     "listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
-    "globalSearch", "createAIExplanation",
+    "createAIExplanation",
   ]) assert.doesNotMatch(generated, new RegExp(`\\b${operationId}:`), operationId);
   for (const operationId of ["updateFinding", "acceptFindingRisk"]) {
     const start = generated.indexOf(`readonly ${operationId}:`);

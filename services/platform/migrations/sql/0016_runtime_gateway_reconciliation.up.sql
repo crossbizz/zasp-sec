@@ -22,6 +22,43 @@ DO $product_release_evolution$ DECLARE definition text;original_definition text;
  EXECUTE definition;
 END $product_release_evolution$;
 
+CREATE INDEX zasp_inventory_entities_global_search_v16_idx
+ON public.zasp_inventory_entities(organization_id,workspace_id,environment_id,(lower(display_name) COLLATE "C") text_pattern_ops,id)
+WHERE state='active';
+
+CREATE INDEX zasp_risk_findings_global_search_v16_idx
+ON public.zasp_risk_findings(organization_id,workspace_id,environment_id,(lower(title) COLLATE "C") text_pattern_ops,id);
+
+CREATE FUNCTION public.zasp_global_search(organization_value text,workspace_value text,environment_value text,query_value text,limit_value integer) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
+DECLARE normalized_query text:=lower(query_value);result_value jsonb;
+BEGIN
+ IF NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value)
+  OR query_value IS NULL OR char_length(query_value) NOT BETWEEN 2 AND 128 OR octet_length(query_value)>128 OR query_value<>btrim(query_value)
+  OR query_value!~'^[A-Za-z0-9 .:_/-]+$' OR limit_value NOT BETWEEN 1 AND 100
+  OR zasp_inventory_scope_state(organization_value,workspace_value,environment_value)->>'phase' IS DISTINCT FROM 'cutover'
+ THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='global search rejected';END IF;
+ WITH candidates AS (
+  SELECT entity_value.id,entity_value.product_kind type_value,entity_value.display_name name_value,
+   CASE WHEN entity_value.id=query_value THEN 0 WHEN entity_value.product_kind=normalized_query THEN 1 WHEN lower(entity_value.display_name)=normalized_query THEN 2 ELSE 3 END rank_value
+  FROM zasp_inventory_entities entity_value
+  WHERE (entity_value.organization_id,entity_value.workspace_id,entity_value.environment_id,entity_value.state)=(organization_value,workspace_value,environment_value,'active')
+   AND (entity_value.id=query_value OR entity_value.product_kind=normalized_query OR lower(entity_value.display_name) COLLATE "C" LIKE normalized_query COLLATE "C"||'%')
+  UNION ALL
+  SELECT finding_value.id,'finding',finding_value.title,
+   CASE WHEN finding_value.id=query_value THEN 0 WHEN normalized_query='finding' THEN 1 WHEN lower(finding_value.title)=normalized_query THEN 2 ELSE 3 END
+  FROM zasp_risk_findings finding_value
+  WHERE (finding_value.organization_id,finding_value.workspace_id,finding_value.environment_id)=(organization_value,workspace_value,environment_value)
+   AND (finding_value.id=query_value OR normalized_query='finding' OR lower(finding_value.title) COLLATE "C" LIKE normalized_query COLLATE "C"||'%')
+ ),visible AS (
+  SELECT id,type_value,name_value FROM candidates ORDER BY rank_value,type_value,lower(name_value),id LIMIT limit_value
+ )
+ SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('id',id,'type',type_value,'name',name_value) ORDER BY type_value,lower(name_value),id),'[]'::jsonb)) INTO result_value FROM visible;
+ RETURN result_value;
+END $$;
+ALTER FUNCTION public.zasp_global_search(text,text,text,text,integer) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION public.zasp_global_search(text,text,text,text,integer) FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
+GRANT EXECUTE ON FUNCTION public.zasp_global_search(text,text,text,text,integer) TO zasp_discovery_api;
+
 CREATE TABLE public.zasp_runtime_gateway_reconciliation_state(
  singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),
  used_at timestamptz
@@ -94,6 +131,7 @@ CREATE OR REPLACE FUNCTION public.zasp_runtime_gateway_reconciliation_security_r
   AND NOT EXISTS(SELECT 1 FROM pg_proc procedure_value CROSS JOIN aclexplode(COALESCE(procedure_value.proacl,acldefault('f',procedure_value.proowner))) acl WHERE procedure_value.oid IN('zasp_runtime_gateway_reconciliation_live_fingerprint()'::regprocedure,'zasp_runtime_gateway_reconciliation_security_ready()'::regprocedure) AND acl.grantee<>procedure_value.proowner)
   AND NOT EXISTS(SELECT 1 FROM pg_proc procedure_value CROSS JOIN aclexplode(COALESCE(procedure_value.proacl,acldefault('f',procedure_value.proowner))) acl WHERE procedure_value.oid='zasp_runtime_gateway_reconciliation_readiness(text,text)'::regprocedure AND acl.grantee=0)
   AND has_function_privilege('zasp_gateway_control','zasp_runtime_gateway_record_event(text,text,bigint,bigint,bytea,bigint,text,text,jsonb,timestamptz)','EXECUTE')
+  AND EXISTS(SELECT 1 FROM pg_proc procedure_value WHERE procedure_value.oid='zasp_global_search(text,text,text,text,integer)'::regprocedure AND procedure_value.proowner=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') AND procedure_value.prosecdef AND COALESCE(procedure_value.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] AND has_function_privilege('zasp_discovery_api',procedure_value.oid,'EXECUTE') AND NOT EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure_value.proacl,acldefault('f',procedure_value.proowner))) acl WHERE acl.grantee NOT IN(procedure_value.proowner,(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_api'))))
 $$;
 
 CREATE OR REPLACE FUNCTION public.zasp_runtime_gateway_reconciliation_live_fingerprint() RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
@@ -102,9 +140,11 @@ CREATE OR REPLACE FUNCTION public.zasp_runtime_gateway_reconciliation_live_finge
   UNION ALL SELECT 'column',table_name||'.'||column_name,concat_ws('|',data_type,udt_name,is_nullable,column_default) FROM information_schema.columns WHERE table_schema='public' AND table_name='zasp_runtime_gateway_reconciliation_state'
   UNION ALL SELECT 'constraint',constraint_value.conrelid::regclass::text||'.'||constraint_value.conname,pg_get_constraintdef(constraint_value.oid,true) FROM pg_constraint constraint_value WHERE constraint_value.conrelid='public.zasp_runtime_gateway_reconciliation_state'::regclass
   UNION ALL SELECT 'policy',policy_value.schemaname||'.'||policy_value.tablename||'.'||policy_value.policyname,concat_ws('|',policy_value.roles::text,policy_value.cmd,policy_value.qual,policy_value.with_check) FROM pg_policies policy_value WHERE policy_value.schemaname='public' AND policy_value.tablename='zasp_runtime_gateway_reconciliation_state'
+  UNION ALL SELECT 'index',index_value.oid::regclass::text,pg_get_indexdef(index_value.oid) FROM pg_class index_value WHERE index_value.oid IN('zasp_inventory_entities_global_search_v16_idx'::regclass,'zasp_risk_findings_global_search_v16_idx'::regclass)
   UNION ALL SELECT 'inherited_function',procedure_value.oid::regprocedure::text,pg_get_functiondef(procedure_value.oid) FROM pg_proc procedure_value WHERE procedure_value.oid IN('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure,'public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure)
+  UNION ALL SELECT 'function',procedure_value.oid::regprocedure::text,pg_get_functiondef(procedure_value.oid) FROM pg_proc procedure_value WHERE procedure_value.oid='public.zasp_global_search(text,text,text,text,integer)'::regprocedure
   UNION ALL SELECT 'function',procedure_value.oid::regprocedure::text,pg_get_functiondef(procedure_value.oid) FROM pg_proc procedure_value JOIN pg_namespace namespace_value ON namespace_value.oid=procedure_value.pronamespace WHERE namespace_value.nspname='public' AND procedure_value.proname IN('zasp_runtime_gateway_reconciliation_security_ready','zasp_runtime_gateway_reconciliation_readiness')
-  UNION ALL SELECT 'function_acl',procedure_value.oid::regprocedure::text,COALESCE(array_to_string(procedure_value.proacl,','),'') FROM pg_proc procedure_value JOIN pg_namespace namespace_value ON namespace_value.oid=procedure_value.pronamespace WHERE namespace_value.nspname='public' AND procedure_value.proname IN('zasp_runtime_gateway_reconciliation_live_fingerprint','zasp_runtime_gateway_reconciliation_security_ready','zasp_runtime_gateway_reconciliation_readiness')
+  UNION ALL SELECT 'function_acl',procedure_value.oid::regprocedure::text,COALESCE(array_to_string(procedure_value.proacl,','),'') FROM pg_proc procedure_value JOIN pg_namespace namespace_value ON namespace_value.oid=procedure_value.pronamespace WHERE namespace_value.nspname='public' AND procedure_value.proname IN('zasp_global_search','zasp_runtime_gateway_reconciliation_live_fingerprint','zasp_runtime_gateway_reconciliation_security_ready','zasp_runtime_gateway_reconciliation_readiness')
  ) SELECT encode(digest(convert_to(string_agg(kind||chr(31)||identity||chr(31)||definition,chr(30) ORDER BY kind,identity,definition),'UTF8'),'sha256'),'hex') FROM semantic_object
 $$;
 
@@ -114,4 +154,4 @@ ALTER FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(text,text) O
 REVOKE ALL ON FUNCTION public.zasp_runtime_gateway_reconciliation_live_fingerprint(),public.zasp_runtime_gateway_reconciliation_security_ready(),public.zasp_runtime_gateway_reconciliation_readiness(text,text) FROM PUBLIC,zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
 GRANT EXECUTE ON FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(text,text) TO zasp_discovery_api,zasp_discovery_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_gateway_reconciliation_fingerprint', 'f38f952ac9fd90955db37839d4b277162a37ca9532c512702e6ebe00c7c28470');
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_gateway_reconciliation_fingerprint', 'a4c8edadeb2b311a8ac8bdc08685a78b604c565571162ad7a4b6c248ff7252ee');

@@ -674,8 +674,8 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 99);
-    for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) {
+    assert.equal(operations.size, 100);
+    for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [
@@ -684,8 +684,19 @@ describe("production workflow concurrency contract", () => {
       "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
       "simulatePolicy", "listPolicyDecisions",
       "listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
-      "globalSearch", "createAIExplanation",
+      "createAIExplanation",
     ]) assert.equal(operations.has(operationId), false, operationId);
+
+    const globalSearch = operations.get("globalSearch");
+    assert.equal(globalSearch.path, "/api/v1/search");
+    assert.equal(globalSearch.method, "get");
+    assert.deepEqual(globalSearch.operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]);
+    assert.deepEqual(globalSearch.operation.parameters, [
+      { name: "q", in: "query", required: true, schema: { type: "string", minLength: 2, maxLength: 128, pattern: "^[A-Za-z0-9.:_/-](?:[A-Za-z0-9 .:_/-]{0,126}[A-Za-z0-9.:_/-])?$" } },
+      { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 100, default: 20 } },
+    ]);
+    assert.deepEqual(globalSearch.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SearchResultPage" });
+    assert.deepEqual(document.components.schemas.SearchResult.properties.type.enum, ["asset", "agent", "tool", "identity", "runtime", "finding"]);
 
     const updateAgent = operations.get("updateAgent");
     assert.equal(updateAgent.path, "/api/v1/agents/{id}");

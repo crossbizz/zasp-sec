@@ -93,6 +93,32 @@ func TestRiskRepositoryUsesStableBoundedFindingAndPathPages(t *testing.T) {
 	}
 }
 
+func TestRiskRepositorySearchesOnlyTheExactScopeAndRejectsResultDrift(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	database := &workflowCallDatabase{response: json.RawMessage(`{"items":[{"id":"` + riskFindingID + `","type":"finding","name":"Production credential exposed"}]}`)}
+	repository, _ := NewPostgresRepository(database)
+
+	page, err := repository.SearchGlobal(context.Background(), identity.Scope, "Production credential", 7)
+	if err != nil || len(page.Items) != 1 || page.Items[0].ID != riskFindingID || page.Items[0].Type != "finding" {
+		t.Fatalf("global search = (%#v, %v)", page, err)
+	}
+	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), "Production credential", 7}
+	if database.query != postgresGlobalSearchSQL || !reflect.DeepEqual(database.args, want) {
+		t.Fatalf("global search query/args = %q/%#v, want %q/%#v", database.query, database.args, postgresGlobalSearchSQL, want)
+	}
+
+	for _, payload := range []string{
+		`{"items":[{"id":"` + riskFindingID + `","type":"graph_query","name":"Unsafe"}]}`,
+		`{"items":[{"id":"foreign","type":"finding","name":"Unsafe"}]}`,
+		`{"items":[{"id":"` + riskFindingID + `","type":"finding","name":"Unsafe","secret":"x"}]}`,
+	} {
+		database.response = json.RawMessage(payload)
+		if _, err := repository.SearchGlobal(context.Background(), identity.Scope, "Production credential", 7); err != ErrRepositoryUnavailable {
+			t.Fatalf("global search drift %s error = %v", payload, err)
+		}
+	}
+}
+
 func TestRiskRepositoryValidatesAttackPathAndBreakOptionCrossReferences(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	database := &riskProjectionDatabase{responses: map[string]json.RawMessage{

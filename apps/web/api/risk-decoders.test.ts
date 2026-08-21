@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { decodeAttackPathPage, decodeBreakOptionPage, decodeFinding, decodeFindingPage, decodeWorkflowMutationReceipt } from "./decoders";
+import { decodeAttackPathPage, decodeBreakOptionPage, decodeFinding, decodeFindingPage, decodeGlobalSearchPage, decodeWorkflowMutationReceipt } from "./decoders";
 
 const finding = {
   id: "pid_20000001-0000-4000-8000-000000000001", source: "posture", title: "Public tool access", severity: "high", status: "open",
@@ -38,6 +38,16 @@ describe("strict risk decoders", () => {
     const foreignEvidence = "pid_90000001-0000-4000-8000-000000000001";
     expect(() => decodeFinding({ ...finding, risk_factors: [{ name: "Foreign evidence", evidence_id: foreignEvidence }] })).toThrow("schema mismatch");
     expect(() => decodeBreakOptionPage({ items: [{ path_id: path.id, target_id: path.entry_id, evidence_id: foreignEvidence, kind: "remove_node", rank: 1 }] }, path)).toThrow("schema mismatch");
+  });
+
+  it("decodes exact ordered product search results and rejects raw-query shapes", () => {
+    const agent = { id: "pid_10000001-0000-4000-8000-000000000001", type: "agent", name: "Production agent" };
+    const findingResult = { id: finding.id, type: "finding", name: finding.title };
+    expect(decodeGlobalSearchPage({ items: [agent, findingResult] }).items).toEqual([agent, findingResult]);
+    expect(() => decodeGlobalSearchPage({ items: [{ ...agent, type: "graph_query" }] })).toThrow("schema mismatch");
+    expect(() => decodeGlobalSearchPage({ items: [{ ...agent, query: "MATCH (n)" }] })).toThrow("schema mismatch");
+    expect(() => decodeGlobalSearchPage({ items: [findingResult, agent] })).toThrow("schema mismatch");
+    expect(() => decodeGlobalSearchPage({ items: [agent, agent] })).toThrow("schema mismatch");
   });
 
   it.each(["updateFinding", "acceptFindingRisk"])("discriminates exact %s receipts", (operation) => {

@@ -1,11 +1,15 @@
 DO $reconciliation_guard$ BEGIN
- IF zasp_runtime_gateway_reconciliation_live_fingerprint()<>'f38f952ac9fd90955db37839d4b277162a37ca9532c512702e6ebe00c7c28470' OR NOT zasp_runtime_gateway_reconciliation_security_ready() THEN
+ IF zasp_runtime_gateway_reconciliation_live_fingerprint()<>'a4c8edadeb2b311a8ac8bdc08685a78b604c565571162ad7a4b6c248ff7252ee' OR NOT zasp_runtime_gateway_reconciliation_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime gateway reconciliation drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_runtime_gateway_reconciliation_state WHERE used_at IS NOT NULL) THEN
   RAISE EXCEPTION USING ERRCODE='2BP01',MESSAGE='runtime gateway reconciliation use blocks rollback';
  END IF;
 END $reconciliation_guard$;
+
+DROP FUNCTION public.zasp_global_search(text,text,text,text,integer);
+DROP INDEX public.zasp_risk_findings_global_search_v16_idx;
+DROP INDEX public.zasp_inventory_entities_global_search_v16_idx;
 
 DO $product_release_restore$ DECLARE definition text;original_definition text;BEGIN
  SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure) INTO STRICT definition;
@@ -24,7 +28,7 @@ DO $product_release_restore$ DECLARE definition text;original_definition text;BE
  EXECUTE definition;
 END $product_release_restore$;
 
-DELETE FROM public.zasp_schema_metadata WHERE (key,value)=('runtime_gateway_reconciliation_fingerprint','f38f952ac9fd90955db37839d4b277162a37ca9532c512702e6ebe00c7c28470');
+DELETE FROM public.zasp_schema_metadata WHERE (key,value)=('runtime_gateway_reconciliation_fingerprint','a4c8edadeb2b311a8ac8bdc08685a78b604c565571162ad7a4b6c248ff7252ee');
 DROP FUNCTION public.zasp_runtime_gateway_reconciliation_readiness(text,text);
 DROP FUNCTION public.zasp_runtime_gateway_reconciliation_live_fingerprint();
 DROP FUNCTION public.zasp_runtime_gateway_reconciliation_security_ready();

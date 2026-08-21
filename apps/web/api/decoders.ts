@@ -1,4 +1,4 @@
-import type { AgentMutation, AgentSessionPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RelationshipPage, RuntimeDecision, SecurityAgentDefinition, SecurityAgentPage, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
+import type { AgentMutation, AgentSessionPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAgentDefinition, SecurityAgentPage, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -177,6 +177,16 @@ export function decodeFinding(value: unknown): Finding {
 
 export function decodeFindingPage(value: unknown): FindingPage {
   const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) decodeFinding(item); decodePageInfo(record.page_info); return value as FindingPage;
+}
+
+export function decodeGlobalSearchPage(value: unknown): SearchResultPage {
+  const record = exactRecord(value, ["items"]); const items = array(record.items, 100); const seen = new Set<string>(); let prior = "";
+  for (const value of items) {
+    const item = exactRecord(value, ["id", "type", "name"]); productID(item.id); enumValue(item.type, ["asset", "agent", "tool", "identity", "runtime", "finding"]); printableString(item.name, 1, 256);
+    const identity = `${item.type}\u001f${item.id}`; const order = `${item.type}\u001f${(item.name as string).toLocaleLowerCase("en-US")}\u001f${item.id}`;
+    if (seen.has(identity) || prior !== "" && order <= prior) fail(); seen.add(identity); prior = order;
+  }
+  return value as SearchResultPage;
 }
 
 export function decodeAttackPath(value: unknown): AttackPath {
