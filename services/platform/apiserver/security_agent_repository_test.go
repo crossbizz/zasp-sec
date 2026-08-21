@@ -60,6 +60,43 @@ func TestSecurityAgentPostgresRepositoryPrefersV20ScopedAuthority(t *testing.T) 
 	}
 }
 
+func TestSecurityAgentPostgresRepositoryReadsAndMutatesExactTenantControls(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	identity.FreshAuthenticated = true
+	identity.FreshAuthExpiresAt = time.Date(2026, 8, 21, 12, 4, 0, 0, time.UTC)
+	auditID := "pid_78000002-0000-4000-8000-000000000002"
+	correlationID := "pid_78000003-0000-4000-8000-000000000003"
+	receiptID := "pid_78000004-0000-4000-8000-000000000004"
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentControlsReadySQL:       json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentExecutionControlsSQL:   json.RawMessage(`{"global":{"target":"global","action_key":"*","enabled":true,"version":1},"environment":{"target":"environment","action_key":"*","enabled":false,"version":0},"actions":[{"target":"action","action_key":"update_finding_response","enabled":false,"version":0}]}`),
+		postgresSecurityAgentSetExecutionControlSQL: json.RawMessage(`{"target":"environment","action_key":"*","enabled":true,"version":1,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
+	}}
+	repository, err := NewSecurityAgentPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	controls, err := repository.GetSecurityAgentExecutionControls(context.Background(), identity)
+	if err != nil || !controls.Global.Enabled || controls.Environment.Enabled || len(controls.Actions) != 1 || controls.Actions[0].ActionKey != "update_finding_response" {
+		t.Fatalf("controls=%#v err=%v", controls, err)
+	}
+	input := SecurityAgentExecutionControlMutation{Target: "environment", ActionKey: "*", Enabled: true, IdempotencyKey: "set-agent-control-idem-0001", ExpectedVersion: 0, FreshAuthExpiresAt: identity.FreshAuthExpiresAt, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}
+	result, err := repository.SetSecurityAgentExecutionControl(context.Background(), identity, input)
+	if err != nil || result.Target != "environment" || !result.Enabled || result.Version != 1 || result.Replayed {
+		t.Fatalf("result=%#v err=%v", result, err)
+	}
+	wantScope := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()}
+	wantMutation := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IdempotencyKey, input.Target, input.ActionKey, true, int64(0), identity.FreshAuthExpiresAt, auditID, correlationID, receiptID}
+	if !reflect.DeepEqual(database.arguments[1], wantScope) || !reflect.DeepEqual(database.arguments[2], wantMutation) {
+		t.Fatalf("arguments=%#v", database.arguments)
+	}
+	input.Target = "global"
+	if _, err := repository.SetSecurityAgentExecutionControl(context.Background(), identity, input); !errors.Is(err, ErrRepositoryOperation) || len(database.statements) != 3 {
+		t.Fatalf("global mutation err=%v statements=%#v", err, database.statements)
+	}
+}
+
 func TestSecurityAgentPostgresRepositoryReadsExactActivationState(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	identity.CredentialKind = CredentialBrowserSession

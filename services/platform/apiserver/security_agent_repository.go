@@ -13,6 +13,8 @@ const (
 	postgresSecurityAgentAuthorityReadySQL       = `SELECT jsonb_build_object('release',zasp_security_agent_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
 	postgresIdentityAdminSecurityAgentReadySQL   = `SELECT jsonb_build_object('release',zasp_identity_administration_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
 	postgresSecurityAgentControlsReadySQL        = `SELECT jsonb_build_object('release',zasp_security_agent_controls_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
+	postgresSecurityAgentExecutionControlsSQL    = `SELECT zasp_security_agent_execution_control_detail($1,$2,$3)`
+	postgresSecurityAgentSetExecutionControlSQL  = `SELECT zasp_security_agent_mutate_execution_control($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 	postgresSecurityAgentDefinitionPageSQL       = `SELECT zasp_security_agent_definition_page($1,$2,$3,NULLIF($4,''),$5)`
 	postgresSecurityAgentDefinitionValueSQL      = `SELECT zasp_security_agent_definition_value($1,$2,$3,$4)`
 	postgresSecurityAgentDefinitionReplaySQL     = `SELECT zasp_security_agent_replay_definition($1,$2,$3,$4,$5,$6,$7::jsonb)`
@@ -28,6 +30,37 @@ const (
 	postgresSecurityAgentApprovalDetailSQL       = `SELECT zasp_security_agent_approval_detail($1,$2,$3,$4)`
 	postgresSecurityAgentDecideApprovalSQL       = `SELECT zasp_security_agent_decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 )
+
+func (repository *PostgresRepository) GetSecurityAgentExecutionControls(ctx context.Context, identity RequestIdentity) (SecurityAgentExecutionControls, error) {
+	if repository == nil || repository.schema != SecurityAgentControlsSchemaVersion || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession {
+		return SecurityAgentExecutionControls{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentExecutionControlsSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String())
+	if err != nil {
+		return SecurityAgentExecutionControls{}, discoveryProviderError(err)
+	}
+	var result SecurityAgentExecutionControls
+	if !exactJSONFields(payload, "actions", "environment", "global") || decodeStrictDiscovery(payload, &result) != nil || !validSecurityAgentExecutionControls(result) {
+		return SecurityAgentExecutionControls{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+
+func (repository *PostgresRepository) SetSecurityAgentExecutionControl(ctx context.Context, identity RequestIdentity, input SecurityAgentExecutionControlMutation) (SecurityAgentExecutionControlResult, error) {
+	validTarget := input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && input.ActionKey == "update_finding_response"
+	if repository == nil || repository.schema != SecurityAgentControlsSchemaVersion || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || identity.FreshAuthExpiresAt.Location() != time.UTC || input.FreshAuthExpiresAt != identity.FreshAuthExpiresAt || !validTarget || !validPublicIdempotency(input.IdempotencyKey) || input.ExpectedVersion < 0 || input.ExpectedVersion > 1000000 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || input.AuditID == input.CorrelationID || input.AuditID == input.ReceiptID || input.CorrelationID == input.ReceiptID {
+		return SecurityAgentExecutionControlResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentSetExecutionControlSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IdempotencyKey, input.Target, input.ActionKey, input.Enabled, input.ExpectedVersion, input.FreshAuthExpiresAt, input.AuditID, input.CorrelationID, input.ReceiptID)
+	if err != nil {
+		return SecurityAgentExecutionControlResult{}, discoveryProviderError(err)
+	}
+	var result SecurityAgentExecutionControlResult
+	if !exactJSONFields(payload, "action_key", "audit_id", "correlation_id", "enabled", "receipt_id", "replayed", "target", "version") || decodeStrictDiscovery(payload, &result) != nil || result.Target != input.Target || result.ActionKey != input.ActionKey || result.Enabled != input.Enabled || result.Version != input.ExpectedVersion+1 || !validProductID(result.AuditID) || !validProductID(result.CorrelationID) || !validProductID(result.ReceiptID) || !result.Replayed && (result.AuditID != input.AuditID || result.CorrelationID != input.CorrelationID || result.ReceiptID != input.ReceiptID) {
+		return SecurityAgentExecutionControlResult{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
 
 func NewSecurityAgentPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
 	if nilInterface(database) {

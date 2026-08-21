@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 121 || len(public) != 121 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 121/121", len(seen), len(public))
+	if len(seen) != 123 || len(public) != 123 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 123/123", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -147,6 +147,14 @@ func TestTaskSevenCompositionHasExactActivationSurfaceWithoutExecutionOverclaims
 	activation, ok := definitions["activateSecurityAgent"]
 	if !ok || activation.Method != http.MethodPost || activation.Pattern != "/api/v1/security-agents/{id}/activation" || activation.Permission != "manage_workflows" || !equalStrings(activation.Security, []string{"BrowserExpectedScope", "BrowserSession"}) || !requiresFreshAuthentication("activateSecurityAgent") {
 		t.Errorf("security-agent activation definition=%#v exists=%v", activation, ok)
+	}
+	controls, ok := definitions["getSecurityAgentExecutionControls"]
+	if !ok || controls.Method != http.MethodGet || controls.Pattern != "/api/v1/security-agent-execution-controls" || controls.Permission != "manage_identity" || !equalStrings(controls.Security, []string{"BrowserExpectedScope", "BrowserSession"}) || requiresFreshAuthentication("getSecurityAgentExecutionControls") {
+		t.Errorf("security-agent controls definition=%#v exists=%v", controls, ok)
+	}
+	controlMutation, ok := definitions["setSecurityAgentExecutionControl"]
+	if !ok || controlMutation.Method != http.MethodPut || controlMutation.Pattern != "/api/v1/security-agent-execution-controls" || controlMutation.Permission != "manage_identity" || !equalStrings(controlMutation.Security, []string{"BrowserExpectedScope", "BrowserSession"}) || !requiresFreshAuthentication("setSecurityAgentExecutionControl") {
+		t.Errorf("security-agent control mutation definition=%#v exists=%v", controlMutation, ok)
 	}
 	simulation, ok := definitions["simulateSecurityAgent"]
 	if !ok || simulation.Method != http.MethodPost || simulation.Pattern != "/api/v1/security-agents/{id}/simulate" || simulation.Permission != "manage_workflows" || !equalStrings(simulation.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || requiresFreshAuthentication("simulateSecurityAgent") {

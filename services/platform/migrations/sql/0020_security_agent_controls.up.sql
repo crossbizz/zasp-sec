@@ -42,14 +42,13 @@ CREATE FUNCTION public.zasp_security_agent_mutate_execution_control(organization
 DECLARE row_organization text;row_workspace text;row_environment text;row_action text;intent_value jsonb;intent_digest_value bytea;receipt_row zasp_security_agent_request_receipts%ROWTYPE;result_value jsonb;response_value jsonb;resource_value text;
 BEGIN
   IF NOT zasp_security_agent_principal_ready('zasp_security_agent_api') OR NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(actor_value) OR NOT zasp_valid_product_id(audit_value) OR NOT zasp_valid_product_id(correlation_value) OR NOT zasp_valid_product_id(receipt_value)
-     OR length(idempotency_value) NOT BETWEEN 16 AND 128 OR idempotency_value!~'^[A-Za-z0-9][A-Za-z0-9._:-]*$' OR target_value NOT IN('global','environment','action') OR expected_version<0
+     OR length(idempotency_value) NOT BETWEEN 16 AND 128 OR idempotency_value!~'^[A-Za-z0-9][A-Za-z0-9._:-]*$' OR target_value NOT IN('environment','action') OR expected_version<0
      OR fresh_auth_expires_value IS NULL OR fresh_auth_expires_value<=transaction_timestamp() OR fresh_auth_expires_value>transaction_timestamp()+interval '5 minutes 5 seconds'
      OR (target_value='action' AND action_value<>'update_finding_response') OR (target_value<>'action' AND action_value<>'*') THEN
     RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent execution control mutation rejected';
   END IF;
   IF NOT EXISTS(SELECT 1 FROM zasp_environments environment WHERE (environment.organization_id,environment.workspace_id,environment.id)=(organization_value,workspace_value,environment_value)) THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='security agent execution control scope not found';END IF;
-  IF target_value='global' THEN row_organization:='*';row_workspace:='*';row_environment:='*';row_action:='*';
-  ELSIF target_value='environment' THEN row_organization:=organization_value;row_workspace:=workspace_value;row_environment:=environment_value;row_action:='*';
+  IF target_value='environment' THEN row_organization:=organization_value;row_workspace:=workspace_value;row_environment:=environment_value;row_action:='*';
   ELSE row_organization:=organization_value;row_workspace:=workspace_value;row_environment:=environment_value;row_action:=action_value;END IF;
   resource_value:=target_value||':'||row_action;
   intent_value:=jsonb_build_object('target',target_value,'action_key',row_action,'enabled',enabled_value,'expected_version',expected_version);
@@ -63,7 +62,7 @@ BEGIN
     END IF;
     RETURN receipt_row.response||jsonb_build_object('replayed',true);
   END IF;
-  IF enabled_value AND target_value<>'global' AND NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=('*','*','*','*',true)) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent global execution disabled';END IF;
+  IF enabled_value AND NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=('*','*','*','*',true)) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent global execution disabled';END IF;
   IF enabled_value AND target_value='action' AND NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=(organization_value,workspace_value,environment_value,'*',true)) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent environment execution disabled';END IF;
   result_value:=zasp_security_agent_set_kill_switch(row_organization,row_workspace,row_environment,row_action,enabled_value,expected_version,actor_value,audit_value,correlation_value);
   response_value:=result_value||jsonb_build_object('target',target_value,'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
@@ -119,4 +118,4 @@ BEGIN
 END
 $schema_marker$;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_controls_fingerprint', 'fec9bc7992267cd47b6afe90042822413f5cebdc025eae55e64b18c779f96a2e') ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_controls_fingerprint', '3ed37647773abf9c3d3b871e70e627aeb191916062da8881c09e5e867656717a') ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;

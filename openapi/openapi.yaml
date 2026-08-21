@@ -1897,6 +1897,38 @@ paths:
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-execution-controls:
+    get:
+      operationId: getSecurityAgentExecutionControls
+      summary: Read platform and tenant Security Agent execution controls
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200': { description: Platform status and tenant-scoped execution controls., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentExecutionControls' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    put:
+      operationId: setSecurityAgentExecutionControl
+      summary: Change one tenant-scoped Security Agent execution control
+      description: The platform-global control is read-only to tenant administrators.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ControlVersion'
+        - $ref: '#/components/parameters/FreshAuth'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentExecutionControlInput' } } } }
+      responses:
+        '200': { description: Durable tenant execution control., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentExecutionControlResult' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agents/{id}/simulate:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
@@ -2347,6 +2379,12 @@ components:
       required: true
       description: Quoted current durable resource version.
       schema: { type: string, pattern: '^"[1-9][0-9]*"$' }
+    ControlVersion:
+      name: If-Match
+      in: header
+      required: true
+      description: Quoted current execution-control version, including quoted zero before the first tenant override.
+      schema: { type: string, pattern: '^"(?:0|[1-9][0-9]*)"$' }
     ScheduleVersion:
       name: If-Match
       in: header
@@ -2707,6 +2745,44 @@ components:
       required: [activation]
       properties:
         activation: { type: string, enum: [validated, supervised, autonomous] }
+    SecurityAgentExecutionControl:
+      type: object
+      additionalProperties: false
+      required: [target, action_key, enabled, version]
+      properties:
+        target: { type: string, enum: [global, environment, action] }
+        action_key: { type: string, enum: ['*', update_finding_response] }
+        enabled: { type: boolean }
+        version: { type: integer, minimum: 0, maximum: 1000000 }
+    SecurityAgentExecutionControls:
+      type: object
+      additionalProperties: false
+      required: [global, environment, actions]
+      properties:
+        global: { $ref: '#/components/schemas/SecurityAgentExecutionControl' }
+        environment: { $ref: '#/components/schemas/SecurityAgentExecutionControl' }
+        actions: { type: array, minItems: 1, maxItems: 1, items: { $ref: '#/components/schemas/SecurityAgentExecutionControl' } }
+    SecurityAgentExecutionControlInput:
+      type: object
+      additionalProperties: false
+      required: [target, action_key, enabled]
+      properties:
+        target: { type: string, enum: [environment, action] }
+        action_key: { type: string, enum: ['*', update_finding_response] }
+        enabled: { type: boolean }
+    SecurityAgentExecutionControlResult:
+      type: object
+      additionalProperties: false
+      required: [target, action_key, enabled, version, audit_id, correlation_id, receipt_id, replayed]
+      properties:
+        target: { type: string, enum: [environment, action] }
+        action_key: { type: string, enum: ['*', update_finding_response] }
+        enabled: { type: boolean }
+        version: { type: integer, minimum: 1, maximum: 1000000 }
+        audit_id: { $ref: '#/components/schemas/ProductID' }
+        correlation_id: { $ref: '#/components/schemas/ProductID' }
+        receipt_id: { $ref: '#/components/schemas/ProductID' }
+        replayed: { type: boolean }
     SecurityAgentActivationState:
       type: object
       additionalProperties: false

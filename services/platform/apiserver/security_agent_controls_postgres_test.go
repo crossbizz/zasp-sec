@@ -112,22 +112,25 @@ func TestProductionSecurityAgentControlsPostgresFencesAndReplaysExactSwitches(t 
 		err := api.QueryRow(ctx, `SELECT zasp_security_agent_mutate_execution_control($1,$2,$3,$4,$5,$6,$7,$8,$9,transaction_timestamp()+interval '4 minutes',$10,$11,$12)`, organization, workspace, environment, actor, idempotency, target, action, enabled, expected, audit, correlation, receipt).Scan(&payload)
 		return payload, err
 	}
-	if _, err := mutate("control-global-disable-0001", "global", "*", false, 1, "pid_7a000010-0000-4000-8000-000000000010", "pid_7a000011-0000-4000-8000-000000000011", "pid_7a000012-0000-4000-8000-000000000012"); err != nil {
+	if _, err := mutate("control-global-denied-0001", "global", "*", false, 1, "pid_7a000010-0000-4000-8000-000000000010", "pid_7a000011-0000-4000-8000-000000000011", "pid_7a000012-0000-4000-8000-000000000012"); err == nil {
+		t.Fatal("tenant API changed the platform-global execution control")
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_security_agent_kill_switches SET execution_enabled=false,version=2 WHERE (organization_id,workspace_id,environment_id,action_key)=('*','*','*','*')`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := mutate("control-env-before-global", "environment", "*", true, 0, "pid_7a000013-0000-4000-8000-000000000013", "pid_7a000014-0000-4000-8000-000000000014", "pid_7a000015-0000-4000-8000-000000000015"); err == nil {
 		t.Fatal("environment execution enabled while global execution was disabled")
 	}
-	global, err := mutate("control-global-enable-0001", "global", "*", true, 2, "pid_7a000020-0000-4000-8000-000000000020", "pid_7a000021-0000-4000-8000-000000000021", "pid_7a000022-0000-4000-8000-000000000022")
-	if err != nil || !strings.Contains(string(global), `"target": "global"`) || !strings.Contains(string(global), `"version": 3`) || !strings.Contains(string(global), `"replayed": false`) {
-		t.Fatalf("global=%s err=%v", global, err)
+	if _, err := connection.Exec(ctx, `UPDATE zasp_security_agent_kill_switches SET execution_enabled=true,version=3 WHERE (organization_id,workspace_id,environment_id,action_key)=('*','*','*','*')`); err != nil {
+		t.Fatal(err)
 	}
-	replay, err := mutate("control-global-enable-0001", "global", "*", true, 2, "pid_7a000030-0000-4000-8000-000000000030", "pid_7a000031-0000-4000-8000-000000000031", "pid_7a000032-0000-4000-8000-000000000032")
+	environmentResult, err := mutate("control-environment-enable-0001", "environment", "*", true, 0, "pid_7a000020-0000-4000-8000-000000000020", "pid_7a000021-0000-4000-8000-000000000021", "pid_7a000022-0000-4000-8000-000000000022")
+	if err != nil || !strings.Contains(string(environmentResult), `"target": "environment"`) || !strings.Contains(string(environmentResult), `"version": 1`) || !strings.Contains(string(environmentResult), `"replayed": false`) {
+		t.Fatalf("environment=%s err=%v", environmentResult, err)
+	}
+	replay, err := mutate("control-environment-enable-0001", "environment", "*", true, 0, "pid_7a000030-0000-4000-8000-000000000030", "pid_7a000031-0000-4000-8000-000000000031", "pid_7a000032-0000-4000-8000-000000000032")
 	if err != nil || !strings.Contains(string(replay), `"replayed": true`) || !strings.Contains(string(replay), `"receipt_id": "pid_7a000022-0000-4000-8000-000000000022"`) {
 		t.Fatalf("replay=%s err=%v", replay, err)
-	}
-	if _, err := mutate("control-environment-enable-0001", "environment", "*", true, 0, "pid_7a000040-0000-4000-8000-000000000040", "pid_7a000041-0000-4000-8000-000000000041", "pid_7a000042-0000-4000-8000-000000000042"); err != nil {
-		t.Fatal(err)
 	}
 	if _, err := mutate("control-action-enable-0001", "action", "update_finding_response", true, 0, "pid_7a000050-0000-4000-8000-000000000050", "pid_7a000051-0000-4000-8000-000000000051", "pid_7a000052-0000-4000-8000-000000000052"); err != nil {
 		t.Fatal(err)
@@ -136,7 +139,7 @@ func TestProductionSecurityAgentControlsPostgresFencesAndReplaysExactSwitches(t 
 		t.Fatal("unshipped action was enabled")
 	}
 	var postgresError *pgconn.PgError
-	err = api.QueryRow(ctx, `SELECT zasp_security_agent_mutate_execution_control($1,$2,$3,$4,'control-global-stale-0001','global','*',false,2,transaction_timestamp()+interval '4 minutes','pid_7a000070-0000-4000-8000-000000000070','pid_7a000071-0000-4000-8000-000000000071','pid_7a000072-0000-4000-8000-000000000072')`, organization, workspace, environment, actor).Scan(&detail)
+	err = api.QueryRow(ctx, `SELECT zasp_security_agent_mutate_execution_control($1,$2,$3,$4,'control-environment-stale-0001','environment','*',false,0,transaction_timestamp()+interval '4 minutes','pid_7a000070-0000-4000-8000-000000000070','pid_7a000071-0000-4000-8000-000000000071','pid_7a000072-0000-4000-8000-000000000072')`, organization, workspace, environment, actor).Scan(&detail)
 	if !errors.As(err, &postgresError) || postgresError.Code != "40001" {
 		t.Fatalf("stale error=%v", err)
 	}

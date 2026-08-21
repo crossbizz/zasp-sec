@@ -18,6 +18,38 @@ import (
 
 var securityAgentPlanHashPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
+type SecurityAgentExecutionControl struct {
+	Target    string `json:"target"`
+	ActionKey string `json:"action_key"`
+	Enabled   bool   `json:"enabled"`
+	Version   int64  `json:"version"`
+}
+
+type SecurityAgentExecutionControls struct {
+	Global      SecurityAgentExecutionControl   `json:"global"`
+	Environment SecurityAgentExecutionControl   `json:"environment"`
+	Actions     []SecurityAgentExecutionControl `json:"actions"`
+}
+
+type SecurityAgentExecutionControlMutation struct {
+	Target, ActionKey, IdempotencyKey string
+	Enabled                           bool
+	ExpectedVersion                   int64
+	FreshAuthExpiresAt                time.Time
+	AuditID, CorrelationID, ReceiptID string
+}
+
+type SecurityAgentExecutionControlResult struct {
+	Target        string `json:"target"`
+	ActionKey     string `json:"action_key"`
+	Enabled       bool   `json:"enabled"`
+	Version       int64  `json:"version"`
+	AuditID       string `json:"audit_id"`
+	CorrelationID string `json:"correlation_id"`
+	ReceiptID     string `json:"receipt_id"`
+	Replayed      bool   `json:"replayed"`
+}
+
 type SecurityAgentActivation struct {
 	DefinitionID       string
 	IdempotencyKey     string
@@ -235,6 +267,8 @@ func (result *SecurityAgentSimulationResult) UnmarshalJSON(value []byte) error {
 }
 
 type SecurityAgentPublicAuthority interface {
+	GetSecurityAgentExecutionControls(context.Context, RequestIdentity) (SecurityAgentExecutionControls, error)
+	SetSecurityAgentExecutionControl(context.Context, RequestIdentity, SecurityAgentExecutionControlMutation) (SecurityAgentExecutionControlResult, error)
 	GetSecurityAgentActivation(context.Context, RequestIdentity, string) (SecurityAgentActivationState, error)
 	ActivateSecurityAgent(context.Context, RequestIdentity, SecurityAgentActivation) (SecurityAgentActivationResult, error)
 	SimulateSecurityAgent(context.Context, RequestIdentity, SecurityAgentSimulationRequest) (SecurityAgentSimulationResult, error)
@@ -273,11 +307,15 @@ func (handler *securityAgentPublicHTTPHandler) ServeHTTP(writer http.ResponseWri
 		writeProductionError(writer, request, ErrRepositoryAuthentication)
 		return
 	}
-	if !stringIn(routed.OperationID, "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval") {
+	if !stringIn(routed.OperationID, "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval") {
 		handler.definitions.ServeHTTP(writer, request)
 		return
 	}
 	switch routed.OperationID {
+	case "getSecurityAgentExecutionControls":
+		handler.getExecutionControls(writer, request)
+	case "setSecurityAgentExecutionControl":
+		handler.setExecutionControl(writer, request)
 	case "getSecurityAgentActivation":
 		handler.getActivation(writer, request, routed)
 	case "activateSecurityAgent":
@@ -299,6 +337,80 @@ func (handler *securityAgentPublicHTTPHandler) ServeHTTP(writer http.ResponseWri
 	case "decideSecurityAgentApproval":
 		handler.decideApproval(writer, request, routed)
 	}
+}
+
+func validSecurityAgentExecutionControl(value SecurityAgentExecutionControl, target, actionKey string, allowZero bool) bool {
+	minimum := int64(1)
+	if allowZero {
+		minimum = 0
+	}
+	return value.Target == target && value.ActionKey == actionKey && value.Version >= minimum && value.Version <= 1000000
+}
+
+func validSecurityAgentExecutionControls(value SecurityAgentExecutionControls) bool {
+	return validSecurityAgentExecutionControl(value.Global, "global", "*", false) &&
+		validSecurityAgentExecutionControl(value.Environment, "environment", "*", true) &&
+		len(value.Actions) == 1 && validSecurityAgentExecutionControl(value.Actions[0], "action", "update_finding_response", true)
+}
+
+func (handler *securityAgentPublicHTTPHandler) getExecutionControls(writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Cache-Control", "no-store")
+	identity, ok := IdentityFromRequest(request)
+	if !ok || request.Method != http.MethodGet || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || requireZeroByteInput(request) != nil {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	result, err := handler.repository.GetSecurityAgentExecutionControls(request.Context(), identity)
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	if !validSecurityAgentExecutionControls(result) {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	writeJSONValue(writer, request, http.StatusOK, result, nil)
+}
+
+func (handler *securityAgentPublicHTTPHandler) setExecutionControl(writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Cache-Control", "no-store")
+	identity, ok := IdentityFromRequest(request)
+	idempotencyKey, expectedVersion, headersOK := discoveryMutationHeaders(request, true)
+	var input struct {
+		Target    string `json:"target"`
+		ActionKey string `json:"action_key"`
+		Enabled   bool   `json:"enabled"`
+	}
+	now := handler.config.Clock().UTC()
+	validTarget := func() bool {
+		return input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && input.ActionKey == "update_finding_response"
+	}
+	if !ok || request.Method != http.MethodPut || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now) || identity.FreshAuthExpiresAt.After(now.Add(5*time.Minute)) || !exactHeaderValue(request.Header.Values("X-Zasp-Fresh-Auth"), "confirmed") || !headersOK || decodeProductionJSON(request, &input) != nil || !validTarget() {
+		if ok && (identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now)) {
+			writeProductionError(writer, request, ErrRepositoryAuthentication)
+			return
+		}
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	ids, valid := handler.newDistinctIDs(2, correlationIDFromContext(request.Context()))
+	if !valid {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	result, err := handler.repository.SetSecurityAgentExecutionControl(request.Context(), identity, SecurityAgentExecutionControlMutation{Target: input.Target, ActionKey: input.ActionKey, Enabled: input.Enabled, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, FreshAuthExpiresAt: identity.FreshAuthExpiresAt.UTC(), AuditID: ids[0], CorrelationID: correlationIDFromContext(request.Context()), ReceiptID: ids[1]})
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	if result.Target != input.Target || result.ActionKey != input.ActionKey || result.Enabled != input.Enabled || result.Version != expectedVersion+1 || !validProductID(result.AuditID) || !validProductID(result.CorrelationID) || !validProductID(result.ReceiptID) {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	writer.Header().Set("ETag", `"`+strconv.FormatInt(result.Version, 10)+`"`)
+	writer.Header().Set("X-Audit-ID", result.AuditID)
+	writer.Header().Set("X-Mutation-Receipt-ID", result.ReceiptID)
+	writeJSONValue(writer, request, http.StatusOK, result, nil)
 }
 
 func (handler *securityAgentPublicHTTPHandler) getActivation(writer http.ResponseWriter, request *http.Request, routed RoutedOperation) {

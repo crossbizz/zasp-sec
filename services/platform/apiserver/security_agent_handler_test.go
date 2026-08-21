@@ -13,6 +13,9 @@ import (
 var securityAgentTestSigningKey = []byte("0123456789abcdef0123456789abcdef")
 
 type securityAgentPublicAuthorityStub struct {
+	controls        SecurityAgentExecutionControls
+	controlMutation SecurityAgentExecutionControlMutation
+	controlResult   SecurityAgentExecutionControlResult
 	activationID    string
 	activationState SecurityAgentActivationState
 	activation      SecurityAgentActivation
@@ -34,6 +37,17 @@ type securityAgentPublicAuthorityStub struct {
 	approvalID      string
 	approval        SecurityAgentApproval
 	calls           int
+}
+
+func (stub *securityAgentPublicAuthorityStub) GetSecurityAgentExecutionControls(_ context.Context, _ RequestIdentity) (SecurityAgentExecutionControls, error) {
+	stub.calls++
+	return stub.controls, nil
+}
+
+func (stub *securityAgentPublicAuthorityStub) SetSecurityAgentExecutionControl(_ context.Context, _ RequestIdentity, input SecurityAgentExecutionControlMutation) (SecurityAgentExecutionControlResult, error) {
+	stub.calls++
+	stub.controlMutation = input
+	return stub.controlResult, nil
 }
 
 func (stub *securityAgentPublicAuthorityStub) GetSecurityAgentActivation(_ context.Context, _ RequestIdentity, definitionID string) (SecurityAgentActivationState, error) {
@@ -109,6 +123,65 @@ func TestSecurityAgentPublicHandlerReadsExactActivationState(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" || response.Body.String() != `{"id":"`+definitionID+`","activation":"validated","enabled":false,"version":2}`+"\n" || stub.activationID != definitionID {
 		t.Fatalf("activation response=%d headers=%v body=%s id=%q", response.Code, response.Header(), response.Body.String(), stub.activationID)
+	}
+}
+
+func TestSecurityAgentPublicHandlerReadsAndMutatesTenantExecutionControls(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	auditID := "pid_78000002-0000-4000-8000-000000000002"
+	receiptID := "pid_78000004-0000-4000-8000-000000000004"
+	stub := &securityAgentPublicAuthorityStub{
+		controls: SecurityAgentExecutionControls{
+			Global:      SecurityAgentExecutionControl{Target: "global", ActionKey: "*", Enabled: true, Version: 1},
+			Environment: SecurityAgentExecutionControl{Target: "environment", ActionKey: "*", Enabled: false, Version: 0},
+			Actions:     []SecurityAgentExecutionControl{{Target: "action", ActionKey: "update_finding_response", Enabled: false, Version: 0}},
+		},
+		controlResult: SecurityAgentExecutionControlResult{Target: "environment", ActionKey: "*", Enabled: true, Version: 1, AuditID: auditID, CorrelationID: testCorrelationID, ReceiptID: receiptID},
+	}
+	ids := []string{auditID, receiptID}
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: func() time.Time { return now }, NewProductID: func() (string, error) { value := ids[0]; ids = ids[1:]; return value, nil }, SigningKey: securityAgentTestSigningKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	read := workflowRequest(t, identity, testCorrelationID, "getSecurityAgentExecutionControls", nil, http.MethodGet, "/api/v1/security-agent-execution-controls", "")
+	readResponse := httptest.NewRecorder()
+	handler.ServeHTTP(readResponse, read)
+	if readResponse.Code != http.StatusOK || readResponse.Header().Get("Cache-Control") != "no-store" || readResponse.Body.String() != `{"global":{"target":"global","action_key":"*","enabled":true,"version":1},"environment":{"target":"environment","action_key":"*","enabled":false,"version":0},"actions":[{"target":"action","action_key":"update_finding_response","enabled":false,"version":0}]}`+"\n" {
+		t.Fatalf("read status=%d headers=%v body=%s", readResponse.Code, readResponse.Header(), readResponse.Body.String())
+	}
+	identity.FreshAuthenticated = true
+	identity.FreshAuthExpiresAt = now.Add(4 * time.Minute)
+	write := workflowRequest(t, identity, testCorrelationID, "setSecurityAgentExecutionControl", nil, http.MethodPut, "/api/v1/security-agent-execution-controls", `{"target":"environment","action_key":"*","enabled":true}`)
+	write.Header.Set("Idempotency-Key", "set-agent-control-idem-0001")
+	write.Header.Set("If-Match", `"0"`)
+	write.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
+	writeResponse := httptest.NewRecorder()
+	handler.ServeHTTP(writeResponse, write)
+	if writeResponse.Code != http.StatusOK || writeResponse.Header().Get("ETag") != `"1"` || writeResponse.Header().Get("X-Audit-ID") != auditID || writeResponse.Header().Get("X-Mutation-Receipt-ID") != receiptID || stub.controlMutation.Target != "environment" || stub.controlMutation.ActionKey != "*" || !stub.controlMutation.Enabled || stub.controlMutation.ExpectedVersion != 0 || stub.controlMutation.FreshAuthExpiresAt != identity.FreshAuthExpiresAt {
+		t.Fatalf("write status=%d headers=%v body=%s mutation=%#v", writeResponse.Code, writeResponse.Header(), writeResponse.Body.String(), stub.controlMutation)
+	}
+}
+
+func TestSecurityAgentPublicHandlerRejectsTenantGlobalExecutionMutation(t *testing.T) {
+	stub := &securityAgentPublicAuthorityStub{}
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: time.Now, NewProductID: newWorkflowProductID, SigningKey: securityAgentTestSigningKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	identity.FreshAuthenticated = true
+	identity.FreshAuthExpiresAt = time.Now().UTC().Add(4 * time.Minute)
+	request := workflowRequest(t, identity, testCorrelationID, "setSecurityAgentExecutionControl", nil, http.MethodPut, "/api/v1/security-agent-execution-controls", `{"target":"global","action_key":"*","enabled":false}`)
+	request.Header.Set("Idempotency-Key", "set-agent-control-idem-0001")
+	request.Header.Set("If-Match", `"1"`)
+	request.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || stub.calls != 0 {
+		t.Fatalf("status=%d body=%s calls=%d", response.Code, response.Body.String(), stub.calls)
 	}
 }
 

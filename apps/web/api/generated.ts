@@ -1163,6 +1163,27 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/security-agent-execution-controls": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read platform and tenant Security Agent execution controls */
+        readonly get: operations["getSecurityAgentExecutionControls"];
+        /**
+         * Change one tenant-scoped Security Agent execution control
+         * @description The platform-global control is read-only to tenant administrators.
+         */
+        readonly put: operations["setSecurityAgentExecutionControl"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/security-agent-runs": {
         readonly parameters: {
             readonly query?: never;
@@ -2734,6 +2755,38 @@ export type components = {
             readonly trigger_source: string;
             readonly verification_kind: string;
         };
+        readonly SecurityAgentExecutionControl: {
+            /** @enum {string} */
+            readonly action_key: "*" | "update_finding_response";
+            readonly enabled: boolean;
+            /** @enum {string} */
+            readonly target: "global" | "environment" | "action";
+            readonly version: number;
+        };
+        readonly SecurityAgentExecutionControlInput: {
+            /** @enum {string} */
+            readonly action_key: "*" | "update_finding_response";
+            readonly enabled: boolean;
+            /** @enum {string} */
+            readonly target: "environment" | "action";
+        };
+        readonly SecurityAgentExecutionControlResult: {
+            /** @enum {string} */
+            readonly action_key: "*" | "update_finding_response";
+            readonly audit_id: components["schemas"]["ProductID"];
+            readonly correlation_id: components["schemas"]["ProductID"];
+            readonly enabled: boolean;
+            readonly receipt_id: components["schemas"]["ProductID"];
+            readonly replayed: boolean;
+            /** @enum {string} */
+            readonly target: "environment" | "action";
+            readonly version: number;
+        };
+        readonly SecurityAgentExecutionControls: {
+            readonly actions: readonly components["schemas"]["SecurityAgentExecutionControl"][];
+            readonly environment: components["schemas"]["SecurityAgentExecutionControl"];
+            readonly global: components["schemas"]["SecurityAgentExecutionControl"];
+        };
         readonly SecurityAgentExecutionStep: {
             readonly action: string;
             readonly outcome_id?: components["schemas"]["ProductID"];
@@ -3145,6 +3198,8 @@ export type components = {
         readonly BrowserMutationCSRFToken: string;
         /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
         readonly BrowserMutationOrigin: string;
+        /** @description Quoted current execution-control version, including quoted zero before the first tenant override. */
+        readonly ControlVersion: string;
         /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
         readonly CSRFToken: string;
         /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
@@ -3323,6 +3378,10 @@ export type SecurityAgentApproval = components['schemas']['SecurityAgentApproval
 export type SecurityAgentApprovalDecision = components['schemas']['SecurityAgentApprovalDecision'];
 export type SecurityAgentApprovalPage = components['schemas']['SecurityAgentApprovalPage'];
 export type SecurityAgentDefinition = components['schemas']['SecurityAgentDefinition'];
+export type SecurityAgentExecutionControl = components['schemas']['SecurityAgentExecutionControl'];
+export type SecurityAgentExecutionControlInput = components['schemas']['SecurityAgentExecutionControlInput'];
+export type SecurityAgentExecutionControlResult = components['schemas']['SecurityAgentExecutionControlResult'];
+export type SecurityAgentExecutionControls = components['schemas']['SecurityAgentExecutionControls'];
 export type SecurityAgentExecutionStep = components['schemas']['SecurityAgentExecutionStep'];
 export type SecurityAgentInput = components['schemas']['SecurityAgentInput'];
 export type SecurityAgentManualRunInput = components['schemas']['SecurityAgentManualRunInput'];
@@ -3386,6 +3445,7 @@ export type WorkspacePage = components['schemas']['WorkspacePage'];
 export type ResponseProductErrorResponse = components['responses']['ProductErrorResponse'];
 export type ParameterBrowserMutationCsrfToken = components['parameters']['BrowserMutationCSRFToken'];
 export type ParameterBrowserMutationOrigin = components['parameters']['BrowserMutationOrigin'];
+export type ParameterControlVersion = components['parameters']['ControlVersion'];
 export type ParameterCsrfToken = components['parameters']['CSRFToken'];
 export type ParameterFreshAuth = components['parameters']['FreshAuth'];
 export type ParameterIdempotencyKey = components['parameters']['IdempotencyKey'];
@@ -5772,6 +5832,70 @@ export interface operations {
             readonly 401: components["responses"]["ProductErrorResponse"];
             readonly 403: components["responses"]["ProductErrorResponse"];
             readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSecurityAgentExecutionControls: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Platform status and tenant-scoped execution controls. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentExecutionControls"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly setSecurityAgentExecutionControl: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current execution-control version, including quoted zero before the first tenant override. */
+                readonly "If-Match": components["parameters"]["ControlVersion"];
+                /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+                readonly "X-CSRF-Token": components["parameters"]["CSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SecurityAgentExecutionControlInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable tenant execution control. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentExecutionControlResult"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
