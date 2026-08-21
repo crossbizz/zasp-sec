@@ -1,6 +1,6 @@
 DO $guard$
 BEGIN
-  IF public.zasp_identity_administration_live_fingerprint()<>'b37f0ef3be47432d8fb60afb9c7f6c71f91f677fe16b412f1aa3bf28f02775a3'
+  IF public.zasp_identity_administration_live_fingerprint()<>'049fe9343581e0dbf1f4f9ef05ab811366af7bd6340efc2a7c668edc3641c623'
      OR EXISTS(SELECT 1 FROM public.zasp_identity_administration_state WHERE used_at IS NOT NULL)
      OR EXISTS(SELECT 1 FROM public.zasp_identity_provider_mutations)
      OR EXISTS(SELECT 1 FROM public.zasp_identity_webhook_events) THEN
@@ -20,6 +20,7 @@ DROP FUNCTION public.zasp_identity_admin_complete_mutation(text,text,text,text,t
 DROP FUNCTION public.zasp_identity_admin_mark_unknown(text,text,text,text,text);
 DROP FUNCTION public.zasp_identity_admin_reserve_mutation(text,text,text,text,text,bytea,jsonb,text,text,text);
 DROP FUNCTION public.zasp_identity_admin_intent_valid(text,jsonb);
+DROP FUNCTION public.zasp_identity_admin_provider_organization(text,text);
 DROP FUNCTION public.zasp_identity_admin_authorized(text,text);
 REVOKE SELECT,UPDATE ON public.zasp_identity_memberships FROM zasp_discovery_authority;
 REVOKE UPDATE ON public.zasp_product_sessions,public.zasp_product_api_tokens FROM zasp_discovery_authority;

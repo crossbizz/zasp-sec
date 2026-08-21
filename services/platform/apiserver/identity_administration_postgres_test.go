@@ -45,7 +45,7 @@ func TestProductionIdentityAdministrationPostgresInstallsExactTenantAuthority(t 
 
 	identity := fixtureRequestIdentity(t)
 	organization, principal := identity.Scope.OrganizationID().String(), identity.PrincipalID.String()
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role,active) VALUES($1,$2,'organization-test-local','member-test-local','security_admin',true)`, principal, organization); err != nil {
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role,active) VALUES($1,$2,'organization-tenant-a','member-test-local','security_admin',true)`, principal, organization); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES($1,$2,$3,$4,'Production','["view"]'::jsonb,true)`, principal, organization, identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()); err != nil {
@@ -61,6 +61,16 @@ func TestProductionIdentityAdministrationPostgresInstallsExactTenantAuthority(t 
 	var reserved []byte
 	if err := connection.QueryRow(ctx, `SELECT zasp_identity_admin_reserve_mutation($1,$2,'createSSOConnection',$3,$4,$5,$6::jsonb,$7,$8,$9)`, organization, principal, idempotency, mutationID, intentDigest, intent, auditID, correlationID, receiptID).Scan(&reserved); err != nil || !json.Valid(reserved) {
 		t.Fatalf("reserve=%s err=%v", reserved, err)
+	}
+	if !jsonContainsString(reserved, "provider_organization_reference", "organization-tenant-a") {
+		t.Fatalf("reserve tenant binding=%s", reserved)
+	}
+	var providerOrganization *string
+	if err := connection.QueryRow(ctx, `SELECT zasp_identity_admin_provider_organization($1,$2)`, organization, principal).Scan(&providerOrganization); err != nil || providerOrganization == nil || *providerOrganization != "organization-tenant-a" {
+		t.Fatalf("provider organization=%v err=%v", providerOrganization, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_identity_admin_provider_organization($1,'pid_79999999-0000-4000-8000-000000000099')`, organization).Scan(&providerOrganization); err != nil || providerOrganization != nil {
+		t.Fatalf("foreign provider organization=%v err=%v", providerOrganization, err)
 	}
 	connectionValue := json.RawMessage(`{"reference":"saml-connection-tenant-a","kind":"sso","protocol":"saml","status":"pending","display_name":"Corporate SAML","identity_provider":"okta","base_url":null}`)
 	var completed []byte

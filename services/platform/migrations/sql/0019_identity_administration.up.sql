@@ -23,6 +23,7 @@ CREATE TABLE public.zasp_identity_provider_connections (
 CREATE TABLE public.zasp_identity_provider_mutations (
   organization_id text NOT NULL,
   principal_id text NOT NULL,
+  provider_organization_reference text NOT NULL CHECK(provider_organization_reference~'^organization-[A-Za-z0-9_-]+$' AND length(provider_organization_reference) BETWEEN 14 AND 128),
   operation text NOT NULL CHECK(operation IN('createSSOConnection','deleteSSOConnection','testSSOConnection','createSCIMConnection','deleteSCIMConnection')),
   idempotency_key text NOT NULL CHECK(length(idempotency_key) BETWEEN 16 AND 128 AND idempotency_key~'^[A-Za-z0-9][A-Za-z0-9._:-]*$'),
   mutation_id text NOT NULL CHECK(zasp_valid_product_id(mutation_id)),
@@ -103,6 +104,10 @@ CREATE FUNCTION public.zasp_identity_admin_authorized(organization_value text,pr
   SELECT EXISTS(SELECT 1 FROM zasp_identity_memberships membership WHERE membership.organization_id=organization_value AND membership.principal_id=principal_value AND membership.active AND membership.role IN('organization_admin','security_admin'))
 $authorized$;
 
+CREATE FUNCTION public.zasp_identity_admin_provider_organization(organization_value text,principal_value text) RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $provider_organization$
+  SELECT membership.organization_reference FROM zasp_identity_memberships membership WHERE membership.organization_id=organization_value AND membership.principal_id=principal_value AND membership.active AND membership.role IN('organization_admin','security_admin') AND zasp_identity_admin_authorized(organization_value,principal_value)
+$provider_organization$;
+
 CREATE FUNCTION public.zasp_identity_admin_intent_valid(operation_value text,intent_value jsonb) RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog, public AS $intent$
   SELECT CASE operation_value
     WHEN 'createSSOConnection' THEN
@@ -130,7 +135,7 @@ CREATE FUNCTION public.zasp_identity_admin_intent_valid(operation_value text,int
 $intent$;
 
 CREATE FUNCTION public.zasp_identity_admin_reserve_mutation(organization_value text,principal_value text,operation_value text,idempotency_value text,mutation_value text,intent_digest_value bytea,intent_value jsonb,audit_value text,correlation_value text,receipt_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $reserve$
-DECLARE existing zasp_identity_provider_mutations%ROWTYPE;
+DECLARE existing zasp_identity_provider_mutations%ROWTYPE;provider_organization_value text;
 BEGIN
   IF NOT zasp_identity_admin_authorized(organization_value,principal_value) OR operation_value NOT IN('createSSOConnection','deleteSSOConnection','testSSOConnection','createSCIMConnection','deleteSCIMConnection')
      OR length(idempotency_value) NOT BETWEEN 16 AND 128 OR idempotency_value!~'^[A-Za-z0-9][A-Za-z0-9._:-]*$'
@@ -138,6 +143,8 @@ BEGIN
      OR NOT zasp_valid_product_id(audit_value) OR NOT zasp_valid_product_id(correlation_value) OR NOT zasp_valid_product_id(receipt_value) THEN
     RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='identity mutation rejected';
   END IF;
+  SELECT membership.organization_reference INTO provider_organization_value FROM zasp_identity_memberships membership WHERE membership.organization_id=organization_value AND membership.principal_id=principal_value AND membership.active;
+  IF NOT FOUND OR provider_organization_value!~'^organization-[A-Za-z0-9_-]+$' OR length(provider_organization_value) NOT BETWEEN 14 AND 128 THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='identity provider organization denied';END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),organization_value,principal_value,operation_value,idempotency_value),0));
   SELECT * INTO existing FROM zasp_identity_provider_mutations mutation WHERE (mutation.organization_id,mutation.principal_id,mutation.operation,mutation.idempotency_key)=(organization_value,principal_value,operation_value,idempotency_value);
   IF FOUND THEN
@@ -145,12 +152,12 @@ BEGIN
       RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='identity mutation replay conflict';
     END IF;
     IF existing.state='completed' THEN RETURN existing.response||jsonb_build_object('replayed',true);END IF;
-    RETURN jsonb_build_object('mutation_id',existing.mutation_id,'state',existing.state,'version',existing.version,'audit_id',existing.audit_id,'correlation_id',existing.correlation_id,'receipt_id',existing.receipt_id,'replayed',true);
+    RETURN jsonb_build_object('mutation_id',existing.mutation_id,'state',existing.state,'version',existing.version,'provider_organization_reference',existing.provider_organization_reference,'audit_id',existing.audit_id,'correlation_id',existing.correlation_id,'receipt_id',existing.receipt_id,'replayed',true);
   END IF;
-  INSERT INTO zasp_identity_provider_mutations(organization_id,principal_id,operation,idempotency_key,mutation_id,intent_digest,intent,audit_id,correlation_id,receipt_id)
-  VALUES(organization_value,principal_value,operation_value,idempotency_value,mutation_value,intent_digest_value,intent_value,audit_value,correlation_value,receipt_value);
+  INSERT INTO zasp_identity_provider_mutations(organization_id,principal_id,provider_organization_reference,operation,idempotency_key,mutation_id,intent_digest,intent,audit_id,correlation_id,receipt_id)
+  VALUES(organization_value,principal_value,provider_organization_value,operation_value,idempotency_value,mutation_value,intent_digest_value,intent_value,audit_value,correlation_value,receipt_value);
   UPDATE zasp_identity_administration_state SET used_at=COALESCE(used_at,transaction_timestamp()) WHERE singleton;
-  RETURN jsonb_build_object('mutation_id',mutation_value,'state','reserved','version',1,'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
+  RETURN jsonb_build_object('mutation_id',mutation_value,'state','reserved','version',1,'provider_organization_reference',provider_organization_value,'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
 END
 $reserve$;
 
@@ -263,7 +270,7 @@ $deprovision$;
 DO $functions$
 DECLARE procedure_oid oid;
 BEGIN
-  FOR procedure_oid IN SELECT procedure_row.oid FROM pg_proc procedure_row JOIN pg_namespace namespace_row ON namespace_row.oid=procedure_row.pronamespace WHERE namespace_row.nspname='public' AND procedure_row.proname IN('zasp_identity_admin_authorized','zasp_identity_admin_intent_valid','zasp_identity_admin_reserve_mutation','zasp_identity_admin_mark_unknown','zasp_identity_admin_complete_mutation','zasp_identity_admin_connection_page','zasp_identity_admin_reveal_secret','zasp_identity_admin_ack_secret','zasp_identity_admin_reconcile_deprovision') LOOP
+  FOR procedure_oid IN SELECT procedure_row.oid FROM pg_proc procedure_row JOIN pg_namespace namespace_row ON namespace_row.oid=procedure_row.pronamespace WHERE namespace_row.nspname='public' AND procedure_row.proname IN('zasp_identity_admin_authorized','zasp_identity_admin_provider_organization','zasp_identity_admin_intent_valid','zasp_identity_admin_reserve_mutation','zasp_identity_admin_mark_unknown','zasp_identity_admin_complete_mutation','zasp_identity_admin_connection_page','zasp_identity_admin_reveal_secret','zasp_identity_admin_ack_secret','zasp_identity_admin_reconcile_deprovision') LOOP
     EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',procedure_oid::regprocedure);
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC,zasp_discovery_api',procedure_oid::regprocedure);
     EXECUTE format('ALTER FUNCTION %s SECURITY DEFINER',procedure_oid::regprocedure);
@@ -272,7 +279,7 @@ BEGIN
 END
 $functions$;
 
-GRANT EXECUTE ON FUNCTION public.zasp_identity_admin_reserve_mutation(text,text,text,text,text,bytea,jsonb,text,text,text),public.zasp_identity_admin_mark_unknown(text,text,text,text,text),public.zasp_identity_admin_complete_mutation(text,text,text,text,text,jsonb,text,bytea,bytea,bytea,timestamptz),public.zasp_identity_admin_connection_page(text,text,text,text,integer),public.zasp_identity_admin_reveal_secret(text,text,text),public.zasp_identity_admin_ack_secret(text,text,text),public.zasp_identity_admin_reconcile_deprovision(text,text,text,text,bytea,text) TO zasp_discovery_api;
+GRANT EXECUTE ON FUNCTION public.zasp_identity_admin_provider_organization(text,text),public.zasp_identity_admin_reserve_mutation(text,text,text,text,text,bytea,jsonb,text,text,text),public.zasp_identity_admin_mark_unknown(text,text,text,text,text),public.zasp_identity_admin_complete_mutation(text,text,text,text,text,jsonb,text,bytea,bytea,bytea,timestamptz),public.zasp_identity_admin_connection_page(text,text,text,text,integer),public.zasp_identity_admin_reveal_secret(text,text,text),public.zasp_identity_admin_ack_secret(text,text,text),public.zasp_identity_admin_reconcile_deprovision(text,text,text,text,bytea,text) TO zasp_discovery_api;
 
 CREATE FUNCTION public.zasp_identity_admin_security_ready() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $security$
   SELECT
@@ -290,10 +297,10 @@ CREATE FUNCTION public.zasp_identity_admin_security_ready() RETURNS boolean LANG
     )
     AND NOT EXISTS(
       SELECT 1 FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace
-      WHERE namespace.nspname='public' AND procedure.proname=ANY(ARRAY['zasp_identity_admin_authorized','zasp_identity_admin_intent_valid','zasp_identity_admin_reserve_mutation','zasp_identity_admin_mark_unknown','zasp_identity_admin_complete_mutation','zasp_identity_admin_connection_page','zasp_identity_admin_reveal_secret','zasp_identity_admin_ack_secret','zasp_identity_admin_reconcile_deprovision','zasp_identity_admin_security_ready'])
+      WHERE namespace.nspname='public' AND procedure.proname=ANY(ARRAY['zasp_identity_admin_authorized','zasp_identity_admin_provider_organization','zasp_identity_admin_intent_valid','zasp_identity_admin_reserve_mutation','zasp_identity_admin_mark_unknown','zasp_identity_admin_complete_mutation','zasp_identity_admin_connection_page','zasp_identity_admin_reveal_secret','zasp_identity_admin_ack_secret','zasp_identity_admin_reconcile_deprovision','zasp_identity_admin_security_ready'])
         AND (procedure.proowner<>(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_authority') OR NOT procedure.prosecdef OR NOT COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public']
           OR EXISTS(SELECT 1 FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl WHERE acl.privilege_type='EXECUTE' AND acl.grantee NOT IN(procedure.proowner,(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_api')))
-          OR has_function_privilege('zasp_discovery_api',procedure.oid,'EXECUTE')<>(procedure.proname=ANY(ARRAY['zasp_identity_admin_reserve_mutation','zasp_identity_admin_mark_unknown','zasp_identity_admin_complete_mutation','zasp_identity_admin_connection_page','zasp_identity_admin_reveal_secret','zasp_identity_admin_ack_secret','zasp_identity_admin_reconcile_deprovision'])))
+          OR has_function_privilege('zasp_discovery_api',procedure.oid,'EXECUTE')<>(procedure.proname=ANY(ARRAY['zasp_identity_admin_provider_organization','zasp_identity_admin_reserve_mutation','zasp_identity_admin_mark_unknown','zasp_identity_admin_complete_mutation','zasp_identity_admin_connection_page','zasp_identity_admin_reveal_secret','zasp_identity_admin_ack_secret','zasp_identity_admin_reconcile_deprovision'])))
     )
 $security$;
 
@@ -305,6 +312,12 @@ CREATE FUNCTION public.zasp_identity_administration_live_fingerprint() RETURNS t
     SELECT concat_ws('|','table',class.relname,owner.rolname,class.relrowsecurity,class.relforcerowsecurity,COALESCE(class.relacl::text,'')) FROM pg_class class JOIN pg_namespace namespace ON namespace.oid=class.relnamespace JOIN pg_roles owner ON owner.oid=class.relowner WHERE namespace.nspname='public' AND class.relname LIKE 'zasp_identity_%' AND class.relname IN('zasp_identity_administration_state','zasp_identity_provider_connections','zasp_identity_provider_mutations','zasp_identity_secret_reveal_grants','zasp_identity_webhook_events') AND class.relkind IN('r','i')
     UNION ALL
     SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname LIKE 'zasp_identity_admin%'
+    UNION ALL
+    SELECT concat_ws('|','column',class.relname,attribute.attnum,attribute.attname,format_type(attribute.atttypid,attribute.atttypmod),attribute.attnotnull,COALESCE(pg_get_expr(default_value.adbin,default_value.adrelid),'')) FROM pg_attribute attribute JOIN pg_class class ON class.oid=attribute.attrelid JOIN pg_namespace namespace ON namespace.oid=class.relnamespace LEFT JOIN pg_attrdef default_value ON default_value.adrelid=class.oid AND default_value.adnum=attribute.attnum WHERE namespace.nspname='public' AND class.relname IN('zasp_identity_administration_state','zasp_identity_provider_connections','zasp_identity_provider_mutations','zasp_identity_secret_reveal_grants','zasp_identity_webhook_events') AND attribute.attnum>0 AND NOT attribute.attisdropped
+    UNION ALL
+    SELECT concat_ws('|','constraint',class.relname,constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value JOIN pg_class class ON class.oid=constraint_value.conrelid JOIN pg_namespace namespace ON namespace.oid=class.relnamespace WHERE namespace.nspname='public' AND class.relname IN('zasp_identity_administration_state','zasp_identity_provider_connections','zasp_identity_provider_mutations','zasp_identity_secret_reveal_grants','zasp_identity_webhook_events')
+    UNION ALL
+    SELECT concat_ws('|','index',class.relname,index_value.relname,pg_get_indexdef(index_value.oid)) FROM pg_index index_metadata JOIN pg_class class ON class.oid=index_metadata.indrelid JOIN pg_namespace namespace ON namespace.oid=class.relnamespace JOIN pg_class index_value ON index_value.oid=index_metadata.indexrelid WHERE namespace.nspname='public' AND class.relname IN('zasp_identity_administration_state','zasp_identity_provider_connections','zasp_identity_provider_mutations','zasp_identity_secret_reveal_grants','zasp_identity_webhook_events')
   ) SELECT encode(digest(convert_to(string_agg(value,E'\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities
 $fingerprint$;
 
@@ -330,4 +343,4 @@ BEGIN
 END
 $schema_marker$;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('identity_administration_fingerprint', 'b37f0ef3be47432d8fb60afb9c7f6c71f91f677fe16b412f1aa3bf28f02775a3') ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('identity_administration_fingerprint', '049fe9343581e0dbf1f4f9ef05ab811366af7bd6340efc2a7c668edc3641c623') ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;
