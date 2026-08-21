@@ -243,10 +243,10 @@ M3	M3-48g	Complete	component-only	T10-product-ui	audited component-only proof: l
 M3	M3-48h	Complete	component-only	T10-product-ui	audited component-only proof: Generic Webhook setup UI
 M3	M3-48	Complete	production-available	PROD-current-composition	audited shipped composition: Connections UI shell
 M3	M3-49	Complete	production-available	T10-product-ui	production evidence: capability-gated authorize, sync, delete, receipt recovery, history, and freshness actions proven through shipped product APIs in the installed-browser gate
-M3	M3-50	Complete	component-only	T10-product-ui	audited component-only proof: Sensors UI shell
-M3	M3-51	Complete	component-only	T10-product-ui	audited component-only proof: Sensors UI actions
+M3	M3-50	Complete	production-available	T10-product-ui	shipped sensor list, detail, enrollment, and heartbeat coverage use strict generated-client product APIs
+M3	M3-51	Complete	production-available	T10-product-ui	shipped idempotent enroll, version-fenced update/rotate/delete, one-time credential, and fresh-auth controls pass lifecycle UI tests
 M3	M3-52a	Complete	production-available	T04-discovery-worker	production evidence: combined AWS, Kubernetes, GitHub, and Okta fixtures traverse production provider clients, canonical collection, manifest-last artifacts, and worker decoding under race at 1f2031f
-M3	M3-52b	Complete	component-only	T06-runtime-data-plane	audited component-only proof: M3 sensor E2E
+M3	M3-52b	Complete	production-available	T06-runtime-data-plane	installed-browser E2E proves scoped enrollment, authenticated heartbeat, healthy kernel/capability coverage, version-pinned rotation, reload, deletion, and no persisted token
 M3	M3-52c	Complete	component-only	T06-runtime-data-plane	audited component-only proof: M3 OTLP eBPF ingest E2E
 M3	M3-52d	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 queue index E2E
 M3	M3-52e	Complete	production-available	T04-discovery-worker	production evidence: M3 freshness degrade E2E; verified by Task 4 source/deploy review and focused race/release gates

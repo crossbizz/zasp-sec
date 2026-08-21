@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 353 |
-| Component-only | 314 |
+| Production-available | 356 |
+| Component-only | 311 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -137,14 +137,14 @@ production composition, not merely a component proof or external evidence.
 | M1 | 68 | 57 | 11 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
-| M3 | 75 | 54 | 19 | 2 | 0 |
+| M3 | 75 | 57 | 16 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 23 | 66 | 52 | 0 |
-| **Total** | **728** | **353** | **314** | **61** | **0** |
+| **Total** | **728** | **356** | **311** | **61** | **0** |
 
 ## Prerequisite work
 
@@ -608,10 +608,10 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 | M3-52e | August 18, 2026 | Failed-sync fixture retains last-known inventory with an exact stale state. |
 | M3-52d | August 18, 2026 | Queue/archive/index replay fixture retains matching deterministic references and an empty synthetic DLQ. |
 | M3-52c | August 18, 2026 | One semantic OTLP event and three runtime events traverse bounded scoped ingest. |
-| M3-52b | August 18, 2026 | Scoped enrollment and heartbeat fixture produces supported sensor coverage. |
+| M3-52b | August 21, 2026 | Installed-browser E2E proves scoped enrollment, authenticated heartbeat, healthy kernel/capability coverage, version-pinned rotation, reload, deletion, and no persisted token. |
 | M3-52a | August 18, 2026 | AWS, Kubernetes, GitHub, and directory fixtures compose into canonical scoped assets and freshness. |
-| M3-51 | August 18, 2026 | Sensor enrollment, one-time rotation, and confirmed deletion controls pass lifecycle UI tests. |
-| M3-50 | August 18, 2026 | Sensors routes render list, detail, enrollment, coverage, and freshness from generated types. |
+| M3-51 | August 21, 2026 | Shipped idempotent enrollment, version-fenced update/rotate/delete, one-time credential handling, and fresh-auth controls pass lifecycle UI tests. |
+| M3-50 | August 21, 2026 | Shipped sensor list, detail, enrollment, and heartbeat coverage use strict generated-client product APIs. |
 | M3-49 | August 21, 2026 | Connection authorize, sync, delete, receipt recovery, history, and freshness actions are capability-gated and proven through shipped product APIs. |
 | M3-48 | August 18, 2026 | Connections route smoke covers catalog, connected list, detail, and provider setup navigation. |
 | M3-48h | August 18, 2026 | Generic Webhook setup fixes one signed destination and exposes delivery signature status without per-action URLs. |
