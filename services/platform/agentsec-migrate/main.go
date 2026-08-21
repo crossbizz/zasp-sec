@@ -15,25 +15,27 @@ import (
 )
 
 const (
-	postgresDSNEnvironment                 = "ZASP_POSTGRES_DSN"
-	migrationTimeoutEnvironment            = "ZASP_MIGRATION_TIMEOUT"
-	migrationPrincipalEnvironment          = "ZASP_MIGRATION_DB_PRINCIPAL"
-	discoveryAPIPrincipalEnvironment       = "ZASP_DISCOVERY_API_DB_PRINCIPAL"
-	discoveryWorkerPrincipalEnvironment    = "ZASP_DISCOVERY_WORKER_DB_PRINCIPAL"
-	runtimeIngestPrincipalEnvironment      = "ZASP_RUNTIME_INGEST_DB_PRINCIPAL"
-	runtimeWorkerPrincipalEnvironment      = "ZASP_RUNTIME_WORKER_DB_PRINCIPAL"
-	outboxWorkerPrincipalEnvironment       = "ZASP_OUTBOX_WORKER_DB_PRINCIPAL"
-	runtimeGatewayPrincipalEnvironment     = "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL"
-	discoverySchedulerPrincipalEnvironment = "ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL"
-	projectionRiskPrincipalEnvironment     = "ZASP_PROJECTION_RISK_DB_PRINCIPAL"
-	projectionGraphPrincipalEnvironment    = "ZASP_PROJECTION_GRAPH_DB_PRINCIPAL"
-	projectionSearchPrincipalEnvironment   = "ZASP_PROJECTION_SEARCH_DB_PRINCIPAL"
-	runtimeCoordinatorPrincipalEnvironment = "ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL"
-	runtimeArchivePrincipalEnvironment     = "ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL"
-	runtimeIndexPrincipalEnvironment       = "ZASP_RUNTIME_INDEX_DB_PRINCIPAL"
-	runtimeCorrelationPrincipalEnvironment = "ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL"
-	runtimeProjectionPrincipalEnvironment  = "ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL"
-	gatewayControlPrincipalEnvironment     = "ZASP_GATEWAY_CONTROL_DB_PRINCIPAL"
+	postgresDSNEnvironment                  = "ZASP_POSTGRES_DSN"
+	migrationTimeoutEnvironment             = "ZASP_MIGRATION_TIMEOUT"
+	migrationPrincipalEnvironment           = "ZASP_MIGRATION_DB_PRINCIPAL"
+	discoveryAPIPrincipalEnvironment        = "ZASP_DISCOVERY_API_DB_PRINCIPAL"
+	discoveryWorkerPrincipalEnvironment     = "ZASP_DISCOVERY_WORKER_DB_PRINCIPAL"
+	runtimeIngestPrincipalEnvironment       = "ZASP_RUNTIME_INGEST_DB_PRINCIPAL"
+	runtimeWorkerPrincipalEnvironment       = "ZASP_RUNTIME_WORKER_DB_PRINCIPAL"
+	outboxWorkerPrincipalEnvironment        = "ZASP_OUTBOX_WORKER_DB_PRINCIPAL"
+	runtimeGatewayPrincipalEnvironment      = "ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL"
+	discoverySchedulerPrincipalEnvironment  = "ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL"
+	projectionRiskPrincipalEnvironment      = "ZASP_PROJECTION_RISK_DB_PRINCIPAL"
+	projectionGraphPrincipalEnvironment     = "ZASP_PROJECTION_GRAPH_DB_PRINCIPAL"
+	projectionSearchPrincipalEnvironment    = "ZASP_PROJECTION_SEARCH_DB_PRINCIPAL"
+	runtimeCoordinatorPrincipalEnvironment  = "ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL"
+	runtimeArchivePrincipalEnvironment      = "ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL"
+	runtimeIndexPrincipalEnvironment        = "ZASP_RUNTIME_INDEX_DB_PRINCIPAL"
+	runtimeCorrelationPrincipalEnvironment  = "ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL"
+	runtimeProjectionPrincipalEnvironment   = "ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL"
+	gatewayControlPrincipalEnvironment      = "ZASP_GATEWAY_CONTROL_DB_PRINCIPAL"
+	securityAgentAPIPrincipalEnvironment    = "ZASP_SECURITY_AGENT_API_DB_PRINCIPAL"
+	securityAgentWorkerPrincipalEnvironment = "ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL"
 )
 
 var errInvalidMigrationCommand = errors.New("invalid release migration command")
@@ -43,6 +45,7 @@ var databasePrincipalPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{2,62}$`)
 type discoveryPrincipalRegistration struct {
 	migration, api, discovery, ingest, runtime, outbox, gateway, scheduler, projectionRisk, projectionGraph, projectionSearch string
 	runtimeCoordinator, runtimeArchive, runtimeIndex, runtimeCorrelation, runtimeProjection, gatewayControl                   string
+	securityAgentAPI, securityAgentWorker                                                                                     string
 }
 
 type principalQueryer interface {
@@ -80,6 +83,8 @@ type releaseMigrationRunner interface {
 	DownProductionRuntimeGatewayReconciliation(context.Context) error
 	UpProductionRuntimeIngestReconciliation(context.Context) error
 	DownProductionRuntimeIngestReconciliation(context.Context) error
+	UpProductionSecurityAgentExecution(context.Context) error
+	DownProductionSecurityAgentExecution(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -139,6 +144,9 @@ func registerReleasePrincipals(ctx context.Context, queryer principalQueryer, re
 		{`SELECT zasp_runtime_register_principals($1,$2,$3,$4,$5,$6,$7)`, []any{registration.migration, registration.runtimeCoordinator, registration.runtimeArchive, registration.runtimeIndex, registration.runtimeCorrelation, registration.runtimeProjection, registration.gatewayControl}},
 		{statement: `SELECT zasp_runtime_principals_ready()`},
 		{`SELECT zasp_runtime_ingest_reconciliation_readiness($1,$2)`, []any{migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()}},
+		{`SELECT zasp_security_agent_register_principals($1,$2,$3)`, []any{registration.migration, registration.securityAgentAPI, registration.securityAgentWorker}},
+		{statement: `SELECT zasp_security_agent_principals_ready()`},
+		{`SELECT zasp_security_agent_readiness($1,$2)`, []any{migrations.ProductionSecurityAgentExecution().Checksum(), migrations.ProductionSecurityAgentExecutionSemanticFingerprint()}},
 	}
 	for _, check := range checks {
 		ready = false
@@ -163,8 +171,9 @@ func loadDiscoveryPrincipalRegistration(getenv func(string) string) (discoveryPr
 		runtimeCoordinator: getenv(runtimeCoordinatorPrincipalEnvironment), runtimeArchive: getenv(runtimeArchivePrincipalEnvironment),
 		runtimeIndex: getenv(runtimeIndexPrincipalEnvironment), runtimeCorrelation: getenv(runtimeCorrelationPrincipalEnvironment),
 		runtimeProjection: getenv(runtimeProjectionPrincipalEnvironment), gatewayControl: getenv(gatewayControlPrincipalEnvironment),
+		securityAgentAPI: getenv(securityAgentAPIPrincipalEnvironment), securityAgentWorker: getenv(securityAgentWorkerPrincipalEnvironment),
 	}
-	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway, registration.scheduler, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch, registration.runtimeCoordinator, registration.runtimeArchive, registration.runtimeIndex, registration.runtimeCorrelation, registration.runtimeProjection, registration.gatewayControl}
+	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway, registration.scheduler, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch, registration.runtimeCoordinator, registration.runtimeArchive, registration.runtimeIndex, registration.runtimeCorrelation, registration.runtimeProjection, registration.gatewayControl, registration.securityAgentAPI, registration.securityAgentWorker}
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		if !databasePrincipalPattern.MatchString(value) {
@@ -304,10 +313,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 17
 		}
-		if version != 17 {
+		if version == 17 {
+			if err := runner.UpProductionSecurityAgentExecution(ctx); err != nil {
+				return err
+			}
+			version = 18
+		}
+		if version != 18 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 18 {
+			if err := runner.DownProductionSecurityAgentExecution(ctx); err != nil {
+				return err
+			}
+			version = 17
+		}
 		if version == 17 {
 			if err := runner.DownProductionRuntimeIngestReconciliation(ctx); err != nil {
 				return err

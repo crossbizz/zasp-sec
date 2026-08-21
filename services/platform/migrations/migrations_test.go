@@ -538,9 +538,10 @@ func TestReferenceAuthorizationMigrationOwnsAtomicFirstPartyReferenceCompletion(
 
 func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t *testing.T) {
 	baseline, core, workflows, receipts, safety, provenance, administration := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration()
-	reveal, risk, discovery, connector, reference, execution, typed, runtime, reconciliation, ingestReconciliation := APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation()
+	reveal, risk, discovery, connector, reference, execution, typed, runtime, reconciliation, ingestReconciliation, securityAgent := APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution()
 	throughReconciliation := []Metadata{baseline, core, workflows, receipts, safety, provenance, administration, reveal, risk, discovery, connector, reference, execution, typed, runtime, reconciliation}
 	throughIngestReconciliation := append(append([]Metadata(nil), throughReconciliation...), ingestReconciliation)
+	throughSecurityAgent := append(append([]Metadata(nil), throughIngestReconciliation...), securityAgent)
 	for _, test := range []struct {
 		name    string
 		rows    []Row
@@ -563,7 +564,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "runtime data plane", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(15)}}, fakeRow{values: []any{baseline.Version(), baseline.Name(), baseline.Checksum()}}, fakeRow{values: []any{core.Version(), core.Name(), core.Checksum()}}, fakeRow{values: []any{workflows.Version(), workflows.Name(), workflows.Checksum()}}, fakeRow{values: []any{receipts.Version(), receipts.Name(), receipts.Checksum()}}, fakeRow{values: []any{safety.Version(), safety.Name(), safety.Checksum()}}, fakeRow{values: []any{provenance.Version(), provenance.Name(), provenance.Checksum()}}, fakeRow{values: []any{administration.Version(), administration.Name(), administration.Checksum()}}, fakeRow{values: []any{reveal.Version(), reveal.Name(), reveal.Checksum()}}, fakeRow{values: []any{risk.Version(), risk.Name(), risk.Checksum()}}, fakeRow{values: []any{discovery.Version(), discovery.Name(), discovery.Checksum()}}, fakeRow{values: []any{connector.Version(), connector.Name(), connector.Checksum()}}, fakeRow{values: []any{reference.Version(), reference.Name(), reference.Checksum()}}, fakeRow{values: []any{execution.Version(), execution.Name(), execution.Checksum()}}, fakeRow{values: []any{typed.Version(), typed.Name(), typed.Checksum()}}, fakeRow{values: []any{runtime.Version(), runtime.Name(), runtime.Checksum()}}}, want: 15},
 		{name: "runtime gateway reconciliation", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughReconciliation...)...), want: 16},
 		{name: "runtime ingest reconciliation", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughIngestReconciliation...)...), want: 17},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(18)}}}, wantErr: ErrInvalidState},
+		{name: "security agent execution", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSecurityAgent...)...), want: 18},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(19)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}

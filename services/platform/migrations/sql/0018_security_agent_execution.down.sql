@@ -1,0 +1,47 @@
+DO $guard$
+BEGIN
+  IF public.zasp_security_agent_live_fingerprint()<>'a243fadac1cb587907da58be438b6be19339cae56583f33b61252fe2dbd3f8cd'
+     OR EXISTS(SELECT 1 FROM public.zasp_security_agent_execution_state WHERE used_at IS NOT NULL)
+     OR EXISTS(SELECT 1 FROM public.zasp_security_agent_runs)
+     OR EXISTS(SELECT 1 FROM public.zasp_security_agent_effects) THEN
+    RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent execution rollback rejected';
+  END IF;
+END $guard$;
+
+DO $principal_memberships$
+DECLARE binding record;
+BEGIN
+  FOR binding IN SELECT principal_name,authority_role FROM public.zasp_security_agent_principal_bindings LOOP
+    EXECUTE format('REVOKE %I FROM %I CASCADE',binding.authority_role,binding.principal_name);
+  END LOOP;
+END
+$principal_memberships$;
+
+DROP FUNCTION public.zasp_security_agent_readiness(text,text);
+DROP FUNCTION public.zasp_security_agent_live_fingerprint();
+DROP FUNCTION public.zasp_security_agent_claim_runs(text,text,integer,integer);
+DROP FUNCTION public.zasp_security_agent_create_run(text,text,text,text,bigint,text,text,bigint,bytea,text,text,text);
+DROP FUNCTION public.zasp_security_agent_activate(text,text,text,text,bigint,text,text,timestamptz,text,text);
+DROP FUNCTION public.zasp_security_agent_set_kill_switch(text,text,text,text,boolean,bigint,text,text,text);
+DROP FUNCTION public.zasp_security_agent_definition_detail(text,text,text,text);
+DROP FUNCTION public.zasp_security_agent_principals_ready();
+DROP FUNCTION public.zasp_security_agent_principal_ready(text);
+DROP FUNCTION public.zasp_security_agent_register_principals(text,text,text);
+DELETE FROM public.zasp_schema_metadata WHERE key='security_agent_execution_fingerprint';
+DROP TABLE public.zasp_security_agent_audit;
+DROP TABLE public.zasp_security_agent_controls;
+DROP TABLE public.zasp_security_agent_effects;
+DROP TABLE public.zasp_security_agent_approvals;
+DROP TABLE public.zasp_security_agent_steps;
+DROP TABLE public.zasp_security_agent_plans;
+DROP TABLE public.zasp_security_agent_runs;
+DROP TABLE public.zasp_security_agent_trigger_receipts;
+DROP TABLE public.zasp_security_agent_kill_switches;
+DROP TABLE public.zasp_security_agent_definition_versions;
+DROP TABLE public.zasp_security_agent_definitions;
+DROP TABLE public.zasp_security_agent_principal_bindings;
+DROP TABLE public.zasp_security_agent_execution_state;
+
+REVOKE zasp_security_agent_api,zasp_security_agent_worker FROM zasp_discovery_authority CASCADE;
+DROP ROLE zasp_security_agent_worker;
+DROP ROLE zasp_security_agent_api;
