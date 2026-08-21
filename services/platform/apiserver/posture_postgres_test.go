@@ -77,6 +77,19 @@ func TestProductionTypedInventoryCutoverPostgresRefreshesAllEvidenceBackedPostur
 	if !validProductID(findingID) || source != "posture" || rule != "ownerless_agent" || title != "Agent has no owner" || severity != "high" || status != "open" || storedAgentID != agentID || storedEvidenceID != evidenceID {
 		t.Fatalf("ownerless finding=%s %s %s %s %s %s %s %s result=%s", findingID, source, rule, title, severity, status, storedAgentID, storedEvidenceID, result)
 	}
+	var findingDetail []byte
+	if err := connection.QueryRow(ctx, `SELECT zasp_risk_finding_get($1,$2,$3,$4)`, findingID, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&findingDetail); err != nil {
+		t.Fatal(err)
+	}
+	var detail struct {
+		RiskFactors []struct {
+			Name       string `json:"name"`
+			EvidenceID string `json:"evidence_id"`
+		} `json:"risk_factors"`
+	}
+	if err := json.Unmarshal(findingDetail, &detail); err != nil || len(detail.RiskFactors) != 1 || detail.RiskFactors[0].Name != "Agent has no owner" || detail.RiskFactors[0].EvidenceID != evidenceID {
+		t.Fatalf("ownerless risk factors=%s err=%v", findingDetail, err)
+	}
 	rows, err := connection.Query(ctx, `SELECT DISTINCT rule FROM zasp_risk_findings WHERE (organization_id,workspace_id,environment_id,source,status)=($1,$2,$3,'posture','open') ORDER BY rule`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
 	if err != nil {
 		t.Fatal(err)
@@ -99,6 +112,10 @@ func TestProductionTypedInventoryCutoverPostgresRefreshesAllEvidenceBackedPostur
 	var evidenceCount int
 	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_risk_finding_evidence evidence JOIN zasp_risk_findings finding ON (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=(evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.finding_id) WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.source) = ($1,$2,$3,'posture')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&evidenceCount); err != nil || evidenceCount != 13 {
 		t.Fatalf("posture evidence count=%d err=%v", evidenceCount, err)
+	}
+	var factorCount int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_risk_finding_factors factor JOIN zasp_risk_finding_evidence evidence ON (evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.finding_id,evidence.position)=(factor.organization_id,factor.workspace_id,factor.environment_id,factor.finding_id,factor.position) JOIN zasp_risk_findings finding ON (finding.organization_id,finding.workspace_id,finding.environment_id,finding.id)=(factor.organization_id,factor.workspace_id,factor.environment_id,factor.finding_id) WHERE (finding.organization_id,finding.workspace_id,finding.environment_id,finding.source)=($1,$2,$3,'posture') AND factor.evidence_id=evidence.evidence_id`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&factorCount); err != nil || factorCount != evidenceCount {
+		t.Fatalf("posture risk factors count=%d evidence=%d err=%v", factorCount, evidenceCount, err)
 	}
 
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_inventory_annotations(organization_id,workspace_id,environment_id,entity_id,owner_value)

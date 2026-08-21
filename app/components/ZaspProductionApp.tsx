@@ -45,7 +45,7 @@ function ProductionRouteSurface({ path, navigate }: { path: string; navigate(pat
   const session = useSession();
   const { client } = useAPI();
   if (session.status !== "authenticated") return null;
-  if (path === "/violations" || path === "/exposure/attack-paths") return <ProductionRiskView path={path} canWrite={session.hasCapability("findings.write")} />;
+  if (path === "/violations" || path === "/exposure/attack-paths") return <ProductionRiskView path={path} canWrite={session.hasCapability("findings.write")} onNavigate={navigate} />;
   if (path === "/policies") return <ProductionPoliciesView canWrite={session.hasCapability("policies.write")} />;
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;

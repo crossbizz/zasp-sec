@@ -9,13 +9,13 @@ import { Badge, Button, Card, Drawer, Field, PageHeader } from "../../components
 import { useRetainedWorkflowMutation } from "../workflows/useRetainedWorkflowMutation";
 import { createProductionRiskAPI, type ProductionRiskAPI, type VersionedRisk } from "./api";
 
-export function ProductionRiskView({ path, canWrite, api: suppliedAPI }: { path: "/violations" | "/exposure/attack-paths"; canWrite: boolean; api?: ProductionRiskAPI }) {
+export function ProductionRiskView({ path, canWrite, api: suppliedAPI, onNavigate = navigateInBrowser }: { path: "/violations" | "/exposure/attack-paths"; canWrite: boolean; api?: ProductionRiskAPI; onNavigate?: (path: string) => void }) {
   const { client } = useAPI();
   const api = useMemo(() => suppliedAPI ?? createProductionRiskAPI(client), [client, suppliedAPI]);
-  return path === "/violations" ? <ProductionFindingsView api={api} canWrite={canWrite} /> : <ProductionAttackPathsView api={api} />;
+  return path === "/violations" ? <ProductionFindingsView api={api} canWrite={canWrite} onNavigate={onNavigate} /> : <ProductionAttackPathsView api={api} />;
 }
 
-function ProductionFindingsView({ api, canWrite }: { api: ProductionRiskAPI; canWrite: boolean }) {
+function ProductionFindingsView({ api, canWrite, onNavigate }: { api: ProductionRiskAPI; canWrite: boolean; onNavigate: (path: string) => void }) {
   const query = useAPIQuery("risk:findings", useCallback((signal?: AbortSignal) => api.listFindings(signal), [api]));
   const [detail, setDetail] = useState<VersionedRisk<Finding> | null>(null);
   const [detailState, setDetailState] = useState<"idle" | "loading" | "error">("idle");
@@ -65,11 +65,43 @@ function ProductionFindingsView({ api, canWrite }: { api: ProductionRiskAPI; can
   if (query.status === "forbidden") return <RiskState title="Findings" alert="Findings are not authorized in this scope." />;
   if (query.status === "error") return <RiskState title="Findings" alert="Findings are unavailable." retry={() => void query.retry()} />;
   const findings = query.data ?? [];
-  return <div className="page"><PageHeader title="Findings" description="Authoritative scoped findings and their exact evidence." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale findings. Retry before making decisions.</div>}<Card>{findings.length === 0 ? <p>No findings in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Finding</th><th>Severity</th><th>Status</th><th>Updated</th></tr></thead><tbody>{findings.map((finding) => <tr key={finding.id}><td><button className="row-title" aria-label={`Open ${finding.title}`} onClick={() => void open(finding)}>{finding.title}</button></td><td><Badge tone={finding.severity}>{finding.severity}</Badge></td><td>{finding.status.replace("_", " ")}</td><td>{finding.updated_at}</td></tr>)}</tbody></table></div>}</Card>{detailState === "loading" && <p role="status">Loading finding detail…</p>}{detailState === "error" && <p role="alert">{mutationError}</p>}{detail && <Drawer open title={detail.value.title} closeDisabled={locked} onClose={close}><FindingDetail finding={detail.value} />{canWrite && <section aria-label="Finding controls"><h3>Change status</h3><Button disabled={locked || detail.value.status === "under_review"} onClick={() => void markUnderReview()}>Mark under review</Button><h3>Accept risk</h3><Field multiline label="Risk acceptance reason" value={reason} disabled={locked} maxLength={512} onChange={(event) => setReason(event.target.value)} /><Button variant="danger" disabled={locked || reason.length < 1 || reason.trim() !== reason} onClick={() => void acceptRisk()}>Accept risk</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}{update.canRetry && <Button onClick={() => void update.retry()}>Retry retained finding update</Button>}{accept.canRetry && <Button onClick={() => void accept.retry()}>Retry retained risk acceptance</Button>}{locked && <p role="status">Reconciling finding change…</p>}</Drawer>}</div>;
+  return <div className="page"><PageHeader title="Findings" description="Authoritative scoped findings and their exact evidence." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale findings. Retry before making decisions.</div>}<Card>{findings.length === 0 ? <p>No findings in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Finding</th><th>Severity</th><th>Status</th><th>Updated</th></tr></thead><tbody>{findings.map((finding) => <tr key={finding.id}><td><button className="row-title" aria-label={`Open ${finding.title}`} onClick={() => void open(finding)}>{finding.title}</button></td><td><Badge tone={finding.severity}>{finding.severity}</Badge></td><td>{finding.status.replace("_", " ")}</td><td>{finding.updated_at}</td></tr>)}</tbody></table></div>}</Card>{detailState === "loading" && <p role="status">Loading finding detail…</p>}{detailState === "error" && <p role="alert">{mutationError}</p>}{detail && <Drawer open title={detail.value.title} closeDisabled={locked} onClose={close}><FindingDetail finding={detail.value} onNavigate={onNavigate} />{canWrite && <section aria-label="Finding controls"><h3>Change status</h3><Button disabled={locked || detail.value.status === "under_review"} onClick={() => void markUnderReview()}>Mark under review</Button><h3>Accept risk</h3><Field multiline label="Risk acceptance reason" value={reason} disabled={locked} maxLength={512} onChange={(event) => setReason(event.target.value)} /><Button variant="danger" disabled={locked || reason.length < 1 || reason.trim() !== reason} onClick={() => void acceptRisk()}>Accept risk</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}{update.canRetry && <Button onClick={() => void update.retry()}>Retry retained finding update</Button>}{accept.canRetry && <Button onClick={() => void accept.retry()}>Retry retained risk acceptance</Button>}{locked && <p role="status">Reconciling finding change…</p>}</Drawer>}</div>;
 }
 
-function FindingDetail({ finding }: { finding: Finding }) {
-  return <div className="detail-content"><p><Badge tone={finding.severity}>{finding.severity}</Badge> · {finding.status.replace("_", " ")} · version {finding.version}</p>{finding.acceptance_reason && <><h3>Acceptance reason</h3><p>{finding.acceptance_reason}</p></>}<h3>Evidence</h3><ul>{finding.evidence_ids.map((id) => <li key={id}><code>{id}</code></li>)}</ul><h3>Risk factors</h3>{finding.risk_factors.length === 0 ? <p>No risk factors recorded.</p> : <dl>{finding.risk_factors.map((factor) => <div key={`${factor.name}/${factor.evidence_id}`}><dt>{factor.name}</dt><dd><code>{factor.evidence_id}</code></dd></div>)}</dl>}</div>;
+function FindingDetail({ finding, onNavigate }: { finding: Finding; onNavigate: (path: string) => void }) {
+  const guidance = guidanceFor(finding);
+  return <div className="detail-content"><p><Badge tone={finding.severity}>{finding.severity}</Badge> · {finding.status.replace("_", " ")} · version {finding.version}</p>{finding.acceptance_reason && <><h3>Acceptance reason</h3><p>{finding.acceptance_reason}</p></>}<h3>Why</h3><p>{guidance.why}</p>{finding.risk_factors.length === 0 ? <p>No risk factors recorded.</p> : <dl>{finding.risk_factors.map((factor) => <div key={`${factor.name}/${factor.evidence_id}`}><dt>{factor.name}</dt><dd>Evidence <code>{factor.evidence_id}</code></dd></div>)}</dl>}<h3>Evidence</h3><ul>{finding.evidence_ids.map((id) => <li key={id}><code>{id}</code></li>)}</ul><h3>Path</h3>{finding.path_id ? <><p>Evidence-backed attack path <code>{finding.path_id}</code></p><Button onClick={() => onNavigate("/exposure/attack-paths")}>Open attack path</Button></> : <p>No evidence-backed attack path is linked to this finding.</p>}<h3>Fix</h3><p>{guidance.fix}</p><h3>Verify</h3><p>{guidance.verify}</p></div>;
+}
+
+type FindingGuidance = Readonly<{ why: string; fix: string; verify: string }>;
+
+const postureGuidance: Readonly<Record<string, FindingGuidance>> = {
+  ownerless_agent: { why: "The discovered production agent has no assigned security owner.", fix: "Assign a named owner with responsibility for the agent and its production access.", verify: "Run discovery again and confirm the owner is present and this finding resolves." },
+  human_credential: { why: "The agent is using a credential associated with a human identity.", fix: "Replace the human credential with a dedicated workload identity scoped to the required actions.", verify: "Rotate the credential, run discovery again, and confirm no human credential remains." },
+  shared_credential: { why: "The same credential fingerprint is active on more than one agent.", fix: "Issue a distinct workload credential for each agent and revoke the shared credential.", verify: "Run discovery again and confirm every active agent has a unique credential fingerprint." },
+  untrusted_production_write: { why: "Untrusted input can reach an agent that has production write access.", fix: "Separate untrusted input handling from production writes and require an enforced authorization boundary.", verify: "Re-run discovery and confirm the input-to-write condition no longer matches." },
+  shell_credential: { why: "Shell execution can use a credential that reaches production.", fix: "Remove interactive shell access or isolate the production credential from the shell runtime.", verify: "Run discovery again and confirm shell execution cannot access the production credential." },
+  egress_sensitive: { why: "Unrestricted network egress can reach a sensitive data surface.", fix: "Restrict egress to an approved destination allowlist and remove unnecessary sensitive-data access.", verify: "Re-run discovery and confirm either egress or sensitive-data reach is no longer present." },
+  unapproved_tool: { why: "The agent can reach a remote tool outside the approved integration set.", fix: "Remove the remote tool or add it to the approved integration allowlist after a security review.", verify: "Run discovery again and confirm every reachable remote tool is approved." },
+  destructive_no_control: { why: "A destructive tool action is reachable without an enforced runtime control.", fix: "Apply a blocking runtime policy or supervised approval before the destructive action can execute.", verify: "Exercise the action through the runtime gateway and confirm the policy blocks or requires approval." },
+  no_runtime_coverage: { why: "The production agent does not have supported runtime policy coverage.", fix: "Deploy a supported runtime gateway or sensor and attach an active policy to the agent.", verify: "Confirm runtime readiness, then run discovery again and verify coverage is reported." },
+  weak_runtime_isolation: { why: "The runtime is privileged or can access the host filesystem.", fix: "Remove privileged execution and host filesystem mounts, then use the minimum required sandbox permissions.", verify: "Redeploy the runtime and run discovery again to confirm both isolation conditions are absent." },
+  cicd_production_secret: { why: "A CI/CD write path can reach production secrets.", fix: "Separate build and production secret authority and require a narrowly scoped deployment identity.", verify: "Run discovery again and confirm CI/CD write authority cannot read production secrets." },
+  zombie_credential: { why: "An inactive agent still has an active credential.", fix: "Revoke the credential and remove its provider-side authorization.", verify: "Run discovery again and confirm the inactive agent has no active credential." },
+};
+
+function guidanceFor(finding: Finding): FindingGuidance {
+  if (finding.rule && postureGuidance[finding.rule]) return postureGuidance[finding.rule];
+  const authority = finding.rule ?? finding.compliance_context ?? finding.source;
+  return {
+    why: `Authoritative ${finding.source} evidence matched ${authority}.`,
+    fix: "Review the cited evidence and apply the narrowest scoped control that removes the reported condition.",
+    verify: "Run the authoritative source sync again and confirm the finding resolves or its linked attack path is blocked.",
+  };
+}
+
+function navigateInBrowser(path: string): void {
+  if (typeof window !== "undefined") window.location.assign(path);
 }
 
 function ProductionAttackPathsView({ api }: { api: ProductionRiskAPI }) {

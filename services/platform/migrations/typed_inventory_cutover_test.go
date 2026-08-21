@@ -29,7 +29,7 @@ func TestProductionTypedInventoryCutoverRegistersImmutableV14Authority(t *testin
 		"zasp_inventory_apply_findings",
 		"risk projection item set conflict",
 		"zasp_execution_apply_risk_projection",
-		"GRANT SELECT,INSERT,UPDATE,DELETE ON public.zasp_risk_findings,public.zasp_risk_finding_evidence,public.zasp_risk_attack_paths,public.zasp_risk_attack_path_nodes,public.zasp_risk_attack_path_evidence,public.zasp_risk_break_options TO zasp_discovery_authority",
+		"GRANT SELECT,INSERT,UPDATE,DELETE ON public.zasp_risk_findings,public.zasp_risk_finding_evidence,public.zasp_risk_finding_factors,public.zasp_risk_attack_paths,public.zasp_risk_attack_path_nodes,public.zasp_risk_attack_path_evidence,public.zasp_risk_break_options TO zasp_discovery_authority",
 		"risk attack path ownership conflict",
 		"relationship.kind IN('assigned_to','binds','uses_policy','uses_identity','has_permission','depends_on','member_of','trusts')",
 		"relationship.kind='trusts'",

@@ -7,7 +7,7 @@ import { APIProvider, useAPI } from "../../api/APIProvider";
 import type { ProductionRiskAPI } from "./api";
 import { ProductionRiskView } from "./ProductionRiskView";
 
-const finding = { id: "pid_20000001-0000-4000-8000-000000000001", source: "posture", title: "Public tool access", severity: "high", status: "open", evidence_ids: ["pid_20000002-0000-4000-8000-000000000002"], risk_factors: [{ name: "Public input", evidence_id: "pid_20000002-0000-4000-8000-000000000002" }], version: 1, created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:00:01Z" } as const;
+const finding = { id: "pid_20000001-0000-4000-8000-000000000001", source: "posture", rule: "unapproved_tool", title: "Public tool access", severity: "high", status: "open", agent_id: "pid_20000004-0000-4000-8000-000000000004", path_id: "pid_30000001-0000-4000-8000-000000000001", evidence_ids: ["pid_20000002-0000-4000-8000-000000000002"], risk_factors: [{ name: "Public input", evidence_id: "pid_20000002-0000-4000-8000-000000000002" }], version: 1, created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:00:01Z" } as const;
 const path = { id: "pid_30000001-0000-4000-8000-000000000001", entry_id: "pid_30000002-0000-4000-8000-000000000002", sink_id: "pid_30000003-0000-4000-8000-000000000003", node_ids: ["pid_30000002-0000-4000-8000-000000000002", "pid_30000003-0000-4000-8000-000000000003"], state: "verified", evidence_ids: [finding.evidence_ids[0]], blocked_edge: -1, version: 1, created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:00:01Z" } as const;
 
 function deferred<T>() {
@@ -23,8 +23,8 @@ function QueryScope({ children }: { children: ReactNode }) {
   return children;
 }
 
-function renderRisk(pathname: "/violations" | "/exposure/attack-paths", api: ProductionRiskAPI, canWrite = false) {
-  return render(<APIProvider><QueryScope><ProductionRiskView path={pathname} api={api} canWrite={canWrite} /></QueryScope></APIProvider>);
+function renderRisk(pathname: "/violations" | "/exposure/attack-paths", api: ProductionRiskAPI, canWrite = false, onNavigate = vi.fn()) {
+  return render(<APIProvider><QueryScope><ProductionRiskView path={pathname} api={api} canWrite={canWrite} onNavigate={onNavigate} /></QueryScope></APIProvider>);
 }
 
 function fixtureAPI(overrides: Partial<ProductionRiskAPI> = {}): ProductionRiskAPI {
@@ -49,6 +49,20 @@ describe("production risk views", () => {
     await userEvent.type(screen.getByLabelText("Risk acceptance reason"), "Approved exception");
     await userEvent.click(screen.getByRole("button", { name: "Accept risk" }));
     await waitFor(() => expect(accept).toHaveBeenCalledWith(finding.id, "Approved exception", expect.any(String), expect.objectContaining({ idempotencyKey: expect.any(String) })));
+  });
+
+  it("explains why, path, fix, and verification from authoritative finding fields", async () => {
+    const navigate = vi.fn();
+    renderRisk("/violations", fixtureAPI(), false, navigate);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Public tool access" }));
+    const dialog = await screen.findByRole("dialog", { name: "Public tool access" });
+    for (const heading of ["Why", "Evidence", "Path", "Fix", "Verify"]) expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("Public input");
+    expect(dialog).toHaveTextContent(finding.evidence_ids[0]);
+    expect(dialog).toHaveTextContent(finding.path_id);
+    expect(dialog).toHaveTextContent("approved integration allowlist");
+    await userEvent.click(screen.getByRole("button", { name: "Open attack path" }));
+    expect(navigate).toHaveBeenCalledWith("/exposure/attack-paths");
   });
 
   it("hides write controls without findings.write", async () => {

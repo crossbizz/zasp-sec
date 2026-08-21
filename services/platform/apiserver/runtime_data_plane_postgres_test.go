@@ -62,7 +62,12 @@ func TestProductionRuntimeDataPlanePostgresKeepsInheritedProductAuthorityReady(t
 		})
 	}
 	if err := runner.UpProductionRuntimeGatewayReconciliation(ctx); err != nil {
-		t.Fatalf("v16 migration: %v", err)
+		metadata := migrations.ProductionRuntimeGatewayReconciliation()
+		_, detail := connection.Exec(ctx, metadata.UpSQL())
+		var liveFingerprint string
+		var securityReady bool
+		_ = connection.QueryRow(ctx, `SELECT zasp_runtime_gateway_reconciliation_live_fingerprint(),zasp_runtime_gateway_reconciliation_security_ready()`).Scan(&liveFingerprint, &securityReady)
+		t.Fatalf("v16 migration: %v (%v) live=%q expected=%q security=%t", err, detail, liveFingerprint, migrations.ProductionRuntimeGatewayReconciliationSemanticFingerprint(), securityReady)
 	}
 
 	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
@@ -240,10 +245,11 @@ func TestProductionRuntimeDataPlanePostgresAuthenticatesTokenDerivedHeartbeat(t 
 	metadata := migrations.ProductionRuntimeDataPlane()
 	if err := runner.UpProductionRuntimeDataPlane(ctx); err != nil {
 		_, detail := connection.Exec(ctx, metadata.UpSQL())
-		var liveFingerprint string
+		var liveFingerprint, inventoryFingerprint string
 		var securityReady bool
 		_ = connection.QueryRow(ctx, `SELECT zasp_runtime_data_plane_live_fingerprint(),zasp_runtime_data_plane_security_ready()`).Scan(&liveFingerprint, &securityReady)
-		t.Fatalf("v15 migration: %v (%v) live=%q expected=%q security=%t", err, detail, liveFingerprint, migrations.ProductionRuntimeDataPlaneSemanticFingerprint(), securityReady)
+		_ = connection.QueryRow(ctx, `SELECT zasp_inventory_live_fingerprint()`).Scan(&inventoryFingerprint)
+		t.Fatalf("v15 migration: %v (%v) live=%q expected=%q inventory=%q security=%t", err, detail, liveFingerprint, migrations.ProductionRuntimeDataPlaneSemanticFingerprint(), inventoryFingerprint, securityReady)
 	}
 	var live string
 	if err := connection.QueryRow(ctx, `SELECT zasp_runtime_data_plane_live_fingerprint()`).Scan(&live); err != nil {
