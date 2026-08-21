@@ -53,7 +53,7 @@ func TestSecurityAgentPostgresRepositoryReadsExactActivationState(t *testing.T) 
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
 		postgresIdentityAdminSecurityAgentReadySQL:   json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentAuthorityReadySQL:       json.RawMessage(`{"release":true,"principal":true}`),
-		postgresSecurityAgentDefinitionActivationSQL: json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","definition_id":"` + definitionID + `","activation":"validated","version":2,"definition_version":1,"body":{"enabled":false},"updated_at":"2026-08-21T12:00:00Z"}`),
+		postgresSecurityAgentDefinitionActivationSQL: json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","definition_id":"` + definitionID + `","activation":"validated","version":2,"definition_version":1,"body":{"id":"` + definitionID + `","name":"Review exposed credential","trigger_kind":"finding","trigger_source":"credential","environment_ids":["` + identity.Scope.EnvironmentID().String() + `"],"autonomy":"supervised","max_steps":1,"max_duration_seconds":300,"temporary_policy_seconds":600,"ai_token_budget":1000,"concurrency_limit":1,"allowed_actions":["update_finding_response"],"verification_kind":"finding_state","definition_version":1,"enabled":false},"updated_at":"2026-08-21T12:00:00Z"}`),
 	}}
 	repository, err := NewSecurityAgentPostgresRepository(database)
 	if err != nil {

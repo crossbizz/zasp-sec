@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+	"github.com/zasp-ai/zasp-sec/services/platform/securityagent"
 )
 
 const (
@@ -51,22 +52,41 @@ func (repository *PostgresRepository) GetSecurityAgentActivation(ctx context.Con
 		return SecurityAgentActivationState{}, discoveryProviderError(err)
 	}
 	var wire struct {
-		OrganizationID    string `json:"organization_id"`
-		WorkspaceID       string `json:"workspace_id"`
-		EnvironmentID     string `json:"environment_id"`
-		DefinitionID      string `json:"definition_id"`
-		Activation        string `json:"activation"`
-		Version           int64  `json:"version"`
-		DefinitionVersion int64  `json:"definition_version"`
-		Body              struct {
-			Enabled bool `json:"enabled"`
-		} `json:"body"`
-		UpdatedAt time.Time `json:"updated_at"`
+		OrganizationID    string          `json:"organization_id"`
+		WorkspaceID       string          `json:"workspace_id"`
+		EnvironmentID     string          `json:"environment_id"`
+		DefinitionID      string          `json:"definition_id"`
+		Activation        string          `json:"activation"`
+		Version           int64           `json:"version"`
+		DefinitionVersion int64           `json:"definition_version"`
+		Body              json.RawMessage `json:"body"`
+		UpdatedAt         time.Time       `json:"updated_at"`
 	}
-	if !exactJSONFields(payload, "activation", "body", "definition_id", "definition_version", "environment_id", "organization_id", "updated_at", "version", "workspace_id") || decodeStrictDiscovery(payload, &wire) != nil || wire.OrganizationID != identity.Scope.OrganizationID().String() || wire.WorkspaceID != identity.Scope.WorkspaceID().String() || wire.EnvironmentID != identity.Scope.EnvironmentID().String() || wire.DefinitionID != definitionID || !stringIn(wire.Activation, "draft", "validated", "supervised", "autonomous") || wire.Body.Enabled != (wire.Activation == "supervised" || wire.Activation == "autonomous") || wire.Version < 1 || wire.Version > 1000000 || wire.DefinitionVersion < 1 || wire.DefinitionVersion > 1000000 || wire.UpdatedAt.IsZero() || wire.UpdatedAt.Location() != time.UTC {
+	var body struct {
+		ID                     string   `json:"id"`
+		Name                   string   `json:"name"`
+		TriggerKind            string   `json:"trigger_kind"`
+		TriggerSource          string   `json:"trigger_source"`
+		EnvironmentIDs         []string `json:"environment_ids"`
+		Autonomy               string   `json:"autonomy"`
+		MaxSteps               int      `json:"max_steps"`
+		MaxDurationSeconds     int      `json:"max_duration_seconds"`
+		TemporaryPolicySeconds int      `json:"temporary_policy_seconds"`
+		AITokenBudget          int      `json:"ai_token_budget"`
+		ConcurrencyLimit       int      `json:"concurrency_limit"`
+		AllowedActions         []string `json:"allowed_actions"`
+		VerificationKind       string   `json:"verification_kind"`
+		DefinitionVersion      int      `json:"definition_version"`
+		Enabled                bool     `json:"enabled"`
+	}
+	if !exactJSONFields(payload, "activation", "body", "definition_id", "definition_version", "environment_id", "organization_id", "updated_at", "version", "workspace_id") || decodeStrictDiscovery(payload, &wire) != nil || !exactJSONFields(wire.Body, "ai_token_budget", "allowed_actions", "autonomy", "concurrency_limit", "definition_version", "enabled", "environment_ids", "id", "max_duration_seconds", "max_steps", "name", "temporary_policy_seconds", "trigger_kind", "trigger_source", "verification_kind") || decodeStrictDiscovery(wire.Body, &body) != nil || wire.OrganizationID != identity.Scope.OrganizationID().String() || wire.WorkspaceID != identity.Scope.WorkspaceID().String() || wire.EnvironmentID != identity.Scope.EnvironmentID().String() || wire.DefinitionID != definitionID || body.ID != definitionID || int64(body.DefinitionVersion) != wire.DefinitionVersion || !stringIn(wire.Activation, "draft", "validated", "supervised", "autonomous") || body.Enabled != (wire.Activation == "supervised" || wire.Activation == "autonomous") || wire.Version < 1 || wire.Version > 1000000 || wire.DefinitionVersion < 1 || wire.DefinitionVersion > 1000000 || wire.UpdatedAt.IsZero() || wire.UpdatedAt.Location() != time.UTC {
 		return SecurityAgentActivationState{}, ErrRepositoryUnavailable
 	}
-	return SecurityAgentActivationState{ID: wire.DefinitionID, Activation: wire.Activation, Enabled: wire.Body.Enabled, Version: wire.Version}, nil
+	definition := securityagent.SecurityAgent{ID: body.ID, OrganizationID: wire.OrganizationID, Name: body.Name, Trigger: securityagent.Trigger{Kind: body.TriggerKind, Source: body.TriggerSource}, Scope: securityagent.Scope{OrganizationID: wire.OrganizationID, EnvironmentIDs: body.EnvironmentIDs}, Autonomy: securityagent.Autonomy(body.Autonomy), Limits: securityagent.RunLimits{MaxSteps: body.MaxSteps, MaxDuration: time.Duration(body.MaxDurationSeconds) * time.Second, TemporaryPolicyTTL: time.Duration(body.TemporaryPolicySeconds) * time.Second, MaxAITokens: body.AITokenBudget, MaxConcurrent: body.ConcurrencyLimit}, AllowedActions: body.AllowedActions, Verification: securityagent.Verification{Kind: body.VerificationKind}, DefinitionVersion: body.DefinitionVersion, Enabled: body.Enabled}
+	if securityagent.ValidateAgent(definition) != nil || !exactWorkflowEnvironment(body.EnvironmentIDs, wire.EnvironmentID) || !servedWorkflowActions(body.AllowedActions) {
+		return SecurityAgentActivationState{}, ErrRepositoryUnavailable
+	}
+	return SecurityAgentActivationState{ID: wire.DefinitionID, Activation: wire.Activation, Enabled: body.Enabled, Version: wire.Version}, nil
 }
 
 func (repository *PostgresRepository) SimulateSecurityAgent(ctx context.Context, identity RequestIdentity, input SecurityAgentSimulationRequest) (SecurityAgentSimulationResult, error) {
