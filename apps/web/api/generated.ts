@@ -1913,7 +1913,7 @@ export type components = {
             readonly occurred_at: string;
             /** @enum {string} */
             readonly outcome: "succeeded" | "failed" | "denied";
-            readonly target_id: components["schemas"]["ProductID"];
+            readonly target_id: string;
             readonly workspace_id: components["schemas"]["ProductID"];
         };
         readonly AuditEventPage: {

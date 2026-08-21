@@ -3664,7 +3664,9 @@ components:
           maxLength: 127
           pattern: '^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$'
         target_id:
-          $ref: '#/components/schemas/ProductID'
+          type: string
+          minLength: 1
+          maxLength: 128
         outcome:
           type: string
           enum: [succeeded, failed, denied]

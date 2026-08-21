@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeAPITokenRevealGrant, decodeAPITokenRevealedCredential, decodeComplianceEvidencePage, decodeConnectionDeletion, decodeConnectionTest, decodeDataControls, decodeOrganization, decodeSCIMConnectionCredential, decodeSCIMConnectionPage, decodeSessionPage, decodeSSOConnectionMutation, decodeSSOConnectionPage, decodeSystemComponentPage } from "./administration-decoders";
+import { decodeAPITokenRevealGrant, decodeAPITokenRevealedCredential, decodeAuditEventPage, decodeComplianceEvidencePage, decodeConnectionDeletion, decodeConnectionTest, decodeDataControls, decodeOrganization, decodeSCIMConnectionCredential, decodeSCIMConnectionPage, decodeSessionPage, decodeSSOConnectionMutation, decodeSSOConnectionPage, decodeSystemComponentPage } from "./administration-decoders";
 
 const id = "pid_10000001-0000-4000-8000-000000000001";
 describe("administration response decoders", () => {
@@ -28,6 +28,13 @@ describe("administration response decoders", () => {
     expect(() => decodeSessionPage({ items: [], page_info: { next_cursor: "forged", has_more: false } })).toThrow("schema mismatch");
     expect(decodeSystemComponentPage({ items: [{ id: "postgresql", required: true, state: "healthy", fresh_at: "2026-08-19T00:00:00Z" }] }).items).toHaveLength(1);
     expect(() => decodeSystemComponentPage({ items: [{ id: "fabricated", required: true, state: "ready", fresh_at: "2026-08-19T00:00:00Z" }] })).toThrow("schema mismatch");
+  });
+  it("accepts bounded non-product audit targets without accepting empty or oversized targets", () => {
+    const event = { id, workspace_id: id, environment_id: id, actor_id: id, action: "identity_provider.createSSOConnection", target_id: "saml-connection-live-e2e", outcome: "succeeded", metadata: {}, occurred_at: "2026-08-19T00:00:00Z" };
+    const page = (targetID: string) => ({ items: [{ ...event, target_id: targetID }], page_info: { next_cursor: null, has_more: false } });
+    expect(decodeAuditEventPage(page(event.target_id)).items[0]?.target_id).toBe(event.target_id);
+    expect(() => decodeAuditEventPage(page(""))).toThrow("schema mismatch");
+    expect(() => decodeAuditEventPage(page("x".repeat(129)))).toThrow("schema mismatch");
   });
   it("requires exactly one evidence record in every paged compliance item", () => {
     const evidence = { id: "evidence-1", asset_id: "asset-1", source: "runtime", at: "2026-08-19T00:00:00Z" };
