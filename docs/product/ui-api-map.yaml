@@ -257,7 +257,7 @@ screens:
         availability: available
       - id: update_agent
         operation_id: updateAgent
-        availability: planned
+        availability: available
       - id: view_agent_capabilities
         operation_id: getAgentCapabilities
         availability: available

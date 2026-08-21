@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, "../..");
 const operations = ["listAgents", "getAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "listTools", "getTool", "listIdentities", "getIdentity", "listRuntimes", "getRuntime", "getAsset"];
 
 describe("M4 inventory, capability, and posture batch", () => {
-  it("publishes twelve inventory reads and hides the unmounted agent mutation", async () => {
+  it("publishes twelve inventory reads and the scoped agent mutation", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
@@ -16,8 +16,8 @@ describe("M4 inventory, capability, and posture batch", () => {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
     }
-    expect(openapi).not.toContain("operationId: updateAgent");
-    expect(generated).not.toContain(" updateAgent:");
+    expect(openapi).toContain("operationId: updateAgent");
+    expect(generated).toContain("readonly updateAgent:");
   });
 
   it("binds six capability categories and four evidence-backed posture rules", async () => {

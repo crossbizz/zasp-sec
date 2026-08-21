@@ -134,7 +134,7 @@ const expectedMap: MapDocument = {
       actions: [
         { id: "view_agents", operation_id: "listAgents", availability: "available" },
         { id: "view_agent", operation_id: "getAgent", availability: "available" },
-        { id: "update_agent", operation_id: "updateAgent", availability: "planned" },
+        { id: "update_agent", operation_id: "updateAgent", availability: "available" },
         { id: "view_agent_capabilities", operation_id: "getAgentCapabilities", availability: "available" },
         { id: "view_agent_relationships", operation_id: "getAgentRelationships", availability: "available" },
         { id: "view_agent_sessions", operation_id: "listAgentSessions", availability: "available" },

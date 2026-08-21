@@ -58,7 +58,7 @@ function ProductionRouteSurface({ path, navigate }: { path: string; navigate(pat
   if (path === "/administration/system-health") return <AdminOperationsView surface="health" client={client} />;
   if (path === "/administration/external-data-flows") return <AdminOperationsView surface="external" client={client} />;
   if (path === "/administration/audit-log") return <AdminOperationsView surface="audit" client={client} />;
-  return <ProductionAgentSecurityView path={path} onNavigate={navigate} />;
+  return <ProductionAgentSecurityView path={path} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
 }
 
 function ProductionScopeSelector() {

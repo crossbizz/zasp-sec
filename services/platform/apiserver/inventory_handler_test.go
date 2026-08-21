@@ -3,25 +3,32 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 type inventoryRepositoryStub struct {
-	page       InventoryPage
-	detail     InventoryDetail
-	pageCalls  int
-	after      string
-	limit      int
-	kind       InventoryKind
-	parent     domain.ProductID
-	relation   RelationshipPage
-	capability CapabilityPage
-	session    SessionPage
-	home       HomeSummary
+	page        InventoryPage
+	detail      InventoryDetail
+	pageCalls   int
+	after       string
+	limit       int
+	kind        InventoryKind
+	parent      domain.ProductID
+	relation    RelationshipPage
+	capability  CapabilityPage
+	session     SessionPage
+	home        HomeSummary
+	mutation    AgentMutationResult
+	updated     AgentOwnershipInput
+	expected    int64
+	idempotency string
 }
 
 func (repository *inventoryRepositoryStub) ListInventoryPage(_ context.Context, _ domain.Scope, kind InventoryKind, after string, limit int) (InventoryPage, error) {
@@ -46,6 +53,10 @@ func (repository *inventoryRepositoryStub) ListAgentSessionsPage(_ context.Conte
 }
 func (repository *inventoryRepositoryStub) GetHomeSummary(context.Context, domain.Scope) (HomeSummary, error) {
 	return repository.home, nil
+}
+func (repository *inventoryRepositoryStub) UpdateAgentOwnership(_ context.Context, _ RequestIdentity, _ domain.ProductID, expected int64, idempotency string, input AgentOwnershipInput, _, _ string) (AgentMutationResult, error) {
+	repository.expected, repository.idempotency, repository.updated = expected, idempotency, input
+	return repository.mutation, nil
 }
 
 func inventoryRequest(t *testing.T, operation, target string) *http.Request {
@@ -107,5 +118,59 @@ func TestInventoryHandlerRejectsUnknownQueryBeforeRepository(t *testing.T) {
 	}
 	if repository.pageCalls != 0 {
 		t.Fatalf("invalid query calls=%d", repository.pageCalls)
+	}
+}
+
+func TestInventoryHandlerUpdatesAgentOwnershipWithExactPreconditions(t *testing.T) {
+	agentID := "pid_10000001-0000-4000-8000-000000000001"
+	auditID := "pid_60000001-0000-4000-8000-000000000001"
+	repository := &inventoryRepositoryStub{mutation: AgentMutationResult{Agent: InventorySummary{ID: agentID, Name: "Agent", Kind: InventoryKindAgent, Owner: "security", Team: "platform", Tags: []string{"critical", "production"}, EvidenceID: "pid_20000006-0000-4000-8000-000000000006", ConfidenceBasisPoints: 9500, FirstSeen: "2026-08-18T09:00:00Z", LastSeen: "2026-08-18T10:00:00Z", ObservedAt: "2026-08-18T10:00:00Z", FreshUntil: "2026-08-18T10:15:00Z", FreshnessState: "fresh", Version: 2}, AuditID: auditID}}
+	handler, err := newInventoryHTTPHandler(repository, []byte("01234567890123456789012345678901"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := inventoryRequest(t, "updateAgent", "https://app.zasp.test/api/v1/agents/"+agentID)
+	request.Method = http.MethodPatch
+	request.Body = io.NopCloser(strings.NewReader(`{"owner":"security","team":"platform","tags":["production","critical"]}`))
+	request.Header.Set("If-Match", `"1"`)
+	request.Header.Set("Idempotency-Key", "agent-owner-key-0001")
+	request.Header.Set("Content-Type", "application/json")
+	request = request.WithContext(context.WithValue(request.Context(), correlationContextKey{}, "pid_60000002-0000-4000-8000-000000000002"))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"2"` || response.Header().Get("X-Audit-ID") != auditID || repository.expected != 1 || repository.idempotency != "agent-owner-key-0001" || !reflect.DeepEqual(repository.updated.Tags, []string{"critical", "production"}) {
+		t.Fatalf("status=%d headers=%v expected=%d key=%q input=%#v body=%s", response.Code, response.Header(), repository.expected, repository.idempotency, repository.updated, response.Body.String())
+	}
+}
+
+func TestInventoryHandlerRejectsMalformedOwnershipBeforeRepository(t *testing.T) {
+	for name, mutate := range map[string]func(*http.Request){
+		"missing version": func(request *http.Request) { request.Header.Del("If-Match") },
+		"unknown field": func(request *http.Request) {
+			request.Body = io.NopCloser(strings.NewReader(`{"owner":"security","team":"platform","tags":[],"credential_reference":"ref:secret/value"}`))
+		},
+		"duplicate tag": func(request *http.Request) {
+			request.Body = io.NopCloser(strings.NewReader(`{"owner":"security","team":"platform","tags":["critical","critical"]}`))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			repository := &inventoryRepositoryStub{}
+			handler, err := newInventoryHTTPHandler(repository, []byte("01234567890123456789012345678901"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			request := inventoryRequest(t, "updateAgent", "https://app.zasp.test/api/v1/agents/pid_10000001-0000-4000-8000-000000000001")
+			request.Method = http.MethodPatch
+			request.Body = io.NopCloser(strings.NewReader(`{"owner":"security","team":"platform","tags":[]}`))
+			request.Header.Set("If-Match", `"1"`)
+			request.Header.Set("Idempotency-Key", "agent-owner-key-0001")
+			request.Header.Set("Content-Type", "application/json")
+			mutate(request)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code < 400 || repository.idempotency != "" {
+				t.Fatalf("status=%d repository key=%q body=%s", response.Code, repository.idempotency, response.Body.String())
+			}
+		})
 	}
 }

@@ -14,7 +14,7 @@ describe("M3 UI/E2E and M4 reconciliation completion batch", () => {
     expect(reconciliation).toContain(") Reconcile(");
     const openapi = read("openapi/openapi.yaml");
     for (const operation of ["listAgents", "getAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "listTools", "getTool"]) expect(openapi).toContain(`operationId: ${operation}`);
-    expect(openapi).not.toContain("operationId: updateAgent");
+    expect(openapi).toContain("operationId: updateAgent");
   });
 
   it("completes exactly 25 locally verified tasks while the M3 gate stays blocked", () => {

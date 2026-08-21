@@ -443,6 +443,60 @@ FROM generate_series(1,1002) item`, organizationID, workspaceID, environmentID, 
 	if total != 1002 || pages != 11 || len(seen) != 1002 {
 		t.Fatalf("pagination total=%d pages=%d unique=%d", total, pages, len(seen))
 	}
+	agentID := "pid_81000001-0000-4000-8000-000000000001"
+	auditID := "pid_82000001-0000-4000-8000-000000000001"
+	correlationID := "pid_82000002-0000-4000-8000-000000000002"
+	if _, err := connection.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
+		t.Fatal(err)
+	}
+	var mutationPayload json.RawMessage
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_update_agent($1,$2,$3,$4,$5,$6,1,$7,$8,$9::jsonb,$10,$11)`,
+		organizationID, workspaceID, environmentID, identity.PrincipalID.String(), agentID, "typed-agent-owner-0001",
+		"security", "platform", `["critical","production"]`, auditID, correlationID).Scan(&mutationPayload); err != nil {
+		t.Fatalf("typed agent ownership mutation: %v", err)
+	}
+	var mutation struct {
+		Agent         InventorySummary `json:"agent"`
+		AuditID       string           `json:"audit_id"`
+		CorrelationID string           `json:"correlation_id"`
+		Replayed      bool             `json:"replayed"`
+	}
+	if decodeStrictInventory(mutationPayload, &mutation) != nil || mutation.Agent.ID != agentID || mutation.Agent.Owner != "security" || mutation.Agent.Team != "platform" || !reflect.DeepEqual(mutation.Agent.Tags, []string{"critical", "production"}) || mutation.Agent.Version != 2 || mutation.AuditID != auditID || mutation.CorrelationID != correlationID || mutation.Replayed {
+		t.Fatalf("typed agent mutation = %s", mutationPayload)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_update_agent($1,$2,$3,$4,$5,$6,1,$7,$8,$9::jsonb,$10,$11)`,
+		organizationID, workspaceID, environmentID, identity.PrincipalID.String(), agentID, "typed-agent-owner-0001",
+		"security", "platform", `["critical","production"]`, auditID, correlationID).Scan(&mutationPayload); err != nil || decodeStrictInventory(mutationPayload, &mutation) != nil || !mutation.Replayed || mutation.Agent.Version != 2 {
+		t.Fatalf("typed agent mutation replay = %s / %v", mutationPayload, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_update_agent($1,$2,$3,$4,$5,$6,1,$7,$8,$9::jsonb,$10,$11)`,
+		organizationID, workspaceID, environmentID, identity.PrincipalID.String(), agentID, "typed-agent-owner-0001",
+		"other", "platform", `["critical","production"]`, auditID, correlationID).Scan(&mutationPayload); err == nil {
+		t.Fatal("typed agent idempotency drift succeeded")
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_update_agent($1,$2,$3,$4,$5,$6,1,$7,$8,$9::jsonb,$10,$11)`,
+		organizationID, workspaceID, environmentID, identity.PrincipalID.String(), agentID, "typed-agent-owner-0002",
+		"other", "platform", `["critical","production"]`, "pid_82000003-0000-4000-8000-000000000003", "pid_82000004-0000-4000-8000-000000000004").Scan(&mutationPayload); err == nil {
+		t.Fatal("stale typed agent ownership mutation succeeded")
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_update_agent($1,$2,$3,$4,$5,$6,1,$7,$8,$9::jsonb,$10,$11)`,
+		"pid_83000001-0000-4000-8000-000000000001", workspaceID, environmentID, identity.PrincipalID.String(), agentID, "typed-agent-owner-0003",
+		"other", "platform", `["critical","production"]`, "pid_82000005-0000-4000-8000-000000000005", "pid_82000006-0000-4000-8000-000000000006").Scan(&mutationPayload); err == nil {
+		t.Fatal("foreign-scope typed agent ownership mutation succeeded")
+	}
+	if _, err := connection.Exec(ctx, `RESET ROLE`); err != nil {
+		t.Fatal(err)
+	}
+	var entityVersion, annotationVersion, auditRows, genericRows int
+	if err := connection.QueryRow(ctx, `SELECT entity.version,entity.annotation_version,
+		(SELECT count(*) FROM zasp_workflow_audit audit WHERE (audit.organization_id,audit.workspace_id,audit.environment_id,audit.operation,audit.resource_kind,audit.resource_id) = ($1,$2,$3,'updateAgent','agent',$4)),
+		(SELECT count(*) FROM zasp_core_payloads payload WHERE (payload.organization_id,payload.workspace_id,payload.environment_id) = ($1,$2,$3) AND payload.operation LIKE 'agent%')
+		FROM zasp_inventory_entities entity WHERE (entity.organization_id,entity.workspace_id,entity.environment_id,entity.id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, agentID).Scan(&entityVersion, &annotationVersion, &auditRows, &genericRows); err != nil {
+		t.Fatal(err)
+	}
+	if entityVersion != 1 || annotationVersion != 2 || auditRows != 1 || genericRows != 0 {
+		t.Fatalf("typed agent mutation residue entity=%d annotation=%d audits=%d generic=%d", entityVersion, annotationVersion, auditRows, genericRows)
+	}
 }
 
 func TestProductionTypedInventoryCutoverPostgresHydratesStableObservationTime(t *testing.T) {

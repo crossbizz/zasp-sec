@@ -119,6 +119,9 @@ func TestTaskSixCompositionHasExactRiskDiscoveryAndSensorSurfacesWithoutLaterOve
 			t.Errorf("discovery read %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
 		}
 	}
+	if definition, ok := definitions["updateAgent"]; !ok || definition.Permission != "manage_workflows" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
+		t.Errorf("agent mutation security/permission = %v/%q exists=%v", definition.Security, definition.Permission, ok)
+	}
 	for _, operationID := range []string{"listSensors", "getSensor", "getSensorCoverage"} {
 		definition, ok := definitions[operationID]
 		if !ok || definition.Permission != "view" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
@@ -132,7 +135,7 @@ func TestTaskSixCompositionHasExactRiskDiscoveryAndSensorSurfacesWithoutLaterOve
 		}
 	}
 	for _, operationID := range []string{
-		"updateAgent", "createFindingTicket",
+		"createFindingTicket",
 		"listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
 		"listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
 		"simulatePolicy", "listPolicyDecisions",

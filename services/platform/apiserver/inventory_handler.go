@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"sort"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
@@ -52,6 +53,8 @@ func (handler *inventoryHTTPHandler) ServeHTTP(writer http.ResponseWriter, reque
 		handler.inventoryPage(writer, request, identity, routed, InventoryKindRuntime)
 	case "getAgent":
 		handler.inventoryDetail(writer, request, identity, routed, InventoryKindAgent)
+	case "updateAgent":
+		handler.updateAgent(writer, request, identity, routed)
 	case "getTool":
 		handler.inventoryDetail(writer, request, identity, routed, InventoryKindTool)
 	case "getIdentity":
@@ -67,6 +70,51 @@ func (handler *inventoryHTTPHandler) ServeHTTP(writer http.ResponseWriter, reque
 	default:
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 	}
+}
+
+func (handler *inventoryHTTPHandler) updateAgent(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
+	if request.Method != http.MethodPatch || request.URL.RawQuery != "" {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	id, err := domain.ParseProductID(routed.PathParameters["id"])
+	if err != nil {
+		writeProductionError(writer, request, ErrRepositoryNotFound)
+		return
+	}
+	expected, err := parseVersion(request.Header.Get("If-Match"))
+	if err != nil {
+		writeWorkflowMutationError(writer, request, errPreconditionRequired)
+		return
+	}
+	idempotencyKey := request.Header.Get("Idempotency-Key")
+	if len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) {
+		writeProductionStatusError(writer, request, http.StatusBadRequest, "operation_rejected", "Operation rejected", false)
+		return
+	}
+	var input AgentOwnershipInput
+	if decodeProductionJSON(request, &input) != nil {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	sort.Strings(input.Tags)
+	if !validAgentOwnershipInput(input) {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	auditID, err := newWorkflowProductID()
+	if err != nil {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	result, err := handler.repository.UpdateAgentOwnership(request.Context(), identity, id, expected, idempotencyKey, input, auditID, correlationIDFromContext(request.Context()))
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	writer.Header().Set("ETag", quoteVersion(result.Agent.Version))
+	writer.Header().Set("X-Audit-ID", result.AuditID)
+	writeJSONValue(writer, request, http.StatusOK, map[string]any{"agent": result.Agent, "audit_id": result.AuditID}, nil)
 }
 
 func (handler *inventoryHTTPHandler) inventoryPage(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation, kind InventoryKind) {

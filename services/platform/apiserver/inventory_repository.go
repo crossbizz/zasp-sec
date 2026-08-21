@@ -6,9 +6,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -20,6 +22,7 @@ const (
 	postgresInventoryReadinessSQL     = `SELECT to_jsonb(zasp_inventory_readiness($1, $2))`
 	postgresInventoryPageSQL          = `SELECT zasp_inventory_page($1, $2, $3, $4, NULLIF($5, ''), $6)`
 	postgresInventoryDetailSQL        = `SELECT zasp_inventory_detail($1, $2, $3, $4, $5)`
+	postgresInventoryUpdateAgentSQL   = `SELECT zasp_inventory_update_agent($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12)`
 	postgresInventoryCapabilitiesSQL  = `SELECT zasp_inventory_agent_capabilities_page($1, $2, $3, $4, NULLIF($5, ''), $6)`
 	postgresInventoryRelationshipsSQL = `SELECT zasp_inventory_agent_relationships_page($1, $2, $3, $4, NULLIF($5, ''), $6)`
 	postgresInventorySessionsSQL      = `SELECT zasp_inventory_agent_sessions_page($1, $2, $3, $4, NULLIF($5, ''), $6)`
@@ -90,6 +93,19 @@ type InventoryPage struct {
 	NextKey string             `json:"-"`
 }
 
+type AgentOwnershipInput struct {
+	Owner string   `json:"owner"`
+	Team  string   `json:"team"`
+	Tags  []string `json:"tags"`
+}
+
+type AgentMutationResult struct {
+	Agent         InventorySummary `json:"agent"`
+	AuditID       string           `json:"audit_id"`
+	CorrelationID string           `json:"correlation_id"`
+	Replayed      bool             `json:"replayed"`
+}
+
 type Capability struct {
 	AgentID     string   `json:"agent_id"`
 	TargetID    string   `json:"target_id"`
@@ -153,6 +169,7 @@ type InventoryRepository interface {
 	ListAgentRelationshipsPage(context.Context, domain.Scope, domain.ProductID, string, int) (RelationshipPage, error)
 	ListAgentSessionsPage(context.Context, domain.Scope, domain.ProductID, string, int) (SessionPage, error)
 	GetHomeSummary(context.Context, domain.Scope) (HomeSummary, error)
+	UpdateAgentOwnership(context.Context, RequestIdentity, domain.ProductID, int64, string, AgentOwnershipInput, string, string) (AgentMutationResult, error)
 }
 
 type PostgresInventoryRepository struct{ database JSONDatabase }
@@ -329,6 +346,27 @@ func (repository *PostgresInventoryRepository) GetHomeSummary(ctx context.Contex
 	return summary, nil
 }
 
+func (repository *PostgresInventoryRepository) UpdateAgentOwnership(ctx context.Context, identity RequestIdentity, id domain.ProductID, expectedVersion int64, idempotencyKey string, input AgentOwnershipInput, auditID, correlationID string) (AgentMutationResult, error) {
+	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, false) || id.IsZero() || expectedVersion < 1 || expectedVersion >= 1000000 || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) || !validAgentOwnershipInput(input) || !validProductID(auditID) || !validProductID(correlationID) {
+		return AgentMutationResult{}, ErrRepositoryOperation
+	}
+	tags, err := json.Marshal(input.Tags)
+	if err != nil {
+		return AgentMutationResult{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresInventoryUpdateAgentSQL,
+		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), id.String(), idempotencyKey, expectedVersion, input.Owner, input.Team, json.RawMessage(tags), auditID, correlationID,
+	)
+	if err != nil {
+		return AgentMutationResult{}, inventoryProviderError(err)
+	}
+	var result AgentMutationResult
+	if decodeStrictInventory(payload, &result) != nil || result.Agent.ID != id.String() || result.Agent.Version != expectedVersion+1 || !validInventorySummary(result.Agent, InventoryKindAgent) || result.Agent.Owner != input.Owner || result.Agent.Team != input.Team || !equalInventoryStrings(result.Agent.Tags, input.Tags) || !validProductID(result.AuditID) || !validProductID(result.CorrelationID) || !result.Replayed && (result.AuditID != auditID || result.CorrelationID != correlationID) {
+		return AgentMutationResult{}, ErrRepositoryUnavailable
+	}
+	return result, nil
+}
+
 func validInventoryCall(repository *PostgresInventoryRepository, ctx context.Context, scope domain.Scope, kind InventoryKind, after string, limit int) bool {
 	return repository != nil && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil && scope.Validate() == nil && validInventoryKind(kind) && (after == "" || validProductID(after)) && limit >= 1 && limit <= 100
 }
@@ -339,6 +377,44 @@ func validInventorySubresourceCall(repository *PostgresInventoryRepository, ctx 
 
 func validInventoryKind(kind InventoryKind) bool {
 	return kind == InventoryKindAsset || kind == InventoryKindAgent || kind == InventoryKindTool || kind == InventoryKindIdentity || kind == InventoryKindRuntime
+}
+
+func validAgentOwnershipInput(input AgentOwnershipInput) bool {
+	if !canonicalInventoryText(input.Owner, 1, 128) || !canonicalInventoryText(input.Team, 1, 128) || input.Tags == nil || len(input.Tags) > 32 {
+		return false
+	}
+	prior := ""
+	for _, tag := range input.Tags {
+		if !canonicalInventoryText(tag, 1, 64) || prior != "" && tag <= prior {
+			return false
+		}
+		prior = tag
+	}
+	return true
+}
+
+func canonicalInventoryText(value string, minimum, maximum int) bool {
+	if len(value) < minimum || len(value) > maximum || !utf8.ValidString(value) || strings.TrimSpace(value) != value {
+		return false
+	}
+	for _, character := range value {
+		if unicode.IsControl(character) {
+			return false
+		}
+	}
+	return true
+}
+
+func equalInventoryStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func validInventorySummary(item InventorySummary, kind InventoryKind) bool {
@@ -487,7 +563,7 @@ func inventoryProviderError(err error) error {
 	if strings.Contains(err.Error(), "credential") || strings.Contains(err.Error(), "reference") || strings.Contains(err.Error(), "token") {
 		return ErrRepositoryUnavailable
 	}
-	if err == ErrRepositoryNotFound {
+	if errors.Is(err, ErrRepositoryNotFound) || errors.Is(err, ErrRepositoryConflict) || errors.Is(err, ErrRepositoryOperation) {
 		return err
 	}
 	return ErrRepositoryUnavailable

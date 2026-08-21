@@ -258,10 +258,10 @@ M4	M4-01d	Complete	production-available	T05-inventory-cutover	v14 complete-snaps
 M4	M4-01e	Complete	production-available	T05-inventory-cutover	v14 complete-snapshot E2E proves Kubernetes Runtime reconciliation through public API and installed browser
 M4	M4-01f	Complete	production-available	T05-inventory-cutover	v14 complete-snapshot E2E proves canonical relationship projection with exact source and evidence bindings
 M4	M4-01	Complete	production-available	T05-inventory-cutover	v14 cutover gate proves public typed inventory is derived only from authoritative complete snapshots
-M4	M4-02	Complete	component-only	T05-inventory-cutover	audited component-only proof: agent ownership/tags
+M4	M4-02	Complete	production-available	T05-inventory-cutover	audited shipped composition: tenant-scoped Agent ownership, team, and canonical tags
 M4	M4-03	Complete	production-available	PROD-current-composition	audited shipped composition: API listAgents
 M4	M4-04	Complete	production-available	PROD-current-composition	audited shipped composition: API getAgent
-M4	M4-05	Complete	component-only	T05-inventory-cutover	audited component-only proof: API updateAgent
+M4	M4-05	Complete	production-available	T05-inventory-cutover	audited shipped composition: API updateAgent
 M4	M4-06	Complete	production-available	PROD-current-composition	audited shipped composition: API getAgentCapabilities
 M4	M4-07	Complete	production-available	PROD-current-composition	audited shipped composition: API getAgentRelationships
 M4	M4-08	Complete	production-available	PROD-current-composition	audited shipped composition: API listAgentSessions

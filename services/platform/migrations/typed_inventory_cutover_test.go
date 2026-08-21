@@ -20,6 +20,8 @@ func TestProductionTypedInventoryCutoverRegistersImmutableV14Authority(t *testin
 		"equivalent",
 		"cutover",
 		"zasp_inventory_readiness",
+		"zasp_inventory_update_agent",
+		"'updateAgent','agent'",
 		"zasp_inventory_apply_findings",
 		"risk projection item set conflict",
 		"zasp_execution_apply_risk_projection",

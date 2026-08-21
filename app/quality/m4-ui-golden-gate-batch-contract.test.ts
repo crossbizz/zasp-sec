@@ -16,9 +16,9 @@ describe("M4 UI and golden-gate batch", () => {
     expect(app).toContain("<ProductionAgentSecurityView");
     expect(app).toContain("<ProductionRiskView");
     for (const route of ["/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes", "/violations", "/exposure/attack-paths"]) expect(app).toContain(route);
-    for (const operation of ["listAgents", "getAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "getHomeSummary"]) expect(productionView).toContain(operation);
+    for (const operation of ["listAgents", "getAgent", "updateAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "getHomeSummary"]) expect(productionView).toContain(operation);
     for (const operation of ["updateFinding", "acceptFindingRisk", "getAttackPathBreakOptions"]) expect(riskView).toContain(operation);
-    for (const hidden of ["updateAgent", "createFindingTicket", "globalSearch"]) expect(productionView + riskView).not.toContain(hidden);
+    for (const hidden of ["createFindingTicket", "globalSearch"]) expect(productionView + riskView).not.toContain(hidden);
     for (const heading of ["Why", "Evidence", "Path", "Fix", "Verify", "Effective capabilities", "Runtime policy coverage"]) expect(demoView).toContain(heading);
   });
 

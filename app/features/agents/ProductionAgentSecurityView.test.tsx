@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { APIClient } from "../../../apps/web/api/client";
@@ -48,6 +49,18 @@ describe("production typed inventory API", () => {
     expect(get).toHaveBeenCalledWith("/api/v1/agents/{id}", { params: { path: { id: ids.first } }, signal: undefined });
   });
 
+  it("sends exact ownership preconditions and verifies mutation evidence", async () => {
+    const mutation = { agent: { ...summary(ids.first, "First"), owner: "security", team: "platform", tags: ["critical", "production"], version: 2 }, audit_id: "pid_50000001-0000-4000-8000-000000000001" };
+    const patch = vi.fn(async () => ({ data: mutation, response: new Response(null, { status: 200, headers: { ETag: '"2"', "X-Audit-ID": mutation.audit_id } }) }));
+    const api = createProductionAgentSecurityAPI({ PATCH: patch } as unknown as APIClient);
+
+    await expect(api.updateAgent(ids.first, 1, { owner: "security", team: "platform", tags: ["critical", "production"] }, "agent_11111111-1111-4111-8111-111111111111")).resolves.toEqual(mutation);
+    expect(patch).toHaveBeenCalledWith("/api/v1/agents/{id}", {
+      params: { path: { id: ids.first }, header: { "Idempotency-Key": "agent_11111111-1111-4111-8111-111111111111", "If-Match": '"1"', "X-CSRF-Token": "" } },
+      body: { owner: "security", team: "platform", tags: ["critical", "production"] }, signal: undefined,
+    });
+  });
+
   it("reloads an exact stable detail URL and rejects ambiguous detail queries", async () => {
     const value = summary(ids.first, "First");
     const detail = { summary: value, sources: [], evidence: [] } as never;
@@ -56,6 +69,7 @@ describe("production typed inventory API", () => {
       listAgents: async () => [value], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
       getAgent, getTool: async () => detail, getIdentity: async () => detail, getRuntime: async () => detail,
       getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [],
+      updateAgent: async () => ({ agent: value, audit_id: ids.evidence }),
       getHomeSummary: async () => ({ agent_count: 1, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false }),
     };
     window.history.replaceState({}, "", `/discovery/assets?inventory=${ids.first}`);
@@ -63,5 +77,26 @@ describe("production typed inventory API", () => {
     expect(await screen.findByRole("dialog", { name: "First" })).toBeVisible();
     expect(getAgent).toHaveBeenCalledWith(ids.first, expect.any(AbortSignal));
     expect(inventoryDetailIDFromSearch(`?inventory=${ids.first}&extra=1`)).toBe("");
+  });
+
+  it("updates scoped ownership with canonical tags from the production drawer", async () => {
+    const user = userEvent.setup();
+    const value = summary(ids.first, "First");
+    const detail = { summary: value, sources: [], evidence: [] } as never;
+    const updateAgent = vi.fn(async (_id: string, _version: number, input: { owner: string; team: string; tags: readonly string[] }) => ({ agent: { ...value, ...input, version: 2 }, audit_id: ids.evidence }));
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [value], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async () => detail, getTool: async () => detail, getIdentity: async () => detail, getRuntime: async () => detail,
+      getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [], updateAgent,
+      getHomeSummary: async () => ({ agent_count: 1, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false }),
+    };
+    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} canWrite onNavigate={() => undefined} /></APIProvider>);
+    await user.click(await screen.findByRole("button", { name: "Open First" }));
+    await user.type(await screen.findByLabelText("Owner"), "security");
+    await user.type(screen.getByLabelText("Team"), "platform");
+    await user.type(screen.getByRole("textbox", { name: /^Tags/ }), "production, critical");
+    await user.click(screen.getByRole("button", { name: "Save ownership" }));
+    await waitFor(() => expect(updateAgent).toHaveBeenCalledWith(ids.first, 1, { owner: "security", team: "platform", tags: ["critical", "production"] }, expect.stringMatching(/^agent_/)));
+    expect(await screen.findByText("security · platform")).toBeVisible();
   });
 });

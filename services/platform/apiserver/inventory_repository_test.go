@@ -74,6 +74,26 @@ func TestInventoryRepositoryStrictPageAndDetailAuthority(t *testing.T) {
 	}
 }
 
+func TestInventoryRepositoryUpdatesOnlyCanonicalAgentOwnership(t *testing.T) {
+	entityID := "pid_10000001-0000-4000-8000-000000000001"
+	updated := replaceInventoryJSON(replaceInventoryJSON(replaceInventoryJSON(replaceInventoryJSON(inventorySummaryJSON(entityID, "agent"), `"owner":""`, `"owner":"security"`), `"team":""`, `"team":"platform"`), `"tags":[]`, `"tags":["critical","production"]`), `"version":1`, `"version":2`)
+	database := &inventoryJSONDatabase{schema: TypedInventorySchemaVersion, responses: map[string]json.RawMessage{
+		postgresInventoryReadinessSQL:   json.RawMessage(`true`),
+		postgresInventoryUpdateAgentSQL: json.RawMessage(`{"agent":` + updated + `,"audit_id":"pid_60000001-0000-4000-8000-000000000001","correlation_id":"pid_60000002-0000-4000-8000-000000000002","replayed":false}`),
+	}}
+	repository, err := NewPostgresInventoryRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBearerToken
+	id, _ := domain.ParseProductID(entityID)
+	result, err := repository.UpdateAgentOwnership(context.Background(), identity, id, 1, "agent-owner-key-0001", AgentOwnershipInput{Owner: "security", Team: "platform", Tags: []string{"critical", "production"}}, "pid_60000001-0000-4000-8000-000000000001", "pid_60000002-0000-4000-8000-000000000002")
+	if err != nil || result.Agent.ID != entityID || result.Agent.Version != 2 || result.AuditID != "pid_60000001-0000-4000-8000-000000000001" || result.Replayed || database.statement != postgresInventoryUpdateAgentSQL || len(database.arguments) != 12 {
+		t.Fatalf("result=%#v statement=%q args=%#v err=%v", result, database.statement, database.arguments, err)
+	}
+}
+
 func TestInventoryRepositoryRejectsMalformedTypedAuthority(t *testing.T) {
 	entityID := "pid_10000001-0000-4000-8000-000000000001"
 	tests := map[string]string{

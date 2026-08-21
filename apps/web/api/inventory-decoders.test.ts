@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   decodeAgentSessionPage,
+  decodeAgentMutation,
   decodeCapabilityPage,
   decodeInventoryDetail,
   decodeInventoryPage,
@@ -73,5 +74,12 @@ describe("typed inventory decoders", () => {
     expect(decodeRelationshipPage({ items: [{ id: ids.snapshot, from_id: ids.entity, to_id: ids.other, type: "uses", evidence_id: ids.evidence }], page_info: pageInfo }).items).toHaveLength(1);
     expect(decodeAgentSessionPage({ items: [{ id: ids.snapshot, agent_id: ids.entity, started_at: summary.observed_at }], page_info: pageInfo }).items).toHaveLength(1);
     expect(() => decodeRelationshipPage({ items: [{ from_id: ids.entity, to_id: ids.other, type: "uses", evidence_id: ids.evidence }], page_info: pageInfo })).toThrow();
+  });
+
+  it("strictly decodes ownership mutation evidence", () => {
+    const auditID = "pid_50000001-0000-4000-8000-000000000001";
+    expect(decodeAgentMutation({ agent: { ...summary, version: 2 }, audit_id: auditID })).toEqual({ agent: { ...summary, version: 2 }, audit_id: auditID });
+    expect(() => decodeAgentMutation({ agent: { ...summary, kind: "tool", version: 2 }, audit_id: auditID })).toThrow();
+    expect(() => decodeAgentMutation({ agent: { ...summary, version: 2 }, audit_id: auditID, receipt_id: ids.other })).toThrow();
   });
 });

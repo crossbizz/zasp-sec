@@ -674,18 +674,30 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 98);
-    for (const operationId of ["listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) {
+    assert.equal(operations.size, 99);
+    for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [
-      "updateAgent", "createFindingTicket",
+      "createFindingTicket",
       "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
       "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
       "simulatePolicy", "listPolicyDecisions",
       "listSecurityActions", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
       "globalSearch", "createAIExplanation",
     ]) assert.equal(operations.has(operationId), false, operationId);
+
+    const updateAgent = operations.get("updateAgent");
+    assert.equal(updateAgent.path, "/api/v1/agents/{id}");
+    assert.equal(updateAgent.method, "patch");
+    assert.deepEqual(updateAgent.operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]);
+    assert.deepEqual(updateAgent.operation.parameters, [
+      { $ref: "#/components/parameters/CSRFToken" },
+      { $ref: "#/components/parameters/IdempotencyKey" },
+      { $ref: "#/components/parameters/ResourceVersion" },
+    ]);
+    assert.deepEqual(updateAgent.operation.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/AgentOwnershipInput" });
+    assert.deepEqual(updateAgent.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/AgentMutation" });
   });
 
   it("publishes strict browser-only integration authorization and OAuth callback contracts", () => {

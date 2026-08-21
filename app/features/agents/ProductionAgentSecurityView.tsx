@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { APIClient } from "../../../apps/web/api/client";
-import { createAPIClient, requireAPIData } from "../../../apps/web/api/client";
-import { decodeAgentSessionPage, decodeCapabilityPage, decodeHomeSummary, decodeInventoryDetail, decodeInventoryPage, decodeRelationshipPage } from "../../../apps/web/api/decoders";
-import type { AgentSession, Capability, HomeSummary, InventoryDetail, InventorySummary, Relationship } from "../../../apps/web/api/generated";
+import { APIProductError, APITransportError, createAPIClient, requireAPIData } from "../../../apps/web/api/client";
+import { decodeAgentMutation, decodeAgentSessionPage, decodeCapabilityPage, decodeHomeSummary, decodeInventoryDetail, decodeInventoryPage, decodeRelationshipPage } from "../../../apps/web/api/decoders";
+import type { AgentMutation, AgentOwnershipInput, AgentSession, Capability, HomeSummary, InventoryDetail, InventorySummary, Relationship } from "../../../apps/web/api/generated";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
-import { Button, Card, Drawer, MetricGrid, PageHeader } from "../../components/ui";
+import { Button, Card, Drawer, Field, MetricGrid, PageHeader } from "../../components/ui";
 
 export type ProductionAgentSecurityAPI = {
   listAgents(signal?: AbortSignal): Promise<readonly InventorySummary[]>;
@@ -23,6 +23,7 @@ export type ProductionAgentSecurityAPI = {
   getAgentCapabilities(id: string, signal?: AbortSignal): Promise<readonly Capability[]>;
   getAgentRelationships(id: string, signal?: AbortSignal): Promise<readonly Relationship[]>;
   listAgentSessions(id: string, signal?: AbortSignal): Promise<readonly AgentSession[]>;
+  updateAgent(id: string, expectedVersion: number, input: AgentOwnershipInput, idempotencyKey: string, signal?: AbortSignal): Promise<AgentMutation>;
   getHomeSummary(signal?: AbortSignal): Promise<HomeSummary>;
 };
 
@@ -39,6 +40,13 @@ export function createProductionAgentSecurityAPI(client: APIClient = createAPICl
     async getAgentCapabilities(id, signal) { return (await loadAllCursorPages(async (cursor) => requireAPIData(await client.GET("/api/v1/agents/{id}/capabilities", { params: { path: { id }, query: { cursor, limit: 100 } }, signal }), decodeCapabilityPage), inventoryPageBounds)).items; },
     async getAgentRelationships(id, signal) { return (await loadAllCursorPages(async (cursor) => requireAPIData(await client.GET("/api/v1/agents/{id}/relationships", { params: { path: { id }, query: { cursor, limit: 100 } }, signal }), decodeRelationshipPage), inventoryPageBounds)).items; },
     async listAgentSessions(id, signal) { return (await loadAllCursorPages(async (cursor) => requireAPIData(await client.GET("/api/v1/agents/{id}/sessions", { params: { path: { id }, query: { cursor, limit: 100 } }, signal }), decodeAgentSessionPage), inventoryPageBounds)).items; },
+    async updateAgent(id, expectedVersion, input, idempotencyKey, signal) {
+      if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 || expectedVersion >= 1_000_000 || !/^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/.test(idempotencyKey)) throw new APITransportError("invalid_configuration", "Invalid Agent mutation precondition");
+      const result = await client.PATCH("/api/v1/agents/{id}", { params: { path: { id }, header: { "Idempotency-Key": idempotencyKey, "If-Match": `"${expectedVersion}"`, "X-CSRF-Token": "" } }, body: input, signal });
+      const mutation = requireAPIData(result, decodeAgentMutation);
+      if (result.response.headers.get("ETag") !== `"${mutation.agent.version}"` || result.response.headers.get("X-Audit-ID") !== mutation.audit_id) throw new APITransportError("invalid_response", "Agent mutation omitted exact evidence headers");
+      return mutation;
+    },
     async getHomeSummary(signal) { return requireAPIData(await client.GET("/api/v1/home/summary", { signal }), decodeHomeSummary); },
   };
 }
@@ -49,7 +57,7 @@ type ConnectedData =
   | { kind: "home"; value: HomeSummary }
   | { kind: "inventory"; title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[] };
 
-export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI }: { path: string; onNavigate(path: string): void; api?: ProductionAgentSecurityAPI }) {
+export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI, canWrite = false }: { path: string; onNavigate(path: string): void; api?: ProductionAgentSecurityAPI; canWrite?: boolean }) {
   const { client } = useAPI();
   const api = useMemo(() => suppliedAPI ?? createProductionAgentSecurityAPI(client), [client, suppliedAPI]);
   const initialDetailID = typeof window === "undefined" ? "" : inventoryDetailIDFromSearch(window.location.search);
@@ -70,22 +78,34 @@ export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI
   if (query.status === "forbidden") return <State title="Forbidden" alert="Authorization rejected" />;
   if (query.status === "error") return <State title="Unavailable" alert="Product API unavailable" retry={() => void query.retry()} />;
   if (!query.data) return <State title="Empty" status="No records in this scope." />;
-  return <>{query.status === "stale" && <div role="alert" className="form-error">Showing stale data.</div>}<ConnectedDataView data={query.data} api={api} initialDetailID={initialDetailID} onNavigate={onNavigate} /></>;
+  return <>{query.status === "stale" && <div role="alert" className="form-error">Showing stale data.</div>}<ConnectedDataView data={query.data} api={api} initialDetailID={initialDetailID} onNavigate={onNavigate} canWrite={canWrite} /></>;
 }
 
 const connectedPaths = new Set(["/", "/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes"]);
 
-function ConnectedDataView({ data, api, initialDetailID, onNavigate }: { data: ConnectedData; api: ProductionAgentSecurityAPI; initialDetailID: string; onNavigate(path: string): void }) {
-  return data.kind === "home" ? <ConnectedHome value={data.value} onNavigate={onNavigate} /> : <ConnectedInventory key={data.category} title={data.title} category={data.category} values={data.values} api={api} initialDetailID={initialDetailID} />;
+function ConnectedDataView({ data, api, initialDetailID, onNavigate, canWrite }: { data: ConnectedData; api: ProductionAgentSecurityAPI; initialDetailID: string; onNavigate(path: string): void; canWrite: boolean }) {
+  return data.kind === "home" ? <ConnectedHome value={data.value} onNavigate={onNavigate} /> : <ConnectedInventory key={data.category} title={data.title} category={data.category} values={data.values} api={api} initialDetailID={initialDetailID} canWrite={canWrite} />;
 }
 
 function ConnectedHome({ value, onNavigate }: { value: HomeSummary; onNavigate(path: string): void }) {
   return <div className="page"><PageHeader title="Security overview" description="Authoritative posture for the selected scope." /><MetricGrid metrics={[{ label: "Agents", value: value.agent_count, onClick: () => onNavigate("/discovery/assets") }, { label: "High-risk paths", value: value.high_risk_paths, tone: value.high_risk_paths > 0 ? "danger" : undefined, onClick: () => onNavigate("/exposure/attack-paths") }, { label: "Verified changes", value: value.verified_changes }, { label: "Blocked changes", value: value.blocked_changes }]} />{value.attention_required && <div role="alert" className="form-error">Attention required</div>}</div>;
 }
 
-function ConnectedInventory({ title, category, values, api, initialDetailID }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[]; api: ProductionAgentSecurityAPI; initialDetailID: string }) {
+function ConnectedInventory({ title, category, values, api, initialDetailID, canWrite }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[]; api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean }) {
+  const [rows, setRows] = useState(values);
   const [selected, setSelected] = useState<InventoryDetail | null>(null);
   const [detailError, setDetailError] = useState(false);
+  const [owner, setOwner] = useState("");
+  const [team, setTeam] = useState("");
+  const [tags, setTags] = useState("");
+  const [mutationError, setMutationError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [pending, setPending] = useState<{ id: string; version: number; input: AgentOwnershipInput; key: string } | null>(null);
+  useEffect(() => setRows(values), [values]);
+  useEffect(() => {
+    if (!selected || pending) return;
+    setOwner(selected.summary.owner); setTeam(selected.summary.team); setTags(selected.summary.tags.join(", "));
+  }, [pending, selected]);
   const loadDetail = useCallback(async (id: string, signal?: AbortSignal) => {
     const loaders = { agent: api.getAgent, tool: api.getTool, identity: api.getIdentity, runtime: api.getRuntime };
     try { setSelected(await loaders[category](id, signal)); setDetailError(false); }
@@ -102,8 +122,30 @@ function ConnectedInventory({ title, category, values, api, initialDetailID }: {
     return () => controller.abort();
   }, [api, category, initialDetailID]);
   const open = (item: InventorySummary) => { setInventoryDetailURL(item.id); void loadDetail(item.id); };
-  const close = () => { setInventoryDetailURL(""); setSelected(null); };
-  return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}<Card>{values.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Freshness</th><th>Last seen</th></tr></thead><tbody>{values.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => open(item)}>{item.name}</button></td><td>{item.owner || "Unowned"}</td><td>{item.freshness_state}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.summary.name} onClose={close}><div className="detail-content"><h3>Canonical record</h3><code>{selected.summary.id}</code><h3>Ownership</h3><p>{selected.summary.owner || "Unowned"} · {selected.summary.team || "No team"}</p><h3>Evidence and freshness</h3><p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p><h3>Source authority</h3><p>{selected.sources.length} source observation{selected.sources.length === 1 ? "" : "s"} · confidence {selected.summary.confidence_basis_points / 100}%</p></div></Drawer>}</div>;
+  const close = () => { if (saving) return; setInventoryDetailURL(""); setSelected(null); setMutationError(""); };
+  const save = async () => {
+    if (!canWrite || category !== "agent" || !selected || saving) return;
+    let retained = pending;
+    if (!retained) {
+      const canonicalTags = [...new Set(tags.split(",").map((value) => value.trim()).filter(Boolean))].sort();
+      if (owner.trim() !== owner || team.trim() !== team || owner.length < 1 || owner.length > 128 || team.length < 1 || team.length > 128 || canonicalTags.length > 32 || canonicalTags.some((value) => value.length > 64)) { setMutationError("Enter bounded ownership and canonical tags."); return; }
+      retained = { id: selected.summary.id, version: selected.summary.version, input: { owner, team, tags: canonicalTags }, key: `agent_${globalThis.crypto.randomUUID()}` };
+      setPending(retained);
+    }
+    setSaving(true); setMutationError("");
+    try {
+      const result = await api.updateAgent(retained.id, retained.version, retained.input, retained.key);
+      const next = { ...selected, summary: result.agent };
+      setSelected(next); setRows((current) => current.map((item) => item.id === result.agent.id ? result.agent : item)); setPending(null);
+    } catch (error) {
+      if (error instanceof APIProductError && error.status === 409) {
+        setPending(null);
+        try { setSelected(await api.getAgent(retained.id)); setMutationError("Ownership changed elsewhere. The authoritative record was reloaded."); }
+        catch { setMutationError("Ownership changed elsewhere and could not be reloaded."); }
+      } else setMutationError("The response was interrupted. Retry reuses the exact ownership change.");
+    } finally { setSaving(false); }
+  };
+  return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}<Card>{rows.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Freshness</th><th>Last seen</th></tr></thead><tbody>{rows.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => open(item)}>{item.name}</button></td><td>{item.owner || "Unowned"}</td><td>{item.freshness_state}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.summary.name} closeDisabled={saving} onClose={close}><div className="detail-content"><h3>Canonical record</h3><code>{selected.summary.id}</code><h3>Ownership</h3><p>{selected.summary.owner || "Unowned"} · {selected.summary.team || "No team"}</p>{canWrite && category === "agent" && <section aria-label="Agent ownership controls"><Field label="Owner" value={owner} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setOwner(event.target.value)} /><Field label="Team" value={team} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setTeam(event.target.value)} /><Field label="Tags" hint="Comma-separated, up to 32 tags." value={tags} disabled={saving || pending !== null} maxLength={2078} onChange={(event) => setTags(event.target.value)} /><Button disabled={saving} onClick={() => void save()}>{pending ? "Retry ownership change" : "Save ownership"}</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}<h3>Evidence and freshness</h3><p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p><h3>Source authority</h3><p>{selected.sources.length} source observation{selected.sources.length === 1 ? "" : "s"} · confidence {selected.summary.confidence_basis_points / 100}%</p></div></Drawer>}</div>;
 }
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

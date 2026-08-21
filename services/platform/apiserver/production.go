@@ -337,7 +337,7 @@ func capabilitiesForPermissions(permissions []string) []string {
 		case "view":
 			capabilities = append(capabilities, "inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read")
 		case "manage_workflows":
-			capabilities = append(capabilities, "policies.write", "integrations.write", "sensors.write", "security-agents.write")
+			capabilities = append(capabilities, "inventory.write", "policies.write", "integrations.write", "sensors.write", "security-agents.write")
 		case "manage_findings":
 			capabilities = append(capabilities, "findings.write")
 		case "manage_identity":
