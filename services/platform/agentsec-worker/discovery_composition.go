@@ -11,12 +11,14 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/idpdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 type productionDiscoveryClientConfig struct {
 	Artifacts                  artifactstore.ObjectReferencingArtifactStore
 	Credentials                discoveryCredentialMaterialResolver
-	AWSIdentity                awsdiscovery.CollectionIdentityCaller
+	AWSInventory               awsdiscovery.CollectionInventoryCaller
+	AWSSecurity                awsdiscovery.CollectionSecurityAnalyzer
 	AWSCollectorVersion        string
 	KubernetesCollectorVersion string
 	GitHubCollectorVersion     string
@@ -34,7 +36,7 @@ type productionLiveDiscoveryCollectorFactory struct {
 }
 
 func newProductionLiveDiscoveryCollectorFactory(config productionDiscoveryClientConfig) (*productionLiveDiscoveryCollectorFactory, error) {
-	if nilWorkerDependency(config.Artifacts) || nilWorkerDependency(config.Credentials) || nilWorkerDependency(config.AWSIdentity) || config.Clock == nil || config.ProviderTimeout < 100*time.Millisecond || config.ProviderTimeout > 30*time.Second || config.ReadinessTimeout < 100*time.Millisecond || config.ReadinessTimeout > 10*time.Second || !validDiscoveryCIDRs(config.KubernetesAllowedCIDRs) {
+	if nilWorkerDependency(config.Artifacts) || nilWorkerDependency(config.Credentials) || nilWorkerDependency(config.AWSInventory) || nilWorkerDependency(config.AWSSecurity) || config.Clock == nil || config.ProviderTimeout < 100*time.Millisecond || config.ProviderTimeout > 30*time.Second || config.ReadinessTimeout < 100*time.Millisecond || config.ReadinessTimeout > 10*time.Second || !validDiscoveryCIDRs(config.KubernetesAllowedCIDRs) {
 		return nil, errRuntimeUnavailable
 	}
 	for _, version := range []string{config.AWSCollectorVersion, config.KubernetesCollectorVersion, config.GitHubCollectorVersion, config.OktaCollectorVersion, config.ParserVersion, config.ToolVersion} {
@@ -67,7 +69,16 @@ func (factory *productionLiveDiscoveryCollectorFactory) BuildDiscoveryCollector(
 }
 
 func (factory *productionLiveDiscoveryCollectorFactory) collectionFactory(binding discoveryCollectorBinding) (collection.CollectorFactory, error) {
-	awsAPI, err := awsdiscovery.NewIdentityCollectionAPI(factory.config.AWSIdentity, factory.config.ProviderTimeout)
+	integrationID, integrationErr := domain.ParseProductID(binding.Input.IntegrationID)
+	connectionID, connectionErr := domain.ParseProductID(binding.Input.ConnectionID)
+	jobID, jobErr := domain.ParseProductID(binding.Input.JobID)
+	if integrationErr != nil || connectionErr != nil || jobErr != nil {
+		return nil, errRuntimeUnavailable
+	}
+	awsAPI, err := awsdiscovery.NewInventoryCollectionAPI(factory.config.AWSInventory, factory.config.AWSSecurity, awsdiscovery.CollectionInventoryAuthority{
+		Scope: binding.Scope, IntegrationID: integrationID, ConnectionID: connectionID, JobID: jobID,
+		Attempt: binding.Input.Attempt, ObservedAt: binding.Input.ObservationTime,
+	}, factory.config.ProviderTimeout)
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}

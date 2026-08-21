@@ -31,9 +31,10 @@ const (
 )
 
 var (
-	errConfiguration = errors.New("provider collection configuration rejected")
-	ErrPageCapacity  = errors.New("provider collection page capacity reached")
-	versionPattern   = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
+	errConfiguration    = errors.New("provider collection configuration rejected")
+	ErrPageCapacity     = errors.New("provider collection page capacity reached")
+	versionPattern      = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
+	findingCheckPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 )
 
 type API interface {
@@ -50,6 +51,7 @@ type PageRequest struct {
 	Page                   int
 	RemainingItems         int
 	RemainingRelationships int
+	RemainingFindings      int
 	RemainingBytes         int64
 }
 
@@ -59,6 +61,7 @@ type Page struct {
 	Raw           []byte
 	Entities      []json.RawMessage
 	Relationships []json.RawMessage
+	Findings      []json.RawMessage
 	Complete      bool
 }
 
@@ -70,6 +73,7 @@ type redactedPageDocument struct {
 	Complete      bool                `json:"complete"`
 	Entities      []json.RawMessage   `json:"entities"`
 	Relationships []json.RawMessage   `json:"relationships"`
+	Findings      []json.RawMessage   `json:"findings,omitempty"`
 }
 
 type redactedPageCursor struct {
@@ -114,6 +118,15 @@ type normalizedPageRelationship struct {
 	Attributes     json.RawMessage `json:"attributes"`
 }
 
+type normalizedPageFinding struct {
+	ID         string `json:"id"`
+	EntityID   string `json:"entity_id"`
+	CheckID    string `json:"check_id"`
+	Severity   string `json:"severity"`
+	Status     string `json:"status"`
+	ObservedAt string `json:"observed_at"`
+}
+
 type inventoryFieldRule struct {
 	kind     string
 	required bool
@@ -128,10 +141,14 @@ type providerEntityDefinition struct {
 }
 
 func NewPage(provider collection.Provider, subject collection.SubjectBinding, cursor collection.Cursor, complete bool, entities, relationships []json.RawMessage) (Page, error) {
-	if !validProvider(provider) || !validCursor(cursor, provider) || !validNormalizedInventory(provider, entities, relationships) {
+	return NewPageWithFindings(provider, subject, cursor, complete, entities, relationships, nil)
+}
+
+func NewPageWithFindings(provider collection.Provider, subject collection.SubjectBinding, cursor collection.Cursor, complete bool, entities, relationships, findings []json.RawMessage) (Page, error) {
+	if !validProvider(provider) || !validCursor(cursor, provider) || !validNormalizedInventory(provider, entities, relationships) || !validProviderFindings(provider, findings) {
 		return Page{}, collection.ErrContract
 	}
-	page := Page{Subject: subject, Cursor: cursor, Entities: cloneRawMessages(entities), Relationships: cloneRawMessages(relationships), Complete: complete}
+	page := Page{Subject: subject, Cursor: cursor, Entities: cloneRawMessages(entities), Relationships: cloneRawMessages(relationships), Findings: cloneRawMessages(findings), Complete: complete}
 	body, err := canonicalPageBody(provider, page)
 	if err != nil || len(body) > maximumArtifactBytes {
 		return Page{}, collection.ErrContract
@@ -232,12 +249,16 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	remainingRawBytes := request.Bounds.MaxRawBytes
 	remainingItems := request.Bounds.MaxItems
 	remainingRelationships := request.Bounds.MaxItems * 2
+	remainingEvidence := request.Bounds.MaxItems
 	objects := make([]collection.RawObject, 0, request.Bounds.MaxPages)
 	entities := make([]json.RawMessage, 0)
 	relationships := make([]json.RawMessage, 0)
+	findings := make([]json.RawMessage, 0)
 	entityObjects := make(map[string]collection.RawObject)
+	findingObjects := make(map[string]collection.RawObject)
 	entitySourceIDs := make(map[string]struct{})
 	entityBodies := make(map[string]json.RawMessage)
+	findingIDs := make(map[string]struct{})
 	relationshipIDs := make(map[string]struct{})
 	relationshipSourceIDs := make(map[string]struct{})
 	snapshotLimit := newSnapshotBudget(maximumArtifactBytes)
@@ -251,7 +272,9 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		objects = seed.objects
 		entities = seed.entities
 		relationships = seed.relationships
+		findings = seed.findings
 		entityObjects = seed.entityObjects
+		findingObjects = seed.findingObjects
 		entitySourceIDs = seed.entitySourceIDs
 		entityBodies = seed.entityBodies
 		relationshipIDs = seed.relationshipIDs
@@ -259,14 +282,16 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		remainingRawBytes -= seed.rawBytes
 		remainingItems -= len(seed.entities)
 		remainingRelationships -= len(seed.relationships)
+		remainingEvidence -= len(seed.entities) + len(seed.findings)
+		findingIDs = seed.findingIDs
 		seededPages = len(seed.objects)
 		for index, page := range seed.pages {
-			typedEntities, evidenceLengths, typedErr := snapshotPageBudgetBodies(request, seed.budgetEntities[index], seed.entityObjects)
+			typedEntities, evidenceLengths, typedErr := snapshotPageBudgetBodies(request, seed.budgetEntities[index], page.Findings, seed.entityObjects, seed.findingObjects)
 			if typedErr != nil || len(evidenceLengths) != len(seed.evidenceLengths[index]) || !snapshotLimit.addPage(typedEntities, page.Relationships, evidenceLengths) {
 				return nil, outcomeUnknown()
 			}
 		}
-		if remainingRawBytes < 1 || remainingItems < 0 || remainingRelationships < 0 || seededPages > request.Bounds.MaxPages {
+		if remainingRawBytes < 1 || remainingItems < 0 || remainingRelationships < 0 || remainingEvidence < 0 || seededPages > request.Bounds.MaxPages {
 			return nil, outcomeUnknown()
 		}
 	}
@@ -289,7 +314,7 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 			}
 			break
 		}
-		pageRequest := PageRequest{Provider: request.Provider, Subject: request.ExpectedSubject, Cursor: cursor, Page: pageNumber, RemainingItems: remainingItems, RemainingRelationships: remainingRelationships, RemainingBytes: remainingBytes}
+		pageRequest := PageRequest{Provider: request.Provider, Subject: request.ExpectedSubject, Cursor: cursor, Page: pageNumber, RemainingItems: remainingItems, RemainingRelationships: remainingRelationships, RemainingFindings: remainingEvidence, RemainingBytes: remainingBytes}
 		borrowed := bytes.Clone(credential)
 		page, err := fetchPage(client.api, ctx, borrowed, pageRequest)
 		clear(borrowed)
@@ -302,7 +327,7 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 			}
 			return nil, err
 		}
-		if !validPage(page, request, cursor, credential, remainingItems, remainingRelationships, remainingBytes) {
+		if !validPage(page, request, cursor, credential, remainingItems, remainingRelationships, remainingEvidence, remainingBytes) {
 			return nil, malformedFailure()
 		}
 		nextManifestBody, nextManifestErr := marshalManifest(request, page.Cursor, objects)
@@ -356,6 +381,20 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 			pageRelationshipIDs[index] = identity
 			pageRelationshipSources[index] = source
 		}
+		pageFindingIDs := make([]string, len(page.Findings))
+		for index, finding := range page.Findings {
+			identity, entityID, ok := findingIdentity(finding)
+			if !ok {
+				return nil, malformedFailure()
+			}
+			if _, exists := findingIDs[identity]; exists {
+				return nil, malformedFailure()
+			}
+			if _, exists := entityObjects[entityID]; !exists && !stringSliceContains(pageEntityIDs, entityID) {
+				return nil, malformedFailure()
+			}
+			pageFindingIDs[index] = identity
+		}
 
 		reference, err := deterministicEvidenceReference(request, fmt.Sprintf("raw-page-%06d", pageNumber))
 		if err != nil {
@@ -374,7 +413,11 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		for _, identity := range pageEntityIDs {
 			pageEntityObjects[identity] = object
 		}
-		typedEntities, evidenceLengths, typedErr := snapshotPageBudgetBodies(request, pageEntities, pageEntityObjects)
+		pageFindingObjects := make(map[string]collection.RawObject, len(pageFindingIDs))
+		for _, identity := range pageFindingIDs {
+			pageFindingObjects[identity] = object
+		}
+		typedEntities, evidenceLengths, typedErr := snapshotPageBudgetBodies(request, pageEntities, page.Findings, pageEntityObjects, pageFindingObjects)
 		if typedErr != nil || !snapshotLimit.addPage(typedEntities, page.Relationships, evidenceLengths) {
 			return nil, malformedFailure()
 		}
@@ -390,8 +433,14 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 			relationshipSourceIDs[pageRelationshipSources[index]] = struct{}{}
 			relationships = append(relationships, bytes.Clone(relationship))
 		}
+		for index, finding := range page.Findings {
+			findingIDs[pageFindingIDs[index]] = struct{}{}
+			findingObjects[pageFindingIDs[index]] = object
+			findings = append(findings, bytes.Clone(finding))
+		}
 		remainingItems -= len(pageEntities)
 		remainingRelationships -= len(page.Relationships)
+		remainingEvidence -= len(pageEntities) + len(page.Findings)
 		remainingRawBytes -= artifact.Size
 		cursor = page.Cursor
 		complete = page.Complete
@@ -439,7 +488,7 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		return result, nil
 	}
 
-	entityBody, relationshipBody, evidenceBody, err := snapshotBodies(request, entities, relationships, entityObjects)
+	entityBody, relationshipBody, evidenceBody, err := snapshotBodies(request, entities, relationships, findings, entityObjects, findingObjects)
 	if err != nil {
 		return nil, malformedFailure()
 	}
@@ -459,12 +508,12 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	return result, nil
 }
 
-func validPage(page Page, request collection.Request, prior collection.Cursor, credential []byte, remainingItems, remainingRelationships int, remainingBytes int64) bool {
+func validPage(page Page, request collection.Request, prior collection.Cursor, credential []byte, remainingItems, remainingRelationships, remainingEvidence int, remainingBytes int64) bool {
 	canonical, err := canonicalPageBody(request.Provider, page)
-	if page.Subject != request.ExpectedSubject || !validCursor(page.Cursor, request.Provider) || page.Cursor == prior || err != nil || len(page.Raw) == 0 || len(page.Raw) > maximumArtifactBytes || int64(len(page.Raw)) > remainingBytes || !bytes.Equal(canonical, page.Raw) || bytes.Contains(page.Raw, credential) || len(page.Entities) > remainingItems || len(page.Relationships) > remainingRelationships {
+	if page.Subject != request.ExpectedSubject || !validCursor(page.Cursor, request.Provider) || page.Cursor == prior || err != nil || len(page.Raw) == 0 || len(page.Raw) > maximumArtifactBytes || int64(len(page.Raw)) > remainingBytes || !bytes.Equal(canonical, page.Raw) || bytes.Contains(page.Raw, credential) || len(page.Entities) > remainingItems || len(page.Relationships) > remainingRelationships || len(page.Entities)+len(page.Findings) > remainingEvidence {
 		return false
 	}
-	return validNormalizedInventory(request.Provider, page.Entities, page.Relationships)
+	return validNormalizedInventory(request.Provider, page.Entities, page.Relationships) && validProviderFindings(request.Provider, page.Findings)
 }
 
 func canonicalPageBody(provider collection.Provider, page Page) ([]byte, error) {
@@ -474,8 +523,54 @@ func canonicalPageBody(provider collection.Provider, page Page) ([]byte, error) 
 	return json.Marshal(redactedPageDocument{
 		Version: redactedPageVersion, Provider: provider, Subject: manifestSubject{Kind: page.Subject.Kind, ID: page.Subject.ID},
 		Cursor: redactedPageCursor{Provider: page.Cursor.Provider, Version: page.Cursor.Version, Value: page.Cursor.Value}, Complete: page.Complete,
-		Entities: cloneRawMessages(page.Entities), Relationships: cloneRawMessages(page.Relationships),
+		Entities: cloneRawMessages(page.Entities), Relationships: cloneRawMessages(page.Relationships), Findings: cloneRawMessages(page.Findings),
 	})
+}
+
+func validProviderFindings(provider collection.Provider, findings []json.RawMessage) bool {
+	if len(findings) == 0 {
+		return true
+	}
+	if provider != collection.ProviderAWS || len(findings) > 100_000 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(findings))
+	previous := ""
+	var total int64
+	for _, raw := range findings {
+		total += int64(len(raw))
+		identity, _, ok := findingIdentity(raw)
+		if !ok || identity <= previous || total > maximumArtifactBytes {
+			return false
+		}
+		if _, duplicate := seen[identity]; duplicate {
+			return false
+		}
+		seen[identity] = struct{}{}
+		previous = identity
+	}
+	return true
+}
+
+func findingIdentity(raw json.RawMessage) (string, string, bool) {
+	var finding normalizedPageFinding
+	if !decodeExactObject(raw, &finding) || !validProductIDText(finding.ID) || !validProductIDText(finding.EntityID) || !findingCheckPattern.MatchString(finding.CheckID) || finding.Severity != "high" || finding.Status != "PASS" && finding.Status != "FAIL" {
+		return "", "", false
+	}
+	observed, err := time.Parse(time.RFC3339, finding.ObservedAt)
+	if err != nil || observed.Location() != time.UTC || observed.Nanosecond() != 0 || observed.Format(time.RFC3339) != finding.ObservedAt {
+		return "", "", false
+	}
+	return finding.ID, finding.EntityID, true
+}
+
+func stringSliceContains(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func validNormalizedInventory(provider collection.Provider, entities, relationships []json.RawMessage) bool {
@@ -914,7 +1009,7 @@ func newSnapshotBudget(limit int64) *snapshotBudget {
 }
 
 func (budget *snapshotBudget) addPage(entities, relationships []json.RawMessage, evidenceLengths []int) bool {
-	if budget == nil || budget.limit < 6 || len(evidenceLengths) != len(entities) {
+	if budget == nil || budget.limit < 6 || len(evidenceLengths) < len(entities) {
 		return false
 	}
 	entityBytes := budget.entityBytes + rawArrayContribution(entities, budget.entityCount)
@@ -1090,12 +1185,13 @@ func deterministicKubernetesReferenceID(subject collection.SubjectBinding, kind,
 	return fmt.Sprintf("pid_%x-%x-%x-%x-%x", digest[0:4], digest[4:6], digest[6:8], digest[8:10], digest[10:16])
 }
 
-func snapshotBodies(request collection.Request, entities, relationships []json.RawMessage, entityObjects map[string]collection.RawObject) ([]byte, []byte, []byte, error) {
+func snapshotBodies(request collection.Request, entities, relationships, findings []json.RawMessage, entityObjects, findingObjects map[string]collection.RawObject) ([]byte, []byte, []byte, error) {
 	sort.Slice(entities, func(left, right int) bool { return identityForSort(entities[left]) < identityForSort(entities[right]) })
 	sort.Slice(relationships, func(left, right int) bool {
 		return identityForSort(relationships[left]) < identityForSort(relationships[right])
 	})
-	evidence := make([]evidenceItem, 0, len(entities))
+	sort.Slice(findings, func(left, right int) bool { return identityForSort(findings[left]) < identityForSort(findings[right]) })
+	evidence := make([]evidenceItem, 0, len(entities)+len(findings))
 	snapshotEntities := make([]json.RawMessage, 0, len(entities))
 	for _, entity := range entities {
 		entityID, ok := itemIdentity(entity)
@@ -1110,6 +1206,18 @@ func snapshotBodies(request collection.Request, entities, relationships []json.R
 		evidence = append(evidence, item)
 		snapshotEntities = append(snapshotEntities, typed)
 	}
+	for _, finding := range findings {
+		findingID, _, ok := findingIdentity(finding)
+		object, exists := findingObjects[findingID]
+		if !ok || !exists {
+			return nil, nil, nil, collection.ErrContract
+		}
+		item, itemErr := evidenceForFinding(request, finding, object)
+		if itemErr != nil {
+			return nil, nil, nil, itemErr
+		}
+		evidence = append(evidence, item)
+	}
 	sort.Slice(evidence, func(left, right int) bool { return evidence[left].ID < evidence[right].ID })
 	entityBody, entityErr := json.Marshal(snapshotEntities)
 	relationshipBody, relationshipErr := json.Marshal(relationships)
@@ -1120,9 +1228,9 @@ func snapshotBodies(request collection.Request, entities, relationships []json.R
 	return entityBody, relationshipBody, evidenceBody, nil
 }
 
-func snapshotPageBudgetBodies(request collection.Request, entities []json.RawMessage, entityObjects map[string]collection.RawObject) ([]json.RawMessage, []int, error) {
+func snapshotPageBudgetBodies(request collection.Request, entities, findings []json.RawMessage, entityObjects, findingObjects map[string]collection.RawObject) ([]json.RawMessage, []int, error) {
 	typed := make([]json.RawMessage, len(entities))
-	evidenceLengths := make([]int, len(entities))
+	evidenceLengths := make([]int, 0, len(entities)+len(findings))
 	for index, entity := range entities {
 		identity, ok := itemIdentity(entity)
 		object, exists := entityObjects[identity]
@@ -1135,7 +1243,20 @@ func snapshotPageBudgetBodies(request collection.Request, entities []json.RawMes
 			return nil, nil, collection.ErrContract
 		}
 		typed[index] = value
-		evidenceLengths[index] = len(encodedEvidence)
+		evidenceLengths = append(evidenceLengths, len(encodedEvidence))
+	}
+	for _, finding := range findings {
+		identity, _, ok := findingIdentity(finding)
+		object, exists := findingObjects[identity]
+		if !ok || !exists {
+			return nil, nil, collection.ErrContract
+		}
+		item, err := evidenceForFinding(request, finding, object)
+		encoded, encodeErr := json.Marshal(item)
+		if err != nil || encodeErr != nil {
+			return nil, nil, collection.ErrContract
+		}
+		evidenceLengths = append(evidenceLengths, len(encoded))
 	}
 	return typed, evidenceLengths, nil
 }
@@ -1184,9 +1305,33 @@ func evidenceForEntity(request collection.Request, entityID string, object colle
 	}, nil
 }
 
+func evidenceForFinding(request collection.Request, raw json.RawMessage, object collection.RawObject) (evidenceItem, error) {
+	var finding normalizedPageFinding
+	if !decodeExactObject(raw, &finding) {
+		return evidenceItem{}, collection.ErrContract
+	}
+	checksum := object.Checksum()
+	evidenceReference, err := deterministicEvidenceReference(request, "finding:"+finding.ID+":"+object.Reference().String())
+	if err != nil {
+		return evidenceItem{}, err
+	}
+	return evidenceItem{
+		ID: evidenceReference.String(), EntityID: finding.EntityID, FindingID: finding.ID, CheckID: finding.CheckID,
+		Severity: finding.Severity, Status: finding.Status, ObservedAt: finding.ObservedAt,
+		ObjectReference: object.ObjectReference(), ArtifactReference: object.Reference().String(), ArtifactKey: object.Key(),
+		ArtifactVersionID: object.VersionID(), ChecksumHex: hex.EncodeToString(checksum[:]), SizeBytes: object.Size(),
+		MediaType: object.MediaType(), SchemaVersion: object.SchemaVersion(), ParserVersion: object.ParserVersion(), ToolVersion: object.ToolVersion(),
+	}, nil
+}
+
 type evidenceItem struct {
 	ID                string `json:"id"`
 	EntityID          string `json:"entity_id"`
+	FindingID         string `json:"finding_id,omitempty"`
+	CheckID           string `json:"check_id,omitempty"`
+	Severity          string `json:"severity,omitempty"`
+	Status            string `json:"status,omitempty"`
+	ObservedAt        string `json:"observed_at,omitempty"`
 	ObjectReference   string `json:"object_reference"`
 	ArtifactReference string `json:"artifact_reference"`
 	ArtifactKey       string `json:"artifact_key"`

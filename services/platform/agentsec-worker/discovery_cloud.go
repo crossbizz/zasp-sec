@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
@@ -152,6 +154,32 @@ func (authority *productionDiscoveryCloudAuthority) NewCallerIdentity(region str
 	base.Region = region
 	base.Credentials = aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) { return credentials, nil })
 	return sts.NewFromConfig(base), nil
+}
+
+func (authority *productionDiscoveryCloudAuthority) NewIAM(region string, credentials aws.Credentials) (discoveryAWSIAMAPI, error) {
+	base, err := authority.customerAWSConfig(region, credentials)
+	if err != nil {
+		return nil, err
+	}
+	return iam.NewFromConfig(base), nil
+}
+
+func (authority *productionDiscoveryCloudAuthority) NewEC2(region string, credentials aws.Credentials) (discoveryAWSEC2API, error) {
+	base, err := authority.customerAWSConfig(region, credentials)
+	if err != nil {
+		return nil, err
+	}
+	return ec2.NewFromConfig(base), nil
+}
+
+func (authority *productionDiscoveryCloudAuthority) customerAWSConfig(region string, credentials aws.Credentials) (aws.Config, error) {
+	if authority == nil || authority.transport == nil || authority.clock == nil || !discoveryRegionPattern.MatchString(region) || !credentials.HasKeys() || !credentials.CanExpire || !credentials.Expires.After(authority.clock()) {
+		return aws.Config{}, errRuntimeUnavailable
+	}
+	base := authority.base
+	base.Region = region
+	base.Credentials = aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) { return credentials, nil })
+	return base, nil
 }
 
 func (authority *productionDiscoveryCloudAuthority) Close() error {

@@ -1019,6 +1019,9 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	if err := runner.UpProductionDiscoveryExecution(ctx); err != nil {
 		t.Fatal(err)
 	}
+	if err := runner.UpProductionTypedInventoryCutover(ctx); err != nil {
+		t.Fatal(err)
+	}
 	scheduleID := "pid_79000003-0000-4000-8000-000000000003"
 	var payload []byte
 	if err := connection.QueryRow(ctx, `SELECT zasp_discovery_put_schedule($1,$2,$3,$4,$5,300,$6,0)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), scheduleID, integrationID, time.Now().UTC().Add(-time.Minute)).Scan(&payload); err != nil {
@@ -1096,12 +1099,27 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 		t.Fatalf("reservation=%s err=%v", payload, err)
 	}
 	snapshotID := reserved.SnapshotID
+	var collectedAt time.Time
+	if err := connection.QueryRow(ctx, `SELECT date_trunc('second',reserved_at) FROM zasp_discovery_generation_reservations WHERE snapshot_id=$1`, snapshotID).Scan(&collectedAt); err != nil {
+		t.Fatal(err)
+	}
+	collectedAt = collectedAt.UTC()
 	manifestKey := "organizations/" + identity.Scope.OrganizationID().String() + "/workspaces/" + identity.Scope.WorkspaceID().String() + "/environments/" + identity.Scope.EnvironmentID().String() + "/artifacts/pid_79000008-0000-4000-8000-000000000008"
 	manifestReference := "s3://zasp-evidence-prod/" + manifestKey
 	manifestChecksum := make([]byte, 32)
 	manifestChecksum[0] = 3
-	applyQuery := `SELECT zasp_execution_apply_complete_snapshot($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'aws',$11,$12,'version-0001',$13,128,'application/json','manifest_v1',$14,'cursor-0001','parser_v1','tool_v1','[]'::jsonb,'[]'::jsonb,'[]'::jsonb)`
-	applyArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, "discovery-worker-02", "delivery-token-0000000002", integrationID, syncID, snapshotID, reserved.Generation, manifestReference, manifestKey, manifestChecksum, time.Now().UTC()}
+	entityID, err := CanonicalDiscoveryID(identity.Scope, "aws_account", "123456789012")
+	if err != nil {
+		t.Fatal(err)
+	}
+	entityEvidenceID := "pid_79000031-0000-4000-8000-000000000031"
+	findingEvidenceID := "pid_79000032-0000-4000-8000-000000000032"
+	findingID := "pid_79000033-0000-4000-8000-000000000033"
+	artifactID := "pid_79000034-0000-4000-8000-000000000034"
+	entities := json.RawMessage(fmt.Sprintf(`[{"id":%q,"kind":"aws_account","source_native_id":"123456789012","display_name":"Production account","stable_fields":{"account_id":"123456789012"},"attributes":{},"identity_namespace":"aws_account","identity_rule_version":1,"identity_priority":100,"product_kind":"asset","confidence_basis_points":9000,"observed_at":%q,"fresh_until":%q,"evidence_id":%q,"source_projection_version":1}]`, entityID, collectedAt.Format(time.RFC3339), collectedAt.Add(24*time.Hour).Format(time.RFC3339), entityEvidenceID))
+	evidence := json.RawMessage(fmt.Sprintf(`[{"id":%q,"entity_id":%q,"object_reference":%q,"artifact_reference":%q,"artifact_key":%q,"artifact_version_id":"version-0001","checksum_hex":"%s","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"},{"id":%q,"entity_id":%q,"finding_id":%q,"check_id":"iam_role_administratoraccess_policy","severity":"high","status":"FAIL","observed_at":%q,"object_reference":%q,"artifact_reference":%q,"artifact_key":%q,"artifact_version_id":"version-0001","checksum_hex":"%s","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"}]`, entityEvidenceID, entityID, manifestReference, artifactID, manifestKey, fmt.Sprintf("%064x", 3), findingEvidenceID, entityID, findingID, collectedAt.Format(time.RFC3339), manifestReference, artifactID, manifestKey, fmt.Sprintf("%064x", 3)))
+	applyQuery := `SELECT zasp_execution_apply_complete_snapshot($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'aws',$11,$12,'version-0001',$13,128,'application/json','manifest_v1',$14,'cursor-0001','parser_v1','tool_v1',$15::jsonb,$16::jsonb,$17::jsonb)`
+	applyArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), jobID, "discovery-worker-02", "delivery-token-0000000002", integrationID, syncID, snapshotID, reserved.Generation, manifestReference, manifestKey, manifestChecksum, collectedAt, entities, json.RawMessage(`[]`), evidence}
 	wrongManifestArgs := append([]any(nil), applyArgs...)
 	wrongManifestArgs[11] = manifestKey + "-other"
 	if err := connection.QueryRow(ctx, applyQuery, wrongManifestArgs...).Scan(&payload); err == nil {
@@ -1132,6 +1150,9 @@ func TestProductionDiscoveryExecutionPostgresSchedulesSnapshotsAndMonotonicProje
 	firstApply := string(payload)
 	if err := connection.QueryRow(ctx, applyQuery, applyArgs...).Scan(&payload); err != nil || string(payload) != firstApply {
 		t.Fatalf("snapshot exact replay=%s err=%v first=%s", payload, err, firstApply)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_execution_snapshot_projection_page($1,$2,$3,$4,'evidence',NULL,10)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), snapshotID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"finding_id": "`+findingID+`"`)) || !bytes.Contains(payload, []byte(`"check_id": "iam_role_administratoraccess_policy"`)) {
+		t.Fatalf("finding projection input=%s err=%v", payload, err)
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_execution_sync_detail($1,$2,$3,$4,$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID, syncID).Scan(&payload); err != nil || !bytes.Contains(payload, []byte(`"status": "succeeded"`)) || !bytes.Contains(payload, []byte(`"version": 3`)) {
 		t.Fatalf("succeeded sync detail=%s err=%v", payload, err)

@@ -219,6 +219,30 @@ func TestSnapshotCandidateBindsCompleteTypedObservationEnvelopeToEvidence(t *tes
 	}
 }
 
+func TestSnapshotCandidateBindsProwlerFindingEvidenceToAnExactEntityAndArtifact(t *testing.T) {
+	entityID := "pid_10000005-0000-4000-8000-000000000005"
+	entity := []byte(`[{"id":"` + entityID + `","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{},"attributes":{}}]`)
+	finding := `{"id":"pid_10000018-0000-4000-8000-000000000018","entity_id":"` + entityID + `","finding_id":"pid_10000019-0000-4000-8000-000000000019","check_id":"iam_role_administratoraccess_policy","severity":"high","status":"FAIL","observed_at":"2026-08-20T12:00:00Z","object_reference":"s3://zasp-evidence/organizations/pid_10000010-0000-4000-8000-000000000010/workspaces/pid_10000011-0000-4000-8000-000000000011/environments/pid_10000012-0000-4000-8000-000000000012/artifacts/pid_10000006-0000-4000-8000-000000000006","artifact_reference":"pid_10000006-0000-4000-8000-000000000006","artifact_key":"organizations/pid_10000010-0000-4000-8000-000000000010/workspaces/pid_10000011-0000-4000-8000-000000000011/environments/pid_10000012-0000-4000-8000-000000000012/artifacts/pid_10000006-0000-4000-8000-000000000006","artifact_version_id":"s3-version-object-1","checksum_hex":"0100000000000000000000000000000000000000000000000000000000000000","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"}`
+
+	candidate, err := NewSnapshotCandidate(ProviderAWS, "parser_v1", "tool_v1", entity, []byte(`[]`), []byte(`[`+finding+`]`))
+	if err != nil || candidate.EvidenceCount() != 1 {
+		t.Fatalf("finding evidence rejected: %#v, %v", candidate, err)
+	}
+	for name, mutated := range map[string]string{
+		"dangling entity": strings.Replace(finding, entityID, "pid_10000015-0000-4000-8000-000000000015", 1),
+		"missing check":   strings.Replace(finding, `"check_id":"iam_role_administratoraccess_policy",`, "", 1),
+		"wrong severity":  strings.Replace(finding, `"severity":"high"`, `"severity":"critical"`, 1),
+		"wrong status":    strings.Replace(finding, `"status":"FAIL"`, `"status":"UNKNOWN"`, 1),
+		"fractional time": strings.Replace(finding, "2026-08-20T12:00:00Z", "2026-08-20T12:00:00.000Z", 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := NewSnapshotCandidate(ProviderAWS, "parser_v1", "tool_v1", entity, []byte(`[]`), []byte(`[`+mutated+`]`)); !errors.Is(err, ErrContract) {
+				t.Fatalf("invalid finding evidence accepted: %v", err)
+			}
+		})
+	}
+}
+
 func TestRegistryRequiresExactFirstPartyProviderVersionAndIsolatesReadiness(t *testing.T) {
 	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
 	checks := map[Provider]int{}

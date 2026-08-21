@@ -64,13 +64,16 @@ const npmDependencies = [
 }));
 
 const awsDependencies = [
-  ["github.com/aws/aws-sdk-go-v2", "v1.43.6"],
+  ["github.com/aws/aws-sdk-go-v2", "v1.43.7"],
+  ["github.com/aws/aws-sdk-go-v2/service/ec2", "v1.322.0"],
+  ["github.com/aws/aws-sdk-go-v2/service/iam", "v1.59.2"],
   ["github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6"],
   ["github.com/aws/aws-sdk-go-v2/service/opensearch", "v1.75.6"],
   ["github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2"],
   ["github.com/aws/aws-sdk-go-v2/service/secretsmanager", "v1.44.6"],
   ["github.com/aws/aws-sdk-go-v2/service/sqs", "v1.46.6"],
   ["github.com/aws/aws-sdk-go-v2/service/sts", "v1.41.6"],
+  ["github.com/aws/smithy-go", "v1.27.8"],
 ].map(([name, version]) => ({
   ecosystem: "go",
   manifest: "services/platform/go.mod",
@@ -341,7 +344,7 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 13, dependencies: 30 });
+  assert.deepEqual(validate(), { manifests: 13, dependencies: 33 });
 });
 
 test("binds exact hash-locked isolated Cartography and Prowler runtimes", async (t) => {
@@ -377,10 +380,10 @@ test("binds exact hash-locked isolated Cartography and Prowler runtimes", async 
   }
 });
 
-test("binds the exact seven AWS SDK product dependencies", async (t) => {
+test("binds the exact ten AWS SDK product dependencies", async (t) => {
   assert.deepEqual(
     lockFixture().dependencies.filter(
-      ({ manifest, name }) => manifest === "services/platform/go.mod" && name.startsWith("github.com/aws/aws-sdk-go-v2"),
+      ({ manifest, name }) => manifest === "services/platform/go.mod" && (name.startsWith("github.com/aws/aws-sdk-go-v2") || name === "github.com/aws/smithy-go"),
     ),
     awsDependencies,
   );
@@ -595,11 +598,11 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 13, dependencies: 32 });
+  assert.deepEqual(validate(lock, files), { manifests: 13, dependencies: 35 });
 });
 
 test("accepts only exact repository-owned module requirements and replacements outside the third-party lock", async (t) => {
-  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 13, dependencies: 30 });
+  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 13, dependencies: 33 });
 
   for (const [name, mutate] of [
     ["missing health replacement", (files) => {

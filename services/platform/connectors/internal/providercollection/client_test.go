@@ -100,6 +100,43 @@ func TestClientBindsRuleCatalogObservationAuthorityToExactEvidence(t *testing.T)
 	}
 }
 
+func TestClientPersistsProwlerFindingAsSourceOwnedArtifactEvidence(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	entityID := "pid_40000001-0000-4000-8000-000000000001"
+	entity := json.RawMessage(`{"id":"` + entityID + `","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{"account_id":"123456789012","arn":"arn:aws:iam::123456789012:role/read","name":"read"},"attributes":{}}`)
+	findingID := "pid_40000009-0000-4000-8000-000000000009"
+	finding := json.RawMessage(`{"id":"` + findingID + `","entity_id":"` + entityID + `","check_id":"iam_role_administratoraccess_policy","severity":"high","status":"FAIL","observed_at":"2026-08-20T12:00:00Z"}`)
+	page, err := NewPageWithFindings(request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"}, true, []json.RawMessage{entity}, nil, []json.RawMessage{finding})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{page}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := outcome.(collection.CompleteResult).Snapshot()
+	var evidence []evidenceItem
+	if json.Unmarshal(snapshot.Evidence(), &evidence) != nil || len(evidence) != 2 {
+		t.Fatalf("finding evidence = %s", snapshot.Evidence())
+	}
+	found := false
+	for _, item := range evidence {
+		if item.FindingID != findingID {
+			continue
+		}
+		found = item.EntityID == entityID && item.CheckID == "iam_role_administratoraccess_policy" && item.Severity == "high" && item.Status == "FAIL" && item.ObservedAt == "2026-08-20T12:00:00Z" && item.ArtifactReference == store.requests[0].Locator.Reference.String()
+	}
+	if !found || !bytes.Contains(store.requests[0].Body, finding) {
+		t.Fatalf("finding did not retain exact entity/artifact binding: %s / %s", snapshot.Evidence(), store.requests[0].Body)
+	}
+}
+
 func TestClientSupportsMaximumPageBoundWhenTheActualCollectionIsSmall(t *testing.T) {
 	t.Parallel()
 	request := testRequest(t, collection.ProviderAWS)

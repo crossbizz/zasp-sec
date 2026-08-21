@@ -100,13 +100,16 @@ const pythonBuildLock = {
   sha256: "9415ac080e4169856325998ab71d3258c16c02a1d0d3cfa837bfca1290faa8db",
 };
 const exactDependencyMetadata = new Map([
-  ["github.com/aws/aws-sdk-go-v2", "v1.43.6"],
+  ["github.com/aws/aws-sdk-go-v2", "v1.43.7"],
+  ["github.com/aws/aws-sdk-go-v2/service/ec2", "v1.322.0"],
+  ["github.com/aws/aws-sdk-go-v2/service/iam", "v1.59.2"],
   ["github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6"],
   ["github.com/aws/aws-sdk-go-v2/service/opensearch", "v1.75.6"],
   ["github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2"],
   ["github.com/aws/aws-sdk-go-v2/service/secretsmanager", "v1.44.6"],
   ["github.com/aws/aws-sdk-go-v2/service/sqs", "v1.46.6"],
   ["github.com/aws/aws-sdk-go-v2/service/sts", "v1.41.6"],
+  ["github.com/aws/smithy-go", "v1.27.8"],
   ["github.com/open-policy-agent/opa", "v1.17.0"],
 ].map(([name, version]) => [
   `services/platform/go.mod:${name}`,

@@ -12,6 +12,10 @@ func NewCollectionPage(subject collection.SubjectBinding, cursor collection.Curs
 	return providercollection.NewPage(collection.ProviderAWS, subject, cursor, complete, entities, relationships)
 }
 
+func NewCollectionPageWithFindings(subject collection.SubjectBinding, cursor collection.Cursor, complete bool, entities, relationships, findings []json.RawMessage) (CollectionPage, error) {
+	return providercollection.NewPageWithFindings(collection.ProviderAWS, subject, cursor, complete, entities, relationships, findings)
+}
+
 type CollectionAPI = providercollection.API
 type CollectionPageRequest = providercollection.PageRequest
 type CollectionPage = providercollection.Page

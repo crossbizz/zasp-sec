@@ -289,6 +289,10 @@ type normalizedEvidence struct {
 	ID                string `json:"id"`
 	EntityID          string `json:"entity_id,omitempty"`
 	FindingID         string `json:"finding_id,omitempty"`
+	CheckID           string `json:"check_id,omitempty"`
+	Severity          string `json:"severity,omitempty"`
+	Status            string `json:"status,omitempty"`
+	ObservedAt        string `json:"observed_at,omitempty"`
 	ObjectReference   string `json:"object_reference"`
 	ArtifactReference string `json:"artifact_reference"`
 	ArtifactKey       string `json:"artifact_key"`
@@ -915,7 +919,7 @@ func typedEvidenceMatches(entities []normalizedEntity, evidence []normalizedEvid
 	}
 	byEntity := make(map[string]string, len(entities))
 	for _, item := range evidence {
-		if item.EntityID != "" {
+		if item.EntityID != "" && item.FindingID == "" {
 			if _, duplicate := byEntity[item.EntityID]; duplicate {
 				return false
 			}
@@ -975,9 +979,16 @@ func normalizedEvidenceItems(value []byte, entityIDs map[string]struct{}) ([]byt
 		return nil, nil, false
 	}
 	ids := make(map[string]struct{}, len(items))
+	findingIDs := make(map[string]struct{}, len(items))
 	for _, item := range items {
 		_, entityExists := entityIDs[item.EntityID]
-		if !validProductIDText(item.ID) || (item.EntityID != "") == (item.FindingID != "") || item.EntityID != "" && !entityExists || item.FindingID != "" && !validProductIDText(item.FindingID) ||
+		finding := item.FindingID != "" || item.CheckID != "" || item.Severity != "" || item.Status != "" || item.ObservedAt != ""
+		findingValid := finding && validProductIDText(item.FindingID) && validProductIDText(item.EntityID) && entityExists && tokenPattern.MatchString(item.CheckID) && item.Severity == "high" && (item.Status == "PASS" || item.Status == "FAIL")
+		if findingValid {
+			_, findingValid = parseCanonicalObservationTime(item.ObservedAt)
+		}
+		entityEvidenceValid := !finding && validProductIDText(item.EntityID) && entityExists
+		if !validProductIDText(item.ID) || item.ID == item.FindingID || !entityEvidenceValid && !findingValid ||
 			!validProductIDText(item.ArtifactReference) || !boundedText(item.ArtifactKey, 2048) || !validS3ObjectReference(item.ObjectReference, item.ArtifactKey) || !validArtifactVersionID(item.ArtifactVersionID) || !checksumPattern.MatchString(item.ChecksumHex) ||
 			item.SizeBytes < 1 || item.SizeBytes > maximumRawBytes || !validMediaType(item.MediaType) || !versionPattern.MatchString(item.SchemaVersion) ||
 			!versionPattern.MatchString(item.ParserVersion) || !versionPattern.MatchString(item.ToolVersion) {
@@ -987,6 +998,12 @@ func normalizedEvidenceItems(value []byte, entityIDs map[string]struct{}) ([]byt
 			return nil, nil, false
 		}
 		ids[item.ID] = struct{}{}
+		if finding {
+			if _, duplicate := findingIDs[item.FindingID]; duplicate {
+				return nil, nil, false
+			}
+			findingIDs[item.FindingID] = struct{}{}
+		}
 	}
 	return canonical, items, true
 }

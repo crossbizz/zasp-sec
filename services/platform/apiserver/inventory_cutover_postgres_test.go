@@ -131,6 +131,8 @@ func TestProductionTypedInventoryCutoverPostgresAppliesExactTypedSnapshot(t *tes
 	}
 	evidenceID := "pid_75000006-0000-4000-8000-000000000006"
 	artifactID := "pid_75000007-0000-4000-8000-000000000007"
+	findingEvidenceID := "pid_75000009-0000-4000-8000-000000000009"
+	findingID := "pid_75000010-0000-4000-8000-000000000010"
 	observed := time.Now().UTC().Truncate(time.Second).Add(-time.Minute)
 	entities := json.RawMessage(fmt.Sprintf(`[{
 		"id":%q,"kind":"aws_account","source_native_id":"123456789012","display_name":"Production account",
@@ -142,17 +144,36 @@ func TestProductionTypedInventoryCutoverPostgresAppliesExactTypedSnapshot(t *tes
 		"id":%q,"entity_id":%q,"object_reference":"s3://zasp-evidence/organizations/typed/page-1.json","artifact_reference":%q,
 		"artifact_key":"organizations/typed/page-1.json","artifact_version_id":"version-1",
 		"checksum_hex":"%s","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"
-	}]`, evidenceID, entityID, artifactID, fmt.Sprintf("%064x", 1)))
-	result, err := repository.ApplyCompleteSnapshot(ctx, scope, CompleteSnapshot{
+	},{
+		"id":%q,"entity_id":%q,"finding_id":%q,"check_id":"iam_role_administratoraccess_policy","severity":"high","status":"FAIL","observed_at":%q,
+		"object_reference":"s3://zasp-evidence/organizations/typed/page-1.json","artifact_reference":%q,
+		"artifact_key":"organizations/typed/page-1.json","artifact_version_id":"version-1",
+		"checksum_hex":"%s","size_bytes":128,"media_type":"application/json","schema_version":"raw_v1","parser_version":"parser_v1","tool_version":"tool_v1"
+	}]`, evidenceID, entityID, artifactID, fmt.Sprintf("%064x", 1), findingEvidenceID, entityID, findingID, observed.Format(time.RFC3339), artifactID, fmt.Sprintf("%064x", 1)))
+	candidate := CompleteSnapshot{
 		IntegrationID: integrationID, SyncID: request.SyncID, SnapshotID: "pid_75000008-0000-4000-8000-000000000008",
 		Generation: 1, Source: "aws", ManifestReference: "s3://zasp-evidence/typed/manifest.json", ManifestChecksum: bytes32(1),
 		CollectedAt: observed, CursorProvider: "aws", CursorValue: "complete", Entities: entities, Relationships: json.RawMessage(`[]`), Evidence: evidence,
-	})
+	}
+	malformed := candidate
+	malformed.Evidence = bytes.Replace(evidence, []byte(`"severity":"high"`), []byte(`"severity":"critical"`), 1)
+	if _, err := repository.ApplyCompleteSnapshot(ctx, scope, malformed); err == nil {
+		t.Fatal("malformed finding evidence applied")
+	}
+	var malformedResidue int
+	if err := connection.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_discovery_snapshots WHERE id=$1)+(SELECT count(*) FROM zasp_inventory_evidence WHERE snapshot_id=$1)`, candidate.SnapshotID).Scan(&malformedResidue); err != nil || malformedResidue != 0 {
+		t.Fatalf("malformed finding residue=%d err=%v", malformedResidue, err)
+	}
+	result, err := repository.ApplyCompleteSnapshot(ctx, scope, candidate)
 	if err != nil {
 		t.Fatalf("typed apply: %v", err)
 	}
 	if result.DiscoveredCount != 1 || result.ChangedCount != 0 || result.RemovedCount != 0 {
 		t.Fatalf("typed apply result = %#v", result)
+	}
+	var storedEntityEvidence, storedFindingEvidence int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FILTER(WHERE id=$1),count(*) FILTER(WHERE id=$2) FROM zasp_inventory_evidence WHERE (organization_id,workspace_id,environment_id)=($3,$4,$5)`, evidenceID, findingEvidenceID, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&storedEntityEvidence, &storedFindingEvidence); err != nil || storedEntityEvidence != 1 || storedFindingEvidence != 0 {
+		t.Fatalf("typed evidence storage = entity:%d finding:%d / %v", storedEntityEvidence, storedFindingEvidence, err)
 	}
 	var phase string
 	if err := connection.QueryRow(ctx, `SELECT zasp_inventory_backfill_scope($1,$2,$3)->>'phase'`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&phase); err != nil || phase != "backfilled" {

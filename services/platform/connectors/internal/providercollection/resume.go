@@ -88,11 +88,14 @@ type resumeState struct {
 	pages                 []Page
 	entities              []json.RawMessage
 	relationships         []json.RawMessage
+	findings              []json.RawMessage
 	entityObjects         map[string]collection.RawObject
+	findingObjects        map[string]collection.RawObject
 	entitySourceIDs       map[string]struct{}
 	entityBodies          map[string]json.RawMessage
 	relationshipIDs       map[string]struct{}
 	relationshipSourceIDs map[string]struct{}
+	findingIDs            map[string]struct{}
 	budgetEntities        [][]json.RawMessage
 	evidenceLengths       [][]int
 	rawBytes              int64
@@ -127,8 +130,8 @@ func (client *Client) loadResumeSeed(ctx context.Context, request collection.Req
 		return resumeState{}, collection.ErrContract
 	}
 	state := resumeState{
-		objects: make([]collection.RawObject, 0, len(document.Objects)), pages: make([]Page, 0, len(document.Objects)), entities: make([]json.RawMessage, 0), relationships: make([]json.RawMessage, 0),
-		entityObjects: make(map[string]collection.RawObject), entitySourceIDs: make(map[string]struct{}), entityBodies: make(map[string]json.RawMessage), relationshipIDs: make(map[string]struct{}), relationshipSourceIDs: make(map[string]struct{}), budgetEntities: make([][]json.RawMessage, 0, len(document.Objects)), evidenceLengths: make([][]int, 0, len(document.Objects)),
+		objects: make([]collection.RawObject, 0, len(document.Objects)), pages: make([]Page, 0, len(document.Objects)), entities: make([]json.RawMessage, 0), relationships: make([]json.RawMessage, 0), findings: make([]json.RawMessage, 0),
+		entityObjects: make(map[string]collection.RawObject), findingObjects: make(map[string]collection.RawObject), entitySourceIDs: make(map[string]struct{}), entityBodies: make(map[string]json.RawMessage), relationshipIDs: make(map[string]struct{}), relationshipSourceIDs: make(map[string]struct{}), findingIDs: make(map[string]struct{}), budgetEntities: make([][]json.RawMessage, 0, len(document.Objects)), evidenceLengths: make([][]int, 0, len(document.Objects)),
 	}
 	lastReference := ""
 	cursorMatches := 0
@@ -175,8 +178,8 @@ func (client *Client) loadResumeSeed(ctx context.Context, request collection.Req
 			pageEntities = append(pageEntities, bytes.Clone(entity))
 			state.entities = append(state.entities, bytes.Clone(entity))
 		}
-		lengths := make([]int, len(pageEntities))
-		for index, entity := range pageEntities {
+		lengths := make([]int, 0, len(pageEntities)+len(page.Findings))
+		for _, entity := range pageEntities {
 			identity, _, ok := entityIdentity(entity)
 			if !ok {
 				return resumeState{}, collection.ErrContract
@@ -186,7 +189,7 @@ func (client *Client) loadResumeSeed(ctx context.Context, request collection.Req
 			if itemErr != nil || encodeErr != nil {
 				return resumeState{}, collection.ErrContract
 			}
-			lengths[index] = len(encoded)
+			lengths = append(lengths, len(encoded))
 		}
 		for _, relationship := range page.Relationships {
 			identity, source, _, _, ok := relationshipIdentity(relationship)
@@ -202,6 +205,27 @@ func (client *Client) loadResumeSeed(ctx context.Context, request collection.Req
 			state.relationshipIDs[identity] = struct{}{}
 			state.relationshipSourceIDs[source] = struct{}{}
 			state.relationships = append(state.relationships, bytes.Clone(relationship))
+		}
+		for _, finding := range page.Findings {
+			identity, entityID, ok := findingIdentity(finding)
+			if !ok {
+				return resumeState{}, collection.ErrContract
+			}
+			if _, exists := state.findingIDs[identity]; exists {
+				return resumeState{}, collection.ErrContract
+			}
+			if _, exists := state.entityObjects[entityID]; !exists {
+				return resumeState{}, collection.ErrContract
+			}
+			item, itemErr := evidenceForFinding(request, finding, object)
+			encoded, encodeErr := json.Marshal(item)
+			if itemErr != nil || encodeErr != nil {
+				return resumeState{}, collection.ErrContract
+			}
+			state.findingIDs[identity] = struct{}{}
+			state.findingObjects[identity] = object
+			state.findings = append(state.findings, bytes.Clone(finding))
+			lengths = append(lengths, len(encoded))
 		}
 		state.budgetEntities = append(state.budgetEntities, pageEntities)
 		state.evidenceLengths = append(state.evidenceLengths, lengths)
@@ -535,7 +559,7 @@ func (client *Client) loadResumePage(ctx context.Context, request collection.Req
 	if !decodeExactObject(artifact.Body, &document) || document.Version != redactedPageVersion || document.Provider != request.Provider || document.Subject != (manifestSubject{Kind: request.ExpectedSubject.Kind, ID: request.ExpectedSubject.ID}) {
 		return collection.RawObject{}, Page{}, collection.ErrContract
 	}
-	page := Page{Subject: request.ExpectedSubject, Cursor: collection.Cursor{Provider: document.Cursor.Provider, Version: document.Cursor.Version, Value: document.Cursor.Value}, Complete: document.Complete, Entities: cloneRawMessages(document.Entities), Relationships: cloneRawMessages(document.Relationships), Raw: bytes.Clone(artifact.Body)}
+	page := Page{Subject: request.ExpectedSubject, Cursor: collection.Cursor{Provider: document.Cursor.Provider, Version: document.Cursor.Version, Value: document.Cursor.Value}, Complete: document.Complete, Entities: cloneRawMessages(document.Entities), Relationships: cloneRawMessages(document.Relationships), Findings: cloneRawMessages(document.Findings), Raw: bytes.Clone(artifact.Body)}
 	canonical, canonicalErr := canonicalPageBody(request.Provider, page)
 	if canonicalErr != nil || !bytes.Equal(canonical, artifact.Body) {
 		return collection.RawObject{}, Page{}, collection.ErrContract

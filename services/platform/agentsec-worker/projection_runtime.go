@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,6 +27,8 @@ const (
 	projectionMaximumRelationships = 2_000
 	projectionMaximumEvidence      = 1_000
 )
+
+var projectionFindingCheckPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
 type projectionAuthority interface {
 	ClaimProjectionWork(context.Context, string, string, string, int, int) ([]apiserver.ProjectionWorkLease, error)
@@ -168,6 +171,10 @@ type projectionEvidence struct {
 	ID                string `json:"id"`
 	EntityID          string `json:"entity_id,omitempty"`
 	FindingID         string `json:"finding_id,omitempty"`
+	CheckID           string `json:"check_id,omitempty"`
+	Severity          string `json:"severity,omitempty"`
+	Status            string `json:"status,omitempty"`
+	ObservedAt        string `json:"observed_at,omitempty"`
 	ObjectReference   string `json:"object_reference"`
 	ArtifactReference string `json:"artifact_reference"`
 	ArtifactKey       string `json:"artifact_key"`
@@ -248,6 +255,16 @@ func decodeProjectionCandidate(candidate projectionCandidate, wantKind string) (
 				return nil, nil, false
 			}
 			if _, exists := known[entityID]; !exists {
+				return nil, nil, false
+			}
+		}
+		finding := value.FindingID != "" || value.CheckID != "" || value.Severity != "" || value.Status != "" || value.ObservedAt != ""
+		if finding {
+			if _, err := domain.ParseProductID(value.FindingID); err != nil || value.EntityID == "" || !projectionFindingCheckPattern.MatchString(value.CheckID) || value.Severity != "high" || value.Status != "PASS" && value.Status != "FAIL" {
+				return nil, nil, false
+			}
+			observed, err := time.Parse(time.RFC3339, value.ObservedAt)
+			if err != nil || observed.Location() != time.UTC || observed.Nanosecond() != 0 || observed.Format(time.RFC3339) != value.ObservedAt {
 				return nil, nil, false
 			}
 		}

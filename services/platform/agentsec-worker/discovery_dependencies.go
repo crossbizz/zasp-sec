@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
 )
 
 type productionDiscoveryDependencyConfig struct {
@@ -156,7 +157,17 @@ func newProductionDiscoveryDependencies(config productionDiscoveryDependencyConf
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
-	identity, err := newDiscoveryAWSCollectionIdentityCaller(cloud.NewCallerIdentity)
+	inventory, err := newDiscoveryAWSCollectionInventoryCaller(discoveryAWSInventoryFactory{Identity: cloud.NewCallerIdentity, IAM: cloud.NewIAM, EC2: cloud.NewEC2}, config.Cloud.Clock)
+	if err != nil {
+		providerTransport.CloseIdleConnections()
+		return fail()
+	}
+	securityRunner, err := awsdiscovery.NewSecurityRunner(15 * time.Minute)
+	if err != nil {
+		providerTransport.CloseIdleConnections()
+		return fail()
+	}
+	securityAnalyzer, err := newDiscoveryAWSSecurityRunner(securityRunner, config.Cloud.Clock)
 	if err != nil {
 		providerTransport.CloseIdleConnections()
 		return fail()
@@ -172,7 +183,7 @@ func newProductionDiscoveryDependencies(config productionDiscoveryDependencyConf
 		return fail()
 	}
 	factory, err := newProductionLiveDiscoveryCollectorFactory(productionDiscoveryClientConfig{
-		Artifacts: artifacts, Credentials: credentials, AWSIdentity: identity,
+		Artifacts: artifacts, Credentials: credentials, AWSInventory: inventory, AWSSecurity: securityAnalyzer,
 		AWSCollectorVersion: config.AWSCollectorVersion, KubernetesCollectorVersion: config.KubernetesCollectorVersion,
 		GitHubCollectorVersion: config.GitHubCollectorVersion, OktaCollectorVersion: config.OktaCollectorVersion,
 		ParserVersion: config.ParserVersion, ToolVersion: config.ToolVersion,

@@ -446,6 +446,19 @@ func exactUTCSecurityTime(value time.Time) bool {
 	return !value.IsZero() && value.Location() == time.UTC && value.Nanosecond() == 0 && value.Format(time.RFC3339) == value.Format("2006-01-02T15:04:05Z07:00")
 }
 
+func (runner *SecurityRunner) CheckCollectionReadiness(ctx context.Context) error {
+	if runner == nil || nilSecurityProcess(runner.process) || runner.clock == nil || ctx == nil || ctx.Err() != nil {
+		return ErrDenied
+	}
+	for _, executable := range []string{cartographySecurityExecutable, prowlerSecurityExecutable} {
+		info, err := os.Stat(executable)
+		if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
+			return ErrDenied
+		}
+	}
+	return nil
+}
+
 func (runner *SecurityRunner) classifyProcessFailure(parent, bounded context.Context, cause error) error {
 	if errors.Is(parent.Err(), context.Canceled) {
 		return stableSecurityFailure(collection.FailureCancelled, time.Time{})

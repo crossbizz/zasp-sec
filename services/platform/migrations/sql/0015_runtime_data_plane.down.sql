@@ -1,5 +1,5 @@
 DO $runtime_guard$ BEGIN
- IF zasp_runtime_data_plane_live_fingerprint()<>'7a0fff9111ac648b0f841c62ae5a67e073fdb58ced2ed60ce52c138f11041f6b' OR NOT zasp_runtime_data_plane_security_ready() THEN
+ IF zasp_runtime_data_plane_live_fingerprint()<>'c73433ada0f49a186f6772922caf87e1df457f1cb0a4ebfaea7db0cce7cf1b1d' OR NOT zasp_runtime_data_plane_security_ready() THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime data plane semantic drift blocks rollback';
  END IF;
  IF EXISTS(SELECT 1 FROM zasp_runtime_data_plane_state WHERE used_at IS NOT NULL) THEN
@@ -173,7 +173,7 @@ BEGIN
 END $runtime_roles$;
 
 DO $release_restore$ BEGIN
- IF NOT zasp_inventory_readiness('5b3f27aa7f315325c64caabee4c2a9e6d43235f4c3136cd2728df35cb4351a13','707a81d31a7dfd00cf7f5c60c081bf4c567054e7cf761b80cb142855adaacabd') THEN
+ IF NOT zasp_inventory_readiness('a018398e6c8aef3f23511392df9748b673be613eb1ad9e1eb5b0d571e326d445','c712e183558ad86f7464c034f304b12067bd49cd1ea18ee478878acb802df0ec') THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='typed inventory readiness not restored';
  END IF;
 END $release_restore$;
