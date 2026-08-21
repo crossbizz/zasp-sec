@@ -37,18 +37,19 @@ var (
 )
 
 type githubPageState struct {
-	Phase         string `json:"p"`
-	Lineage       int    `json:"l"`
-	ProviderPage  int    `json:"n,omitempty"`
-	Total         int    `json:"t,omitempty"`
-	PhasePage     int    `json:"x,omitempty"`
-	PhaseTotal    int    `json:"z,omitempty"`
-	OwnerID       int64  `json:"o,omitempty"`
-	Owner         string `json:"a,omitempty"`
-	AppID         int64  `json:"i,omitempty"`
-	RepositoryID  int64  `json:"r,omitempty"`
-	Repository    string `json:"q,omitempty"`
-	DefaultBranch string `json:"b,omitempty"`
+	Phase          string `json:"p"`
+	Lineage        int    `json:"l"`
+	ProviderPage   int    `json:"n,omitempty"`
+	Total          int    `json:"t,omitempty"`
+	PhasePage      int    `json:"x,omitempty"`
+	PhaseTotal     int    `json:"z,omitempty"`
+	CompletedTotal int    `json:"y,omitempty"`
+	OwnerID        int64  `json:"o,omitempty"`
+	Owner          string `json:"a,omitempty"`
+	AppID          int64  `json:"i,omitempty"`
+	RepositoryID   int64  `json:"r,omitempty"`
+	Repository     string `json:"q,omitempty"`
+	DefaultBranch  string `json:"b,omitempty"`
 }
 
 type InstallationCollectionAPI struct {
@@ -170,6 +171,7 @@ func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, c
 			nextState.Phase = "environments"
 			nextState.PhasePage = 1
 			nextState.PhaseTotal = 0
+			nextState.CompletedTotal = payload.TotalCount
 		}
 		next, cursorOK := nextGitHubCursor(request.Subject, nextState)
 		page, pageErr := NewCollectionPage(request.Subject, next, false, entities, relationships)
@@ -199,7 +201,7 @@ func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, c
 			nextState.PhaseTotal = payload.TotalCount
 			nextState.PhasePage++
 			if completeRepository {
-				nextState = githubPageState{Phase: "repositories", Lineage: state.Lineage + 1, ProviderPage: state.ProviderPage, Total: state.Total, OwnerID: state.OwnerID, Owner: state.Owner, AppID: state.AppID}
+				nextState = githubPageState{Phase: "repositories", Lineage: state.Lineage + 1, ProviderPage: state.ProviderPage, Total: state.Total, CompletedTotal: payload.TotalCount, OwnerID: state.OwnerID, Owner: state.Owner, AppID: state.AppID}
 			}
 			var cursorOK bool
 			next, cursorOK = nextGitHubCursor(request.Subject, nextState)
@@ -656,13 +658,13 @@ func validInstallationPageRequest(request CollectionPageRequest) (githubPageStat
 }
 
 func validGitHubCursorState(state githubPageState) bool {
-	if state.Lineage < 2 || state.Lineage > 1_000_000 || state.ProviderPage < 1 || state.ProviderPage > 1_000_000 || state.Total < 0 || state.Total > 10_000 || state.OwnerID < 1 || state.OwnerID > 1<<53 || state.AppID < 1 || state.AppID > 1<<53 || !validGitHubText(state.Owner, 100) {
+	if state.Lineage < 2 || state.Lineage > 1_000_000 || state.ProviderPage < 1 || state.ProviderPage > 1_000_000 || state.Total < 0 || state.Total > 10_000 || state.PhaseTotal < 0 || state.PhaseTotal > 10_000 || state.CompletedTotal < 0 || state.CompletedTotal > 10_000 || state.OwnerID < 1 || state.OwnerID > 1<<53 || state.AppID < 1 || state.AppID > 1<<53 || !validGitHubText(state.Owner, 100) {
 		return false
 	}
 	if state.Phase == "repositories" {
 		return state.RepositoryID == 0 && state.Repository == "" && state.DefaultBranch == "" && state.PhasePage == 0 && state.PhaseTotal == 0
 	}
-	return (state.Phase == "workflows" || state.Phase == "environments") && state.Total >= 1 && state.ProviderPage >= 2 && state.ProviderPage <= state.Total+1 && state.PhasePage >= 1 && state.PhasePage <= 10_000 && state.PhaseTotal >= 0 && state.PhaseTotal <= 10_000 && state.RepositoryID >= 1 && state.RepositoryID <= 1<<53 && githubNamePattern.MatchString(state.Repository) && validGitHubText(state.DefaultBranch, 255)
+	return (state.Phase == "workflows" || state.Phase == "environments") && (state.Phase == "environments" || state.CompletedTotal == 0) && state.Total >= 1 && state.ProviderPage >= 2 && state.ProviderPage <= state.Total+1 && state.PhasePage >= 1 && state.PhasePage <= 10_000 && state.RepositoryID >= 1 && state.RepositoryID <= 1<<53 && githubNamePattern.MatchString(state.Repository) && validGitHubText(state.DefaultBranch, 255)
 }
 
 func validInstallationCredential(value []byte) bool {

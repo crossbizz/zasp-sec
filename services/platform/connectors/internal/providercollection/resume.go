@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
@@ -46,18 +48,19 @@ type oktaResumeCursorState struct {
 }
 
 type githubResumeCursorState struct {
-	Phase         string `json:"p"`
-	Lineage       int    `json:"l"`
-	ProviderPage  int    `json:"n,omitempty"`
-	Total         int    `json:"t,omitempty"`
-	PhasePage     int    `json:"x,omitempty"`
-	PhaseTotal    int    `json:"z,omitempty"`
-	OwnerID       int64  `json:"o,omitempty"`
-	Owner         string `json:"a,omitempty"`
-	AppID         int64  `json:"i,omitempty"`
-	RepositoryID  int64  `json:"r,omitempty"`
-	Repository    string `json:"q,omitempty"`
-	DefaultBranch string `json:"b,omitempty"`
+	Phase          string `json:"p"`
+	Lineage        int    `json:"l"`
+	ProviderPage   int    `json:"n,omitempty"`
+	Total          int    `json:"t,omitempty"`
+	PhasePage      int    `json:"x,omitempty"`
+	PhaseTotal     int    `json:"z,omitempty"`
+	CompletedTotal int    `json:"y,omitempty"`
+	OwnerID        int64  `json:"o,omitempty"`
+	Owner          string `json:"a,omitempty"`
+	AppID          int64  `json:"i,omitempty"`
+	RepositoryID   int64  `json:"r,omitempty"`
+	Repository     string `json:"q,omitempty"`
+	DefaultBranch  string `json:"b,omitempty"`
 }
 
 func (client *Client) WithResumeSeed(seed collection.ResumeSeed) (collection.ProviderClient, error) {
@@ -296,23 +299,23 @@ func validGitHubResumeCursor(cursor collection.Cursor, subject collection.Subjec
 }
 
 func validGitHubResumeState(state githubResumeCursorState) bool {
-	if state.Lineage < 2 || state.Lineage > 1_000_000 || state.ProviderPage < 1 || state.ProviderPage > 1_000_000 || state.Total < 0 || state.Total > 10_000 || state.OwnerID < 1 || state.OwnerID > 1<<53 || state.AppID < 1 || state.AppID > 1<<53 || !validResumeText(state.Owner, 100) {
+	if state.Lineage < 2 || state.Lineage > 1_000_000 || state.ProviderPage < 1 || state.ProviderPage > 1_000_000 || state.Total < 0 || state.Total > 10_000 || state.PhaseTotal < 0 || state.PhaseTotal > 10_000 || state.CompletedTotal < 0 || state.CompletedTotal > 10_000 || state.OwnerID < 1 || state.OwnerID > 1<<53 || state.AppID < 1 || state.AppID > 1<<53 || !validResumeText(state.Owner, 100) {
 		return false
 	}
 	if state.Phase == "repositories" {
 		return state.RepositoryID == 0 && state.Repository == "" && state.DefaultBranch == "" && state.PhasePage == 0 && state.PhaseTotal == 0
 	}
-	return (state.Phase == "workflows" || state.Phase == "environments") && state.Total >= 1 && state.ProviderPage >= 2 && state.ProviderPage <= state.Total+1 && state.PhasePage >= 1 && state.PhasePage <= 10_000 && state.PhaseTotal >= 0 && state.PhaseTotal <= 10_000 && state.RepositoryID >= 1 && state.RepositoryID <= 1<<53 && githubResumeNamePattern.MatchString(state.Repository) && validResumeText(state.DefaultBranch, 255)
+	return (state.Phase == "workflows" || state.Phase == "environments") && (state.Phase == "environments" || state.CompletedTotal == 0) && state.Total >= 1 && state.ProviderPage >= 2 && state.ProviderPage <= state.Total+1 && state.PhasePage >= 1 && state.PhasePage <= 10_000 && state.RepositoryID >= 1 && state.RepositoryID <= 1<<53 && githubResumeNamePattern.MatchString(state.Repository) && validResumeText(state.DefaultBranch, 255)
 }
 
 var githubResumeNamePattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,100}$`)
 
 func validResumeText(value string, maximum int) bool {
-	if len(value) < 1 || len(value) > maximum || strings.TrimSpace(value) != value {
+	if len(value) < 1 || len(value) > maximum || !utf8.ValidString(value) || strings.TrimSpace(value) != value {
 		return false
 	}
 	for _, character := range value {
-		if character < 0x20 || character == 0x7f {
+		if unicode.IsControl(character) {
 			return false
 		}
 	}
@@ -328,20 +331,27 @@ func validGitHubResumeTransition(prior, current githubResumeCursorState) bool {
 	}
 	switch prior.Phase {
 	case "repositories":
-		return current.Phase == "workflows" && current.ProviderPage == prior.ProviderPage+1 && current.Total >= current.ProviderPage-1 && current.PhasePage == 1 && current.PhaseTotal == 0
+		return current.Phase == "workflows" && current.ProviderPage == prior.ProviderPage+1 && current.Total >= current.ProviderPage-1 && (prior.Total == 0 || current.Total == prior.Total) && current.PhasePage == 1 && current.PhaseTotal == 0 && current.CompletedTotal == 0
 	case "workflows":
 		if current.Phase == "workflows" {
-			return sameGitHubResumeRepository(prior, current) && current.PhasePage == prior.PhasePage+1 && current.PhaseTotal >= current.PhasePage
+			return sameGitHubResumeRepository(prior, current) && current.PhasePage == prior.PhasePage+1 && current.PhaseTotal >= current.PhasePage && (prior.PhaseTotal == 0 || current.PhaseTotal == prior.PhaseTotal)
 		}
-		return current.Phase == "environments" && sameGitHubResumeRepository(prior, current) && current.PhasePage == 1 && current.PhaseTotal == 0
+		return current.Phase == "environments" && sameGitHubResumeRepository(prior, current) && current.PhasePage == 1 && current.PhaseTotal == 0 && phaseCompletedExactly(prior.PhasePage, prior.PhaseTotal, current.CompletedTotal)
 	case "environments":
 		if current.Phase == "environments" {
-			return sameGitHubResumeRepository(prior, current) && current.PhasePage == prior.PhasePage+1 && current.PhaseTotal >= current.PhasePage
+			return sameGitHubResumeRepository(prior, current) && current.PhasePage == prior.PhasePage+1 && current.PhaseTotal >= current.PhasePage && current.CompletedTotal == prior.CompletedTotal && (prior.PhaseTotal == 0 || current.PhaseTotal == prior.PhaseTotal)
 		}
-		return current.Phase == "repositories" && current.ProviderPage == prior.ProviderPage && current.Total == prior.Total
+		return current.Phase == "repositories" && current.ProviderPage == prior.ProviderPage && current.Total == prior.Total && phaseCompletedExactly(prior.PhasePage, prior.PhaseTotal, current.CompletedTotal)
 	default:
 		return false
 	}
+}
+
+func phaseCompletedExactly(priorPage, priorTotal, completedTotal int) bool {
+	if priorTotal == 0 {
+		return priorPage == 1 && completedTotal >= 0 && completedTotal <= 1
+	}
+	return priorPage == priorTotal && completedTotal == priorTotal
 }
 
 func sameGitHubResumeInstallation(left, right githubResumeCursorState) bool {

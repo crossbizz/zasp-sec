@@ -427,6 +427,25 @@ func TestGitHubResumeAcceptsFullPhaseLineageAndRejectsTailOnlyCheckpoint(t *test
 	if _, ok := validGitHubResumeCursor(tail, request.ExpectedSubject, githubResumeCursorState{}, 2); ok {
 		t.Fatal("tail-only GitHub resume cursor accepted")
 	}
+	installation := githubResumeCursorState{OwnerID: 101, Owner: "acme", AppID: 201}
+	repository := githubResumeCursorState{Phase: "repositories", Lineage: 2, ProviderPage: 2, Total: 2, OwnerID: installation.OwnerID, Owner: installation.Owner, AppID: installation.AppID}
+	workflow := githubResumeCursorState{Phase: "workflows", Lineage: 3, ProviderPage: 3, Total: 2, PhasePage: 1, PhaseTotal: 3, OwnerID: installation.OwnerID, Owner: installation.Owner, AppID: installation.AppID, RepositoryID: 301, Repository: "service", DefaultBranch: "main"}
+	for name, transition := range map[string]struct {
+		prior   githubResumeCursorState
+		current githubResumeCursorState
+	}{
+		"repository total drift": {repository, githubResumeCursorState{Phase: "workflows", Lineage: 3, ProviderPage: 3, Total: 3, PhasePage: 1, OwnerID: installation.OwnerID, Owner: installation.Owner, AppID: installation.AppID, RepositoryID: 301, Repository: "service", DefaultBranch: "main"}},
+		"workflow total drift":   {workflow, githubResumeCursorState{Phase: "workflows", Lineage: 4, ProviderPage: 3, Total: 2, PhasePage: 2, PhaseTotal: 4, OwnerID: installation.OwnerID, Owner: installation.Owner, AppID: installation.AppID, RepositoryID: 301, Repository: "service", DefaultBranch: "main"}},
+		"premature environment":  {workflow, githubResumeCursorState{Phase: "environments", Lineage: 4, ProviderPage: 3, Total: 2, PhasePage: 1, CompletedTotal: 3, OwnerID: installation.OwnerID, Owner: installation.Owner, AppID: installation.AppID, RepositoryID: 301, Repository: "service", DefaultBranch: "main"}},
+		"premature repository":   {githubResumeCursorState{Phase: "environments", Lineage: 4, ProviderPage: 3, Total: 2, PhasePage: 1, PhaseTotal: 3, CompletedTotal: 1, OwnerID: installation.OwnerID, Owner: installation.Owner, AppID: installation.AppID, RepositoryID: 301, Repository: "service", DefaultBranch: "main"}, githubResumeCursorState{Phase: "repositories", Lineage: 5, ProviderPage: 3, Total: 2, CompletedTotal: 3, OwnerID: installation.OwnerID, Owner: installation.Owner, AppID: installation.AppID}},
+	} {
+		if _, ok := validGitHubResumeCursor(testGitHubResumeCursor(request.ExpectedSubject, transition.current), request.ExpectedSubject, transition.prior, transition.current.Lineage); ok {
+			t.Fatalf("%s transition accepted", name)
+		}
+	}
+	if validResumeText("main\u0085branch", 255) {
+		t.Fatal("Unicode control accepted in GitHub resume text")
+	}
 }
 
 func TestOktaResumeCursorRequiresExactPhaseAndStateOrder(t *testing.T) {
