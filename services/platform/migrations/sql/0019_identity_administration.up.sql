@@ -1,3 +1,22 @@
+DO $product_release_evolution$ DECLARE definition text;original_definition text;BEGIN
+ SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'security-agent-execution-v1','identity-administration-v1');
+ definition:=replace(definition,'release."version" = 18','release."version" = 19');
+ definition:=replace(definition,'release."name" = ''security_agent_execution''','release."name" = ''identity_administration''');
+ definition:=replace(definition,'later_release."version" > 18','later_release."version" > 19');
+ IF definition=original_definition OR position('identity-administration-v1' IN definition)=0 OR position('release."version" = 19' IN definition)=0 OR position('release."name" = ''identity_administration''' IN definition)=0 OR position('later_release."version" > 19' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='workflow v19 compatibility evolution failed';END IF;
+ EXECUTE definition;
+ SELECT pg_get_functiondef('public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'security-agent-execution-v1','identity-administration-v1');
+ definition:=replace(replace(definition,'release."version"=18','release."version"=19'),'release."version" = 18','release."version" = 19');
+ definition:=replace(replace(definition,'release."name"=''security_agent_execution''','release."name"=''identity_administration'''),'release."name" = ''security_agent_execution''','release."name" = ''identity_administration''');
+ definition:=replace(replace(definition,'later."version">18','later."version">19'),'later."version" > 18','later."version" > 19');
+ IF definition=original_definition OR position('identity-administration-v1' IN definition)=0 OR position('identity_administration' IN definition)=0 OR position('release."version"=19' IN definition)=0 AND position('release."version" = 19' IN definition)=0 OR position('later."version">19' IN definition)=0 AND position('later."version" > 19' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='risk v19 compatibility evolution failed';END IF;
+ EXECUTE definition;
+END $product_release_evolution$;
+
 CREATE TABLE public.zasp_identity_administration_state (
   singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),
   used_at timestamptz

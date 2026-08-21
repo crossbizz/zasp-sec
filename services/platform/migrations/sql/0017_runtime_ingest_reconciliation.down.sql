@@ -1,9 +1,26 @@
 DO $runtime_ingest_reconciliation_guard$ BEGIN
- IF zasp_runtime_ingest_reconciliation_live_fingerprint()<>'4979b5ba927e71fe9bd76917f5c6566c3730f6b9ceb3f7b99cfe59d65689aa6a' OR NOT zasp_runtime_ingest_reconciliation_security_ready() THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime ingest reconciliation drift blocks rollback';END IF;
+ IF zasp_runtime_ingest_reconciliation_live_fingerprint()<>'32e625177b0df46e857d873c886e43aee4ea1200fb295d72ed9f0e8105f2e533' OR NOT zasp_runtime_ingest_reconciliation_security_ready() THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime ingest reconciliation drift blocks rollback';END IF;
  IF EXISTS(SELECT 1 FROM zasp_runtime_ingest_reconciliation_state WHERE used_at IS NOT NULL) OR EXISTS(SELECT 1 FROM zasp_runtime_ingest_reconciliation_work WHERE state='leased') THEN RAISE EXCEPTION USING ERRCODE='2BP01',MESSAGE='runtime ingest reconciliation use blocks rollback';END IF;
 END $runtime_ingest_reconciliation_guard$;
 
-DELETE FROM public.zasp_schema_metadata WHERE (key,value)=('runtime_ingest_reconciliation_fingerprint', '4979b5ba927e71fe9bd76917f5c6566c3730f6b9ceb3f7b99cfe59d65689aa6a');
+DO $product_release_restore$ DECLARE definition text;original_definition text;BEGIN
+ SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'release."version" = 17','release."version" = 16');
+ definition:=replace(definition,'release."name" = ''runtime_ingest_reconciliation''','release."name" = ''runtime_gateway_reconciliation''');
+ definition:=replace(definition,'later_release."version" > 17','later_release."version" > 16');
+ IF definition=original_definition OR position('release."version" = 16' IN definition)=0 OR position('release."name" = ''runtime_gateway_reconciliation''' IN definition)=0 OR position('later_release."version" > 16' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='workflow v16 compatibility restoration failed';END IF;
+ EXECUTE definition;
+ SELECT pg_get_functiondef('public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(replace(definition,'release."version"=17','release."version"=16'),'release."version" = 17','release."version" = 16');
+ definition:=replace(replace(definition,'release."name"=''runtime_ingest_reconciliation''','release."name"=''runtime_gateway_reconciliation'''),'release."name" = ''runtime_ingest_reconciliation''','release."name" = ''runtime_gateway_reconciliation''');
+ definition:=replace(replace(definition,'later."version">17','later."version">16'),'later."version" > 17','later."version" > 16');
+ IF definition=original_definition OR position('runtime_gateway_reconciliation' IN definition)=0 OR position('release."version"=16' IN definition)=0 AND position('release."version" = 16' IN definition)=0 OR position('later."version">16' IN definition)=0 AND position('later."version" > 16' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='risk v16 compatibility restoration failed';END IF;
+ EXECUTE definition;
+END $product_release_restore$;
+
+DELETE FROM public.zasp_schema_metadata WHERE (key,value)=('runtime_ingest_reconciliation_fingerprint', '32e625177b0df46e857d873c886e43aee4ea1200fb295d72ed9f0e8105f2e533');
 DROP FUNCTION public.zasp_runtime_ingest_reconciliation_readiness(text,text);
 DROP FUNCTION public.zasp_runtime_ingest_reconciliation_security_ready();
 DROP FUNCTION public.zasp_runtime_ingest_reconciliation_live_fingerprint();

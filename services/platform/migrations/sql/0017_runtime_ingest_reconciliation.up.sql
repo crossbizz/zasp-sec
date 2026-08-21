@@ -5,6 +5,23 @@ DO $release_guard$ BEGIN
  ) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='runtime gateway reconciliation release required';END IF;
 END $release_guard$;
 
+DO $product_release_evolution$ DECLARE definition text;original_definition text;BEGIN
+ SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'release."version" = 16','release."version" = 17');
+ definition:=replace(definition,'release."name" = ''runtime_gateway_reconciliation''','release."name" = ''runtime_ingest_reconciliation''');
+ definition:=replace(definition,'later_release."version" > 16','later_release."version" > 17');
+ IF definition=original_definition OR position('release."version" = 17' IN definition)=0 OR position('release."name" = ''runtime_ingest_reconciliation''' IN definition)=0 OR position('later_release."version" > 17' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='workflow v17 compatibility evolution failed';END IF;
+ EXECUTE definition;
+ SELECT pg_get_functiondef('public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(replace(definition,'release."version"=16','release."version"=17'),'release."version" = 16','release."version" = 17');
+ definition:=replace(replace(definition,'release."name"=''runtime_gateway_reconciliation''','release."name"=''runtime_ingest_reconciliation'''),'release."name" = ''runtime_gateway_reconciliation''','release."name" = ''runtime_ingest_reconciliation''');
+ definition:=replace(replace(definition,'later."version">16','later."version">17'),'later."version" > 16','later."version" > 17');
+ IF definition=original_definition OR position('runtime_ingest_reconciliation' IN definition)=0 OR position('release."version"=17' IN definition)=0 AND position('release."version" = 17' IN definition)=0 OR position('later."version">17' IN definition)=0 AND position('later."version" > 17' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='risk v17 compatibility evolution failed';END IF;
+ EXECUTE definition;
+END $product_release_evolution$;
+
 CREATE TABLE public.zasp_runtime_ingest_reconciliation_state (
  singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),used_at timestamptz
 );
@@ -206,7 +223,7 @@ $$;
 ALTER FUNCTION public.zasp_runtime_ingest_reconciliation_security_ready() OWNER TO zasp_discovery_authority;
 REVOKE ALL ON FUNCTION public.zasp_runtime_ingest_reconciliation_security_ready() FROM PUBLIC;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_ingest_reconciliation_fingerprint', '4979b5ba927e71fe9bd76917f5c6566c3730f6b9ceb3f7b99cfe59d65689aa6a');
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('runtime_ingest_reconciliation_fingerprint', '32e625177b0df46e857d873c886e43aee4ea1200fb295d72ed9f0e8105f2e533');
 
 CREATE FUNCTION public.zasp_runtime_ingest_reconciliation_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $$
  SELECT length(expected_checksum)=64 AND length(expected_fingerprint)=64

@@ -144,6 +144,112 @@ func TestProductionIdentityAdministrationPostgresInstallsExactTenantAuthority(t 
 	}
 }
 
+func TestProductionIdentityAdministrationPostgresPreservesPATWorkflowAuthority(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(context.Background())
+	runner := migrateToTypedInventoryCutover(t, ctx, connection)
+	for _, migration := range []struct {
+		name string
+		up   func(context.Context) error
+	}{
+		{"runtime data plane", runner.UpProductionRuntimeDataPlane},
+		{"runtime gateway reconciliation", runner.UpProductionRuntimeGatewayReconciliation},
+		{"runtime ingest reconciliation", runner.UpProductionRuntimeIngestReconciliation},
+		{"security agent execution", runner.UpProductionSecurityAgentExecution},
+		{"identity administration", runner.UpProductionIdentityAdministration},
+	} {
+		if err := migration.up(ctx); err != nil {
+			t.Fatalf("%s: %v", migration.name, err)
+		}
+	}
+	for _, migration := range []struct {
+		name string
+		down func(context.Context) error
+	}{
+		{"identity administration", runner.DownProductionIdentityAdministration},
+		{"security agent execution", runner.DownProductionSecurityAgentExecution},
+		{"runtime ingest reconciliation", runner.DownProductionRuntimeIngestReconciliation},
+	} {
+		if err := migration.down(ctx); err != nil {
+			t.Fatalf("%s rollback: %v", migration.name, err)
+		}
+	}
+	for _, migration := range []struct {
+		name string
+		up   func(context.Context) error
+	}{
+		{"runtime ingest reconciliation", runner.UpProductionRuntimeIngestReconciliation},
+		{"security agent execution", runner.UpProductionSecurityAgentExecution},
+		{"identity administration", runner.UpProductionIdentityAdministration},
+	} {
+		if err := migration.up(ctx); err != nil {
+			t.Fatalf("%s reapply: %v", migration.name, err)
+		}
+	}
+	identity := fixtureRequestIdentity(t)
+	organization := identity.Scope.OrganizationID().String()
+	principal := identity.PrincipalID.String()
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role,active) VALUES($1,$2,'organization-pat-e2e','member-pat-e2e','security_admin',true)`, principal, organization); err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{
+		`INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES($1,$2,$3,$4,'Production','["view","manage_workflows"]'::jsonb,true)`,
+		`INSERT INTO zasp_product_api_tokens(token_digest,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES(digest('identity-v19-pat-workflow-token','sha256'),$1,$2,$3,$4,'["view","manage_workflows"]'::jsonb,transaction_timestamp()+interval '1 hour')`,
+	} {
+		if _, err := connection.Exec(ctx, statement, principal, organization, identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	findingID := "pid_79000072-0000-4000-8000-000000000072"
+	seedConnectorRiskFinding(t, ctx, connection, identity, findingID)
+	if _, err := connection.Exec(ctx, `SET ROLE zasp_discovery_api`); err != nil {
+		t.Fatal(err)
+	}
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatalf("v19 API repository: %v", err)
+	}
+	authenticated, err := repository.Authenticate(ctx, Credential{Kind: CredentialBearerToken, Value: "identity-v19-pat-workflow-token"})
+	if err != nil {
+		t.Fatalf("v19 PAT authenticate: %v", err)
+	}
+	policy := json.RawMessage(`{"id":"policy-v19-pat-e2e","name":"V19 PAT compatibility","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"read"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`)
+	result, err := repository.MutateWorkflow(ctx, authenticated, WorkflowMutation{
+		Action: "create", Kind: "policy", ID: "policy-v19-pat-e2e", Operation: "createPolicy", IdempotencyKey: "identity-v19-pat-workflow-0001",
+		Intent: json.RawMessage(`{"body":` + string(policy) + `,"expected_version":0,"resource_id":""}`), Body: policy,
+		AuditID: "pid_79000070-0000-4000-8000-000000000070", CorrelationID: "pid_79000071-0000-4000-8000-000000000071",
+	})
+	if err != nil || result.Version != 1 || result.Replayed {
+		t.Fatalf("v19 PAT workflow mutation=%#v err=%v", result, err)
+	}
+	browserPolicy := json.RawMessage(`{"id":"policy-v19-browser-e2e","name":"V19 browser compatibility","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"write"}],"action":"block","rollout":"draft","failure_mode":"closed"}`)
+	browserResult, err := repository.MutateWorkflow(ctx, identity, WorkflowMutation{
+		Action: "create", Kind: "policy", ID: "policy-v19-browser-e2e", Operation: "createPolicy", IdempotencyKey: "identity-v19-browser-workflow-0001",
+		Intent: json.RawMessage(`{"body":` + string(browserPolicy) + `,"expected_version":0,"resource_id":""}`), Body: browserPolicy,
+		AuditID: "pid_79000073-0000-4000-8000-000000000073", CorrelationID: "pid_79000074-0000-4000-8000-000000000074", ReceiptID: "pid_79000075-0000-4000-8000-000000000075",
+	})
+	if err != nil || browserResult.Version != 1 || browserResult.ReceiptID != "pid_79000075-0000-4000-8000-000000000075" || browserResult.Replayed {
+		t.Fatalf("v19 browser workflow mutation=%#v err=%v", browserResult, err)
+	}
+	riskResult, err := repository.MutateRiskFinding(ctx, authenticated, RiskFindingMutation{
+		Operation: "updateFinding", FindingID: findingID, IdempotencyKey: "identity-v19-pat-risk-0001", ExpectedVersion: 1, Status: "resolved",
+		AuditID: "pid_79000076-0000-4000-8000-000000000076", CorrelationID: "pid_79000077-0000-4000-8000-000000000077",
+	})
+	if err != nil || riskResult.Version != 2 || riskResult.Body.Status != "resolved" || riskResult.Replayed {
+		t.Fatalf("v19 PAT risk mutation=%#v err=%v", riskResult, err)
+	}
+}
+
 func TestProductionIdentityAdministrationReconcilesVerifiedGroupsIntoTenantScopes(t *testing.T) {
 	dsn := startDisposablePostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)

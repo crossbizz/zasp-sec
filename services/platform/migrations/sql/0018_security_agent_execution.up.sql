@@ -1,3 +1,22 @@
+DO $product_release_evolution$ DECLARE definition text;original_definition text;BEGIN
+ SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'runtime-data-plane-v1','security-agent-execution-v1');
+ definition:=replace(definition,'release."version" = 17','release."version" = 18');
+ definition:=replace(definition,'release."name" = ''runtime_ingest_reconciliation''','release."name" = ''security_agent_execution''');
+ definition:=replace(definition,'later_release."version" > 17','later_release."version" > 18');
+ IF definition=original_definition OR position('security-agent-execution-v1' IN definition)=0 OR position('release."version" = 18' IN definition)=0 OR position('release."name" = ''security_agent_execution''' IN definition)=0 OR position('later_release."version" > 18' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='workflow v18 compatibility evolution failed';END IF;
+ EXECUTE definition;
+ SELECT pg_get_functiondef('public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'runtime-data-plane-v1','security-agent-execution-v1');
+ definition:=replace(replace(definition,'release."version"=17','release."version"=18'),'release."version" = 17','release."version" = 18');
+ definition:=replace(replace(definition,'release."name"=''runtime_ingest_reconciliation''','release."name"=''security_agent_execution'''),'release."name" = ''runtime_ingest_reconciliation''','release."name" = ''security_agent_execution''');
+ definition:=replace(replace(definition,'later."version">17','later."version">18'),'later."version" > 17','later."version" > 18');
+ IF definition=original_definition OR position('security-agent-execution-v1' IN definition)=0 OR position('security_agent_execution' IN definition)=0 OR position('release."version"=18' IN definition)=0 AND position('release."version" = 18' IN definition)=0 OR position('later."version">18' IN definition)=0 AND position('later."version" > 18' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='risk v18 compatibility evolution failed';END IF;
+ EXECUTE definition;
+END $product_release_evolution$;
+
 DO $roles$
 DECLARE role_name text; role_oid oid;
 BEGIN

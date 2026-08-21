@@ -11,6 +11,25 @@ BEGIN
 END
 $guard$;
 
+DO $product_release_restore$ DECLARE definition text;original_definition text;BEGIN
+ SELECT pg_get_functiondef('public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'identity-administration-v1','security-agent-execution-v1');
+ definition:=replace(definition,'release."version" = 19','release."version" = 18');
+ definition:=replace(definition,'release."name" = ''identity_administration''','release."name" = ''security_agent_execution''');
+ definition:=replace(definition,'later_release."version" > 19','later_release."version" > 18');
+ IF definition=original_definition OR position('security-agent-execution-v1' IN definition)=0 OR position('release."version" = 18' IN definition)=0 OR position('release."name" = ''security_agent_execution''' IN definition)=0 OR position('later_release."version" > 18' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='workflow v18 compatibility restoration failed';END IF;
+ EXECUTE definition;
+ SELECT pg_get_functiondef('public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)'::regprocedure) INTO STRICT definition;
+ original_definition:=definition;
+ definition:=replace(definition,'identity-administration-v1','security-agent-execution-v1');
+ definition:=replace(replace(definition,'release."version"=19','release."version"=18'),'release."version" = 19','release."version" = 18');
+ definition:=replace(replace(definition,'release."name"=''identity_administration''','release."name"=''security_agent_execution'''),'release."name" = ''identity_administration''','release."name" = ''security_agent_execution''');
+ definition:=replace(replace(definition,'later."version">19','later."version">18'),'later."version" > 19','later."version" > 18');
+ IF definition=original_definition OR position('security-agent-execution-v1' IN definition)=0 OR position('security_agent_execution' IN definition)=0 OR position('release."version"=18' IN definition)=0 AND position('release."version" = 18' IN definition)=0 OR position('later."version">18' IN definition)=0 AND position('later."version" > 18' IN definition)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='risk v18 compatibility restoration failed';END IF;
+ EXECUTE definition;
+END $product_release_restore$;
+
 DROP FUNCTION public.zasp_identity_administration_readiness(text,text);
 DROP FUNCTION public.zasp_identity_administration_live_fingerprint();
 DROP FUNCTION public.zasp_identity_admin_security_ready();
