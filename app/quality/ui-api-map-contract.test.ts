@@ -74,7 +74,7 @@ const expectedMap: MapDocument = {
       label: "Home",
       actions: [
         { id: "view_home_summary", operation_id: "getHomeSummary", availability: "available" },
-        { id: "search_all_entities", operation_id: "globalSearch", availability: "planned" },
+        { id: "search_all_entities", operation_id: "globalSearch", availability: "available" },
       ],
     },
     {
@@ -565,7 +565,8 @@ describe("M1-25 UI API map seed", () => {
     expect(prose).toContain("`getSystemStatus`");
     expect(prose).toContain("`listSystemComponents`");
     expect(prose).toContain("`getSystemVersion`");
-    expect(prose).toContain("Home actions are `api_available`");
+    expect(prose).toContain("Home summary is `api_available`");
+    expect(prose).toContain("global search is `available`");
     expect(prose).toContain("three System Health actions are `available`");
     expect(prose).toContain("Twelve provider, export, and external-flow mutations remain `planned`");
     expect(prose).toContain("M1-26 is Complete");

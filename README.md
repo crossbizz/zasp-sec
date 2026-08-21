@@ -19,13 +19,14 @@ source modules and compiled client/server chunks.
 
 ## Production support boundary
 
-The production API publishes and mounts exactly 91 operations. The UI/API map
-reports `planned=41 api_available=7 available=92 public=99 internal=0`.
+The production API publishes and mounts exactly 92 operations. The UI/API map
+reports `planned=40 api_available=7 available=93 public=100 internal=0`.
 Findings and attack paths are the Batch 4 production risk slice:
 
 | Surface | Production support |
 | --- | --- |
 | Findings | Scoped list/detail, status update, and risk acceptance |
+| Global search | Tenant-scoped indexed product name, type, and ID search |
 | Attack paths | Scoped list/detail and ranked path-local break options |
 | Risk authority | Typed, scope-keyed PostgreSQL v9 serving projection |
 | Connector authorization | OAuth for GitHub/Okta and reference authorization for AWS/Kubernetes, capability-gated by composed runtime readiness |
@@ -149,8 +150,8 @@ npm run ui-api:test
 npm run ui-api:check
 ```
 
-The current honest result is `UI/API coverage passed: planned=41
-api_available=7 available=92 public=99 internal=0.` The gate distinguishes
+The current honest result is `UI/API coverage passed: planned=40
+api_available=7 available=93 public=100 internal=0.` The gate distinguishes
 implemented API contracts from fully wired UI actions.
 M1-36e is Complete and separately owns local infrastructure smoke checks.
 
@@ -1034,7 +1035,7 @@ System Health maps overall status, component inventory, and version actions to
 `getSystemStatus`, `listSystemComponents`, and `getSystemVersion`.
 
 The artifact contains only stable screen/action identity and operation IDs.
-Home actions are `api_available` through `getHomeSummary` and `globalSearch`;
+Home summary is `api_available` through `getHomeSummary`, and global search is `available` through `globalSearch`;
 the three System Health actions are `available` through live readiness data. API
 availability records a generated product contract and does not claim a wired UI or
 provider integration. Twelve provider, export, and external-flow mutations remain
@@ -1054,7 +1055,7 @@ npm run ui-api:check
 The current fixed success line is:
 
 ```text
-UI/API coverage passed: planned=41 api_available=7 available=92 public=99 internal=0.
+UI/API coverage passed: planned=40 api_available=7 available=93 public=100 internal=0.
 ```
 
 M5 now has a local MVP slice for normalized Promptfoo attempts, curated packs,

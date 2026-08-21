@@ -16,11 +16,11 @@ describe("M4 risk and Agent UI completion batch", () => {
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
     ]);
-    for (const operation of ["updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary"]) {
+    for (const operation of ["updateFinding", "acceptFindingRisk", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary", "globalSearch"]) {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
     }
-    for (const operation of ["createFindingTicket", "globalSearch"]) {
+    for (const operation of ["createFindingTicket"]) {
       expect(openapi).not.toContain(`operationId: ${operation}`);
       expect(generated).not.toContain(` ${operation}:`);
     }

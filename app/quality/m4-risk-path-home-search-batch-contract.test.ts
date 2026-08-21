@@ -6,12 +6,12 @@ import { describe, expect, it } from "vitest";
 const root = resolve(import.meta.dirname, "../..");
 const operations = [
   "listFindings", "getFinding", "updateFinding", "acceptFindingRisk",
-  "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary",
+  "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "getHomeSummary", "globalSearch",
 ] as const;
-const hiddenOperations = ["createFindingTicket", "globalSearch"] as const;
+const hiddenOperations = ["createFindingTicket"] as const;
 
 describe("M4 risk, path, home, and search batch", () => {
-  it("publishes eight mounted product operations and hides external actions", async () => {
+  it("publishes nine mounted product operations and hides the external ticket action", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),

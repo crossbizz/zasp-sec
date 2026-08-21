@@ -20,8 +20,8 @@ const allowedProductionClasses = new Set([
   "missing",
 ]);
 const expectedClassCounts = new Map([
-  ["production-available", 343],
-  ["component-only", 324],
+  ["production-available", 345],
+  ["component-only", 322],
   ["blocked/external", 61],
   ["missing", 0],
 ]);
@@ -31,7 +31,7 @@ const expectedMilestoneClassCounts = new Map([
   ["M1A", new Map([["production-available", 0], ["component-only", 6], ["blocked/external", 4], ["missing", 0]])],
   ["M2", new Map([["production-available", 50], ["component-only", 22], ["blocked/external", 0], ["missing", 0]])],
   ["M3", new Map([["production-available", 49], ["component-only", 24], ["blocked/external", 2], ["missing", 0]])],
-  ["M4", new Map([["production-available", 77], ["component-only", 5], ["blocked/external", 0], ["missing", 0]])],
+  ["M4", new Map([["production-available", 79], ["component-only", 3], ["blocked/external", 0], ["missing", 0]])],
   ["M5", new Map([["production-available", 0], ["component-only", 42], ["blocked/external", 0], ["missing", 0]])],
   ["M6", new Map([["production-available", 22], ["component-only", 14], ["blocked/external", 0], ["missing", 0]])],
   ["M7", new Map([["production-available", 37], ["component-only", 25], ["blocked/external", 0], ["missing", 0]])],

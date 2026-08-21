@@ -137,7 +137,7 @@ screens:
         availability: available
       - id: search_all_entities
         operation_id: globalSearch
-        availability: planned
+        availability: available
   - id: findings
     label: Findings
     actions:

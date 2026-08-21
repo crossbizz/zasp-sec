@@ -7,17 +7,20 @@ const root = resolve(import.meta.dirname, "../..");
 
 describe("M4 UI and golden-gate batch", () => {
   it("wires production inventory and risk routes without importing demo actions", async () => {
-    const [app, productionView, riskView] = await Promise.all([
+    const [app, productionView, riskView, globalSearch] = await Promise.all([
       readFile(resolve(root, "app/components/ZaspProductionApp.tsx"), "utf8"),
       readFile(resolve(root, "app/features/agents/ProductionAgentSecurityView.tsx"), "utf8"),
       readFile(resolve(root, "app/features/risk/ProductionRiskView.tsx"), "utf8"),
+      readFile(resolve(root, "app/components/ProductionGlobalSearch.tsx"), "utf8"),
     ]);
     expect(app).toContain("<ProductionAgentSecurityView");
     expect(app).toContain("<ProductionRiskView");
     for (const route of ["/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes", "/violations", "/exposure/attack-paths"]) expect(app).toContain(route);
     for (const operation of ["listAgents", "getAgent", "updateAgent", "getAgentCapabilities", "getAgentRelationships", "listAgentSessions", "getHomeSummary"]) expect(productionView).toContain(operation);
     for (const operation of ["updateFinding", "acceptFindingRisk", "getAttackPathBreakOptions"]) expect(riskView).toContain(operation);
-    for (const hidden of ["createFindingTicket", "globalSearch"]) expect(productionView + riskView).not.toContain(hidden);
+    expect(app).toContain("<ProductionGlobalSearch");
+    expect(globalSearch).toContain("/api/v1/search");
+    expect(productionView + riskView).not.toContain("createFindingTicket");
     for (const heading of ["Why", "Evidence", "Path", "Fix", "Verify"]) expect(riskView).toContain(heading);
     for (const heading of ["Effective capabilities", "Runtime policy coverage"]) expect(productionView).toContain(heading);
   });

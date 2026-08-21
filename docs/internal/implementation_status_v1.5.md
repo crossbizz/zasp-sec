@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 343 |
-| Component-only | 324 |
+| Production-available | 345 |
+| Component-only | 322 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -122,7 +122,7 @@ production composition, not merely a component proof or external evidence.
   inventory, ownership mutations, tenant-scoped observed/verified/blocked RBAC
   capabilities, all 12 evidence-backed posture rules, risk factors, bounded
   attack paths, ranked break options, and the production exposure drawer.
-  Ticket webhooks, global search, and the final installed-browser M4 gate remain
+  Ticket webhooks and the final installed-browser M4 gate remain
   component-only.
 - `docs/operations/production-deployment.md` and release contracts retain
   image, provider, DNS/TLS, secret, tracing, and public-deployment evidence as
@@ -137,13 +137,13 @@ production composition, not merely a component proof or external evidence.
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
 | M3 | 75 | 49 | 24 | 2 | 0 |
-| M4 | 82 | 77 | 5 | 0 | 0 |
+| M4 | 82 | 79 | 3 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 23 | 66 | 52 | 0 |
-| **Total** | **728** | **343** | **324** | **61** | **0** |
+| **Total** | **728** | **345** | **322** | **61** | **0** |
 
 ## Prerequisite work
 

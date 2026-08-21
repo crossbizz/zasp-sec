@@ -304,8 +304,8 @@ M4	M4-44	Complete	production-available	PROD-current-composition	audited shipped 
 M4	M4-45	Complete	production-available	PROD-current-composition	audited shipped composition: API getAttackPathBreakOptions
 M4	M4-46	Complete	production-available	PROD-current-composition	audited shipped composition: home summary service
 M4	M4-47	Complete	production-available	PROD-current-composition	audited shipped composition: API getHomeSummary
-M4	M4-48	Complete	component-only	T14-data-workflows	audited component-only proof: global search service
-M4	M4-49	Complete	component-only	T14-data-workflows	audited component-only proof: API globalSearch
+M4	M4-48	Complete	production-available	T14-data-workflows	production evidence: exact tenant-scoped indexed PostgreSQL name/type/ID search rejects raw graph syntax and direct API table reads at f61fee2
+M4	M4-49	Complete	production-available	T14-data-workflows	production evidence: mounted BrowserSession/PAT globalSearch API, strict OpenAPI/generated decoder, and production UI search at f61fee2
 M4	M4-50a	Complete	production-available	PROD-current-composition	audited shipped composition: Agents table
 M4	M4-50b1	Complete	production-available	PROD-current-composition	audited shipped composition: Agents ownership filters
 M4	M4-50b2	Complete	production-available	PROD-current-composition	audited shipped composition: Agents capability filters
