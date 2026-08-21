@@ -84,7 +84,7 @@ func (registry *Registry) CredentialClass(key string) (CredentialClass, bool) {
 func DefaultManifests() []Manifest {
 	return []Manifest{
 		{Key: "aws", AuthMode: "first_party_assume_role", RequiredScopes: []string{"sts:GetCallerIdentity"}, HealthMode: "identity_and_permission_probe", DegradationMode: "provider_only", AuthorizationReady: true},
-		{Key: "github", AuthMode: "first_party_github_app", RequiredScopes: []string{"read:org", "repo"}, HealthMode: "installation_probe", DegradationMode: "provider_only", AuthorizationReady: true},
+		{Key: "github", AuthMode: "first_party_github_app", RequiredScopes: []string{"actions:read", "contents:read", "metadata:read"}, HealthMode: "installation_probe", DegradationMode: "provider_only", AuthorizationReady: true},
 		{Key: "kubernetes", AuthMode: "first_party_reference_bind", RequiredScopes: []string{"get", "list", "watch"}, HealthMode: "version_and_self_subject_rules", DegradationMode: "provider_only", AuthorizationReady: true},
 		{Key: "okta", AuthMode: "first_party_oauth_pkce", RequiredScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, HealthMode: "issuer_and_directory_probe", DegradationMode: "provider_only", AuthorizationReady: true},
 	}

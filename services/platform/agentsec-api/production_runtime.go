@@ -124,7 +124,7 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
 	connectorRegistry, err := apiserver.NewConnectorProviderRegistry(map[string]apiserver.ConnectorOAuthProviderDefinition{
-		"github": {Provider: &githubOAuthProvider{adapter: githubAdapter}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"},
+		"github": {Provider: &githubOAuthProvider{adapter: githubAdapter}, RequestedScopes: []string{"actions:read", "contents:read", "metadata:read"}, CredentialClass: "github_installation_reference"},
 		"okta":   {Factory: &oktaOAuthFactory{clientID: config.OktaClientID, secretReference: config.OktaSecretReference, callback: config.PublicOrigin + "/api/v1/integrations/oauth/callback", exchange: &oktaExchangeClient{http: providerHTTP, secrets: providerSecrets}, timeout: config.ProviderTimeout}, RequestedScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, CredentialClass: "okta_refresh_reference"},
 	}, map[string]apiserver.ConnectorCapabilityCheck{
 		"github": func(ctx context.Context) error {

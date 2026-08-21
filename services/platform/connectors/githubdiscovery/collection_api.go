@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,10 +31,25 @@ const (
 )
 
 var (
-	githubCollectionCursorPattern = regexp.MustCompile(`^github:repositories:([1-9][0-9]{0,5}):([1-9][0-9]{0,5}):([0-9]{1,3}):([0-9a-f]{16})$`)
+	githubCollectionCursorPattern = regexp.MustCompile(`^github:(repositories|workflows|environments):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+):([0-9a-f]{16})$`)
 	githubCompleteCursorPattern   = regexp.MustCompile(`^github:complete:([0-9a-f]{16}):[0-9a-f]{16}$`)
 	githubNamePattern             = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,100}$`)
 )
+
+type githubPageState struct {
+	Phase         string `json:"p"`
+	Lineage       int    `json:"l"`
+	ProviderPage  int    `json:"n,omitempty"`
+	Total         int    `json:"t,omitempty"`
+	PhasePage     int    `json:"x,omitempty"`
+	PhaseTotal    int    `json:"z,omitempty"`
+	OwnerID       int64  `json:"o,omitempty"`
+	Owner         string `json:"a,omitempty"`
+	AppID         int64  `json:"i,omitempty"`
+	RepositoryID  int64  `json:"r,omitempty"`
+	Repository    string `json:"q,omitempty"`
+	DefaultBranch string `json:"b,omitempty"`
+}
 
 type InstallationCollectionAPI struct {
 	client  *http.Client
@@ -62,7 +78,7 @@ func newInstallationCollectionAPI(roundTripper http.RoundTripper, timeout time.D
 }
 
 func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {
-	phase, lineagePage, providerPage, pageLimit, ok := validInstallationPageRequest(request)
+	state, ok := validInstallationPageRequest(request)
 	if ctx != nil && ctx.Err() != nil {
 		return CollectionPage{}, providercollection.ClassifyProviderError(ctx, ctx.Err())
 	}
@@ -70,17 +86,22 @@ func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, c
 		return CollectionPage{}, ErrInvalid
 	}
 	providerURL := githubCollectionEndpoint + "/installation"
-	if phase == "repositories" {
-		if pageLimit == 0 {
-			pageLimit = request.RemainingItems
-			if pageLimit > githubMaximumPageItems {
-				pageLimit = githubMaximumPageItems
-			}
-		}
+	switch state.Phase {
+	case "repositories":
 		query := url.Values{}
-		query.Set("page", strconv.Itoa(providerPage))
-		query.Set("per_page", strconv.Itoa(pageLimit))
+		query.Set("page", strconv.Itoa(state.ProviderPage))
+		query.Set("per_page", "1")
 		providerURL = githubCollectionEndpoint + "/installation/repositories?" + query.Encode()
+	case "workflows":
+		query := url.Values{}
+		query.Set("page", strconv.Itoa(state.PhasePage))
+		query.Set("per_page", "1")
+		providerURL = githubCollectionEndpoint + "/repos/" + url.PathEscape(state.Owner) + "/" + url.PathEscape(state.Repository) + "/actions/workflows?" + query.Encode()
+	case "environments":
+		query := url.Values{}
+		query.Set("page", strconv.Itoa(state.PhasePage))
+		query.Set("per_page", "1")
+		providerURL = githubCollectionEndpoint + "/repos/" + url.PathEscape(state.Owner) + "/" + url.PathEscape(state.Repository) + "/environments?" + query.Encode()
 	}
 	providerRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, providerURL, nil)
 	if err != nil {
@@ -103,15 +124,11 @@ func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, c
 	if response.StatusCode != http.StatusOK {
 		return CollectionPage{}, providercollection.ClassifyProviderHTTPFailure(bounded, nil, response.StatusCode, response.Header.Get("Retry-After"), time.Now().UTC())
 	}
-	responseLimit := request.RemainingBytes
-	if responseLimit > githubMaximumResponseBytes {
-		responseLimit = githubMaximumResponseBytes
-	}
-	body, ok := readInstallationBody(response.Body, responseLimit)
+	body, ok := readInstallationBody(response.Body, githubMaximumResponseBytes)
 	if !ok {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
-	if phase == "installation" {
+	if state.Phase == "installation" {
 		var payload installationResponse
 		if !decodeInstallationResponse(body, &payload) {
 			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
@@ -119,36 +136,120 @@ func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, c
 		if strconv.FormatInt(payload.ID, 10) != request.Subject.ID {
 			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureDenied)
 		}
-		if !validGitHubText(payload.Account.Login, 100) || payload.Account.ID < 1 || payload.Account.ID > 1<<53 || payload.Account.Type != "Organization" && payload.Account.Type != "User" {
+		if !validGitHubInstallation(payload) {
 			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 		}
-		entity, normalizeOK := normalizeVerifiedInstallation(request.Subject, payload)
+		entities, relationships, normalizeOK := normalizeVerifiedInstallation(request.Subject, payload)
 		if !normalizeOK {
 			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 		}
-		next := nextGitHubPageCursor(request.Subject, lineagePage+1, 1, 0)
-		page, pageErr := NewCollectionPage(request.Subject, next, false, []json.RawMessage{entity}, nil)
-		if pageErr != nil || int64(len(page.Raw)) > request.RemainingBytes || bytes.Contains(page.Raw, credential) {
+		next, cursorOK := nextGitHubCursor(request.Subject, githubPageState{Phase: "repositories", Lineage: state.Lineage + 1, ProviderPage: 1, OwnerID: payload.Account.ID, Owner: payload.Account.Login, AppID: payload.AppID})
+		page, pageErr := NewCollectionPage(request.Subject, next, false, entities, relationships)
+		if !cursorOK || pageErr != nil || bytes.Contains(page.Raw, credential) {
 			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		if !githubPageFits(request, page) {
+			return CollectionPage{}, providercollection.ErrPageCapacity
+		}
+		return page, nil
+	}
+	if state.Phase == "workflows" {
+		var payload repositoryWorkflowsResponse
+		if !decodeInstallationResponse(body, &payload) || !validGitHubPhasePage(payload.TotalCount, state.PhasePage, state.PhaseTotal, len(payload.Workflows)) {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		entities, relationships, normalized := normalizeRepositoryWorkflows(request.Subject, state, payload.Workflows)
+		if !normalized {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		nextState := state
+		nextState.Lineage++
+		nextState.PhaseTotal = payload.TotalCount
+		nextState.PhasePage++
+		if state.PhasePage >= payload.TotalCount {
+			nextState.Phase = "environments"
+			nextState.PhasePage = 1
+			nextState.PhaseTotal = 0
+		}
+		next, cursorOK := nextGitHubCursor(request.Subject, nextState)
+		page, pageErr := NewCollectionPage(request.Subject, next, false, entities, relationships)
+		if !cursorOK || pageErr != nil || bytes.Contains(page.Raw, credential) {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		if !githubPageFits(request, page) {
+			return CollectionPage{}, providercollection.ErrPageCapacity
+		}
+		return page, nil
+	}
+	if state.Phase == "environments" {
+		var payload repositoryEnvironmentsResponse
+		if !decodeInstallationResponse(body, &payload) || !validGitHubPhasePage(payload.TotalCount, state.PhasePage, state.PhaseTotal, len(payload.Environments)) {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		entities, relationships, normalized := normalizeRepositoryEnvironments(request.Subject, state, payload.Environments)
+		if !normalized {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		completeRepository := state.PhasePage >= payload.TotalCount
+		complete := completeRepository && state.ProviderPage > state.Total
+		next := nextGitHubCompleteCursor(request.Cursor, request.Subject.ID, state.Total)
+		if !complete {
+			nextState := state
+			nextState.Lineage++
+			nextState.PhaseTotal = payload.TotalCount
+			nextState.PhasePage++
+			if completeRepository {
+				nextState = githubPageState{Phase: "repositories", Lineage: state.Lineage + 1, ProviderPage: state.ProviderPage, Total: state.Total, OwnerID: state.OwnerID, Owner: state.Owner, AppID: state.AppID}
+			}
+			var cursorOK bool
+			next, cursorOK = nextGitHubCursor(request.Subject, nextState)
+			if !cursorOK {
+				return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+			}
+		}
+		page, pageErr := NewCollectionPage(request.Subject, next, complete, entities, relationships)
+		if pageErr != nil || bytes.Contains(page.Raw, credential) {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		if !githubPageFits(request, page) {
+			return CollectionPage{}, providercollection.ErrPageCapacity
 		}
 		return page, nil
 	}
 	var payload installationRepositoriesResponse
-	if !decodeInstallationResponse(body, &payload) || len(payload.Repositories) > pageLimit || len(payload.Repositories) > request.RemainingItems || payload.TotalCount < len(payload.Repositories) {
+	if !decodeInstallationResponse(body, &payload) || len(payload.Repositories) > 1 || payload.TotalCount < len(payload.Repositories) || payload.TotalCount < 0 || state.ProviderPage > payload.TotalCount && payload.TotalCount != 0 || state.Total != 0 && state.Total != payload.TotalCount {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
-	entities, relationships, ok := normalizeInstallationRepositories(request.Subject, payload.Repositories)
+	entities, relationships, ok := normalizeInstallationRepositories(request.Subject, state, payload.Repositories)
 	if !ok {
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
 	}
-	complete := providerPage*pageLimit >= payload.TotalCount
-	next := nextGitHubPageCursor(request.Subject, lineagePage+1, providerPage+1, pageLimit)
-	if complete {
-		next = nextGitHubCompleteCursor(request.Cursor, request.Subject.ID, payload.TotalCount)
+	if len(payload.Repositories) == 0 {
+		if payload.TotalCount != 0 {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		next := nextGitHubCompleteCursor(request.Cursor, request.Subject.ID, payload.TotalCount)
+		page, pageErr := NewCollectionPage(request.Subject, next, true, entities, relationships)
+		if pageErr != nil || bytes.Contains(page.Raw, credential) {
+			return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+		}
+		if !githubPageFits(request, page) {
+			return CollectionPage{}, providercollection.ErrPageCapacity
+		}
+		return page, nil
 	}
-	page, err := NewCollectionPage(request.Subject, next, complete, entities, relationships)
-	if err != nil || int64(len(page.Raw)) > request.RemainingBytes || bytes.Contains(page.Raw, credential) {
+	repository := payload.Repositories[0]
+	next, cursorOK := nextGitHubCursor(request.Subject, githubPageState{Phase: "workflows", Lineage: state.Lineage + 1, ProviderPage: state.ProviderPage + 1, Total: payload.TotalCount, PhasePage: 1, OwnerID: state.OwnerID, Owner: state.Owner, AppID: state.AppID, RepositoryID: repository.ID, Repository: repository.Name, DefaultBranch: repository.DefaultBranch})
+	if !cursorOK {
+		next = nextGitHubCompleteCursor(request.Cursor, request.Subject.ID, payload.TotalCount)
 		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+	}
+	page, err := NewCollectionPage(request.Subject, next, false, entities, relationships)
+	if err != nil || bytes.Contains(page.Raw, credential) {
+		return CollectionPage{}, providercollection.StableProviderFailure(collection.FailureMalformed)
+	}
+	if !githubPageFits(request, page) {
+		return CollectionPage{}, providercollection.ErrPageCapacity
 	}
 	return page, nil
 }
@@ -189,37 +290,104 @@ type installationRepositoriesResponse struct {
 }
 
 type installationResponse struct {
-	ID      int64 `json:"id"`
-	Account struct {
+	ID          int64             `json:"id"`
+	AppID       int64             `json:"app_id"`
+	AppSlug     string            `json:"app_slug"`
+	Permissions map[string]string `json:"permissions"`
+	Account     struct {
 		ID    int64  `json:"id"`
 		Login string `json:"login"`
 		Type  string `json:"type"`
 	} `json:"account"`
 }
 
-func normalizeVerifiedInstallation(subject collection.SubjectBinding, installation installationResponse) (json.RawMessage, bool) {
+func validGitHubInstallation(installation installationResponse) bool {
+	if !validGitHubText(installation.Account.Login, 100) || installation.Account.ID < 1 || installation.Account.ID > 1<<53 || installation.AppID < 1 || installation.AppID > 1<<53 || !githubNamePattern.MatchString(installation.AppSlug) || installation.Account.Type != "Organization" || len(installation.Permissions) != 3 {
+		return false
+	}
+	return installation.Permissions["actions"] == "read" && installation.Permissions["contents"] == "read" && installation.Permissions["metadata"] == "read"
+}
+
+func normalizeVerifiedInstallation(subject collection.SubjectBinding, installation installationResponse) ([]json.RawMessage, []json.RawMessage, bool) {
 	installationEntityID := deterministicGitHubInventoryID(subject, "github_installation", subject.ID)
 	stable, _ := json.Marshal(struct {
 		InstallationID int64  `json:"installation_id"`
 		Owner          string `json:"owner"`
 	}{InstallationID: installation.ID, Owner: installation.Account.Login})
-	entity, err := marshalGitHubEntity(installationEntityID, "github_installation", "github:installation:"+subject.ID, "GitHub installation "+installation.Account.Login, stable, json.RawMessage(`{}`))
-	return entity, err == nil
+	installationEntity, err := marshalGitHubEntity(installationEntityID, "github_installation", "github:installation:"+subject.ID, "GitHub installation "+installation.Account.Login, stable, json.RawMessage(`{}`))
+	if err != nil {
+		return nil, nil, false
+	}
+	appNativeID := strconv.FormatInt(installation.AppID, 10)
+	appEntityID := deterministicGitHubInventoryID(subject, "github_app", appNativeID)
+	appStable, _ := json.Marshal(struct {
+		InstallationID int64  `json:"installation_id"`
+		Name           string `json:"name"`
+		Owner          string `json:"owner"`
+	}{installation.ID, installation.AppSlug, installation.Account.Login})
+	appEntity, err := marshalGitHubEntity(appEntityID, "github_app", "github:app:"+appNativeID, installation.AppSlug, appStable, json.RawMessage(`{}`))
+	if err != nil {
+		return nil, nil, false
+	}
+	entities := []json.RawMessage{installationEntity, appEntity}
+	relationships := make([]json.RawMessage, 0, 3)
+	contains, err := marshalGitHubRelationship(deterministicGitHubInventoryID(subject, "contains", subject.ID+":app:"+appNativeID), "contains", "github:installation:"+subject.ID+":app:"+appNativeID, installationEntityID, appEntityID, "installation_app")
+	if err != nil {
+		return nil, nil, false
+	}
+	relationships = append(relationships, contains)
+	organizationNativeID := strconv.FormatInt(installation.Account.ID, 10)
+	organizationEntityID := deterministicGitHubInventoryID(subject, "github_organization", organizationNativeID)
+	organizationStable, _ := json.Marshal(struct {
+		InstallationID int64  `json:"installation_id"`
+		Name           string `json:"name"`
+		Owner          string `json:"owner"`
+	}{installation.ID, installation.Account.Login, installation.Account.Login})
+	organizationEntity, marshalErr := marshalGitHubEntity(organizationEntityID, "github_organization", "github:organization:"+organizationNativeID, installation.Account.Login, organizationStable, json.RawMessage(`{}`))
+	if marshalErr != nil {
+		return nil, nil, false
+	}
+	entities = append(entities, organizationEntity)
+	for _, scope := range []string{"actions", "contents", "metadata"} {
+		permission := installation.Permissions[scope]
+		permissionNativeID := appNativeID + ":" + scope + ":" + permission
+		permissionEntityID := deterministicGitHubInventoryID(subject, "github_permission", permissionNativeID)
+		permissionStable, _ := json.Marshal(struct {
+			InstallationID int64  `json:"installation_id"`
+			Name           string `json:"name"`
+			Owner          string `json:"owner"`
+			Permission     string `json:"permission"`
+			Repository     string `json:"repository"`
+			Scope          string `json:"scope"`
+		}{installation.ID, scope + ":" + permission, installation.Account.Login, permission, "installation", scope})
+		permissionEntity, marshalErr := marshalGitHubEntity(permissionEntityID, "github_permission", "github:app:"+appNativeID+":permission:"+scope, scope+":"+permission, permissionStable, json.RawMessage(`{}`))
+		if marshalErr != nil {
+			return nil, nil, false
+		}
+		entities = append(entities, permissionEntity)
+		hasPermission, marshalErr := marshalGitHubRelationship(deterministicGitHubInventoryID(subject, "has_permission", permissionNativeID), "has_permission", "github:app:"+appNativeID+":permission:"+scope, appEntityID, permissionEntityID, "app_permission")
+		if marshalErr != nil {
+			return nil, nil, false
+		}
+		relationships = append(relationships, hasPermission)
+	}
+	return entities, relationships, true
 }
 
 type installationRepository struct {
-	ID            int64  `json:"id"`
-	Name          string `json:"name"`
-	FullName      string `json:"full_name"`
-	Private       bool   `json:"private"`
-	Archived      bool   `json:"archived"`
-	DefaultBranch string `json:"default_branch"`
+	ID            int64           `json:"id"`
+	Name          string          `json:"name"`
+	FullName      string          `json:"full_name"`
+	Private       bool            `json:"private"`
+	Archived      bool            `json:"archived"`
+	DefaultBranch string          `json:"default_branch"`
+	Permissions   map[string]bool `json:"permissions"`
 	Owner         struct {
 		Login string `json:"login"`
 	} `json:"owner"`
 }
 
-func normalizeInstallationRepositories(subject collection.SubjectBinding, repositories []installationRepository) ([]json.RawMessage, []json.RawMessage, bool) {
+func normalizeInstallationRepositories(subject collection.SubjectBinding, state githubPageState, repositories []installationRepository) ([]json.RawMessage, []json.RawMessage, bool) {
 	installationID, err := strconv.ParseInt(subject.ID, 10, 64)
 	if err != nil || installationID < 1 || installationID > 1<<53 {
 		return nil, nil, false
@@ -229,7 +397,7 @@ func normalizeInstallationRepositories(subject collection.SubjectBinding, reposi
 	relationships := make([]json.RawMessage, 0, len(repositories))
 	seen := make(map[int64]struct{}, len(repositories))
 	for _, repository := range repositories {
-		if repository.ID < 1 || repository.ID > 1<<53 || !githubNamePattern.MatchString(repository.Name) || !validGitHubText(repository.Owner.Login, 100) || repository.FullName != repository.Owner.Login+"/"+repository.Name || !validGitHubText(repository.DefaultBranch, 255) {
+		if repository.ID < 1 || repository.ID > 1<<53 || !githubNamePattern.MatchString(repository.Name) || !validGitHubText(repository.Owner.Login, 100) || repository.Owner.Login != state.Owner || repository.FullName != repository.Owner.Login+"/"+repository.Name || !validGitHubText(repository.DefaultBranch, 255) || !validRepositoryPermissions(repository.Permissions) {
 			return nil, nil, false
 		}
 		if _, duplicate := seen[repository.ID]; duplicate {
@@ -258,11 +426,171 @@ func normalizeInstallationRepositories(subject collection.SubjectBinding, reposi
 			return nil, nil, false
 		}
 		entities = append(entities, entity)
-		relationship, marshalErr := marshalGitHubRelationship(deterministicGitHubInventoryID(subject, "owns", subject.ID+":"+nativeID), "owns", "github:installation:"+subject.ID+":repository:"+nativeID, installationEntityID, repositoryEntityID)
+		relationship, marshalErr := marshalGitHubRelationship(deterministicGitHubInventoryID(subject, "owns", subject.ID+":"+nativeID), "owns", "github:installation:"+subject.ID+":repository:"+nativeID, installationEntityID, repositoryEntityID, "installation_repository")
 		if marshalErr != nil {
 			return nil, nil, false
 		}
 		relationships = append(relationships, relationship)
+		organizationID := deterministicGitHubInventoryID(subject, "github_organization", strconv.FormatInt(state.OwnerID, 10))
+		organizationOwns, marshalErr := marshalGitHubRelationship(deterministicGitHubInventoryID(subject, "owns", "organization:"+strconv.FormatInt(state.OwnerID, 10)+":"+nativeID), "owns", "github:organization:"+strconv.FormatInt(state.OwnerID, 10)+":repository:"+nativeID, organizationID, repositoryEntityID, "organization_repository")
+		if marshalErr != nil {
+			return nil, nil, false
+		}
+		relationships = append(relationships, organizationOwns)
+		permissionValues := []struct {
+			name    string
+			allowed bool
+		}{{"admin", repository.Permissions["admin"]}, {"maintain", repository.Permissions["maintain"]}, {"pull", repository.Permissions["pull"]}, {"push", repository.Permissions["push"]}, {"triage", repository.Permissions["triage"]}}
+		for _, value := range permissionValues {
+			permissionState := "denied"
+			if value.allowed {
+				permissionState = "allowed"
+			}
+			permissionNativeID := nativeID + ":" + value.name + ":" + permissionState
+			permissionEntityID := deterministicGitHubInventoryID(subject, "github_permission", permissionNativeID)
+			permissionStable, _ := json.Marshal(struct {
+				InstallationID int64  `json:"installation_id"`
+				Name           string `json:"name"`
+				Owner          string `json:"owner"`
+				Permission     string `json:"permission"`
+				Repository     string `json:"repository"`
+				Scope          string `json:"scope"`
+			}{installationID, value.name + ":" + permissionState, state.Owner, permissionState, repository.Name, value.name})
+			permissionEntity, marshalErr := marshalGitHubEntity(permissionEntityID, "github_permission", "github:repository:"+nativeID+":permission:"+value.name, repository.FullName+":"+value.name, permissionStable, json.RawMessage(`{}`))
+			if marshalErr != nil {
+				return nil, nil, false
+			}
+			containsPermission, marshalErr := marshalGitHubRelationship(deterministicGitHubInventoryID(subject, "contains", nativeID+":permission:"+value.name), "contains", "github:repository:"+nativeID+":permission:"+value.name, repositoryEntityID, permissionEntityID, "repository_permission")
+			if marshalErr != nil {
+				return nil, nil, false
+			}
+			entities = append(entities, permissionEntity)
+			relationships = append(relationships, containsPermission)
+		}
+	}
+	return entities, relationships, true
+}
+
+func validRepositoryPermissions(permissions map[string]bool) bool {
+	if len(permissions) != 5 {
+		return false
+	}
+	for _, name := range []string{"admin", "maintain", "pull", "push", "triage"} {
+		if _, ok := permissions[name]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+type repositoryWorkflowsResponse struct {
+	TotalCount int                  `json:"total_count"`
+	Workflows  []repositoryWorkflow `json:"workflows"`
+}
+
+type repositoryWorkflow struct {
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Path  string `json:"path"`
+	State string `json:"state"`
+}
+
+func normalizeRepositoryWorkflows(subject collection.SubjectBinding, state githubPageState, workflows []repositoryWorkflow) ([]json.RawMessage, []json.RawMessage, bool) {
+	if len(workflows) > 1 {
+		return nil, nil, false
+	}
+	installationID, err := strconv.ParseInt(subject.ID, 10, 64)
+	if err != nil || installationID < 1 || installationID > 1<<53 {
+		return nil, nil, false
+	}
+	repositoryEntityID := deterministicGitHubInventoryID(subject, "github_repository", strconv.FormatInt(state.RepositoryID, 10))
+	entities := make([]json.RawMessage, 0, len(workflows))
+	relationships := make([]json.RawMessage, 0, len(workflows)*3)
+	seen := make(map[string]struct{}, len(workflows))
+	for _, workflow := range workflows {
+		if workflow.ID < 1 || workflow.ID > 1<<53 || !validGitHubText(workflow.Name, 256) || !validGitHubWorkflowPath(workflow.Path) || !validGitHubWorkflowState(workflow.State) {
+			return nil, nil, false
+		}
+		if _, duplicate := seen[workflow.Path]; duplicate {
+			return nil, nil, false
+		}
+		seen[workflow.Path] = struct{}{}
+		workflowEntityID := deterministicGitHubInventoryID(subject, "github_workflow", strconv.FormatInt(state.RepositoryID, 10)+":"+strconv.FormatInt(workflow.ID, 10))
+		stable, _ := json.Marshal(struct {
+			InstallationID int64  `json:"installation_id"`
+			Name           string `json:"name"`
+			Owner          string `json:"owner"`
+			Repository     string `json:"repository"`
+			Workflow       string `json:"workflow"`
+		}{installationID, workflow.Name, state.Owner, state.Repository, workflow.Path})
+		attributes, _ := json.Marshal(struct {
+			State string `json:"state"`
+		}{workflow.State})
+		entity, marshalErr := marshalGitHubEntity(workflowEntityID, "github_workflow", "github:workflow:"+strconv.FormatInt(workflow.ID, 10), workflow.Name, stable, attributes)
+		if marshalErr != nil {
+			return nil, nil, false
+		}
+		contains, marshalErr := marshalGitHubRelationship(deterministicGitHubInventoryID(subject, "contains", strconv.FormatInt(state.RepositoryID, 10)+":"+strconv.FormatInt(workflow.ID, 10)), "contains", "github:repository:"+strconv.FormatInt(state.RepositoryID, 10)+":workflow:"+strconv.FormatInt(workflow.ID, 10), repositoryEntityID, workflowEntityID, "repository_workflow")
+		if marshalErr != nil {
+			return nil, nil, false
+		}
+		dependsOn, marshalErr := marshalGitHubRelationship(deterministicGitHubInventoryID(subject, "depends_on", strconv.FormatInt(workflow.ID, 10)+":"+strconv.FormatInt(state.RepositoryID, 10)), "depends_on", "github:workflow:"+strconv.FormatInt(workflow.ID, 10)+":repository:"+strconv.FormatInt(state.RepositoryID, 10), workflowEntityID, repositoryEntityID, "workflow_repository")
+		if marshalErr != nil {
+			return nil, nil, false
+		}
+		appEntityID := deterministicGitHubInventoryID(subject, "github_app", strconv.FormatInt(state.AppID, 10))
+		usesIdentity, marshalErr := marshalGitHubRelationship(deterministicGitHubInventoryID(subject, "uses_identity", strconv.FormatInt(workflow.ID, 10)+":"+strconv.FormatInt(state.AppID, 10)), "uses_identity", "github:workflow:"+strconv.FormatInt(workflow.ID, 10)+":app:"+strconv.FormatInt(state.AppID, 10), workflowEntityID, appEntityID, "workflow_app")
+		if marshalErr != nil {
+			return nil, nil, false
+		}
+		entities = append(entities, entity)
+		relationships = append(relationships, contains, dependsOn, usesIdentity)
+	}
+	return entities, relationships, true
+}
+
+type repositoryEnvironmentsResponse struct {
+	TotalCount   int                     `json:"total_count"`
+	Environments []repositoryEnvironment `json:"environments"`
+}
+
+type repositoryEnvironment struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+func normalizeRepositoryEnvironments(subject collection.SubjectBinding, state githubPageState, environments []repositoryEnvironment) ([]json.RawMessage, []json.RawMessage, bool) {
+	if len(environments) > 1 {
+		return nil, nil, false
+	}
+	installationID, err := strconv.ParseInt(subject.ID, 10, 64)
+	if err != nil || installationID < 1 || installationID > 1<<53 {
+		return nil, nil, false
+	}
+	repositoryEntityID := deterministicGitHubInventoryID(subject, "github_repository", strconv.FormatInt(state.RepositoryID, 10))
+	entities := make([]json.RawMessage, 0, len(environments))
+	relationships := make([]json.RawMessage, 0, len(environments))
+	for _, environment := range environments {
+		if environment.ID < 1 || environment.ID > 1<<53 || !validGitHubText(environment.Name, 255) {
+			return nil, nil, false
+		}
+		environmentEntityID := deterministicGitHubInventoryID(subject, "github_environment", strconv.FormatInt(state.RepositoryID, 10)+":"+strconv.FormatInt(environment.ID, 10))
+		stable, _ := json.Marshal(struct {
+			InstallationID int64  `json:"installation_id"`
+			Name           string `json:"name"`
+			Owner          string `json:"owner"`
+			Repository     string `json:"repository"`
+		}{installationID, environment.Name, state.Owner, state.Repository})
+		entity, marshalErr := marshalGitHubEntity(environmentEntityID, "github_environment", "github:environment:"+strconv.FormatInt(environment.ID, 10), environment.Name, stable, json.RawMessage(`{}`))
+		if marshalErr != nil {
+			return nil, nil, false
+		}
+		contains, marshalErr := marshalGitHubRelationship(deterministicGitHubInventoryID(subject, "contains", strconv.FormatInt(state.RepositoryID, 10)+":environment:"+strconv.FormatInt(environment.ID, 10)), "contains", "github:repository:"+strconv.FormatInt(state.RepositoryID, 10)+":environment:"+strconv.FormatInt(environment.ID, 10), repositoryEntityID, environmentEntityID, "repository_environment")
+		if marshalErr != nil {
+			return nil, nil, false
+		}
+		entities = append(entities, entity)
+		relationships = append(relationships, contains)
 	}
 	return entities, relationships, true
 }
@@ -278,7 +606,13 @@ func marshalGitHubEntity(id, kind, sourceNativeID, displayName string, stable, a
 	}{id, kind, sourceNativeID, displayName, stable, attributes})
 }
 
-func marshalGitHubRelationship(id, kind, sourceNativeID, from, to string) (json.RawMessage, error) {
+func marshalGitHubRelationship(id, kind, sourceNativeID, from, to, relationshipType string) (json.RawMessage, error) {
+	attributes, err := json.Marshal(struct {
+		Type string `json:"type"`
+	}{relationshipType})
+	if err != nil {
+		return nil, err
+	}
 	return json.Marshal(struct {
 		ID             string          `json:"id"`
 		Kind           string          `json:"kind"`
@@ -286,33 +620,49 @@ func marshalGitHubRelationship(id, kind, sourceNativeID, from, to string) (json.
 		FromEntityID   string          `json:"from_entity_id"`
 		ToEntityID     string          `json:"to_entity_id"`
 		Attributes     json.RawMessage `json:"attributes"`
-	}{id, kind, sourceNativeID, from, to, json.RawMessage(`{"type":"installation_repository"}`)})
+	}{id, kind, sourceNativeID, from, to, attributes})
 }
 
-func validInstallationPageRequest(request CollectionPageRequest) (string, int, int, int, bool) {
+func validInstallationPageRequest(request CollectionPageRequest) (githubPageState, bool) {
 	initialCursor := request.Cursor == (collection.Cursor{})
 	if request.Provider != collection.ProviderGitHub || request.Subject.Kind != "github_installation" || (!initialCursor && (request.Cursor.Provider != collection.ProviderGitHub || request.Cursor.Version != "cursor_v1")) || request.RemainingItems < 1 || request.RemainingBytes < githubMinimumCollectionBytes {
-		return "", 0, 0, 0, false
+		return githubPageState{}, false
 	}
 	installationID, err := strconv.ParseUint(request.Subject.ID, 10, 64)
 	if err != nil || installationID < 1 || installationID > 1<<53 || strings.HasPrefix(request.Subject.ID, "0") {
-		return "", 0, 0, 0, false
+		return githubPageState{}, false
 	}
 	if initialCursor || request.Cursor.Value == "initial" {
-		return "installation", 1, 0, 0, request.Page == 1
+		return githubPageState{Phase: "installation", Lineage: 1}, request.Page == 1
 	}
 	if match := githubCompleteCursorPattern.FindStringSubmatch(request.Cursor.Value); len(match) == 2 {
-		return "installation", 1, 0, 0, request.Page == 1 && match[1] == providercollection.CompleteCursorBinding(collection.ProviderGitHub, request.Subject)
+		return githubPageState{Phase: "installation", Lineage: 1}, request.Page == 1 && match[1] == providercollection.CompleteCursorBinding(collection.ProviderGitHub, request.Subject)
 	}
 	match := githubCollectionCursorPattern.FindStringSubmatch(request.Cursor.Value)
 	if len(match) != 5 {
-		return "", 0, 0, 0, false
+		return githubPageState{}, false
 	}
-	lineage, lineageErr := strconv.Atoi(match[1])
-	providerPage, pageErr := strconv.Atoi(match[2])
-	pageLimit, limitErr := strconv.Atoi(match[3])
-	continuation := match[2] + ":" + match[3]
-	return "repositories", lineage, providerPage, pageLimit, lineageErr == nil && pageErr == nil && limitErr == nil && pageLimit >= 0 && pageLimit <= githubMaximumPageItems && request.Page == lineage && match[4] == providercollection.CursorBinding(collection.ProviderGitHub, request.Subject, "repositories", lineage, continuation)
+	lineage, lineageErr := strconv.Atoi(match[2])
+	payload, decodeErr := base64.RawURLEncoding.DecodeString(match[3])
+	var state githubPageState
+	if lineageErr != nil || decodeErr != nil || len(payload) < 2 || len(payload) > 1350 || json.Unmarshal(payload, &state) != nil || state.Phase != match[1] || state.Lineage != lineage || request.Page != lineage || match[4] != providercollection.CursorBinding(collection.ProviderGitHub, request.Subject, state.Phase, lineage, match[3]) || !validGitHubCursorState(state) {
+		return githubPageState{}, false
+	}
+	canonical, marshalErr := json.Marshal(state)
+	if marshalErr != nil || !bytes.Equal(canonical, payload) {
+		return githubPageState{}, false
+	}
+	return state, true
+}
+
+func validGitHubCursorState(state githubPageState) bool {
+	if state.Lineage < 2 || state.Lineage > 1_000_000 || state.ProviderPage < 1 || state.ProviderPage > 1_000_000 || state.Total < 0 || state.Total > 10_000 || state.OwnerID < 1 || state.OwnerID > 1<<53 || state.AppID < 1 || state.AppID > 1<<53 || !validGitHubText(state.Owner, 100) {
+		return false
+	}
+	if state.Phase == "repositories" {
+		return state.RepositoryID == 0 && state.Repository == "" && state.DefaultBranch == "" && state.PhasePage == 0 && state.PhaseTotal == 0
+	}
+	return (state.Phase == "workflows" || state.Phase == "environments") && state.Total >= 1 && state.ProviderPage >= 2 && state.ProviderPage <= state.Total+1 && state.PhasePage >= 1 && state.PhasePage <= 10_000 && state.PhaseTotal >= 0 && state.PhaseTotal <= 10_000 && state.RepositoryID >= 1 && state.RepositoryID <= 1<<53 && githubNamePattern.MatchString(state.Repository) && validGitHubText(state.DefaultBranch, 255)
 }
 
 func validInstallationCredential(value []byte) bool {
@@ -325,6 +675,39 @@ func validInstallationCredential(value []byte) bool {
 		}
 	}
 	return true
+}
+
+func githubPageFits(request CollectionPageRequest, page CollectionPage) bool {
+	return len(page.Entities) <= request.RemainingItems && len(page.Relationships) <= request.RemainingRelationships && int64(len(page.Raw)) <= request.RemainingBytes
+}
+
+func validGitHubPhasePage(total, page, priorTotal, itemCount int) bool {
+	if total < 0 || total > 10_000 || page < 1 || priorTotal != 0 && priorTotal != total {
+		return false
+	}
+	if total == 0 {
+		return page == 1 && itemCount == 0
+	}
+	return page <= total && itemCount == 1
+}
+
+func validGitHubWorkflowPath(value string) bool {
+	const prefix = ".github/workflows/"
+	if !strings.HasPrefix(value, prefix) {
+		return false
+	}
+	name := strings.TrimPrefix(value, prefix)
+	lower := strings.ToLower(name)
+	return validGitHubText(name, 1024) && !strings.Contains(name, "/") && (strings.HasSuffix(lower, ".yml") || strings.HasSuffix(lower, ".yaml"))
+}
+
+func validGitHubWorkflowState(value string) bool {
+	switch value {
+	case "active", "deleted", "disabled_fork", "disabled_inactivity", "disabled_manually":
+		return true
+	default:
+		return false
+	}
 }
 
 func validGitHubText(value string, maximum int) bool {
@@ -352,9 +735,15 @@ func nextGitHubCompleteCursor(prior collection.Cursor, subjectID string, total i
 	return collection.Cursor{Provider: collection.ProviderGitHub, Version: "cursor_v1", Value: fmt.Sprintf("github:complete:%s:%x", providercollection.CompleteCursorBinding(collection.ProviderGitHub, subject), digest[:8])}
 }
 
-func nextGitHubPageCursor(subject collection.SubjectBinding, lineage, providerPage, pageLimit int) collection.Cursor {
-	continuation := strconv.Itoa(providerPage) + ":" + strconv.Itoa(pageLimit)
-	return collection.Cursor{Provider: collection.ProviderGitHub, Version: "cursor_v1", Value: fmt.Sprintf("github:repositories:%d:%s:%s", lineage, continuation, providercollection.CursorBinding(collection.ProviderGitHub, subject, "repositories", lineage, continuation))}
+func nextGitHubCursor(subject collection.SubjectBinding, state githubPageState) (collection.Cursor, bool) {
+	payload, err := json.Marshal(state)
+	if err != nil || len(payload) > 1350 || !validGitHubCursorState(state) {
+		return collection.Cursor{}, false
+	}
+	encoded := base64.RawURLEncoding.EncodeToString(payload)
+	binding := providercollection.CursorBinding(collection.ProviderGitHub, subject, state.Phase, state.Lineage, encoded)
+	cursor := collection.Cursor{Provider: collection.ProviderGitHub, Version: "cursor_v1", Value: fmt.Sprintf("github:%s:%d:%s:%s", state.Phase, state.Lineage, encoded, binding)}
+	return cursor, len(cursor.Value) <= 2048
 }
 
 func decodeInstallationResponse(body []byte, destination any) bool {

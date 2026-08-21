@@ -138,7 +138,7 @@ func (client *githubExchangeClient) Exchange(ctx context.Context, request github
 		TokenType   string `json:"token_type"`
 		Scope       string `json:"scope"`
 	}
-	if performConnectorJSON(client.http, tokenRequest, &token, 32<<10) != nil || len(token.AccessToken) < 20 || len(token.AccessToken) > 4096 || !strings.EqualFold(token.TokenType, "bearer") {
+	if performConnectorJSON(client.http, tokenRequest, &token, 32<<10) != nil || len(token.AccessToken) < 20 || len(token.AccessToken) > 4096 || !strings.EqualFold(token.TokenType, "bearer") || token.Scope != "" {
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
 	installationsRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/installations?per_page=2", nil)
@@ -151,6 +151,7 @@ func (client *githubExchangeClient) Exchange(ctx context.Context, request github
 			ID      int64 `json:"id"`
 			Account struct {
 				Login string `json:"login"`
+				Type  string `json:"type"`
 			} `json:"account"`
 			RepositorySelection string            `json:"repository_selection"`
 			Permissions         map[string]string `json:"permissions"`
@@ -162,7 +163,12 @@ func (client *githubExchangeClient) Exchange(ctx context.Context, request github
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
 	installation := page.Installations[0]
-	connection := githubdiscovery.Connection{Reference: "ref:github/installation/" + strconv.FormatInt(installation.ID, 10), InstallationID: installation.ID, AccountLogin: installation.Account.Login, RepositorySelection: installation.RepositorySelection, Permissions: installation.Permissions}
+	if !validGitHubInstallationAuthority(installation.Account.Type, installation.RepositorySelection, installation.Permissions) {
+		_ = client.revokeOAuthGrant(ctx, manifest, token.AccessToken)
+		token.AccessToken = ""
+		return githubdiscovery.Connection{}, errRuntimeUnavailable
+	}
+	connection := githubdiscovery.Connection{Reference: "ref:github/installation/" + strconv.FormatInt(installation.ID, 10), InstallationID: installation.ID, AccountLogin: installation.Account.Login, AccountType: installation.Account.Type, RepositorySelection: installation.RepositorySelection, Permissions: installation.Permissions}
 	outcomeJSON, _ := json.Marshal(githubEffectOutcome{Manifest: manifest, Connection: connection})
 	if client.revokeOAuthGrant(ctx, manifest, token.AccessToken) != nil {
 		token.AccessToken = ""
@@ -173,6 +179,10 @@ func (client *githubExchangeClient) Exchange(ctx context.Context, request github
 		return githubdiscovery.Connection{}, errRuntimeUnavailable
 	}
 	return connection, nil
+}
+
+func validGitHubInstallationAuthority(accountType, repositorySelection string, permissions map[string]string) bool {
+	return accountType == "Organization" && (repositorySelection == "all" || repositorySelection == "selected") && len(permissions) == 3 && permissions["actions"] == "read" && permissions["contents"] == "read" && permissions["metadata"] == "read"
 }
 
 func (client *githubExchangeClient) Recover(ctx context.Context, effectID string) (githubdiscovery.Connection, error) {
@@ -665,7 +675,7 @@ func (provider *githubOAuthProvider) Complete(ctx context.Context, effectID, cod
 	if err != nil {
 		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
 	}
-	metadata, err := json.Marshal(map[string]any{"account_login": value.AccountLogin, "installation_id": value.InstallationID, "permissions": value.Permissions, "repository_selection": value.RepositorySelection})
+	metadata, err := json.Marshal(map[string]any{"account_login": value.AccountLogin, "account_type": value.AccountType, "installation_id": value.InstallationID, "permissions": value.Permissions, "repository_selection": value.RepositorySelection})
 	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_installation_reference", Metadata: metadata}, err
 }
 func (provider *githubOAuthProvider) Recover(ctx context.Context, effectID string) (apiserver.ConnectorOAuthGrant, error) {
@@ -676,7 +686,7 @@ func (provider *githubOAuthProvider) Recover(ctx context.Context, effectID strin
 		}
 		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
 	}
-	metadata, err := json.Marshal(map[string]any{"account_login": value.AccountLogin, "installation_id": value.InstallationID, "permissions": value.Permissions, "repository_selection": value.RepositorySelection})
+	metadata, err := json.Marshal(map[string]any{"account_login": value.AccountLogin, "account_type": value.AccountType, "installation_id": value.InstallationID, "permissions": value.Permissions, "repository_selection": value.RepositorySelection})
 	return apiserver.ConnectorOAuthGrant{ConnectionReference: value.Reference, ProviderSubject: "installation:" + strconv.FormatInt(value.InstallationID, 10), CredentialClass: "github_installation_reference", Metadata: metadata}, err
 }
 func (provider *githubOAuthProvider) Discard(ctx context.Context, effectID string, revoke bool) error {

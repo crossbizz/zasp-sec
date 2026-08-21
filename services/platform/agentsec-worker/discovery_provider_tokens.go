@@ -72,25 +72,58 @@ func (client *productionDiscoveryGitHubTokenClient) MintDiscoveryInstallationTok
 	}
 	jwt := unsigned + "." + base64.RawURLEncoding.EncodeToString(signature)
 	clear(signature)
-	request, _ := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/app/installations/"+strconv.FormatInt(installationID, 10)+"/access_tokens", strings.NewReader(`{"permissions":{"contents":"read","metadata":"read"}}`))
+	request, _ := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/app/installations/"+strconv.FormatInt(installationID, 10)+"/access_tokens", strings.NewReader(`{"permissions":{"actions":"read","contents":"read","metadata":"read"}}`))
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("Authorization", "Bearer "+jwt)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	jwt = ""
 	var response struct {
-		Token               string            `json:"token"`
-		ExpiresAt           time.Time         `json:"expires_at"`
-		Permissions         map[string]string `json:"permissions"`
-		RepositorySelection string            `json:"repository_selection"`
+		Token               string                           `json:"token"`
+		ExpiresAt           time.Time                        `json:"expires_at"`
+		Permissions         map[string]string                `json:"permissions"`
+		RepositorySelection string                           `json:"repository_selection"`
+		Repositories        discardedGitHubTokenRepositories `json:"repositories,omitempty"`
 	}
-	if performDiscoveryProviderJSON(client.http, request, http.StatusCreated, &response, 64<<10) != nil || !validDiscoveryOpaqueSecret([]byte(response.Token), 16, 8192) || !response.ExpiresAt.After(now.Add(time.Minute)) || response.ExpiresAt.After(now.Add(65*time.Minute)) || !validDiscoveryGitHubPermissions(response.Permissions) || response.RepositorySelection != "all" && response.RepositorySelection != "selected" {
+	if performDiscoveryProviderJSON(client.http, request, http.StatusCreated, &response, 8<<20) != nil || !validDiscoveryOpaqueSecret([]byte(response.Token), 16, 8192) || !response.ExpiresAt.After(now.Add(time.Minute)) || response.ExpiresAt.After(now.Add(65*time.Minute)) || !validDiscoveryGitHubPermissions(response.Permissions) || response.RepositorySelection != "all" && response.RepositorySelection != "selected" || response.RepositorySelection == "all" && response.Repositories.Count != 0 {
 		response.Token = ""
 		return discoveryGitHubInstallationToken{}, errDiscoveryCredentialUnavailable
 	}
 	result := discoveryGitHubInstallationToken{Token: []byte(response.Token), InstallationID: installationID, ExpiresAt: response.ExpiresAt.UTC()}
 	response.Token = ""
 	return result, nil
+}
+
+type discardedGitHubTokenRepositories struct {
+	Count int
+}
+
+func (repositories *discardedGitHubTokenRepositories) UnmarshalJSON(value []byte) error {
+	if repositories == nil || len(value) < 2 || len(value) > 8<<20 {
+		return errDiscoveryCredentialUnavailable
+	}
+	decoder := json.NewDecoder(bytes.NewReader(value))
+	start, err := decoder.Token()
+	if err != nil || start != json.Delim('[') {
+		return errDiscoveryCredentialUnavailable
+	}
+	count := 0
+	for decoder.More() {
+		var repository map[string]json.RawMessage
+		if decoder.Decode(&repository) != nil || len(repository) == 0 {
+			return errDiscoveryCredentialUnavailable
+		}
+		count++
+		if count > 500 {
+			return errDiscoveryCredentialUnavailable
+		}
+	}
+	end, err := decoder.Token()
+	if err != nil || end != json.Delim(']') || decoder.Decode(new(any)) != io.EOF {
+		return errDiscoveryCredentialUnavailable
+	}
+	repositories.Count = count
+	return nil
 }
 
 type productionDiscoveryOktaTokenClient struct {
@@ -162,7 +195,7 @@ func rejectDiscoveryProviderRedirect(*http.Request, []*http.Request) error {
 }
 
 func performDiscoveryProviderJSON(client *http.Client, request *http.Request, expectedStatus int, destination any, maximum int64) error {
-	if client == nil || request == nil || destination == nil || maximum < 1 || maximum > 1<<20 {
+	if client == nil || request == nil || destination == nil || maximum < 1 || maximum > 8<<20 {
 		return errDiscoveryCredentialUnavailable
 	}
 	response, err := client.Do(request)
@@ -192,7 +225,7 @@ func performDiscoveryProviderJSON(client *http.Client, request *http.Request, ex
 }
 
 func validDiscoveryGitHubPermissions(values map[string]string) bool {
-	return len(values) == 2 && values["contents"] == "read" && values["metadata"] == "read"
+	return len(values) == 3 && values["actions"] == "read" && values["contents"] == "read" && values["metadata"] == "read"
 }
 
 func hasDuplicateDiscoveryStrings(values []string) bool {

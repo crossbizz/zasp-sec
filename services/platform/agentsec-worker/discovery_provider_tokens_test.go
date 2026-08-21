@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -37,7 +38,7 @@ func (transport *discoveryTokenRoundTripper) RoundTrip(request *http.Request) (*
 
 func TestProductionDiscoveryGitHubTokenClientMintsExactInstallationToken(t *testing.T) {
 	now := time.Now().UTC()
-	transport := &discoveryTokenRoundTripper{status: http.StatusCreated, header: http.Header{"Content-Type": {"application/json; charset=utf-8"}}, body: []byte(`{"token":"github-installation-token","expires_at":"` + now.Add(time.Hour).Format(time.RFC3339) + `","permissions":{"contents":"read","metadata":"read"},"repository_selection":"all"}`)}
+	transport := &discoveryTokenRoundTripper{status: http.StatusCreated, header: http.Header{"Content-Type": {"application/json; charset=utf-8"}}, body: []byte(`{"token":"github-installation-token","expires_at":"` + now.Add(time.Hour).Format(time.RFC3339) + `","permissions":{"actions":"read","contents":"read","metadata":"read"},"repository_selection":"all"}`)}
 	client, err := newProductionDiscoveryGitHubTokenClient(&http.Client{Transport: transport, Timeout: time.Second, CheckRedirect: rejectDiscoveryProviderRedirect}, func() time.Time { return now })
 	if err != nil {
 		t.Fatal(err)
@@ -58,17 +59,63 @@ func TestProductionDiscoveryGitHubTokenClientMintsExactInstallationToken(t *test
 		t.Fatalf("request=%#v", transport.request)
 	}
 	payload, _ := io.ReadAll(transport.request.Body)
-	if string(payload) != `{"permissions":{"contents":"read","metadata":"read"}}` || bytes.Contains(payload, privateKey) {
+	if string(payload) != `{"permissions":{"actions":"read","contents":"read","metadata":"read"}}` || bytes.Contains(payload, privateKey) {
 		t.Fatalf("payload=%q", payload)
 	}
 	result.Destroy()
 
-	for _, permissions := range []string{`{"contents":"write","metadata":"read"}`, `{"contents":"read","metadata":"read","issues":"read"}`} {
+	transport.body = []byte(`{"token":"github-installation-token","expires_at":"` + now.Add(time.Hour).Format(time.RFC3339) + `","permissions":{"actions":"read","contents":"read","metadata":"read"},"repository_selection":"selected","repositories":[{"id":101,"name":"alpha","full_name":"acme/alpha"}]}`)
+	selected, err := client.MintDiscoveryInstallationToken(context.Background(), "123456", privateKey, 987654)
+	if err != nil || string(selected.Token) != "github-installation-token" {
+		t.Fatalf("selected installation token=%#v err=%v", selected, err)
+	}
+	selected.Destroy()
+
+	transport.body = selectedGitHubInstallationTokenResponse(now, 500, 1024)
+	selected, err = client.MintDiscoveryInstallationToken(context.Background(), "123456", privateKey, 987654)
+	if err != nil || string(selected.Token) != "github-installation-token" {
+		t.Fatalf("large selected installation token=%#v err=%v", selected, err)
+	}
+	selected.Destroy()
+
+	transport.body = selectedGitHubInstallationTokenResponse(now, 501, 0)
+	if _, err := client.MintDiscoveryInstallationToken(context.Background(), "123456", privateKey, 987654); err == nil {
+		t.Fatal("selected installation response above GitHub's 500-repository bound accepted")
+	}
+	transport.body = append(selectedGitHubInstallationTokenResponse(now, 1, 0), bytes.Repeat([]byte(" "), 8<<20)...)
+	if _, err := client.MintDiscoveryInstallationToken(context.Background(), "123456", privateKey, 987654); err == nil {
+		t.Fatal("oversized selected installation response accepted")
+	}
+
+	for _, permissions := range []string{`{"contents":"read","metadata":"read"}`, `{"actions":"write","contents":"read","metadata":"read"}`, `{"actions":"read","contents":"read","metadata":"read","issues":"read"}`} {
 		transport.body = []byte(`{"token":"github-installation-token","expires_at":"` + now.Add(time.Hour).Format(time.RFC3339) + `","permissions":` + permissions + `,"repository_selection":"all"}`)
 		if _, err := client.MintDiscoveryInstallationToken(context.Background(), "123456", privateKey, 987654); err == nil {
 			t.Fatalf("hostile permissions accepted: %s", permissions)
 		}
 	}
+}
+
+func selectedGitHubInstallationTokenResponse(now time.Time, count int, temporaryCloneTokenBytes int) []byte {
+	var body strings.Builder
+	body.WriteString(`{"token":"github-installation-token","expires_at":"`)
+	body.WriteString(now.Add(time.Hour).Format(time.RFC3339))
+	body.WriteString(`","permissions":{"actions":"read","contents":"read","metadata":"read"},"repository_selection":"selected","repositories":[`)
+	for index := 0; index < count; index++ {
+		if index > 0 {
+			body.WriteByte(',')
+		}
+		body.WriteString(`{"id":`)
+		body.WriteString(strconv.Itoa(1000 + index))
+		body.WriteString(`,"name":"repository-`)
+		body.WriteString(strconv.Itoa(index))
+		body.WriteString(`","full_name":"acme/repository-`)
+		body.WriteString(strconv.Itoa(index))
+		body.WriteString(`","temp_clone_token":"`)
+		body.WriteString(strings.Repeat("s", temporaryCloneTokenBytes))
+		body.WriteString(`"}`)
+	}
+	body.WriteString(`]}`)
+	return []byte(body.String())
 }
 
 func TestProductionDiscoveryOktaTokenClientExchangesExactRefreshWithoutRotationLoss(t *testing.T) {

@@ -42,12 +42,12 @@ func TestGitHubExchangeUsesFixedEndpointsStrictParsersAndReferenceOnlyResult(t *
 			if request.Method != http.MethodPost || request.URL.String() != "https://github.com/login/oauth/access_token" || request.Header.Get("Accept") != "application/json" || request.ParseForm() != nil || request.Form.Get("client_secret") != secret || request.Form.Get("code_verifier") != "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_" {
 				t.Fatalf("token request = %s %s %#v", request.Method, request.URL, request.Form)
 			}
-			return connectorJSONResponse(http.StatusOK, `{"access_token":"github-access-token-value","token_type":"bearer","scope":"read:org repo"}`), nil
+			return connectorJSONResponse(http.StatusOK, `{"access_token":"github-access-token-value","token_type":"bearer","scope":""}`), nil
 		case 2:
 			if request.Method != http.MethodGet || request.URL.String() != "https://api.github.com/user/installations?per_page=2" || request.Header.Get("Authorization") != "Bearer github-access-token-value" {
 				t.Fatalf("installation request = %s %s %#v", request.Method, request.URL, request.Header)
 			}
-			return connectorJSONResponse(http.StatusOK, `{"total_count":1,"installations":[{"id":123456,"account":{"login":"acme"},"repository_selection":"selected","permissions":{"metadata":"read"}}]}`), nil
+			return connectorJSONResponse(http.StatusOK, `{"total_count":1,"installations":[{"id":123456,"account":{"login":"acme","type":"Organization"},"repository_selection":"selected","permissions":{"actions":"read","contents":"read","metadata":"read"}}]}`), nil
 		case 3:
 			if request.Method != http.MethodDelete || request.URL.String() != "https://api.github.com/applications/Iv1.1234567890abcdef/grant" || request.Header.Get("Authorization") == "" {
 				t.Fatalf("revocation request = %s %s %#v", request.Method, request.URL, request.Header)
@@ -65,7 +65,7 @@ func TestGitHubExchangeUsesFixedEndpointsStrictParsersAndReferenceOnlyResult(t *
 	})}
 	exchange := &githubExchangeClient{http: client, secrets: &connectorProviderSecrets{driver: &connectorSecretsDriver{client: secretAPI}, root: "zasp", kmsKey: "kms"}, appID: "123456", privateKeyReference: "ref:github/app-private-key-0001"}
 	result, err := exchange.Exchange(context.Background(), githubdiscovery.ExchangeRequest{EffectID: "pid_70000003-0000-4000-8000-000000000003", ClientID: "Iv1.1234567890abcdef", ClientSecretReference: "ref:github/app-secret-0001", CallbackURL: "https://app.zasp.example/api/v1/integrations/oauth/callback", Code: "provider-code-0001", PKCEVerifier: []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")})
-	if err != nil || result.Reference != "ref:github/installation/123456" || result.AccountLogin != "acme" || calls != 3 {
+	if err != nil || result.Reference != "ref:github/installation/123456" || result.AccountLogin != "acme" || result.AccountType != "Organization" || calls != 3 {
 		t.Fatalf("GitHub exchange = %#v, %v, calls=%d", result, err, calls)
 	}
 	if strings.Contains(result.Reference, secret) {
@@ -105,6 +105,28 @@ func TestGitHubExchangeUsesFixedEndpointsStrictParsersAndReferenceOnlyResult(t *
 	})
 	if _, err := exchange.Exchange(context.Background(), githubdiscovery.ExchangeRequest{EffectID: "pid_70000004-0000-4000-8000-000000000004", ClientID: "Iv1.1234567890abcdef", ClientSecretReference: "ref:github/app-secret-0001", CallbackURL: "https://app.zasp.example/api/v1/integrations/oauth/callback", Code: "provider-code-0001", PKCEVerifier: []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")}); err == nil || strings.Contains(err.Error(), secret) {
 		t.Fatalf("hostile GitHub response error = %v", err)
+	}
+}
+
+func TestGitHubInstallationAuthorityRejectsUserAndPermissionDriftBeforePersistence(t *testing.T) {
+	valid := map[string]string{"actions": "read", "contents": "read", "metadata": "read"}
+	if !validGitHubInstallationAuthority("Organization", "selected", valid) {
+		t.Fatal("exact organization installation rejected")
+	}
+	for name, test := range map[string]struct {
+		account, selection string
+		permissions        map[string]string
+	}{
+		"user":             {account: "User", selection: "selected", permissions: valid},
+		"write permission": {account: "Organization", selection: "selected", permissions: map[string]string{"actions": "write", "contents": "read", "metadata": "read"}},
+		"extra permission": {account: "Organization", selection: "all", permissions: map[string]string{"actions": "read", "contents": "read", "metadata": "read", "issues": "read"}},
+		"foreign selection": {account: "Organization", selection: "subset", permissions: valid},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if validGitHubInstallationAuthority(test.account, test.selection, test.permissions) {
+				t.Fatalf("hostile authority accepted: %#v", test)
+			}
+		})
 	}
 }
 

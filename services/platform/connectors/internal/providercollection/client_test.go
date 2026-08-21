@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -208,6 +209,251 @@ func TestClientRejectsCrossPageIdentityDriftAndDanglingRelationshipsAsMalformed(
 	}
 }
 
+func TestClientCoalescesByteIdenticalEntitiesAcrossProviderPages(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderKubernetes)
+	entity := json.RawMessage(`{"id":"pid_46000001-0000-4000-8000-000000000001","kind":"kubernetes_group","source_native_id":"kubernetes:subject:Group:system:authenticated","display_name":"system:authenticated","stable_fields":{"cluster":"api.example.com/production","name":"system:authenticated","scope":"cluster","subject_type":"Group"},"attributes":{}}`)
+	first := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "page-2"}, false, []json.RawMessage{entity}, nil)
+	second := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"}, true, []json.RawMessage{entity}, nil)
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{first, second}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("kubernetes-bearer-secret-value"))
+	complete, ok := outcome.(collection.CompleteResult)
+	if err != nil || !ok || complete.Snapshot().EntityCount() != 1 || complete.Snapshot().EvidenceCount() != 1 {
+		t.Fatalf("coalesced result = %T / %v / %d / %d", outcome, err, complete.Snapshot().EntityCount(), complete.Snapshot().EvidenceCount())
+	}
+}
+
+func TestClientRejectsByteIdenticalNonPrincipalEntitiesAcrossPages(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		provider collection.Provider
+		entity   json.RawMessage
+		secret   []byte
+	}{
+		{collection.ProviderAWS, json.RawMessage(`{"id":"pid_46000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012"},"attributes":{}}`), []byte("temporary-aws-credential")},
+		{collection.ProviderKubernetes, json.RawMessage(`{"id":"pid_46000002-0000-4000-8000-000000000002","kind":"kubernetes_cluster_role","source_native_id":"kubernetes:clusterrole:reader","display_name":"reader","stable_fields":{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/production","name":"reader","resource_kind":"ClusterRole","scope":"cluster"},"attributes":{"namespaced":false,"rules":[]}}`), []byte("kubernetes-bearer-secret-value")},
+	}
+	for _, test := range tests {
+		request := testRequest(t, test.provider)
+		first := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "page-2"}, false, []json.RawMessage{test.entity}, nil)
+		second := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "complete"}, true, []json.RawMessage{test.entity}, nil)
+		client, err := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{first, second}}, Artifacts: &recordingArtifacts{bucket: "zasp-evidence"}, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := client.CollectWithCredential(context.Background(), request, test.secret); !failureHasCode(err, collection.FailureMalformed) {
+			t.Fatalf("provider %s duplicate error = %v", test.provider, err)
+		}
+	}
+}
+
+func TestClientReturnsPartialWhenProviderReportsExactExpansionCapacity(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	first := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "page-2"}, false,
+		[]json.RawMessage{json.RawMessage(`{"id":"pid_46000001-0000-4000-8000-000000000001","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012"},"attributes":{}}`)}, nil)
+	api := &capacityAPI{first: first}
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, err := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential"))
+	partial, ok := outcome.(collection.PartialResult)
+	if err != nil || !ok || api.calls != 2 || partial.NextCursor() != first.Cursor || len(store.requests) != 2 {
+		t.Fatalf("capacity result = %T / %v calls=%d writes=%d", outcome, err, api.calls, len(store.requests))
+	}
+}
+
+func TestKubernetesResumeRejectsMissingOrReorderedCursorLineageBeforeProviderIO(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderKubernetes)
+	request.Bounds.MaxPages = 2
+	firstCursor := testKubernetesChainedCursor(request.ExpectedSubject, "serviceaccounts", 2, "start", collection.Cursor{})
+	wrongSecondCursor := testKubernetesChainedCursor(request.ExpectedSubject, "deployments", 3, "start", firstCursor)
+	first := mustPage(t, request.Provider, request.ExpectedSubject, firstCursor, false, nil, nil)
+	second := mustPage(t, request.Provider, request.ExpectedSubject, wrongSecondCursor, false, nil, nil)
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, _ := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{first, second}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("kubernetes-bearer-secret-value"))
+	partial, ok := outcome.(collection.PartialResult)
+	if err != nil || !ok {
+		t.Fatalf("partial = %T / %v", outcome, err)
+	}
+	descriptor := partial.Manifest().Descriptor()
+	checksum := descriptor.Checksum()
+	seed := ResumeSeed{CheckpointVersion: 1, CheckpointDigest: bytes.Repeat([]byte{7}, sha256.Size), Cursor: partial.NextCursor(), ManifestReference: descriptor.ObjectReference(), ManifestKey: descriptor.Key(), ManifestVersionID: descriptor.VersionID(), ManifestChecksum: checksum[:], ManifestSizeBytes: descriptor.Size(), ManifestMediaType: descriptor.MediaType(), ManifestSchema: descriptor.SchemaVersion(), ParserVersion: descriptor.ParserVersion(), ToolVersion: descriptor.ToolVersion()}
+	request.Attempt++
+	request.Cursor = partial.NextCursor()
+	api := &recordingAPI{}
+	base, _ := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	resumed, _ := base.WithResumeSeed(seed)
+	if _, err := resumed.CollectWithCredential(context.Background(), request, []byte("kubernetes-bearer-secret-value")); !failureHasCode(err, collection.FailureOutcomeUnknown) || api.calls != 0 {
+		t.Fatalf("lineage error/calls = %v / %d", err, api.calls)
+	}
+}
+
+func TestKubernetesResumeCursorRequiresExactPhaseOrder(t *testing.T) {
+	t.Parallel()
+	subject := collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}
+	first := testKubernetesChainedCursor(subject, "serviceaccounts", 2, "start", collection.Cursor{})
+	phase, ok := validKubernetesResumeCursor(first, subject, collection.Cursor{}, "", 2)
+	if !ok || phase != "serviceaccounts" {
+		t.Fatalf("first cursor = %q/%t", phase, ok)
+	}
+	for name, cursor := range map[string]collection.Cursor{
+		"skipped phase":   testKubernetesChainedCursor(subject, "deployments", 3, "start", first),
+		"backward phase":  testKubernetesChainedCursor(subject, "namespaces", 3, "start", first),
+		"restarted phase": testKubernetesChainedCursor(subject, "serviceaccounts", 3, "start", first),
+		"foreign subject": testKubernetesChainedCursor(collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.other.example/production"}, "roles", 3, "start", first),
+	} {
+		if _, ok := validKubernetesResumeCursor(cursor, subject, first, phase, 3); ok {
+			t.Fatalf("%s cursor was accepted", name)
+		}
+	}
+	continued := testKubernetesChainedCursor(subject, "serviceaccounts", 3, "opaque", first)
+	if next, ok := validKubernetesResumeCursor(continued, subject, first, phase, 3); !ok || next != phase {
+		t.Fatalf("same-phase continuation = %q/%t", next, ok)
+	}
+	roles := testKubernetesChainedCursor(subject, "roles", 3, "start", first)
+	if next, ok := validKubernetesResumeCursor(roles, subject, first, phase, 3); !ok || next != "roles" {
+		t.Fatalf("next phase = %q/%t", next, ok)
+	}
+}
+
+func TestOktaResumeRejectsTailOnlyCheckpointBeforeProviderIO(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderOkta)
+	request.Bounds.MaxPages = 1
+	tail := testOktaResumeCursor(request.ExpectedSubject, oktaResumeCursorState{Phase: "appusers", Lineage: 2, AppID: "0oa1234567890ABCDE1"})
+	page := mustPage(t, request.Provider, request.ExpectedSubject, tail, false, nil, nil)
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, _ := New(Config{Provider: request.Provider, API: &recordingAPI{pages: []Page{page}}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("okta-refresh-material"))
+	partial, ok := outcome.(collection.PartialResult)
+	if err != nil || !ok {
+		t.Fatalf("partial = %T / %v", outcome, err)
+	}
+	descriptor := partial.Manifest().Descriptor()
+	checksum := descriptor.Checksum()
+	seed := ResumeSeed{CheckpointVersion: 1, CheckpointDigest: bytes.Repeat([]byte{7}, sha256.Size), Cursor: partial.NextCursor(), ManifestReference: descriptor.ObjectReference(), ManifestKey: descriptor.Key(), ManifestVersionID: descriptor.VersionID(), ManifestChecksum: checksum[:], ManifestSizeBytes: descriptor.Size(), ManifestMediaType: descriptor.MediaType(), ManifestSchema: descriptor.SchemaVersion(), ParserVersion: descriptor.ParserVersion(), ToolVersion: descriptor.ToolVersion()}
+	request.Attempt++
+	request.Cursor = partial.NextCursor()
+	api := &recordingAPI{}
+	base, _ := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	resumed, _ := base.WithResumeSeed(seed)
+	if _, err := resumed.CollectWithCredential(context.Background(), request, []byte("okta-refresh-material")); !failureHasCode(err, collection.FailureOutcomeUnknown) || api.calls != 0 {
+		t.Fatalf("tail-only lineage error/calls = %v / %d", err, api.calls)
+	}
+}
+
+func TestOktaResumeAcceptsValidMultiPageLineageFromCanonicalManifestOrder(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderOkta)
+	request.Bounds.MaxPages = 3
+	states := []oktaResumeCursorState{
+		{Phase: "userroles", Lineage: 2, PrincipalID: "00u1234567890ABCDE1"},
+		{Phase: "groups", Lineage: 3},
+		{Phase: "groupmembers", Lineage: 4, PrincipalID: "00g1234567890ABCDE1"},
+	}
+	pages := make([]Page, 0, len(states))
+	for _, state := range states {
+		pages = append(pages, mustPage(t, request.Provider, request.ExpectedSubject, testOktaResumeCursor(request.ExpectedSubject, state), false, nil, nil))
+	}
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, _ := New(Config{Provider: request.Provider, API: &recordingAPI{pages: pages}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("okta-refresh-material"))
+	partial, ok := outcome.(collection.PartialResult)
+	if err != nil || !ok {
+		t.Fatalf("partial = %T / %v", outcome, err)
+	}
+	descriptor := partial.Manifest().Descriptor()
+	checksum := descriptor.Checksum()
+	seed := ResumeSeed{CheckpointVersion: 1, CheckpointDigest: bytes.Repeat([]byte{7}, sha256.Size), Cursor: partial.NextCursor(), ManifestReference: descriptor.ObjectReference(), ManifestKey: descriptor.Key(), ManifestVersionID: descriptor.VersionID(), ManifestChecksum: checksum[:], ManifestSizeBytes: descriptor.Size(), ManifestMediaType: descriptor.MediaType(), ManifestSchema: descriptor.SchemaVersion(), ParserVersion: descriptor.ParserVersion(), ToolVersion: descriptor.ToolVersion()}
+	request.Attempt++
+	request.Cursor = partial.NextCursor()
+	api := &recordingAPI{}
+	base, _ := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	resumed, _ := base.WithResumeSeed(seed)
+	second, err := resumed.CollectWithCredential(context.Background(), request, []byte("okta-refresh-material"))
+	if err != nil {
+		t.Fatalf("valid multi-page resume error = %v", err)
+	}
+	resumedPartial, ok := second.(collection.PartialResult)
+	if !ok || resumedPartial.NextCursor() != partial.NextCursor() || api.calls != 0 {
+		t.Fatalf("resumed = %T cursor=%#v calls=%d", second, resumedPartial.NextCursor(), api.calls)
+	}
+}
+
+func TestGitHubResumeAcceptsFullPhaseLineageAndRejectsTailOnlyCheckpoint(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderGitHub)
+	request.Bounds.MaxPages = 3
+	states := []githubResumeCursorState{
+		{Phase: "repositories", Lineage: 2, ProviderPage: 1, OwnerID: 101, Owner: "acme", AppID: 201},
+		{Phase: "workflows", Lineage: 3, ProviderPage: 2, Total: 1, PhasePage: 1, OwnerID: 101, Owner: "acme", AppID: 201, RepositoryID: 301, Repository: "service", DefaultBranch: "main"},
+		{Phase: "environments", Lineage: 4, ProviderPage: 2, Total: 1, PhasePage: 1, OwnerID: 101, Owner: "acme", AppID: 201, RepositoryID: 301, Repository: "service", DefaultBranch: "main"},
+	}
+	pages := make([]Page, 0, len(states))
+	for _, state := range states {
+		pages = append(pages, mustPage(t, request.Provider, request.ExpectedSubject, testGitHubResumeCursor(request.ExpectedSubject, state), false, nil, nil))
+	}
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, _ := New(Config{Provider: request.Provider, API: &recordingAPI{pages: pages}, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("github-installation-token"))
+	partial, ok := outcome.(collection.PartialResult)
+	if err != nil || !ok {
+		t.Fatalf("partial = %T / %v", outcome, err)
+	}
+	descriptor := partial.Manifest().Descriptor()
+	checksum := descriptor.Checksum()
+	seed := ResumeSeed{CheckpointVersion: 1, CheckpointDigest: bytes.Repeat([]byte{7}, sha256.Size), Cursor: partial.NextCursor(), ManifestReference: descriptor.ObjectReference(), ManifestKey: descriptor.Key(), ManifestVersionID: descriptor.VersionID(), ManifestChecksum: checksum[:], ManifestSizeBytes: descriptor.Size(), ManifestMediaType: descriptor.MediaType(), ManifestSchema: descriptor.SchemaVersion(), ParserVersion: descriptor.ParserVersion(), ToolVersion: descriptor.ToolVersion()}
+	request.Attempt++
+	request.Cursor = partial.NextCursor()
+	api := &recordingAPI{}
+	base, _ := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	resumed, _ := base.WithResumeSeed(seed)
+	second, err := resumed.CollectWithCredential(context.Background(), request, []byte("github-installation-token"))
+	resumedPartial, ok := second.(collection.PartialResult)
+	if err != nil || !ok || resumedPartial.NextCursor() != partial.NextCursor() || api.calls != 0 {
+		t.Fatalf("resumed = %T error=%v calls=%d", second, err, api.calls)
+	}
+
+	tail := testGitHubResumeCursor(request.ExpectedSubject, githubResumeCursorState{Phase: "workflows", Lineage: 2, ProviderPage: 2, Total: 1, PhasePage: 1, OwnerID: 101, Owner: "acme", AppID: 201, RepositoryID: 301, Repository: "service", DefaultBranch: "main"})
+	if _, ok := validGitHubResumeCursor(tail, request.ExpectedSubject, githubResumeCursorState{}, 2); ok {
+		t.Fatal("tail-only GitHub resume cursor accepted")
+	}
+}
+
+func TestOktaResumeCursorRequiresExactPhaseAndStateOrder(t *testing.T) {
+	t.Parallel()
+	subject := collection.SubjectBinding{Kind: "okta_tenant", ID: "customer.okta.com"}
+	firstState := oktaResumeCursorState{Phase: "userroles", Lineage: 2, PrincipalID: "00u1234567890ABCDE1"}
+	first := testOktaResumeCursor(subject, firstState)
+	state, ok := validOktaResumeCursor(first, subject, oktaResumeCursorState{}, 2)
+	if !ok || state != firstState {
+		t.Fatalf("first cursor = %#v/%t", state, ok)
+	}
+	validGroups := oktaResumeCursorState{Phase: "groups", Lineage: 3}
+	if state, ok = validOktaResumeCursor(testOktaResumeCursor(subject, validGroups), subject, firstState, 3); !ok || state != validGroups {
+		t.Fatalf("valid next cursor = %#v/%t", state, ok)
+	}
+	for name, cursor := range map[string]collection.Cursor{
+		"skipped phase":      testOktaResumeCursor(subject, oktaResumeCursorState{Phase: "applications", Lineage: 3}),
+		"backward phase":     testOktaResumeCursor(subject, oktaResumeCursorState{Phase: "userroles", Lineage: 3, PrincipalID: firstState.PrincipalID}),
+		"subject transplant": testOktaResumeCursor(collection.SubjectBinding{Kind: "okta_tenant", ID: "other.okta.com"}, validGroups),
+		"lineage jump":       testOktaResumeCursor(subject, oktaResumeCursorState{Phase: "groups", Lineage: 4}),
+	} {
+		if _, ok := validOktaResumeCursor(cursor, subject, firstState, 3); ok {
+			t.Fatalf("%s cursor was accepted", name)
+		}
+	}
+}
+
 func TestNewPageRejectsWhitespaceAndControlInventoryText(t *testing.T) {
 	t.Parallel()
 	subject := collection.SubjectBinding{Kind: "aws_account", ID: "123456789012"}
@@ -267,6 +513,34 @@ func TestClientStopsAtExactItemBudgetAndPublishesPartialWithoutAnotherProviderCa
 	partial, ok := outcome.(collection.PartialResult)
 	if !ok || partial.NextCursor() != page.Cursor || api.calls != 1 || len(store.requests) != 2 {
 		t.Fatalf("result=%T cursor=%#v calls=%d writes=%d", outcome, partial.NextCursor(), api.calls, len(store.requests))
+	}
+}
+
+func TestClientStopsAtExactRelationshipBudgetAndPublishesPartialWithoutAnotherProviderCall(t *testing.T) {
+	t.Parallel()
+	request := testRequest(t, collection.ProviderAWS)
+	request.Bounds.MaxItems = 3
+	accountID := "pid_40000001-0000-4000-8000-000000000001"
+	roleID := "pid_40000002-0000-4000-8000-000000000002"
+	entities := []json.RawMessage{
+		json.RawMessage(`{"id":"` + accountID + `","kind":"aws_account","source_native_id":"123456789012","display_name":"Production","stable_fields":{"account_id":"123456789012"},"attributes":{}}`),
+		json.RawMessage(`{"id":"` + roleID + `","kind":"aws_role","source_native_id":"arn:aws:iam::123456789012:role/read","display_name":"read","stable_fields":{"account_id":"123456789012","arn":"arn:aws:iam::123456789012:role/read","name":"read"},"attributes":{}}`),
+	}
+	relationships := make([]json.RawMessage, 0, 6)
+	for index := 0; index < 6; index++ {
+		relationships = append(relationships, json.RawMessage(fmt.Sprintf(`{"id":"pid_4000001%d-0000-4000-8000-00000000001%d","kind":"contains","source_native_id":"123456789012/read/%d","from_entity_id":"%s","to_entity_id":"%s","attributes":{}}`, index, index, index, accountID, roleID)))
+	}
+	page := mustPage(t, request.Provider, request.ExpectedSubject, collection.Cursor{Provider: request.Provider, Version: "cursor_v1", Value: "continue"}, false, entities, relationships)
+	api := &recordingAPI{pages: []Page{page}}
+	store := &recordingArtifacts{bucket: "zasp-evidence"}
+	client, err := New(Config{Provider: request.Provider, API: api, Artifacts: store, CollectorVersion: request.CollectorVersion, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Clock: fixedClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := client.CollectWithCredential(context.Background(), request, []byte("temporary-aws-credential"))
+	partial, ok := outcome.(collection.PartialResult)
+	if err != nil || !ok || partial.NextCursor() != page.Cursor || api.calls != 1 || len(store.requests) != 2 {
+		t.Fatalf("result=%T cursor=%#v calls=%d writes=%d err=%v", outcome, partial.NextCursor(), api.calls, len(store.requests), err)
 	}
 }
 
@@ -666,6 +940,46 @@ type recordingAPI struct {
 	requests   []PageRequest
 	readiness  func(context.Context) error
 	pageOffset int
+}
+
+type capacityAPI struct {
+	first Page
+	calls int
+}
+
+func (api *capacityAPI) FetchCollectionPage(context.Context, []byte, PageRequest) (Page, error) {
+	api.calls++
+	if api.calls == 1 {
+		return api.first, nil
+	}
+	return Page{}, ErrPageCapacity
+}
+
+func (*capacityAPI) CheckCollectionReadiness(context.Context) error { return nil }
+
+func testKubernetesChainedCursor(subject collection.SubjectBinding, phase string, page int, continuation string, prior collection.Cursor) collection.Cursor {
+	priorValue := prior.Value
+	if prior == (collection.Cursor{}) || priorValue == "initial" {
+		priorValue = "initial"
+	}
+	digest := sha256.Sum256([]byte("kubernetes-cursor-chain-v1\x1f" + priorValue))
+	priorBinding := fmt.Sprintf("%x", digest[:8])
+	binding := CursorBinding(collection.ProviderKubernetes, subject, phase, page, continuation+":"+priorBinding)
+	return collection.Cursor{Provider: collection.ProviderKubernetes, Version: "cursor_v1", Value: fmt.Sprintf("kubernetes:%s:%d:%s:%s:%s", phase, page, continuation, priorBinding, binding)}
+}
+
+func testOktaResumeCursor(subject collection.SubjectBinding, state oktaResumeCursorState) collection.Cursor {
+	payload, _ := json.Marshal(state)
+	encoded := base64.RawURLEncoding.EncodeToString(payload)
+	binding := CursorBinding(collection.ProviderOkta, subject, state.Phase, state.Lineage, encoded)
+	return collection.Cursor{Provider: collection.ProviderOkta, Version: "cursor_v1", Value: fmt.Sprintf("okta:%s:%d:%s:%s", state.Phase, state.Lineage, encoded, binding)}
+}
+
+func testGitHubResumeCursor(subject collection.SubjectBinding, state githubResumeCursorState) collection.Cursor {
+	payload, _ := json.Marshal(state)
+	encoded := base64.RawURLEncoding.EncodeToString(payload)
+	binding := CursorBinding(collection.ProviderGitHub, subject, state.Phase, state.Lineage, encoded)
+	return collection.Cursor{Provider: collection.ProviderGitHub, Version: "cursor_v1", Value: fmt.Sprintf("github:%s:%d:%s:%s", state.Phase, state.Lineage, encoded, binding)}
 }
 
 func (api *recordingAPI) FetchCollectionPage(_ context.Context, credential []byte, request PageRequest) (Page, error) {

@@ -32,6 +32,7 @@ const (
 
 var (
 	errConfiguration = errors.New("provider collection configuration rejected")
+	ErrPageCapacity  = errors.New("provider collection page capacity reached")
 	versionPattern   = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
 )
 
@@ -43,12 +44,13 @@ type API interface {
 type ArtifactAuthority = artifactstore.ObjectReferencingArtifactStore
 
 type PageRequest struct {
-	Provider       collection.Provider
-	Subject        collection.SubjectBinding
-	Cursor         collection.Cursor
-	Page           int
-	RemainingItems int
-	RemainingBytes int64
+	Provider               collection.Provider
+	Subject                collection.SubjectBinding
+	Cursor                 collection.Cursor
+	Page                   int
+	RemainingItems         int
+	RemainingRelationships int
+	RemainingBytes         int64
 }
 
 type Page struct {
@@ -235,6 +237,7 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	relationships := make([]json.RawMessage, 0)
 	entityObjects := make(map[string]collection.RawObject)
 	entitySourceIDs := make(map[string]struct{})
+	entityBodies := make(map[string]json.RawMessage)
 	relationshipIDs := make(map[string]struct{})
 	relationshipSourceIDs := make(map[string]struct{})
 	snapshotLimit := newSnapshotBudget(maximumArtifactBytes)
@@ -250,6 +253,7 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		relationships = seed.relationships
 		entityObjects = seed.entityObjects
 		entitySourceIDs = seed.entitySourceIDs
+		entityBodies = seed.entityBodies
 		relationshipIDs = seed.relationshipIDs
 		relationshipSourceIDs = seed.relationshipSourceIDs
 		remainingRawBytes -= seed.rawBytes
@@ -257,7 +261,7 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		remainingRelationships -= len(seed.relationships)
 		seededPages = len(seed.objects)
 		for index, page := range seed.pages {
-			typedEntities, evidenceLengths, typedErr := snapshotPageBudgetBodies(request, page.Entities, seed.entityObjects)
+			typedEntities, evidenceLengths, typedErr := snapshotPageBudgetBodies(request, seed.budgetEntities[index], seed.entityObjects)
 			if typedErr != nil || len(evidenceLengths) != len(seed.evidenceLengths[index]) || !snapshotLimit.addPage(typedEntities, page.Relationships, evidenceLengths) {
 				return nil, outcomeUnknown()
 			}
@@ -268,7 +272,7 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	}
 
 	for pageNumber := seededPages + 1; pageNumber <= request.Bounds.MaxPages; pageNumber++ {
-		if remainingItems < 1 {
+		if remainingItems < 1 || remainingRelationships < 1 {
 			if len(objects) == 0 {
 				return nil, collection.ErrContract
 			}
@@ -285,11 +289,14 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 			}
 			break
 		}
-		pageRequest := PageRequest{Provider: request.Provider, Subject: request.ExpectedSubject, Cursor: cursor, Page: pageNumber, RemainingItems: remainingItems, RemainingBytes: remainingBytes}
+		pageRequest := PageRequest{Provider: request.Provider, Subject: request.ExpectedSubject, Cursor: cursor, Page: pageNumber, RemainingItems: remainingItems, RemainingRelationships: remainingRelationships, RemainingBytes: remainingBytes}
 		borrowed := bytes.Clone(credential)
 		page, err := fetchPage(client.api, ctx, borrowed, pageRequest)
 		clear(borrowed)
 		if err != nil {
+			if errors.Is(err, ErrPageCapacity) && len(objects) > 0 {
+				break
+			}
 			if errors.Is(err, collection.ErrContract) {
 				return nil, malformedFailure()
 			}
@@ -309,21 +316,29 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 			}
 			break
 		}
-		pageEntityIDs := make([]string, len(page.Entities))
-		pageEntitySources := make([]string, len(page.Entities))
-		for index, entity := range page.Entities {
+		pageEntityIDs := make([]string, 0, len(page.Entities))
+		pageEntitySources := make([]string, 0, len(page.Entities))
+		pageEntities := make([]json.RawMessage, 0, len(page.Entities))
+		for _, entity := range page.Entities {
 			identity, source, ok := entityIdentity(entity)
 			if !ok {
 				return nil, malformedFailure()
 			}
 			if _, exists := entityObjects[identity]; exists {
-				return nil, malformedFailure()
+				if !coalescibleKubernetesPrincipal(request.Provider, entity) || !bytes.Equal(entityBodies[identity], entity) {
+					return nil, malformedFailure()
+				}
+				if _, sourceExists := entitySourceIDs[source]; !sourceExists {
+					return nil, malformedFailure()
+				}
+				continue
 			}
 			if _, exists := entitySourceIDs[source]; exists {
 				return nil, malformedFailure()
 			}
-			pageEntityIDs[index] = identity
-			pageEntitySources[index] = source
+			pageEntityIDs = append(pageEntityIDs, identity)
+			pageEntitySources = append(pageEntitySources, source)
+			pageEntities = append(pageEntities, entity)
 		}
 		pageRelationshipIDs := make([]string, len(page.Relationships))
 		pageRelationshipSources := make([]string, len(page.Relationships))
@@ -359,14 +374,15 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		for _, identity := range pageEntityIDs {
 			pageEntityObjects[identity] = object
 		}
-		typedEntities, evidenceLengths, typedErr := snapshotPageBudgetBodies(request, page.Entities, pageEntityObjects)
+		typedEntities, evidenceLengths, typedErr := snapshotPageBudgetBodies(request, pageEntities, pageEntityObjects)
 		if typedErr != nil || !snapshotLimit.addPage(typedEntities, page.Relationships, evidenceLengths) {
 			return nil, malformedFailure()
 		}
 		objects = append(objects, object)
-		for index, entity := range page.Entities {
+		for index, entity := range pageEntities {
 			entityObjects[pageEntityIDs[index]] = object
 			entitySourceIDs[pageEntitySources[index]] = struct{}{}
+			entityBodies[pageEntityIDs[index]] = bytes.Clone(entity)
 			entities = append(entities, bytes.Clone(entity))
 		}
 		for index, relationship := range page.Relationships {
@@ -374,7 +390,7 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 			relationshipSourceIDs[pageRelationshipSources[index]] = struct{}{}
 			relationships = append(relationships, bytes.Clone(relationship))
 		}
-		remainingItems -= len(page.Entities)
+		remainingItems -= len(pageEntities)
 		remainingRelationships -= len(page.Relationships)
 		remainingRawBytes -= artifact.Size
 		cursor = page.Cursor
@@ -387,8 +403,12 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	sort.Slice(objects, func(left, right int) bool {
 		return objects[left].Reference().String() < objects[right].Reference().String()
 	})
-	if complete && !relationshipsResolve(request.Provider, relationships, entities, entityObjects) {
-		return nil, malformedFailure()
+	if complete {
+		var resolved bool
+		relationships, resolved = relationshipsResolve(request.Provider, request.ExpectedSubject, relationships, entities, entityObjects)
+		if !resolved {
+			return nil, malformedFailure()
+		}
 	}
 	manifestBody, err := marshalManifest(request, cursor, objects)
 	if err != nil || len(manifestBody) > maximumArtifactBytes || int64(len(manifestBody)) > remainingRawBytes {
@@ -565,12 +585,14 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 			return providerEntityDefinition{stable: requiredStringFields("cluster", "name"), attributes: state}, true
 		case "kubernetes_namespace":
 			return providerEntityDefinition{stable: requiredStringFields("cluster", "name", "namespace"), attributes: state}, true
-		case "kubernetes_agent", "kubernetes_resource", "kubernetes_service_account", "kubernetes_workload":
+		case "kubernetes_resource", "kubernetes_service_account":
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), attributes: namespaced}, true
+		case "kubernetes_agent", "kubernetes_workload":
+			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: namespaced}, true
 		case "kubernetes_role":
-			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), inventoryObjectSchema{"scope": enumInventoryField(true, "namespace")}), attributes: namespaced}, true
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), inventoryObjectSchema{"scope": enumInventoryField(true, "namespace")}), attributes: mergeInventorySchemas(namespaced, inventoryObjectSchema{"rules": kubernetesRulesInventoryField(true)})}, true
 		case "kubernetes_cluster_role":
-			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "resource_kind"), inventoryObjectSchema{"scope": enumInventoryField(true, "cluster")}), attributes: clusterScoped}, true
+			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "resource_kind"), inventoryObjectSchema{"scope": enumInventoryField(true, "cluster")}), attributes: mergeInventorySchemas(clusterScoped, inventoryObjectSchema{"rules": kubernetesRulesInventoryField(true)})}, true
 		case "kubernetes_role_binding":
 			return providerEntityDefinition{stable: mergeInventorySchemas(requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "role"), inventoryObjectSchema{"scope": enumInventoryField(true, "namespace")}), attributes: namespaced}, true
 		case "kubernetes_cluster_role_binding":
@@ -712,6 +734,10 @@ func validInventoryObject(raw json.RawMessage, schema inventoryObjectSchema) boo
 			if !ok || len(rule.values) > 0 && !rule.values[strconv.FormatBool(boolean)] {
 				return false
 			}
+		case "kubernetes_rules":
+			if !validCanonicalKubernetesRules(value) {
+				return false
+			}
 		default:
 			return false
 		}
@@ -762,6 +788,57 @@ func boolInventoryField(required bool, values ...bool) inventoryFieldRule {
 		allowed[strconv.FormatBool(value)] = true
 	}
 	return inventoryFieldRule{kind: "bool", required: required, values: allowed}
+}
+
+func kubernetesRulesInventoryField(required bool) inventoryFieldRule {
+	return inventoryFieldRule{kind: "kubernetes_rules", required: required}
+}
+
+func validCanonicalKubernetesRules(value any) bool {
+	rules, ok := value.([]any)
+	if !ok || len(rules) > 64 {
+		return false
+	}
+	prior := ""
+	for _, rawRule := range rules {
+		rule, ok := rawRule.(map[string]any)
+		if !ok || len(rule) != 5 {
+			return false
+		}
+		for _, field := range []string{"api_groups", "non_resource_urls", "resource_names", "resources", "verbs"} {
+			if !validSortedKubernetesRuleValues(rule[field], field == "api_groups") {
+				return false
+			}
+		}
+		verbs := rule["verbs"].([]any)
+		resources := rule["resources"].([]any)
+		nonResourceURLs := rule["non_resource_urls"].([]any)
+		if len(verbs) == 0 || len(resources) == 0 && len(nonResourceURLs) == 0 || len(nonResourceURLs) > 0 && (len(resources) > 0 || len(rule["resource_names"].([]any)) > 0 || len(rule["api_groups"].([]any)) > 0) {
+			return false
+		}
+		encoded, err := json.Marshal(rule)
+		if err != nil || prior != "" && string(encoded) <= prior {
+			return false
+		}
+		prior = string(encoded)
+	}
+	return true
+}
+
+func validSortedKubernetesRuleValues(value any, allowEmpty bool) bool {
+	values, ok := value.([]any)
+	if !ok || len(values) > 32 {
+		return false
+	}
+	prior := ""
+	for index, raw := range values {
+		text, ok := raw.(string)
+		if !ok || text == "" && !allowEmpty || text != "" && !boundedInventoryText(text, 256) || index > 0 && text <= prior {
+			return false
+		}
+		prior = text
+	}
+	return true
 }
 
 func enumInventoryField(required bool, values ...string) inventoryFieldRule {
@@ -882,6 +959,22 @@ func entityIdentity(value json.RawMessage) (string, string, bool) {
 	return entity.ID, entity.SourceNativeID, true
 }
 
+func coalescibleKubernetesPrincipal(provider collection.Provider, value json.RawMessage) bool {
+	if provider != collection.ProviderKubernetes {
+		return false
+	}
+	var entity normalizedPageEntity
+	if !decodeExactObject(value, &entity) {
+		return false
+	}
+	switch entity.Kind {
+	case "kubernetes_user", "kubernetes_group", "kubernetes_service_account":
+		return true
+	default:
+		return false
+	}
+}
+
 func relationshipIdentity(value json.RawMessage) (string, string, string, string, bool) {
 	var relationship normalizedPageRelationship
 	if !decodeExactObject(value, &relationship) || !validProductIDText(relationship.ID) || !boundedInventoryText(relationship.SourceNativeID, 1024) || !validProductIDText(relationship.FromEntityID) || !validProductIDText(relationship.ToEntityID) {
@@ -890,31 +983,111 @@ func relationshipIdentity(value json.RawMessage) (string, string, string, string
 	return relationship.ID, relationship.SourceNativeID, relationship.FromEntityID, relationship.ToEntityID, true
 }
 
-func relationshipsResolve(provider collection.Provider, relationships, rawEntities []json.RawMessage, entities map[string]collection.RawObject) bool {
-	kinds := make(map[string]string, len(rawEntities))
+func relationshipsResolve(provider collection.Provider, subject collection.SubjectBinding, relationships, rawEntities []json.RawMessage, entities map[string]collection.RawObject) ([]json.RawMessage, bool) {
+	items := make(map[string]normalizedPageEntity, len(rawEntities))
 	for _, raw := range rawEntities {
 		var entity normalizedPageEntity
 		if !decodeExactObject(raw, &entity) {
-			return false
+			return nil, false
 		}
-		kinds[entity.ID] = entity.Kind
+		items[entity.ID] = entity
 	}
+	resolved := make([]json.RawMessage, 0, len(relationships))
 	for _, raw := range relationships {
 		_, _, from, to, ok := relationshipIdentity(raw)
 		if !ok {
-			return false
+			return nil, false
 		}
-		if _, exists := entities[from]; !exists {
-			return false
+		_, fromExists := entities[from]
+		_, toExists := entities[to]
+		if !fromExists || !toExists {
+			if provider == collection.ProviderKubernetes && validExplicitKubernetesUnresolvedRelationship(raw, subject, fromExists, toExists, items) {
+				continue
+			}
+			return nil, false
 		}
-		if _, exists := entities[to]; !exists {
-			return false
+		if !validProviderRelationshipEndpointKinds(provider, raw, items[from].Kind, items[to].Kind) {
+			return nil, false
 		}
-		if !validProviderRelationshipEndpointKinds(provider, raw, kinds[from], kinds[to]) {
-			return false
-		}
+		resolved = append(resolved, raw)
 	}
-	return true
+	return resolved, true
+}
+
+func validExplicitKubernetesUnresolvedRelationship(raw json.RawMessage, subject collection.SubjectBinding, fromExists, toExists bool, items map[string]normalizedPageEntity) bool {
+	var relationship normalizedPageRelationship
+	if !decodeExactObject(raw, &relationship) || !fromExists || toExists {
+		return false
+	}
+	source, ok := items[relationship.FromEntityID]
+	if !ok {
+		return false
+	}
+	var attributes struct {
+		Type string `json:"type"`
+	}
+	if !decodeExactObject(relationship.Attributes, &attributes) {
+		return false
+	}
+	switch relationship.Kind {
+	case "binds":
+		stable, ok := inventoryStringValues(source.StableFields, "role")
+		if attributes.Type != "binding_role" || !ok {
+			return false
+		}
+		roleKind, roleName, found := strings.Cut(stable["role"], "/")
+		if !found || roleName == "" {
+			return false
+		}
+		var targetKind, nativeID string
+		switch roleKind {
+		case "Role":
+			namespace, namespaceOK := inventoryStringValues(source.StableFields, "namespace")
+			if source.Kind != "kubernetes_role_binding" || !namespaceOK {
+				return false
+			}
+			targetKind, nativeID = "kubernetes_role", namespace["namespace"]+"/"+roleName
+		case "ClusterRole":
+			if source.Kind != "kubernetes_role_binding" && source.Kind != "kubernetes_cluster_role_binding" {
+				return false
+			}
+			targetKind, nativeID = "kubernetes_cluster_role", roleName
+		default:
+			return false
+		}
+		return relationship.ToEntityID == deterministicKubernetesReferenceID(subject, targetKind, nativeID)
+	case "uses_identity":
+		stable, ok := inventoryStringValues(source.StableFields, "namespace", "service_account")
+		return attributes.Type == "workload_service_account" && (source.Kind == "kubernetes_agent" || source.Kind == "kubernetes_workload") &&
+			ok && stable["namespace"] != "" && stable["service_account"] != "" &&
+			relationship.ToEntityID == deterministicKubernetesReferenceID(subject, "kubernetes_service_account", stable["namespace"]+"/"+stable["service_account"])
+	default:
+		return false
+	}
+}
+
+func inventoryStringValues(raw json.RawMessage, keys ...string) (map[string]string, bool) {
+	var object map[string]json.RawMessage
+	if !decodeExactObject(raw, &object) {
+		return nil, false
+	}
+	result := make(map[string]string, len(keys))
+	for _, key := range keys {
+		value, exists := object[key]
+		var decoded string
+		if !exists || json.Unmarshal(value, &decoded) != nil || decoded == "" {
+			return nil, false
+		}
+		result[key] = decoded
+	}
+	return result, true
+}
+
+func deterministicKubernetesReferenceID(subject collection.SubjectBinding, kind, nativeID string) string {
+	digest := sha256.Sum256([]byte("kubernetes\x1f" + subject.Kind + "\x1f" + subject.ID + "\x1f" + kind + "\x1f" + nativeID))
+	digest[6] = digest[6]&0x0f | 0x40
+	digest[8] = digest[8]&0x3f | 0x80
+	return fmt.Sprintf("pid_%x-%x-%x-%x-%x", digest[0:4], digest[4:6], digest[6:8], digest[8:10], digest[10:16])
 }
 
 func snapshotBodies(request collection.Request, entities, relationships []json.RawMessage, entityObjects map[string]collection.RawObject) ([]byte, []byte, []byte, error) {

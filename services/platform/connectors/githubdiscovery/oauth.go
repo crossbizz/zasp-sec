@@ -24,9 +24,9 @@ type ExchangeRequest struct {
 	PKCEVerifier                                                 []byte
 }
 type Connection struct {
-	Reference, AccountLogin, RepositorySelection string
-	InstallationID                               int64
-	Permissions                                  map[string]string
+	Reference, AccountLogin, AccountType, RepositorySelection string
+	InstallationID                                            int64
+	Permissions                                               map[string]string
 }
 type ExchangeClient interface {
 	Exchange(context.Context, ExchangeRequest) (Connection, error)
@@ -57,7 +57,6 @@ func (adapter *Adapter) AuthorizationURL(state, challenge string) (string, error
 	query := url.Values{}
 	query.Set("client_id", adapter.config.ClientID)
 	query.Set("redirect_uri", adapter.config.CallbackURL)
-	query.Set("scope", "read:org repo")
 	query.Set("state", state)
 	query.Set("code_challenge", challenge)
 	query.Set("code_challenge_method", "S256")
@@ -135,7 +134,7 @@ func validConfig(config Config) bool {
 }
 
 func validConnection(value Connection) bool {
-	if !referencePattern.MatchString(value.Reference) || value.InstallationID < 1 || value.InstallationID > 1<<53 || len(value.AccountLogin) < 1 || len(value.AccountLogin) > 100 || value.RepositorySelection != "all" && value.RepositorySelection != "selected" || len(value.Permissions) < 2 || len(value.Permissions) > 32 {
+	if !referencePattern.MatchString(value.Reference) || value.InstallationID < 1 || value.InstallationID > 1<<53 || len(value.AccountLogin) < 1 || len(value.AccountLogin) > 100 || value.AccountType != "Organization" || value.RepositorySelection != "all" && value.RepositorySelection != "selected" || len(value.Permissions) != 3 {
 		return false
 	}
 	for key, permission := range value.Permissions {
@@ -143,7 +142,7 @@ func validConnection(value Connection) bool {
 			return false
 		}
 	}
-	return value.Permissions["contents"] == "read" && value.Permissions["metadata"] == "read"
+	return value.Permissions["actions"] == "read" && value.Permissions["contents"] == "read" && value.Permissions["metadata"] == "read"
 }
 
 func clonePermissions(value map[string]string) map[string]string {

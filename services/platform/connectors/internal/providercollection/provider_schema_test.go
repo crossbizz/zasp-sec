@@ -1,6 +1,7 @@
 package providercollection
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,8 +24,8 @@ func TestProviderSchemaAcceptsRequiredLaunchInventoryKinds(t *testing.T) {
 		{"kubernetes service account", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_service_account", `{"api_group":"core","api_version":"v1","cluster":"api.example.com/production","name":"agent","namespace":"default","resource_kind":"ServiceAccount"}`, `{"namespaced":true}`},
 		{"kubernetes user", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_user", `{"cluster":"api.example.com/production","name":"alice@example.com","scope":"cluster","subject_type":"User"}`, `{}`},
 		{"kubernetes group", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_group", `{"cluster":"api.example.com/production","name":"developers","scope":"cluster","subject_type":"Group"}`, `{}`},
-		{"kubernetes role", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_role", `{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/production","name":"reader","namespace":"default","resource_kind":"Role","scope":"namespace"}`, `{"namespaced":true}`},
-		{"kubernetes cluster role", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_cluster_role", `{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/production","name":"view","resource_kind":"ClusterRole","scope":"cluster"}`, `{"namespaced":false}`},
+		{"kubernetes role", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_role", `{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/production","name":"reader","namespace":"default","resource_kind":"Role","scope":"namespace"}`, `{"namespaced":true,"rules":[]}`},
+		{"kubernetes cluster role", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_cluster_role", `{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/production","name":"view","resource_kind":"ClusterRole","scope":"cluster"}`, `{"namespaced":false,"rules":[]}`},
 		{"kubernetes role binding", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_role_binding", `{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/production","name":"readers","namespace":"default","resource_kind":"RoleBinding","role":"Role/reader","scope":"namespace"}`, `{"namespaced":true}`},
 		{"kubernetes cluster role binding", collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/production"}, "kubernetes_cluster_role_binding", `{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/production","name":"viewers","resource_kind":"ClusterRoleBinding","role":"ClusterRole/view","scope":"cluster"}`, `{"namespaced":false}`},
 		{"github app", collection.ProviderGitHub, collection.SubjectBinding{Kind: "github_installation", ID: "42"}, "github_app", `{"installation_id":42,"name":"zasp","owner":"acme"}`, `{}`},
@@ -60,7 +61,7 @@ func TestProviderSchemaRejectsMissingAndCrossKindFields(t *testing.T) {
 		{"kubernetes service account missing namespace", collection.ProviderKubernetes, "kubernetes_service_account", `{"api_group":"core","api_version":"v1","cluster":"api.example.com/production","name":"agent","resource_kind":"ServiceAccount"}`, `{"namespaced":true}`},
 		{"github app with workflow field", collection.ProviderGitHub, "github_app", `{"installation_id":42,"name":"zasp","owner":"acme","workflow":"build.yml"}`, `{}`},
 		{"okta role missing scope", collection.ProviderOkta, "okta_role", `{"name":"Application Administrator","object_type":"role","role":"APP_ADMIN","tenant":"tenant.example.com"}`, `{}`},
-		{"kubernetes role wrong namespaced type", collection.ProviderKubernetes, "kubernetes_role", `{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/production","name":"reader","namespace":"default","resource_kind":"Role","scope":"namespace"}`, `{"namespaced":"true"}`},
+		{"kubernetes role wrong namespaced type", collection.ProviderKubernetes, "kubernetes_role", `{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/production","name":"reader","namespace":"default","resource_kind":"Role","scope":"namespace"}`, `{"namespaced":"true","rules":[]}`},
 	}
 	for index, test := range tests {
 		entity := json.RawMessage(fmt.Sprintf(`{"id":"pid_44000000-0000-4000-8000-%012x","kind":%q,"source_native_id":"native-%d","display_name":"Inventory item %d","stable_fields":%s,"attributes":%s}`, index+1, test.kind, index+1, index+1, test.stable, test.attrs))
@@ -88,12 +89,12 @@ func TestProviderSchemaAcceptsRequiredLaunchRelationshipKinds(t *testing.T) {
 			json.RawMessage(`{"id":"pid_42000002-0000-4000-8000-000000000002","kind":"aws_policy","source_native_id":"arn:aws:iam::123456789012:policy/read","display_name":"read","stable_fields":{"account_id":"123456789012","arn":"arn:aws:iam::123456789012:policy/read","name":"read","policy_type":"managed"},"attributes":{}}`),
 		}, json.RawMessage(`{"id":"pid_42000010-0000-4000-8000-000000000002","kind":"uses_policy","source_native_id":"edge-2","from_entity_id":"pid_42000001-0000-4000-8000-000000000001","to_entity_id":"pid_42000002-0000-4000-8000-000000000002","attributes":{}}`)},
 		{"uses_identity", collection.ProviderKubernetes, []json.RawMessage{
-			json.RawMessage(`{"id":"pid_42000001-0000-4000-8000-000000000001","kind":"kubernetes_workload","source_native_id":"deployment/api","display_name":"api","stable_fields":{"api_group":"apps","api_version":"v1","cluster":"api.example.com/prod","name":"api","namespace":"default","resource_kind":"Deployment"},"attributes":{"namespaced":true}}`),
+			json.RawMessage(`{"id":"pid_42000001-0000-4000-8000-000000000001","kind":"kubernetes_workload","source_native_id":"deployment/api","display_name":"api","stable_fields":{"api_group":"apps","api_version":"v1","cluster":"api.example.com/prod","name":"api","namespace":"default","resource_kind":"Deployment","service_account":"api"},"attributes":{"namespaced":true}}`),
 			json.RawMessage(`{"id":"pid_42000002-0000-4000-8000-000000000002","kind":"kubernetes_service_account","source_native_id":"serviceaccount/api","display_name":"api","stable_fields":{"api_group":"core","api_version":"v1","cluster":"api.example.com/prod","name":"api","namespace":"default","resource_kind":"ServiceAccount"},"attributes":{"namespaced":true}}`),
 		}, json.RawMessage(`{"id":"pid_42000010-0000-4000-8000-000000000003","kind":"uses_identity","source_native_id":"edge-3","from_entity_id":"pid_42000001-0000-4000-8000-000000000001","to_entity_id":"pid_42000002-0000-4000-8000-000000000002","attributes":{"type":"workload_service_account"}}`)},
 		{"binds", collection.ProviderKubernetes, []json.RawMessage{
 			json.RawMessage(`{"id":"pid_42000001-0000-4000-8000-000000000001","kind":"kubernetes_role_binding","source_native_id":"rolebinding/readers","display_name":"readers","stable_fields":{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/prod","name":"readers","namespace":"default","resource_kind":"RoleBinding","role":"Role/reader","scope":"namespace"},"attributes":{"namespaced":true}}`),
-			json.RawMessage(`{"id":"pid_42000002-0000-4000-8000-000000000002","kind":"kubernetes_role","source_native_id":"role/reader","display_name":"reader","stable_fields":{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/prod","name":"reader","namespace":"default","resource_kind":"Role","scope":"namespace"},"attributes":{"namespaced":true}}`),
+			json.RawMessage(`{"id":"pid_42000002-0000-4000-8000-000000000002","kind":"kubernetes_role","source_native_id":"role/reader","display_name":"reader","stable_fields":{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/prod","name":"reader","namespace":"default","resource_kind":"Role","scope":"namespace"},"attributes":{"namespaced":true,"rules":[]}}`),
 		}, json.RawMessage(`{"id":"pid_42000010-0000-4000-8000-000000000004","kind":"binds","source_native_id":"edge-4","from_entity_id":"pid_42000001-0000-4000-8000-000000000001","to_entity_id":"pid_42000002-0000-4000-8000-000000000002","attributes":{"type":"binding_role"}}`)},
 		{"has_permission", collection.ProviderGitHub, []json.RawMessage{
 			json.RawMessage(`{"id":"pid_42000001-0000-4000-8000-000000000001","kind":"github_app","source_native_id":"app/7","display_name":"zasp","stable_fields":{"installation_id":42,"name":"zasp","owner":"acme"},"attributes":{}}`),
@@ -151,5 +152,39 @@ func TestProviderSchemaRejectsRelationshipAuthorityDrift(t *testing.T) {
 				t.Fatalf("relationship drift error = %v", err)
 			}
 		})
+	}
+}
+
+func TestKubernetesDanglingRoleReferenceRemainsExplicitWithoutAProductGraphEdge(t *testing.T) {
+	t.Parallel()
+	subject := collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/prod"}
+	target := deterministicKubernetesReferenceID(subject, "kubernetes_role", "default/deleted-reader")
+	binding := json.RawMessage(`{"id":"pid_47000001-0000-4000-8000-000000000001","kind":"kubernetes_role_binding","source_native_id":"rolebinding/readers","display_name":"readers","stable_fields":{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/prod","name":"readers","namespace":"default","resource_kind":"RoleBinding","role":"Role/deleted-reader","scope":"namespace"},"attributes":{"namespaced":true}}`)
+	binds := json.RawMessage(fmt.Sprintf(`{"id":"pid_47000002-0000-4000-8000-000000000002","kind":"binds","source_native_id":"rolebinding/readers/role","from_entity_id":"pid_47000001-0000-4000-8000-000000000001","to_entity_id":%q,"attributes":{"type":"binding_role"}}`, target))
+	objects := map[string]collection.RawObject{"pid_47000001-0000-4000-8000-000000000001": {}}
+	resolved, ok := relationshipsResolve(collection.ProviderKubernetes, subject, []json.RawMessage{binds}, []json.RawMessage{binding}, objects)
+	if !ok || len(resolved) != 0 || !bytes.Contains(binding, []byte(`"role":"Role/deleted-reader"`)) {
+		t.Fatalf("resolved=%s ok=%t binding=%s", resolved, ok, binding)
+	}
+	foreign := bytes.Replace(binds, []byte(target), []byte("pid_47000003-0000-4000-8000-000000000003"), 1)
+	if _, ok := relationshipsResolve(collection.ProviderKubernetes, subject, []json.RawMessage{foreign}, []json.RawMessage{binding}, objects); ok {
+		t.Fatal("arbitrary missing role target was accepted")
+	}
+}
+
+func TestKubernetesDanglingClusterRoleBindingRequiresExactStableTarget(t *testing.T) {
+	t.Parallel()
+	subject := collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "api.example.com/prod"}
+	target := deterministicKubernetesReferenceID(subject, "kubernetes_cluster_role", "deleted-auditor")
+	binding := json.RawMessage(`{"id":"pid_47000011-0000-4000-8000-000000000011","kind":"kubernetes_cluster_role_binding","source_native_id":"clusterrolebinding/auditors","display_name":"auditors","stable_fields":{"api_group":"rbac.authorization.k8s.io","api_version":"v1","cluster":"api.example.com/prod","name":"auditors","resource_kind":"ClusterRoleBinding","role":"ClusterRole/deleted-auditor","scope":"cluster"},"attributes":{"namespaced":false}}`)
+	binds := json.RawMessage(fmt.Sprintf(`{"id":"pid_47000012-0000-4000-8000-000000000012","kind":"binds","source_native_id":"clusterrolebinding/auditors/role","from_entity_id":"pid_47000011-0000-4000-8000-000000000011","to_entity_id":%q,"attributes":{"type":"binding_role"}}`, target))
+	objects := map[string]collection.RawObject{"pid_47000011-0000-4000-8000-000000000011": {}}
+	resolved, ok := relationshipsResolve(collection.ProviderKubernetes, subject, []json.RawMessage{binds}, []json.RawMessage{binding}, objects)
+	if !ok || len(resolved) != 0 {
+		t.Fatalf("resolved=%s ok=%t", resolved, ok)
+	}
+	foreign := bytes.Replace(binds, []byte(target), []byte("pid_47000013-0000-4000-8000-000000000013"), 1)
+	if _, ok := relationshipsResolve(collection.ProviderKubernetes, subject, []json.RawMessage{foreign}, []json.RawMessage{binding}, objects); ok {
+		t.Fatal("arbitrary missing cluster role target was accepted")
 	}
 }
