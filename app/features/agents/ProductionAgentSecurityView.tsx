@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { APIClient } from "../../../apps/web/api/client";
 import { APIProductError, APITransportError, createAPIClient, requireAPIData } from "../../../apps/web/api/client";
@@ -57,6 +57,12 @@ type ConnectedData =
   | { kind: "home"; value: HomeSummary }
   | { kind: "inventory"; title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[] };
 
+type AgentContext = {
+  capabilities: readonly Capability[];
+  relationships: readonly Relationship[];
+  sessions: readonly AgentSession[];
+};
+
 export function ProductionAgentSecurityView({ path, onNavigate, api: suppliedAPI, canWrite = false }: { path: string; onNavigate(path: string): void; api?: ProductionAgentSecurityAPI; canWrite?: boolean }) {
   const { client } = useAPI();
   const api = useMemo(() => suppliedAPI ?? createProductionAgentSecurityAPI(client), [client, suppliedAPI]);
@@ -92,8 +98,10 @@ function ConnectedHome({ value, onNavigate }: { value: HomeSummary; onNavigate(p
 }
 
 function ConnectedInventory({ title, category, values, api, initialDetailID, canWrite }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[]; api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean }) {
-  const [rows, setRows] = useState(values);
+  const [mutatedRows, setMutatedRows] = useState<Record<string, InventorySummary>>({});
+  const rows = values.map((value) => mutatedRows[value.id] && mutatedRows[value.id].version >= value.version ? mutatedRows[value.id] : value);
   const [selected, setSelected] = useState<InventoryDetail | null>(null);
+  const [agentContext, setAgentContext] = useState<AgentContext | null>(null);
   const [detailError, setDetailError] = useState(false);
   const [owner, setOwner] = useState("");
   const [team, setTeam] = useState("");
@@ -101,28 +109,34 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
   const [mutationError, setMutationError] = useState("");
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState<{ id: string; version: number; input: AgentOwnershipInput; key: string } | null>(null);
-  useEffect(() => setRows(values), [values]);
-  useEffect(() => {
-    if (!selected || pending) return;
-    setOwner(selected.summary.owner); setTeam(selected.summary.team); setTags(selected.summary.tags.join(", "));
-  }, [pending, selected]);
-  const loadDetail = useCallback(async (id: string, signal?: AbortSignal) => {
+  const detailRequest = useRef<AbortController | null>(null);
+  const loadDetail = async (id: string, signal?: AbortSignal) => {
     const loaders = { agent: api.getAgent, tool: api.getTool, identity: api.getIdentity, runtime: api.getRuntime };
-    try { setSelected(await loaders[category](id, signal)); setDetailError(false); }
+    try {
+      const detail = await loaders[category](id, signal);
+      const context = category === "agent" ? await loadAgentContext(api, id, signal) : null;
+      if (signal?.aborted) return;
+      setSelected(detail); setAgentContext(context); setOwner(detail.summary.owner); setTeam(detail.summary.team); setTags(detail.summary.tags.join(", ")); setDetailError(false);
+    }
     catch { if (!signal?.aborted) setDetailError(true); }
-  }, [api, category]);
+  };
   useEffect(() => {
     if (initialDetailID === "") return;
     const controller = new AbortController();
+    detailRequest.current?.abort(); detailRequest.current = controller;
     const loaders = { agent: api.getAgent, tool: api.getTool, identity: api.getIdentity, runtime: api.getRuntime };
-    void loaders[category](initialDetailID, controller.signal).then(
-      (detail) => { if (!controller.signal.aborted) { setSelected(detail); setDetailError(false); } },
+    void loaders[category](initialDetailID, controller.signal).then(async (detail) => ({ detail, context: category === "agent" ? await loadAgentContext(api, initialDetailID, controller.signal) : null })).then(
+      ({ detail, context }) => { if (!controller.signal.aborted) { setSelected(detail); setAgentContext(context); setOwner(detail.summary.owner); setTeam(detail.summary.team); setTags(detail.summary.tags.join(", ")); setDetailError(false); } },
       () => { if (!controller.signal.aborted) setDetailError(true); },
     );
-    return () => controller.abort();
+    return () => { controller.abort(); if (detailRequest.current === controller) detailRequest.current = null; };
   }, [api, category, initialDetailID]);
-  const open = (item: InventorySummary) => { setInventoryDetailURL(item.id); void loadDetail(item.id); };
-  const close = () => { if (saving) return; setInventoryDetailURL(""); setSelected(null); setMutationError(""); };
+  useEffect(() => () => detailRequest.current?.abort(), []);
+  const open = (item: InventorySummary) => {
+    detailRequest.current?.abort(); const controller = new AbortController(); detailRequest.current = controller;
+    setInventoryDetailURL(item.id); void loadDetail(item.id, controller.signal);
+  };
+  const close = () => { if (saving) return; detailRequest.current?.abort(); detailRequest.current = null; setInventoryDetailURL(""); setSelected(null); setAgentContext(null); setMutationError(""); };
   const save = async () => {
     if (!canWrite || category !== "agent" || !selected || saving) return;
     let retained = pending;
@@ -136,16 +150,30 @@ function ConnectedInventory({ title, category, values, api, initialDetailID, can
     try {
       const result = await api.updateAgent(retained.id, retained.version, retained.input, retained.key);
       const next = { ...selected, summary: result.agent };
-      setSelected(next); setRows((current) => current.map((item) => item.id === result.agent.id ? result.agent : item)); setPending(null);
+      setSelected(next); setMutatedRows((current) => ({ ...current, [result.agent.id]: result.agent })); setPending(null);
     } catch (error) {
       if (error instanceof APIProductError && error.status === 409) {
         setPending(null);
-        try { setSelected(await api.getAgent(retained.id)); setMutationError("Ownership changed elsewhere. The authoritative record was reloaded."); }
+        try { const authoritative = await api.getAgent(retained.id); setSelected(authoritative); setOwner(authoritative.summary.owner); setTeam(authoritative.summary.team); setTags(authoritative.summary.tags.join(", ")); setMutationError("Ownership changed elsewhere. The authoritative record was reloaded."); }
         catch { setMutationError("Ownership changed elsewhere and could not be reloaded."); }
       } else setMutationError("The response was interrupted. Retry reuses the exact ownership change.");
     } finally { setSaving(false); }
   };
-  return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}<Card>{rows.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Freshness</th><th>Last seen</th></tr></thead><tbody>{rows.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => open(item)}>{item.name}</button></td><td>{item.owner || "Unowned"}</td><td>{item.freshness_state}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.summary.name} closeDisabled={saving} onClose={close}><div className="detail-content"><h3>Canonical record</h3><code>{selected.summary.id}</code><h3>Ownership</h3><p>{selected.summary.owner || "Unowned"} · {selected.summary.team || "No team"}</p>{canWrite && category === "agent" && <section aria-label="Agent ownership controls"><Field label="Owner" value={owner} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setOwner(event.target.value)} /><Field label="Team" value={team} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setTeam(event.target.value)} /><Field label="Tags" hint="Comma-separated, up to 32 tags." value={tags} disabled={saving || pending !== null} maxLength={2078} onChange={(event) => setTags(event.target.value)} /><Button disabled={saving} onClick={() => void save()}>{pending ? "Retry ownership change" : "Save ownership"}</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}<h3>Evidence and freshness</h3><p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p><h3>Source authority</h3><p>{selected.sources.length} source observation{selected.sources.length === 1 ? "" : "s"} · confidence {selected.summary.confidence_basis_points / 100}%</p></div></Drawer>}</div>;
+  return <div className="page"><PageHeader title={title} description="Authorized canonical inventory." />{detailError && <div role="alert">Inventory detail unavailable</div>}<Card>{rows.length === 0 ? <p>No records in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Owner</th><th>Freshness</th><th>Last seen</th></tr></thead><tbody>{rows.map((item) => <tr key={item.id}><td><button className="row-title" aria-label={`Open ${item.name}`} onClick={() => open(item)}>{item.name}</button></td><td>{item.owner || "Unowned"}</td><td>{item.freshness_state}</td><td>{item.last_seen}</td></tr>)}</tbody></table></div>}</Card>{selected && <Drawer open title={selected.summary.name} closeDisabled={saving} onClose={close}><div className="detail-content"><h3>Canonical record</h3><code>{selected.summary.id}</code><h3>Ownership</h3><p>{selected.summary.owner || "Unowned"} · {selected.summary.team || "No team"}</p>{canWrite && category === "agent" && <section aria-label="Agent ownership controls"><Field label="Owner" value={owner} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setOwner(event.target.value)} /><Field label="Team" value={team} disabled={saving || pending !== null} maxLength={128} onChange={(event) => setTeam(event.target.value)} /><Field label="Tags" hint="Comma-separated, up to 32 tags." value={tags} disabled={saving || pending !== null} maxLength={2078} onChange={(event) => setTags(event.target.value)} /><Button disabled={saving} onClick={() => void save()}>{pending ? "Retry ownership change" : "Save ownership"}</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}<h3>Evidence and freshness</h3><p>{selected.summary.evidence_id} · observed {selected.summary.observed_at} · {selected.summary.freshness_state}</p><h3>Source authority</h3><p>{selected.sources.length} source observation{selected.sources.length === 1 ? "" : "s"} · confidence {selected.summary.confidence_basis_points / 100}%</p>{category === "agent" && agentContext && <AgentContextDetail value={agentContext} />}</div></Drawer>}</div>;
+}
+
+async function loadAgentContext(api: ProductionAgentSecurityAPI, id: string, signal?: AbortSignal): Promise<AgentContext> {
+  const [capabilities, relationships, sessions] = await Promise.all([
+    api.getAgentCapabilities(id, signal),
+    api.getAgentRelationships(id, signal),
+    api.listAgentSessions(id, signal),
+  ]);
+  return { capabilities, relationships, sessions };
+}
+
+function AgentContextDetail({ value }: { value: AgentContext }) {
+  const blocked = value.capabilities.filter((capability) => capability.state === "blocked");
+  return <><h3>Effective capabilities</h3>{value.capabilities.length === 0 ? <p>No capability evidence recorded.</p> : <ul>{value.capabilities.map((capability) => <li key={`${capability.category}/${capability.target_id}/${capability.outcome}`}>{capability.category} · {capability.state} · {capability.outcome} <code>{capability.target_id}</code> · evidence {capability.evidence_ids.map((id) => <code key={id}>{id}</code>)}</li>)}</ul>}<h3>Relationships</h3>{value.relationships.length === 0 ? <p>No Agent relationships recorded.</p> : <ul>{value.relationships.map((relationship) => <li key={relationship.id}>{relationship.type} · <code>{relationship.from_id}</code> → <code>{relationship.to_id}</code> · evidence <code>{relationship.evidence_id}</code></li>)}</ul>}<h3>Sessions</h3>{value.sessions.length === 0 ? <p>No observed sessions.</p> : <ul>{value.sessions.map((session) => <li key={session.id}><code>{session.id}</code> · started {session.started_at}</li>)}</ul>}<h3>Runtime policy coverage</h3><p>{blocked.length === 0 ? "No blocking capability evidence is active." : `${blocked.length} capability ${blocked.length === 1 ? "is" : "are"} covered by active blocking evidence.`}</p></>;
 }
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

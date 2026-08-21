@@ -10,6 +10,8 @@ const ids = {
   first: "pid_10000001-0000-4000-8000-000000000001",
   second: "pid_10000002-0000-4000-8000-000000000002",
   evidence: "pid_20000001-0000-4000-8000-000000000001",
+  relationship: "pid_20000002-0000-4000-8000-000000000002",
+  session: "pid_20000003-0000-4000-8000-000000000003",
 } as const;
 
 function summary(id: string, name: string) {
@@ -77,6 +79,31 @@ describe("production typed inventory API", () => {
     expect(await screen.findByRole("dialog", { name: "First" })).toBeVisible();
     expect(getAgent).toHaveBeenCalledWith(ids.first, expect.any(AbortSignal));
     expect(inventoryDetailIDFromSearch(`?inventory=${ids.first}&extra=1`)).toBe("");
+  });
+
+  it("renders production capability, relationship, session, and runtime-policy evidence", async () => {
+    const user = userEvent.setup();
+    const value = summary(ids.first, "First");
+    const detail = { summary: value, sources: [], evidence: [] } as never;
+    const getAgentCapabilities = vi.fn(async () => [{ agent_id: ids.first, target_id: ids.second, target_kind: "identity" as const, category: "identity_assume" as const, outcome: "assume" as const, state: "blocked" as const, reachable: true, evidence_ids: [ids.evidence] }]);
+    const getAgentRelationships = vi.fn(async () => [{ id: ids.relationship, from_id: ids.first, to_id: ids.second, type: "uses_identity", evidence_id: ids.evidence }]);
+    const listAgentSessions = vi.fn(async () => [{ id: ids.session, agent_id: ids.first, started_at: "2026-08-19T01:00:00Z" }]);
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [value], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async () => detail, getTool: async () => detail, getIdentity: async () => detail, getRuntime: async () => detail,
+      getAgentCapabilities, getAgentRelationships, listAgentSessions,
+      updateAgent: async () => ({ agent: value, audit_id: ids.evidence }),
+      getHomeSummary: async () => ({ agent_count: 1, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false }),
+    };
+    render(<APIProvider><ProductionAgentSecurityView path="/discovery/assets" api={api} onNavigate={() => undefined} /></APIProvider>);
+    await user.click(await screen.findByRole("button", { name: "Open First" }));
+    for (const heading of ["Effective capabilities", "Relationships", "Sessions", "Runtime policy coverage"]) expect(await screen.findByRole("heading", { name: heading })).toBeVisible();
+    expect(screen.getByText(/identity_assume.*blocked.*assume/)).toBeVisible();
+    expect(screen.getByText(/uses_identity/)).toBeVisible();
+    expect(screen.getByText(new RegExp(ids.session))).toBeVisible();
+    expect(getAgentCapabilities).toHaveBeenCalledWith(ids.first, expect.any(AbortSignal));
+    expect(getAgentRelationships).toHaveBeenCalledWith(ids.first, expect.any(AbortSignal));
+    expect(listAgentSessions).toHaveBeenCalledWith(ids.first, expect.any(AbortSignal));
   });
 
   it("updates scoped ownership with canonical tags from the production drawer", async () => {
