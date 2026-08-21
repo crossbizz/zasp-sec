@@ -9,20 +9,21 @@ import (
 )
 
 const (
-	postgresSecurityAgentAuthorityReadySQL   = `SELECT jsonb_build_object('release',zasp_security_agent_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
-	postgresSecurityAgentDefinitionPageSQL   = `SELECT zasp_security_agent_definition_page($1,$2,$3,NULLIF($4,''),$5)`
-	postgresSecurityAgentDefinitionValueSQL  = `SELECT zasp_security_agent_definition_value($1,$2,$3,$4)`
-	postgresSecurityAgentDefinitionReplaySQL = `SELECT zasp_security_agent_replay_definition($1,$2,$3,$4,$5,$6,$7::jsonb)`
-	postgresSecurityAgentDefinitionMutateSQL = `SELECT zasp_security_agent_mutate_definition($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14)`
-	postgresSecurityAgentActivateSQL         = `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
-	postgresSecurityAgentSimulateSQL         = `SELECT zasp_security_agent_simulate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14)`
-	postgresSecurityAgentRunSQL              = `SELECT zasp_security_agent_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
-	postgresSecurityAgentRunPageSQL          = `SELECT zasp_security_agent_run_page($1,$2,$3,NULLIF($4,''),NULLIF($5,''),$6,NULLIF($7,''),$8)`
-	postgresSecurityAgentRunDetailSQL        = `SELECT zasp_security_agent_run_detail($1,$2,$3,$4)`
-	postgresSecurityAgentCancelRunSQL        = `SELECT zasp_security_agent_cancel_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresSecurityAgentApprovalPageSQL     = `SELECT zasp_security_agent_approval_page($1,$2,$3,NULLIF($4,''),NULLIF($5,''),$6,NULLIF($7,''),$8)`
-	postgresSecurityAgentApprovalDetailSQL   = `SELECT zasp_security_agent_approval_detail($1,$2,$3,$4)`
-	postgresSecurityAgentDecideApprovalSQL   = `SELECT zasp_security_agent_decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+	postgresSecurityAgentAuthorityReadySQL       = `SELECT jsonb_build_object('release',zasp_security_agent_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
+	postgresSecurityAgentDefinitionPageSQL       = `SELECT zasp_security_agent_definition_page($1,$2,$3,NULLIF($4,''),$5)`
+	postgresSecurityAgentDefinitionValueSQL      = `SELECT zasp_security_agent_definition_value($1,$2,$3,$4)`
+	postgresSecurityAgentDefinitionReplaySQL     = `SELECT zasp_security_agent_replay_definition($1,$2,$3,$4,$5,$6,$7::jsonb)`
+	postgresSecurityAgentDefinitionMutateSQL     = `SELECT zasp_security_agent_mutate_definition($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14)`
+	postgresSecurityAgentDefinitionActivationSQL = `SELECT zasp_security_agent_definition_detail($1,$2,$3,$4)`
+	postgresSecurityAgentActivateSQL             = `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+	postgresSecurityAgentSimulateSQL             = `SELECT zasp_security_agent_simulate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14)`
+	postgresSecurityAgentRunSQL                  = `SELECT zasp_security_agent_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
+	postgresSecurityAgentRunPageSQL              = `SELECT zasp_security_agent_run_page($1,$2,$3,NULLIF($4,''),NULLIF($5,''),$6,NULLIF($7,''),$8)`
+	postgresSecurityAgentRunDetailSQL            = `SELECT zasp_security_agent_run_detail($1,$2,$3,$4)`
+	postgresSecurityAgentCancelRunSQL            = `SELECT zasp_security_agent_cancel_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentApprovalPageSQL         = `SELECT zasp_security_agent_approval_page($1,$2,$3,NULLIF($4,''),NULLIF($5,''),$6,NULLIF($7,''),$8)`
+	postgresSecurityAgentApprovalDetailSQL       = `SELECT zasp_security_agent_approval_detail($1,$2,$3,$4)`
+	postgresSecurityAgentDecideApprovalSQL       = `SELECT zasp_security_agent_decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 )
 
 func NewSecurityAgentPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
@@ -36,6 +37,33 @@ func NewSecurityAgentPostgresRepository(database JSONDatabase) (*PostgresReposit
 		return nil, ErrRepositoryConfiguration
 	}
 	return repository, nil
+}
+
+func (repository *PostgresRepository) GetSecurityAgentActivation(ctx context.Context, identity RequestIdentity, definitionID string) (SecurityAgentActivationState, error) {
+	if repository == nil || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken)) || !validProductID(definitionID) {
+		return SecurityAgentActivationState{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentDefinitionActivationSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID)
+	if err != nil {
+		return SecurityAgentActivationState{}, discoveryProviderError(err)
+	}
+	var wire struct {
+		OrganizationID    string `json:"organization_id"`
+		WorkspaceID       string `json:"workspace_id"`
+		EnvironmentID     string `json:"environment_id"`
+		DefinitionID      string `json:"definition_id"`
+		Activation        string `json:"activation"`
+		Version           int64  `json:"version"`
+		DefinitionVersion int64  `json:"definition_version"`
+		Body              struct {
+			Enabled bool `json:"enabled"`
+		} `json:"body"`
+		UpdatedAt time.Time `json:"updated_at"`
+	}
+	if !exactJSONFields(payload, "activation", "body", "definition_id", "definition_version", "environment_id", "organization_id", "updated_at", "version", "workspace_id") || decodeStrictDiscovery(payload, &wire) != nil || wire.OrganizationID != identity.Scope.OrganizationID().String() || wire.WorkspaceID != identity.Scope.WorkspaceID().String() || wire.EnvironmentID != identity.Scope.EnvironmentID().String() || wire.DefinitionID != definitionID || !stringIn(wire.Activation, "draft", "validated", "supervised", "autonomous") || wire.Body.Enabled != (wire.Activation == "supervised" || wire.Activation == "autonomous") || wire.Version < 1 || wire.Version > 1000000 || wire.DefinitionVersion < 1 || wire.DefinitionVersion > 1000000 || wire.UpdatedAt.IsZero() || wire.UpdatedAt.Location() != time.UTC {
+		return SecurityAgentActivationState{}, ErrRepositoryUnavailable
+	}
+	return SecurityAgentActivationState{ID: wire.DefinitionID, Activation: wire.Activation, Enabled: wire.Body.Enabled, Version: wire.Version}, nil
 }
 
 func (repository *PostgresRepository) SimulateSecurityAgent(ctx context.Context, identity RequestIdentity, input SecurityAgentSimulationRequest) (SecurityAgentSimulationResult, error) {

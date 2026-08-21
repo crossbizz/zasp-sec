@@ -40,6 +40,13 @@ type SecurityAgentActivationResult struct {
 	Replayed      bool   `json:"replayed"`
 }
 
+type SecurityAgentActivationState struct {
+	ID         string `json:"id"`
+	Activation string `json:"activation"`
+	Enabled    bool   `json:"enabled"`
+	Version    int64  `json:"version"`
+}
+
 type SecurityAgentSimulationRequest struct {
 	DefinitionID, IdempotencyKey, RunID, Goal string
 	ExpectedVersion                           int64
@@ -228,6 +235,7 @@ func (result *SecurityAgentSimulationResult) UnmarshalJSON(value []byte) error {
 }
 
 type SecurityAgentPublicAuthority interface {
+	GetSecurityAgentActivation(context.Context, RequestIdentity, string) (SecurityAgentActivationState, error)
 	ActivateSecurityAgent(context.Context, RequestIdentity, SecurityAgentActivation) (SecurityAgentActivationResult, error)
 	SimulateSecurityAgent(context.Context, RequestIdentity, SecurityAgentSimulationRequest) (SecurityAgentSimulationResult, error)
 	RunSecurityAgent(context.Context, RequestIdentity, SecurityAgentRunRequest) (SecurityAgentRunResult, error)
@@ -265,11 +273,13 @@ func (handler *securityAgentPublicHTTPHandler) ServeHTTP(writer http.ResponseWri
 		writeProductionError(writer, request, ErrRepositoryAuthentication)
 		return
 	}
-	if !stringIn(routed.OperationID, "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval") {
+	if !stringIn(routed.OperationID, "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval") {
 		handler.definitions.ServeHTTP(writer, request)
 		return
 	}
 	switch routed.OperationID {
+	case "getSecurityAgentActivation":
+		handler.getActivation(writer, request, routed)
 	case "activateSecurityAgent":
 		handler.activate(writer, request, routed)
 	case "simulateSecurityAgent":
@@ -289,6 +299,26 @@ func (handler *securityAgentPublicHTTPHandler) ServeHTTP(writer http.ResponseWri
 	case "decideSecurityAgentApproval":
 		handler.decideApproval(writer, request, routed)
 	}
+}
+
+func (handler *securityAgentPublicHTTPHandler) getActivation(writer http.ResponseWriter, request *http.Request, routed RoutedOperation) {
+	writer.Header().Set("Cache-Control", "no-store")
+	identity, ok := IdentityFromRequest(request)
+	definitionID := routed.PathParameters["id"]
+	if !ok || request.Method != http.MethodGet || request.URL.RawQuery != "" || !stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken)) || !validProductID(definitionID) {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	result, err := handler.repository.GetSecurityAgentActivation(request.Context(), identity, definitionID)
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	if result.ID != definitionID || !stringIn(result.Activation, "draft", "validated", "supervised", "autonomous") || result.Enabled != (result.Activation == "supervised" || result.Activation == "autonomous") || result.Version < 1 || result.Version > 1000000 {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	writeJSONValue(writer, request, http.StatusOK, result, nil)
 }
 
 type securityAgentCursorPayload struct {

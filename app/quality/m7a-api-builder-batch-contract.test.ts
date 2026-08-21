@@ -4,10 +4,10 @@ import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "../..");
 const operations = [
-  "listSecurityAgentTemplates", "listSecurityActions", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+  "listSecurityAgentTemplates", "listSecurityActions", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
 ] as const;
-const mountedOperations = ["listSecurityAgentTemplates", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"] as const;
-const apiOnlyOperations = ["activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent"] as const;
+const mountedOperations = ["listSecurityAgentTemplates", "listSecurityActions", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"] as const;
+const apiOnlyOperations = [] as const;
 
 describe("M7A audit, API, and builder batch", () => {
   it("publishes the durable definition, activation, simulation, run, cancellation, and approval API", async () => {
@@ -15,13 +15,11 @@ describe("M7A audit, API, and builder batch", () => {
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
     ]);
-    expect([...mountedOperations, "listSecurityActions", ...apiOnlyOperations].sort()).toEqual([...operations].sort());
+    expect([...mountedOperations, ...apiOnlyOperations].sort()).toEqual([...operations].sort());
     for (const operation of [...mountedOperations, ...apiOnlyOperations]) {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
     }
-    expect(openapi).not.toContain("operationId: listSecurityActions");
-    expect(generated).not.toContain(" listSecurityActions:");
   });
 
   it("ships the generated-client run and approval surface while keeping evidence-bound launch controls API-only", async () => {
@@ -35,8 +33,7 @@ describe("M7A audit, API, and builder batch", () => {
     expect(app).toContain("<ProductionSecurityAgentsView");
     expect(view).toContain('from "../../../apps/web/api/generated"');
     for (const operation of mountedOperations) expect(view).toContain(operation);
-    for (const operation of [...apiOnlyOperations, "listSecurityActions"]) expect(view).not.toContain(operation);
-    for (const label of ["Definition template", "Definition name", "Authorized environment", "Step limit", "Runtime seconds", "Temporary-policy seconds", "AI token budget", "Concurrency", "Template controls", "Limits", "Definition enabled", "Security Agent runs", "Pending approvals", "Expected effect", "Cancel run", "Reauthenticate to decide", "Approve", "Reject"]) expect(view).toContain(label);
+    for (const label of ["Definition template", "Definition name", "Authorized environment", "Step limit", "Runtime seconds", "Temporary-policy seconds", "AI token budget", "Concurrency", "Production action catalog", "Template controls", "Limits", "Definition enabled", "Validate definition", "Enable supervised execution", "Zero-effect simulation", "Simulate plan", "Start supervised run", "Security Agent runs", "Pending approvals", "Expected effect", "Cancel run", "Reauthenticate to decide", "Approve", "Reject"]) expect(view).toContain(label);
     expect(view).not.toMatch(/textarea|tool URL|shell command|arbitrary query/i);
   });
 

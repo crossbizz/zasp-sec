@@ -266,7 +266,7 @@ func TestBuiltInTemplatesTriggerMatchersAndDeduplication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ids := registry.IDs(); !equalStrings(ids, []string{"credential_exposure", "prompt_tool_injection", "repeated_policy_violation", "shadow_agent_triage", "suspicious_egress"}) {
+	if ids := registry.IDs(); !equalStrings(ids, []string{"credential_exposure", "finding_response", "prompt_tool_injection", "repeated_policy_violation", "shadow_agent_triage", "suspicious_egress"}) {
 		t.Fatalf("ids=%v", ids)
 	}
 	suspicious, _ := registry.Get("suspicious_egress", 1)

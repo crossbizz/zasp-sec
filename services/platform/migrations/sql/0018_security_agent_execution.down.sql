@@ -1,6 +1,6 @@
 DO $guard$
 BEGIN
-  IF public.zasp_security_agent_live_fingerprint()<>'6034f34d37788264be0cb038f8754bb75a87785a74553771f067390b81028ba7'
+  IF public.zasp_security_agent_live_fingerprint()<>'0b2c30b3eed43ca5e7d2cb96ed991f805bc4775eb671a0c24db8408f578bc9bd'
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_execution_state WHERE used_at IS NOT NULL)
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_runs)
      OR EXISTS(SELECT 1 FROM public.zasp_security_agent_effects) THEN

@@ -45,6 +45,28 @@ type securityAgentRepositoryDatabase struct {
 	arguments  [][]any
 }
 
+func TestSecurityAgentPostgresRepositoryReadsExactActivationState(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	definitionID := "pid_78000001-0000-4000-8000-000000000001"
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentAuthorityReadySQL:       json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentDefinitionActivationSQL: json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","definition_id":"` + definitionID + `","activation":"validated","version":2,"definition_version":1,"body":{"enabled":false},"updated_at":"2026-08-21T12:00:00Z"}`),
+	}}
+	repository, err := NewSecurityAgentPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := repository.GetSecurityAgentActivation(context.Background(), identity, definitionID)
+	if err != nil || result.ID != definitionID || result.Activation != "validated" || result.Enabled || result.Version != 2 {
+		t.Fatalf("activation=%#v err=%v", result, err)
+	}
+	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID}
+	if database.statements[1] != postgresSecurityAgentDefinitionActivationSQL || !reflect.DeepEqual(database.arguments[1], want) {
+		t.Fatalf("statement=%q args=%#v", database.statements[1], database.arguments[1])
+	}
+}
+
 func TestSecurityAgentPostgresRepositoryActivatesWithExactScopeAndReceiptAuthority(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	identity.CredentialKind = CredentialBrowserSession

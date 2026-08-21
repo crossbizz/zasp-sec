@@ -128,6 +128,18 @@ func RegisterResponseActions(registry *Registry, backend BuiltinBackend) error {
 	}
 	return nil
 }
+
+func BuiltInResponseActionMetadata() []ActionMetadata {
+	values := responseActionMetadata()
+	result := make([]ActionMetadata, 0, len(values))
+	for _, value := range values {
+		value.InputSchema = cloneParameters(value.InputSchema)
+		value.TargetTypes = cloneStrings(value.TargetTypes)
+		result = append(result, value)
+	}
+	return result
+}
+
 func responseActionMetadata() []ActionMetadata {
 	return []ActionMetadata{
 		{Key: "isolate_session", InputSchema: map[string]string{"session_id": "string", "scope": "string", "ttl": "duration"}, RiskClass: "containment", TargetTypes: []string{"session"}, ApprovalFloor: "operator", Reversible: true, Idempotent: true, VerificationKind: "gateway_decision"},

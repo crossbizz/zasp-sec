@@ -162,20 +162,21 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_simulate($1,$2,$3,$4,$5,'simulate-agent-idem-0002',2,'pid_78000029-0000-4000-8000-000000000029','Review unknown evidence',jsonb_build_array('pid_78000030-0000-4000-8000-000000000030'::text),$6,'pid_78000031-0000-4000-8000-000000000031','pid_78000032-0000-4000-8000-000000000032','pid_78000033-0000-4000-8000-000000000033')`, organizationID, workspaceID, environmentID, definitionID, actorID, simulationExpiresAt).Scan(&detail); err == nil {
 		t.Fatal("simulation accepted unauthorized evidence")
 	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_set_kill_switch('*','*','*','*',false,1,$1,'audit-global-off','corr-global-off')`, actorID).Scan(&activated); err != nil {
+		t.Fatalf("disable global execution: %v", err)
+	}
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-supervised-0001',2,'supervised',transaction_timestamp()+interval '4 minutes','audit-supervised-blocked','corr-supervised-blocked','receipt-supervised-blocked')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err == nil {
 		t.Fatal("supervised activation passed with global execution disabled")
 	}
-	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_set_kill_switch('*','*','*','*',true,1,$1,'audit-global','corr-global')`, actorID).Scan(&activated); err != nil {
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_set_kill_switch('*','*','*','*',true,2,$1,'audit-global','corr-global')`, actorID).Scan(&activated); err != nil {
 		t.Fatalf("enable global execution: %v", err)
-	}
-	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_set_kill_switch($1,$2,$3,'*',true,0,$4,'audit-tenant','corr-tenant')`, organizationID, workspaceID, environmentID, actorID).Scan(&activated); err != nil {
-		t.Fatalf("enable tenant execution: %v", err)
-	}
-	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_set_kill_switch($1,$2,$3,'update_finding_response',true,0,$4,'audit-action','corr-action')`, organizationID, workspaceID, environmentID, actorID).Scan(&activated); err != nil {
-		t.Fatalf("enable action execution: %v", err)
 	}
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-supervised-0001',2,'supervised',transaction_timestamp()+interval '4 minutes','audit-supervised','corr-supervised','receipt-supervised')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&activated); err != nil {
 		t.Fatalf("supervised activation: %v", err)
+	}
+	var activationSwitches int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_security_agent_kill_switches WHERE execution_enabled AND ((organization_id,workspace_id,environment_id,action_key)=($1,$2,$3,'*') OR (organization_id,workspace_id,environment_id,action_key)=($1,$2,$3,'update_finding_response'))`, organizationID, workspaceID, environmentID).Scan(&activationSwitches); err != nil || activationSwitches != 2 {
+		t.Fatalf("activation switches=%d err=%v", activationSwitches, err)
 	}
 	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,'activate-supervised-0001',2,'supervised',transaction_timestamp()+interval '4 minutes','new-audit-must-not-win','new-correlation-must-not-win','new-receipt-must-not-win')`, organizationID, workspaceID, environmentID, definitionID, actorID).Scan(&replayed); err != nil || !strings.Contains(string(replayed), `"replayed": true`) || !strings.Contains(string(replayed), `"receipt_id": "receipt-supervised"`) {
 		t.Fatalf("activation replay=%s err=%v", replayed, err)

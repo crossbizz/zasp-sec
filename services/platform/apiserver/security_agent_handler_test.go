@@ -13,25 +13,33 @@ import (
 var securityAgentTestSigningKey = []byte("0123456789abcdef0123456789abcdef")
 
 type securityAgentPublicAuthorityStub struct {
-	activation   SecurityAgentActivation
-	result       SecurityAgentActivationResult
-	simulation   SecurityAgentSimulationRequest
-	simulated    SecurityAgentSimulationResult
-	run          SecurityAgentRunRequest
-	runResult    SecurityAgentRunResult
-	decision     SecurityAgentApprovalDecisionRequest
-	decided      SecurityAgentApprovalResult
-	runPage      SecurityAgentRunPageRequest
-	runs         SecurityAgentRunPage
-	runID        string
-	runDetail    SecurityAgentRunDetail
-	cancel       SecurityAgentCancelRequest
-	cancelled    SecurityAgentRunResult
-	approvalPage SecurityAgentApprovalPageRequest
-	approvals    SecurityAgentApprovalPage
-	approvalID   string
-	approval     SecurityAgentApproval
-	calls        int
+	activationID    string
+	activationState SecurityAgentActivationState
+	activation      SecurityAgentActivation
+	result          SecurityAgentActivationResult
+	simulation      SecurityAgentSimulationRequest
+	simulated       SecurityAgentSimulationResult
+	run             SecurityAgentRunRequest
+	runResult       SecurityAgentRunResult
+	decision        SecurityAgentApprovalDecisionRequest
+	decided         SecurityAgentApprovalResult
+	runPage         SecurityAgentRunPageRequest
+	runs            SecurityAgentRunPage
+	runID           string
+	runDetail       SecurityAgentRunDetail
+	cancel          SecurityAgentCancelRequest
+	cancelled       SecurityAgentRunResult
+	approvalPage    SecurityAgentApprovalPageRequest
+	approvals       SecurityAgentApprovalPage
+	approvalID      string
+	approval        SecurityAgentApproval
+	calls           int
+}
+
+func (stub *securityAgentPublicAuthorityStub) GetSecurityAgentActivation(_ context.Context, _ RequestIdentity, definitionID string) (SecurityAgentActivationState, error) {
+	stub.calls++
+	stub.activationID = definitionID
+	return stub.activationState, nil
 }
 
 func (stub *securityAgentPublicAuthorityStub) ListSecurityAgentRuns(_ context.Context, _ RequestIdentity, input SecurityAgentRunPageRequest) (SecurityAgentRunPage, error) {
@@ -86,6 +94,22 @@ func (stub *securityAgentPublicAuthorityStub) DecideSecurityAgentApproval(_ cont
 	stub.calls++
 	stub.decision = input
 	return stub.decided, nil
+}
+
+func TestSecurityAgentPublicHandlerReadsExactActivationState(t *testing.T) {
+	definitionID := "pid_78000001-0000-4000-8000-000000000001"
+	stub := &securityAgentPublicAuthorityStub{activationState: SecurityAgentActivationState{ID: definitionID, Activation: "validated", Enabled: false, Version: 2}}
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: time.Now, NewProductID: newWorkflowProductID, SigningKey: securityAgentTestSigningKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	request := workflowRequest(t, identity, testCorrelationID, "getSecurityAgentActivation", map[string]string{"id": definitionID}, http.MethodGet, "/api/v1/security-agents/"+definitionID+"/activation", "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" || response.Body.String() != `{"id":"`+definitionID+`","activation":"validated","enabled":false,"version":2}`+"\n" || stub.activationID != definitionID {
+		t.Fatalf("activation response=%d headers=%v body=%s id=%q", response.Code, response.Header(), response.Body.String(), stub.activationID)
+	}
 }
 
 func TestSecurityAgentPublicHandlerQueuesExactTenantFindingRun(t *testing.T) {

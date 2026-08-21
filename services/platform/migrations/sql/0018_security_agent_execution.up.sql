@@ -262,7 +262,7 @@ END $authority$;
 
 INSERT INTO public.zasp_security_agent_execution_state(singleton) VALUES(true);
 INSERT INTO public.zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by)
-VALUES('*','*','*','*',false,'migration-v18');
+VALUES('*','*','*','*',true,'migration-v18-production-actions');
 
 INSERT INTO public.zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version,deleted_at,created_at,updated_at)
 SELECT organization_id,workspace_id,environment_id,id,'draft',version,COALESCE((body->>'definition_version')::integer,1),body||jsonb_build_object('enabled',false),'security-agent-actions-v1',deleted_at,created_at,updated_at
@@ -466,11 +466,19 @@ BEGIN
     RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='security agent activation conflict';
   END IF;
   IF target_activation IN('supervised','autonomous') THEN
-    IF NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=('*','*','*','*',true))
-       OR NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=(organization_value,workspace_value,environment_value,'*',true)) THEN
+    IF NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=('*','*','*','*',true)) THEN
+      RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent execution disabled';
+    END IF;
+    INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by)
+    VALUES(organization_value,workspace_value,environment_value,'*',true,actor_value)
+    ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO NOTHING;
+    IF NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=(organization_value,workspace_value,environment_value,'*',true)) THEN
       RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent execution disabled';
     END IF;
     FOR action_value IN SELECT jsonb_array_elements_text(definition_row.body->'allowed_actions') LOOP
+      INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by)
+      VALUES(organization_value,workspace_value,environment_value,action_value,true,actor_value)
+      ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO NOTHING;
       IF NOT EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE (organization_id,workspace_id,environment_id,action_key,execution_enabled)=(organization_value,workspace_value,environment_value,action_value,true)) THEN
         RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent action disabled';
       END IF;
@@ -482,7 +490,7 @@ BEGIN
   INSERT INTO zasp_security_agent_definition_versions(organization_id,workspace_id,environment_id,definition_id,version,activation,definition,definition_digest,actor_id)
   VALUES(organization_value,workspace_value,environment_value,definition_value,definition_row.version,target_activation,definition_row.body,digest(convert_to(definition_row.body::text,'UTF8'),'sha256'),actor_value);
   INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,actor_id,event_kind,event_digest,body)
-  VALUES(organization_value,workspace_value,environment_value,audit_value,correlation_value,actor_value,'definition_activated',digest(convert_to(jsonb_build_object('definition_id',definition_value,'activation',target_activation,'version',definition_row.version)::text,'UTF8'),'sha256'),jsonb_build_object('definition_id',definition_value,'activation',target_activation,'version',definition_row.version));
+  VALUES(organization_value,workspace_value,environment_value,audit_value,correlation_value,actor_value,'definition_activated',digest(convert_to(jsonb_build_object('definition_id',definition_value,'activation',target_activation,'version',definition_row.version)::text,'UTF8'),'sha256'),jsonb_build_object('definition_id',definition_value,'activation',target_activation,'version',definition_row.version,'allowed_actions',definition_row.body->'allowed_actions'));
   response_value:=jsonb_build_object('id',definition_value,'activation',target_activation,'enabled',target_activation IN('supervised','autonomous'),'version',definition_row.version,'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
   INSERT INTO zasp_security_agent_request_receipts(organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key,resource_id,expected_version,intent,intent_digest,response,audit_id,correlation_id,receipt_id)
   VALUES(organization_value,workspace_value,environment_value,actor_value,'activateSecurityAgent',idempotency_value,definition_value,expected_version,intent_value,intent_digest_value,response_value,audit_value,correlation_value,receipt_value);
@@ -1015,5 +1023,5 @@ BEGIN
 END
 $schema_marker$;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', '6034f34d37788264be0cb038f8754bb75a87785a74553771f067390b81028ba7')
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', '0b2c30b3eed43ca5e7d2cb96ed991f805bc4775eb671a0c24db8408f578bc9bd')
 ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;

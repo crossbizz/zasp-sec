@@ -2,8 +2,8 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { SecurityAgentApproval, SecurityAgentDefinition, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentTemplate } from "../../../apps/web/api/generated";
-import { decodeSecurityAgentApprovalPage, decodeSecurityAgentRunDetail, decodeSecurityAgentRunPage, decodeSecurityAgentPage } from "../../../apps/web/api/decoders";
+import type { SecurityAction, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentDefinition, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentSimulation, SecurityAgentTemplate } from "../../../apps/web/api/generated";
+import { decodeSecurityActionPage, decodeSecurityAgentActivationState, decodeSecurityAgentApprovalPage, decodeSecurityAgentRunDetail, decodeSecurityAgentRunPage, decodeSecurityAgentSimulation, decodeSecurityAgentPage } from "../../../apps/web/api/decoders";
 import { SecurityAgentsView, type SecurityAgentsAPI } from "./SecurityAgentsView";
 
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
@@ -15,8 +15,11 @@ const stepID = "pid_40000005-0000-4000-8000-000000000005";
 const approvalID = "pid_40000006-0000-4000-8000-000000000006";
 const evidenceID = "pid_40000007-0000-4000-8000-000000000007";
 const expiresAt = "2026-08-21T20:00:00Z";
-const template: SecurityAgentTemplate = { id: "pid_70000001-0000-4000-8000-000000000001", name: "Prompt containment", version: 1, trigger_kind: "finding", default_actions: ["run_test"], verification_condition: "test_run" };
-const created: SecurityAgentDefinition = { id: agentID, name: "Bounded response definition", trigger_kind: "finding", trigger_source: "credential", environment_ids: [environmentID], autonomy: "supervised", max_steps: 10, max_duration_seconds: 900, temporary_policy_seconds: 3600, ai_token_budget: 4000, concurrency_limit: 2, allowed_actions: ["run_test"], verification_kind: "test_run", definition_version: 1, enabled: true };
+const template: SecurityAgentTemplate = { id: "pid_70000001-0000-4000-8000-000000000001", name: "Finding Response", version: 1, trigger_kind: "finding", default_actions: ["update_finding_response"], verification_condition: "finding_state" };
+const action: SecurityAction = { key: "update_finding_response", risk_class: "low", target_types: ["finding"], approval_floor: "none", reversible: true, verification_kind: "finding_state" };
+const created: SecurityAgentDefinition = { id: agentID, name: "Bounded response definition", trigger_kind: "finding", trigger_source: "credential", environment_ids: [environmentID], autonomy: "supervised", max_steps: 10, max_duration_seconds: 900, temporary_policy_seconds: 3600, ai_token_budget: 4000, concurrency_limit: 2, allowed_actions: ["update_finding_response"], verification_kind: "finding_state", definition_version: 1, enabled: false };
+const draftActivation: SecurityAgentActivationState = { id: agentID, activation: "draft", enabled: false, version: 7 };
+const simulation: SecurityAgentSimulation = { run_id: "pid_40000008-0000-4000-8000-000000000008", definition_id: agentID, definition_version: 3, plan_hash: `sha256:${"b".repeat(64)}`, catalog_version: "security-agent-actions-v1", expires_at: expiresAt, matched_evidence_ids: [evidenceID], summary: "Planned one finding response", steps: [{ index: 0, action: "update_finding_response", authorization: "approval_required", approval_required: true }], side_effects: 0, version: 1 };
 const run: SecurityAgentRun = { id: runID, agent_id: agentID, state: "waiting_approval", evidence_ids: [evidenceID], definition_version: 1, version: 4 };
 const approval: SecurityAgentApproval = { id: approvalID, run_id: runID, step_id: stepID, state: "pending", expires_at: expiresAt, version: 1, expected_effect: "Move finding to under review", reversible: true, ttl_seconds: 0, evidence_summary: [evidenceID] };
 const runDetail: SecurityAgentRunDetail = { run, evidence_ids: [evidenceID], plan: { plan_hash: `sha256:${"a".repeat(64)}`, catalog_version: "security-agent-actions-v1", expires_at: expiresAt, steps: [{ id: stepID, index: 0, action: "update_finding_response", authorization: "approval_required", state: "waiting_approval", version: 1 }] }, authorization: "approval_required", approvals: [approval], execution: [{ step_id: stepID, action: "update_finding_response", state: "waiting_approval", version: 1 }], verification: "not_started" };
@@ -24,11 +27,16 @@ const runDetail: SecurityAgentRunDetail = { run, evidence_ids: [evidenceID], pla
 function fixtureAPI(overrides: Partial<SecurityAgentsAPI> = {}): SecurityAgentsAPI {
   return {
     listSecurityAgentTemplates: async () => [template],
+    listSecurityActions: async () => [action],
     listSecurityAgents: async () => ({ items: [], page_info: { next_cursor: null, has_more: false } }),
     createSecurityAgent: async () => ({ value: created, version: `"1"`, auditID, receiptID }),
     getSecurityAgent: async () => ({ value: created, version: `"7"` }),
     updateSecurityAgent: async (_id, _version, value) => ({ value, version: `"8"`, auditID, receiptID }),
     deleteSecurityAgent: async () => ({ value: undefined, version: `"9"`, auditID, receiptID }),
+    getSecurityAgentActivation: async () => draftActivation,
+    activateSecurityAgent: async (_id, version, activation) => ({ value: { id: agentID, activation, enabled: activation === "supervised" || activation === "autonomous", version: version + 1 }, version: `"${version + 1}"`, auditID, receiptID }),
+    simulateSecurityAgent: async () => ({ value: simulation, version: `"1"`, auditID, receiptID }),
+    runSecurityAgent: async () => ({ value: { ...run, state: "queued", version: 1, definition_version: 3 }, version: `"1"`, auditID, receiptID }),
     listSecurityAgentRuns: async () => ({ items: [] }),
     getSecurityAgentRun: async () => runDetail,
     cancelSecurityAgentRun: async () => ({ value: { ...run, state: "cancelled", version: 5 }, version: `"5"`, auditID, receiptID }),
@@ -41,6 +49,12 @@ function fixtureAPI(overrides: Partial<SecurityAgentsAPI> = {}): SecurityAgentsA
 
 describe("Security Agent definition surface", () => {
   it("strictly binds run plans, approvals, effects, and cursor pages", () => {
+    expect(decodeSecurityActionPage({ items: [action] })).toEqual({ items: [action] });
+    expect(decodeSecurityAgentActivationState(draftActivation)).toEqual(draftActivation);
+    expect(decodeSecurityAgentSimulation(simulation)).toEqual(simulation);
+    expect(() => decodeSecurityActionPage({ items: [{ ...action, key: "z" }, action] })).toThrow();
+    expect(() => decodeSecurityAgentActivationState({ ...draftActivation, enabled: true })).toThrow();
+    expect(() => decodeSecurityAgentSimulation({ ...simulation, side_effects: 1 })).toThrow();
     expect(decodeSecurityAgentRunPage({ items: [run], next_cursor: "b2s" })).toEqual({ items: [run], next_cursor: "b2s" });
     expect(decodeSecurityAgentApprovalPage({ items: [approval] })).toEqual({ items: [approval] });
     expect(decodeSecurityAgentRunDetail(runDetail)).toEqual(runDetail);
@@ -61,10 +75,36 @@ describe("Security Agent definition surface", () => {
     render(<SecurityAgentsView api={fixtureAPI({ createSecurityAgent })} environmentID={environmentID} />);
     await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
     await user.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
-    await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledWith(expect.objectContaining({ environment_ids: [environmentID], autonomy: "supervised", allowed_actions: ["run_test"], verification_kind: "test_run" }), expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
-    expect(screen.queryByText(/simulate/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledWith(expect.objectContaining({ environment_ids: [environmentID], autonomy: "supervised", allowed_actions: ["update_finding_response"], verification_kind: "finding_state" }), expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
     expect(screen.getByText("Pending approvals")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /run/i })).not.toBeInTheDocument();
+  });
+
+  it("validates, simulates, and queues a supervised finding run from exact durable activation authority", async () => {
+    const user = userEvent.setup();
+    const activationV1 = { ...draftActivation, version: 1 };
+    const getSecurityAgentActivation = vi.fn(async () => activationV1);
+    const activateSecurityAgent = vi.fn(fixtureAPI().activateSecurityAgent);
+    const simulateSecurityAgent = vi.fn(fixtureAPI().simulateSecurityAgent);
+    const runSecurityAgent = vi.fn(fixtureAPI().runSecurityAgent);
+    const api = fixtureAPI({ getSecurityAgent: async () => ({ value: created, version: `"1"` }), getSecurityAgentActivation, activateSecurityAgent, simulateSecurityAgent, runSecurityAgent });
+    const initialSnapshot = { agents: [created], templates: [template], actions: [action], runs: [], approvals: [] };
+    const { rerender } = render(<SecurityAgentsView api={api} environmentID={environmentID} autoLoad={false} initialSnapshot={initialSnapshot} fresh={false} onReauthenticate={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: `Open ${created.name}` }));
+    expect(await screen.findByText(/update_finding_response · low · approval none/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reauthenticate to activate" })).toBeInTheDocument();
+
+    rerender(<SecurityAgentsView api={api} environmentID={environmentID} autoLoad={false} initialSnapshot={initialSnapshot} fresh />);
+    await user.click(screen.getByRole("button", { name: "Validate definition" }));
+    await waitFor(() => expect(activateSecurityAgent).toHaveBeenCalledWith(agentID, 1, "validated", expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+    expect(await screen.findByRole("button", { name: "Enable supervised execution" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Enable supervised execution" }));
+    await waitFor(() => expect(activateSecurityAgent).toHaveBeenLastCalledWith(agentID, 2, "supervised", expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+    await user.type(screen.getByLabelText("Evidence ID"), evidenceID);
+    await user.click(screen.getByRole("button", { name: "Simulate plan" }));
+    await waitFor(() => expect(simulateSecurityAgent).toHaveBeenCalledWith(agentID, 3, expect.objectContaining({ evidence_ids: [evidenceID], environment_id: environmentID }), expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+    expect(await screen.findByText("Planned one finding response")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Start supervised run" }));
+    await waitFor(() => expect(runSecurityAgent).toHaveBeenCalledWith(agentID, 3, { environment_id: environmentID, trigger_kind: "finding", trigger_id: evidenceID }, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
   });
 
   it("shows redacted run and approval detail, gates decisions on fresh auth, and cancels with the listed version", async () => {
@@ -103,7 +143,7 @@ describe("Security Agent definition surface", () => {
     const deleteSecurityAgent = vi.fn(fixtureAPI().deleteSecurityAgent);
     render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgent, updateSecurityAgent, deleteSecurityAgent })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [created], templates: [template] }} />);
     await user.click(screen.getByRole("button", { name: `Open ${created.name}` }));
-    await screen.findByText("Resource version \"7\"");
+    await screen.findByText("Resource version 7");
     await user.clear(screen.getByLabelText("Definition name"));
     await user.type(screen.getByLabelText("Definition name"), "Updated definition");
     await user.click(screen.getByRole("button", { name: "Save definition" }));
@@ -146,7 +186,7 @@ describe("Security Agent definition surface", () => {
       .mockResolvedValueOnce({ value: { ...created, name: "Updated definition" }, version: `"8"`, auditID, receiptID });
     render(<SecurityAgentsView api={fixtureAPI({ updateSecurityAgent })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [created], templates: [template] }} />);
     await user.click(screen.getByRole("button", { name: `Open ${created.name}` }));
-    await screen.findByText("Resource version \"7\"");
+    await screen.findByText("Resource version 7");
     await user.clear(screen.getByLabelText("Definition name"));
     await user.type(screen.getByLabelText("Definition name"), "Updated definition");
     await user.click(screen.getByRole("button", { name: "Save definition" }));

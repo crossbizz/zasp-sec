@@ -68,6 +68,7 @@ func (registry *TemplateRegistry) Get(id string, version int) (Template, error) 
 }
 func BuiltInTemplates() []Template {
 	return []Template{
+		{ID: "finding_response", Name: "Finding Response", Version: 1, TriggerKind: "finding", DefaultActions: []string{"update_finding_response"}, VerificationCondition: "finding_state", ApprovalRequired: map[string]bool{"update_finding_response": true}},
 		{ID: "suspicious_egress", Name: "Suspicious Egress", Version: 1, TriggerKind: "finding", DefaultActions: []string{"create_temporary_policy", "create_evidence_export", "send_response_webhook"}, VerificationCondition: "scoped_policy_blocked_and_evidence_exported", ApprovalRequired: map[string]bool{"create_temporary_policy": true}},
 		{ID: "credential_exposure", Name: "Credential Exposure", Version: 1, TriggerKind: "finding", DefaultActions: []string{"create_temporary_policy", "revoke_integration_connection", "create_evidence_export"}, VerificationCondition: "credential_contained_or_needs_human", ApprovalRequired: map[string]bool{"create_temporary_policy": true, "revoke_integration_connection": true}},
 		{ID: "prompt_tool_injection", Name: "Prompt or Tool Injection", Version: 1, TriggerKind: "attack_path", DefaultActions: []string{"create_temporary_policy", "run_test"}, VerificationCondition: "linked_risk_blocked_or_not_reproduced", ApprovalRequired: map[string]bool{"create_temporary_policy": true}},

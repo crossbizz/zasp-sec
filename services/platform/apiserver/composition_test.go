@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 110 || len(public) != 110 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 110/110", len(seen), len(public))
+	if len(seen) != 112 || len(public) != 112 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 112/112", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -138,7 +138,6 @@ func TestTaskSevenCompositionHasExactActivationSurfaceWithoutExecutionOverclaims
 		"listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
 		"listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
 		"simulatePolicy", "listPolicyDecisions",
-		"listSecurityActions",
 		"createAIExplanation",
 	} {
 		if _, mounted := definitions[operationID]; mounted {
@@ -156,6 +155,14 @@ func TestTaskSevenCompositionHasExactActivationSurfaceWithoutExecutionOverclaims
 	run, ok := definitions["runSecurityAgent"]
 	if !ok || run.Method != http.MethodPost || run.Pattern != "/api/v1/security-agents/{id}/runs" || run.Permission != "manage_workflows" || !equalStrings(run.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || requiresFreshAuthentication("runSecurityAgent") {
 		t.Errorf("security-agent run definition=%#v exists=%v", run, ok)
+	}
+	actions, ok := definitions["listSecurityActions"]
+	if !ok || actions.Method != http.MethodGet || actions.Pattern != "/api/v1/security-actions" || actions.Permission != "view" || !equalStrings(actions.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || requiresFreshAuthentication("listSecurityActions") {
+		t.Errorf("security action catalog definition=%#v exists=%v", actions, ok)
+	}
+	activationState, ok := definitions["getSecurityAgentActivation"]
+	if !ok || activationState.Method != http.MethodGet || activationState.Pattern != "/api/v1/security-agents/{id}/activation" || activationState.Permission != "view" || !equalStrings(activationState.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || requiresFreshAuthentication("getSecurityAgentActivation") {
+		t.Errorf("security-agent activation state definition=%#v exists=%v", activationState, ok)
 	}
 	for operationID, expected := range map[string]struct {
 		method, pattern, permission string
@@ -191,7 +198,7 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 	for _, operationID := range []string{
 		"listPolicies", "createPolicy", "getPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
 		"listIntegrationCatalog", "listIntegrations", "createIntegration", "getIntegration", "updateIntegration", "deleteIntegration",
-		"listSecurityAgentTemplates", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent",
+		"listSecurityAgentTemplates", "listSecurityActions", "listSecurityAgents", "createSecurityAgent", "getSecurityAgent", "updateSecurityAgent", "deleteSecurityAgent", "getSecurityAgentActivation", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval",
 	} {
 		definition, ok := definitions[operationID]
 		if !ok {
@@ -214,7 +221,6 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 	}
 	for _, hidden := range []string{
 		"simulatePolicy", "listPolicyDecisions",
-		"listSecurityActions", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval",
 	} {
 		if _, mounted := definitions[hidden]; mounted {
 			t.Errorf("provider-owned operation %q mounted without a provider adapter", hidden)
@@ -435,7 +441,7 @@ func TestNewCompositionMountsOnlyCoreProductOperations(t *testing.T) {
 		}
 	}
 
-	for _, path := range []string{"/internal/health/live", "/api/v1/sensors/heartbeat", "/api/v1/security-actions", "/api/v1/security-agent-runs", "/api/v1/security-agent-approvals", "/api/v1/runtime/events", "/api/v1/policy/bundle", "/api/v1/webhooks/stytch"} {
+	for _, path := range []string{"/internal/health/live", "/api/v1/sensors/heartbeat", "/api/v1/runtime/events", "/api/v1/policy/bundle", "/api/v1/webhooks/stytch"} {
 		response := httptest.NewRecorder()
 		composition.ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, nil))
 		if response.Code != http.StatusNotFound {

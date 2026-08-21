@@ -533,10 +533,10 @@ func TestWorkflowHandlerUsesServerScopeAndNondisclosingFixedErrors(t *testing.T)
 func TestWorkflowHandlerDecodesSecurityAgentContractAndBuildsDurableDefinition(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	correlation := "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-	resultBody := json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","name":"Bounded response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["run_test"],"verification_kind":"test_run","definition_version":1,"enabled":true}`)
+	resultBody := json.RawMessage(`{"id":"pid_90000001-0000-4000-8000-000000000001","name":"Bounded response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["update_finding_response"],"verification_kind":"finding_state","definition_version":1,"enabled":false}`)
 	repository := &workflowRepositoryStub{result: WorkflowMutationResult{WorkflowValue: WorkflowValue{Body: resultBody, Version: 1}, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: correlation}}
 	handler, _ := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), func() time.Time { return time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC) })
-	body := `{"name":"Bounded response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["run_test"],"verification_kind":"test_run","definition_version":1,"enabled":true}`
+	body := `{"name":"Bounded response","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["update_finding_response"],"verification_kind":"finding_state","definition_version":1,"enabled":false}`
 	request := workflowRequest(t, identity, correlation, "createSecurityAgent", nil, http.MethodPost, "/api/v1/security-agents", body)
 	request.Header.Set("Idempotency-Key", "idem-create-agent-0001")
 	response := httptest.NewRecorder()
@@ -545,7 +545,7 @@ func TestWorkflowHandlerDecodesSecurityAgentContractAndBuildsDurableDefinition(t
 		t.Fatalf("response = %d %s mutation=%#v", response.Code, response.Body.String(), repository.mutation)
 	}
 	repository.mutation = WorkflowMutation{}
-	request = workflowRequest(t, identity, correlation, "createSecurityAgent", nil, http.MethodPost, "/api/v1/security-agents", `{"id":"pid_90000001-0000-4000-8000-000000000001","name":"Client assigned","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["run_test"],"verification_kind":"test_run","definition_version":1,"enabled":true}`)
+	request = workflowRequest(t, identity, correlation, "createSecurityAgent", nil, http.MethodPost, "/api/v1/security-agents", `{"id":"pid_90000001-0000-4000-8000-000000000001","name":"Client assigned","trigger_kind":"finding","trigger_source":"credential","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":10,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":2,"allowed_actions":["update_finding_response"],"verification_kind":"finding_state","definition_version":1,"enabled":false}`)
 	request.Header.Set("Idempotency-Key", "idem-reject-client-agent-id")
 	response = httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
@@ -620,10 +620,30 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &templates) != nil || len(templates.Items) != 1 {
 		t.Fatalf("local templates = %d %s", response.Code, response.Body.String())
 	}
+	if !slices.Equal(templates.Items[0].DefaultActions, []string{"update_finding_response"}) {
+		t.Fatalf("production template exposes actions without a production executor: %#v", templates.Items[0].DefaultActions)
+	}
 	for _, action := range templates.Items[0].DefaultActions {
 		if !servedWorkflowActions([]string{action}) {
 			t.Fatalf("template publishes unsupported action %q", action)
 		}
+	}
+
+	request = workflowRequest(t, identity, testCorrelationID, "listSecurityActions", nil, http.MethodGet, "/api/v1/security-actions", "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	var actions struct {
+		Items []struct {
+			Key              string   `json:"key"`
+			RiskClass        string   `json:"risk_class"`
+			TargetTypes      []string `json:"target_types"`
+			ApprovalFloor    string   `json:"approval_floor"`
+			Reversible       bool     `json:"reversible"`
+			VerificationKind string   `json:"verification_kind"`
+		} `json:"items"`
+	}
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &actions) != nil || len(actions.Items) != 1 || actions.Items[0].Key != "update_finding_response" || actions.Items[0].RiskClass != "low" || !slices.Equal(actions.Items[0].TargetTypes, []string{"finding"}) || actions.Items[0].ApprovalFloor != "none" || !actions.Items[0].Reversible || actions.Items[0].VerificationKind != "finding_state" {
+		t.Fatalf("production action catalog = %d %s", response.Code, response.Body.String())
 	}
 }
 

@@ -111,6 +111,10 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": workflowTemplates()}, nil)
 		return
 	}
+	if routed.OperationID == "listSecurityActions" {
+		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": workflowActions()}, nil)
+		return
+	}
 	kind, list, parentField, parentID, ok := workflowReadTarget(routed)
 	if !ok {
 		writeProductionError(writer, request, ErrRepositoryNotFound)
@@ -710,6 +714,18 @@ func workflowTemplates() []map[string]any {
 	return result
 }
 
+func workflowActions() []map[string]any {
+	values := securityagent.BuiltInResponseActionMetadata()
+	result := make([]map[string]any, 0, len(values))
+	for _, value := range values {
+		if !servedWorkflowActions([]string{value.Key}) {
+			continue
+		}
+		result = append(result, map[string]any{"key": value.Key, "risk_class": value.RiskClass, "target_types": value.TargetTypes, "approval_floor": value.ApprovalFloor, "reversible": value.Reversible, "verification_kind": value.VerificationKind})
+	}
+	return result
+}
+
 func (handler *workflowHTTPHandler) currentCatalog(ctx context.Context) (*platformintegration.Catalog, error) {
 	if handler == nil || nilInterface(handler.capabilities) || ctx == nil || ctx.Err() != nil {
 		return nil, ErrRepositoryUnavailable
@@ -746,7 +762,7 @@ func exactWorkflowEnvironment(values []string, environmentID string) bool {
 }
 
 func servedWorkflowActions(values []string) bool {
-	served := map[string]struct{}{"create_temporary_policy": {}, "create_evidence_export": {}, "run_test": {}}
+	served := map[string]struct{}{"update_finding_response": {}}
 	for _, value := range values {
 		if _, ok := served[value]; !ok {
 			return false

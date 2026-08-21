@@ -1651,6 +1651,14 @@ paths:
         '200': { description: Product template page., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentTemplatePage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-actions:
+    get:
+      operationId: listSecurityActions
+      summary: List Security Agent actions backed by the current production executor
+      responses:
+        '200': { description: Production-backed Security Agent action catalog., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityActionPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agents:
     get:
       operationId: listSecurityAgents
@@ -1706,6 +1714,18 @@ paths:
   /api/v1/security-agents/{id}/activation:
     parameters:
       - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getSecurityAgentActivation
+      summary: Get the exact durable activation state for one Security Agent
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      responses:
+        '200': { description: Durable activation state., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentActivationState' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
     post:
       operationId: activateSecurityAgent
       summary: Advance one Security Agent through its audited activation state machine
@@ -2535,6 +2555,15 @@ components:
       required: [activation]
       properties:
         activation: { type: string, enum: [validated, supervised, autonomous] }
+    SecurityAgentActivationState:
+      type: object
+      additionalProperties: false
+      required: [id, activation, enabled, version]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        activation: { type: string, enum: [draft, validated, supervised, autonomous] }
+        enabled: { type: boolean }
+        version: { type: integer, minimum: 1 }
     SecurityAgentActivationResult:
       type: object
       additionalProperties: false

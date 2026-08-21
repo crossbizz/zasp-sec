@@ -980,6 +980,23 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/security-actions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List Security Agent actions backed by the current production executor */
+        readonly get: operations["listSecurityActions"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/security-agent-approvals": {
         readonly parameters: {
             readonly query?: never;
@@ -1155,7 +1172,8 @@ export type paths = {
             };
             readonly cookie?: never;
         };
-        readonly get?: never;
+        /** Get the exact durable activation state for one Security Agent */
+        readonly get: operations["getSecurityAgentActivation"];
         readonly put?: never;
         /** Advance one Security Agent through its audited activation state machine */
         readonly post: operations["activateSecurityAgent"];
@@ -2557,6 +2575,13 @@ export type components = {
             readonly id: components["schemas"]["ProductID"];
             readonly version: number;
         };
+        readonly SecurityAgentActivationState: {
+            /** @enum {string} */
+            readonly activation: "draft" | "validated" | "supervised" | "autonomous";
+            readonly enabled: boolean;
+            readonly id: components["schemas"]["ProductID"];
+            readonly version: number;
+        };
         readonly SecurityAgentApproval: {
             readonly evidence_summary?: readonly components["schemas"]["ProductID"][];
             readonly expected_effect?: string;
@@ -3182,6 +3207,7 @@ export type SecurityAction = components['schemas']['SecurityAction'];
 export type SecurityActionPage = components['schemas']['SecurityActionPage'];
 export type SecurityAgentActivationInput = components['schemas']['SecurityAgentActivationInput'];
 export type SecurityAgentActivationResult = components['schemas']['SecurityAgentActivationResult'];
+export type SecurityAgentActivationState = components['schemas']['SecurityAgentActivationState'];
 export type SecurityAgentApproval = components['schemas']['SecurityAgentApproval'];
 export type SecurityAgentApprovalDecision = components['schemas']['SecurityAgentApprovalDecision'];
 export type SecurityAgentApprovalPage = components['schemas']['SecurityAgentApprovalPage'];
@@ -5231,6 +5257,28 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly listSecurityActions: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Production-backed Security Agent action catalog. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityActionPage"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly listSecurityAgentApprovals: {
         readonly parameters: {
             readonly query?: {
@@ -5595,6 +5643,31 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSecurityAgentActivation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Durable activation state. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SecurityAgentActivationState"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
