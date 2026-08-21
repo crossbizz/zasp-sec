@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 112 || len(public) != 112 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 112/112", len(seen), len(public))
+	if len(seen) != 119 || len(public) != 119 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 119/119", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -329,6 +329,8 @@ func TestBatchThreeCompositionExposesOnlyCompleteDurableOperations(t *testing.T)
 		"getDataControls", "updateDataControls",
 		"getExternalDataFlows",
 		"getSystemStatus", "listSystemComponents", "getSystemVersion",
+		"listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection",
+		"listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection",
 	} {
 		t.Run("mounted_"+operationID, func(t *testing.T) {
 			definition, ok := definitions[operationID]
@@ -343,8 +345,6 @@ func TestBatchThreeCompositionExposesOnlyCompleteDurableOperations(t *testing.T)
 
 	for _, operationID := range []string{
 		"listGroupMappings", "updateGroupMappings",
-		"listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection",
-		"listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection",
 		"createAuditExport", "getAuditExport",
 		"createComplianceExport", "getComplianceExport",
 		"updateExternalDataFlows",

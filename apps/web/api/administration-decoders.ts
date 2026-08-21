@@ -1,8 +1,10 @@
-import type { ApiToken, ApiTokenPage, ApiTokenRevealedCredential, ApiTokenRevealGrant, ApiTokenRevealGrantPage, AuditEventPage, BuiltInRolePage, ComplianceControlPage, ComplianceEvidencePage, DataControls, EnvironmentMutation, EnvironmentPage, ExternalFlowPage, GroupMapping, GroupMappingPage, Organization, Principal, PrincipalPage, Session, SessionEventPage, SessionPage, SystemComponentPage, SystemStatus, SystemVersion, WorkspaceMutation, WorkspacePage } from "./generated";
+import type { ApiToken, ApiTokenPage, ApiTokenRevealedCredential, ApiTokenRevealGrant, ApiTokenRevealGrantPage, AuditEventPage, BuiltInRolePage, ComplianceControlPage, ComplianceEvidencePage, ConnectionDeletion, ConnectionTest, DataControls, EnvironmentMutation, EnvironmentPage, ExternalFlowPage, GroupMapping, GroupMappingPage, Organization, Principal, PrincipalPage, ScimConnection, ScimConnectionCredential, ScimConnectionPage, Session, SessionEventPage, SessionPage, SsoConnection, SsoConnectionMutation, SsoConnectionPage, SystemComponentPage, SystemStatus, SystemVersion, WorkspaceMutation, WorkspacePage } from "./generated";
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const SESSION_ID = /^session-[a-z0-9][a-z0-9-]*$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+const SSO_CONNECTION_ID = /^(?:saml|oidc|external)-connection-[A-Za-z0-9_-]+$/;
+const SCIM_CONNECTION_ID = /^scim-connection-[A-Za-z0-9_-]+$/;
 
 export const decodeOrganization = (value: unknown) => decoded<Organization>(value, ["id", "name", "domain", "version"], (record) => { id(record.id); text(record.name, 128); text(record.domain, 253); version(record.version); });
 export const decodeWorkspace = (value: unknown) => decoded<WorkspaceMutation>(value, ["id", "organization_id", "name", "version"], (record) => { id(record.id); id(record.organization_id); text(record.name, 128); version(record.version); if (record.initial_environment_id !== undefined) id(record.initial_environment_id); }, ["initial_environment_id", "audit_correlation_id"]);
@@ -14,6 +16,14 @@ export const decodePrincipalPage = (value: unknown) => page<PrincipalPage>(value
 export const decodeBuiltInRolePage = (value: unknown) => page<BuiltInRolePage>(value, (entry) => decoded(entry, ["role", "permissions"], (record) => { role(record.role); strings(record.permissions, 32); }));
 export const decodeGroupMapping = (value: unknown) => decoded<GroupMapping>(value, ["group_reference", "role", "workspace_id", "environment_id", "version"], (record) => { if (typeof record.group_reference !== "string" || !/^idp-group-[A-Za-z0-9_-]+$/.test(record.group_reference)) bad(); role(record.role); id(record.workspace_id); id(record.environment_id); version(record.version); }, ["audit_correlation_id"]);
 export const decodeGroupMappingPage = (value: unknown) => page<GroupMappingPage>(value, decodeGroupMapping);
+export const decodeSSOConnection = (value: unknown) => decoded<SsoConnection>(value, ["id", "status", "display_name", "protocol", "identity_provider"], (record) => { connectionID(record.id, SSO_CONNECTION_ID); connectionStatus(record.status); text(record.display_name, 128); one(record.protocol, ["saml", "oidc"]); one(record.identity_provider, ["classlink", "cyberark", "duo", "generic", "google-workspace", "jumpcloud", "keycloak", "miniorange", "microsoft-entra", "okta", "onelogin", "pingfederate", "rippling", "salesforce", "shibboleth"]); });
+export const decodeSSOConnectionMutation = (value: unknown) => decoded<SsoConnectionMutation>(value, ["id", "status", "display_name", "protocol", "identity_provider", "audit_correlation_id"], (record) => { decodeSSOConnection({ id: record.id, status: record.status, display_name: record.display_name, protocol: record.protocol, identity_provider: record.identity_provider }); id(record.audit_correlation_id); });
+export const decodeSSOConnectionPage = (value: unknown) => page<SsoConnectionPage>(value, decodeSSOConnection);
+export const decodeSCIMConnection = (value: unknown) => decoded<ScimConnection>(value, ["id", "status", "display_name", "identity_provider", "base_url"], (record) => { connectionID(record.id, SCIM_CONNECTION_ID); connectionStatus(record.status); text(record.display_name, 128); one(record.identity_provider, ["generic", "okta", "microsoft-entra", "cyberark", "jumpcloud", "onelogin", "pingfederate", "rippling"]); httpsURL(record.base_url); });
+export const decodeSCIMConnectionCredential = (value: unknown) => decoded<ScimConnectionCredential>(value, ["id", "status", "display_name", "identity_provider", "base_url", "bearer_token", "audit_correlation_id"], (record) => { decodeSCIMConnection({ id: record.id, status: record.status, display_name: record.display_name, identity_provider: record.identity_provider, base_url: record.base_url }); if (typeof record.bearer_token !== "string" || !/^scim_bearer_token_[A-Za-z0-9_-]+$/.test(record.bearer_token) || record.bearer_token.length > 4096) bad(); id(record.audit_correlation_id); });
+export const decodeSCIMConnectionPage = (value: unknown) => page<ScimConnectionPage>(value, decodeSCIMConnection);
+export const decodeConnectionDeletion = (value: unknown) => decoded<ConnectionDeletion>(value, ["id", "audit_correlation_id"], (record) => { if (typeof record.id !== "string" || !SSO_CONNECTION_ID.test(record.id) && !SCIM_CONNECTION_ID.test(record.id)) bad(); id(record.audit_correlation_id); });
+export const decodeConnectionTest = (value: unknown) => decoded<ConnectionTest>(value, ["healthy", "audit_correlation_id"], (record) => { if (record.healthy !== true) bad(); id(record.audit_correlation_id); });
 
 export function decodeAPIToken(value: unknown): ApiToken {
   return decoded<ApiToken>(value, ["id", "name", "principal_id", "workspace_id", "environment_id", "permissions", "created_at", "expires_at", "last_used_at", "revoked_at", "version"], (record) => {
@@ -50,6 +60,9 @@ function one(value: unknown, values: string[]) { if (typeof value !== "string" |
 function date(value: unknown) { if (typeof value !== "string" || !DATE_TIME.test(value) || Number.isNaN(Date.parse(value))) bad(); }
 function nullableDate(value: unknown) { if (value !== null) date(value); }
 function version(value: unknown) { integer(value, 1, Number.MAX_SAFE_INTEGER); }
+function connectionID(value: unknown, pattern: RegExp) { if (typeof value !== "string" || value.length > 128 || !pattern.test(value)) bad(); }
+function connectionStatus(value: unknown) { one(value, ["active", "pending", "disabled"]); }
+function httpsURL(value: unknown) { if (typeof value !== "string" || value.length > 2048 || !/^https:\/\/[^?#]+(?:\?aadOptscim062020)?$/.test(value)) bad(); }
 function integer(value: unknown, minimum: number, maximum: number) { if (!Number.isSafeInteger(value) || (value as number) < minimum || (value as number) > maximum) bad(); }
 function list(value: unknown, maximum: number): unknown[] { if (!Array.isArray(value) || value.length > maximum) bad(); return value; }
 function strings(value: unknown, maximum: number) { const items = list(value, maximum); if (new Set(items).size !== items.length || items.some((item) => typeof item !== "string" || item.length < 1 || item.length > 128)) bad(); }

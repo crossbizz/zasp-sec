@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeAPITokenRevealGrant, decodeAPITokenRevealedCredential, decodeComplianceEvidencePage, decodeDataControls, decodeOrganization, decodeSessionPage, decodeSystemComponentPage } from "./administration-decoders";
+import { decodeAPITokenRevealGrant, decodeAPITokenRevealedCredential, decodeComplianceEvidencePage, decodeConnectionDeletion, decodeConnectionTest, decodeDataControls, decodeOrganization, decodeSCIMConnectionCredential, decodeSCIMConnectionPage, decodeSessionPage, decodeSSOConnectionMutation, decodeSSOConnectionPage, decodeSystemComponentPage } from "./administration-decoders";
 
 const id = "pid_10000001-0000-4000-8000-000000000001";
 describe("administration response decoders", () => {
@@ -36,5 +36,20 @@ describe("administration response decoders", () => {
     expect(decodeComplianceEvidencePage(page([item])).items[0]?.evidence).toEqual([evidence]);
     expect(() => decodeComplianceEvidencePage(page([{ ...item, evidence: [] }]))).toThrow("schema mismatch");
     expect(() => decodeComplianceEvidencePage(page([{ ...item, evidence: [evidence, { ...evidence, id: "evidence-2" }] }]))).toThrow("schema mismatch");
+  });
+  it("strictly decodes tenant SSO and SCIM administration without leaking list credentials", () => {
+    const pageInfo = { next_cursor: null, has_more: false };
+    const sso = { id: "saml-connection-live-a", status: "active", display_name: "Corporate SAML", protocol: "saml", identity_provider: "okta" };
+    const scim = { id: "scim-connection-live-a", status: "pending", display_name: "Corporate SCIM", identity_provider: "okta", base_url: "https://scim.stytch.com/v2/live-a" };
+    expect(decodeSSOConnectionPage({ items: [sso], page_info: pageInfo }).items[0]).toEqual(sso);
+    expect(decodeSCIMConnectionPage({ items: [scim], page_info: pageInfo }).items[0]).toEqual(scim);
+    expect(decodeSSOConnectionMutation({ ...sso, audit_correlation_id: id }).audit_correlation_id).toBe(id);
+    const credential = { ...scim, status: "active", bearer_token: "scim_bearer_token_recoverable", audit_correlation_id: id };
+    expect(decodeSCIMConnectionCredential(credential).bearer_token).toBe(credential.bearer_token);
+    expect(decodeConnectionDeletion({ id: sso.id, audit_correlation_id: id }).id).toBe(sso.id);
+    expect(decodeConnectionTest({ healthy: true, audit_correlation_id: id }).healthy).toBe(true);
+    expect(() => decodeSCIMConnectionPage({ items: [{ ...scim, bearer_token: credential.bearer_token }], page_info: pageInfo })).toThrow("schema mismatch");
+    expect(() => decodeSSOConnectionPage({ items: [{ ...sso, status: "connected" }], page_info: pageInfo })).toThrow("schema mismatch");
+    expect(() => decodeSCIMConnectionCredential({ ...credential, bearer_token: "provider-secret" })).toThrow("schema mismatch");
   });
 });

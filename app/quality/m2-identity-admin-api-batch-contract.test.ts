@@ -28,7 +28,7 @@ describe("M2 identity and administration API batch", () => {
     for (const task of completedTasks) expect(complete).toContain(task);
   });
 
-  it("binds durable local operations and leaves incomplete provider administration unmounted", () => {
+  it("binds durable local and provider-backed administration operations", () => {
     const openapi = read("openapi/openapi.yaml");
     const composition = read("services/platform/apiserver/composition.go");
     const view = read("app/features/identity/IdentityAccessView.tsx");
@@ -36,12 +36,14 @@ describe("M2 identity and administration API batch", () => {
       "getOrganization", "listWorkspaces", "createWorkspace", "getWorkspace", "updateWorkspace", "listEnvironments", "createEnvironment",
       "getEnvironment", "updateEnvironment", "getCurrentPrincipal", "listMembers", "listBuiltInRoles",
     ]) expect(openapi).toContain(`operationId: ${operation}`);
-    for (const hidden of ["listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection", "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection"]) {
-      expect(openapi).not.toContain(`operationId: ${hidden}`);
-      expect(composition).not.toContain(`"${hidden}"`);
+    for (const operation of ["listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection", "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection"]) {
+      expect(openapi).toContain(`operationId: ${operation}`);
+      expect(composition).toContain(`"${operation}"`);
     }
-    expect(view).toContain("Unavailable");
-    expect(view).toContain("no complete provider configuration");
+    expect(view).toContain("Add SSO connection");
+    expect(view).toContain("Add SCIM connection");
+    expect(view).toContain("Connections are isolated to this organization");
+    expect(view).toContain("Group mappings are hidden");
   });
 
   it("preserves this batch inside the current M2 completion boundary", () => {

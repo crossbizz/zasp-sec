@@ -226,7 +226,7 @@ BEGIN
   ELSIF grant_value IS NOT NULL OR ciphertext_value IS NOT NULL OR nonce_value IS NOT NULL OR tag_value IS NOT NULL OR grant_expires_value IS NOT NULL THEN
     RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='identity secret reveal forbidden';
   END IF;
-  response_value:=jsonb_build_object('body',connection_value,'version',connection_version,'audit_id',mutation_row.audit_id,'correlation_id',mutation_row.correlation_id,'receipt_id',mutation_row.receipt_id,'replayed',false,'secret_grant_id',grant_value);
+  response_value:=jsonb_build_object('body',connection_value,'version',connection_version,'mutation_id',mutation_row.mutation_id,'audit_id',mutation_row.audit_id,'correlation_id',mutation_row.correlation_id,'receipt_id',mutation_row.receipt_id,'replayed',false,'secret_grant_id',grant_value);
   UPDATE zasp_identity_provider_mutations SET state='completed',provider_reference=reference_value,response=response_value,version=version+1,updated_at=transaction_timestamp()
   WHERE (organization_id,principal_id,operation,idempotency_key)=(organization_value,principal_value,operation_value,idempotency_value);
   INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata)
@@ -247,7 +247,7 @@ END
 $page$;
 
 CREATE FUNCTION public.zasp_identity_admin_reveal_secret(organization_value text,principal_value text,grant_value text) RETURNS jsonb LANGUAGE sql SECURITY DEFINER SET search_path TO pg_catalog, public AS $reveal$
-  SELECT jsonb_build_object('ciphertext',encode(ciphertext,'base64'),'nonce',encode(nonce,'base64'),'authentication_tag',encode(authentication_tag,'base64'),'expires_at',to_char(expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) FROM zasp_identity_secret_reveal_grants WHERE organization_id=organization_value AND principal_id=principal_value AND grant_id=grant_value AND acknowledged_at IS NULL AND expires_at>transaction_timestamp() AND zasp_identity_admin_authorized(organization_value,principal_value)
+  SELECT jsonb_build_object('ciphertext',replace(encode(ciphertext,'base64'),E'\n',''),'nonce',replace(encode(nonce,'base64'),E'\n',''),'authentication_tag',replace(encode(authentication_tag,'base64'),E'\n',''),'expires_at',to_char(expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) FROM zasp_identity_secret_reveal_grants WHERE organization_id=organization_value AND principal_id=principal_value AND grant_id=grant_value AND acknowledged_at IS NULL AND expires_at>transaction_timestamp() AND zasp_identity_admin_authorized(organization_value,principal_value)
 $reveal$;
 
 CREATE FUNCTION public.zasp_identity_admin_ack_secret(organization_value text,principal_value text,grant_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $ack$
@@ -358,4 +358,4 @@ BEGIN
 END
 $schema_marker$;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('identity_administration_fingerprint', '29a2c39f520a95b9226f8760e50676e8058ddc92d04a9f88532a39654761a2f8') ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('identity_administration_fingerprint', '399bb0175ee56bda8532e95bb5ba0df73e71898538ea9751c3bca905a61f6460') ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;

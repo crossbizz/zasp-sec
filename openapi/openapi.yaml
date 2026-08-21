@@ -407,6 +407,127 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
         default:
           $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/admin/sso-connections:
+    get:
+      operationId: listSSOConnections
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: List live SSO connections for the authenticated provider tenant
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200': { description: Tenant SSO connection page., content: { application/json: { schema: { $ref: '#/components/schemas/SSOConnectionPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: createSSOConnection
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Create a tenant-bound SSO connection with durable replay authority
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SSOConnectionInput' } } }
+      responses:
+        '201': { description: Created SSO connection., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SSOConnectionMutation' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/admin/sso-connections/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/SSOConnectionID' } }
+    delete:
+      operationId: deleteSSOConnection
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Delete a tenant-bound SSO connection with durable reconciliation
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Deleted SSO connection., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/ConnectionDeletion' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/admin/sso-connections/{id}/test:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/SSOConnectionID' } }
+    post:
+      operationId: testSSOConnection
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Test one active tenant-bound SSO connection
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, maxProperties: 0 } } }
+      responses:
+        '200': { description: SSO connection is active., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/ConnectionTest' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/admin/scim-connections:
+    get:
+      operationId: listSCIMConnections
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: List live SCIM connections for the authenticated provider tenant
+      parameters:
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/PageLimit'
+      responses:
+        '200': { description: Tenant SCIM connection page., content: { application/json: { schema: { $ref: '#/components/schemas/SCIMConnectionPage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: createSCIMConnection
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Create a tenant-bound SCIM connection and recoverable one-time credential
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SCIMConnectionInput' } } }
+      responses:
+        '201': { description: Created SCIM connection credential., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/SCIMConnectionCredential' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/admin/scim-connections/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/SCIMConnectionID' } }
+    delete:
+      operationId: deleteSCIMConnection
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Delete a tenant-bound SCIM connection with durable reconciliation
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Deleted SCIM connection., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/ConnectionDeletion' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/admin/api-tokens:
     get:
       operationId: listAPITokens

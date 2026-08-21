@@ -28,17 +28,25 @@ const expectedOperations = new Map([
   ["rotateAPIToken", ["/api/v1/admin/api-tokens/{id}/rotate", "post"]],
   ["revokeAPIToken", ["/api/v1/admin/api-tokens/{id}", "delete"]],
   ["listAuditEvents", ["/api/v1/audit-events", "get"]],
+  ["listSSOConnections", ["/api/v1/admin/sso-connections", "get"]],
+  ["createSSOConnection", ["/api/v1/admin/sso-connections", "post"]],
+  ["deleteSSOConnection", ["/api/v1/admin/sso-connections/{id}", "delete"]],
+  ["testSSOConnection", ["/api/v1/admin/sso-connections/{id}/test", "post"]],
+  ["listSCIMConnections", ["/api/v1/admin/scim-connections", "get"]],
+  ["createSCIMConnection", ["/api/v1/admin/scim-connections", "post"]],
+  ["deleteSCIMConnection", ["/api/v1/admin/scim-connections/{id}", "delete"]],
 ]);
 
 const hiddenOperations = [
   "listGroupMappings", "updateGroupMappings",
-  "listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection",
-  "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection", "createAuditExport", "getAuditExport",
+  "createAuditExport", "getAuditExport",
 ];
 
 const identityUIOperations = new Set([
   "getOrganization", "listWorkspaces", "createWorkspace", "updateWorkspace", "listEnvironments", "createEnvironment", "updateEnvironment",
   "listMembers", "updateMemberRole", "listBuiltInRoles",
+  "listSSOConnections", "createSSOConnection", "deleteSSOConnection", "testSSOConnection",
+  "listSCIMConnections", "createSCIMConnection", "deleteSCIMConnection",
   "listAPITokens", "createAPIToken", "listAPITokenRevealGrants", "revealAPIToken", "acknowledgeAPITokenRevealGrant", "rotateAPIToken", "revokeAPIToken", "listAuditEvents",
 ]);
 

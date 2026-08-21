@@ -1,6 +1,6 @@
 DO $guard$
 BEGIN
-  IF public.zasp_identity_administration_live_fingerprint()<>'29a2c39f520a95b9226f8760e50676e8058ddc92d04a9f88532a39654761a2f8'
+  IF public.zasp_identity_administration_live_fingerprint()<>'399bb0175ee56bda8532e95bb5ba0df73e71898538ea9751c3bca905a61f6460'
      OR EXISTS(SELECT 1 FROM public.zasp_identity_administration_state WHERE used_at IS NOT NULL)
      OR EXISTS(SELECT 1 FROM public.zasp_identity_provider_mutations)
      OR EXISTS(SELECT 1 FROM public.zasp_identity_webhook_events) THEN

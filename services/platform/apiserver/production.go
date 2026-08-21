@@ -173,9 +173,22 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 	if version == "" {
 		version = "dev"
 	}
+	var identityAdministration *identityAdministrationCoordinator
+	if repository.schema == IdentityAdministrationSchemaVersion {
+		connectionProvider, ok := provider.(IdentityConnectionProvider)
+		if !ok || nilInterface(connectionProvider) {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		identityAdministration, err = newIdentityAdministrationCoordinator(repository, connectionProvider, identityAdministrationCoordinatorConfig{
+			Clock: cookie.Clock, RevealKey: cookie.TokenRevealKey, NewProductID: newWorkflowProductID, NewOwnerToken: randomIdentityAdministrationOwnerToken,
+		})
+		if err != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+	}
 	return Dependencies{
 		Session:   session,
-		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
+		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, identityAdministration: identityAdministration, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
 		Inventory: inventorySurface,
 		Risk:      risk,
 		Workflow:  workflowSurface,
@@ -387,13 +400,14 @@ func capabilitiesForPermissions(permissions []string) []string {
 }
 
 type identityHTTPHandler struct {
-	repository     sessionRepository
-	administration administrationRepository
-	provider       CallbackProvider
-	signingKey     []byte
-	tokenRevealKey []byte
-	now            func() time.Time
-	version        string
+	repository             sessionRepository
+	administration         administrationRepository
+	provider               CallbackProvider
+	identityAdministration *identityAdministrationCoordinator
+	signingKey             []byte
+	tokenRevealKey         []byte
+	now                    func() time.Time
+	version                string
 }
 
 func (handler *identityHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -506,7 +520,13 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 		return
 	}
-	payload, err := handler.administration.ReadAdministration(request.Context(), identity, routed.OperationID, parameters)
+	var payload json.RawMessage
+	var err error
+	if handler.identityAdministration != nil && stringIn(routed.OperationID, "listSSOConnections", "listSCIMConnections") {
+		payload, err = handler.identityAdministration.List(request.Context(), identity, routed.OperationID, parameters["after_id"], adminLimit(parameters))
+	} else {
+		payload, err = handler.administration.ReadAdministration(request.Context(), identity, routed.OperationID, parameters)
+	}
 	if err != nil {
 		writeProductionError(writer, request, err)
 		return
@@ -525,6 +545,10 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 }
 
 func (handler *identityHTTPHandler) mutateAdministration(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
+	if stringIn(routed.OperationID, "createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection") {
+		handler.mutateIdentityConnection(writer, request, identity, routed)
+		return
+	}
 	mutation := administrationMutation{Operation: routed.OperationID, ID: routed.PathParameters["id"]}
 	if routed.OperationID == "revealAPIToken" {
 		handler.revealAPIToken(writer, request, identity, mutation.ID)
@@ -817,7 +841,7 @@ func newAdministrationToken(previous error) (string, error) {
 
 func administrationPagedOperation(operation string) bool {
 	switch operation {
-	case "listWorkspaces", "listEnvironments", "listMembers", "listAPITokens", "listAPITokenRevealGrants", "listAuditEvents", "listSessions", "listSessionEvents", "listComplianceControls", "listComplianceEvidence":
+	case "listWorkspaces", "listEnvironments", "listMembers", "listAPITokens", "listAPITokenRevealGrants", "listAuditEvents", "listSessions", "listSessionEvents", "listComplianceControls", "listComplianceEvidence", "listSSOConnections", "listSCIMConnections":
 		return true
 	default:
 		return false

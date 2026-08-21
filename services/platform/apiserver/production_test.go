@@ -422,7 +422,7 @@ func TestProductionHandlersRequireAndRouteV18SecurityAgentAuthority(t *testing.T
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Contain compromised runtime") {
 		t.Fatalf("security-agent list status=%d body=%s", response.Code, response.Body.String())
 	}
-	if len(securityDatabase.statements) != 2 || securityDatabase.statements[1] != postgresSecurityAgentDefinitionPageSQL {
+	if len(securityDatabase.statements) != 3 || securityDatabase.statements[2] != postgresSecurityAgentDefinitionPageSQL {
 		t.Fatalf("security-agent statements=%#v", securityDatabase.statements)
 	}
 	for _, statement := range mainDatabase.queries {

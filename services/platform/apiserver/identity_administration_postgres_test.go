@@ -91,11 +91,11 @@ func TestProductionIdentityAdministrationPostgresInstallsExactTenantAuthority(t 
 	}
 	connectionValue := json.RawMessage(`{"reference":"saml-connection-tenant-a","kind":"sso","protocol":"saml","status":"pending","display_name":"Corporate SAML","identity_provider":"okta","base_url":null}`)
 	var completed []byte
-	if err := connection.QueryRow(ctx, `SELECT zasp_identity_admin_complete_mutation($1,$2,'createSSOConnection',$3,$4,$5,$6::jsonb,NULL,NULL,NULL,NULL,NULL)`, organization, principal, idempotency, mutationID, leaseToken, connectionValue).Scan(&completed); err != nil || !json.Valid(completed) {
+	if err := connection.QueryRow(ctx, `SELECT zasp_identity_admin_complete_mutation($1,$2,'createSSOConnection',$3,$4,$5,$6::jsonb,NULL,NULL,NULL,NULL,NULL)`, organization, principal, idempotency, mutationID, leaseToken, connectionValue).Scan(&completed); err != nil || !json.Valid(completed) || !jsonContainsString(completed, "mutation_id", mutationID) {
 		t.Fatalf("complete=%s err=%v", completed, err)
 	}
 	var replayed []byte
-	if err := connection.QueryRow(ctx, `SELECT zasp_identity_admin_reserve_mutation($1,$2,'createSSOConnection',$3,'pid_79000009-0000-4000-8000-000000000009',$4,$5::jsonb,'pid_79000006-0000-4000-8000-000000000006','pid_79000007-0000-4000-8000-000000000007','pid_79000008-0000-4000-8000-000000000008',$6,60)`, organization, principal, idempotency, intentDigest, intent, leaseToken).Scan(&replayed); err != nil || !json.Valid(replayed) || !jsonContainsBoolean(replayed, "replayed", true) {
+	if err := connection.QueryRow(ctx, `SELECT zasp_identity_admin_reserve_mutation($1,$2,'createSSOConnection',$3,'pid_79000009-0000-4000-8000-000000000009',$4,$5::jsonb,'pid_79000006-0000-4000-8000-000000000006','pid_79000007-0000-4000-8000-000000000007','pid_79000008-0000-4000-8000-000000000008',$6,60)`, organization, principal, idempotency, intentDigest, intent, leaseToken).Scan(&replayed); err != nil || !json.Valid(replayed) || !jsonContainsBoolean(replayed, "replayed", true) || !jsonContainsString(replayed, "mutation_id", mutationID) {
 		t.Fatalf("replay=%s err=%v", replayed, err)
 	}
 	var page, foreignPage []byte
