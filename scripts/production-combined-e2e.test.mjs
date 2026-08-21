@@ -46,7 +46,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE",
     "generateHarnessGitHubAppPrivateKey", "github-app-private-key.pem", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE",
     "/api/v1/integrations/{id}/authorize", "/api/v1/integrations/oauth/callback", "assertRejectedConnectorResponse",
-    "browser OAuth authorization navigation and exact retained request proven", "connectorAuthorizationRequests", "connector-oauth-e2e-provider", "browserConnectorForensics", "Page.getNavigationHistory",
+    "browser OAuth authorization navigation and exact retained request proven", "browser launch connector setup catalog proven", "Configure Amazon Web Services", "Configure Kubernetes", "connectorAuthorizationRequests", "connector-oauth-e2e-provider", "browserConnectorForensics", "Page.getNavigationHistory",
     "live AWS/GitHub/Okta connector success remains typed external evidence", "zero provider/AWS calls",
     "integrationDeleteRequests", "malformNextIntegrationDeleteResponse", "completeHarnessConnectorRevocation",
     "external-provider completion simulation", "real DELETE 202 durable revoking receipt",

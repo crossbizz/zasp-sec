@@ -234,9 +234,9 @@ M3	M3-47	Complete	production-available	T04-discovery-worker	production evidence:
 M3	M3-48a	Complete	production-available	PROD-current-composition	audited shipped composition: Connection catalog route
 M3	M3-48b	Complete	production-available	PROD-current-composition	audited shipped composition: Connection list route
 M3	M3-48c1	Complete	production-available	PROD-current-composition	audited shipped composition: Connection detail summary
-M3	M3-48c2	Complete	component-only	T10-product-ui	audited component-only proof: Connection detail data and history
-M3	M3-48c3	Complete	component-only	T10-product-ui	audited component-only proof: Connection detail actions
-M3	M3-48d	Complete	component-only	T10-product-ui	audited component-only proof: AWS setup wizard UI
+M3	M3-48c2	Complete	production-available	T10-product-ui	shipped detail uses scoped product APIs for collected-data capabilities, freshness, bounded sync history, and exact sync detail
+M3	M3-48c3	Complete	production-available	T10-product-ui	shipped capability-gated authorize, manual sync, schedule, delete, and retained-receipt actions pass installed-browser E2E
+M3	M3-48d	Complete	production-available	T10-product-ui	shipped AWS setup uses the live catalog, role and opaque external-ID configuration, connection test, initial sync, coverage, and stable permission remediation
 M3	M3-48e	Complete	component-only	T10-product-ui	audited component-only proof: Kubernetes setup wizard UI
 M3	M3-48f	Complete	component-only	T10-product-ui	audited component-only proof: GitHub setup wizard UI
 M3	M3-48g	Complete	component-only	T10-product-ui	audited component-only proof: launch IdP setup wizard UI

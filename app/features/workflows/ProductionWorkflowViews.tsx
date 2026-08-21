@@ -409,6 +409,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                 </Button>
               </p>
             )}
+            <IntegrationSetupGuide manifest={manifest} />
             <p>{manifest.access_guidance}</p>
             <Field
               label="Integration name"
@@ -422,6 +423,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                 label={field.label}
                 hint={field.description}
                 value={configuration[field.key] ?? ""}
+                type={field.type === "secret_reference" ? "password" : field.type === "uri" ? "url" : "text"}
                 disabled={mutation.isUnresolved}
                 onChange={(event) =>
                   setConfiguration((current) => ({
@@ -600,6 +602,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                   ? "Authorization continues on the provider site. Provider credentials are never returned to this browser."
                   : "Provider authorization controls are unavailable for this connector."}
             </p>
+            {selectedManifest && <IntegrationSetupGuide manifest={selectedManifest} integration={visibleSelected.value} freshness={freshness} />}
             {selected && (
               <IntegrationDiscoveryPanel
                 freshness={freshness}
@@ -671,6 +674,53 @@ function IntegrationDiscoveryPanel({ freshness, schedule, syncs, syncDetail, cad
 
 function isReferenceConnector(value: string): value is "aws" | "kubernetes" {
   return value === "aws" || value === "kubernetes";
+}
+
+function IntegrationSetupGuide({ manifest, integration, freshness }: {
+  manifest: ConnectorManifest;
+  integration?: Integration;
+  freshness?: DiscoveryLoad<Versioned<IntegrationFreshness>>;
+}) {
+  const steps = manifest.key === "generic-webhook"
+    ? ["Configure destination", "Test signed delivery", "Signature status", "Review coverage"]
+    : ["Review access", "Configure", "Test connection", "Initial sync", "Review coverage"];
+  const freshnessValue = freshness?.status === "success" ? freshness.value?.value : undefined;
+  const activeStep = integration === undefined
+    ? 1
+    : integration.status !== "active"
+      ? 2
+      : freshnessValue?.last_good == null
+        ? 3
+        : Object.values(freshnessValue.projections).some((projection) => projection.state !== "current")
+          ? 4
+          : steps.length;
+  const remediation = integration?.status === "degraded"
+    ? integrationSetupRemediation(manifest.key, freshnessValue?.latest_sync?.last_error_code)
+    : null;
+  return <section aria-label={`${manifest.provider} setup`} className="form-stack">
+    <h3>Setup progress</h3>
+    <ol className="setup-progress">
+      {steps.map((step, index) => <li key={step}><strong>{step}</strong>{" "}<span>{index < activeStep ? "Complete" : index === activeStep ? "Current" : "Pending"}</span></li>)}
+    </ol>
+    <p><strong>Connection test</strong> {manifest.test_semantics}</p>
+    <p><strong>Collected data</strong>{" "}{manifest.data_types.map(titleCase).join(", ")}</p>
+    {remediation && <p role="alert">{remediation}</p>}
+  </section>;
+}
+
+function integrationSetupRemediation(connectorKey: string, errorCode: string | null | undefined): string {
+  if (errorCode === "denied" || errorCode === "revoked") {
+    if (connectorKey === "aws") return "AWS read role was denied. Add the documented read-only permissions, then run Test connection again.";
+    if (connectorKey === "kubernetes") return "Kubernetes inventory access was denied. Grant the documented get, list, and watch permissions, then run Test connection again.";
+    if (connectorKey === "github") return "GitHub installation access is missing required organization or repository scope. Review the installation scope, then authorize again.";
+    if (connectorKey === "okta") return "Okta directory access is missing a required read-only scope. Review the directory integration scopes, then authorize again.";
+  }
+  if (errorCode === "rate_limited") return "The provider rate limit delayed collection. Keep the last good coverage visible and retry after the published provider window.";
+  return "Coverage is degraded. Review the stable discovery status and retry the connection test before starting another sync.";
+}
+
+function titleCase(value: string): string {
+  return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1);
 }
 
 function isOAuthConnector(value: string): value is "github" | "okta" {

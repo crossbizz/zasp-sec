@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 350 |
-| Component-only | 317 |
+| Production-available | 353 |
+| Component-only | 314 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -137,14 +137,14 @@ production composition, not merely a component proof or external evidence.
 | M1 | 68 | 57 | 11 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
-| M3 | 75 | 51 | 22 | 2 | 0 |
+| M3 | 75 | 54 | 19 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 0 | 42 | 0 | 0 |
 | M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 23 | 66 | 52 | 0 |
-| **Total** | **728** | **350** | **317** | **61** | **0** |
+| **Total** | **728** | **353** | **314** | **61** | **0** |
 
 ## Prerequisite work
 
@@ -618,9 +618,9 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 | M3-48g | August 18, 2026 | Launch-IdP setup remains visibly separate from product sign-in and Stytch SSO configuration. |
 | M3-48f | August 18, 2026 | GitHub setup displays authorized Repository and Organization scope with actionable missing-scope state. |
 | M3-48e | August 18, 2026 | Kubernetes setup covers scoped enrollment, Helm, heartbeat, and degraded coverage state. |
-| M3-48d | August 18, 2026 | AWS setup covers access review, role/external ID, test, initial sync, coverage, and exact permission remediation. |
-| M3-48c3 | August 18, 2026 | Capability-gated authorize, sync, and delete controls expose stable product errors. |
-| M3-48c2 | August 18, 2026 | Integration detail renders bounded collected-data capabilities and sync history. |
+| M3-48d | August 21, 2026 | Live AWS setup covers access review, role/opaque external ID, connection test, initial sync, coverage, and exact permission remediation through shipped product APIs. |
+| M3-48c3 | August 21, 2026 | Capability-gated authorize, sync, schedule, and delete controls with retained receipts pass installed-browser E2E. |
+| M3-48c2 | August 21, 2026 | Integration detail renders scoped collected-data capabilities, freshness, bounded sync history, and exact sync detail from product APIs. |
 | M3-48c1 | August 18, 2026 | Integration detail renders exact health, scope, freshness, and last-sync state. |
 | M3-48b | August 18, 2026 | Connected-integration list distinguishes healthy, stale, and degraded freshness. |
 | M3-48a | August 18, 2026 | Connector catalog filters product cards without exposing internal adapter identity. |

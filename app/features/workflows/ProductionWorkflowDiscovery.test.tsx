@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { APIClient } from "../../../apps/web/api/client";
-import type { Integration } from "../../../apps/web/api/generated";
+import type { Integration, IntegrationFreshness } from "../../../apps/web/api/generated";
 import { APIProvider } from "../../api/APIProvider";
 import { ProductionIntegrationsView } from "./ProductionWorkflowViews";
 
@@ -94,19 +94,47 @@ describe("production integration discovery workflows", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Automatic sync schedule deleted");
     await waitFor(() => expect(screen.queryByText(/Every 7200 seconds/)).not.toBeInTheDocument());
   });
+
+  it("keeps denied AWS coverage incomplete and gives exact read-role remediation", async () => {
+    const user = userEvent.setup();
+    const aws: Integration = { ...integration, connector_key: "aws", name: "Production AWS", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" }, status: "degraded" };
+    const awsManifest = {
+      ...manifest, key: "aws", provider: "Amazon Web Services", data_types: ["identity", "policy", "resource"], actions: ["inventory_read", "posture_read"], auth_mode: "aws_assume_role",
+      setup_schema: [
+        { key: "role_arn", label: "Read role ARN", type: "string", required: true, description: "Customer read role" },
+        { key: "external_id_reference", label: "External ID", type: "secret_reference", required: true, description: "Opaque trust reference" },
+        { key: "region", label: "Home region", type: "string", required: true, description: "Inventory region" },
+      ],
+      access_guidance: "Grant the documented read-only policy to one external-ID-bound role.", test_semantics: "Assume the role and verify the returned account identity.",
+    };
+    const failed = { ...sync, integration_id: aws.id, trigger_kind: "manual" as const, status: "failed" as const, snapshot_id: null, discovered_count: 0, changed_count: 0, removed_count: 0, last_error_code: "denied" as const };
+    const deniedFreshness = { ...freshness, integration_id: aws.id, last_good: null, latest_sync: failed, projections: {
+      risk: { state: "unavailable", snapshot_id: null, completed_at: null, last_error_code: null },
+      graph: { state: "unavailable", snapshot_id: null, completed_at: null, last_error_code: null },
+      search: { state: "unavailable", snapshot_id: null, completed_at: null, last_error_code: null },
+    } } satisfies IntegrationFreshness;
+    renderSurface(discoveryClient({ catalog: awsManifest, integration: aws, freshness: deniedFreshness }));
+
+    await user.click(await screen.findByRole("button", { name: "Open Production AWS" }));
+    const dialog = screen.getByRole("dialog", { name: "Production AWS" });
+    expect(await within(dialog).findByText("AWS read role was denied. Add the documented read-only permissions, then run Test connection again.")).toBeVisible();
+    expect(within(dialog).getByText("Review coverage").closest("li")).toHaveTextContent("Pending");
+    expect(document.body.innerHTML).not.toContain("ref:aws/external-id/customer-0001");
+  });
 });
 
 function renderSurface(client: APIClient, canWrite = true) {
   return render(<APIProvider client={client}><ProductionIntegrationsView canWrite={canWrite} /></APIProvider>);
 }
 
-function discoveryClient(overrides: { catalog?: typeof manifest; POST?: ReturnType<typeof vi.fn>; PUT?: ReturnType<typeof vi.fn>; DELETE?: ReturnType<typeof vi.fn>; details?: Integration[] } = {}): APIClient {
+function discoveryClient(overrides: { catalog?: typeof manifest; integration?: Integration; freshness?: IntegrationFreshness; POST?: ReturnType<typeof vi.fn>; PUT?: ReturnType<typeof vi.fn>; DELETE?: ReturnType<typeof vi.fn>; details?: Integration[] } = {}): APIClient {
   let detail = 0;
+  const currentIntegration = overrides.integration ?? integration;
   const GET = vi.fn(async (path: string) => {
     if (path === "/api/v1/integration-catalog") return jsonResult({ items: [overrides.catalog ?? manifest] });
-    if (path === "/api/v1/integrations") return jsonResult({ items: [integration], page_info: { next_cursor: null, has_more: false } });
-    if (path === "/api/v1/integrations/{id}") return jsonResult(overrides.details?.[Math.min(detail++, overrides.details.length - 1)] ?? integration, 200, { ETag: detail > 1 ? '"6"' : '"5"' });
-    if (path === "/api/v1/integrations/{id}/freshness") return jsonResult(freshness, 200, { ETag: '"7"', "Cache-Control": "no-store" });
+    if (path === "/api/v1/integrations") return jsonResult({ items: [currentIntegration], page_info: { next_cursor: null, has_more: false } });
+    if (path === "/api/v1/integrations/{id}") return jsonResult(overrides.details?.[Math.min(detail++, overrides.details.length - 1)] ?? currentIntegration, 200, { ETag: detail > 1 ? '"6"' : '"5"' });
+    if (path === "/api/v1/integrations/{id}/freshness") return jsonResult(overrides.freshness ?? freshness, 200, { ETag: '"7"', "Cache-Control": "no-store" });
     if (path === "/api/v1/integrations/{id}/schedule") return jsonResult(schedule, 200, { ETag: '"1"', "Cache-Control": "no-store" });
     if (path === "/api/v1/integrations/{id}/syncs") return jsonResult({ items: [sync], page_info: { next_cursor: null, has_more: false } }, 200, { "Cache-Control": "no-store" });
     if (path === "/api/v1/integrations/{id}/syncs/{syncId}") return jsonResult(sync, 200, { ETag: '"1"', "Cache-Control": "no-store" });

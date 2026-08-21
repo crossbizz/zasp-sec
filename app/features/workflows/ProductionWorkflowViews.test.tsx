@@ -279,6 +279,54 @@ describe("production integration deletion", () => {
 		expect(document.body.innerHTML).not.toContain("ref:kubernetes/connection/customer-0001");
 	});
 
+	it("renders the production AWS setup flow from the live catalog authority", async () => {
+		const user = userEvent.setup();
+		const manifest = {
+			key: "aws", provider: "Amazon Web Services", category: "cloud",
+			description: "Inventory AWS accounts, identities, policies, and selected resources through a customer-owned read role.",
+			data_types: ["identity", "policy", "resource"], actions: ["inventory_read", "posture_read"], auth_mode: "aws_assume_role",
+			setup_schema: [
+				{ key: "role_arn", label: "Read role ARN", type: "string", required: true, description: "Customer role trusted for the product's external-ID-bound session." },
+				{ key: "external_id_reference", label: "External ID", type: "secret_reference", required: true, description: "Opaque product reference for the customer trust condition." },
+				{ key: "region", label: "Home region", type: "string", required: true, description: "AWS region used for the identity check and regional inventory." },
+			],
+			access_guidance: "Grant the documented read-only policy to one external-ID-bound role.",
+			test_semantics: "Assume the role, verify the returned account identity, and prove an unauthorized action is denied.",
+		};
+		const GET = vi.fn(async (path: string) => {
+			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [manifest] });
+			if (path === "/api/v1/integrations") return jsonResult({ items: [], page_info: { next_cursor: null, has_more: false } });
+			throw new Error(`unexpected GET ${path}`);
+		});
+		const created = { ...awsPending, name: "Production AWS", status: "configured" as const };
+		const POST = vi.fn(async () => jsonResult(created, 201, { ...receiptHeaders, ETag: '"1"' }));
+		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><ProductionIntegrationsView canWrite /></APIProvider>);
+
+		await user.click(await screen.findByRole("button", { name: "Configure Amazon Web Services" }));
+		const dialog = screen.getByRole("dialog", { name: "Configure Amazon Web Services" });
+		expect(within(dialog).getByRole("heading", { name: "Setup progress" })).toBeVisible();
+		for (const step of ["Review access", "Configure", "Test connection", "Initial sync", "Review coverage"]) expect(within(dialog).getByText(step)).toBeVisible();
+		expect(dialog).toHaveTextContent("Grant the documented read-only policy to one external-ID-bound role.");
+		expect(dialog).toHaveTextContent("Assume the role, verify the returned account identity, and prove an unauthorized action is denied.");
+		expect(dialog).toHaveTextContent("Identity");
+		expect(within(dialog).getByLabelText(/^External ID/)).toHaveAttribute("type", "password");
+		await user.clear(within(dialog).getByLabelText("Integration name"));
+		await user.type(within(dialog).getByLabelText("Integration name"), "Production AWS");
+		await user.type(within(dialog).getByLabelText(/^Read role ARN/), "arn:aws:iam::123456789012:role/zasp-discovery");
+		await user.type(within(dialog).getByLabelText(/^External ID/), "ref:aws/external-id/customer-0001");
+		await user.type(within(dialog).getByLabelText(/^Home region/), "us-east-1");
+		await user.click(within(dialog).getByRole("button", { name: "Save integration" }));
+
+		const detail = await screen.findByRole("dialog", { name: "Production AWS" });
+		expect(await screen.findByRole("status")).toHaveTextContent("Integration created");
+		expect(within(detail).getByText("Test connection").closest("li")).toHaveTextContent("Current");
+		expect(document.body.innerHTML).not.toContain("ref:aws/external-id/customer-0001");
+		expect(POST).toHaveBeenCalledOnce();
+		const [path, options] = POST.mock.calls[0] as unknown as [string, { body: unknown }];
+		expect(path).toBe("/api/v1/integrations");
+		expect(options.body).toEqual({ connector_key: "aws", name: "Production AWS", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" } });
+	});
+
   it("keeps revocation pending with the exact DELETE until terminal 204", async () => {
     const user = userEvent.setup();
     let listCalls = 0;

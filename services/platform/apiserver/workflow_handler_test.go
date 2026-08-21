@@ -604,8 +604,8 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 			}
 			continue
 		}
-		if !slices.Equal(item.Actions, []string{"authorize"}) || !slices.Contains([]string{"github", "okta"}, item.Key) {
-			t.Fatalf("launch catalog overclaimed collection = %#v", item)
+		if !slices.Equal(item.Actions, []string{"inventory_read"}) || !slices.Contains([]string{"github", "okta"}, item.Key) || strings.Contains(item.Description, "Collection remains unavailable") {
+			t.Fatalf("launch catalog omitted composed collection = %#v", item)
 		}
 	}
 
@@ -645,6 +645,62 @@ func TestWorkflowHandlerIsolatesProviderCapabilityDegradation(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"key":"github"`) || strings.Contains(response.Body.String(), `"key":"okta"`) || strings.Contains(response.Body.String(), `"key":"aws"`) || strings.Contains(response.Body.String(), `"key":"kubernetes"`) {
 		t.Fatalf("provider-isolated catalog = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestWorkflowHandlerPublishesReferenceConnectorsOnlyWhenTheirLiveCapabilityIsReady(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	repository := &workflowRepositoryStub{}
+	handler, err := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now, connectorCapabilitiesStub{"aws": true, "kubernetes": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := workflowRequest(t, identity, testCorrelationID, "listIntegrationCatalog", nil, http.MethodGet, "/api/v1/integration-catalog", "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	var catalog struct {
+		Items []struct {
+			Key         string   `json:"key"`
+			Actions     []string `json:"actions"`
+			AuthMode    string   `json:"auth_mode"`
+			DataTypes   []string `json:"data_types"`
+			SetupSchema []struct {
+				Key string `json:"key"`
+			} `json:"setup_schema"`
+		} `json:"items"`
+	}
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &catalog) != nil || len(catalog.Items) != 3 {
+		t.Fatalf("reference catalog = %d %s", response.Code, response.Body.String())
+	}
+	expected := map[string]struct {
+		authMode string
+		actions  []string
+		fields   []string
+	}{
+		"aws":        {authMode: "aws_assume_role", actions: []string{"inventory_read", "posture_read"}, fields: []string{"role_arn", "external_id_reference", "region"}},
+		"kubernetes": {authMode: "credential_reference", actions: []string{"inventory_read"}, fields: []string{"connection_reference"}},
+	}
+	for key, want := range expected {
+		var found bool
+		for _, item := range catalog.Items {
+			if item.Key != key {
+				continue
+			}
+			found = true
+			fields := make([]string, 0, len(item.SetupSchema))
+			for _, field := range item.SetupSchema {
+				fields = append(fields, field.Key)
+			}
+			if item.AuthMode != want.authMode || !slices.Equal(item.Actions, want.actions) || !slices.Equal(fields, want.fields) || !slices.Contains(item.DataTypes, "identity") {
+				t.Fatalf("%s manifest = %#v", key, item)
+			}
+		}
+		if !found {
+			t.Fatalf("ready reference connector %s missing: %s", key, response.Body.String())
+		}
+	}
+	if strings.Contains(response.Body.String(), `"key":"github"`) || strings.Contains(response.Body.String(), `"key":"okta"`) {
+		t.Fatalf("unready OAuth connector exposed: %s", response.Body.String())
 	}
 }
 

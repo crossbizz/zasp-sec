@@ -719,13 +719,9 @@ func (handler *workflowHTTPHandler) currentCatalog(ctx context.Context) (*platfo
 
 func locallyCompleteWorkflowManifests(ctx context.Context, capabilities ConnectorCapabilities) []platformintegration.ConnectorManifest {
 	values := platformintegration.BuiltinManifests()
-	result := make([]platformintegration.ConnectorManifest, 0, 3)
+	result := make([]platformintegration.ConnectorManifest, 0, len(values))
 	for _, value := range values {
-		if (value.Key == "github" || value.Key == "okta") && capabilities.ConnectorAvailable(ctx, value.Key) {
-			value.Description = "Authorize " + value.Provider + " through the first-party credential boundary. Collection remains unavailable until its worker capability is ready."
-			value.DataTypes = []string{"authorization"}
-			value.Actions = []string{"authorize"}
-			value.TestSemantics = "Validate the bounded first-party authorization and durable opaque credential reference without claiming collection readiness."
+		if stringIn(value.Key, "aws", "kubernetes", "github", "okta") && capabilities.ConnectorAvailable(ctx, value.Key) {
 			result = append(result, value)
 			continue
 		}

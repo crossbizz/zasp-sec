@@ -292,10 +292,11 @@ describe("Zasp application", () => {
 		render(<ZaspApp client={client} />);
 		await userEvent.click(await screen.findByRole("button", { name: "Configure Generic Webhook" }));
 		await userEvent.type(screen.getByRole("textbox", { name: /HTTPS destination/ }), "https://hooks.customer.invalid/zasp");
-		await userEvent.type(screen.getByRole("textbox", { name: /Signing secret/ }), "secret-reference");
+		await userEvent.type(screen.getByLabelText(/Signing secret/), "secret-reference");
 		await userEvent.click(screen.getByRole("button", { name: "Save integration" }));
 		expect(await screen.findByRole("button", { name: "Retry retained integration operation" })).toBeEnabled();
-		for (const label of ["Integration name", "HTTPS destination", "Signing secret"]) expect(screen.getByRole("textbox", { name: new RegExp(label) })).toBeDisabled();
+		for (const label of ["Integration name", "HTTPS destination"]) expect(screen.getByRole("textbox", { name: new RegExp(label) })).toBeDisabled();
+		expect(screen.getByLabelText(/Signing secret/)).toBeDisabled();
 		expect(screen.getByRole("button", { name: "Configure Generic Webhook", hidden: true })).toBeDisabled();
 		for (const label of ["Close modal", "Close", "Cancel", "Save integration"]) expect(screen.getByRole("button", { name: label })).toBeDisabled();
 	});

@@ -505,6 +505,18 @@ try {
   await waitForBrowserText(browser.cdp, /Paged integration 1001/);
   assert.equal(await browserCountAriaPrefix(browser.cdp, "Open "), 1004, "integration UI did not traverse exactly 1001 paged, two revocation, and one Task4 discovery fixture IDs");
   assert.equal(workflowPageRequests.integrations.length, 11, "integration UI pagination requested an extra or missing page");
+  for (const configure of ["Configure Amazon Web Services", "Configure Kubernetes"]) {
+    const provider = configure.slice("Configure ".length);
+    assert.equal(await browserHasInteractiveText(browser.cdp, new RegExp(`^${configure}$`)), true, `${provider} was absent from the live production catalog`);
+    await clickBrowserText(browser.cdp, configure);
+    await waitForBrowserText(browser.cdp, /Setup progress/);
+    const setup = await browserBodyText(browser.cdp);
+    for (const step of ["Review access", "Configure", "Test connection", "Initial sync", "Review coverage"]) assert.match(setup, new RegExp(step));
+    assert.doesNotMatch(setup, /ref:(?:aws|kubernetes)\//);
+    await clickBrowserText(browser.cdp, "Cancel");
+    await waitForBrowserActive(browser.cdp, configure);
+  }
+  console.log("combined E2E: browser launch connector setup catalog proven");
   await clickBrowserAria(browser.cdp, "Open Harness terminal revocation");
   await waitForBrowserText(browser.cdp, /Provider credentials are never returned to this browser/);
   await clickBrowserText(browser.cdp, "Authorize GitHub");
