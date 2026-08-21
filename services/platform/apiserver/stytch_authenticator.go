@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 )
@@ -154,26 +156,286 @@ func (*stytchSessionDriver) EnsureOrganization(context.Context, string, string) 
 func (*stytchSessionDriver) InviteAdmin(context.Context, string, string) (platformidentity.DriverInvitation, error) {
 	return platformidentity.DriverInvitation{}, platformidentity.ErrProvider
 }
-func (*stytchSessionDriver) ListSSOConnections(context.Context, string) ([]platformidentity.DriverSSOConnection, error) {
-	return nil, platformidentity.ErrProvider
+func (driver *stytchSessionDriver) ListSSOConnections(ctx context.Context, organization string) ([]platformidentity.DriverSSOConnection, error) {
+	if !validExactStytchReference(organization, "organization-") {
+		return nil, platformidentity.ErrProvider
+	}
+	var response struct {
+		StatusCode      int                   `json:"status_code"`
+		SAMLConnections []stytchSSOConnection `json:"saml_connections"`
+		OIDCConnections []stytchSSOConnection `json:"oidc_connections"`
+	}
+	if err := driver.doJSON(ctx, http.MethodGet, "/v1/b2b/sso/"+url.PathEscape(organization), nil, &response); err != nil || response.StatusCode != http.StatusOK {
+		return nil, platformidentity.ErrProvider
+	}
+	result := make([]platformidentity.DriverSSOConnection, 0, len(response.SAMLConnections)+len(response.OIDCConnections))
+	for _, connection := range response.SAMLConnections {
+		value, err := connection.driverConnection(organization, "saml")
+		if err != nil {
+			return nil, platformidentity.ErrProvider
+		}
+		result = append(result, value)
+	}
+	for _, connection := range response.OIDCConnections {
+		value, err := connection.driverConnection(organization, "oidc")
+		if err != nil {
+			return nil, platformidentity.ErrProvider
+		}
+		result = append(result, value)
+	}
+	return result, nil
 }
-func (*stytchSessionDriver) CreateSSOConnection(context.Context, string, platformidentity.DriverSSOConfig) (platformidentity.DriverSSOConnection, error) {
-	return platformidentity.DriverSSOConnection{}, platformidentity.ErrProvider
+
+func (driver *stytchSessionDriver) CreateSSOConnection(ctx context.Context, organization string, config platformidentity.DriverSSOConfig) (platformidentity.DriverSSOConnection, error) {
+	if !validExactStytchReference(organization, "organization-") || !validStytchName(config.DisplayName) ||
+		!validStytchSSOProvider(config.IdentityProvider) || config.Protocol != "saml" && config.Protocol != "oidc" {
+		return platformidentity.DriverSSOConnection{}, platformidentity.ErrProvider
+	}
+	var response struct {
+		StatusCode int                 `json:"status_code"`
+		Connection stytchSSOConnection `json:"connection"`
+	}
+	path := "/v1/b2b/sso/" + config.Protocol + "/" + url.PathEscape(organization)
+	body := map[string]string{"display_name": config.DisplayName, "identity_provider": config.IdentityProvider}
+	if err := driver.doJSON(ctx, http.MethodPost, path, body, &response); err != nil || response.StatusCode != http.StatusOK {
+		return platformidentity.DriverSSOConnection{}, platformidentity.ErrProvider
+	}
+	value, err := response.Connection.driverConnection(organization, config.Protocol)
+	if err != nil || value.DisplayName != config.DisplayName || value.IdentityProvider != config.IdentityProvider {
+		return platformidentity.DriverSSOConnection{}, platformidentity.ErrProvider
+	}
+	return value, nil
 }
-func (*stytchSessionDriver) DeleteSSOConnection(context.Context, string, string) (string, error) {
-	return "", platformidentity.ErrProvider
+
+func (driver *stytchSessionDriver) DeleteSSOConnection(ctx context.Context, organization, reference string) (string, error) {
+	if !validExactStytchReference(organization, "organization-") || !validStytchSSOReference(reference) {
+		return "", platformidentity.ErrProvider
+	}
+	var response struct {
+		StatusCode   int    `json:"status_code"`
+		ConnectionID string `json:"connection_id"`
+	}
+	path := "/v1/b2b/sso/" + url.PathEscape(organization) + "/connections/" + url.PathEscape(reference)
+	if err := driver.doJSON(ctx, http.MethodDelete, path, map[string]any{}, &response); err != nil || response.StatusCode != http.StatusOK || response.ConnectionID != reference {
+		return "", platformidentity.ErrProvider
+	}
+	return response.ConnectionID, nil
 }
-func (*stytchSessionDriver) TestSSOConnection(context.Context, string, string) error {
+
+func (driver *stytchSessionDriver) TestSSOConnection(ctx context.Context, organization, reference string) error {
+	if !validStytchSSOReference(reference) {
+		return platformidentity.ErrProvider
+	}
+	connections, err := driver.ListSSOConnections(ctx, organization)
+	if err != nil {
+		return platformidentity.ErrProvider
+	}
+	for _, connection := range connections {
+		if connection.Reference == reference && connection.OrganizationReference == organization && connection.Status == "active" {
+			return nil
+		}
+	}
 	return platformidentity.ErrProvider
 }
-func (*stytchSessionDriver) ListSCIMConnections(context.Context, string) ([]platformidentity.DriverSCIMConnection, error) {
-	return nil, platformidentity.ErrProvider
+
+func (driver *stytchSessionDriver) ListSCIMConnections(ctx context.Context, organization string) ([]platformidentity.DriverSCIMConnection, error) {
+	if !validExactStytchReference(organization, "organization-") {
+		return nil, platformidentity.ErrProvider
+	}
+	var response struct {
+		StatusCode int                   `json:"status_code"`
+		Connection *stytchSCIMConnection `json:"connection"`
+	}
+	path := "/v1/b2b/scim/" + url.PathEscape(organization) + "/connection"
+	if err := driver.doJSON(ctx, http.MethodGet, path, nil, &response); err != nil || response.StatusCode != http.StatusOK {
+		return nil, platformidentity.ErrProvider
+	}
+	if response.Connection == nil {
+		return []platformidentity.DriverSCIMConnection{}, nil
+	}
+	value, err := response.Connection.driverConnection(organization)
+	if err != nil {
+		return nil, platformidentity.ErrProvider
+	}
+	return []platformidentity.DriverSCIMConnection{value}, nil
 }
-func (*stytchSessionDriver) CreateSCIMConnection(context.Context, string, platformidentity.DriverSCIMConfig) (platformidentity.DriverSCIMCredential, error) {
-	return platformidentity.DriverSCIMCredential{}, platformidentity.ErrProvider
+
+func (driver *stytchSessionDriver) CreateSCIMConnection(ctx context.Context, organization string, config platformidentity.DriverSCIMConfig) (platformidentity.DriverSCIMCredential, error) {
+	if !validExactStytchReference(organization, "organization-") || !validStytchName(config.DisplayName) || !validStytchSCIMProvider(config.IdentityProvider) {
+		return platformidentity.DriverSCIMCredential{}, platformidentity.ErrProvider
+	}
+	var response struct {
+		StatusCode int                   `json:"status_code"`
+		Connection *stytchSCIMConnection `json:"connection"`
+	}
+	path := "/v1/b2b/scim/" + url.PathEscape(organization) + "/connection"
+	body := map[string]string{"display_name": config.DisplayName, "identity_provider": config.IdentityProvider}
+	if err := driver.doJSON(ctx, http.MethodPost, path, body, &response); err != nil || response.StatusCode != http.StatusOK || response.Connection == nil {
+		return platformidentity.DriverSCIMCredential{}, platformidentity.ErrProvider
+	}
+	value, err := response.Connection.driverConnection(organization)
+	if err != nil || value.DisplayName != config.DisplayName || value.IdentityProvider != config.IdentityProvider || !validStytchBearerToken(response.Connection.BearerToken) {
+		return platformidentity.DriverSCIMCredential{}, platformidentity.ErrProvider
+	}
+	return platformidentity.DriverSCIMCredential{Connection: value, BearerToken: response.Connection.BearerToken}, nil
 }
-func (*stytchSessionDriver) DeleteSCIMConnection(context.Context, string, string) (string, error) {
-	return "", platformidentity.ErrProvider
+
+func (driver *stytchSessionDriver) DeleteSCIMConnection(ctx context.Context, organization, reference string) (string, error) {
+	if !validExactStytchReference(organization, "organization-") || !validExactStytchReference(reference, "scim-connection-") {
+		return "", platformidentity.ErrProvider
+	}
+	var response struct {
+		StatusCode   int    `json:"status_code"`
+		ConnectionID string `json:"connection_id"`
+	}
+	path := "/v1/b2b/scim/" + url.PathEscape(organization) + "/connection/" + url.PathEscape(reference)
+	if err := driver.doJSON(ctx, http.MethodDelete, path, map[string]any{}, &response); err != nil || response.StatusCode != http.StatusOK || response.ConnectionID != reference {
+		return "", platformidentity.ErrProvider
+	}
+	return response.ConnectionID, nil
+}
+
+type stytchSSOConnection struct {
+	OrganizationID   string `json:"organization_id"`
+	ConnectionID     string `json:"connection_id"`
+	Status           string `json:"status"`
+	DisplayName      string `json:"display_name"`
+	IdentityProvider string `json:"identity_provider"`
+}
+
+func (connection stytchSSOConnection) driverConnection(organization, protocol string) (platformidentity.DriverSSOConnection, error) {
+	prefix := protocol + "-connection-"
+	if connection.OrganizationID != organization || !validExactStytchReference(connection.ConnectionID, prefix) ||
+		!validStytchConnectionStatus(connection.Status) || !validStytchName(connection.DisplayName) || !validStytchSSOProvider(connection.IdentityProvider) {
+		return platformidentity.DriverSSOConnection{}, platformidentity.ErrProvider
+	}
+	return platformidentity.DriverSSOConnection{
+		Reference: connection.ConnectionID, OrganizationReference: connection.OrganizationID, Status: connection.Status,
+		DisplayName: connection.DisplayName, Protocol: protocol, IdentityProvider: connection.IdentityProvider,
+	}, nil
+}
+
+type stytchSCIMConnection struct {
+	OrganizationID   string `json:"organization_id"`
+	ConnectionID     string `json:"connection_id"`
+	Status           string `json:"status"`
+	DisplayName      string `json:"display_name"`
+	IdentityProvider string `json:"identity_provider"`
+	BaseURL          string `json:"base_url"`
+	BearerToken      string `json:"bearer_token"`
+}
+
+func (connection stytchSCIMConnection) driverConnection(organization string) (platformidentity.DriverSCIMConnection, error) {
+	parsed, err := url.Parse(connection.BaseURL)
+	if connection.OrganizationID != organization || !validExactStytchReference(connection.ConnectionID, "scim-connection-") ||
+		!validStytchConnectionStatus(connection.Status) || !validStytchName(connection.DisplayName) || !validStytchSCIMProvider(connection.IdentityProvider) ||
+		err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" || parsed.String() != connection.BaseURL ||
+		parsed.RawQuery != "" && (connection.IdentityProvider != "microsoft-entra" || parsed.RawQuery != "aadOptscim062020") {
+		return platformidentity.DriverSCIMConnection{}, platformidentity.ErrProvider
+	}
+	return platformidentity.DriverSCIMConnection{
+		Reference: connection.ConnectionID, OrganizationReference: connection.OrganizationID, Status: connection.Status,
+		DisplayName: connection.DisplayName, IdentityProvider: connection.IdentityProvider, BaseURL: connection.BaseURL,
+	}, nil
+}
+
+func (driver *stytchSessionDriver) doJSON(ctx context.Context, method, path string, body any, output any) error {
+	if driver == nil || driver.baseURL == nil || driver.client == nil || ctx == nil || ctx.Err() != nil ||
+		!strings.HasPrefix(path, "/v1/b2b/") || output == nil {
+		return platformidentity.ErrProvider
+	}
+	var reader io.Reader
+	if body != nil {
+		encoded, err := json.Marshal(body)
+		if err != nil {
+			return platformidentity.ErrProvider
+		}
+		reader = bytes.NewReader(encoded)
+	}
+	target := *driver.baseURL
+	target.Path = path
+	request, err := http.NewRequestWithContext(ctx, method, target.String(), reader)
+	if err != nil {
+		return platformidentity.ErrProvider
+	}
+	if body != nil {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	request.SetBasicAuth(driver.project, driver.secret)
+	response, err := driver.client.Do(request)
+	if err != nil {
+		return platformidentity.ErrProvider
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK || !jsonResponse(response) || decodeBoundedJSON(response.Body, output) != nil {
+		return platformidentity.ErrProvider
+	}
+	return nil
+}
+
+func validExactStytchReference(value, prefix string) bool {
+	if len(value) <= len(prefix) || len(value) > 128 || !strings.HasPrefix(value, prefix) {
+		return false
+	}
+	for _, character := range value {
+		if !(character >= 'a' && character <= 'z') && !(character >= 'A' && character <= 'Z') &&
+			!(character >= '0' && character <= '9') && character != '-' && character != '_' {
+			return false
+		}
+	}
+	return true
+}
+
+func validStytchSSOReference(value string) bool {
+	return validExactStytchReference(value, "saml-connection-") || validExactStytchReference(value, "oidc-connection-")
+}
+
+func validStytchName(value string) bool {
+	if value == "" || len(value) > 128 || !utf8.ValidString(value) || strings.TrimSpace(value) != value {
+		return false
+	}
+	for _, character := range value {
+		if unicode.IsControl(character) {
+			return false
+		}
+	}
+	return true
+}
+
+func validStytchConnectionStatus(value string) bool {
+	return value == "active" || value == "pending" || value == "disabled"
+}
+
+func validStytchSSOProvider(value string) bool {
+	switch value {
+	case "classlink", "cyberark", "duo", "generic", "google-workspace", "jumpcloud", "keycloak", "miniorange",
+		"microsoft-entra", "okta", "onelogin", "pingfederate", "rippling", "salesforce", "shibboleth":
+		return true
+	default:
+		return false
+	}
+}
+
+func validStytchSCIMProvider(value string) bool {
+	switch value {
+	case "generic", "okta", "microsoft-entra", "cyberark", "jumpcloud", "onelogin", "pingfederate", "rippling":
+		return true
+	default:
+		return false
+	}
+}
+
+func validStytchBearerToken(value string) bool {
+	if len(value) <= len("scim_bearer_token_") || len(value) > 4096 || !strings.HasPrefix(value, "scim_bearer_token_") {
+		return false
+	}
+	for _, character := range value {
+		if !(character >= 'a' && character <= 'z') && !(character >= 'A' && character <= 'Z') &&
+			!(character >= '0' && character <= '9') && character != '-' && character != '_' {
+			return false
+		}
+	}
+	return true
 }
 
 func validProviderBaseURL(value *url.URL) bool {

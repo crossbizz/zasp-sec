@@ -85,3 +85,29 @@ func TestConnectionServiceFailsClosedOnInvalidConfigAndProviderFailure(t *testin
 		t.Fatalf("CreateSCIM error = %v", err)
 	}
 }
+
+func TestConnectionServiceAcceptsOnlyProviderFaithfulMicrosoftEntraSCIMQuery(t *testing.T) {
+	driver := newFakeStytchDriver()
+	driver.scimConnections = []DriverSCIMConnection{{
+		Reference: "scim-connection-entra-a", OrganizationReference: driver.organization.Reference, Status: "active",
+		DisplayName: "Microsoft Entra SCIM", IdentityProvider: "microsoft-entra",
+		BaseURL: "https://scim.stytch.com/v2/entra-a?aadOptscim062020",
+	}}
+	adapter, _ := NewAdapter(driver, func() time.Time { return fixtureNow })
+	service, _ := NewConnectionService(adapter)
+	connections, err := service.ListSCIM(context.Background(), driver.organization.Reference)
+	if err != nil || len(connections) != 1 || connections[0].BaseURL() != driver.scimConnections[0].BaseURL {
+		t.Fatalf("ListSCIM() = %#v, %v", connections, err)
+	}
+	for _, rawQuery := range []string{"tenant=foreign", "aadOptscim062020=true", "aadOptscim062020&tenant=foreign"} {
+		driver.scimConnections[0].BaseURL = "https://scim.stytch.com/v2/entra-a?" + rawQuery
+		if _, err := service.ListSCIM(context.Background(), driver.organization.Reference); !errors.Is(err, ErrInvalidRecord) {
+			t.Fatalf("ListSCIM(%q) error = %v", rawQuery, err)
+		}
+	}
+	driver.scimConnections[0].IdentityProvider = "generic"
+	driver.scimConnections[0].BaseURL = "https://scim.stytch.com/v2/generic?aadOptscim062020"
+	if _, err := service.ListSCIM(context.Background(), driver.organization.Reference); !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("ListSCIM(generic query) error = %v", err)
+	}
+}

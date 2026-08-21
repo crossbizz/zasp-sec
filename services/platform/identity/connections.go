@@ -60,7 +60,7 @@ type SCIMConnection struct {
 func (connection SCIMConnection) valid() bool {
 	return validSCIMReference(connection.reference) && validReference(connection.organizationReference, "organization-") &&
 		validConnectionStatus(connection.status) && validName(connection.displayName) &&
-		validSCIMProvider(connection.identityProvider) && validHTTPSURL(connection.baseURL)
+		validSCIMProvider(connection.identityProvider) && validSCIMBaseURL(connection.baseURL, connection.identityProvider)
 }
 
 func (connection SCIMConnection) Reference() string        { return connection.reference }
@@ -231,10 +231,11 @@ func validSCIMProvider(value string) bool {
 	}
 }
 
-func validHTTPSURL(value string) bool {
+func validSCIMBaseURL(value, provider string) bool {
 	parsed, err := url.Parse(value)
 	return err == nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.User == nil &&
-		parsed.RawQuery == "" && parsed.Fragment == "" && parsed.String() == value
+		parsed.Fragment == "" && parsed.String() == value &&
+		(parsed.RawQuery == "" || provider == "microsoft-entra" && parsed.RawQuery == "aadOptscim062020")
 }
 
 func validBearerToken(value string) bool {

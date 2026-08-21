@@ -141,7 +141,7 @@ func (adapter *Adapter) ListSCIMConnections(ctx context.Context, organizationRef
 	result := append([]DriverSCIMConnection(nil), values...)
 	for _, value := range result {
 		if !validSCIMReference(value.Reference) || value.OrganizationReference != organizationReference || !validConnectionStatus(value.Status) ||
-			!validName(value.DisplayName) || !validSCIMProvider(value.IdentityProvider) || !validHTTPSURL(value.BaseURL) {
+			!validName(value.DisplayName) || !validSCIMProvider(value.IdentityProvider) || !validSCIMBaseURL(value.BaseURL, value.IdentityProvider) {
 			return nil, ErrInvalidRecord
 		}
 	}
