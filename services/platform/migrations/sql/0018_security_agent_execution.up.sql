@@ -804,7 +804,7 @@ BEGIN
     FROM selected WHERE run_row.ctid=selected.ctid
     RETURNING run_row.*
   )
-  SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'run_id',run_id,'definition_id',definition_id,'definition_version',definition_version,'trigger_id',trigger_id,'state',state,'version',version,'attempt',attempt,'lease_expires_at',to_char(lease_expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) ORDER BY organization_id,workspace_id,environment_id,run_id),'[]'::jsonb)) INTO result_value FROM claimed;
+  SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'run_id',run_id,'definition_id',definition_id,'definition_version',definition_version,'trigger_id',trigger_id,'state',state,'version',version,'attempt',attempt,'lease_expires_at',to_char(lease_expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'prepared',EXISTS(SELECT 1 FROM zasp_security_agent_plans plan WHERE (plan.organization_id,plan.workspace_id,plan.environment_id,plan.run_id)=(claimed.organization_id,claimed.workspace_id,claimed.environment_id,claimed.run_id))) ORDER BY organization_id,workspace_id,environment_id,run_id),'[]'::jsonb)) INTO result_value FROM claimed;
   RETURN result_value;
 END
 $claim_runs$;
@@ -862,5 +862,5 @@ BEGIN
 END
 $schema_marker$;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', '0b0a5786a6350f4b4b54e0289b8bed61c78d33a8ff730f0f53a014f563f1a9fe')
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('security_agent_execution_fingerprint', '071f2c859c650d8dafc78803edba6bf9d601a9be98d6368f63941f737cd23232')
 ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value;

@@ -1757,6 +1757,65 @@ paths:
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agents/{id}/runs:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: runSecurityAgent
+      summary: Queue one tenant-scoped Security Agent run
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentManualRunInput' } } } }
+      responses:
+        '202':
+          description: Durable queued Security Agent run.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRun' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-approvals/{id}/decision:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: decideSecurityAgentApproval
+      summary: Decide one pending Security Agent approval with fresh authentication
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+        - $ref: '#/components/parameters/FreshAuth'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApprovalDecision' } } } }
+      responses:
+        '200':
+          description: Durable Security Agent approval decision.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentApproval' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/home/summary:
     get:
       operationId: getHomeSummary

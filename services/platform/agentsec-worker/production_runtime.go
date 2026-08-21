@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
@@ -91,6 +92,27 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		return workerRuntimeDependencies{Processor: processor, Ready: repository.Ready, Close: func() error { return nil }}, nil
+	case workerModeSecurityAgent:
+		repository, err := apiserver.NewSecurityAgentWorkerRepository(database)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		ready, err := newBoundedCachedWorkerReadiness(repository.Ready, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{
+			Authority: repository, WorkerID: config.WorkerID, LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3,
+			Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: newWorkerLeaseToken,
+			NewProductID: func() (string, error) {
+				value, newErr := domain.NewProductID()
+				return value.String(), newErr
+			},
+		})
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: func() error { return nil }}, nil
 	case workerModeDiscovery:
 		discovery, err := newProductionDiscoveryDependencies(productionDiscoveryDependenciesConfig(config))
 		if err != nil {

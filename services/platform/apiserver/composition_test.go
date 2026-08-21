@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 103 || len(public) != 103 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 103/103", len(seen), len(public))
+	if len(seen) != 105 || len(public) != 105 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 105/105", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -138,7 +138,7 @@ func TestTaskSevenCompositionHasExactActivationSurfaceWithoutExecutionOverclaims
 		"listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
 		"listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
 		"simulatePolicy", "listPolicyDecisions",
-		"listSecurityActions", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+		"listSecurityActions", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval",
 		"createAIExplanation",
 	} {
 		if _, mounted := definitions[operationID]; mounted {
@@ -152,6 +152,14 @@ func TestTaskSevenCompositionHasExactActivationSurfaceWithoutExecutionOverclaims
 	simulation, ok := definitions["simulateSecurityAgent"]
 	if !ok || simulation.Method != http.MethodPost || simulation.Pattern != "/api/v1/security-agents/{id}/simulate" || simulation.Permission != "manage_workflows" || !equalStrings(simulation.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || requiresFreshAuthentication("simulateSecurityAgent") {
 		t.Errorf("security-agent simulation definition=%#v exists=%v", simulation, ok)
+	}
+	run, ok := definitions["runSecurityAgent"]
+	if !ok || run.Method != http.MethodPost || run.Pattern != "/api/v1/security-agents/{id}/runs" || run.Permission != "manage_workflows" || !equalStrings(run.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || requiresFreshAuthentication("runSecurityAgent") {
+		t.Errorf("security-agent run definition=%#v exists=%v", run, ok)
+	}
+	decision, ok := definitions["decideSecurityAgentApproval"]
+	if !ok || decision.Method != http.MethodPost || decision.Pattern != "/api/v1/security-agent-approvals/{id}/decision" || decision.Permission != "manage_workflows" || !equalStrings(decision.Security, []string{"BrowserExpectedScope", "BrowserSession"}) || !requiresFreshAuthentication("decideSecurityAgentApproval") {
+		t.Errorf("security-agent approval definition=%#v exists=%v", decision, ok)
 	}
 	if definition, ok := definitions["createFindingTicket"]; !ok || definition.Permission != "manage_findings" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
 		t.Errorf("finding ticket security/permission = %v/%q exists=%v", definition.Security, definition.Permission, ok)
@@ -192,7 +200,7 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 	}
 	for _, hidden := range []string{
 		"simulatePolicy", "listPolicyDecisions",
-		"listSecurityActions", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+		"listSecurityActions", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval",
 	} {
 		if _, mounted := definitions[hidden]; mounted {
 			t.Errorf("provider-owned operation %q mounted without a provider adapter", hidden)

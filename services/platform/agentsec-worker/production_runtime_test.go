@@ -29,6 +29,10 @@ func TestComposeWorkerRuntimeMountsOnlyProductionReadyModes(t *testing.T) {
 	if err := discoveryDependencies.Close(); err != nil {
 		t.Fatalf("discovery close=%v", err)
 	}
+	securityAgentDependencies, err := composeWorkerRuntime(context.Background(), validSecurityAgentRuntimeConfig(), database)
+	if err != nil || securityAgentDependencies.Processor == nil || securityAgentDependencies.Ready == nil || securityAgentDependencies.Close == nil {
+		t.Fatalf("security-agent dependencies=%#v error=%v", securityAgentDependencies, err)
+	}
 }
 
 func TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose(t *testing.T) {
@@ -480,6 +484,13 @@ func validSchedulerRuntimeConfig() workerRuntimeConfig {
 	}
 }
 
+func validSecurityAgentRuntimeConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeSecurityAgent, PostgresDSN: "postgres://security_agent@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_security_agent_worker", WorkerID: "security-agent-worker-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 8, ShutdownTimeout: 20 * time.Second,
+	}
+}
+
 func validDiscoveryRuntimeConfig() workerRuntimeConfig {
 	return workerRuntimeConfig{
 		Mode: workerModeDiscovery, PostgresDSN: "postgres://discovery@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_discovery_worker", WorkerID: "discovery-01",
@@ -553,6 +564,9 @@ func (readyWorkerDatabase) SchemaVersion(context.Context) (string, error) {
 }
 
 func (readyWorkerDatabase) QueryJSON(_ context.Context, statement string, _ ...any) (json.RawMessage, error) {
+	if strings.Contains(statement, "zasp_security_agent_readiness") {
+		return json.RawMessage(`{"release":true,"principal":true}`), nil
+	}
 	if strings.Contains(statement, "zasp_runtime_gateway_reconciliation_readiness") {
 		return json.RawMessage(`{"ready":true}`), nil
 	}

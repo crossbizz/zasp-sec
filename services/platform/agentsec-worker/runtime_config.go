@@ -25,6 +25,7 @@ const (
 	workerModeProjectionRisk       workerMode = "projection-risk"
 	workerModeProjectionGraph      workerMode = "projection-graph"
 	workerModeProjectionSearch     workerMode = "projection-search"
+	workerModeSecurityAgent        workerMode = "security-agent"
 	workerModeProjectionGraphInit  workerMode = "projection-graph-init"
 	workerModeProjectionSearchInit workerMode = "projection-search-init"
 )
@@ -167,6 +168,7 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 		workerModeRuntimeProjection:  "zasp_runtime_projection_worker",
 		workerModeRuntimeComplete:    "zasp_runtime_coordinator",
 		workerModeProjectionRisk:     "zasp_projection_risk_worker", workerModeProjectionGraph: "zasp_projection_graph_worker", workerModeProjectionSearch: "zasp_projection_search_worker",
+		workerModeSecurityAgent: "zasp_security_agent_worker",
 	}[config.Mode]
 	return wantAuthority != "" && config.DatabaseAuthority == wantAuthority && workerIdentityPattern.MatchString(config.WorkerID) && validModeDependencies(config) &&
 		config.PollInterval >= 50*time.Millisecond && config.PollInterval <= time.Minute && config.LeaseDuration >= 5*time.Second && config.LeaseDuration <= 15*time.Minute &&
@@ -212,6 +214,8 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 		return workerVersionPattern.MatchString(config.ParserVersion) && workerVersionPattern.MatchString(config.ToolVersion)
 	case workerModeProjectionRisk:
 		return true
+	case workerModeSecurityAgent:
+		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
 	default:
 		return false
 	}

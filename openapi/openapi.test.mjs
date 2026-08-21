@@ -667,22 +667,22 @@ describe("production workflow concurrency contract", () => {
     }
   });
 
-  it("publishes exactly the mounted Task 7 activation and simulation surface without execution overclaims", () => {
+  it("publishes the mounted Security Agent activation, simulation, manual run, and approval surface without read overclaims", () => {
     const operations = new Map();
     for (const [path, pathItem] of Object.entries(document.paths)) {
       for (const [method, operation] of Object.entries(pathItem)) {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 103);
-    for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "activateSecurityAgent", "simulateSecurityAgent"]) {
+    assert.equal(operations.size, 105);
+    for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "decideSecurityAgentApproval"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [
       "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
       "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
       "simulatePolicy", "listPolicyDecisions",
-      "listSecurityActions", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval",
+      "listSecurityActions", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval",
       "createAIExplanation",
     ]) assert.equal(operations.has(operationId), false, operationId);
 
@@ -692,6 +692,20 @@ describe("production workflow concurrency contract", () => {
     assert.deepEqual(simulation.operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]);
     assert.deepEqual(simulation.operation.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentSimulationInput" });
     assert.deepEqual(simulation.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentSimulation" });
+
+    const run = operations.get("runSecurityAgent");
+    assert.equal(run.path, "/api/v1/security-agents/{id}/runs");
+    assert.equal(run.method, "post");
+    assert.deepEqual(run.operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]);
+    assert.deepEqual(run.operation.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentManualRunInput" });
+    assert.deepEqual(run.operation.responses["202"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentRun" });
+
+    const decision = operations.get("decideSecurityAgentApproval");
+    assert.equal(decision.path, "/api/v1/security-agent-approvals/{id}/decision");
+    assert.equal(decision.method, "post");
+    assert.deepEqual(decision.operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
+    assert.deepEqual(decision.operation.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentApprovalDecision" });
+    assert.deepEqual(decision.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentApproval" });
 
     const globalSearch = operations.get("globalSearch");
     assert.equal(globalSearch.path, "/api/v1/search");

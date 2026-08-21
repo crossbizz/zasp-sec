@@ -145,6 +145,8 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"DELETE", "/api/v1/security-agents/{id}", "deleteSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agents/{id}/activation", "activateSecurityAgent", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agents/{id}/simulate", "simulateSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agents/{id}/runs", "runSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agent-approvals/{id}/decision", "decideSecurityAgentApproval", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
 })
 
 func withBrowserExpectedScope(operations []coreOperation) []coreOperation {
@@ -219,7 +221,7 @@ func requiresFreshAuthentication(operationID string) bool {
 		"updateMemberRole", "createAPIToken", "rotateAPIToken", "revokeAPIToken", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
 		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true
-	case "activateSecurityAgent":
+	case "activateSecurityAgent", "decideSecurityAgentApproval":
 		return true
 	default:
 		return false

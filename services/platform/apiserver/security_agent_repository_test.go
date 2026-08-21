@@ -73,6 +73,45 @@ func TestSecurityAgentPostgresRepositoryActivatesWithExactScopeAndReceiptAuthori
 	}
 }
 
+func TestSecurityAgentPostgresRepositoryRunsAndApprovesWithExactScopedAuthority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	identity.FreshAuthenticated = true
+	identity.FreshAuthExpiresAt = time.Date(2026, 8, 21, 12, 4, 0, 0, time.UTC)
+	definitionID := "pid_78000001-0000-4000-8000-000000000001"
+	evidenceID := "pid_78000005-0000-4000-8000-000000000005"
+	runID := "pid_78000006-0000-4000-8000-000000000006"
+	approvalID := "pid_78000007-0000-4000-8000-000000000007"
+	stepID := "pid_78000008-0000-4000-8000-000000000008"
+	auditID := "pid_78000002-0000-4000-8000-000000000002"
+	correlationID := "pid_78000003-0000-4000-8000-000000000003"
+	receiptID := "pid_78000004-0000-4000-8000-000000000004"
+	freshAuthAt := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	expiresAt := freshAuthAt.Add(15 * time.Minute)
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentAuthorityReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentRunSQL:            json.RawMessage(`{"id":"` + runID + `","agent_id":"` + definitionID + `","state":"queued","evidence_ids":["` + evidenceID + `"],"definition_version":3,"version":1,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
+		postgresSecurityAgentDecideApprovalSQL: json.RawMessage(`{"id":"` + approvalID + `","run_id":"` + runID + `","step_id":"` + stepID + `","state":"approved","expires_at":"` + expiresAt.Format(time.RFC3339) + `","version":2,"expected_effect":"Move finding to under review","reversible":true,"ttl_seconds":0,"evidence_summary":["` + evidenceID + `"],"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
+	}}
+	repository, err := NewSecurityAgentPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runInput := SecurityAgentRunRequest{DefinitionID: definitionID, IdempotencyKey: "run-security-agent-0001", ExpectedVersion: 3, RunID: runID, TriggerKind: "finding", TriggerID: evidenceID, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}
+	if result, err := repository.RunSecurityAgent(context.Background(), identity, runInput); err != nil || result.ID != runID || result.State != "queued" {
+		t.Fatalf("run=%#v err=%v", result, err)
+	}
+	decisionInput := SecurityAgentApprovalDecisionRequest{ApprovalID: approvalID, IdempotencyKey: "approve-security-agent-0001", ExpectedVersion: 1, Decision: "approved", FreshAuthAt: freshAuthAt, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}
+	if result, err := repository.DecideSecurityAgentApproval(context.Background(), identity, decisionInput); err != nil || result.ID != approvalID || result.State != "approved" {
+		t.Fatalf("approval=%#v err=%v", result, err)
+	}
+	wantRun := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID, identity.PrincipalID.String(), runInput.IdempotencyKey, int64(3), runID, "finding", evidenceID, auditID, correlationID, receiptID}
+	wantDecision := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), approvalID, identity.PrincipalID.String(), decisionInput.IdempotencyKey, int64(1), "approved", freshAuthAt, auditID, correlationID, receiptID}
+	if database.statements[1] != postgresSecurityAgentRunSQL || !reflect.DeepEqual(database.arguments[1], wantRun) || database.statements[2] != postgresSecurityAgentDecideApprovalSQL || !reflect.DeepEqual(database.arguments[2], wantDecision) {
+		t.Fatalf("statements=%#v args=%#v", database.statements, database.arguments)
+	}
+}
+
 func (*securityAgentRepositoryDatabase) SchemaVersion(context.Context) (string, error) {
 	return "", errors.New("security agent authority must not read schema metadata")
 }

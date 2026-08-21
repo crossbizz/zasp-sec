@@ -15,6 +15,10 @@ type securityAgentPublicAuthorityStub struct {
 	result     SecurityAgentActivationResult
 	simulation SecurityAgentSimulationRequest
 	simulated  SecurityAgentSimulationResult
+	run        SecurityAgentRunRequest
+	runResult  SecurityAgentRunResult
+	decision   SecurityAgentApprovalDecisionRequest
+	decided    SecurityAgentApprovalResult
 	calls      int
 }
 
@@ -28,6 +32,81 @@ func (stub *securityAgentPublicAuthorityStub) SimulateSecurityAgent(_ context.Co
 	stub.calls++
 	stub.simulation = input
 	return stub.simulated, nil
+}
+
+func (stub *securityAgentPublicAuthorityStub) RunSecurityAgent(_ context.Context, _ RequestIdentity, input SecurityAgentRunRequest) (SecurityAgentRunResult, error) {
+	stub.calls++
+	stub.run = input
+	return stub.runResult, nil
+}
+
+func (stub *securityAgentPublicAuthorityStub) DecideSecurityAgentApproval(_ context.Context, _ RequestIdentity, input SecurityAgentApprovalDecisionRequest) (SecurityAgentApprovalResult, error) {
+	stub.calls++
+	stub.decision = input
+	return stub.decided, nil
+}
+
+func TestSecurityAgentPublicHandlerQueuesExactTenantFindingRun(t *testing.T) {
+	definitionID := "pid_78000001-0000-4000-8000-000000000001"
+	evidenceID := "pid_78000005-0000-4000-8000-000000000005"
+	runID := "pid_78000006-0000-4000-8000-000000000006"
+	auditID := "pid_78000002-0000-4000-8000-000000000002"
+	receiptID := "pid_78000003-0000-4000-8000-000000000003"
+	correlationID := "pid_78000004-0000-4000-8000-000000000004"
+	stub := &securityAgentPublicAuthorityStub{runResult: SecurityAgentRunResult{ID: runID, AgentID: definitionID, State: "queued", EvidenceIDs: []string{evidenceID}, DefinitionVersion: 3, Version: 1, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}}
+	ids := []string{runID, auditID, receiptID}
+	index := 0
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: time.Now, NewProductID: func() (string, error) { value := ids[index]; index++; return value, nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBearerToken
+	request := workflowRequest(t, identity, correlationID, "runSecurityAgent", map[string]string{"id": definitionID}, http.MethodPost, "/api/v1/security-agents/"+definitionID+"/runs", `{"environment_id":"`+identity.Scope.EnvironmentID().String()+`","trigger_kind":"finding","trigger_id":"`+evidenceID+`"}`)
+	request.Header.Set("Idempotency-Key", "run-security-agent-0001")
+	request.Header.Set("If-Match", `"3"`)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted || response.Header().Get("ETag") != `"1"` || response.Header().Get("X-Audit-ID") != auditID || response.Header().Get("X-Mutation-Receipt-ID") != "" || stub.calls != 1 {
+		t.Fatalf("run status=%d headers=%#v body=%s calls=%d", response.Code, response.Header(), response.Body.String(), stub.calls)
+	}
+	if stub.run.DefinitionID != definitionID || stub.run.ExpectedVersion != 3 || stub.run.RunID != runID || stub.run.TriggerKind != "finding" || stub.run.TriggerID != evidenceID || stub.run.ReceiptID != receiptID {
+		t.Fatalf("run input=%#v", stub.run)
+	}
+}
+
+func TestSecurityAgentPublicHandlerApprovesWithFreshSeparateBrowserAuthority(t *testing.T) {
+	approvalID := "pid_78000010-0000-4000-8000-000000000010"
+	runID := "pid_78000006-0000-4000-8000-000000000006"
+	stepID := "pid_78000007-0000-4000-8000-000000000007"
+	auditID := "pid_78000002-0000-4000-8000-000000000002"
+	receiptID := "pid_78000003-0000-4000-8000-000000000003"
+	correlationID := "pid_78000004-0000-4000-8000-000000000004"
+	evidenceID := "pid_78000005-0000-4000-8000-000000000005"
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	stub := &securityAgentPublicAuthorityStub{decided: SecurityAgentApprovalResult{ID: approvalID, RunID: runID, StepID: stepID, State: "approved", ExpiresAt: now.Add(10 * time.Minute), Version: 2, ExpectedEffect: "Move finding to under review", Reversible: true, EvidenceSummary: []string{evidenceID}, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}}
+	ids := []string{auditID, receiptID}
+	index := 0
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: func() time.Time { return now }, NewProductID: func() (string, error) { value := ids[index]; index++; return value, nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	identity.FreshAuthenticated = true
+	identity.FreshAuthExpiresAt = now.Add(4 * time.Minute)
+	request := workflowRequest(t, identity, correlationID, "decideSecurityAgentApproval", map[string]string{"id": approvalID}, http.MethodPost, "/api/v1/security-agent-approvals/"+approvalID+"/decision", `{"decision":"approved"}`)
+	request.Header.Set("Idempotency-Key", "approve-security-agent-0001")
+	request.Header.Set("If-Match", `"1"`)
+	request.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"2"` || response.Header().Get("X-Mutation-Receipt-ID") != receiptID || stub.calls != 1 {
+		t.Fatalf("approval status=%d headers=%#v body=%s calls=%d", response.Code, response.Header(), response.Body.String(), stub.calls)
+	}
+	if stub.decision.ApprovalID != approvalID || stub.decision.ExpectedVersion != 1 || stub.decision.Decision != "approved" || stub.decision.FreshAuthAt != now || stub.decision.ReceiptID != receiptID {
+		t.Fatalf("approval input=%#v", stub.decision)
+	}
 }
 
 func TestSecurityAgentPublicHandlerActivatesWithFreshBrowserAuthorityAndDurableReceipt(t *testing.T) {

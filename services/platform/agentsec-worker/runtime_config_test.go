@@ -46,6 +46,22 @@ func TestLoadWorkerRuntimeConfigRequiresExactModeAuthority(t *testing.T) {
 	}
 }
 
+func TestSecurityAgentWorkerModeRequiresOnlyV18WorkerAuthority(t *testing.T) {
+	values := map[string]string{
+		"ZASP_WORKER_MODE": "security-agent", "ZASP_POSTGRES_DSN": "postgres://security_agent@postgres.internal/zasp?sslmode=verify-full",
+		"ZASP_DATABASE_AUTHORITY": "zasp_security_agent_worker", "ZASP_WORKER_ID": "security-agent-worker-01",
+		"ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "60s", "ZASP_BATCH_SIZE": "8", "ZASP_SHUTDOWN_TIMEOUT": "20s",
+	}
+	config, err := loadWorkerRuntimeConfig(mapLookup(values))
+	if err != nil || config.Mode != workerModeSecurityAgent || config.DatabaseAuthority != "zasp_security_agent_worker" {
+		t.Fatalf("config=%#v err=%v", config, err)
+	}
+	values["ZASP_DATABASE_AUTHORITY"] = "zasp_discovery_worker"
+	if _, err := loadWorkerRuntimeConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
+		t.Fatalf("foreign authority error=%v", err)
+	}
+}
+
 func TestProjectionModesRequireKindSpecificAuthority(t *testing.T) {
 	t.Parallel()
 

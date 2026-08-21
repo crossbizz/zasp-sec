@@ -63,6 +63,49 @@ type SecurityAgentSimulationResult struct {
 	Replayed                                      bool
 }
 
+type SecurityAgentRunRequest struct {
+	DefinitionID, IdempotencyKey, RunID, TriggerKind, TriggerID string
+	ExpectedVersion                                             int64
+	AuditID, CorrelationID, ReceiptID                           string
+}
+
+type SecurityAgentRunResult struct {
+	ID                string   `json:"id"`
+	AgentID           string   `json:"agent_id"`
+	State             string   `json:"state"`
+	EvidenceIDs       []string `json:"evidence_ids"`
+	DefinitionVersion int64    `json:"definition_version"`
+	Version           int64    `json:"version"`
+	AuditID           string   `json:"audit_id"`
+	CorrelationID     string   `json:"correlation_id"`
+	ReceiptID         string   `json:"receipt_id"`
+	Replayed          bool     `json:"replayed"`
+}
+
+type SecurityAgentApprovalDecisionRequest struct {
+	ApprovalID, IdempotencyKey, Decision string
+	ExpectedVersion                      int64
+	FreshAuthAt                          time.Time
+	AuditID, CorrelationID, ReceiptID    string
+}
+
+type SecurityAgentApprovalResult struct {
+	ID              string    `json:"id"`
+	RunID           string    `json:"run_id"`
+	StepID          string    `json:"step_id"`
+	State           string    `json:"state"`
+	ExpiresAt       time.Time `json:"expires_at"`
+	Version         int64     `json:"version"`
+	ExpectedEffect  string    `json:"expected_effect"`
+	Reversible      bool      `json:"reversible"`
+	TTLSeconds      int       `json:"ttl_seconds"`
+	EvidenceSummary []string  `json:"evidence_summary"`
+	AuditID         string    `json:"audit_id"`
+	CorrelationID   string    `json:"correlation_id"`
+	ReceiptID       string    `json:"receipt_id"`
+	Replayed        bool      `json:"replayed"`
+}
+
 func (result *SecurityAgentSimulationResult) UnmarshalJSON(value []byte) error {
 	type simulationWire struct {
 		RunID              string                        `json:"run_id"`
@@ -92,6 +135,8 @@ func (result *SecurityAgentSimulationResult) UnmarshalJSON(value []byte) error {
 type SecurityAgentPublicAuthority interface {
 	ActivateSecurityAgent(context.Context, RequestIdentity, SecurityAgentActivation) (SecurityAgentActivationResult, error)
 	SimulateSecurityAgent(context.Context, RequestIdentity, SecurityAgentSimulationRequest) (SecurityAgentSimulationResult, error)
+	RunSecurityAgent(context.Context, RequestIdentity, SecurityAgentRunRequest) (SecurityAgentRunResult, error)
+	DecideSecurityAgentApproval(context.Context, RequestIdentity, SecurityAgentApprovalDecisionRequest) (SecurityAgentApprovalResult, error)
 }
 
 type SecurityAgentPublicHandlerConfig struct {
@@ -118,15 +163,121 @@ func (handler *securityAgentPublicHTTPHandler) ServeHTTP(writer http.ResponseWri
 		writeProductionError(writer, request, ErrRepositoryAuthentication)
 		return
 	}
-	if routed.OperationID != "activateSecurityAgent" && routed.OperationID != "simulateSecurityAgent" {
+	if !stringIn(routed.OperationID, "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "decideSecurityAgentApproval") {
 		handler.definitions.ServeHTTP(writer, request)
 		return
 	}
-	if routed.OperationID == "activateSecurityAgent" {
+	switch routed.OperationID {
+	case "activateSecurityAgent":
 		handler.activate(writer, request, routed)
+	case "simulateSecurityAgent":
+		handler.simulate(writer, request, routed)
+	case "runSecurityAgent":
+		handler.run(writer, request, routed)
+	case "decideSecurityAgentApproval":
+		handler.decideApproval(writer, request, routed)
+	}
+}
+
+func (handler *securityAgentPublicHTTPHandler) run(writer http.ResponseWriter, request *http.Request, routed RoutedOperation) {
+	writer.Header().Set("Cache-Control", "no-store")
+	identity, ok := IdentityFromRequest(request)
+	idempotencyKey, expectedVersion, headersOK := discoveryMutationHeaders(request, false)
+	definitionID := routed.PathParameters["id"]
+	var input struct {
+		EnvironmentID string `json:"environment_id"`
+		TriggerKind   string `json:"trigger_kind"`
+		TriggerID     string `json:"trigger_id"`
+	}
+	if !ok || request.Method != http.MethodPost || request.URL.RawQuery != "" || !stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken)) || !headersOK || !validProductID(definitionID) || decodeProductionJSON(request, &input) != nil || input.EnvironmentID != identity.Scope.EnvironmentID().String() || input.TriggerKind != "finding" || !validProductID(input.TriggerID) {
+		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
-	handler.simulate(writer, request, routed)
+	ids, valid := handler.newDistinctIDs(3, correlationIDFromContext(request.Context()))
+	if !valid {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	result, err := handler.repository.RunSecurityAgent(request.Context(), identity, SecurityAgentRunRequest{DefinitionID: definitionID, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, RunID: ids[0], TriggerKind: input.TriggerKind, TriggerID: input.TriggerID, AuditID: ids[1], CorrelationID: correlationIDFromContext(request.Context()), ReceiptID: ids[2]})
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	if !validSecurityAgentRunResult(result, SecurityAgentRunRequest{DefinitionID: definitionID, ExpectedVersion: expectedVersion, TriggerKind: input.TriggerKind, TriggerID: input.TriggerID}) {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	writer.Header().Set("ETag", `"`+strconv.FormatInt(result.Version, 10)+`"`)
+	writer.Header().Set("X-Audit-ID", result.AuditID)
+	if identity.CredentialKind == CredentialBrowserSession {
+		writer.Header().Set("X-Mutation-Receipt-ID", result.ReceiptID)
+	}
+	writeJSONValue(writer, request, http.StatusAccepted, map[string]any{"id": result.ID, "agent_id": result.AgentID, "state": result.State, "evidence_ids": result.EvidenceIDs, "definition_version": result.DefinitionVersion, "version": result.Version}, nil)
+}
+
+func (handler *securityAgentPublicHTTPHandler) decideApproval(writer http.ResponseWriter, request *http.Request, routed RoutedOperation) {
+	writer.Header().Set("Cache-Control", "no-store")
+	identity, ok := IdentityFromRequest(request)
+	idempotencyKey, expectedVersion, headersOK := discoveryMutationHeaders(request, false)
+	approvalID := routed.PathParameters["id"]
+	now := handler.config.Clock().UTC()
+	var input struct {
+		Decision string `json:"decision"`
+	}
+	if !ok || request.Method != http.MethodPost || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now) || identity.FreshAuthExpiresAt.After(now.Add(5*time.Minute)) || !exactHeaderValue(request.Header.Values("X-Zasp-Fresh-Auth"), "confirmed") || !headersOK || !validProductID(approvalID) || decodeProductionJSON(request, &input) != nil || !stringIn(input.Decision, "approved", "rejected", "cancelled") {
+		if ok && (identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now)) {
+			writeProductionError(writer, request, ErrRepositoryAuthentication)
+			return
+		}
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	ids, valid := handler.newDistinctIDs(2, correlationIDFromContext(request.Context()))
+	if !valid {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	result, err := handler.repository.DecideSecurityAgentApproval(request.Context(), identity, SecurityAgentApprovalDecisionRequest{ApprovalID: approvalID, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, Decision: input.Decision, FreshAuthAt: now, AuditID: ids[0], CorrelationID: correlationIDFromContext(request.Context()), ReceiptID: ids[1]})
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	if !validSecurityAgentApprovalResult(result, SecurityAgentApprovalDecisionRequest{ApprovalID: approvalID, ExpectedVersion: expectedVersion, Decision: input.Decision}) {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	writer.Header().Set("ETag", `"`+strconv.FormatInt(result.Version, 10)+`"`)
+	writer.Header().Set("X-Audit-ID", result.AuditID)
+	writer.Header().Set("X-Mutation-Receipt-ID", result.ReceiptID)
+	writeJSONValue(writer, request, http.StatusOK, map[string]any{"id": result.ID, "run_id": result.RunID, "step_id": result.StepID, "state": result.State, "expires_at": result.ExpiresAt, "version": result.Version, "expected_effect": result.ExpectedEffect, "reversible": result.Reversible, "ttl_seconds": result.TTLSeconds, "evidence_summary": result.EvidenceSummary}, nil)
+}
+
+func (handler *securityAgentPublicHTTPHandler) newDistinctIDs(count int, correlationID string) ([]string, bool) {
+	if count < 1 || count > 4 || !validProductID(correlationID) {
+		return nil, false
+	}
+	values := make([]string, count)
+	seen := map[string]struct{}{correlationID: {}}
+	for index := range values {
+		value, err := handler.config.NewProductID()
+		if err != nil || !validProductID(value) {
+			return nil, false
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return nil, false
+		}
+		seen[value] = struct{}{}
+		values[index] = value
+	}
+	return values, true
+}
+
+func validSecurityAgentRunResult(result SecurityAgentRunResult, input SecurityAgentRunRequest) bool {
+	return validProductID(result.ID) && result.AgentID == input.DefinitionID && stringIn(result.State, "queued", "planning", "waiting_approval", "running", "verifying", "contained", "remediated", "needs_human", "failed", "inconclusive", "cancelled") && len(result.EvidenceIDs) == 1 && result.EvidenceIDs[0] == input.TriggerID && result.DefinitionVersion == input.ExpectedVersion && result.Version > 0 && result.Version <= 1000000 && validProductID(result.AuditID) && validProductID(result.CorrelationID) && validProductID(result.ReceiptID)
+}
+
+func validSecurityAgentApprovalResult(result SecurityAgentApprovalResult, input SecurityAgentApprovalDecisionRequest) bool {
+	return result.ID == input.ApprovalID && validProductID(result.RunID) && validProductID(result.StepID) && result.State == input.Decision && !result.ExpiresAt.IsZero() && result.ExpiresAt.Location() == time.UTC && result.Version == input.ExpectedVersion+1 && result.ExpectedEffect == "Move finding to under review" && result.Reversible && result.TTLSeconds == 0 && len(result.EvidenceSummary) == 1 && validProductID(result.EvidenceSummary[0]) && validProductID(result.AuditID) && validProductID(result.CorrelationID) && validProductID(result.ReceiptID)
 }
 
 func (handler *securityAgentPublicHTTPHandler) simulate(writer http.ResponseWriter, request *http.Request, routed RoutedOperation) {
