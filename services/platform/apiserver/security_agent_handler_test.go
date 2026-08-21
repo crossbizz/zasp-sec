@@ -10,16 +10,58 @@ import (
 	"time"
 )
 
+var securityAgentTestSigningKey = []byte("0123456789abcdef0123456789abcdef")
+
 type securityAgentPublicAuthorityStub struct {
-	activation SecurityAgentActivation
-	result     SecurityAgentActivationResult
-	simulation SecurityAgentSimulationRequest
-	simulated  SecurityAgentSimulationResult
-	run        SecurityAgentRunRequest
-	runResult  SecurityAgentRunResult
-	decision   SecurityAgentApprovalDecisionRequest
-	decided    SecurityAgentApprovalResult
-	calls      int
+	activation   SecurityAgentActivation
+	result       SecurityAgentActivationResult
+	simulation   SecurityAgentSimulationRequest
+	simulated    SecurityAgentSimulationResult
+	run          SecurityAgentRunRequest
+	runResult    SecurityAgentRunResult
+	decision     SecurityAgentApprovalDecisionRequest
+	decided      SecurityAgentApprovalResult
+	runPage      SecurityAgentRunPageRequest
+	runs         SecurityAgentRunPage
+	runID        string
+	runDetail    SecurityAgentRunDetail
+	cancel       SecurityAgentCancelRequest
+	cancelled    SecurityAgentRunResult
+	approvalPage SecurityAgentApprovalPageRequest
+	approvals    SecurityAgentApprovalPage
+	approvalID   string
+	approval     SecurityAgentApproval
+	calls        int
+}
+
+func (stub *securityAgentPublicAuthorityStub) ListSecurityAgentRuns(_ context.Context, _ RequestIdentity, input SecurityAgentRunPageRequest) (SecurityAgentRunPage, error) {
+	stub.calls++
+	stub.runPage = input
+	return stub.runs, nil
+}
+
+func (stub *securityAgentPublicAuthorityStub) GetSecurityAgentRun(_ context.Context, _ RequestIdentity, runID string) (SecurityAgentRunDetail, error) {
+	stub.calls++
+	stub.runID = runID
+	return stub.runDetail, nil
+}
+
+func (stub *securityAgentPublicAuthorityStub) CancelSecurityAgentRun(_ context.Context, _ RequestIdentity, input SecurityAgentCancelRequest) (SecurityAgentRunResult, error) {
+	stub.calls++
+	stub.cancel = input
+	return stub.cancelled, nil
+}
+
+func (stub *securityAgentPublicAuthorityStub) ListSecurityAgentApprovals(_ context.Context, _ RequestIdentity, input SecurityAgentApprovalPageRequest) (SecurityAgentApprovalPage, error) {
+	stub.calls++
+	stub.approvalPage = input
+	return stub.approvals, nil
+}
+
+func (stub *securityAgentPublicAuthorityStub) GetSecurityAgentApproval(_ context.Context, _ RequestIdentity, approvalID string) (SecurityAgentApproval, error) {
+	stub.calls++
+	stub.approvalID = approvalID
+	return stub.approval, nil
 }
 
 func (stub *securityAgentPublicAuthorityStub) ActivateSecurityAgent(_ context.Context, _ RequestIdentity, input SecurityAgentActivation) (SecurityAgentActivationResult, error) {
@@ -56,7 +98,7 @@ func TestSecurityAgentPublicHandlerQueuesExactTenantFindingRun(t *testing.T) {
 	stub := &securityAgentPublicAuthorityStub{runResult: SecurityAgentRunResult{ID: runID, AgentID: definitionID, State: "queued", EvidenceIDs: []string{evidenceID}, DefinitionVersion: 3, Version: 1, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}}
 	ids := []string{runID, auditID, receiptID}
 	index := 0
-	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: time.Now, NewProductID: func() (string, error) { value := ids[index]; index++; return value, nil }})
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: time.Now, NewProductID: func() (string, error) { value := ids[index]; index++; return value, nil }, SigningKey: securityAgentTestSigningKey})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,6 +117,78 @@ func TestSecurityAgentPublicHandlerQueuesExactTenantFindingRun(t *testing.T) {
 	}
 }
 
+func TestSecurityAgentPublicHandlerListsReadsAndCancelsTenantRuns(t *testing.T) {
+	definitionID := "pid_78000001-0000-4000-8000-000000000001"
+	evidenceID := "pid_78000005-0000-4000-8000-000000000005"
+	runID := "pid_78000006-0000-4000-8000-000000000006"
+	approvalID := "pid_78000007-0000-4000-8000-000000000007"
+	stepID := "pid_78000008-0000-4000-8000-000000000008"
+	auditID := "pid_78000002-0000-4000-8000-000000000002"
+	receiptID := "pid_78000003-0000-4000-8000-000000000003"
+	correlationID := "pid_78000004-0000-4000-8000-000000000004"
+	createdAt := time.Date(2026, 8, 21, 11, 59, 0, 123000, time.UTC)
+	expiresAt := time.Date(2026, 8, 21, 12, 15, 0, 0, time.UTC)
+	run := SecurityAgentRun{ID: runID, AgentID: definitionID, State: "waiting_approval", EvidenceIDs: []string{evidenceID}, DefinitionVersion: 3, Version: 4}
+	approval := SecurityAgentApproval{ID: approvalID, RunID: runID, StepID: stepID, State: "pending", ExpiresAt: expiresAt, Version: 1, ExpectedEffect: "Move finding to under review", Reversible: true, EvidenceSummary: []string{evidenceID}}
+	stub := &securityAgentPublicAuthorityStub{
+		runs:      SecurityAgentRunPage{Items: []SecurityAgentRun{run}, NextCreatedAt: &createdAt, NextID: runID},
+		runDetail: SecurityAgentRunDetail{Run: run, EvidenceIDs: []string{evidenceID}, Authorization: "not_planned", Approvals: []SecurityAgentApproval{}, Execution: []SecurityAgentExecutionStep{}, Verification: "not_started"},
+		approvals: SecurityAgentApprovalPage{Items: []SecurityAgentApproval{approval}},
+		approval:  approval,
+		cancelled: SecurityAgentRunResult{ID: runID, AgentID: definitionID, State: "cancelled", EvidenceIDs: []string{evidenceID}, DefinitionVersion: 3, Version: 5, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID},
+	}
+	ids := []string{auditID, receiptID}
+	index := 0
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: time.Now, NewProductID: func() (string, error) { value := ids[index]; index++; return value, nil }, SigningKey: securityAgentTestSigningKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	request := workflowRequest(t, identity, correlationID, "listSecurityAgentRuns", nil, http.MethodGet, "/api/v1/security-agent-runs?agent_id="+definitionID+"&status=waiting_approval&environment_id="+identity.Scope.EnvironmentID().String()+"&limit=25", "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	var page struct {
+		Items      []SecurityAgentRun `json:"items"`
+		NextCursor string             `json:"next_cursor"`
+	}
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &page) != nil || len(page.Items) != 1 || page.Items[0].ID != runID || page.NextCursor == "" || stub.runPage.DefinitionID != definitionID || stub.runPage.State != "waiting_approval" || stub.runPage.Limit != 25 {
+		t.Fatalf("list status=%d body=%s input=%#v", response.Code, response.Body.String(), stub.runPage)
+	}
+	request = workflowRequest(t, identity, correlationID, "listSecurityAgentRuns", nil, http.MethodGet, "/api/v1/security-agent-runs?agent_id="+definitionID+"&status=waiting_approval&environment_id="+identity.Scope.EnvironmentID().String()+"&limit=25&cursor="+page.NextCursor, "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || stub.runPage.BeforeCreatedAt != createdAt || stub.runPage.BeforeID != runID {
+		t.Fatalf("second page status=%d body=%s input=%#v", response.Code, response.Body.String(), stub.runPage)
+	}
+	request = workflowRequest(t, identity, correlationID, "getSecurityAgentRun", map[string]string{"id": runID}, http.MethodGet, "/api/v1/security-agent-runs/"+runID, "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || stub.runID != runID || !strings.Contains(response.Body.String(), `"authorization":"not_planned"`) {
+		t.Fatalf("detail status=%d body=%s run=%s", response.Code, response.Body.String(), stub.runID)
+	}
+	request = workflowRequest(t, identity, correlationID, "listSecurityAgentApprovals", nil, http.MethodGet, "/api/v1/security-agent-approvals?state=pending&run_id="+runID+"&limit=25", "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || stub.approvalPage.State != "pending" || stub.approvalPage.RunID != runID || !strings.Contains(response.Body.String(), approvalID) {
+		t.Fatalf("approvals status=%d body=%s input=%#v", response.Code, response.Body.String(), stub.approvalPage)
+	}
+	request = workflowRequest(t, identity, correlationID, "getSecurityAgentApproval", map[string]string{"id": approvalID}, http.MethodGet, "/api/v1/security-agent-approvals/"+approvalID, "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || stub.approvalID != approvalID || !strings.Contains(response.Body.String(), "Move finding to under review") {
+		t.Fatalf("approval status=%d body=%s id=%s", response.Code, response.Body.String(), stub.approvalID)
+	}
+	request = workflowRequest(t, identity, correlationID, "cancelSecurityAgentRun", map[string]string{"id": runID}, http.MethodPost, "/api/v1/security-agent-runs/"+runID+"/cancel", "")
+	request.Header.Set("Idempotency-Key", "cancel-agent-run-0001")
+	request.Header.Set("If-Match", `"4"`)
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"5"` || response.Header().Get("X-Mutation-Receipt-ID") != receiptID || stub.cancel.RunID != runID || stub.cancel.ExpectedVersion != 4 {
+		t.Fatalf("cancel status=%d headers=%#v body=%s input=%#v", response.Code, response.Header(), response.Body.String(), stub.cancel)
+	}
+}
+
 func TestSecurityAgentPublicHandlerApprovesWithFreshSeparateBrowserAuthority(t *testing.T) {
 	approvalID := "pid_78000010-0000-4000-8000-000000000010"
 	runID := "pid_78000006-0000-4000-8000-000000000006"
@@ -87,7 +201,7 @@ func TestSecurityAgentPublicHandlerApprovesWithFreshSeparateBrowserAuthority(t *
 	stub := &securityAgentPublicAuthorityStub{decided: SecurityAgentApprovalResult{ID: approvalID, RunID: runID, StepID: stepID, State: "approved", ExpiresAt: now.Add(10 * time.Minute), Version: 2, ExpectedEffect: "Move finding to under review", Reversible: true, EvidenceSummary: []string{evidenceID}, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}}
 	ids := []string{auditID, receiptID}
 	index := 0
-	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: func() time.Time { return now }, NewProductID: func() (string, error) { value := ids[index]; index++; return value, nil }})
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: func() time.Time { return now }, NewProductID: func() (string, error) { value := ids[index]; index++; return value, nil }, SigningKey: securityAgentTestSigningKey})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +234,8 @@ func TestSecurityAgentPublicHandlerActivatesWithFreshBrowserAuthorityAndDurableR
 	index := 0
 	definitionCalls := 0
 	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.HandlerFunc(func(http.ResponseWriter, *http.Request) { definitionCalls++ }), SecurityAgentPublicHandlerConfig{
-		Clock: func() time.Time { return now },
+		Clock:      func() time.Time { return now },
+		SigningKey: securityAgentTestSigningKey,
 		NewProductID: func() (string, error) {
 			value := ids[index]
 			index++
@@ -151,7 +266,7 @@ func TestSecurityAgentPublicHandlerActivatesWithFreshBrowserAuthorityAndDurableR
 
 func TestSecurityAgentPublicHandlerRejectsStaleActivationBeforeRepository(t *testing.T) {
 	stub := &securityAgentPublicAuthorityStub{}
-	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: time.Now, NewProductID: newWorkflowProductID})
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: time.Now, NewProductID: newWorkflowProductID, SigningKey: securityAgentTestSigningKey})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +300,7 @@ func TestSecurityAgentPublicHandlerPersistsAZeroEffectSimulation(t *testing.T) {
 	}}
 	ids := []string{runID, auditID, receiptID}
 	index := 0
-	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: func() time.Time { return now }, NewProductID: func() (string, error) { value := ids[index]; index++; return value, nil }})
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: func() time.Time { return now }, NewProductID: func() (string, error) { value := ids[index]; index++; return value, nil }, SigningKey: securityAgentTestSigningKey})
 	if err != nil {
 		t.Fatal(err)
 	}

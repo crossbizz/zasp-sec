@@ -143,7 +143,7 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if securityAgentErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
-		securityAgentHandler, securityAgentErr := NewSecurityAgentPublicHTTPHandler(securityAgentRepository, securityAgentDefinitions, SecurityAgentPublicHandlerConfig{Clock: cookie.Clock, NewProductID: newWorkflowProductID})
+		securityAgentHandler, securityAgentErr := NewSecurityAgentPublicHTTPHandler(securityAgentRepository, securityAgentDefinitions, SecurityAgentPublicHandlerConfig{Clock: cookie.Clock, NewProductID: newWorkflowProductID, SigningKey: cookie.WorkflowSigningKey})
 		if securityAgentErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}

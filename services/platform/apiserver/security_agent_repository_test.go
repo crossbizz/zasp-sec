@@ -112,6 +112,78 @@ func TestSecurityAgentPostgresRepositoryRunsAndApprovesWithExactScopedAuthority(
 	}
 }
 
+func TestSecurityAgentPostgresRepositoryReadsExactScopedRunsAndApprovals(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	definitionID := "pid_78000001-0000-4000-8000-000000000001"
+	evidenceID := "pid_78000005-0000-4000-8000-000000000005"
+	runID := "pid_78000006-0000-4000-8000-000000000006"
+	approvalID := "pid_78000007-0000-4000-8000-000000000007"
+	stepID := "pid_78000008-0000-4000-8000-000000000008"
+	createdAt := time.Date(2026, 8, 21, 11, 59, 0, 123000, time.UTC)
+	expiresAt := time.Date(2026, 8, 21, 12, 15, 0, 0, time.UTC)
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentAuthorityReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentRunPageSQL:        json.RawMessage(`{"items":[{"id":"` + runID + `","agent_id":"` + definitionID + `","state":"waiting_approval","evidence_ids":["` + evidenceID + `"],"definition_version":3,"version":4}],"next_created_at":"` + createdAt.Format("2006-01-02T15:04:05.000000Z") + `","next_id":"` + runID + `"}`),
+		postgresSecurityAgentRunDetailSQL:      json.RawMessage(`{"run":{"id":"` + runID + `","agent_id":"` + definitionID + `","state":"waiting_approval","evidence_ids":["` + evidenceID + `"],"definition_version":3,"version":4},"evidence_ids":["` + evidenceID + `"],"plan":{"plan_hash":"sha256:` + strings.Repeat("a", 64) + `","catalog_version":"security-agent-actions-v1","expires_at":"` + expiresAt.Format(time.RFC3339) + `","steps":[{"id":"` + stepID + `","index":0,"action":"update_finding_response","authorization":"approval_required","state":"waiting_approval","version":1}]},"authorization":"approval_required","approvals":[{"id":"` + approvalID + `","run_id":"` + runID + `","step_id":"` + stepID + `","state":"pending","expires_at":"` + expiresAt.Format(time.RFC3339) + `","version":1,"expected_effect":"Move finding to under review","reversible":true,"ttl_seconds":0,"evidence_summary":["` + evidenceID + `"]}],"execution":[{"step_id":"` + stepID + `","action":"update_finding_response","state":"waiting_approval","version":1}],"verification":"not_started"}`),
+		postgresSecurityAgentApprovalPageSQL:   json.RawMessage(`{"items":[{"id":"` + approvalID + `","run_id":"` + runID + `","step_id":"` + stepID + `","state":"pending","expires_at":"` + expiresAt.Format(time.RFC3339) + `","version":1,"expected_effect":"Move finding to under review","reversible":true,"ttl_seconds":0,"evidence_summary":["` + evidenceID + `"]}],"next_created_at":null,"next_id":null}`),
+		postgresSecurityAgentApprovalDetailSQL: json.RawMessage(`{"id":"` + approvalID + `","run_id":"` + runID + `","step_id":"` + stepID + `","state":"pending","expires_at":"` + expiresAt.Format(time.RFC3339) + `","version":1,"expected_effect":"Move finding to under review","reversible":true,"ttl_seconds":0,"evidence_summary":["` + evidenceID + `"]}`),
+	}}
+	repository, err := NewSecurityAgentPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runPage, err := repository.ListSecurityAgentRuns(context.Background(), identity, SecurityAgentRunPageRequest{DefinitionID: definitionID, State: "waiting_approval", BeforeCreatedAt: createdAt.Add(time.Minute), BeforeID: "pid_78000009-0000-4000-8000-000000000009", Limit: 25})
+	if err != nil || len(runPage.Items) != 1 || runPage.Items[0].ID != runID || runPage.NextCreatedAt == nil || !runPage.NextCreatedAt.Equal(createdAt) || runPage.NextID != runID {
+		t.Fatalf("run page=%#v err=%v", runPage, err)
+	}
+	detail, err := repository.GetSecurityAgentRun(context.Background(), identity, runID)
+	if err != nil || detail.Run.ID != runID || detail.Plan == nil || len(detail.Plan.Steps) != 1 || detail.Authorization != "approval_required" || detail.Verification != "not_started" {
+		t.Fatalf("run detail=%#v err=%v", detail, err)
+	}
+	approvalPage, err := repository.ListSecurityAgentApprovals(context.Background(), identity, SecurityAgentApprovalPageRequest{State: "pending", RunID: runID, Limit: 25})
+	if err != nil || len(approvalPage.Items) != 1 || approvalPage.Items[0].ID != approvalID || approvalPage.NextCreatedAt != nil || approvalPage.NextID != "" {
+		t.Fatalf("approval page=%#v err=%v", approvalPage, err)
+	}
+	approval, err := repository.GetSecurityAgentApproval(context.Background(), identity, approvalID)
+	if err != nil || approval.ID != approvalID || approval.ExpectedEffect != "Move finding to under review" || !approval.Reversible {
+		t.Fatalf("approval=%#v err=%v", approval, err)
+	}
+	wantRunPage := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID, "waiting_approval", createdAt.Add(time.Minute), "pid_78000009-0000-4000-8000-000000000009", 25}
+	wantApprovalPage := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), "pending", runID, nil, "", 25}
+	if !reflect.DeepEqual(database.arguments[1], wantRunPage) || !reflect.DeepEqual(database.arguments[2], []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), runID}) || !reflect.DeepEqual(database.arguments[3], wantApprovalPage) || !reflect.DeepEqual(database.arguments[4], []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), approvalID}) {
+		t.Fatalf("arguments=%#v", database.arguments)
+	}
+}
+
+func TestSecurityAgentPostgresRepositoryCancelsWithoutExposingMutationAuthority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	definitionID := "pid_78000001-0000-4000-8000-000000000001"
+	runID := "pid_78000006-0000-4000-8000-000000000006"
+	evidenceID := "pid_78000005-0000-4000-8000-000000000005"
+	auditID := "pid_78000002-0000-4000-8000-000000000002"
+	correlationID := "pid_78000003-0000-4000-8000-000000000003"
+	receiptID := "pid_78000004-0000-4000-8000-000000000004"
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentAuthorityReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentCancelRunSQL:      json.RawMessage(`{"id":"` + runID + `","agent_id":"` + definitionID + `","state":"cancelled","evidence_ids":["` + evidenceID + `"],"definition_version":3,"version":5,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
+	}}
+	repository, err := NewSecurityAgentPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := SecurityAgentCancelRequest{RunID: runID, IdempotencyKey: "cancel-agent-run-0001", ExpectedVersion: 4, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}
+	result, err := repository.CancelSecurityAgentRun(context.Background(), identity, input)
+	if err != nil || result.ID != runID || result.State != "cancelled" || result.Version != 5 || result.Replayed {
+		t.Fatalf("result=%#v err=%v", result, err)
+	}
+	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), runID, identity.PrincipalID.String(), input.IdempotencyKey, int64(4), auditID, correlationID, receiptID}
+	if database.statements[1] != postgresSecurityAgentCancelRunSQL || !reflect.DeepEqual(database.arguments[1], want) {
+		t.Fatalf("statement=%q args=%#v", database.statements[1], database.arguments[1])
+	}
+}
+
 func (*securityAgentRepositoryDatabase) SchemaVersion(context.Context) (string, error) {
 	return "", errors.New("security agent authority must not read schema metadata")
 }

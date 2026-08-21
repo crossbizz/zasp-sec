@@ -213,6 +213,22 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	if err := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_prepare_run($1,$2,$3,$4,'worker-a','lease-token-000000000001',$5,transaction_timestamp()+interval '15 minutes','pid_78000039-0000-4000-8000-000000000039','pid_78000040-0000-4000-8000-000000000040')`, organizationID, workspaceID, environmentID, runID, approvalID).Scan(&detail); err != nil || !strings.Contains(string(detail), `"state": "waiting_approval"`) {
 		t.Fatalf("prepare run=%s err=%v", detail, err)
 	}
+	var runPage, runDetail, approvalPage, approvalDetail json.RawMessage
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_run_page($1,$2,$3,$4,'waiting_approval',NULL,NULL,25)`, organizationID, workspaceID, environmentID, definitionID).Scan(&runPage); err != nil || !strings.Contains(string(runPage), `"id": "`+runID+`"`) || strings.Contains(string(runPage), simulationRunID) || strings.Contains(string(runPage), "lease-token") {
+		t.Fatalf("run page=%s err=%v", runPage, err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_run_detail($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, runID).Scan(&runDetail); err != nil || !strings.Contains(string(runDetail), `"authorization": "approval_required"`) || !strings.Contains(string(runDetail), `"expected_effect": "Move finding to under review"`) || strings.Contains(string(runDetail), "input_digest") || strings.Contains(string(runDetail), "lease_token") {
+		t.Fatalf("run detail=%s err=%v", runDetail, err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_approval_page($1,$2,$3,'pending',$4,NULL,NULL,25)`, organizationID, workspaceID, environmentID, runID).Scan(&approvalPage); err != nil || !strings.Contains(string(approvalPage), `"id": "`+approvalID+`"`) {
+		t.Fatalf("approval page=%s err=%v", approvalPage, err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_approval_detail($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, approvalID).Scan(&approvalDetail); err != nil || !strings.Contains(string(approvalDetail), `"evidence_summary": ["`+evidenceID+`"]`) || strings.Contains(string(approvalDetail), "requester_id") {
+		t.Fatalf("approval detail=%s err=%v", approvalDetail, err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_run_detail($1,$2,$3,$4)`, foreignOrganization, workspaceID, environmentID, runID).Scan(&detail); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("foreign run detail error=%v body=%s", err, detail)
+	}
 	var effectCountBeforeApproval int
 	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_security_agent_effects WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, runID).Scan(&effectCountBeforeApproval); err != nil || effectCountBeforeApproval != 0 {
 		t.Fatalf("effects before approval=%d err=%v", effectCountBeforeApproval, err)
@@ -249,6 +265,30 @@ func TestProductionSecurityAgentExecutionPostgresQuarantinesActivatesAndClaimsBy
 	var findingVersion int64
 	if err := connection.QueryRow(ctx, `SELECT finding.status,finding.version,effect.state,run.state FROM zasp_risk_findings finding JOIN zasp_security_agent_runs run ON (run.organization_id,run.workspace_id,run.environment_id,run.trigger_id)=(finding.organization_id,finding.workspace_id,finding.environment_id,finding.id) JOIN zasp_security_agent_effects effect ON (effect.organization_id,effect.workspace_id,effect.environment_id,effect.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id) WHERE run.run_id=$1`, runID).Scan(&findingStatus, &findingVersion, &effectState, &runState); err != nil || findingStatus != "under_review" || findingVersion != 2 || effectState != "verified" || runState != "remediated" {
 		t.Fatalf("finding=%s v%d effect=%s run=%s err=%v", findingStatus, findingVersion, effectState, runState, err)
+	}
+
+	cancelEvidenceID := "pid_78000067-0000-4000-8000-000000000067"
+	cancelRunID := "pid_78000068-0000-4000-8000-000000000068"
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status) VALUES($1,$2,$3,$4,'posture','exposed_credential','Cancel credential response','high','open')`, organizationID, workspaceID, environmentID, cancelEvidenceID); err != nil {
+		t.Fatal(err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_run($1,$2,$3,$4,$5,'security-agent-run-idem-0003',3,$6,'finding',$7,'pid_78000069-0000-4000-8000-000000000069','pid_78000070-0000-4000-8000-000000000070','pid_78000071-0000-4000-8000-000000000071')`, organizationID, workspaceID, environmentID, definitionID, actorID, cancelRunID, cancelEvidenceID).Scan(&detail); err != nil {
+		t.Fatalf("create cancel run: %v", err)
+	}
+	var cancelled json.RawMessage
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_cancel_run($1,$2,$3,$4,$5,'cancel-agent-run-idem-0001',1,'pid_78000072-0000-4000-8000-000000000072','pid_78000073-0000-4000-8000-000000000073','pid_78000074-0000-4000-8000-000000000074')`, organizationID, workspaceID, environmentID, cancelRunID, actorID).Scan(&cancelled); err != nil || !strings.Contains(string(cancelled), `"state": "cancelled"`) || !strings.Contains(string(cancelled), `"version": 2`) || !strings.Contains(string(cancelled), `"replayed": false`) {
+		t.Fatalf("cancelled=%s err=%v", cancelled, err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_cancel_run($1,$2,$3,$4,$5,'cancel-agent-run-idem-0001',1,'pid_78000075-0000-4000-8000-000000000075','pid_78000076-0000-4000-8000-000000000076','pid_78000077-0000-4000-8000-000000000077')`, organizationID, workspaceID, environmentID, cancelRunID, actorID).Scan(&replayed); err != nil || !strings.Contains(string(replayed), `"replayed": true`) || !strings.Contains(string(replayed), `"receipt_id": "pid_78000074-0000-4000-8000-000000000074"`) {
+		t.Fatalf("cancel replay=%s err=%v", replayed, err)
+	}
+	if err := apiConnection.QueryRow(ctx, `SELECT zasp_security_agent_cancel_run($1,$2,$3,$4,$5,'cancel-agent-run-idem-0002',2,'pid_78000075-0000-4000-8000-000000000075','pid_78000076-0000-4000-8000-000000000076','pid_78000077-0000-4000-8000-000000000077')`, organizationID, workspaceID, environmentID, cancelRunID, actorID).Scan(&detail); err == nil {
+		t.Fatal("terminal run accepted a second cancellation")
+	}
+	var cancelledState string
+	var cancelledEffects int
+	if err := connection.QueryRow(ctx, `SELECT run.state,(SELECT count(*) FROM zasp_security_agent_effects effect WHERE (effect.organization_id,effect.workspace_id,effect.environment_id,effect.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)) FROM zasp_security_agent_runs run WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, cancelRunID).Scan(&cancelledState, &cancelledEffects); err != nil || cancelledState != "cancelled" || cancelledEffects != 0 {
+		t.Fatalf("cancelled state=%s effects=%d err=%v", cancelledState, cancelledEffects, err)
 	}
 
 	changedEvidenceID := "pid_78000054-0000-4000-8000-000000000054"

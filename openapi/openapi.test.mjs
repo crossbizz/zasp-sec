@@ -674,15 +674,15 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 105);
-    for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "decideSecurityAgentApproval"]) {
+    assert.equal(operations.size, 110);
+    for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [
       "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
       "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
       "simulatePolicy", "listPolicyDecisions",
-      "listSecurityActions", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval",
+      "listSecurityActions",
       "createAIExplanation",
     ]) assert.equal(operations.has(operationId), false, operationId);
 
@@ -699,6 +699,33 @@ describe("production workflow concurrency contract", () => {
     assert.deepEqual(run.operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]);
     assert.deepEqual(run.operation.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentManualRunInput" });
     assert.deepEqual(run.operation.responses["202"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentRun" });
+
+    const runList = operations.get("listSecurityAgentRuns");
+    assert.equal(runList.path, "/api/v1/security-agent-runs");
+    assert.equal(runList.method, "get");
+    assert.deepEqual(runList.operation.security, [{ BrowserSession: [], BrowserExpectedScope: [] }, { ProductAPIToken: [] }]);
+    assert.deepEqual(runList.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentRunPage" });
+
+    const runDetail = operations.get("getSecurityAgentRun");
+    assert.equal(runDetail.path, "/api/v1/security-agent-runs/{id}");
+    assert.equal(runDetail.method, "get");
+    assert.deepEqual(runDetail.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentRunDetail" });
+
+    const cancelRun = operations.get("cancelSecurityAgentRun");
+    assert.equal(cancelRun.path, "/api/v1/security-agent-runs/{id}/cancel");
+    assert.equal(cancelRun.method, "post");
+    assert.equal(cancelRun.operation.requestBody, undefined);
+    assert.deepEqual(cancelRun.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentRun" });
+
+    const approvalList = operations.get("listSecurityAgentApprovals");
+    assert.equal(approvalList.path, "/api/v1/security-agent-approvals");
+    assert.equal(approvalList.method, "get");
+    assert.deepEqual(approvalList.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentApprovalPage" });
+
+    const approvalDetail = operations.get("getSecurityAgentApproval");
+    assert.equal(approvalDetail.path, "/api/v1/security-agent-approvals/{id}");
+    assert.equal(approvalDetail.method, "get");
+    assert.deepEqual(approvalDetail.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentApproval" });
 
     const decision = operations.get("decideSecurityAgentApproval");
     assert.equal(decision.path, "/api/v1/security-agent-approvals/{id}/decision");

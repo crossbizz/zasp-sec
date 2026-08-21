@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 105 || len(public) != 105 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 105/105", len(seen), len(public))
+	if len(seen) != 110 || len(public) != 110 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 110/110", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -138,7 +138,7 @@ func TestTaskSevenCompositionHasExactActivationSurfaceWithoutExecutionOverclaims
 		"listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
 		"listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
 		"simulatePolicy", "listPolicyDecisions",
-		"listSecurityActions", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval",
+		"listSecurityActions",
 		"createAIExplanation",
 	} {
 		if _, mounted := definitions[operationID]; mounted {
@@ -156,6 +156,20 @@ func TestTaskSevenCompositionHasExactActivationSurfaceWithoutExecutionOverclaims
 	run, ok := definitions["runSecurityAgent"]
 	if !ok || run.Method != http.MethodPost || run.Pattern != "/api/v1/security-agents/{id}/runs" || run.Permission != "manage_workflows" || !equalStrings(run.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || requiresFreshAuthentication("runSecurityAgent") {
 		t.Errorf("security-agent run definition=%#v exists=%v", run, ok)
+	}
+	for operationID, expected := range map[string]struct {
+		method, pattern, permission string
+	}{
+		"listSecurityAgentRuns":      {http.MethodGet, "/api/v1/security-agent-runs", "view"},
+		"getSecurityAgentRun":        {http.MethodGet, "/api/v1/security-agent-runs/{id}", "view"},
+		"cancelSecurityAgentRun":     {http.MethodPost, "/api/v1/security-agent-runs/{id}/cancel", "manage_workflows"},
+		"listSecurityAgentApprovals": {http.MethodGet, "/api/v1/security-agent-approvals", "view"},
+		"getSecurityAgentApproval":   {http.MethodGet, "/api/v1/security-agent-approvals/{id}", "view"},
+	} {
+		definition, exists := definitions[operationID]
+		if !exists || definition.Method != expected.method || definition.Pattern != expected.pattern || definition.Permission != expected.permission || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || requiresFreshAuthentication(operationID) {
+			t.Errorf("security-agent operation %s definition=%#v exists=%v", operationID, definition, exists)
+		}
 	}
 	decision, ok := definitions["decideSecurityAgentApproval"]
 	if !ok || decision.Method != http.MethodPost || decision.Pattern != "/api/v1/security-agent-approvals/{id}/decision" || decision.Permission != "manage_workflows" || !equalStrings(decision.Security, []string{"BrowserExpectedScope", "BrowserSession"}) || !requiresFreshAuthentication("decideSecurityAgentApproval") {
