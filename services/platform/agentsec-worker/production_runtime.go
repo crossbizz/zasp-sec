@@ -70,7 +70,7 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	switch config.Mode {
-	case workerModeOutbox, workerModeRuntimeOutbox, workerModeRedTeamOutbox:
+	case workerModeOutbox, workerModeRuntimeOutbox, workerModeRedTeamOutbox, workerModeAttackLabOutbox:
 		publisher, err := newProductionOutboxPublisher(ctx, config)
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
@@ -78,6 +78,8 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		var dependencies workerRuntimeDependencies
 		if config.Mode == workerModeRedTeamOutbox {
 			dependencies, err = composeRedTeamOutboxWorkerRuntime(config, database, publisher.publisher, publisher.ready)
+		} else if config.Mode == workerModeAttackLabOutbox {
+			dependencies, err = composeAttackLabOutboxWorkerRuntime(config, database, publisher.publisher, publisher.ready)
 		} else {
 			dependencies, err = composeOutboxWorkerRuntime(config, database, publisher.publisher, publisher.ready)
 		}
@@ -95,6 +97,17 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		dependencies, err := composeRedTeamWorkerRuntime(config, database, redTeam)
 		if err != nil {
 			_ = redTeam.Close()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return dependencies, nil
+	case workerModeAttackLabController:
+		attackLab, err := newProductionAttackLabDependencies(config)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		dependencies, err := composeAttackLabWorkerRuntime(config, database, attackLab)
+		if err != nil {
+			_ = attackLab.Close()
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		return dependencies, nil

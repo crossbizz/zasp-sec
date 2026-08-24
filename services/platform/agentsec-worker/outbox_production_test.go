@@ -36,7 +36,7 @@ func TestOutboxWebIdentityProviderUsesOnlyExplicitBoundAuthority(t *testing.T) {
 }
 
 func TestWebIdentitySessionAuthorityIncludesEveryRuntimeStage(t *testing.T) {
-	for _, value := range []string{"", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-red-team-outbox-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker", "zasp-runtime-complete-worker"} {
+	for _, value := range []string{"", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-red-team-outbox-worker", "zasp-attack-lab-outbox-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker", "zasp-runtime-complete-worker"} {
 		if !validOutboxSession(value) {
 			t.Fatalf("session %q rejected", value)
 		}
@@ -45,6 +45,21 @@ func TestWebIdentitySessionAuthorityIncludesEveryRuntimeStage(t *testing.T) {
 		if validOutboxSession(value) {
 			t.Fatalf("session %q accepted", value)
 		}
+	}
+}
+
+func TestAttackLabOutboxQueueReadinessBindsExactARNAndDLQ(t *testing.T) {
+	t.Parallel()
+	config := validAttackLabOutboxRuntimeConfig()
+	api := &outboxQueueReadinessStub{output: &sqs.GetQueueAttributesOutput{Attributes: map[string]string{
+		string(sqstypes.QueueAttributeNameQueueArn):      "arn:aws:sqs:us-west-2:123456789012:agentsec-attack-lab-jobs",
+		string(sqstypes.QueueAttributeNameRedrivePolicy): `{"deadLetterTargetArn":"arn:aws:sqs:us-west-2:123456789012:agentsec-attack-lab-jobs-dlq","maxReceiveCount":"5"}`,
+	}}}
+	if err := outboxQueueReady(context.Background(), api, config); err != nil {
+		t.Fatalf("attack lab outbox readiness=%v", err)
+	}
+	if api.input == nil || aws.ToString(api.input.QueueUrl) != config.AttackLabQueueURL {
+		t.Fatalf("attack lab queue input=%#v", api.input)
 	}
 }
 

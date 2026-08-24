@@ -15,6 +15,8 @@ const (
 	workerModeOutbox               workerMode = "outbox"
 	workerModeRuntimeOutbox        workerMode = "runtime-outbox"
 	workerModeRedTeamOutbox        workerMode = "red-team-outbox"
+	workerModeAttackLabOutbox      workerMode = "attack-lab-outbox"
+	workerModeAttackLabController  workerMode = "attack-lab-controller"
 	workerModeRedTeam              workerMode = "red-team"
 	workerModeRuntimeCoordinator   workerMode = "runtime-coordinator"
 	workerModeRuntimeArchive       workerMode = "runtime-archive"
@@ -51,6 +53,7 @@ type workerRuntimeConfig struct {
 	DiscoveryQueueURL          string
 	RuntimeQueueURL            string
 	RedTeamQueueURL            string
+	AttackLabQueueURL          string
 	RuntimeRoleARN             string
 	RuntimeTokenFile           string
 	RuntimeStageRoleARN        string
@@ -93,6 +96,18 @@ type workerRuntimeConfig struct {
 	RedTeamTargetTokenFile     string
 	RedTeamTargetCAFile        string
 	RedTeamRunnerTimeout       time.Duration
+	AttackLabRoleARN           string
+	AttackLabTokenFile         string
+	AttackLabNamespace         string
+	AttackLabRunnerService     string
+	AttackLabRunnerImage       string
+	AttackLabKubernetesURL     string
+	AttackLabKubernetesToken   string
+	AttackLabKubernetesCA      string
+	AttackLabProxyEndpoint     string
+	AttackLabProxyCAFile       string
+	AttackLabSigningKeyFile    string
+	AttackLabOperationTimeout  time.Duration
 	GatewaySigningKeyID        string
 	GatewaySigningPrivateFile  string
 }
@@ -135,12 +150,13 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 	providerTimeout, providerTimeoutErr := time.ParseDuration(getenv("ZASP_PROVIDER_TIMEOUT"))
 	discoveryReadinessTimeout, discoveryReadinessTimeoutErr := time.ParseDuration(getenv("ZASP_DISCOVERY_READINESS_TIMEOUT"))
 	redTeamRunnerTimeout, redTeamRunnerTimeoutErr := time.ParseDuration(getenv("ZASP_RED_TEAM_RUNNER_TIMEOUT"))
+	attackLabOperationTimeout, attackLabOperationTimeoutErr := time.ParseDuration(getenv("ZASP_ATTACK_LAB_OPERATION_TIMEOUT"))
 	batch, batchErr := strconv.Atoi(getenv("ZASP_BATCH_SIZE"))
 	config := workerRuntimeConfig{
 		Mode: workerMode(getenv("ZASP_WORKER_MODE")), PostgresDSN: getenv("ZASP_POSTGRES_DSN"),
 		DatabaseAuthority: getenv("ZASP_DATABASE_AUTHORITY"), WorkerID: getenv("ZASP_WORKER_ID"),
 		PollInterval: poll, LeaseDuration: lease, BatchSize: batch, ShutdownTimeout: shutdown,
-		DiscoveryQueueURL: getenv("ZASP_DISCOVERY_QUEUE_URL"), RuntimeQueueURL: getenv("ZASP_RUNTIME_QUEUE_URL"), RedTeamQueueURL: getenv("ZASP_RED_TEAM_QUEUE_URL"), AWSRegion: getenv("ZASP_AWS_REGION"), EvidenceBucket: getenv("ZASP_EVIDENCE_BUCKET"), EvidenceOwner: getenv("ZASP_EVIDENCE_BUCKET_OWNER"),
+		DiscoveryQueueURL: getenv("ZASP_DISCOVERY_QUEUE_URL"), RuntimeQueueURL: getenv("ZASP_RUNTIME_QUEUE_URL"), RedTeamQueueURL: getenv("ZASP_RED_TEAM_QUEUE_URL"), AttackLabQueueURL: getenv("ZASP_ATTACK_LAB_QUEUE_URL"), AWSRegion: getenv("ZASP_AWS_REGION"), EvidenceBucket: getenv("ZASP_EVIDENCE_BUCKET"), EvidenceOwner: getenv("ZASP_EVIDENCE_BUCKET_OWNER"),
 		EvidenceKMSKeyARN: getenv("ZASP_EVIDENCE_KMS_KEY_ARN"), ParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), ToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
 		DiscoveryRoleARN: getenv("ZASP_DISCOVERY_ROLE_ARN"), DiscoveryTokenFile: getenv("ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE"), DiscoverySecretPrefix: getenv("ZASP_DISCOVERY_SECRET_PREFIX"),
 		AWSCollectorVersion: getenv("ZASP_DISCOVERY_AWS_COLLECTOR_VERSION"), KubernetesCollectorVersion: getenv("ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION"), GitHubCollectorVersion: getenv("ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION"), OktaCollectorVersion: getenv("ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION"),
@@ -151,12 +167,14 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		ProjectionRoleARN: getenv("ZASP_PROJECTION_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE"), ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"),
 		OutboxRoleARN: getenv("ZASP_OUTBOX_ROLE_ARN"), OutboxTokenFile: getenv("ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE"),
 		RedTeamRoleARN: getenv("ZASP_RED_TEAM_ROLE_ARN"), RedTeamTokenFile: getenv("ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE"), RedTeamTargetEndpoint: getenv("ZASP_RED_TEAM_TARGET_ENDPOINT"), RedTeamTargetTokenFile: getenv("ZASP_RED_TEAM_TARGET_TOKEN_FILE"), RedTeamTargetCAFile: getenv("ZASP_RED_TEAM_TARGET_CA_FILE"), RedTeamRunnerTimeout: redTeamRunnerTimeout,
+		AttackLabRoleARN: getenv("ZASP_ATTACK_LAB_ROLE_ARN"), AttackLabTokenFile: getenv("ZASP_ATTACK_LAB_WEB_IDENTITY_TOKEN_FILE"), AttackLabNamespace: getenv("ZASP_ATTACK_LAB_NAMESPACE"), AttackLabRunnerService: getenv("ZASP_ATTACK_LAB_RUNNER_SERVICE_ACCOUNT"), AttackLabRunnerImage: getenv("ZASP_ATTACK_LAB_RUNNER_IMAGE"),
+		AttackLabKubernetesURL: getenv("ZASP_ATTACK_LAB_KUBERNETES_ENDPOINT"), AttackLabKubernetesToken: getenv("ZASP_ATTACK_LAB_KUBERNETES_TOKEN_FILE"), AttackLabKubernetesCA: getenv("ZASP_ATTACK_LAB_KUBERNETES_CA_FILE"), AttackLabProxyEndpoint: getenv("ZASP_ATTACK_LAB_PROXY_ENDPOINT"), AttackLabProxyCAFile: getenv("ZASP_ATTACK_LAB_PROXY_CA_FILE"), AttackLabSigningKeyFile: getenv("ZASP_ATTACK_LAB_EGRESS_SIGNING_KEY_FILE"), AttackLabOperationTimeout: attackLabOperationTimeout,
 		GatewaySigningKeyID: getenv("ZASP_GATEWAY_SIGNING_KEY_ID"), GatewaySigningPrivateFile: getenv("ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE"),
 		RuntimeRoleARN: getenv("ZASP_RUNTIME_ROLE_ARN"), RuntimeTokenFile: getenv("ZASP_RUNTIME_WEB_IDENTITY_TOKEN_FILE"),
 		RuntimeStageRoleARN: getenv("ZASP_RUNTIME_STAGE_ROLE_ARN"), RuntimeStageTokenFile: getenv("ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE"), RuntimeStageVersion: getenv("ZASP_RUNTIME_STAGE_VERSION"),
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
-	if pollErr != nil || leaseErr != nil || shutdownErr != nil || batchErr != nil || config.Mode == workerModeDiscovery && (providerTimeoutErr != nil || discoveryReadinessTimeoutErr != nil) || config.Mode == workerModeRedTeam && redTeamRunnerTimeoutErr != nil || !validWorkerRuntimeConfig(config) {
+	if pollErr != nil || leaseErr != nil || shutdownErr != nil || batchErr != nil || config.Mode == workerModeDiscovery && (providerTimeoutErr != nil || discoveryReadinessTimeoutErr != nil) || config.Mode == workerModeRedTeam && redTeamRunnerTimeoutErr != nil || config.Mode == workerModeAttackLabController && attackLabOperationTimeoutErr != nil || !validWorkerRuntimeConfig(config) {
 		return workerRuntimeConfig{}, errWorkerConfiguration
 	}
 	return config, nil
@@ -175,7 +193,7 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 		return false
 	}
 	wantAuthority := map[workerMode]string{
-		workerModeOutbox: "zasp_outbox_worker", workerModeRuntimeOutbox: "zasp_outbox_worker", workerModeRedTeamOutbox: "zasp_red_team_outbox_worker", workerModeRedTeam: "zasp_red_team_worker", workerModeDiscovery: "zasp_discovery_worker", workerModeScheduler: "zasp_discovery_scheduler",
+		workerModeOutbox: "zasp_outbox_worker", workerModeRuntimeOutbox: "zasp_outbox_worker", workerModeRedTeamOutbox: "zasp_red_team_outbox_worker", workerModeAttackLabOutbox: "zasp_attack_lab_outbox_worker", workerModeAttackLabController: "zasp_attack_lab_controller", workerModeRedTeam: "zasp_red_team_worker", workerModeDiscovery: "zasp_discovery_worker", workerModeScheduler: "zasp_discovery_scheduler",
 		workerModeRuntimeCoordinator: "zasp_runtime_coordinator",
 		workerModeRuntimeArchive:     "zasp_runtime_archive_worker",
 		workerModeRuntimeIndex:       "zasp_runtime_index_worker",
@@ -188,7 +206,7 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 	}[config.Mode]
 	return wantAuthority != "" && config.DatabaseAuthority == wantAuthority && workerIdentityPattern.MatchString(config.WorkerID) && validModeDependencies(config) &&
 		config.PollInterval >= 50*time.Millisecond && config.PollInterval <= time.Minute && config.LeaseDuration >= 5*time.Second && config.LeaseDuration <= 15*time.Minute &&
-		config.BatchSize >= 1 && config.BatchSize <= 64 && (config.Mode != workerModeDiscovery && config.Mode != workerModeRuntimeCoordinator && config.Mode != workerModeRuntimeArchive && config.Mode != workerModeRuntimeIndex && config.Mode != workerModeRuntimeCorrelation && config.Mode != workerModeRuntimeProjection && config.Mode != workerModeRuntimeComplete || config.BatchSize <= 10) && config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= time.Minute && config.ShutdownTimeout < config.LeaseDuration
+		config.BatchSize >= 1 && config.BatchSize <= 64 && (config.Mode != workerModeDiscovery && config.Mode != workerModeAttackLabController && config.Mode != workerModeRuntimeCoordinator && config.Mode != workerModeRuntimeArchive && config.Mode != workerModeRuntimeIndex && config.Mode != workerModeRuntimeCorrelation && config.Mode != workerModeRuntimeProjection && config.Mode != workerModeRuntimeComplete || config.BatchSize <= 10) && config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= time.Minute && config.ShutdownTimeout < config.LeaseDuration
 }
 
 var (
@@ -205,10 +223,12 @@ var (
 
 func validModeDependencies(config workerRuntimeConfig) bool {
 	switch config.Mode {
-	case workerModeOutbox, workerModeRuntimeOutbox, workerModeRedTeamOutbox:
+	case workerModeOutbox, workerModeRuntimeOutbox, workerModeRedTeamOutbox, workerModeAttackLabOutbox:
 		return validOutboxAWSAuthority(config)
 	case workerModeRedTeam:
 		return validRedTeamRuntimeAuthority(config)
+	case workerModeAttackLabController:
+		return validAttackLabRuntimeAuthority(config)
 	case workerModeRuntimeCoordinator:
 		return validRuntimeCoordinatorAWSAuthority(config)
 	case workerModeRuntimeArchive:
@@ -325,7 +345,9 @@ func outboxQueueAuthority(config workerRuntimeConfig) (string, string, bool) {
 	case workerModeRuntimeOutbox:
 		return config.RuntimeQueueURL, "agentsec-runtime-events", config.DiscoveryQueueURL == ""
 	case workerModeRedTeamOutbox:
-		return config.RedTeamQueueURL, "agentsec-red-team-tests", config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == ""
+		return config.RedTeamQueueURL, "agentsec-red-team-tests", config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.AttackLabQueueURL == ""
+	case workerModeAttackLabOutbox:
+		return config.AttackLabQueueURL, "agentsec-attack-lab-jobs", config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.RedTeamQueueURL == ""
 	default:
 		return "", "", false
 	}
@@ -342,6 +364,23 @@ func validRedTeamRuntimeAuthority(config workerRuntimeConfig) bool {
 	return len(parts) == 2 && parts[0] == role[1] && parts[1] == "agentsec-red-team-tests" && queue.Hostname() == "sqs."+config.AWSRegion+".amazonaws.com" &&
 		workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner &&
 		config.RedTeamTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && redTeamTargetEndpointPattern.MatchString(config.RedTeamTargetEndpoint) && config.RedTeamTargetTokenFile == "/var/run/secrets/zasp-red-team/adapter-token" && config.RedTeamTargetCAFile == "/var/run/secrets/zasp-red-team/adapter-ca.crt" && config.RedTeamRunnerTimeout >= 30*time.Second && config.RedTeamRunnerTimeout <= 15*time.Minute
+}
+
+func validAttackLabRuntimeAuthority(config workerRuntimeConfig) bool {
+	queue, queueErr := url.Parse(config.AttackLabQueueURL)
+	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.AttackLabRoleARN)
+	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
+	image := regexp.MustCompile(`^([0-9]{12})\.dkr\.ecr\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com/zasp/attack-lab-runner@sha256:[a-f0-9]{64}$`).FindStringSubmatch(config.AttackLabRunnerImage)
+	if queueErr != nil || queue == nil || !validSQSURL(config.AttackLabQueueURL) || len(role) != 2 || len(kms) != 3 || len(image) != 3 {
+		return false
+	}
+	parts := strings.Split(strings.TrimPrefix(queue.Path, "/"), "/")
+	return len(parts) == 2 && parts[0] == role[1] && parts[1] == "agentsec-attack-lab-jobs" && queue.Hostname() == "sqs."+config.AWSRegion+".amazonaws.com" &&
+		workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && image[1] == config.EvidenceOwner && image[2] == config.AWSRegion &&
+		config.AttackLabTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && config.AttackLabNamespace == "zasp-attack-lab" && config.AttackLabRunnerService == "agentsec-attack-lab-runner" &&
+		config.AttackLabKubernetesURL == "https://kubernetes.default.svc" && config.AttackLabKubernetesToken == "/var/run/secrets/kubernetes.io/serviceaccount/token" && config.AttackLabKubernetesCA == "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt" &&
+		config.AttackLabProxyEndpoint == "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress" && config.AttackLabProxyCAFile == "/var/run/secrets/zasp-attack-lab/proxy-ca.crt" && config.AttackLabSigningKeyFile == "/var/run/secrets/zasp-attack-lab/egress-signing-key" &&
+		config.AttackLabOperationTimeout >= time.Second && config.AttackLabOperationTimeout <= 30*time.Second && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.RedTeamQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
 }
 
 func validProjectionAWSAuthority(config workerRuntimeConfig) bool {

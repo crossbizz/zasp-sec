@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -43,6 +44,90 @@ func TestLoadWorkerRuntimeConfigRequiresExactModeAuthority(t *testing.T) {
 				t.Fatalf("error = %v, want errWorkerConfiguration", err)
 			}
 		})
+	}
+}
+
+func TestAttackLabOutboxModeRequiresExactQueueAndPrincipalAuthority(t *testing.T) {
+	values := map[string]string{
+		"ZASP_WORKER_MODE": "attack-lab-outbox", "ZASP_POSTGRES_DSN": "postgres://attack_lab_outbox@postgres.internal/zasp?sslmode=verify-full",
+		"ZASP_DATABASE_AUTHORITY": "zasp_attack_lab_outbox_worker", "ZASP_WORKER_ID": "attack-lab-outbox-01",
+		"ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "60s", "ZASP_BATCH_SIZE": "10", "ZASP_SHUTDOWN_TIMEOUT": "20s",
+		"ZASP_ATTACK_LAB_QUEUE_URL": "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-attack-lab-jobs", "ZASP_AWS_REGION": "us-west-2",
+		"ZASP_OUTBOX_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-attack-lab-outbox", "ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+	}
+	config, err := loadWorkerRuntimeConfig(mapLookup(values))
+	if err != nil || config.Mode != workerModeAttackLabOutbox || config.AttackLabQueueURL != values["ZASP_ATTACK_LAB_QUEUE_URL"] {
+		t.Fatalf("config=%#v err=%v", config, err)
+	}
+	for name, mutate := range map[string]func(map[string]string){
+		"foreign authority": func(input map[string]string) { input["ZASP_DATABASE_AUTHORITY"] = "zasp_red_team_outbox_worker" },
+		"wrong queue": func(input map[string]string) {
+			input["ZASP_ATTACK_LAB_QUEUE_URL"] = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests"
+		},
+		"cross account role": func(input map[string]string) {
+			input["ZASP_OUTBOX_ROLE_ARN"] = "arn:aws:iam::210987654321:role/zasp-production-attack-lab-outbox"
+		},
+		"ambient token": func(input map[string]string) { delete(input, "ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			drift := cloneStringMap(values)
+			mutate(drift)
+			if _, err := loadWorkerRuntimeConfig(mapLookup(drift)); !errors.Is(err, errWorkerConfiguration) {
+				t.Fatalf("drift accepted: %v", err)
+			}
+		})
+	}
+}
+
+func TestAttackLabControllerModeRequiresExactSandboxAndCloudAuthority(t *testing.T) {
+	values := validAttackLabControllerRuntimeEnvironment()
+	config, err := loadWorkerRuntimeConfig(mapLookup(values))
+	if err != nil || config.Mode != workerModeAttackLabController || config.AttackLabNamespace != "zasp-attack-lab" || config.AttackLabOperationTimeout != 10*time.Second {
+		t.Fatalf("config=%#v err=%v", config, err)
+	}
+	for name, mutate := range map[string]func(map[string]string){
+		"foreign authority": func(input map[string]string) { input["ZASP_DATABASE_AUTHORITY"] = "zasp_discovery_worker" },
+		"queue drift": func(input map[string]string) {
+			input["ZASP_ATTACK_LAB_QUEUE_URL"] = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests"
+		},
+		"namespace drift": func(input map[string]string) { input["ZASP_ATTACK_LAB_NAMESPACE"] = "default" },
+		"mutable image": func(input map[string]string) {
+			input["ZASP_ATTACK_LAB_RUNNER_IMAGE"] = "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner:latest"
+		},
+		"cross account image": func(input map[string]string) {
+			input["ZASP_ATTACK_LAB_RUNNER_IMAGE"] = "210987654321.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64)
+		},
+		"public proxy": func(input map[string]string) {
+			input["ZASP_ATTACK_LAB_PROXY_ENDPOINT"] = "https://proxy.example.com/v1/egress"
+		},
+		"ambient kube token": func(input map[string]string) {
+			delete(input, "ZASP_ATTACK_LAB_KUBERNETES_TOKEN_FILE")
+		},
+		"unbounded timeout": func(input map[string]string) { input["ZASP_ATTACK_LAB_OPERATION_TIMEOUT"] = "31s" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			drift := cloneStringMap(values)
+			mutate(drift)
+			if _, err := loadWorkerRuntimeConfig(mapLookup(drift)); !errors.Is(err, errWorkerConfiguration) {
+				t.Fatalf("drift accepted: %v", err)
+			}
+		})
+	}
+}
+
+func validAttackLabControllerRuntimeEnvironment() map[string]string {
+	return map[string]string{
+		"ZASP_WORKER_MODE": "attack-lab-controller", "ZASP_POSTGRES_DSN": "postgres://attack_lab_controller@postgres.internal/zasp?sslmode=verify-full",
+		"ZASP_DATABASE_AUTHORITY": "zasp_attack_lab_controller", "ZASP_WORKER_ID": "attack-lab-controller-01",
+		"ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "60s", "ZASP_BATCH_SIZE": "5", "ZASP_SHUTDOWN_TIMEOUT": "20s",
+		"ZASP_ATTACK_LAB_QUEUE_URL": "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-attack-lab-jobs", "ZASP_AWS_REGION": "us-west-2",
+		"ZASP_EVIDENCE_BUCKET": "zasp-production-evidence", "ZASP_EVIDENCE_BUCKET_OWNER": "123456789012", "ZASP_EVIDENCE_KMS_KEY_ARN": "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
+		"ZASP_ATTACK_LAB_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-attack-lab-controller", "ZASP_ATTACK_LAB_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+		"ZASP_ATTACK_LAB_NAMESPACE": "zasp-attack-lab", "ZASP_ATTACK_LAB_RUNNER_SERVICE_ACCOUNT": "agentsec-attack-lab-runner",
+		"ZASP_ATTACK_LAB_RUNNER_IMAGE":        "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64),
+		"ZASP_ATTACK_LAB_KUBERNETES_ENDPOINT": "https://kubernetes.default.svc", "ZASP_ATTACK_LAB_KUBERNETES_TOKEN_FILE": "/var/run/secrets/kubernetes.io/serviceaccount/token", "ZASP_ATTACK_LAB_KUBERNETES_CA_FILE": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+		"ZASP_ATTACK_LAB_PROXY_ENDPOINT": "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", "ZASP_ATTACK_LAB_PROXY_CA_FILE": "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", "ZASP_ATTACK_LAB_EGRESS_SIGNING_KEY_FILE": "/var/run/secrets/zasp-attack-lab/egress-signing-key",
+		"ZASP_ATTACK_LAB_OPERATION_TIMEOUT": "10s",
 	}
 }
 

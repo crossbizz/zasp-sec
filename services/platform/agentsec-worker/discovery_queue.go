@@ -43,7 +43,7 @@ func newProductionDiscoveryQueue(api discoveryQueueAPI, config productionDiscove
 	}
 	parsed, parseErr := url.Parse(config.QueueURL)
 	if nilWorkerDependency(api) || parseErr != nil || parsed == nil || !validSQSURL(config.QueueURL) || parsed.Hostname() != "sqs."+config.Region+".amazonaws.com" ||
-		!stringInWorker(config.ExpectedQueueName, "agentsec-discovery-jobs", "agentsec-red-team-tests") ||
+		!stringInWorker(config.ExpectedQueueName, "agentsec-discovery-jobs", "agentsec-red-team-tests", "agentsec-attack-lab-jobs") ||
 		config.OperationTimeout < time.Second || config.OperationTimeout > 30*time.Second || config.Visibility < 5*time.Second || config.Visibility > 15*time.Minute || config.Visibility%time.Second != 0 ||
 		config.ShutdownTimeout < time.Second || config.ShutdownTimeout > time.Minute || config.ShutdownTimeout >= config.Visibility {
 		return productionDiscoveryQueue{}, errRuntimeUnavailable

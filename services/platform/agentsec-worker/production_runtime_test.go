@@ -87,6 +87,43 @@ func TestComposeRedTeamRuntimesBindSeparateV25Authorities(t *testing.T) {
 	}
 }
 
+func TestComposeAttackLabOutboxBindsV26AuthorityAndPublisher(t *testing.T) {
+	config := validAttackLabOutboxRuntimeConfig()
+	dependencies, err := composeAttackLabOutboxWorkerRuntime(config, readyWorkerDatabase{}, &recordingOutboxPublisher{}, readyOutboxDependency)
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("attack lab outbox dependencies=%#v err=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	foreign := config
+	foreign.DatabaseAuthority = "zasp_red_team_outbox_worker"
+	if _, err := composeAttackLabOutboxWorkerRuntime(foreign, readyWorkerDatabase{}, &recordingOutboxPublisher{}, readyOutboxDependency); !errors.Is(err, errRuntimeUnavailable) {
+		t.Fatalf("foreign authority error=%v", err)
+	}
+}
+
+func TestComposeAttackLabControllerBindsV26QueueSandboxEvidenceAndCleanup(t *testing.T) {
+	config, err := loadWorkerRuntimeConfig(mapLookup(validAttackLabControllerRuntimeEnvironment()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed := false
+	dependencies, err := composeAttackLabWorkerRuntime(config, readyWorkerDatabase{}, &productionAttackLabDependencies{
+		Queue: &recordingDiscoveryQueue{}, Provider: &recordingAttackLabProvider{}, Evidence: &recordingAttackLabEvidenceWriter{},
+		ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil },
+	})
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("attack lab dependencies=%#v err=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Close(); err != nil || !closed {
+		t.Fatalf("close=%v closed=%v", err, closed)
+	}
+}
+
 func TestComposeRuntimeCoordinatorBindsV15RepositoryAndQueueReadiness(t *testing.T) {
 	steps := &runtimeCoordinatorSteps{}
 	queue, _, _ := runtimeCoordinatorQueue(t, steps)
@@ -558,6 +595,14 @@ func validRedTeamOutboxRuntimeConfig() workerRuntimeConfig {
 		Mode: workerModeRedTeamOutbox, PostgresDSN: "postgres://red_team_outbox@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_red_team_outbox_worker", WorkerID: "red-team-outbox-01",
 		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
 		RedTeamQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests", AWSRegion: "us-west-2", OutboxRoleARN: "arn:aws:iam::123456789012:role/zasp-production-red-team-outbox", OutboxTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+	}
+}
+
+func validAttackLabOutboxRuntimeConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeAttackLabOutbox, PostgresDSN: "postgres://attack_lab_outbox@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_attack_lab_outbox_worker", WorkerID: "attack-lab-outbox-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
+		AttackLabQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-attack-lab-jobs", AWSRegion: "us-west-2", OutboxRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-outbox", OutboxTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
 	}
 }
 
