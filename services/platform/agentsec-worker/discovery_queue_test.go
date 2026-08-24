@@ -85,4 +85,15 @@ func TestProductionDiscoveryQueueRejectsDriftAndMalformedReadiness(t *testing.T)
 	}
 }
 
+func TestProductionQueueBindsExactRedTeamQueueAuthority(t *testing.T) {
+	queueARN := "arn:aws:sqs:us-west-2:123456789012:agentsec-red-team-tests"
+	stub := &discoveryQueueAPIStub{output: &sqs.GetQueueAttributesOutput{Attributes: map[string]string{
+		string(types.QueueAttributeNameQueueArn): queueARN, string(types.QueueAttributeNameRedrivePolicy): `{"deadLetterTargetArn":"` + queueARN + `-dlq","maxReceiveCount":"5"}`,
+	}}}
+	queue, err := newProductionDiscoveryQueue(stub, productionDiscoveryQueueConfig{Region: "us-west-2", QueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests", ExpectedQueueName: "agentsec-red-team-tests", OperationTimeout: 10 * time.Second, Visibility: 60 * time.Second, ShutdownTimeout: 20 * time.Second})
+	if err != nil || queue.Ready(context.Background()) != nil {
+		t.Fatalf("red team queue=%#v err=%v", queue, err)
+	}
+}
+
 var _ discoveryQueueAPI = (*discoveryQueueAPIStub)(nil)

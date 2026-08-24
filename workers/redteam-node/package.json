@@ -8,6 +8,6 @@
   },
   "scripts": {
     "health": "node health.mjs health",
-    "test": "node --test health.test.mjs"
+    "test": "node --test health.test.mjs runner.test.mjs"
   }
 }

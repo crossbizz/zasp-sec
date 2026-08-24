@@ -44,6 +44,7 @@ type productionDiscoveryCloudConfig struct {
 	SecretRoot string
 	Timeout    time.Duration
 	Clock      func() time.Time
+	Session    string
 }
 
 type discoveryWebIdentityProvider struct {
@@ -52,6 +53,7 @@ type discoveryWebIdentityProvider struct {
 	tokenFile string
 	timeout   time.Duration
 	clock     func() time.Time
+	session   string
 }
 
 func (provider *discoveryWebIdentityProvider) Retrieve(ctx context.Context) (aws.Credentials, error) {
@@ -71,7 +73,11 @@ func (provider *discoveryWebIdentityProvider) Retrieve(ctx context.Context) (aws
 	bounded, cancel := context.WithTimeout(ctx, provider.timeout)
 	defer cancel()
 	duration := int32(900)
-	output, assumeErr := provider.client.AssumeRoleWithWebIdentity(bounded, &sts.AssumeRoleWithWebIdentityInput{RoleArn: aws.String(provider.roleARN), RoleSessionName: aws.String("zasp-discovery-worker"), WebIdentityToken: aws.String(string(token)), DurationSeconds: &duration}, func(options *sts.Options) { options.Retryer = aws.NopRetryer{} })
+	session := provider.session
+	if session == "" {
+		session = "zasp-discovery-worker"
+	}
+	output, assumeErr := provider.client.AssumeRoleWithWebIdentity(bounded, &sts.AssumeRoleWithWebIdentityInput{RoleArn: aws.String(provider.roleARN), RoleSessionName: aws.String(session), WebIdentityToken: aws.String(string(token)), DurationSeconds: &duration}, func(options *sts.Options) { options.Retryer = aws.NopRetryer{} })
 	clear(token)
 	now := provider.clock()
 	if assumeErr != nil || bounded.Err() != nil || now.IsZero() || now.Location() != time.UTC || output == nil || output.Credentials == nil || output.Credentials.AccessKeyId == nil || output.Credentials.SecretAccessKey == nil || output.Credentials.SessionToken == nil || output.Credentials.Expiration == nil || !output.Credentials.Expiration.After(now.Add(time.Minute)) {
@@ -140,7 +146,7 @@ func newProductionDiscoveryCloudAuthority(config productionDiscoveryCloudConfig)
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: config.Timeout, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: config.Timeout, ResponseHeaderTimeout: config.Timeout, MaxResponseHeaderBytes: 1 << 20}
 	httpClient := &http.Client{Transport: transport, Timeout: config.Timeout, CheckRedirect: rejectDiscoveryProviderRedirect}
 	base := aws.Config{Region: config.Region, HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
-	webIdentity := &discoveryWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.RoleARN, tokenFile: config.TokenFile, timeout: config.Timeout, clock: config.Clock}
+	webIdentity := &discoveryWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.RoleARN, tokenFile: config.TokenFile, timeout: config.Timeout, clock: config.Clock, session: config.Session}
 	credentials := aws.NewCredentialsCache(webIdentity)
 	base.Credentials = credentials
 	return &productionDiscoveryCloudAuthority{base: base, credentials: credentials, secrets: secretsmanager.NewFromConfig(base), assumeRole: sts.NewFromConfig(base), s3: s3.NewFromConfig(base), sqs: sqs.NewFromConfig(base), kms: kms.NewFromConfig(base), transport: transport, clock: config.Clock}, nil
@@ -195,7 +201,7 @@ func (authority *productionDiscoveryCloudAuthority) Close() error {
 }
 
 func validProductionDiscoveryCloudConfig(config productionDiscoveryCloudConfig) bool {
-	if !discoveryRegionPattern.MatchString(config.Region) || !discoveryCloudRolePattern.MatchString(config.RoleARN) || config.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validDiscoverySecretRoot(config.SecretRoot) || config.Timeout < time.Second || config.Timeout > 30*time.Second || config.Clock == nil {
+	if !discoveryRegionPattern.MatchString(config.Region) || !discoveryCloudRolePattern.MatchString(config.RoleARN) || config.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validDiscoverySecretRoot(config.SecretRoot) || config.Timeout < time.Second || config.Timeout > 30*time.Second || config.Clock == nil || config.Session != "" && config.Session != "zasp-red-team-worker" {
 		return false
 	}
 	now := config.Clock()

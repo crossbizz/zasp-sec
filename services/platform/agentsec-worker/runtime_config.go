@@ -14,6 +14,8 @@ type workerMode string
 const (
 	workerModeOutbox               workerMode = "outbox"
 	workerModeRuntimeOutbox        workerMode = "runtime-outbox"
+	workerModeRedTeamOutbox        workerMode = "red-team-outbox"
+	workerModeRedTeam              workerMode = "red-team"
 	workerModeRuntimeCoordinator   workerMode = "runtime-coordinator"
 	workerModeRuntimeArchive       workerMode = "runtime-archive"
 	workerModeRuntimeIndex         workerMode = "runtime-index"
@@ -48,6 +50,7 @@ type workerRuntimeConfig struct {
 	ShutdownTimeout            time.Duration
 	DiscoveryQueueURL          string
 	RuntimeQueueURL            string
+	RedTeamQueueURL            string
 	RuntimeRoleARN             string
 	RuntimeTokenFile           string
 	RuntimeStageRoleARN        string
@@ -84,6 +87,11 @@ type workerRuntimeConfig struct {
 	ProjectionSecretPrefix     string
 	OutboxRoleARN              string
 	OutboxTokenFile            string
+	RedTeamRoleARN             string
+	RedTeamTokenFile           string
+	RedTeamTargetEndpoint      string
+	RedTeamTargetTokenFile     string
+	RedTeamRunnerTimeout       time.Duration
 	GatewaySigningKeyID        string
 	GatewaySigningPrivateFile  string
 }
@@ -125,12 +133,13 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 	shutdown, shutdownErr := time.ParseDuration(getenv("ZASP_SHUTDOWN_TIMEOUT"))
 	providerTimeout, providerTimeoutErr := time.ParseDuration(getenv("ZASP_PROVIDER_TIMEOUT"))
 	discoveryReadinessTimeout, discoveryReadinessTimeoutErr := time.ParseDuration(getenv("ZASP_DISCOVERY_READINESS_TIMEOUT"))
+	redTeamRunnerTimeout, redTeamRunnerTimeoutErr := time.ParseDuration(getenv("ZASP_RED_TEAM_RUNNER_TIMEOUT"))
 	batch, batchErr := strconv.Atoi(getenv("ZASP_BATCH_SIZE"))
 	config := workerRuntimeConfig{
 		Mode: workerMode(getenv("ZASP_WORKER_MODE")), PostgresDSN: getenv("ZASP_POSTGRES_DSN"),
 		DatabaseAuthority: getenv("ZASP_DATABASE_AUTHORITY"), WorkerID: getenv("ZASP_WORKER_ID"),
 		PollInterval: poll, LeaseDuration: lease, BatchSize: batch, ShutdownTimeout: shutdown,
-		DiscoveryQueueURL: getenv("ZASP_DISCOVERY_QUEUE_URL"), RuntimeQueueURL: getenv("ZASP_RUNTIME_QUEUE_URL"), AWSRegion: getenv("ZASP_AWS_REGION"), EvidenceBucket: getenv("ZASP_EVIDENCE_BUCKET"), EvidenceOwner: getenv("ZASP_EVIDENCE_BUCKET_OWNER"),
+		DiscoveryQueueURL: getenv("ZASP_DISCOVERY_QUEUE_URL"), RuntimeQueueURL: getenv("ZASP_RUNTIME_QUEUE_URL"), RedTeamQueueURL: getenv("ZASP_RED_TEAM_QUEUE_URL"), AWSRegion: getenv("ZASP_AWS_REGION"), EvidenceBucket: getenv("ZASP_EVIDENCE_BUCKET"), EvidenceOwner: getenv("ZASP_EVIDENCE_BUCKET_OWNER"),
 		EvidenceKMSKeyARN: getenv("ZASP_EVIDENCE_KMS_KEY_ARN"), ParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), ToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
 		DiscoveryRoleARN: getenv("ZASP_DISCOVERY_ROLE_ARN"), DiscoveryTokenFile: getenv("ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE"), DiscoverySecretPrefix: getenv("ZASP_DISCOVERY_SECRET_PREFIX"),
 		AWSCollectorVersion: getenv("ZASP_DISCOVERY_AWS_COLLECTOR_VERSION"), KubernetesCollectorVersion: getenv("ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION"), GitHubCollectorVersion: getenv("ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION"), OktaCollectorVersion: getenv("ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION"),
@@ -140,12 +149,13 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		Neo4jExpectedPrincipal: getenv("ZASP_NEO4J_EXPECTED_PRINCIPAL"), Neo4jExpectedRole: getenv("ZASP_NEO4J_EXPECTED_ROLE"),
 		ProjectionRoleARN: getenv("ZASP_PROJECTION_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE"), ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"),
 		OutboxRoleARN: getenv("ZASP_OUTBOX_ROLE_ARN"), OutboxTokenFile: getenv("ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE"),
+		RedTeamRoleARN: getenv("ZASP_RED_TEAM_ROLE_ARN"), RedTeamTokenFile: getenv("ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE"), RedTeamTargetEndpoint: getenv("ZASP_RED_TEAM_TARGET_ENDPOINT"), RedTeamTargetTokenFile: getenv("ZASP_RED_TEAM_TARGET_TOKEN_FILE"), RedTeamRunnerTimeout: redTeamRunnerTimeout,
 		GatewaySigningKeyID: getenv("ZASP_GATEWAY_SIGNING_KEY_ID"), GatewaySigningPrivateFile: getenv("ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE"),
 		RuntimeRoleARN: getenv("ZASP_RUNTIME_ROLE_ARN"), RuntimeTokenFile: getenv("ZASP_RUNTIME_WEB_IDENTITY_TOKEN_FILE"),
 		RuntimeStageRoleARN: getenv("ZASP_RUNTIME_STAGE_ROLE_ARN"), RuntimeStageTokenFile: getenv("ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE"), RuntimeStageVersion: getenv("ZASP_RUNTIME_STAGE_VERSION"),
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
-	if pollErr != nil || leaseErr != nil || shutdownErr != nil || batchErr != nil || config.Mode == workerModeDiscovery && (providerTimeoutErr != nil || discoveryReadinessTimeoutErr != nil) || !validWorkerRuntimeConfig(config) {
+	if pollErr != nil || leaseErr != nil || shutdownErr != nil || batchErr != nil || config.Mode == workerModeDiscovery && (providerTimeoutErr != nil || discoveryReadinessTimeoutErr != nil) || config.Mode == workerModeRedTeam && redTeamRunnerTimeoutErr != nil || !validWorkerRuntimeConfig(config) {
 		return workerRuntimeConfig{}, errWorkerConfiguration
 	}
 	return config, nil
@@ -164,7 +174,7 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 		return false
 	}
 	wantAuthority := map[workerMode]string{
-		workerModeOutbox: "zasp_outbox_worker", workerModeRuntimeOutbox: "zasp_outbox_worker", workerModeDiscovery: "zasp_discovery_worker", workerModeScheduler: "zasp_discovery_scheduler",
+		workerModeOutbox: "zasp_outbox_worker", workerModeRuntimeOutbox: "zasp_outbox_worker", workerModeRedTeamOutbox: "zasp_red_team_outbox_worker", workerModeRedTeam: "zasp_red_team_worker", workerModeDiscovery: "zasp_discovery_worker", workerModeScheduler: "zasp_discovery_scheduler",
 		workerModeRuntimeCoordinator: "zasp_runtime_coordinator",
 		workerModeRuntimeArchive:     "zasp_runtime_archive_worker",
 		workerModeRuntimeIndex:       "zasp_runtime_index_worker",
@@ -194,8 +204,10 @@ var (
 
 func validModeDependencies(config workerRuntimeConfig) bool {
 	switch config.Mode {
-	case workerModeOutbox, workerModeRuntimeOutbox:
+	case workerModeOutbox, workerModeRuntimeOutbox, workerModeRedTeamOutbox:
 		return validOutboxAWSAuthority(config)
+	case workerModeRedTeam:
+		return validRedTeamRuntimeAuthority(config)
 	case workerModeRuntimeCoordinator:
 		return validRuntimeCoordinatorAWSAuthority(config)
 	case workerModeRuntimeArchive:
@@ -311,9 +323,24 @@ func outboxQueueAuthority(config workerRuntimeConfig) (string, string, bool) {
 		return config.DiscoveryQueueURL, "agentsec-discovery-jobs", config.RuntimeQueueURL == ""
 	case workerModeRuntimeOutbox:
 		return config.RuntimeQueueURL, "agentsec-runtime-events", config.DiscoveryQueueURL == ""
+	case workerModeRedTeamOutbox:
+		return config.RedTeamQueueURL, "agentsec-red-team-tests", config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == ""
 	default:
 		return "", "", false
 	}
+}
+
+func validRedTeamRuntimeAuthority(config workerRuntimeConfig) bool {
+	queue, queueErr := url.Parse(config.RedTeamQueueURL)
+	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RedTeamRoleARN)
+	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
+	if queueErr != nil || queue == nil || !validSQSURL(config.RedTeamQueueURL) || len(role) != 2 || len(kms) != 3 {
+		return false
+	}
+	parts := strings.Split(strings.TrimPrefix(queue.Path, "/"), "/")
+	return len(parts) == 2 && parts[0] == role[1] && parts[1] == "agentsec-red-team-tests" && queue.Hostname() == "sqs."+config.AWSRegion+".amazonaws.com" &&
+		workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner &&
+		config.RedTeamTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && redTeamTargetEndpointPattern.MatchString(config.RedTeamTargetEndpoint) && config.RedTeamTargetTokenFile == "/var/run/secrets/zasp-red-team/adapter-token" && config.RedTeamRunnerTimeout >= 30*time.Second && config.RedTeamRunnerTimeout <= 15*time.Minute
 }
 
 func validProjectionAWSAuthority(config workerRuntimeConfig) bool {

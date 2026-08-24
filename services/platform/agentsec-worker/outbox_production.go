@@ -74,7 +74,7 @@ func (provider *outboxWebIdentityProvider) Retrieve(ctx context.Context) (aws.Cr
 
 func validOutboxSession(value string) bool {
 	switch value {
-	case "", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker", "zasp-runtime-complete-worker":
+	case "", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-red-team-outbox-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker", "zasp-runtime-complete-worker":
 		return true
 	default:
 		return false
@@ -131,6 +131,8 @@ func newProductionOutboxPublisher(ctx context.Context, config workerRuntimeConfi
 	session := "zasp-outbox-worker"
 	if config.Mode == workerModeRuntimeOutbox {
 		session = "zasp-runtime-outbox-worker"
+	} else if config.Mode == workerModeRedTeamOutbox {
+		session = "zasp-red-team-outbox-worker"
 	}
 	provider := &outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.OutboxRoleARN, tokenFile: config.OutboxTokenFile, timeout: minDuration(config.LeaseDuration/3, 30*time.Second), session: session}
 	credentials := aws.NewCredentialsCache(provider)

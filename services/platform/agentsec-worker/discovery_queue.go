@@ -23,11 +23,12 @@ type discoveryQueueAPI interface {
 }
 
 type productionDiscoveryQueueConfig struct {
-	Region           string
-	QueueURL         string
-	OperationTimeout time.Duration
-	Visibility       time.Duration
-	ShutdownTimeout  time.Duration
+	Region            string
+	QueueURL          string
+	OperationTimeout  time.Duration
+	Visibility        time.Duration
+	ShutdownTimeout   time.Duration
+	ExpectedQueueName string
 }
 
 type productionDiscoveryQueue struct {
@@ -37,8 +38,12 @@ type productionDiscoveryQueue struct {
 }
 
 func newProductionDiscoveryQueue(api discoveryQueueAPI, config productionDiscoveryQueueConfig) (productionDiscoveryQueue, error) {
+	if config.ExpectedQueueName == "" {
+		config.ExpectedQueueName = "agentsec-discovery-jobs"
+	}
 	parsed, parseErr := url.Parse(config.QueueURL)
 	if nilWorkerDependency(api) || parseErr != nil || parsed == nil || !validSQSURL(config.QueueURL) || parsed.Hostname() != "sqs."+config.Region+".amazonaws.com" ||
+		!stringInWorker(config.ExpectedQueueName, "agentsec-discovery-jobs", "agentsec-red-team-tests") ||
 		config.OperationTimeout < time.Second || config.OperationTimeout > 30*time.Second || config.Visibility < 5*time.Second || config.Visibility > 15*time.Minute || config.Visibility%time.Second != 0 ||
 		config.ShutdownTimeout < time.Second || config.ShutdownTimeout > time.Minute || config.ShutdownTimeout >= config.Visibility {
 		return productionDiscoveryQueue{}, errRuntimeUnavailable
@@ -89,6 +94,9 @@ func (queue productionDiscoveryQueue) Close() error {
 }
 
 func readyProductionDiscoveryQueue(ctx context.Context, api discoveryQueueAPI, config productionDiscoveryQueueConfig) error {
+	if config.ExpectedQueueName == "" {
+		config.ExpectedQueueName = "agentsec-discovery-jobs"
+	}
 	if ctx == nil || ctx.Err() != nil || nilWorkerDependency(api) {
 		return errRuntimeUnavailable
 	}
@@ -104,7 +112,10 @@ func readyProductionDiscoveryQueue(ctx context.Context, api discoveryQueueAPI, c
 	if len(parts) != 2 {
 		return errRuntimeUnavailable
 	}
-	queueARN := "arn:aws:sqs:" + config.Region + ":" + parts[0] + ":agentsec-discovery-jobs"
+	if parts[1] != config.ExpectedQueueName {
+		return errRuntimeUnavailable
+	}
+	queueARN := "arn:aws:sqs:" + config.Region + ":" + parts[0] + ":" + config.ExpectedQueueName
 	if output.Attributes[string(types.QueueAttributeNameQueueArn)] != queueARN {
 		return errRuntimeUnavailable
 	}

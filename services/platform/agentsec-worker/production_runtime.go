@@ -70,17 +70,33 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	switch config.Mode {
-	case workerModeOutbox, workerModeRuntimeOutbox:
+	case workerModeOutbox, workerModeRuntimeOutbox, workerModeRedTeamOutbox:
 		publisher, err := newProductionOutboxPublisher(ctx, config)
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
-		dependencies, err := composeOutboxWorkerRuntime(config, database, publisher.publisher, publisher.ready)
+		var dependencies workerRuntimeDependencies
+		if config.Mode == workerModeRedTeamOutbox {
+			dependencies, err = composeRedTeamOutboxWorkerRuntime(config, database, publisher.publisher, publisher.ready)
+		} else {
+			dependencies, err = composeOutboxWorkerRuntime(config, database, publisher.publisher, publisher.ready)
+		}
 		if err != nil {
 			_ = publisher.close()
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		dependencies.Close = publisher.close
+		return dependencies, nil
+	case workerModeRedTeam:
+		redTeam, err := newProductionRedTeamDependencies(config)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		dependencies, err := composeRedTeamWorkerRuntime(config, database, redTeam)
+		if err != nil {
+			_ = redTeam.Close()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
 		return dependencies, nil
 	case workerModeScheduler:
 		repository, err := apiserver.NewDiscoveryExecutionRepository(database, apiserver.DiscoveryExecutionAuthorityScheduler)

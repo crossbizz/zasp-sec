@@ -66,6 +66,27 @@ func TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose(t *tes
 	}
 }
 
+func TestComposeRedTeamRuntimesBindSeparateV25Authorities(t *testing.T) {
+	closed := false
+	dependencies, err := composeRedTeamWorkerRuntime(validRedTeamRuntimeConfig(), readyWorkerDatabase{}, &productionRedTeamDependencies{
+		Queue: &recordingDiscoveryQueue{}, Runner: &recordingRedTeamRunner{}, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil },
+	})
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("red team dependencies=%#v err=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Close(); err != nil || !closed {
+		t.Fatalf("close=%v closed=%v", err, closed)
+	}
+	outboxConfig := validRedTeamOutboxRuntimeConfig()
+	outbox, err := composeRedTeamOutboxWorkerRuntime(outboxConfig, readyWorkerDatabase{}, &recordingOutboxPublisher{}, readyOutboxDependency)
+	if err != nil || outbox.Processor == nil || outbox.Ready == nil || outbox.Close == nil {
+		t.Fatalf("red team outbox dependencies=%#v err=%v", outbox, err)
+	}
+}
+
 func TestComposeRuntimeCoordinatorBindsV15RepositoryAndQueueReadiness(t *testing.T) {
 	steps := &runtimeCoordinatorSteps{}
 	queue, _, _ := runtimeCoordinatorQueue(t, steps)
@@ -520,6 +541,23 @@ func validDiscoveryRuntimeConfig() workerRuntimeConfig {
 		ParserVersion: "inventory-parser-2026.08.20", ToolVersion: "collector-tool-2026.08.20", DiscoveryRoleARN: "arn:aws:iam::123456789012:role/zasp-production-discovery-worker", DiscoveryTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", DiscoverySecretPrefix: "zasp-production/connectors",
 		AWSCollectorVersion: "aws-collector-v1", KubernetesCollectorVersion: "kubernetes-collector-v1", GitHubCollectorVersion: "github-collector-v1", OktaCollectorVersion: "okta-collector-v1", KubernetesEgressCIDRs: []string{"203.0.113.0/24"},
 		GitHubAppID: "123456", GitHubPrivateKeyReference: "ref:github/app-private-key-0001", OktaClientID: "0oa1234567890abcdef", OktaClientSecretReference: "ref:okta/client-secret-0001", ProviderTimeout: 5 * time.Second, DiscoveryReadinessTimeout: 5 * time.Second,
+	}
+}
+
+func validRedTeamRuntimeConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeRedTeam, PostgresDSN: "postgres://red_team@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_red_team_worker", WorkerID: "red-team-worker-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
+		RedTeamQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests", AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-evidence", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
+		RedTeamRoleARN: "arn:aws:iam::123456789012:role/zasp-production-red-team", RedTeamTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RedTeamTargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", RedTeamTargetTokenFile: "/var/run/secrets/zasp-red-team/adapter-token", RedTeamRunnerTimeout: 10 * time.Minute,
+	}
+}
+
+func validRedTeamOutboxRuntimeConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeRedTeamOutbox, PostgresDSN: "postgres://red_team_outbox@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_red_team_outbox_worker", WorkerID: "red-team-outbox-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
+		RedTeamQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests", AWSRegion: "us-west-2", OutboxRoleARN: "arn:aws:iam::123456789012:role/zasp-production-red-team-outbox", OutboxTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
 	}
 }
 
