@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -182,6 +183,17 @@ func TestReleaseCommandsExposePreflightBackupRestoreAndUpgradeBoundaries(t *test
 				t.Fatalf("runCommand() output=%q error=%v", output.String(), err)
 			}
 		})
+	}
+}
+
+func TestReleaseCommandsRejectPayloadBeyondBound(t *testing.T) {
+	encoded, err := jsonBytes(validManifest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	oversized := append(encoded, bytes.Repeat([]byte(" "), maximumRecoveryManifestBytes+1)...)
+	if err := runCommand(io.Discard, bytes.NewReader(oversized), []string{"backup"}, "dev"); !errors.Is(err, errManifestRejected) {
+		t.Fatalf("oversized backup input error = %v", err)
 	}
 }
 

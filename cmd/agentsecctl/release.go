@@ -457,7 +457,11 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 }
 
 func decodeCommandInput(reader io.Reader, target any) error {
-	decoder := json.NewDecoder(io.LimitReader(reader, 64*1024+1))
+	payload, err := io.ReadAll(io.LimitReader(reader, maximumRecoveryManifestBytes+1))
+	if err != nil || len(payload) > maximumRecoveryManifestBytes {
+		return errInvalidArguments
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return err
