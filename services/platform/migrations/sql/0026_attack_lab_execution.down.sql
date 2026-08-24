@@ -1,9 +1,9 @@
 DO $rollback_guard$
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='attack-lab-execution-v1') OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>26)
-    OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='attack_lab_execution_fingerprint' AND value='2c37978b56e0be1e0ada05390bc1b03a60d4f9efe18da2b064d5e54a6e51fa36')
-    OR NOT public.zasp_attack_lab_execution_security_ready() OR public.zasp_attack_lab_execution_live_fingerprint()<>'2c37978b56e0be1e0ada05390bc1b03a60d4f9efe18da2b064d5e54a6e51fa36'
-    OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_runs) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_cleanup_checkpoints) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_outbox) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_audit) THEN
+	    OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='attack_lab_execution_fingerprint' AND value='4d3bd83a615a5f8c550fd017af4ba55d0b81f921f3d78260b913104d1241ad97')
+	    OR NOT public.zasp_attack_lab_execution_security_ready() OR public.zasp_attack_lab_execution_live_fingerprint()<>'4d3bd83a615a5f8c550fd017af4ba55d0b81f921f3d78260b913104d1241ad97'
+    OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_credential_bindings) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_runs) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_cleanup_checkpoints) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_outbox) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_audit) THEN
    RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab execution rollback rejected';
  END IF;
 END
@@ -42,10 +42,12 @@ $principal_cleanup$;
 DROP FUNCTION public.zasp_attack_lab_register_principals(text,text,text,text);
 DROP TABLE public.zasp_attack_lab_audit;
 DROP TABLE public.zasp_attack_lab_request_receipts;
+DROP TABLE public.zasp_attack_lab_outbox_fairness;
 DROP TABLE public.zasp_attack_lab_outbox;
 DROP TABLE public.zasp_attack_lab_cleanup_checkpoints;
 DROP TABLE public.zasp_attack_lab_attempts;
 DROP TABLE public.zasp_attack_lab_runs;
+DROP TABLE public.zasp_attack_lab_credential_bindings;
 DROP TABLE public.zasp_attack_lab_principal_bindings;
 DROP ROLE zasp_attack_lab_controller;
 DROP ROLE zasp_attack_lab_outbox_worker;

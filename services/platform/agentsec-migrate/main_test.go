@@ -1366,6 +1366,38 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatal("cross-tenant red team run was visible")
 	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-missing-binding',$5,$6,$7)`, organizationID, workspaceID, environmentID, actorID, "pid_7a000015-0000-4000-8000-000000000015", runID, correlationID).Scan(&detailJSON); err == nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal("attack lab accepted a target without an active credential binding")
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_attack_lab_credential_bindings(organization_id,workspace_id,environment_id,binding_id,target_id,credential_reference,credential_class,version,reference_digest,state,valid_until) VALUES($1,$2,$3,$4,$5,'ref:red-team/target-0001','read_only',1,$6,'active',transaction_timestamp()+interval '1 hour')`, organizationID, workspaceID, environmentID, "pid_7a000016-0000-4000-8000-000000000016", targetID, bytes.Repeat([]byte{0x2a}, 32)); err != nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab credential binding seed: %v", err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_attack_lab_credential_bindings SET credential_class='test_write' WHERE (organization_id,workspace_id,environment_id,target_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, targetID); err != nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-class-deny',$5,$6,$7)`, organizationID, workspaceID, environmentID, actorID, "pid_7a000018-0000-4000-8000-000000000018", runID, correlationID).Scan(&detailJSON); err == nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal("attack lab accepted a credential binding whose class differed from the approved definition")
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_attack_lab_credential_bindings SET credential_class='read_only' WHERE (organization_id,workspace_id,environment_id,target_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, targetID); err != nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_environments SET environment_class='production' WHERE (organization_id,workspace_id,id)=($1,$2,$3)`, organizationID, workspaceID, environmentID); err != nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-production-deny',$5,$6,$7)`, organizationID, workspaceID, environmentID, actorID, "pid_7a000017-0000-4000-8000-000000000017", runID, correlationID).Scan(&detailJSON); err == nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal("attack lab accepted a production environment")
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_environments SET environment_class='staging' WHERE (organization_id,workspace_id,id)=($1,$2,$3)`, organizationID, workspaceID, environmentID); err != nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
 	attackLabRunID := "pid_7a000009-0000-4000-8000-000000000009"
 	var attackLabCreatedJSON []byte
 	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-create-0001',$5,$6,$7)`, organizationID, workspaceID, environmentID, actorID, attackLabRunID, runID, correlationID).Scan(&attackLabCreatedJSON); err != nil || !bytes.Contains(attackLabCreatedJSON, []byte(`"status": "queued"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"source_run_id": "`+runID+`"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"target_id": "`+targetID+`"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"environment": "staging"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"credential_class": "read_only"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"destination": "adapter.customer.example"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"timeout_seconds": 300`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"replayed": false`)) {
@@ -1495,6 +1527,82 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab outbox retry=%s err=%v", attackLabRetryJSON, err)
 	}
+	fairOrganizationID := "pid_7b100001-0000-4000-8000-000000000001"
+	fairWorkspaceID := "pid_7b100002-0000-4000-8000-000000000002"
+	fairEnvironmentID := "pid_7b100003-0000-4000-8000-000000000003"
+	for _, statement := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO zasp_organizations(id,name,domain) VALUES($1,'Attack lab fair tenant','attack-lab-fair.invalid')`, []any{fairOrganizationID}},
+		{`INSERT INTO zasp_workspaces(id,organization_id,name) VALUES($1,$2,'Attack Lab')`, []any{fairWorkspaceID, fairOrganizationID}},
+		{`INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES($1,$2,$3,'Staging','staging')`, []any{fairEnvironmentID, fairOrganizationID, fairWorkspaceID}},
+	} {
+		if _, err := connection.Exec(ctx, statement.sql, statement.args...); err != nil {
+			attackLabOutbox.Close(context.Background())
+			redTeamAPI.Close(context.Background())
+			t.Fatalf("attack lab fairness tenant seed: %v", err)
+		}
+	}
+	fairA1 := "pid_7b100004-0000-4000-8000-000000000004"
+	fairA2 := "pid_7b100005-0000-4000-8000-000000000005"
+	fairB1 := "pid_7b100006-0000-4000-8000-000000000006"
+	exhaustedOutboxID := "pid_7b100007-0000-4000-8000-000000000007"
+	exhaustedToken := bytes.Repeat([]byte{0x4c}, 32)
+	if _, err := connection.Exec(ctx, `
+		INSERT INTO zasp_attack_lab_outbox(organization_id,workspace_id,environment_id,outbox_id,deterministic_key,payload,payload_digest,created_at) VALUES
+		($1,$2,$3,$4,'attack-lab-jobs:fair-a1','{"test":"fair-a1"}'::jsonb,digest(convert_to('{"test": "fair-a1"}'::jsonb::text,'UTF8'),'sha256'),transaction_timestamp()-interval '4 seconds'),
+		($1,$2,$3,$5,'attack-lab-jobs:fair-a2','{"test":"fair-a2"}'::jsonb,digest(convert_to('{"test": "fair-a2"}'::jsonb::text,'UTF8'),'sha256'),transaction_timestamp()-interval '3 seconds'),
+		($6,$7,$8,$9,'attack-lab-jobs:fair-b1','{"test":"fair-b1"}'::jsonb,digest(convert_to('{"test": "fair-b1"}'::jsonb::text,'UTF8'),'sha256'),transaction_timestamp()-interval '2 seconds')`, organizationID, workspaceID, environmentID, fairA1, fairA2, fairOrganizationID, fairWorkspaceID, fairEnvironmentID, fairB1); err != nil {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab fairness outbox seed: %v", err)
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_attack_lab_outbox(organization_id,workspace_id,environment_id,outbox_id,deterministic_key,payload,payload_digest,state,attempt,worker_id,lease_token,lease_expires_at) VALUES($1,$2,$3,$4,'attack-lab-jobs:exhausted','{"test":"exhausted"}'::jsonb,digest(convert_to('{"test": "exhausted"}'::jsonb::text,'UTF8'),'sha256'),'leased',100,'attack-lab-outbox-expired',$5,transaction_timestamp()-interval '1 second')`, organizationID, workspaceID, environmentID, exhaustedOutboxID, exhaustedToken); err != nil {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab exhausted outbox seed: %v", err)
+	}
+	fairTokenB := bytes.Repeat([]byte{0x4d}, 32)
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_claim_outbox($1,$2,60,1)`, "attack-lab-outbox-fair-e2e", fairTokenB).Scan(&attackLabOutboxJSON); err != nil {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab fair B claim: %v", err)
+	}
+	attackLabClaim.Items = nil
+	if err := json.Unmarshal(attackLabOutboxJSON, &attackLabClaim); err != nil || len(attackLabClaim.Items) != 1 || attackLabClaim.Items[0].OrganizationID != fairOrganizationID || attackLabClaim.Items[0].OutboxID != fairB1 {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab durable fair first claim=%s items=%#v err=%v", attackLabOutboxJSON, attackLabClaim.Items, err)
+	}
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_ack_outbox($1,$2,$3,$4,$5,$6,$7)`, fairOrganizationID, fairWorkspaceID, fairEnvironmentID, fairB1, "attack-lab-outbox-fair-e2e", fairTokenB, "sha256:"+strings.Repeat("d", 64)).Scan(&attackLabAckJSON); err != nil {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab fair B ack: %v", err)
+	}
+	var exhaustedState string
+	if err := connection.QueryRow(ctx, `SELECT state FROM zasp_attack_lab_outbox WHERE (organization_id,workspace_id,environment_id,outbox_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, exhaustedOutboxID).Scan(&exhaustedState); err != nil || exhaustedState != "failed" {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab attempt-100 terminal state=%q err=%v", exhaustedState, err)
+	}
+	fairTokenA := bytes.Repeat([]byte{0x4e}, 32)
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_claim_outbox($1,$2,60,1)`, "attack-lab-outbox-fair-e2e", fairTokenA).Scan(&attackLabOutboxJSON); err != nil {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab fair A claim: %v", err)
+	}
+	attackLabClaim.Items = nil
+	if err := json.Unmarshal(attackLabOutboxJSON, &attackLabClaim); err != nil || len(attackLabClaim.Items) != 1 || attackLabClaim.Items[0].OrganizationID != organizationID || attackLabClaim.Items[0].OutboxID != fairA1 {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab durable fair wrapped claim=%s items=%#v err=%v", attackLabOutboxJSON, attackLabClaim.Items, err)
+	}
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_ack_outbox($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, fairA1, "attack-lab-outbox-fair-e2e", fairTokenA, "sha256:"+strings.Repeat("e", 64)).Scan(&attackLabAckJSON); err != nil {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab fair A ack: %v", err)
+	}
 	attackLabOutbox.Close(context.Background())
 	attackLabController := connectAs(principalNames[22])
 	attackLabRetryRunID := "pid_7a000016-0000-4000-8000-000000000016"
@@ -1520,6 +1628,48 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		attackLabController.Close(context.Background())
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab retry run=%s err=%v", attackLabRetryRunJSON, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_attack_lab_runs SET queued_at=transaction_timestamp()-interval '11 minutes',started_at=transaction_timestamp()-interval '10 minutes',attempt_started_at=transaction_timestamp()-interval '10 minutes',next_attempt_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRetryRunID); err != nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	attackLabRetrySecondToken := bytes.Repeat([]byte{0x4b}, 32)
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_claim_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, attackLabRetryRunID, "attack-lab-controller-retry-e2e", attackLabRetrySecondToken).Scan(&attackLabRetryRunJSON); err != nil || !bytes.Contains(attackLabRetryRunJSON, []byte(`"disposition": "claimed"`)) || !bytes.Contains(attackLabRetryRunJSON, []byte(`"attempt": 2`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab retry second claim=%s err=%v", attackLabRetryRunJSON, err)
+	}
+	retrySandboxReference := "k8s://attack-lab/jobs/zasp-attack-lab-7a000016@123e4567-e89b-12d3-a456-426614174001"
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_mark_running($1,$2,$3,$4,$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, attackLabRetryRunID, "attack-lab-controller-retry-e2e", attackLabRetrySecondToken, attackLabRetryInputDigest, retrySandboxReference).Scan(&attackLabRetryRunJSON); err != nil || !bytes.Contains(attackLabRetryRunJSON, []byte(`"status": "running"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab retry running=%s err=%v", attackLabRetryRunJSON, err)
+	}
+	retryProxy := connectAs(principalNames[24])
+	var retryEgressJSON []byte
+	if err := retryProxy.QueryRow(ctx, `SELECT zasp_attack_lab_resolve_egress($1,$2,$3,$4,$5)`, organizationID, workspaceID, environmentID, attackLabRetryRunID, "adapter-rerun.customer.example").Scan(&retryEgressJSON); err != nil || !bytes.Contains(retryEgressJSON, []byte(`"methods": ["POST"]`)) {
+		retryProxy.Close(context.Background())
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab retry fresh attempt egress=%s err=%v", retryEgressJSON, err)
+	}
+	retryProxy.Close(context.Background())
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_begin_cleanup($1,$2,$3,$4,$5,$6,$7,$8,'inconclusive',false,false,'outcome_unknown','[]'::jsonb,'','','',$9,0)`, organizationID, workspaceID, environmentID, attackLabRetryRunID, "attack-lab-controller-retry-e2e", attackLabRetrySecondToken, attackLabRetryInputDigest, retrySandboxReference, []byte{}).Scan(&attackLabRetryRunJSON); err != nil || !bytes.Contains(attackLabRetryRunJSON, []byte(`"status": "cleanup"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab unavailable evidence cleanup=%s err=%v", attackLabRetryRunJSON, err)
+	}
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_finish_cleanup($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, attackLabRetryRunID, "attack-lab-controller-retry-e2e", attackLabRetrySecondToken, attackLabRetryInputDigest).Scan(&attackLabRetryRunJSON); err != nil || !bytes.Contains(attackLabRetryRunJSON, []byte(`"status": "complete"`)) || !bytes.Contains(attackLabRetryRunJSON, []byte(`"error_code": "outcome_unknown"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab unavailable evidence finish=%s err=%v", attackLabRetryRunJSON, err)
+	}
+	var retryEvidenceState string
+	if err := connection.QueryRow(ctx, `SELECT evidence_state FROM zasp_attack_lab_attempts WHERE (organization_id,workspace_id,environment_id,run_id,attempt)=($1,$2,$3,$4,2)`, organizationID, workspaceID, environmentID, attackLabRetryRunID).Scan(&retryEvidenceState); err != nil || retryEvidenceState != "unavailable" {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab unavailable evidence state=%q err=%v", retryEvidenceState, err)
 	}
 	attackLabCancelActiveRunID := "pid_7a000017-0000-4000-8000-000000000017"
 	var attackLabCancelActiveJSON []byte
@@ -1609,7 +1759,13 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		t.Fatalf("attack lab running resume=%s err=%v", attackLabRunningResumeJSON, err)
 	}
 	attackLabControllerToken = runningResumeToken
-	attackLabEvidenceKey := "organizations/" + organizationID + "/workspaces/" + workspaceID + "/environments/" + environmentID + "/attack-lab/" + attackLabRerunID + "/attempts/1/evidence.json"
+	var attackLabEvidenceID string
+	if err := connection.QueryRow(ctx, `SELECT zasp_discovery_canonical_id($1,$2,$3,'attack_lab_evidence',$4||chr(31)||'1')`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabEvidenceID); err != nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	attackLabEvidenceKey := "organizations/" + organizationID + "/workspaces/" + workspaceID + "/environments/" + environmentID + "/artifacts/" + attackLabEvidenceID
 	attackLabEvidenceReference := "s3://zasp-attack-lab-evidence/" + attackLabEvidenceKey
 	attackLabEvidenceChecksum := bytes.Repeat([]byte{0x45}, 32)
 	var attackLabCleanupJSON []byte
@@ -1620,20 +1776,20 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		t.Fatal("attack lab cleanup accepted the wrong lease")
 	}
 	var attackLabCheckpointCount int
-	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_attack_lab_cleanup_checkpoints WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabCheckpointCount); err != nil || attackLabCheckpointCount != 0 {
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_attack_lab_cleanup_checkpoints WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabCheckpointCount); err != nil || attackLabCheckpointCount != 1 {
 		attackLabController.Close(context.Background())
 		redTeamAPI.Close(context.Background())
-		t.Fatalf("attack lab wrong-lease checkpoint residue=%d err=%v", attackLabCheckpointCount, err)
+		t.Fatalf("attack lab wrong-lease changed durable cleanup intent count=%d err=%v", attackLabCheckpointCount, err)
 	}
 	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_begin_cleanup($1,$2,$3,$4,$5,$6,$7,$8,'verified',true,true,NULL,'["semantic:criterion observed","gateway:allowed","egress:adapter-rerun.customer.example","kubernetes:job complete"]'::jsonb,$9,$10,'s3-version-attack-lab-0001',$11,512)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken, attackLabInputDigest, sandboxReference, attackLabEvidenceReference, attackLabEvidenceKey, attackLabEvidenceChecksum).Scan(&attackLabCleanupJSON); err == nil {
 		attackLabController.Close(context.Background())
 		redTeamAPI.Close(context.Background())
 		t.Fatal("attack lab cleanup accepted incomplete evidence")
 	}
-	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_attack_lab_cleanup_checkpoints WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabCheckpointCount); err != nil || attackLabCheckpointCount != 0 {
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_attack_lab_cleanup_checkpoints WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabCheckpointCount); err != nil || attackLabCheckpointCount != 1 {
 		attackLabController.Close(context.Background())
 		redTeamAPI.Close(context.Background())
-		t.Fatalf("attack lab incomplete-evidence checkpoint residue=%d err=%v", attackLabCheckpointCount, err)
+		t.Fatalf("attack lab incomplete evidence changed durable cleanup intent count=%d err=%v", attackLabCheckpointCount, err)
 	}
 	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_begin_cleanup($1,$2,$3,$4,$5,$6,$7,$8,'verified',true,true,NULL,'["semantic:criterion observed","gateway:allowed","egress:adapter-rerun.customer.example","kubernetes:job complete","cloud:canary touched"]'::jsonb,$9,$10,'s3-version-attack-lab-0001',$11,512)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken, attackLabInputDigest, sandboxReference, attackLabEvidenceReference, attackLabEvidenceKey, attackLabEvidenceChecksum).Scan(&attackLabCleanupJSON); err != nil || !bytes.Contains(attackLabCleanupJSON, []byte(`"status": "cleanup"`)) || !bytes.Contains(attackLabCleanupJSON, []byte(`"replayed": false`)) {
 		attackLabController.Close(context.Background())
@@ -1681,6 +1837,60 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		t.Fatal("attack lab proxy retained access after cleanup")
 	}
 	attackLabProxy.Close(context.Background())
+	attackLabCancelledSandboxRunID := "pid_7a000018-0000-4000-8000-000000000018"
+	var attackLabCancelledSandboxJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_rerun($1,$2,$3,$4,'attack-lab-rerun-cancel-sandbox-0001',$5,2,$6,$7)`, organizationID, workspaceID, environmentID, actorID, attackLabRunID, attackLabCancelledSandboxRunID, correlationID).Scan(&attackLabCancelledSandboxJSON); err != nil || !bytes.Contains(attackLabCancelledSandboxJSON, []byte(`"status": "queued"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab sandbox cancellation fixture=%s err=%v", attackLabCancelledSandboxJSON, err)
+	}
+	attackLabCancelledSandboxToken := bytes.Repeat([]byte{0x4f}, 32)
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_claim_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, attackLabCancelledSandboxRunID, "attack-lab-controller-cancel-sandbox-e2e", attackLabCancelledSandboxToken).Scan(&attackLabCancelledSandboxJSON); err != nil || !bytes.Contains(attackLabCancelledSandboxJSON, []byte(`"status": "leased"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab sandbox cancellation claim=%s err=%v", attackLabCancelledSandboxJSON, err)
+	}
+	var attackLabCancelledSandboxDigest []byte
+	if err := connection.QueryRow(ctx, `SELECT input_digest FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabCancelledSandboxRunID).Scan(&attackLabCancelledSandboxDigest); err != nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	attackLabCancelledSandboxReference := "k8s://attack-lab/jobs/zasp-attack-lab-7a000018@123e4567-e89b-12d3-a456-426614174002"
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_mark_running($1,$2,$3,$4,$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, attackLabCancelledSandboxRunID, "attack-lab-controller-cancel-sandbox-e2e", attackLabCancelledSandboxToken, attackLabCancelledSandboxDigest, attackLabCancelledSandboxReference).Scan(&attackLabCancelledSandboxJSON); err != nil || !bytes.Contains(attackLabCancelledSandboxJSON, []byte(`"version": 3`)) || !bytes.Contains(attackLabCancelledSandboxJSON, []byte(`"status": "running"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab sandbox cancellation running=%s err=%v", attackLabCancelledSandboxJSON, err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_cancel_run($1,$2,$3,$4,'attack-lab-cancel-sandbox-0001',$5,3,$6)`, organizationID, workspaceID, environmentID, actorID, attackLabCancelledSandboxRunID, correlationID).Scan(&attackLabCancelledSandboxJSON); err != nil || !bytes.Contains(attackLabCancelledSandboxJSON, []byte(`"cancel_requested": true`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab sandbox cancellation request=%s err=%v", attackLabCancelledSandboxJSON, err)
+	}
+	var attackLabCancelledEvidenceID string
+	if err := connection.QueryRow(ctx, `SELECT zasp_discovery_canonical_id($1,$2,$3,'attack_lab_evidence',$4||chr(31)||'1')`, organizationID, workspaceID, environmentID, attackLabCancelledSandboxRunID).Scan(&attackLabCancelledEvidenceID); err != nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	attackLabCancelledEvidenceKey := "organizations/" + organizationID + "/workspaces/" + workspaceID + "/environments/" + environmentID + "/artifacts/" + attackLabCancelledEvidenceID
+	attackLabCancelledEvidenceReference := "s3://zasp-attack-lab-evidence/" + attackLabCancelledEvidenceKey
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_begin_cleanup($1,$2,$3,$4,$5,$6,$7,$8,'inconclusive',false,false,'cancelled','["semantic:cancelled before verdict","gateway:cancelled","egress:no undeclared egress","kubernetes:cleanup requested","cloud:no verified canary touch"]'::jsonb,$9,$10,'s3-version-attack-lab-cancelled',$11,512)`, organizationID, workspaceID, environmentID, attackLabCancelledSandboxRunID, "attack-lab-controller-cancel-sandbox-e2e", attackLabCancelledSandboxToken, attackLabCancelledSandboxDigest, attackLabCancelledSandboxReference, attackLabCancelledEvidenceReference, attackLabCancelledEvidenceKey, bytes.Repeat([]byte{0x50}, 32)).Scan(&attackLabCancelledSandboxJSON); err != nil || !bytes.Contains(attackLabCancelledSandboxJSON, []byte(`"status": "cleanup"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab sandbox cancellation evidence=%s err=%v", attackLabCancelledSandboxJSON, err)
+	}
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_finish_cleanup($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, attackLabCancelledSandboxRunID, "attack-lab-controller-cancel-sandbox-e2e", attackLabCancelledSandboxToken, attackLabCancelledSandboxDigest).Scan(&attackLabCancelledSandboxJSON); err != nil || !bytes.Contains(attackLabCancelledSandboxJSON, []byte(`"status": "cancelled"`)) || !bytes.Contains(attackLabCancelledSandboxJSON, []byte(`"evidence_reference": "`+attackLabCancelledEvidenceReference+`"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab sandbox cancellation finish=%s err=%v", attackLabCancelledSandboxJSON, err)
+	}
+	var cancelledEvidenceState, cancelledErrorCode string
+	if err := connection.QueryRow(ctx, `SELECT evidence_state,error_code FROM zasp_attack_lab_attempts WHERE (organization_id,workspace_id,environment_id,run_id,attempt)=($1,$2,$3,$4,1)`, organizationID, workspaceID, environmentID, attackLabCancelledSandboxRunID).Scan(&cancelledEvidenceState, &cancelledErrorCode); err != nil || cancelledEvidenceState != "complete" || cancelledErrorCode != "cancelled" {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab sandbox cancellation attempt evidence=%q error=%q err=%v", cancelledEvidenceState, cancelledErrorCode, err)
+	}
 	attackLabController.Close(context.Background())
 	if _, err := connection.Exec(ctx, `UPDATE zasp_red_team_definitions SET enabled=false,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,definition_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, definitionID); err != nil {
 		redTeamAPI.Close(context.Background())
@@ -1753,7 +1963,7 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		t.Fatal("attack lab accepted a cancelled red team source")
 	}
 	var attackLabRunCount int
-	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_attack_lab_runs WHERE organization_id=$1`, organizationID).Scan(&attackLabRunCount); err != nil || attackLabRunCount != 4 {
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_attack_lab_runs WHERE organization_id=$1`, organizationID).Scan(&attackLabRunCount); err != nil || attackLabRunCount != 5 {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab residue count=%d err=%v", attackLabRunCount, err)
 	}
@@ -1763,7 +1973,7 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		t.Fatalf("red team audit count=%d err=%v", auditCount, err)
 	}
 	redTeamAPI.Close(context.Background())
-	if _, err := connection.Exec(ctx, `DELETE FROM zasp_attack_lab_audit;DELETE FROM zasp_attack_lab_request_receipts;DELETE FROM zasp_attack_lab_outbox;DELETE FROM zasp_attack_lab_cleanup_checkpoints;DELETE FROM zasp_attack_lab_attempts;DELETE FROM zasp_attack_lab_runs`); err != nil {
+	if _, err := connection.Exec(ctx, `DELETE FROM zasp_attack_lab_audit;DELETE FROM zasp_attack_lab_request_receipts;DELETE FROM zasp_attack_lab_outbox;DELETE FROM zasp_attack_lab_cleanup_checkpoints;DELETE FROM zasp_attack_lab_attempts;DELETE FROM zasp_attack_lab_runs;DELETE FROM zasp_attack_lab_credential_bindings`); err != nil {
 		t.Fatalf("attack lab cleanup: %v", err)
 	}
 	if _, err := connection.Exec(ctx, `DELETE FROM zasp_red_team_audit;DELETE FROM zasp_red_team_request_receipts;DELETE FROM zasp_red_team_outbox;DELETE FROM zasp_red_team_attempts;DELETE FROM zasp_red_team_runs;DELETE FROM zasp_red_team_definitions`); err != nil {

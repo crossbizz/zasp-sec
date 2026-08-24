@@ -86,6 +86,7 @@ type AttackLabPreflightSnapshot struct {
 type AttackLabCleanupCheckpoint struct {
 	Attempt             int      `json:"attempt"`
 	SandboxReference    string   `json:"sandbox_reference"`
+	EvidenceState       string   `json:"evidence_state"`
 	Verdict             string   `json:"verdict"`
 	CriterionObserved   bool     `json:"criterion_observed"`
 	CanaryTouched       bool     `json:"canary_touched"`
@@ -349,7 +350,11 @@ func (repository *AttackLabExecutionRepository) BeginAttackLabCleanup(ctx contex
 	if !validAttackLabRunTransition(repository, ctx, scope, input.RunID, input.Controller, input.LeaseToken) || !validAttackLabCleanupInput(scope, input) {
 		return AttackLabRunTransition{}, ErrRepositoryOperation
 	}
-	evidence, marshalErr := json.Marshal(input.Evidence)
+	evidenceItems := input.Evidence
+	if evidenceItems == nil {
+		evidenceItems = []string{}
+	}
+	evidence, marshalErr := json.Marshal(evidenceItems)
 	if marshalErr != nil {
 		return AttackLabRunTransition{}, ErrRepositoryOperation
 	}
@@ -435,16 +440,31 @@ func validAttackLabPreflight(value AttackLabPreflightSnapshot, run AttackLabRun)
 }
 
 func validAttackLabCleanupCheckpoint(scope domain.Scope, runID string, run AttackLabRun, value AttackLabCleanupCheckpoint) bool {
+	if value.Attempt != run.Attempt || !attackLabSandboxReferencePattern.MatchString(value.SandboxReference) {
+		return false
+	}
+	if value.EvidenceState == "unavailable" {
+		return value.Verdict == "inconclusive" && !value.CriterionObserved && !value.CanaryTouched && stringIn(value.ErrorCode, "outcome_unknown", "cancelled") && len(value.Evidence) == 0 && value.EvidenceReference == "" && value.EvidenceKey == "" && value.EvidenceVersionID == "" && value.EvidenceChecksumHex == "" && value.EvidenceSizeBytes == 0
+	}
+	if value.EvidenceState != "complete" {
+		return false
+	}
 	checksum, checksumErr := hex.DecodeString(value.EvidenceChecksumHex)
-	return checksumErr == nil && value.Attempt == run.Attempt && attackLabSandboxReferencePattern.MatchString(value.SandboxReference) && validAttackLabVerdictEvidence(value.Verdict, value.CriterionObserved, value.CanaryTouched, value.ErrorCode, value.Evidence) && validAttackLabEvidenceArtifact(scope, runID, value.Attempt, value.EvidenceReference, value.EvidenceKey, value.EvidenceVersionID, checksum, value.EvidenceSizeBytes)
+	return checksumErr == nil && validAttackLabVerdictEvidence(value.Verdict, value.CriterionObserved, value.CanaryTouched, value.ErrorCode, value.Evidence) && validAttackLabEvidenceArtifact(scope, runID, value.Attempt, value.EvidenceReference, value.EvidenceKey, value.EvidenceVersionID, checksum, value.EvidenceSizeBytes)
 }
 
 func validAttackLabCleanupInput(scope domain.Scope, input AttackLabCleanupInput) bool {
-	return input.InputDigest != [sha256.Size]byte{} && attackLabSandboxReferencePattern.MatchString(input.SandboxReference) && validAttackLabVerdictEvidence(input.Verdict, input.CriterionObserved, input.CanaryTouched, input.ErrorCode, input.Evidence) && validAttackLabEvidenceArtifact(scope, input.RunID, input.Attempt, input.EvidenceReference, input.EvidenceKey, input.EvidenceVersionID, input.EvidenceChecksum, input.EvidenceSizeBytes)
+	if input.InputDigest == [sha256.Size]byte{} || !attackLabSandboxReferencePattern.MatchString(input.SandboxReference) {
+		return false
+	}
+	if input.EvidenceReference == "" && input.EvidenceKey == "" && input.EvidenceVersionID == "" && input.EvidenceChecksum == nil && input.EvidenceSizeBytes == 0 && len(input.Evidence) == 0 {
+		return input.Verdict == "inconclusive" && !input.CriterionObserved && !input.CanaryTouched && stringIn(input.ErrorCode, "outcome_unknown", "cancelled")
+	}
+	return validAttackLabVerdictEvidence(input.Verdict, input.CriterionObserved, input.CanaryTouched, input.ErrorCode, input.Evidence) && validAttackLabEvidenceArtifact(scope, input.RunID, input.Attempt, input.EvidenceReference, input.EvidenceKey, input.EvidenceVersionID, input.EvidenceChecksum, input.EvidenceSizeBytes)
 }
 
 func validAttackLabVerdictEvidence(verdict string, criterion, canary bool, code string, evidence []string) bool {
-	if !stringIn(verdict, "verified", "not_reproduced", "inconclusive") || verdict == "verified" && (!criterion || !canary) || verdict == "not_reproduced" && (criterion || canary) || verdict != "inconclusive" && code != "" || verdict == "inconclusive" && !stringIn(code, "denied", "malformed", "outcome_unknown", "exhausted") || len(evidence) != 5 {
+	if !stringIn(verdict, "verified", "not_reproduced", "inconclusive") || verdict == "verified" && (!criterion || !canary) || verdict == "not_reproduced" && (criterion || canary) || verdict != "inconclusive" && code != "" || verdict == "inconclusive" && !stringIn(code, "denied", "malformed", "outcome_unknown", "exhausted", "cancelled") || len(evidence) != 5 {
 		return false
 	}
 	prefixes := [...]string{"semantic:", "gateway:", "egress:", "kubernetes:", "cloud:"}
@@ -457,8 +477,17 @@ func validAttackLabVerdictEvidence(verdict string, criterion, canary bool, code 
 }
 
 func validAttackLabEvidenceArtifact(scope domain.Scope, runID string, attempt int, reference, key, version string, checksum []byte, size int64) bool {
-	expectedKey := "organizations/" + scope.OrganizationID().String() + "/workspaces/" + scope.WorkspaceID().String() + "/environments/" + scope.EnvironmentID().String() + "/attack-lab/" + runID + "/attempts/" + strconv.Itoa(attempt) + "/evidence.json"
-	return attempt >= 1 && attempt <= 5 && validS3ObjectReference(reference) && strings.HasSuffix(reference, "/"+key) && key == expectedKey && len(version) >= 1 && len(version) <= 512 && !strings.ContainsAny(version, " \t\r\n\x00") && len(checksum) == sha256.Size && !bytes.Equal(checksum, make([]byte, sha256.Size)) && size >= 1 && size <= 64<<20
+	if attempt < 1 || attempt > 5 || !validS3ObjectReference(reference) {
+		return false
+	}
+	evidenceID, err := CanonicalDiscoveryID(scope, "attack_lab_evidence", runID+"\x1f"+strconv.Itoa(attempt))
+	if err != nil {
+		return false
+	}
+	expectedKey := "organizations/" + scope.OrganizationID().String() + "/workspaces/" + scope.WorkspaceID().String() + "/environments/" + scope.EnvironmentID().String() + "/artifacts/" + evidenceID
+	objectAuthority := strings.TrimPrefix(reference, "s3://")
+	separator := strings.IndexByte(objectAuthority, '/')
+	return separator > 0 && objectAuthority[separator+1:] == key && key == expectedKey && len(version) >= 1 && len(version) <= 512 && !strings.ContainsAny(version, " \t\r\n\x00") && len(checksum) == sha256.Size && !bytes.Equal(checksum, make([]byte, sha256.Size)) && size >= 1 && size <= 64<<20
 }
 
 func decodeAttackLabRunTransition(payload json.RawMessage, providerErr error, runID string, allowed ...string) (AttackLabRunTransition, error) {

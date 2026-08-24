@@ -2088,9 +2088,11 @@ export type components = {
             /** @enum {string} */
             readonly error_code?: "retryable" | "denied" | "malformed" | "outcome_unknown" | "cleanup_failed" | "cancelled" | "exhausted";
             readonly evidence: readonly string[];
-            readonly evidence_reference: string;
+            readonly evidence_reference?: string;
             /** @enum {string} */
-            readonly verdict: "verified" | "not_reproduced" | "inconclusive";
+            readonly evidence_state: "complete" | "unavailable";
+            /** @enum {string} */
+            readonly verdict?: "verified" | "not_reproduced" | "inconclusive";
         };
         readonly AttackLabRerunInput: {
             readonly run_id: components["schemas"]["ProductID"];

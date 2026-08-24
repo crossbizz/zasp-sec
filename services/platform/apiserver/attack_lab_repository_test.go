@@ -93,6 +93,7 @@ func TestAttackLabRepositoryAcceptsActiveCancellationAndRequiresCompleteEvidence
 
 	attempt := AttackLabAttempt{
 		Attempt:           1,
+		EvidenceState:     "complete",
 		Verdict:           "verified",
 		CriterionObserved: true,
 		CanaryTouched:     true,

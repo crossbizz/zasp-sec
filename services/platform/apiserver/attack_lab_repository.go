@@ -48,13 +48,14 @@ type AttackLabRun struct {
 
 type AttackLabAttempt struct {
 	Attempt           int       `json:"attempt"`
-	Verdict           string    `json:"verdict"`
+	EvidenceState     string    `json:"evidence_state"`
+	Verdict           string    `json:"verdict,omitempty"`
 	CriterionObserved bool      `json:"criterion_observed"`
 	CanaryTouched     bool      `json:"canary_touched"`
 	CleanupCompleted  bool      `json:"cleanup_completed"`
 	ErrorCode         string    `json:"error_code,omitempty"`
 	Evidence          []string  `json:"evidence"`
-	EvidenceReference string    `json:"evidence_reference"`
+	EvidenceReference string    `json:"evidence_reference,omitempty"`
 	CompletedAt       time.Time `json:"completed_at"`
 }
 
@@ -236,18 +237,24 @@ func validAttackLabRun(value AttackLabRun) bool {
 	case "cleanup":
 		return value.Attempt >= 1 && value.CleanupState == "in_progress" && started && !completed && !verdict && !failure && !evidence
 	case "complete":
-		return value.Attempt >= 1 && !value.CancelRequested && value.CleanupState == "complete" && started && completed && stringIn(value.Verdict, "verified", "not_reproduced", "inconclusive") && !failure && evidence
+		return value.Attempt >= 1 && !value.CancelRequested && value.CleanupState == "complete" && started && completed && stringIn(value.Verdict, "verified", "not_reproduced", "inconclusive") && (evidence && !failure || !evidence && value.Verdict == "inconclusive" && value.ErrorCode == "outcome_unknown")
 	case "failed":
 		return value.Attempt >= 1 && started && completed && !verdict && stringIn(value.ErrorCode, "denied", "malformed", "outcome_unknown", "cleanup_failed", "exhausted") && !evidence && (value.ErrorCode == "cleanup_failed" && value.CleanupState == "failed" || value.ErrorCode != "cleanup_failed" && value.CleanupState == "complete")
 	case "cancelled":
-		return value.CancelRequested && value.CleanupState == "complete" && completed && !verdict && value.ErrorCode == "cancelled" && !evidence && (value.Attempt == 0 && !started || value.Attempt >= 1 && started)
+		return value.CancelRequested && value.CleanupState == "complete" && completed && !verdict && value.ErrorCode == "cancelled" && (value.Attempt == 0 && !started && !evidence || value.Attempt >= 1 && started)
 	default:
 		return false
 	}
 }
 
 func validAttackLabAttempt(value AttackLabAttempt) bool {
-	if value.Attempt < 1 || value.Attempt > 5 || !stringIn(value.Verdict, "verified", "not_reproduced", "inconclusive") || len(value.Evidence) != 5 || !canonicalInventoryText(value.EvidenceReference, 1, 1024) || !canonicalRedTeamTime(value.CompletedAt) || !value.CleanupCompleted || value.Verdict == "verified" && (!value.CriterionObserved || !value.CanaryTouched) || value.Verdict == "not_reproduced" && (value.CriterionObserved || value.CanaryTouched) {
+	if value.Attempt < 1 || value.Attempt > 5 || !canonicalRedTeamTime(value.CompletedAt) || !value.CleanupCompleted || value.Verdict == "verified" && (!value.CriterionObserved || !value.CanaryTouched) || value.Verdict == "not_reproduced" && (value.CriterionObserved || value.CanaryTouched) {
+		return false
+	}
+	if value.EvidenceState == "unavailable" {
+		return len(value.Evidence) == 0 && value.EvidenceReference == "" && !value.CriterionObserved && !value.CanaryTouched && (value.Verdict == "inconclusive" && value.ErrorCode == "outcome_unknown" || value.Verdict == "" && value.ErrorCode == "cancelled")
+	}
+	if value.EvidenceState != "complete" || len(value.Evidence) != 5 || !canonicalInventoryText(value.EvidenceReference, 1, 1024) || !(stringIn(value.Verdict, "verified", "not_reproduced", "inconclusive") || value.Verdict == "" && value.ErrorCode == "cancelled") {
 		return false
 	}
 	prefixes := [...]string{"semantic:", "gateway:", "egress:", "kubernetes:", "cloud:"}
@@ -256,7 +263,7 @@ func validAttackLabAttempt(value AttackLabAttempt) bool {
 			return false
 		}
 	}
-	return value.ErrorCode == "" || value.Verdict == "inconclusive" && stringIn(value.ErrorCode, "denied", "malformed", "outcome_unknown", "cleanup_failed", "exhausted")
+	return value.ErrorCode == "" || value.Verdict == "inconclusive" && stringIn(value.ErrorCode, "denied", "malformed", "outcome_unknown", "cleanup_failed", "exhausted", "cancelled") || value.Verdict == "" && value.ErrorCode == "cancelled"
 }
 
 func validAttackLabDestination(value string) bool {

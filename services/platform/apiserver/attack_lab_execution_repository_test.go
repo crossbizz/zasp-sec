@@ -8,9 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
 func TestAttackLabExecutionRepositoryBindsOutboxControllerAndProxyAuthority(t *testing.T) {
@@ -37,7 +40,7 @@ func TestAttackLabExecutionRepositoryBindsOutboxControllerAndProxyAuthority(t *t
 	retryable.Version, retryable.Status, retryable.ErrorCode = 3, "retryable", "retryable"
 	cleanup := running
 	cleanup.Version, cleanup.Status, cleanup.CleanupState = 4, "cleanup", "in_progress"
-	evidenceKey := "organizations/" + identity.Scope.OrganizationID().String() + "/workspaces/" + identity.Scope.WorkspaceID().String() + "/environments/" + identity.Scope.EnvironmentID().String() + "/attack-lab/" + runID + "/attempts/1/evidence.json"
+	evidenceKey := mustAttackLabExecutionEvidenceKey(t, identity.Scope, runID, 1)
 	evidenceReference := "s3://zasp-attack-lab-evidence/" + evidenceKey
 	complete := cleanup
 	complete.Version, complete.Status, complete.CleanupState, complete.Verdict, complete.EvidenceReference, complete.CompletedAt = 5, "complete", "complete", "verified", evidenceReference, &now
@@ -120,13 +123,50 @@ func TestAttackLabExecutionRepositoryRejectsIncompleteEvidenceBeforeDatabaseIO(t
 		t.Fatal(err)
 	}
 	runID := "pid_7c000001-0000-4000-8000-000000000001"
-	key := "organizations/" + identity.Scope.OrganizationID().String() + "/workspaces/" + identity.Scope.WorkspaceID().String() + "/environments/" + identity.Scope.EnvironmentID().String() + "/attack-lab/" + runID + "/attempts/1/evidence.json"
+	key := mustAttackLabExecutionEvidenceKey(t, identity.Scope, runID, 1)
 	input := AttackLabCleanupInput{RunID: runID, Controller: "attack-lab-controller-01", LeaseToken: strings.Repeat("a", 32), InputDigest: sha256.Sum256([]byte("attack-lab-input")), Attempt: 1, SandboxReference: "k8s://attack-lab/jobs/zasp-attack-lab-7c000001@123e4567-e89b-12d3-a456-426614174000", Verdict: "verified", CriterionObserved: true, CanaryTouched: true, Evidence: []string{"semantic:criterion observed", "gateway:allowed", "egress:adapter.customer.example", "kubernetes:job complete"}, EvidenceReference: "s3://zasp-attack-lab-evidence/" + key, EvidenceKey: key, EvidenceVersionID: "version-1", EvidenceChecksum: bytes.Repeat([]byte{0xcc}, sha256.Size), EvidenceSizeBytes: 512}
 	if _, err := repository.BeginAttackLabCleanup(context.Background(), identity.Scope, input); !errors.Is(err, ErrRepositoryOperation) {
 		t.Fatalf("incomplete evidence error=%v", err)
 	}
 	if calls := database.callsFor(postgresAttackLabBeginCleanupSQL); len(calls) != 0 {
 		t.Fatalf("incomplete evidence reached database: %#v", calls)
+	}
+	input.Evidence = append(input.Evidence, "cloud:canary touched")
+	input.EvidenceReference = "s3://zasp-attack-lab-evidence/foreign-prefix/" + key
+	if _, err := repository.BeginAttackLabCleanup(context.Background(), identity.Scope, input); !errors.Is(err, ErrRepositoryOperation) {
+		t.Fatalf("prefixed evidence object path error=%v", err)
+	}
+	if calls := database.callsFor(postgresAttackLabBeginCleanupSQL); len(calls) != 0 {
+		t.Fatalf("prefixed evidence object path reached database: %#v", calls)
+	}
+}
+
+func TestAttackLabExecutionRepositoryAllowsUnavailableAndCancelledEvidenceCleanup(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	now := time.Now().UTC()
+	runID := "pid_7c100001-0000-4000-8000-000000000001"
+	digest := sha256.Sum256([]byte("attack-lab-cleanup-authority"))
+	run := AttackLabRun{ID: runID, Version: 4, SourceRunID: "pid_7c100002-0000-4000-8000-000000000002", DefinitionID: "pid_7c100003-0000-4000-8000-000000000003", DefinitionVersion: 1, TargetID: "pid_7c100004-0000-4000-8000-000000000004", TargetKind: "agent_endpoint", Environment: "staging", CredentialClass: "read_only", Destination: "adapter.customer.example", Status: "cleanup", Attempt: 1, CleanupState: "in_progress", Limits: AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, QueuedAt: now, StartedAt: &now}
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresAttackLabExecutionReadinessSQL: json.RawMessage(`true`), postgresAttackLabPrincipalReadySQL: json.RawMessage(`true`), postgresAttackLabBeginCleanupSQL: mustRedTeamJSON(t, mergeAttackLabRun(run, map[string]any{"replayed": false}))}}
+	repository, err := NewAttackLabExecutionRepository(database, AttackLabExecutionAuthorityController)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := AttackLabCleanupInput{RunID: runID, Controller: "attack-lab-controller-01", LeaseToken: strings.Repeat("a", 32), InputDigest: digest, Attempt: 1, SandboxReference: "k8s://attack-lab/jobs/zasp-attack-lab-7c100001@123e4567-e89b-12d3-a456-426614174000", Verdict: "inconclusive", ErrorCode: "outcome_unknown"}
+	if result, err := repository.BeginAttackLabCleanup(context.Background(), identity.Scope, base); err != nil || result.Run.Status != "cleanup" {
+		t.Fatalf("unavailable result=%#v err=%v", result, err)
+	}
+	key := mustAttackLabExecutionEvidenceKey(t, identity.Scope, runID, 1)
+	cancelled := base
+	cancelled.ErrorCode = "cancelled"
+	cancelled.Evidence = []string{"semantic:cancelled before verdict", "gateway:cancelled", "egress:no undeclared egress", "kubernetes:cleanup requested", "cloud:no verified canary touch"}
+	cancelled.EvidenceReference, cancelled.EvidenceKey, cancelled.EvidenceVersionID = "s3://zasp-attack-lab-evidence/"+key, key, "version-cancelled-1"
+	cancelled.EvidenceChecksum, cancelled.EvidenceSizeBytes = bytes.Repeat([]byte{0xcd}, sha256.Size), 512
+	if result, err := repository.BeginAttackLabCleanup(context.Background(), identity.Scope, cancelled); err != nil || result.Run.Status != "cleanup" {
+		t.Fatalf("cancelled result=%#v err=%v", result, err)
+	}
+	if calls := database.callsFor(postgresAttackLabBeginCleanupSQL); len(calls) != 2 {
+		t.Fatalf("cleanup calls=%#v", calls)
 	}
 }
 
@@ -138,4 +178,13 @@ func mergeAttackLabRun(run AttackLabRun, extra map[string]any) map[string]any {
 		result[key] = value
 	}
 	return result
+}
+
+func mustAttackLabExecutionEvidenceKey(t *testing.T, scope domain.Scope, runID string, attempt int) string {
+	t.Helper()
+	evidenceID, err := CanonicalDiscoveryID(scope, "attack_lab_evidence", runID+"\x1f"+strconv.Itoa(attempt))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return "organizations/" + scope.OrganizationID().String() + "/workspaces/" + scope.WorkspaceID().String() + "/environments/" + scope.EnvironmentID().String() + "/artifacts/" + evidenceID
 }
