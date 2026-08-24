@@ -8,6 +8,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 )
 
 var (
@@ -16,6 +17,8 @@ var (
 	errRestoreRejected   = errors.New("restore rehearsal rejected")
 	errUpgradeRejected   = errors.New("upgrade rejected")
 )
+
+const restoreCleanupTimeout = 30 * time.Second
 
 type CheckStatus string
 
@@ -209,7 +212,9 @@ func RunRestoreRehearsal(ctx context.Context, request RestoreRequest, runtime Re
 	}
 	result.RehearsalID = id
 	defer func() {
-		if cleanupErr := runtime.Cleanup(context.WithoutCancel(ctx), request.TargetEnvironment); cleanupErr != nil {
+		cleanupContext, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), restoreCleanupTimeout)
+		defer cancelCleanup()
+		if cleanupErr := runtime.Cleanup(cleanupContext, request.TargetEnvironment); cleanupErr != nil {
 			resultErr = errRestoreRejected
 			return
 		}

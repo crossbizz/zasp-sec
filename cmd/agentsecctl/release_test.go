@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func validPreflight() PreflightInput {
@@ -101,6 +102,18 @@ func TestRunRestoreRehearsalTracksValidatesAndAlwaysCleans(t *testing.T) {
 	}
 }
 
+func TestRunRestoreRehearsalBoundsIndependentCleanupContext(t *testing.T) {
+	runtime := &fakeRestoreRuntime{
+		states:                 []string{"complete"},
+		counts:                 validManifest().ExpectedResourceCount,
+		cleanupMaximumDuration: 15 * time.Minute,
+	}
+	result, err := RunRestoreRehearsal(context.Background(), RestoreRequest{SourceEnvironment: "production", TargetEnvironment: "rehearsal-a", DisposableTarget: true, Manifest: validManifest(), PollLimit: 1}, runtime)
+	if err != nil || !result.Cleaned {
+		t.Fatalf("RunRestoreRehearsal() = %#v, %v", result, err)
+	}
+}
+
 func TestRunRestoreRehearsalRejectsUnsafeTargetsMismatchAndCleanupFailure(t *testing.T) {
 	request := RestoreRequest{SourceEnvironment: "production", TargetEnvironment: "production", DisposableTarget: true, Manifest: validManifest(), PollLimit: 1}
 	if _, err := RunRestoreRehearsal(context.Background(), request, &fakeRestoreRuntime{}); !errors.Is(err, errRestoreRejected) {
@@ -168,10 +181,11 @@ func jsonBytes(value any) ([]byte, error) {
 }
 
 type fakeRestoreRuntime struct {
-	states       []string
-	counts       map[string]uint64
-	cleanupErr   error
-	cleanupCalls int
+	states                 []string
+	counts                 map[string]uint64
+	cleanupErr             error
+	cleanupCalls           int
+	cleanupMaximumDuration time.Duration
 }
 
 func (*fakeRestoreRuntime) Start(context.Context, string, RecoveryManifest) (string, error) {
@@ -188,8 +202,12 @@ func (runtime *fakeRestoreRuntime) Poll(context.Context, string) (string, error)
 func (runtime *fakeRestoreRuntime) Validate(context.Context, string, RecoveryManifest) (map[string]uint64, error) {
 	return runtime.counts, nil
 }
-func (runtime *fakeRestoreRuntime) Cleanup(context.Context, string) error {
+func (runtime *fakeRestoreRuntime) Cleanup(ctx context.Context, _ string) error {
 	runtime.cleanupCalls++
+	deadline, present := ctx.Deadline()
+	if runtime.cleanupMaximumDuration > 0 && (!present || time.Until(deadline) <= 0 || time.Until(deadline) > runtime.cleanupMaximumDuration) {
+		return errors.New("cleanup deadline missing")
+	}
 	return runtime.cleanupErr
 }
 
