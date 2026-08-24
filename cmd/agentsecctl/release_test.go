@@ -109,6 +109,18 @@ func TestDecodeRecoveryManifestRejectsUnknownTrailingAndMalformedData(t *testing
 	}
 }
 
+func TestDecodeRecoveryManifestRejectsDuplicateAuthorityKeys(t *testing.T) {
+	valid := `{"schema_version":1,"organization_id":"org-a","deployment_mode":"saas","neon_recovery_point":"organizations/org-a/neon/r1","configuration_refs":["organizations/org-a/config/r1"],"graph_export_reference":"organizations/org-a/graph/r1","evidence_references":["organizations/org-a/evidence/r1"],"expected_resource_count":{"assets":1}}`
+	for _, payload := range []string{
+		strings.Replace(valid, `"schema_version":1`, `"schema_version":1,"schema_version":1`, 1),
+		strings.Replace(valid, `"assets":1`, `"assets":1,"assets":1`, 1),
+	} {
+		if _, err := DecodeRecoveryManifest(strings.NewReader(payload)); !errors.Is(err, errManifestRejected) {
+			t.Fatalf("duplicate manifest error = %v", err)
+		}
+	}
+}
+
 func TestDecodeRecoveryManifestRejectsPayloadBeyondBound(t *testing.T) {
 	encoded, err := jsonBytes(validManifest())
 	if err != nil {

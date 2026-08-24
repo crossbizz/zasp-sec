@@ -141,7 +141,7 @@ func DecodeRecoveryManifest(reader io.Reader) (RecoveryManifest, error) {
 		return RecoveryManifest{}, errManifestRejected
 	}
 	payload, err := io.ReadAll(io.LimitReader(reader, maximumRecoveryManifestBytes+1))
-	if err != nil || len(payload) > maximumRecoveryManifestBytes {
+	if err != nil || len(payload) > maximumRecoveryManifestBytes || !uniqueReleaseJSON(payload) {
 		return RecoveryManifest{}, errManifestRejected
 	}
 	decoder := json.NewDecoder(bytes.NewReader(payload))
@@ -484,7 +484,7 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 
 func decodeCommandInput(reader io.Reader, target any) error {
 	payload, err := io.ReadAll(io.LimitReader(reader, maximumRecoveryManifestBytes+1))
-	if err != nil || len(payload) > maximumRecoveryManifestBytes {
+	if err != nil || len(payload) > maximumRecoveryManifestBytes || !uniqueReleaseJSON(payload) {
 		return errInvalidArguments
 	}
 	decoder := json.NewDecoder(bytes.NewReader(payload))
@@ -497,4 +497,59 @@ func decodeCommandInput(reader io.Reader, target any) error {
 		return errInvalidArguments
 	}
 	return nil
+}
+
+func uniqueReleaseJSON(payload []byte) bool {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	if !consumeUniqueReleaseJSON(decoder, 0) {
+		return false
+	}
+	_, err := decoder.Token()
+	return err == io.EOF
+}
+
+func consumeUniqueReleaseJSON(decoder *json.Decoder, depth int) bool {
+	if depth > 32 {
+		return false
+	}
+	token, err := decoder.Token()
+	if err != nil {
+		return false
+	}
+	delimiter, composite := token.(json.Delim)
+	if !composite {
+		return true
+	}
+	switch delimiter {
+	case '{':
+		seen := map[string]struct{}{}
+		for decoder.More() {
+			keyToken, keyErr := decoder.Token()
+			key, keyValid := keyToken.(string)
+			if keyErr != nil || !keyValid || len(key) > 128 {
+				return false
+			}
+			if _, duplicate := seen[key]; duplicate {
+				return false
+			}
+			seen[key] = struct{}{}
+			if !consumeUniqueReleaseJSON(decoder, depth+1) {
+				return false
+			}
+		}
+		closing, closeErr := decoder.Token()
+		return closeErr == nil && closing == json.Delim('}')
+	case '[':
+		count := 0
+		for decoder.More() {
+			count++
+			if count > 2048 || !consumeUniqueReleaseJSON(decoder, depth+1) {
+				return false
+			}
+		}
+		closing, closeErr := decoder.Token()
+		return closeErr == nil && closing == json.Delim(']')
+	default:
+		return false
+	}
 }
