@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,7 +19,10 @@ var (
 	errUpgradeRejected   = errors.New("upgrade rejected")
 )
 
-const restoreCleanupTimeout = 30 * time.Second
+const (
+	maximumRecoveryManifestBytes = 64 * 1024
+	restoreCleanupTimeout        = 30 * time.Second
+)
 
 type CheckStatus string
 
@@ -136,7 +140,11 @@ func DecodeRecoveryManifest(reader io.Reader) (RecoveryManifest, error) {
 	if reader == nil {
 		return RecoveryManifest{}, errManifestRejected
 	}
-	decoder := json.NewDecoder(io.LimitReader(reader, 64*1024+1))
+	payload, err := io.ReadAll(io.LimitReader(reader, maximumRecoveryManifestBytes+1))
+	if err != nil || len(payload) > maximumRecoveryManifestBytes {
+		return RecoveryManifest{}, errManifestRejected
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.DisallowUnknownFields()
 	var manifest RecoveryManifest
 	if err := decoder.Decode(&manifest); err != nil {

@@ -94,6 +94,17 @@ func TestDecodeRecoveryManifestRejectsUnknownTrailingAndMalformedData(t *testing
 	}
 }
 
+func TestDecodeRecoveryManifestRejectsPayloadBeyondBound(t *testing.T) {
+	encoded, err := jsonBytes(validManifest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	oversized := append(encoded, bytes.Repeat([]byte(" "), 64*1024+1)...)
+	if _, err := DecodeRecoveryManifest(bytes.NewReader(oversized)); !errors.Is(err, errManifestRejected) {
+		t.Fatalf("oversized manifest error = %v", err)
+	}
+}
+
 func TestRunRestoreRehearsalTracksValidatesAndAlwaysCleans(t *testing.T) {
 	runtime := &fakeRestoreRuntime{states: []string{"running", "complete"}, counts: map[string]uint64{"assets": 3, "findings": 2, "policies": 1}}
 	result, err := RunRestoreRehearsal(context.Background(), RestoreRequest{SourceEnvironment: "production", TargetEnvironment: "rehearsal-a", DisposableTarget: true, Manifest: validManifest(), PollLimit: 3}, runtime)
