@@ -26,8 +26,11 @@ func TestProductionRedTeamExecutionMetadataPinsDurableTenantAuthority(t *testing
 		"zasp_red_team_claim_run",
 		"zasp_red_team_finish_run",
 		"zasp_red_team_cancel_claimed_run",
+		"zasp_red_team_resolve_target",
+		"zasp_red_team_target_adapter_readiness",
 		"zasp_red_team_execution_readiness",
 		"zasp_red_team_worker",
+		"zasp_red_team_adapter",
 		"organization_id,workspace_id,environment_id",
 		"test-jobs",
 	} {

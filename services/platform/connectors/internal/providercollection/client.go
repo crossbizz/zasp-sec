@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"reflect"
 	"regexp"
 	"sort"
@@ -36,6 +38,8 @@ var (
 	versionPattern               = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
 	findingCheckPattern          = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 	credentialFingerprintPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	redTeamCredentialPattern     = regexp.MustCompile(`^ref:red-team/[a-z][a-z0-9_-]{7,127}$`)
+	redTeamHostnamePattern       = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9.-]{1,251}[a-z0-9])$`)
 )
 
 type API interface {
@@ -684,7 +688,7 @@ func providerEntitySchema(provider collection.Provider, kind string) (providerEn
 		case "kubernetes_resource", "kubernetes_service_account":
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind"), attributes: namespaced}, true
 		case "kubernetes_agent":
-			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: mergeInventorySchemas(namespaced, inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true)})}, true
+			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: mergeInventorySchemas(namespaced, inventoryObjectSchema{"posture": kubernetesAgentPostureInventoryField(true), "red_team": kubernetesRedTeamInventoryField(false)})}, true
 		case "kubernetes_workload":
 			return providerEntityDefinition{stable: requiredStringFields("api_group", "api_version", "cluster", "name", "namespace", "resource_kind", "service_account"), attributes: namespaced}, true
 		case "kubernetes_role":
@@ -840,6 +844,10 @@ func validInventoryObject(raw json.RawMessage, schema inventoryObjectSchema) boo
 			if !validKubernetesAgentPosture(value) {
 				return false
 			}
+		case "kubernetes_red_team":
+			if !validKubernetesRedTeamBinding(value) {
+				return false
+			}
 		default:
 			return false
 		}
@@ -898,6 +906,37 @@ func kubernetesRulesInventoryField(required bool) inventoryFieldRule {
 
 func kubernetesAgentPostureInventoryField(required bool) inventoryFieldRule {
 	return inventoryFieldRule{kind: "kubernetes_agent_posture", required: required}
+}
+
+func kubernetesRedTeamInventoryField(required bool) inventoryFieldRule {
+	return inventoryFieldRule{kind: "kubernetes_red_team", required: required}
+}
+
+func validKubernetesRedTeamBinding(value any) bool {
+	binding, ok := value.(map[string]any)
+	if !ok || len(binding) != 4 || binding["enabled"] != true {
+		return false
+	}
+	endpoint, endpointOK := binding["endpoint"].(string)
+	reference, referenceOK := binding["credential_reference"].(string)
+	kinds, kindsOK := binding["target_kinds"].([]any)
+	parsed, parseErr := url.Parse(endpoint)
+	host := ""
+	if parseErr == nil {
+		host = strings.ToLower(parsed.Hostname())
+	}
+	if !endpointOK || !referenceOK || !kindsOK || parseErr != nil || parsed.String() != endpoint || parsed.Scheme != "https" || parsed.User != nil || parsed.Port() != "" || parsed.Path != "/v1/evaluate" || parsed.RawQuery != "" || parsed.Fragment != "" || !redTeamHostnamePattern.MatchString(host) || net.ParseIP(host) != nil || host == "localhost" || strings.HasSuffix(host, ".localhost") || strings.HasSuffix(host, ".local") || strings.HasSuffix(host, ".internal") || strings.HasSuffix(host, ".svc") || strings.Contains(host, ".svc.") || !redTeamCredentialPattern.MatchString(reference) || len(kinds) < 1 || len(kinds) > 2 {
+		return false
+	}
+	prior := ""
+	for _, value := range kinds {
+		kind, ok := value.(string)
+		if !ok || kind != "agent_endpoint" && kind != "coding_agent" || prior != "" && kind <= prior {
+			return false
+		}
+		prior = kind
+	}
+	return true
 }
 
 func validKubernetesAgentPosture(value any) bool {

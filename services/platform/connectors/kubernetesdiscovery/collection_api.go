@@ -36,6 +36,7 @@ var (
 	kubernetesDoneCursorPattern = regexp.MustCompile(`^kubernetes:complete:([0-9a-f]{16}):[0-9a-f]{16}$`)
 	kubernetesNamePattern       = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$`)
 	kubernetesUIDPattern        = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$`)
+	kubernetesRedTeamReference  = regexp.MustCompile(`^ref:red-team/[a-z][a-z0-9_-]{7,127}$`)
 )
 
 type KubernetesCollectionAPIConfig struct {
@@ -207,10 +208,11 @@ type kubernetesCollectionItem struct {
 	APIVersion string `json:"apiVersion"`
 	Kind       string `json:"kind"`
 	Metadata   struct {
-		UID       string            `json:"uid"`
-		Namespace string            `json:"namespace"`
-		Name      string            `json:"name"`
-		Labels    map[string]string `json:"labels,omitempty"`
+		UID         string            `json:"uid"`
+		Namespace   string            `json:"namespace"`
+		Name        string            `json:"name"`
+		Labels      map[string]string `json:"labels,omitempty"`
+		Annotations map[string]string `json:"annotations,omitempty"`
 	} `json:"metadata"`
 	RoleRef struct {
 		APIGroup string `json:"apiGroup"`
@@ -716,10 +718,12 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 	attributes := json.RawMessage(`{"namespaced":true}`)
 	if entityKind == "kubernetes_agent" {
 		posture := deriveKubernetesAgentPosture(subject, item.Metadata.Namespace, serviceAccount, item.Metadata.Labels, podSpec)
+		redTeam := deriveKubernetesRedTeamBinding(item.Metadata.Annotations)
 		attributes, _ = json.Marshal(struct {
-			Namespaced bool                   `json:"namespaced"`
-			Posture    kubernetesAgentPosture `json:"posture"`
-		}{true, posture})
+			Namespaced bool                      `json:"namespaced"`
+			Posture    kubernetesAgentPosture    `json:"posture"`
+			RedTeam    *kubernetesRedTeamBinding `json:"red_team,omitempty"`
+		}{true, posture, redTeam})
 	}
 	entity, err := marshalKubernetesEntity(entityID, entityKind, "kubernetes:"+strings.ToLower(definition[1])+":"+item.Metadata.UID, item.Metadata.Namespace+"/"+item.Metadata.Name, stable, attributes)
 	if err != nil {
@@ -736,6 +740,51 @@ func normalizeKubernetesWorkload(subject collection.SubjectBinding, phase string
 		return nil, nil, false
 	}
 	return entity, []json.RawMessage{attached, usesIdentity}, true
+}
+
+type kubernetesRedTeamBinding struct {
+	Enabled             bool     `json:"enabled"`
+	Endpoint            string   `json:"endpoint"`
+	CredentialReference string   `json:"credential_reference"`
+	TargetKinds         []string `json:"target_kinds"`
+}
+
+func deriveKubernetesRedTeamBinding(annotations map[string]string) *kubernetesRedTeamBinding {
+	if annotations["zasp.ai/red-team-enabled"] != "true" || len(annotations) > 128 {
+		return nil
+	}
+	endpoint := annotations["zasp.ai/red-team-endpoint"]
+	reference := annotations["zasp.ai/red-team-credential-reference"]
+	parts := strings.Split(annotations["zasp.ai/red-team-target-kinds"], ",")
+	if !validKubernetesRedTeamEndpoint(endpoint) || !kubernetesRedTeamReference.MatchString(reference) || len(parts) < 1 || len(parts) > 2 {
+		return nil
+	}
+	targetKinds := make([]string, 0, len(parts))
+	seen := map[string]struct{}{}
+	for _, part := range parts {
+		if part != "agent_endpoint" && part != "coding_agent" {
+			return nil
+		}
+		if _, duplicate := seen[part]; duplicate {
+			return nil
+		}
+		seen[part] = struct{}{}
+		targetKinds = append(targetKinds, part)
+	}
+	sort.Strings(targetKinds)
+	if strings.Join(targetKinds, ",") != annotations["zasp.ai/red-team-target-kinds"] {
+		return nil
+	}
+	return &kubernetesRedTeamBinding{Enabled: true, Endpoint: endpoint, CredentialReference: reference, TargetKinds: targetKinds}
+}
+
+func validKubernetesRedTeamEndpoint(value string) bool {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.String() != value || parsed.Scheme != "https" || parsed.User != nil || parsed.Port() != "" || parsed.Path != "/v1/evaluate" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return kubernetesNamePattern.MatchString(host) && net.ParseIP(host) == nil && host != "localhost" && !strings.HasSuffix(host, ".localhost") && !strings.HasSuffix(host, ".local") && !strings.HasSuffix(host, ".internal") && !strings.HasSuffix(host, ".svc") && !strings.Contains(host, ".svc.")
 }
 
 func validKubernetesAgentPodSpec(spec kubernetesCollectionPodSpec) bool {

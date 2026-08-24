@@ -230,6 +230,47 @@ func TestKubernetesCollectionAPIDerivesExactAgentPostureFactsFromWorkloadAuthori
 	}
 }
 
+func TestKubernetesCollectionAPIDiscoversOnlyExplicitBoundedRedTeamTargetBindings(t *testing.T) {
+	t.Parallel()
+	subject := collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "cluster.example/prod"}
+	body := `{"apiVersion":"apps/v1","kind":"DeploymentList","metadata":{"continue":""},"items":[` +
+		`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"uid":"26000000-0000-4000-8000-000000000091","namespace":"staging","name":"test-agent","labels":{"zasp.ai/entity-kind":"agent"},"annotations":{"zasp.ai/red-team-enabled":"true","zasp.ai/red-team-endpoint":"https://adapter.customer.example/v1/evaluate","zasp.ai/red-team-credential-reference":"ref:red-team/target-0001","zasp.ai/red-team-target-kinds":"agent_endpoint,coding_agent"}}},` +
+		`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"uid":"26000000-0000-4000-8000-000000000092","namespace":"staging","name":"unsafe-agent","labels":{"zasp.ai/entity-kind":"agent"},"annotations":{"zasp.ai/red-team-enabled":"true","zasp.ai/red-team-endpoint":"http://169.254.169.254/latest","zasp.ai/red-team-credential-reference":"inline-secret","zasp.ai/red-team-target-kinds":"agent_endpoint"}}}]}`
+	roundTripper := &kubernetesRoundTripper{responses: []kubernetesHTTPResponse{{status: http.StatusOK, body: body}}}
+	api, err := newKubernetesCollectionAPI("https://cluster.example", roundTripper, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := CollectionPageRequest{Provider: collection.ProviderKubernetes, Subject: subject, Cursor: nextKubernetesPageCursor(subject, "deployments", 7, "start"), Page: 7, RemainingItems: 4, RemainingRelationships: 64, RemainingBytes: 1 << 20}
+	page, err := api.FetchCollectionPage(context.Background(), []byte("kubernetes-bearer-secret-value"), request)
+	if err != nil || len(page.Entities) != 2 {
+		t.Fatalf("page=%#v err=%v", page, err)
+	}
+	type redTeamBinding struct {
+		Enabled             bool     `json:"enabled"`
+		Endpoint            string   `json:"endpoint"`
+		CredentialReference string   `json:"credential_reference"`
+		TargetKinds         []string `json:"target_kinds"`
+	}
+	for index, raw := range page.Entities {
+		var entity struct {
+			Attributes struct {
+				RedTeam *redTeamBinding `json:"red_team,omitempty"`
+			} `json:"attributes"`
+		}
+		if json.Unmarshal(raw, &entity) != nil {
+			t.Fatal(string(raw))
+		}
+		if index == 0 {
+			if entity.Attributes.RedTeam == nil || !entity.Attributes.RedTeam.Enabled || entity.Attributes.RedTeam.Endpoint != "https://adapter.customer.example/v1/evaluate" || entity.Attributes.RedTeam.CredentialReference != "ref:red-team/target-0001" || fmt.Sprint(entity.Attributes.RedTeam.TargetKinds) != "[agent_endpoint coding_agent]" {
+				t.Fatalf("binding = %#v", entity.Attributes.RedTeam)
+			}
+		} else if entity.Attributes.RedTeam != nil {
+			t.Fatalf("unsafe binding was discovered: %#v", entity.Attributes.RedTeam)
+		}
+	}
+}
+
 func TestKubernetesCollectionAPIClassifiesOnlyExactlyLabeledAgentDeployments(t *testing.T) {
 	t.Parallel()
 	body := `{"apiVersion":"apps/v1","kind":"DeploymentList","metadata":{"continue":""},"items":[` +

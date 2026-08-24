@@ -11,7 +11,7 @@ $release_guard$;
 DO $roles$
 DECLARE role_name text; role_row record;
 BEGIN
-  FOREACH role_name IN ARRAY ARRAY['zasp_red_team_worker','zasp_red_team_outbox_worker'] LOOP
+  FOREACH role_name IN ARRAY ARRAY['zasp_red_team_worker','zasp_red_team_outbox_worker','zasp_red_team_adapter'] LOOP
     SELECT * INTO role_row FROM pg_roles WHERE rolname=role_name;
     IF FOUND THEN
       IF role_row.rolsuper OR role_row.rolinherit OR role_row.rolcreaterole OR role_row.rolcreatedb OR role_row.rolcanlogin OR role_row.rolreplication OR role_row.rolbypassrls
@@ -24,11 +24,11 @@ BEGIN
   END LOOP;
 END
 $roles$;
-GRANT zasp_red_team_worker,zasp_red_team_outbox_worker TO zasp_discovery_authority WITH ADMIN OPTION;
+GRANT zasp_red_team_worker,zasp_red_team_outbox_worker,zasp_red_team_adapter TO zasp_discovery_authority WITH ADMIN OPTION;
 
 CREATE TABLE public.zasp_red_team_principal_bindings(
   principal_name text PRIMARY KEY,
-  authority_role text NOT NULL CHECK(authority_role IN('zasp_red_team_worker','zasp_red_team_outbox_worker')),
+  authority_role text NOT NULL CHECK(authority_role IN('zasp_red_team_worker','zasp_red_team_outbox_worker','zasp_red_team_adapter')),
   registered_at timestamptz NOT NULL DEFAULT transaction_timestamp()
 );
 
@@ -112,18 +112,18 @@ BEGIN
     EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',table_name);
     EXECUTE format('ALTER TABLE public.%I OWNER TO zasp_discovery_authority',table_name);
     EXECUTE format('CREATE POLICY %I ON public.%I TO zasp_discovery_authority USING(true) WITH CHECK(true)',table_name||'_authority',table_name);
-    EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC,zasp_discovery_api,zasp_security_agent_api,zasp_red_team_worker,zasp_red_team_outbox_worker',table_name);
+    EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC,zasp_discovery_api,zasp_security_agent_api,zasp_red_team_worker,zasp_red_team_outbox_worker,zasp_red_team_adapter',table_name);
     EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON public.%I TO zasp_discovery_authority',table_name);
   END LOOP;
 END
 $authority$;
 
-CREATE FUNCTION public.zasp_red_team_register_principals(migration_principal text,worker_principal text,outbox_principal text) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $register$
-DECLARE principals text[]:=ARRAY[worker_principal,outbox_principal];authorities text[]:=ARRAY['zasp_red_team_worker','zasp_red_team_outbox_worker'];index_value integer;role_value record;
+CREATE FUNCTION public.zasp_red_team_register_principals(migration_principal text,worker_principal text,outbox_principal text,adapter_principal text) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $register$
+DECLARE principals text[]:=ARRAY[worker_principal,outbox_principal,adapter_principal];authorities text[]:=ARRAY['zasp_red_team_worker','zasp_red_team_outbox_worker','zasp_red_team_adapter'];index_value integer;role_value record;
 BEGIN
-  IF migration_principal<>session_user OR cardinality(ARRAY(SELECT DISTINCT unnest(ARRAY[migration_principal,worker_principal,outbox_principal])))<>3 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='red team principals rejected';END IF;
+  IF migration_principal<>session_user OR cardinality(ARRAY(SELECT DISTINCT unnest(ARRAY[migration_principal,worker_principal,outbox_principal,adapter_principal])))<>4 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='red team principals rejected';END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended('zasp-red-team-principal-registration',0));
-  FOR index_value IN 1..2 LOOP
+  FOR index_value IN 1..3 LOOP
     SELECT role_row.oid,role_row.rolcanlogin,role_row.rolsuper,role_row.rolcreatedb,role_row.rolcreaterole,role_row.rolreplication,role_row.rolinherit,role_row.rolbypassrls INTO role_value FROM pg_roles role_row WHERE role_row.rolname=principals[index_value];
     IF NOT FOUND OR NOT role_value.rolcanlogin OR role_value.rolsuper OR role_value.rolcreatedb OR role_value.rolcreaterole OR role_value.rolreplication OR NOT role_value.rolinherit OR role_value.rolbypassrls OR EXISTS(SELECT 1 FROM pg_auth_members membership JOIN pg_roles granted ON granted.oid=membership.roleid WHERE membership.member=role_value.oid AND granted.rolname LIKE 'zasp_%' AND granted.rolname<>authorities[index_value]) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='red team principal rejected';END IF;
     EXECUTE format('GRANT %I TO %I',authorities[index_value],principals[index_value]);
@@ -135,13 +135,13 @@ END
 $register$;
 
 CREATE FUNCTION public.zasp_red_team_principal_ready(expected_authority text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $principal$
- SELECT expected_authority IN('zasp_red_team_worker','zasp_red_team_outbox_worker')
+ SELECT expected_authority IN('zasp_red_team_worker','zasp_red_team_outbox_worker','zasp_red_team_adapter')
  AND EXISTS(SELECT 1 FROM zasp_red_team_principal_bindings binding JOIN pg_roles role_value ON role_value.rolname=binding.principal_name WHERE binding.principal_name=session_user AND binding.authority_role=expected_authority AND role_value.rolcanlogin AND role_value.rolinherit AND NOT role_value.rolsuper AND NOT role_value.rolcreatedb AND NOT role_value.rolcreaterole AND NOT role_value.rolreplication AND NOT role_value.rolbypassrls)
  AND pg_has_role(session_user,expected_authority,'MEMBER') AND NOT pg_has_role(session_user,'zasp_discovery_authority','MEMBER')
 $principal$;
 
 CREATE FUNCTION public.zasp_red_team_principals_ready() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $principals$
- SELECT (SELECT count(*) FROM zasp_red_team_principal_bindings)=2
+ SELECT (SELECT count(*) FROM zasp_red_team_principal_bindings)=3
  AND NOT EXISTS(
    SELECT 1 FROM zasp_red_team_principal_bindings binding
    LEFT JOIN pg_roles principal ON principal.rolname=binding.principal_name
@@ -163,6 +163,17 @@ CREATE FUNCTION public.zasp_red_team_definition_valid(name_value text,target_val
  AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(safety_value->'expected_side_effects') item WHERE jsonb_typeof(item)<>'string' OR length(item#>>'{}') NOT BETWEEN 1 AND 256 OR item#>>'{}'<>btrim(item#>>'{}'))
 $valid$;
 
+CREATE FUNCTION public.zasp_red_team_target_binding_valid(attributes_value jsonb,target_kind_value text) RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog, public AS $binding$
+ SELECT jsonb_typeof(attributes_value)='object' AND attributes_value ?& ARRAY['enabled','endpoint','credential_reference','target_kinds'] AND attributes_value-ARRAY['enabled','endpoint','credential_reference','target_kinds']='{}'::jsonb
+ AND attributes_value->'enabled'='true'::jsonb AND jsonb_typeof(attributes_value->'endpoint')='string' AND jsonb_typeof(attributes_value->'credential_reference')='string' AND jsonb_typeof(attributes_value->'target_kinds')='array'
+ AND attributes_value->>'endpoint'~'^https://[a-z0-9][a-z0-9.-]{1,253}/v1/evaluate$' AND attributes_value->>'endpoint' NOT LIKE '%..%' AND attributes_value->>'endpoint' NOT LIKE 'https://localhost/%' AND attributes_value->>'endpoint' NOT LIKE '%.local/%' AND attributes_value->>'endpoint' NOT LIKE '%.internal/%' AND attributes_value->>'endpoint' NOT LIKE '%.svc/%'
+ AND attributes_value->>'credential_reference'~'^ref:red-team/[a-z][a-z0-9_-]{7,127}$'
+ AND jsonb_array_length(attributes_value->'target_kinds') BETWEEN 1 AND 3
+ AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements(attributes_value->'target_kinds') kind_value WHERE jsonb_typeof(kind_value)<>'string' OR kind_value#>>'{}' NOT IN('agent_endpoint','mcp_server','coding_agent'))
+ AND (SELECT count(*)=count(DISTINCT kind_value#>>'{}') FROM jsonb_array_elements(attributes_value->'target_kinds') kind_value)
+ AND EXISTS(SELECT 1 FROM jsonb_array_elements_text(attributes_value->'target_kinds') kind_value WHERE kind_value=target_kind_value)
+$binding$;
+
 CREATE FUNCTION public.zasp_red_team_target_valid(organization_value text,workspace_value text,environment_value text,target_value text,target_kind_value text) RETURNS boolean LANGUAGE sql STABLE SET search_path TO pg_catalog, public AS $target$
  SELECT zasp_valid_product_id(organization_value) AND zasp_valid_product_id(workspace_value) AND zasp_valid_product_id(environment_value) AND zasp_valid_product_id(target_value)
  AND target_kind_value IN('agent_endpoint','mcp_server','coding_agent')
@@ -171,8 +182,24 @@ CREATE FUNCTION public.zasp_red_team_target_valid(organization_value text,worksp
    WHERE (entity_value.organization_id,entity_value.workspace_id,entity_value.environment_id,entity_value.id,entity_value.state)=(organization_value,workspace_value,environment_value,target_value,'active')
      AND entity_value.product_kind=CASE target_kind_value WHEN 'mcp_server' THEN 'tool' ELSE 'agent' END
      AND entity_value.fresh_until>transaction_timestamp()
+     AND zasp_red_team_target_binding_valid(entity_value.winning_attributes->'red_team',target_kind_value)
  )
 $target$;
+
+CREATE FUNCTION public.zasp_red_team_resolve_target(organization_value text,workspace_value text,environment_value text,target_value text,target_kind_value text) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $resolve$
+DECLARE result_value jsonb;
+BEGIN
+ IF NOT zasp_red_team_principal_ready('zasp_red_team_adapter') OR NOT zasp_red_team_target_valid(organization_value,workspace_value,environment_value,target_value,target_kind_value) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='red team target resolution rejected';END IF;
+ SELECT jsonb_build_object('target_id',entity_value.id,'target_kind',target_kind_value,'endpoint',entity_value.winning_attributes->'red_team'->>'endpoint','credential_reference',entity_value.winning_attributes->'red_team'->>'credential_reference','version',entity_value.version) INTO STRICT result_value
+ FROM zasp_inventory_entities entity_value
+ JOIN zasp_inventory_source_observations observation ON (observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.provider,observation.source,observation.entity_id,observation.source_native_id,observation.snapshot_id,observation.generation,observation.evidence_id,observation.source_state)=(entity_value.organization_id,entity_value.workspace_id,entity_value.environment_id,entity_value.winning_integration_id,entity_value.winning_provider,entity_value.winning_source,entity_value.id,entity_value.winning_source_native_id,entity_value.winning_snapshot_id,entity_value.winning_generation,entity_value.winning_evidence_id,'present')
+ JOIN zasp_discovery_snapshots snapshot_value ON (snapshot_value.organization_id,snapshot_value.workspace_id,snapshot_value.environment_id,snapshot_value.integration_id,snapshot_value.source,snapshot_value.id,snapshot_value.state,snapshot_value.complete,snapshot_value.is_last_good)=(observation.organization_id,observation.workspace_id,observation.environment_id,observation.integration_id,observation.source,observation.snapshot_id,'complete',true,true)
+ JOIN zasp_inventory_evidence evidence_value ON (evidence_value.organization_id,evidence_value.workspace_id,evidence_value.environment_id,evidence_value.id,evidence_value.integration_id,evidence_value.snapshot_id,evidence_value.entity_id,evidence_value.source,evidence_value.generation)=(observation.organization_id,observation.workspace_id,observation.environment_id,observation.evidence_id,observation.integration_id,observation.snapshot_id,observation.entity_id,observation.source,observation.generation)
+ WHERE (entity_value.organization_id,entity_value.workspace_id,entity_value.environment_id,entity_value.id,entity_value.state,entity_value.product_kind)=(organization_value,workspace_value,environment_value,target_value,'active',CASE target_kind_value WHEN 'mcp_server' THEN 'tool' ELSE 'agent' END) AND entity_value.fresh_until>transaction_timestamp() AND zasp_red_team_target_binding_valid(entity_value.winning_attributes->'red_team',target_kind_value);
+ RETURN result_value;
+EXCEPTION WHEN no_data_found THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='red team target unavailable';
+END
+$resolve$;
 
 CREATE FUNCTION public.zasp_red_team_definition_json(row_value public.zasp_red_team_definitions) RETURNS jsonb LANGUAGE sql STABLE SET search_path TO pg_catalog, public AS $json$
  SELECT jsonb_build_object('id',row_value.definition_id,'version',row_value.version,'name',row_value.name,'target_id',row_value.target_id,'target_kind',row_value.target_kind,'categories',row_value.categories,'safety',row_value.safety,'enabled',row_value.enabled,'created_at',row_value.created_at,'updated_at',row_value.updated_at)
@@ -327,7 +354,7 @@ DO $function_owners$
 DECLARE function_value regprocedure;
 BEGIN
  FOREACH function_value IN ARRAY ARRAY[
-  'public.zasp_red_team_register_principals(text,text,text)'::regprocedure,'public.zasp_red_team_principal_ready(text)'::regprocedure,'public.zasp_red_team_principals_ready()'::regprocedure,'public.zasp_red_team_definition_valid(text,text,text,jsonb,jsonb)'::regprocedure,'public.zasp_red_team_target_valid(text,text,text,text,text)'::regprocedure,'public.zasp_red_team_definition_json(public.zasp_red_team_definitions)'::regprocedure,'public.zasp_red_team_run_json(public.zasp_red_team_runs)'::regprocedure,'public.zasp_red_team_mutation_result(text,text,text,text,text,text,text,text,jsonb)'::regprocedure,
+  'public.zasp_red_team_register_principals(text,text,text,text)'::regprocedure,'public.zasp_red_team_principal_ready(text)'::regprocedure,'public.zasp_red_team_principals_ready()'::regprocedure,'public.zasp_red_team_definition_valid(text,text,text,jsonb,jsonb)'::regprocedure,'public.zasp_red_team_target_binding_valid(jsonb,text)'::regprocedure,'public.zasp_red_team_target_valid(text,text,text,text,text)'::regprocedure,'public.zasp_red_team_resolve_target(text,text,text,text,text)'::regprocedure,'public.zasp_red_team_definition_json(public.zasp_red_team_definitions)'::regprocedure,'public.zasp_red_team_run_json(public.zasp_red_team_runs)'::regprocedure,'public.zasp_red_team_mutation_result(text,text,text,text,text,text,text,text,jsonb)'::regprocedure,
   'public.zasp_red_team_list_definitions(text,text,text,text,integer)'::regprocedure,'public.zasp_red_team_get_definition(text,text,text,text)'::regprocedure,'public.zasp_red_team_create_definition(text,text,text,text,text,text,text,text,text,jsonb,jsonb,text)'::regprocedure,'public.zasp_red_team_update_definition(text,text,text,text,text,text,bigint,text,text,text,jsonb,jsonb,boolean,text)'::regprocedure,
   'public.zasp_red_team_run_test(text,text,text,text,text,text,bigint,text,text)'::regprocedure,'public.zasp_red_team_list_runs(text,text,text,timestamptz,text,integer)'::regprocedure,'public.zasp_red_team_get_run(text,text,text,text)'::regprocedure,'public.zasp_red_team_cancel_run(text,text,text,text,text,text,bigint,text)'::regprocedure,
   'public.zasp_red_team_claim_outbox(text,bytea,integer,integer)'::regprocedure,'public.zasp_red_team_heartbeat_outbox(text,text,text,text,text,bytea,integer)'::regprocedure,'public.zasp_red_team_ack_outbox(text,text,text,text,text,bytea,text)'::regprocedure,'public.zasp_red_team_retry_outbox(text,text,text,text,text,bytea,timestamptz)'::regprocedure,
@@ -335,10 +362,11 @@ BEGIN
  ] LOOP EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',function_value);END LOOP;
 END
 $function_owners$;
-REVOKE ALL ON FUNCTION public.zasp_red_team_register_principals(text,text,text),public.zasp_red_team_principal_ready(text),public.zasp_red_team_principals_ready(),public.zasp_red_team_definition_valid(text,text,text,jsonb,jsonb),public.zasp_red_team_target_valid(text,text,text,text,text),public.zasp_red_team_definition_json(public.zasp_red_team_definitions),public.zasp_red_team_run_json(public.zasp_red_team_runs),public.zasp_red_team_mutation_result(text,text,text,text,text,text,text,text,jsonb),public.zasp_red_team_list_definitions(text,text,text,text,integer),public.zasp_red_team_get_definition(text,text,text,text),public.zasp_red_team_create_definition(text,text,text,text,text,text,text,text,text,jsonb,jsonb,text),public.zasp_red_team_update_definition(text,text,text,text,text,text,bigint,text,text,text,jsonb,jsonb,boolean,text),public.zasp_red_team_run_test(text,text,text,text,text,text,bigint,text,text),public.zasp_red_team_list_runs(text,text,text,timestamptz,text,integer),public.zasp_red_team_get_run(text,text,text,text),public.zasp_red_team_cancel_run(text,text,text,text,text,text,bigint,text),public.zasp_red_team_claim_outbox(text,bytea,integer,integer),public.zasp_red_team_heartbeat_outbox(text,text,text,text,text,bytea,integer),public.zasp_red_team_ack_outbox(text,text,text,text,text,bytea,text),public.zasp_red_team_retry_outbox(text,text,text,text,text,bytea,timestamptz),public.zasp_red_team_claim_run(text,text,text,text,text,bytea,integer),public.zasp_red_team_heartbeat_run(text,text,text,text,text,bytea,integer),public.zasp_red_team_finish_run(text,text,text,text,text,bytea,bytea,text,text,text,text,jsonb,text,text,text,bytea,bigint),public.zasp_red_team_retry_run(text,text,text,text,text,bytea,bytea,text,timestamptz),public.zasp_red_team_cancel_claimed_run(text,text,text,text,text,bytea,bytea) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_api,zasp_red_team_worker,zasp_red_team_outbox_worker;
+REVOKE ALL ON FUNCTION public.zasp_red_team_register_principals(text,text,text,text),public.zasp_red_team_principal_ready(text),public.zasp_red_team_principals_ready(),public.zasp_red_team_definition_valid(text,text,text,jsonb,jsonb),public.zasp_red_team_target_binding_valid(jsonb,text),public.zasp_red_team_target_valid(text,text,text,text,text),public.zasp_red_team_resolve_target(text,text,text,text,text),public.zasp_red_team_definition_json(public.zasp_red_team_definitions),public.zasp_red_team_run_json(public.zasp_red_team_runs),public.zasp_red_team_mutation_result(text,text,text,text,text,text,text,text,jsonb),public.zasp_red_team_list_definitions(text,text,text,text,integer),public.zasp_red_team_get_definition(text,text,text,text),public.zasp_red_team_create_definition(text,text,text,text,text,text,text,text,text,jsonb,jsonb,text),public.zasp_red_team_update_definition(text,text,text,text,text,text,bigint,text,text,text,jsonb,jsonb,boolean,text),public.zasp_red_team_run_test(text,text,text,text,text,text,bigint,text,text),public.zasp_red_team_list_runs(text,text,text,timestamptz,text,integer),public.zasp_red_team_get_run(text,text,text,text),public.zasp_red_team_cancel_run(text,text,text,text,text,text,bigint,text),public.zasp_red_team_claim_outbox(text,bytea,integer,integer),public.zasp_red_team_heartbeat_outbox(text,text,text,text,text,bytea,integer),public.zasp_red_team_ack_outbox(text,text,text,text,text,bytea,text),public.zasp_red_team_retry_outbox(text,text,text,text,text,bytea,timestamptz),public.zasp_red_team_claim_run(text,text,text,text,text,bytea,integer),public.zasp_red_team_heartbeat_run(text,text,text,text,text,bytea,integer),public.zasp_red_team_finish_run(text,text,text,text,text,bytea,bytea,text,text,text,text,jsonb,text,text,text,bytea,bigint),public.zasp_red_team_retry_run(text,text,text,text,text,bytea,bytea,text,timestamptz),public.zasp_red_team_cancel_claimed_run(text,text,text,text,text,bytea,bytea) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_api,zasp_red_team_worker,zasp_red_team_outbox_worker,zasp_red_team_adapter;
 GRANT EXECUTE ON FUNCTION public.zasp_red_team_list_definitions(text,text,text,text,integer),public.zasp_red_team_get_definition(text,text,text,text),public.zasp_red_team_create_definition(text,text,text,text,text,text,text,text,text,jsonb,jsonb,text),public.zasp_red_team_update_definition(text,text,text,text,text,text,bigint,text,text,text,jsonb,jsonb,boolean,text),public.zasp_red_team_run_test(text,text,text,text,text,text,bigint,text,text),public.zasp_red_team_list_runs(text,text,text,timestamptz,text,integer),public.zasp_red_team_get_run(text,text,text,text),public.zasp_red_team_cancel_run(text,text,text,text,text,text,bigint,text) TO zasp_security_agent_api;
 GRANT EXECUTE ON FUNCTION public.zasp_red_team_principal_ready(text),public.zasp_red_team_claim_outbox(text,bytea,integer,integer),public.zasp_red_team_heartbeat_outbox(text,text,text,text,text,bytea,integer),public.zasp_red_team_ack_outbox(text,text,text,text,text,bytea,text),public.zasp_red_team_retry_outbox(text,text,text,text,text,bytea,timestamptz) TO zasp_red_team_outbox_worker;
 GRANT EXECUTE ON FUNCTION public.zasp_red_team_principal_ready(text),public.zasp_red_team_claim_run(text,text,text,text,text,bytea,integer),public.zasp_red_team_heartbeat_run(text,text,text,text,text,bytea,integer),public.zasp_red_team_finish_run(text,text,text,text,text,bytea,bytea,text,text,text,text,jsonb,text,text,text,bytea,bigint),public.zasp_red_team_retry_run(text,text,text,text,text,bytea,bytea,text,timestamptz),public.zasp_red_team_cancel_claimed_run(text,text,text,text,text,bytea,bytea) TO zasp_red_team_worker;
+GRANT EXECUTE ON FUNCTION public.zasp_red_team_principal_ready(text),public.zasp_red_team_resolve_target(text,text,text,text,text) TO zasp_red_team_adapter;
 
 CREATE OR REPLACE FUNCTION public.zasp_security_agent_session_isolation_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $readiness$
  SELECT length(expected_checksum)=64 AND expected_checksum~'^[a-f0-9]{64}$' AND length(expected_fingerprint)=64 AND expected_fingerprint~'^[a-f0-9]{64}$' AND EXISTS(SELECT 1 FROM zasp_schema_versions WHERE version=24 AND name='security_agent_session_isolation' AND checksum=expected_checksum) AND EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_core_schema' AND value IN('security-agent-session-isolation-v1','red-team-execution-v1')) AND NOT EXISTS(SELECT 1 FROM zasp_schema_versions WHERE version>25) AND zasp_security_agent_session_isolation_security_ready() AND zasp_security_agent_session_isolation_live_fingerprint()=expected_fingerprint
@@ -359,21 +387,23 @@ CREATE FUNCTION public.zasp_red_team_execution_security_ready() RETURNS boolean 
  SELECT zasp_security_agent_session_isolation_security_ready()
  AND EXISTS(SELECT 1 FROM pg_roles WHERE rolname='zasp_red_team_worker' AND NOT rolsuper AND NOT rolinherit AND NOT rolcanlogin AND NOT rolcreaterole AND NOT rolcreatedb AND NOT rolreplication AND NOT rolbypassrls)
  AND EXISTS(SELECT 1 FROM pg_roles WHERE rolname='zasp_red_team_outbox_worker' AND NOT rolsuper AND NOT rolinherit AND NOT rolcanlogin AND NOT rolcreaterole AND NOT rolcreatedb AND NOT rolreplication AND NOT rolbypassrls)
- AND (SELECT count(*) FROM pg_auth_members membership JOIN pg_roles granted ON granted.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE granted.rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker') AND member.rolname='zasp_discovery_authority' AND membership.admin_option)=2
- AND NOT EXISTS(SELECT 1 FROM pg_auth_members membership JOIN pg_roles granted ON granted.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE (granted.rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker') OR member.rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker')) AND NOT (granted.rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker') AND member.rolname='zasp_discovery_authority' AND membership.admin_option) AND NOT EXISTS(SELECT 1 FROM zasp_red_team_principal_bindings binding WHERE binding.principal_name=member.rolname AND binding.authority_role=granted.rolname))
+ AND EXISTS(SELECT 1 FROM pg_roles WHERE rolname='zasp_red_team_adapter' AND NOT rolsuper AND NOT rolinherit AND NOT rolcanlogin AND NOT rolcreaterole AND NOT rolcreatedb AND NOT rolreplication AND NOT rolbypassrls)
+ AND (SELECT count(*) FROM pg_auth_members membership JOIN pg_roles granted ON granted.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE granted.rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker','zasp_red_team_adapter') AND member.rolname='zasp_discovery_authority' AND membership.admin_option)=3
+ AND NOT EXISTS(SELECT 1 FROM pg_auth_members membership JOIN pg_roles granted ON granted.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE (granted.rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker','zasp_red_team_adapter') OR member.rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker','zasp_red_team_adapter')) AND NOT (granted.rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker','zasp_red_team_adapter') AND member.rolname='zasp_discovery_authority' AND membership.admin_option) AND NOT EXISTS(SELECT 1 FROM zasp_red_team_principal_bindings binding WHERE binding.principal_name=member.rolname AND binding.authority_role=granted.rolname))
  AND has_function_privilege('zasp_security_agent_api','public.zasp_red_team_run_test(text,text,text,text,text,text,bigint,text,text)','EXECUTE')
  AND has_function_privilege('zasp_security_agent_api','public.zasp_red_team_cancel_run(text,text,text,text,text,text,bigint,text)','EXECUTE')
  AND has_function_privilege('zasp_red_team_worker','public.zasp_red_team_claim_run(text,text,text,text,text,bytea,integer)','EXECUTE')
  AND has_function_privilege('zasp_red_team_worker','public.zasp_red_team_cancel_claimed_run(text,text,text,text,text,bytea,bytea)','EXECUTE')
  AND has_function_privilege('zasp_red_team_outbox_worker','public.zasp_red_team_claim_outbox(text,bytea,integer,integer)','EXECUTE')
- AND NOT has_table_privilege('zasp_security_agent_api','public.zasp_red_team_runs','SELECT') AND NOT has_table_privilege('zasp_security_agent_api','public.zasp_red_team_audit','SELECT') AND NOT has_table_privilege('zasp_red_team_worker','public.zasp_red_team_runs','SELECT')
+ AND has_function_privilege('zasp_red_team_adapter','public.zasp_red_team_resolve_target(text,text,text,text,text)','EXECUTE')
+ AND NOT has_table_privilege('zasp_security_agent_api','public.zasp_red_team_runs','SELECT') AND NOT has_table_privilege('zasp_security_agent_api','public.zasp_red_team_audit','SELECT') AND NOT has_table_privilege('zasp_red_team_worker','public.zasp_red_team_runs','SELECT') AND NOT has_table_privilege('zasp_red_team_adapter','public.zasp_inventory_entities','SELECT')
  AND zasp_effective_scope_permissions('[]'::jsonb,'organization_admin') ? 'run_tests' AND zasp_effective_scope_permissions('[]'::jsonb,'security_engineer') ? 'run_tests' AND zasp_effective_scope_permissions('[]'::jsonb,'developer_owner') ? 'run_tests' AND NOT zasp_effective_scope_permissions('[]'::jsonb,'read_only_viewer') ? 'run_tests'
 $security$;
 CREATE FUNCTION public.zasp_red_team_execution_live_fingerprint() RETURNS text LANGUAGE sql STABLE SET search_path TO pg_catalog, public AS $fingerprint$
  WITH identities(value) AS (
   SELECT concat_ws('|','prior',zasp_security_agent_session_isolation_live_fingerprint())
-  UNION ALL SELECT concat_ws('|','role',rolname,rolsuper,rolinherit,rolcreaterole,rolcreatedb,rolcanlogin,rolreplication,rolbypassrls) FROM pg_roles WHERE rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker')
-  UNION ALL SELECT concat_ws('|','membership',granted.rolname,member.rolname,membership.admin_option) FROM pg_auth_members membership JOIN pg_roles granted ON granted.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE granted.rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker') AND member.rolname='zasp_discovery_authority'
+  UNION ALL SELECT concat_ws('|','role',rolname,rolsuper,rolinherit,rolcreaterole,rolcreatedb,rolcanlogin,rolreplication,rolbypassrls) FROM pg_roles WHERE rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker','zasp_red_team_adapter')
+  UNION ALL SELECT concat_ws('|','membership',granted.rolname,member.rolname,membership.admin_option) FROM pg_auth_members membership JOIN pg_roles granted ON granted.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE granted.rolname IN('zasp_red_team_worker','zasp_red_team_outbox_worker','zasp_red_team_adapter') AND member.rolname='zasp_discovery_authority'
   UNION ALL SELECT concat_ws('|','table',class.relname,owner.rolname,class.relrowsecurity,class.relforcerowsecurity,COALESCE(class.relacl::text,'')) FROM pg_class class JOIN pg_namespace namespace ON namespace.oid=class.relnamespace JOIN pg_roles owner ON owner.oid=class.relowner WHERE namespace.nspname='public' AND class.relname LIKE 'zasp_red_team_%' AND class.relkind IN('r','i')
   UNION ALL SELECT concat_ws('|','column',class.relname,attribute.attname,attribute.atttypid::regtype::text,attribute.attnotnull,COALESCE(pg_get_expr(default_value.adbin,default_value.adrelid),'')) FROM pg_attribute attribute JOIN pg_class class ON class.oid=attribute.attrelid JOIN pg_namespace namespace ON namespace.oid=class.relnamespace LEFT JOIN pg_attrdef default_value ON default_value.adrelid=attribute.attrelid AND default_value.adnum=attribute.attnum WHERE namespace.nspname='public' AND class.relname LIKE 'zasp_red_team_%' AND attribute.attnum>0 AND NOT attribute.attisdropped
   UNION ALL SELECT concat_ws('|','constraint',class.relname,constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value JOIN pg_class class ON class.oid=constraint_value.conrelid WHERE class.relname LIKE 'zasp_red_team_%'
@@ -384,12 +414,17 @@ $fingerprint$;
 CREATE FUNCTION public.zasp_red_team_execution_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $readiness$
  SELECT length(expected_checksum)=64 AND expected_checksum~'^[a-f0-9]{64}$' AND length(expected_fingerprint)=64 AND expected_fingerprint~'^[a-f0-9]{64}$' AND EXISTS(SELECT 1 FROM zasp_schema_versions WHERE version=25 AND name='red_team_execution' AND checksum=expected_checksum) AND EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_core_schema' AND value='red-team-execution-v1') AND NOT EXISTS(SELECT 1 FROM zasp_schema_versions WHERE version>25) AND zasp_red_team_execution_security_ready() AND zasp_red_team_execution_live_fingerprint()=expected_fingerprint
 $readiness$;
+CREATE FUNCTION public.zasp_red_team_target_adapter_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $adapter_readiness$
+ SELECT zasp_red_team_execution_readiness(expected_checksum,expected_fingerprint) AND zasp_red_team_principal_ready('zasp_red_team_adapter')
+$adapter_readiness$;
 ALTER FUNCTION public.zasp_security_agent_session_isolation_readiness(text,text) OWNER TO zasp_discovery_authority;
 ALTER FUNCTION public.zasp_red_team_execution_security_ready() OWNER TO zasp_discovery_authority;
 ALTER FUNCTION public.zasp_red_team_execution_live_fingerprint() OWNER TO zasp_discovery_authority;
 ALTER FUNCTION public.zasp_red_team_execution_readiness(text,text) OWNER TO zasp_discovery_authority;
-REVOKE ALL ON FUNCTION public.zasp_red_team_execution_security_ready(),public.zasp_red_team_execution_live_fingerprint(),public.zasp_red_team_execution_readiness(text,text) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_api,zasp_red_team_worker,zasp_red_team_outbox_worker;
+ALTER FUNCTION public.zasp_red_team_target_adapter_readiness(text,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION public.zasp_red_team_execution_security_ready(),public.zasp_red_team_execution_live_fingerprint(),public.zasp_red_team_execution_readiness(text,text),public.zasp_red_team_target_adapter_readiness(text,text) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_api,zasp_red_team_worker,zasp_red_team_outbox_worker,zasp_red_team_adapter;
 GRANT EXECUTE ON FUNCTION public.zasp_red_team_execution_readiness(text,text) TO zasp_discovery_api,zasp_security_agent_api,zasp_red_team_worker,zasp_red_team_outbox_worker;
+GRANT EXECUTE ON FUNCTION public.zasp_red_team_target_adapter_readiness(text,text) TO zasp_red_team_adapter;
 
 DO $product_release_evolution$
 DECLARE definition text;original_definition text;
@@ -400,4 +435,4 @@ END
 $product_release_evolution$;
 
 UPDATE public.zasp_schema_metadata SET value='red-team-execution-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='security-agent-session-isolation-v1';
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('red_team_execution_fingerprint', '5ea5baa56052effe4d177427a7f06d16b0dcfec354c9fb821e27d51145c58068') ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('red_team_execution_fingerprint', '5f3a61dcc185dd6667a6e02551338549632338bfc7e21602fdd521e75fd90c48') ON CONFLICT(key) DO UPDATE SET value=excluded.value;

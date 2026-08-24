@@ -1,9 +1,10 @@
 DO $rollback_guard$
 BEGIN
- IF NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='red-team-execution-v1') OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>25) OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='red_team_execution_fingerprint' AND value='5ea5baa56052effe4d177427a7f06d16b0dcfec354c9fb821e27d51145c58068') OR NOT public.zasp_red_team_execution_security_ready() OR public.zasp_red_team_execution_live_fingerprint()<>'5ea5baa56052effe4d177427a7f06d16b0dcfec354c9fb821e27d51145c58068' OR EXISTS(SELECT 1 FROM public.zasp_red_team_definitions) OR EXISTS(SELECT 1 FROM public.zasp_red_team_runs) OR EXISTS(SELECT 1 FROM public.zasp_red_team_outbox) OR EXISTS(SELECT 1 FROM public.zasp_red_team_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_red_team_audit) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='red team execution rollback rejected';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='red-team-execution-v1') OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>25) OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='red_team_execution_fingerprint' AND value='5f3a61dcc185dd6667a6e02551338549632338bfc7e21602fdd521e75fd90c48') OR NOT public.zasp_red_team_execution_security_ready() OR public.zasp_red_team_execution_live_fingerprint()<>'5f3a61dcc185dd6667a6e02551338549632338bfc7e21602fdd521e75fd90c48' OR EXISTS(SELECT 1 FROM public.zasp_red_team_definitions) OR EXISTS(SELECT 1 FROM public.zasp_red_team_runs) OR EXISTS(SELECT 1 FROM public.zasp_red_team_outbox) OR EXISTS(SELECT 1 FROM public.zasp_red_team_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_red_team_audit) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='red team execution rollback rejected';END IF;
 END
 $rollback_guard$;
 
+DROP FUNCTION public.zasp_red_team_target_adapter_readiness(text,text);
 DROP FUNCTION public.zasp_red_team_execution_readiness(text,text);
 DROP FUNCTION public.zasp_red_team_execution_live_fingerprint();
 DROP FUNCTION public.zasp_red_team_execution_security_ready();
@@ -27,20 +28,22 @@ DROP FUNCTION public.zasp_red_team_list_definitions(text,text,text,text,integer)
 DROP FUNCTION public.zasp_red_team_run_json(public.zasp_red_team_runs);
 DROP FUNCTION public.zasp_red_team_definition_json(public.zasp_red_team_definitions);
 DROP FUNCTION public.zasp_red_team_mutation_result(text,text,text,text,text,text,text,text,jsonb);
+DROP FUNCTION public.zasp_red_team_resolve_target(text,text,text,text,text);
 DROP FUNCTION public.zasp_red_team_target_valid(text,text,text,text,text);
+DROP FUNCTION public.zasp_red_team_target_binding_valid(jsonb,text);
 DROP FUNCTION public.zasp_red_team_definition_valid(text,text,text,jsonb,jsonb);
 DROP FUNCTION public.zasp_red_team_principals_ready();
 DROP FUNCTION public.zasp_red_team_principal_ready(text);
 DO $principal_cleanup$
 DECLARE binding record;
 BEGIN
- EXECUTE 'REVOKE zasp_red_team_worker,zasp_red_team_outbox_worker FROM zasp_discovery_authority CASCADE';
+ EXECUTE 'REVOKE zasp_red_team_worker,zasp_red_team_outbox_worker,zasp_red_team_adapter FROM zasp_discovery_authority CASCADE';
  FOR binding IN SELECT principal_name,authority_role FROM public.zasp_red_team_principal_bindings LOOP
    EXECUTE format('REVOKE %I FROM %I',binding.authority_role,binding.principal_name);
  END LOOP;
 END
 $principal_cleanup$;
-DROP FUNCTION public.zasp_red_team_register_principals(text,text,text);
+DROP FUNCTION public.zasp_red_team_register_principals(text,text,text,text);
 DROP TABLE public.zasp_red_team_audit;
 DROP TABLE public.zasp_red_team_request_receipts;
 DROP TABLE public.zasp_red_team_outbox;
