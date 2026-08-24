@@ -152,6 +152,16 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
 	}
+	if repository.schema == RedTeamExecutionSchemaVersion {
+		redTeamHandler, redTeamErr := NewRedTeamPublicHTTPHandler(repository, cookie.WorkflowSigningKey)
+		if redTeamErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		workflowSurface, redTeamErr = NewRedTeamWorkflowSurface(workflowSurface, redTeamHandler)
+		if redTeamErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+	}
 	inventorySurface := http.Handler(&coreHTTPHandler{repository: repository, boundary: inventoryDependency})
 	if isTypedInventorySchema(repository.schema) {
 		inventoryRepository, inventoryErr := NewPostgresInventoryRepository(repository.database)
@@ -1080,12 +1090,12 @@ func (handler *identityHTTPHandler) providerLiveVerified(ctx context.Context) bo
 }
 
 func serverOwnedRoles() []map[string]any {
-	admin := []string{"investigate_sessions", "manage_api_tokens", "manage_data_controls", "manage_findings", "manage_identity", "manage_workflows", "revoke_sessions", "view", "view_audit", "view_compliance"}
+	admin := []string{"investigate_sessions", "manage_api_tokens", "manage_data_controls", "manage_findings", "manage_identity", "manage_workflows", "revoke_sessions", "run_tests", "view", "view_audit", "view_compliance"}
 	return []map[string]any{
 		{"role": "organization_admin", "permissions": admin},
 		{"role": "security_admin", "permissions": admin},
-		{"role": "security_engineer", "permissions": []string{"investigate_sessions", "manage_findings", "manage_workflows", "view"}},
-		{"role": "developer_owner", "permissions": []string{"investigate_sessions", "view"}},
+		{"role": "security_engineer", "permissions": []string{"investigate_sessions", "manage_findings", "manage_workflows", "run_tests", "view"}},
+		{"role": "developer_owner", "permissions": []string{"investigate_sessions", "run_tests", "view"}},
 		{"role": "compliance_viewer", "permissions": []string{"view", "view_audit", "view_compliance"}},
 		{"role": "read_only_viewer", "permissions": []string{"view"}},
 	}

@@ -17,6 +17,7 @@ const (
 	postgresSecurityAgentTemporaryPolicyReadySQL     = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
 	postgresSecurityAgentConnectorRevocationReadySQL = `SELECT jsonb_build_object('release',zasp_security_agent_connector_revocation_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
 	postgresSecurityAgentSessionIsolationReadySQL    = `SELECT jsonb_build_object('release',zasp_security_agent_session_isolation_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
+	postgresRedTeamExecutionSecurityAgentReadySQL    = `SELECT jsonb_build_object('release',zasp_red_team_execution_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
 	postgresSecurityAgentExecutionControlsSQL        = `SELECT zasp_security_agent_execution_control_detail($1,$2,$3)`
 	postgresSecurityAgentSetExecutionControlSQL      = `SELECT zasp_security_agent_mutate_execution_control($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 	postgresSecurityAgentDefinitionPageSQL           = `SELECT zasp_security_agent_definition_page($1,$2,$3,NULLIF($4,''),$5)`
@@ -49,7 +50,7 @@ const (
 )
 
 func (repository *PostgresRepository) GetSecurityAgentExecutionControls(ctx context.Context, identity RequestIdentity) (SecurityAgentExecutionControls, error) {
-	if repository == nil || !stringIn(repository.schema, SecurityAgentControlsSchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion, SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentSessionIsolationSchemaVersion) || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession {
+	if repository == nil || !stringIn(repository.schema, SecurityAgentControlsSchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion, SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentSessionIsolationSchemaVersion, RedTeamExecutionSchemaVersion) || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession {
 		return SecurityAgentExecutionControls{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentExecutionControlsSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String())
@@ -64,8 +65,8 @@ func (repository *PostgresRepository) GetSecurityAgentExecutionControls(ctx cont
 }
 
 func (repository *PostgresRepository) SetSecurityAgentExecutionControl(ctx context.Context, identity RequestIdentity, input SecurityAgentExecutionControlMutation) (SecurityAgentExecutionControlResult, error) {
-	validTarget := input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, "create_temporary_policy", "update_finding_response") || repository != nil && stringIn(repository.schema, SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentSessionIsolationSchemaVersion) && input.Target == "action" && input.ActionKey == "revoke_integration_connection" || repository != nil && repository.schema == SecurityAgentSessionIsolationSchemaVersion && input.Target == "action" && input.ActionKey == "isolate_session"
-	if repository == nil || !stringIn(repository.schema, SecurityAgentControlsSchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion, SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentSessionIsolationSchemaVersion) || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || identity.FreshAuthExpiresAt.Location() != time.UTC || input.FreshAuthExpiresAt != identity.FreshAuthExpiresAt || !validTarget || !validPublicIdempotency(input.IdempotencyKey) || input.ExpectedVersion < 0 || input.ExpectedVersion > 1000000 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || input.AuditID == input.CorrelationID || input.AuditID == input.ReceiptID || input.CorrelationID == input.ReceiptID {
+	validTarget := input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, "create_temporary_policy", "update_finding_response") || repository != nil && stringIn(repository.schema, SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentSessionIsolationSchemaVersion, RedTeamExecutionSchemaVersion) && input.Target == "action" && input.ActionKey == "revoke_integration_connection" || repository != nil && isSecurityAgentSessionIsolationSchema(repository.schema) && input.Target == "action" && input.ActionKey == "isolate_session"
+	if repository == nil || !stringIn(repository.schema, SecurityAgentControlsSchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion, SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentSessionIsolationSchemaVersion, RedTeamExecutionSchemaVersion) || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || identity.FreshAuthExpiresAt.Location() != time.UTC || input.FreshAuthExpiresAt != identity.FreshAuthExpiresAt || !validTarget || !validPublicIdempotency(input.IdempotencyKey) || input.ExpectedVersion < 0 || input.ExpectedVersion > 1000000 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || input.AuditID == input.CorrelationID || input.AuditID == input.ReceiptID || input.CorrelationID == input.ReceiptID {
 		return SecurityAgentExecutionControlResult{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentSetExecutionControlSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IdempotencyKey, input.Target, input.ActionKey, input.Enabled, input.ExpectedVersion, input.FreshAuthExpiresAt, input.AuditID, input.CorrelationID, input.ReceiptID)
@@ -85,7 +86,7 @@ func NewSecurityAgentPostgresRepository(database JSONDatabase) (*PostgresReposit
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	for _, schema := range []string{SecurityAgentSessionIsolationSchemaVersion, SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentControlsSchemaVersion, IdentityAdministrationSchemaVersion, SecurityAgentExecutionSchemaVersion} {
+	for _, schema := range []string{RedTeamExecutionSchemaVersion, SecurityAgentSessionIsolationSchemaVersion, SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentControlsSchemaVersion, IdentityAdministrationSchemaVersion, SecurityAgentExecutionSchemaVersion} {
 		repository := &PostgresRepository{database: database, schema: schema, securityAgentExecution: true}
 		if repository.readySecurityAgentAuthority(ctx) == nil {
 			return repository, nil
@@ -95,11 +96,11 @@ func NewSecurityAgentPostgresRepository(database JSONDatabase) (*PostgresReposit
 }
 
 func (repository *PostgresRepository) SecurityAgentConnectorRevocationAvailable() bool {
-	return repository != nil && stringIn(repository.schema, SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentSessionIsolationSchemaVersion) && repository.securityAgentExecution
+	return repository != nil && stringIn(repository.schema, SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentSessionIsolationSchemaVersion, RedTeamExecutionSchemaVersion) && repository.securityAgentExecution
 }
 
 func (repository *PostgresRepository) SecurityAgentSessionIsolationAvailable() bool {
-	return repository != nil && repository.schema == SecurityAgentSessionIsolationSchemaVersion && repository.securityAgentExecution
+	return repository != nil && isSecurityAgentSessionIsolationSchema(repository.schema) && repository.securityAgentExecution
 }
 
 func (repository *PostgresRepository) GetSecurityAgentActivation(ctx context.Context, identity RequestIdentity, definitionID string) (SecurityAgentActivationState, error) {
@@ -187,12 +188,12 @@ func (repository *PostgresRepository) ActivateSecurityAgent(ctx context.Context,
 }
 
 func (repository *PostgresRepository) RunSecurityAgent(ctx context.Context, identity RequestIdentity, input SecurityAgentRunRequest) (SecurityAgentRunResult, error) {
-	validTrigger := input.TriggerKind == "finding" || repository != nil && repository.schema == SecurityAgentSessionIsolationSchemaVersion && input.TriggerKind == "session"
+	validTrigger := input.TriggerKind == "finding" || repository != nil && isSecurityAgentSessionIsolationSchema(repository.schema) && input.TriggerKind == "session"
 	if repository == nil || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken)) || !validProductID(input.DefinitionID) || !validPublicIdempotency(input.IdempotencyKey) || input.ExpectedVersion < 1 || input.ExpectedVersion > 1000000 || !validProductID(input.RunID) || !validTrigger || !validProductID(input.TriggerID) || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) {
 		return SecurityAgentRunResult{}, ErrRepositoryOperation
 	}
 	statement := postgresSecurityAgentRunSQL
-	if repository.schema == SecurityAgentSessionIsolationSchemaVersion {
+	if isSecurityAgentSessionIsolationSchema(repository.schema) {
 		statement = postgresSecurityAgentRunV24SQL
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.DefinitionID, identity.PrincipalID.String(), input.IdempotencyKey, input.ExpectedVersion, input.RunID, input.TriggerKind, input.TriggerID, input.AuditID, input.CorrelationID, input.ReceiptID)
@@ -246,7 +247,7 @@ func (repository *PostgresRepository) GetSecurityAgentRun(ctx context.Context, i
 		return SecurityAgentRunDetail{}, ErrRepositoryOperation
 	}
 	statement := postgresSecurityAgentRunDetailSQL
-	if repository.schema == SecurityAgentSessionIsolationSchemaVersion {
+	if isSecurityAgentSessionIsolationSchema(repository.schema) {
 		statement = postgresSecurityAgentRunDetailV24SQL
 	} else if repository.schema == SecurityAgentConnectorRevocationSchemaVersion {
 		statement = postgresSecurityAgentRunDetailV23SQL
@@ -293,7 +294,7 @@ func (repository *PostgresRepository) ListSecurityAgentApprovals(ctx context.Con
 		before = input.BeforeCreatedAt
 	}
 	statement := postgresSecurityAgentApprovalPageSQL
-	if repository.schema == SecurityAgentSessionIsolationSchemaVersion {
+	if isSecurityAgentSessionIsolationSchema(repository.schema) {
 		statement = postgresSecurityAgentApprovalPageV24SQL
 	} else if repository.schema == SecurityAgentConnectorRevocationSchemaVersion {
 		statement = postgresSecurityAgentApprovalPageV23SQL
@@ -332,7 +333,7 @@ func (repository *PostgresRepository) GetSecurityAgentApproval(ctx context.Conte
 		return SecurityAgentApproval{}, ErrRepositoryOperation
 	}
 	statement := postgresSecurityAgentApprovalDetailSQL
-	if repository.schema == SecurityAgentSessionIsolationSchemaVersion {
+	if isSecurityAgentSessionIsolationSchema(repository.schema) {
 		statement = postgresSecurityAgentApprovalDetailV24SQL
 	} else if repository.schema == SecurityAgentConnectorRevocationSchemaVersion {
 		statement = postgresSecurityAgentApprovalDetailV23SQL
@@ -408,7 +409,7 @@ func (repository *PostgresRepository) DecideSecurityAgentApproval(ctx context.Co
 		return SecurityAgentApprovalResult{}, ErrRepositoryOperation
 	}
 	statement := postgresSecurityAgentDecideApprovalSQL
-	if repository.schema == SecurityAgentSessionIsolationSchemaVersion {
+	if isSecurityAgentSessionIsolationSchema(repository.schema) {
 		statement = postgresSecurityAgentDecideApprovalV24SQL
 	} else if repository.schema == SecurityAgentConnectorRevocationSchemaVersion {
 		statement = postgresSecurityAgentDecideApprovalV23SQL
@@ -433,7 +434,11 @@ func (repository *PostgresRepository) readySecurityAgentAuthority(ctx context.Co
 	statement := postgresSecurityAgentAuthorityReadySQL
 	metadata := migrations.ProductionSecurityAgentExecution()
 	fingerprint := migrations.ProductionSecurityAgentExecutionSemanticFingerprint()
-	if repository.schema == SecurityAgentSessionIsolationSchemaVersion {
+	if repository.schema == RedTeamExecutionSchemaVersion {
+		statement = postgresRedTeamExecutionSecurityAgentReadySQL
+		metadata = migrations.ProductionRedTeamExecution()
+		fingerprint = migrations.ProductionRedTeamExecutionSemanticFingerprint()
+	} else if repository.schema == SecurityAgentSessionIsolationSchemaVersion {
 		statement = postgresSecurityAgentSessionIsolationReadySQL
 		metadata = migrations.ProductionSecurityAgentSessionIsolation()
 		fingerprint = migrations.ProductionSecurityAgentSessionIsolationSemanticFingerprint()

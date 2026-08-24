@@ -27,6 +27,7 @@ const SecurityAgentAutonomousSchemaVersion = "security-agent-autonomous-v1"
 const SecurityAgentTemporaryPolicySchemaVersion = "security-agent-temporary-policy-v1"
 const SecurityAgentConnectorRevocationSchemaVersion = "security-agent-connector-revocation-v1"
 const SecurityAgentSessionIsolationSchemaVersion = "security-agent-session-isolation-v1"
+const RedTeamExecutionSchemaVersion = "red-team-execution-v1"
 
 const postgresRuntimeDataPlaneReadinessSQL = `SELECT to_jsonb(zasp_runtime_data_plane_readiness($1,$2))`
 const postgresRuntimeGatewayReconciliationReadinessSQL = `SELECT to_jsonb(zasp_runtime_gateway_reconciliation_readiness($1,$2))`
@@ -38,6 +39,7 @@ const postgresSecurityAgentAutonomousReadinessSQL = `SELECT to_jsonb(zasp_securi
 const postgresSecurityAgentTemporaryPolicyReadinessSQL = `SELECT to_jsonb(zasp_security_agent_temporary_policy_readiness($1,$2))`
 const postgresSecurityAgentConnectorRevocationReadinessSQL = `SELECT to_jsonb(zasp_security_agent_connector_revocation_readiness($1,$2))`
 const postgresSecurityAgentSessionIsolationReadinessSQL = `SELECT to_jsonb(zasp_security_agent_session_isolation_readiness($1,$2))`
+const postgresRedTeamExecutionReadinessSQL = `SELECT to_jsonb(zasp_red_team_execution_readiness($1,$2))`
 
 const (
 	postgresAuthenticateSessionSQL    = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', session.authenticated_at + interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
@@ -130,7 +132,11 @@ func isRuntimeDataPlaneSchema(version string) bool {
 }
 
 func isIdentityAdministrationSchema(version string) bool {
-	return version == IdentityAdministrationSchemaVersion || version == SecurityAgentControlsSchemaVersion || version == SecurityAgentAutonomousSchemaVersion || version == SecurityAgentTemporaryPolicySchemaVersion || version == SecurityAgentConnectorRevocationSchemaVersion || version == SecurityAgentSessionIsolationSchemaVersion
+	return version == IdentityAdministrationSchemaVersion || version == SecurityAgentControlsSchemaVersion || version == SecurityAgentAutonomousSchemaVersion || version == SecurityAgentTemporaryPolicySchemaVersion || version == SecurityAgentConnectorRevocationSchemaVersion || isSecurityAgentSessionIsolationSchema(version)
+}
+
+func isSecurityAgentSessionIsolationSchema(version string) bool {
+	return version == SecurityAgentSessionIsolationSchemaVersion || version == RedTeamExecutionSchemaVersion
 }
 
 func exactProductReadiness(version string) (string, string, string, bool) {
@@ -159,6 +165,8 @@ func exactProductReadiness(version string) (string, string, string, bool) {
 		return postgresSecurityAgentConnectorRevocationReadinessSQL, migrations.ProductionSecurityAgentConnectorRevocation().Checksum(), migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint(), true
 	case SecurityAgentSessionIsolationSchemaVersion:
 		return postgresSecurityAgentSessionIsolationReadinessSQL, migrations.ProductionSecurityAgentSessionIsolation().Checksum(), migrations.ProductionSecurityAgentSessionIsolationSemanticFingerprint(), true
+	case RedTeamExecutionSchemaVersion:
+		return postgresRedTeamExecutionReadinessSQL, migrations.ProductionRedTeamExecution().Checksum(), migrations.ProductionRedTeamExecutionSemanticFingerprint(), true
 	default:
 		return "", "", "", false
 	}

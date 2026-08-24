@@ -37,6 +37,8 @@ const (
 	securityAgentAPIPrincipalEnvironment    = "ZASP_SECURITY_AGENT_API_DB_PRINCIPAL"
 	securityAgentWorkerPrincipalEnvironment = "ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL"
 	securityAgentActionPrincipalEnvironment = "ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL"
+	redTeamWorkerPrincipalEnvironment       = "ZASP_RED_TEAM_WORKER_DB_PRINCIPAL"
+	redTeamOutboxPrincipalEnvironment       = "ZASP_RED_TEAM_OUTBOX_DB_PRINCIPAL"
 )
 
 var errInvalidMigrationCommand = errors.New("invalid release migration command")
@@ -47,6 +49,7 @@ type discoveryPrincipalRegistration struct {
 	migration, api, discovery, ingest, runtime, outbox, gateway, scheduler, projectionRisk, projectionGraph, projectionSearch string
 	runtimeCoordinator, runtimeArchive, runtimeIndex, runtimeCorrelation, runtimeProjection, gatewayControl                   string
 	securityAgentAPI, securityAgentWorker, securityAgentAction                                                                string
+	redTeamWorker, redTeamOutbox                                                                                              string
 }
 
 type principalQueryer interface {
@@ -98,6 +101,8 @@ type releaseMigrationRunner interface {
 	DownProductionSecurityAgentConnectorRevocation(context.Context) error
 	UpProductionSecurityAgentSessionIsolation(context.Context) error
 	DownProductionSecurityAgentSessionIsolation(context.Context) error
+	UpProductionRedTeamExecution(context.Context) error
+	DownProductionRedTeamExecution(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -159,7 +164,9 @@ func registerReleasePrincipals(ctx context.Context, queryer principalQueryer, re
 		{`SELECT zasp_security_agent_register_principals($1,$2,$3)`, []any{registration.migration, registration.securityAgentAPI, registration.securityAgentWorker}},
 		{statement: `SELECT zasp_security_agent_principals_ready()`},
 		{`SELECT zasp_security_agent_register_action_principal($1,$2)`, []any{registration.migration, registration.securityAgentAction}},
-		{`SELECT zasp_security_agent_session_isolation_readiness($1,$2)`, []any{migrations.ProductionSecurityAgentSessionIsolation().Checksum(), migrations.ProductionSecurityAgentSessionIsolationSemanticFingerprint()}},
+		{`SELECT zasp_red_team_register_principals($1,$2,$3)`, []any{registration.migration, registration.redTeamWorker, registration.redTeamOutbox}},
+		{statement: `SELECT zasp_red_team_principals_ready()`},
+		{`SELECT zasp_red_team_execution_readiness($1,$2)`, []any{migrations.ProductionRedTeamExecution().Checksum(), migrations.ProductionRedTeamExecutionSemanticFingerprint()}},
 	}
 	for _, check := range checks {
 		ready = false
@@ -186,8 +193,9 @@ func loadDiscoveryPrincipalRegistration(getenv func(string) string) (discoveryPr
 		runtimeProjection: getenv(runtimeProjectionPrincipalEnvironment), gatewayControl: getenv(gatewayControlPrincipalEnvironment),
 		securityAgentAPI: getenv(securityAgentAPIPrincipalEnvironment), securityAgentWorker: getenv(securityAgentWorkerPrincipalEnvironment),
 		securityAgentAction: getenv(securityAgentActionPrincipalEnvironment),
+		redTeamWorker:       getenv(redTeamWorkerPrincipalEnvironment), redTeamOutbox: getenv(redTeamOutboxPrincipalEnvironment),
 	}
-	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway, registration.scheduler, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch, registration.runtimeCoordinator, registration.runtimeArchive, registration.runtimeIndex, registration.runtimeCorrelation, registration.runtimeProjection, registration.gatewayControl, registration.securityAgentAPI, registration.securityAgentWorker, registration.securityAgentAction}
+	values := []string{registration.migration, registration.api, registration.discovery, registration.ingest, registration.runtime, registration.outbox, registration.gateway, registration.scheduler, registration.projectionRisk, registration.projectionGraph, registration.projectionSearch, registration.runtimeCoordinator, registration.runtimeArchive, registration.runtimeIndex, registration.runtimeCorrelation, registration.runtimeProjection, registration.gatewayControl, registration.securityAgentAPI, registration.securityAgentWorker, registration.securityAgentAction, registration.redTeamWorker, registration.redTeamOutbox}
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		if !databasePrincipalPattern.MatchString(value) {
@@ -369,10 +377,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 24
 		}
-		if version != 24 {
+		if version == 24 {
+			if err := runner.UpProductionRedTeamExecution(ctx); err != nil {
+				return err
+			}
+			version = 25
+		}
+		if version != 25 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 25 {
+			if err := runner.DownProductionRedTeamExecution(ctx); err != nil {
+				return err
+			}
+			version = 24
+		}
 		if version == 24 {
 			if err := runner.DownProductionSecurityAgentSessionIsolation(ctx); err != nil {
 				return err

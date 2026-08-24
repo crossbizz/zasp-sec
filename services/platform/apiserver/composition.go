@@ -165,6 +165,14 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/security-agent-approvals", "listSecurityAgentApprovals", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agent-approvals/{id}", "getSecurityAgentApproval", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agent-approvals/{id}/decision", "decideSecurityAgentApproval", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/tests", "listTests", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/tests", "createTest", "run_tests", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/tests/{id}", "getTest", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"PATCH", "/api/v1/tests/{id}", "updateTest", "run_tests", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/tests/{id}/runs", "runTest", "run_tests", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/test-runs", "listTestRuns", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/test-runs/{id}", "getTestRun", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/test-runs/{id}/cancel", "cancelTestRun", "run_tests", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 })
 
 func withBrowserExpectedScope(operations []coreOperation) []coreOperation {

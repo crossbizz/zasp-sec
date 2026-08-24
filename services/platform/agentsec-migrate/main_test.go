@@ -432,6 +432,24 @@ func (runner *scriptedMigrationRunner) DownProductionSecurityAgentSessionIsolati
 	return nil
 }
 
+func (runner *scriptedMigrationRunner) UpProductionRedTeamExecution(context.Context) error {
+	runner.events = append(runner.events, "up-production-red-team-execution")
+	if runner.errAt == "up-production-red-team-execution" {
+		return errors.New("detail")
+	}
+	runner.version = 25
+	return nil
+}
+
+func (runner *scriptedMigrationRunner) DownProductionRedTeamExecution(context.Context) error {
+	runner.events = append(runner.events, "down-production-red-team-execution")
+	if runner.errAt == "down-production-red-team-execution" {
+		return errors.New("detail")
+	}
+	runner.version = 24
+	return nil
+}
+
 func TestAgentsecMigrateReachesV21FromV17AndDowngradesFirst(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 17}
 	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "version"}) {
@@ -752,6 +770,47 @@ func TestAgentsecMigrateV18LiveFingerprintMatchesPinnedAuthority(t *testing.T) {
 	}
 }
 
+func TestAgentsecMigrateV25LiveFingerprintMatchesPinnedAuthority(t *testing.T) {
+	dsn := startMigrationPostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	connection := connectMigrationPostgres(t, ctx, dsn)
+	defer func() { _ = connection.Close(context.Background()) }()
+	runner, err := migrations.NewRunner(&migrationDatabase{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steps := []func(context.Context) error{
+		runner.Up, runner.UpCore, runner.UpWorkflows, runner.UpWorkflowReceipts, runner.UpWorkflowReceiptSafety, runner.UpWorkflowReceiptProvenance,
+		runner.UpProductionAdministration, runner.UpAPITokenRevealGrants, runner.UpProductionRiskProjection, runner.UpProductionDiscovery,
+		runner.UpConnectorAuthorization, runner.UpReferenceAuthorization, runner.UpProductionDiscoveryExecution, runner.UpProductionTypedInventoryCutover,
+		runner.UpProductionRuntimeDataPlane, runner.UpProductionRuntimeGatewayReconciliation, runner.UpProductionRuntimeIngestReconciliation,
+		runner.UpProductionSecurityAgentExecution, runner.UpProductionIdentityAdministration, runner.UpProductionSecurityAgentControls,
+		runner.UpProductionSecurityAgentAutonomousResponse, runner.UpProductionSecurityAgentTemporaryPolicy, runner.UpProductionSecurityAgentConnectorRevocation,
+		runner.UpProductionSecurityAgentSessionIsolation,
+	}
+	for index, step := range steps {
+		if err := step(ctx); err != nil {
+			t.Fatalf("v24 setup step %d: %v", index+1, err)
+		}
+	}
+	transaction, err := connection.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = transaction.Rollback(context.Background()) }()
+	if _, err := transaction.Exec(ctx, migrations.ProductionRedTeamExecution().UpSQL()); err != nil {
+		t.Fatalf("v25 SQL: %v", err)
+	}
+	var live string
+	if err := transaction.QueryRow(ctx, `SELECT zasp_red_team_execution_live_fingerprint()`).Scan(&live); err != nil {
+		t.Fatal(err)
+	}
+	if live != migrations.ProductionRedTeamExecutionSemanticFingerprint() {
+		t.Fatalf("v25 live fingerprint = %s, pinned = %s", live, migrations.ProductionRedTeamExecutionSemanticFingerprint())
+	}
+}
+
 func TestAgentsecMigrateV18RunnerInstallsFromV17(t *testing.T) {
 	dsn := startMigrationPostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
@@ -905,9 +964,11 @@ func TestLoadDiscoveryPrincipalRegistrationRequiresDistinctSafeNames(t *testing.
 		securityAgentAPIPrincipalEnvironment:    "zasp_test_security_agent_api_login",
 		securityAgentWorkerPrincipalEnvironment: "zasp_test_security_agent_worker_login",
 		securityAgentActionPrincipalEnvironment: "zasp_test_security_agent_action_login",
+		redTeamWorkerPrincipalEnvironment:       "zasp_test_red_team_worker_login",
+		redTeamOutboxPrincipalEnvironment:       "zasp_test_red_team_outbox_login",
 	}
 	registration, err := loadDiscoveryPrincipalRegistration(func(key string) string { return values[key] })
-	if err != nil || registration.migration != values[migrationPrincipalEnvironment] || registration.api != values[discoveryAPIPrincipalEnvironment] || registration.gateway != values[runtimeGatewayPrincipalEnvironment] || registration.scheduler != values[discoverySchedulerPrincipalEnvironment] || registration.projectionRisk != values[projectionRiskPrincipalEnvironment] || registration.projectionGraph != values[projectionGraphPrincipalEnvironment] || registration.projectionSearch != values[projectionSearchPrincipalEnvironment] || registration.securityAgentAPI != values[securityAgentAPIPrincipalEnvironment] || registration.securityAgentWorker != values[securityAgentWorkerPrincipalEnvironment] || registration.securityAgentAction != values[securityAgentActionPrincipalEnvironment] {
+	if err != nil || registration.migration != values[migrationPrincipalEnvironment] || registration.api != values[discoveryAPIPrincipalEnvironment] || registration.gateway != values[runtimeGatewayPrincipalEnvironment] || registration.scheduler != values[discoverySchedulerPrincipalEnvironment] || registration.projectionRisk != values[projectionRiskPrincipalEnvironment] || registration.projectionGraph != values[projectionGraphPrincipalEnvironment] || registration.projectionSearch != values[projectionSearchPrincipalEnvironment] || registration.securityAgentAPI != values[securityAgentAPIPrincipalEnvironment] || registration.securityAgentWorker != values[securityAgentWorkerPrincipalEnvironment] || registration.securityAgentAction != values[securityAgentActionPrincipalEnvironment] || registration.redTeamWorker != values[redTeamWorkerPrincipalEnvironment] || registration.redTeamOutbox != values[redTeamOutboxPrincipalEnvironment] {
 		t.Fatalf("registration=%#v err=%v", registration, err)
 	}
 	delete(values, runtimeWorkerPrincipalEnvironment)
@@ -949,15 +1010,15 @@ func (queryer *scriptedPrincipalQueryer) QueryRow(_ context.Context, statement s
 }
 
 func TestRegisterReleasePrincipalsRequiresPostRegistrationRuntimeReadiness(t *testing.T) {
-	registration := discoveryPrincipalRegistration{migration: "migration_login", api: "api_login", discovery: "discovery_login", ingest: "ingest_login", runtime: "runtime_login", outbox: "outbox_login", gateway: "gateway_login", scheduler: "scheduler_login", projectionRisk: "risk_login", projectionGraph: "graph_login", projectionSearch: "search_login", runtimeCoordinator: "runtime_coordinator_login", runtimeArchive: "runtime_archive_login", runtimeIndex: "runtime_index_login", runtimeCorrelation: "runtime_correlation_login", runtimeProjection: "runtime_projection_login", gatewayControl: "gateway_control_login", securityAgentAPI: "security_agent_api_login", securityAgentWorker: "security_agent_worker_login", securityAgentAction: "security_agent_action_login"}
-	queryer := &scriptedPrincipalQueryer{values: []bool{true, true, true, true, true, true, true, true, false}}
+	registration := discoveryPrincipalRegistration{migration: "migration_login", api: "api_login", discovery: "discovery_login", ingest: "ingest_login", runtime: "runtime_login", outbox: "outbox_login", gateway: "gateway_login", scheduler: "scheduler_login", projectionRisk: "risk_login", projectionGraph: "graph_login", projectionSearch: "search_login", runtimeCoordinator: "runtime_coordinator_login", runtimeArchive: "runtime_archive_login", runtimeIndex: "runtime_index_login", runtimeCorrelation: "runtime_correlation_login", runtimeProjection: "runtime_projection_login", gatewayControl: "gateway_control_login", securityAgentAPI: "security_agent_api_login", securityAgentWorker: "security_agent_worker_login", securityAgentAction: "security_agent_action_login", redTeamWorker: "red_team_worker_login", redTeamOutbox: "red_team_outbox_login"}
+	queryer := &scriptedPrincipalQueryer{values: []bool{true, true, true, true, true, true, true, true, true, true, false}}
 	if err := registerReleasePrincipals(context.Background(), queryer, registration); !errors.Is(err, errReleasePrincipalRegistration) {
 		t.Fatalf("readiness error=%v", err)
 	}
-	if len(queryer.statements) != 9 || !strings.Contains(queryer.statements[5], "zasp_security_agent_register_principals") || !strings.Contains(queryer.statements[6], "zasp_security_agent_principals_ready") || !strings.Contains(queryer.statements[7], "zasp_security_agent_register_action_principal") || !strings.Contains(queryer.statements[8], "zasp_security_agent_session_isolation_readiness") {
+	if len(queryer.statements) != 11 || !strings.Contains(queryer.statements[5], "zasp_security_agent_register_principals") || !strings.Contains(queryer.statements[6], "zasp_security_agent_principals_ready") || !strings.Contains(queryer.statements[7], "zasp_security_agent_register_action_principal") || !strings.Contains(queryer.statements[8], "zasp_red_team_register_principals") || !strings.Contains(queryer.statements[9], "zasp_red_team_principals_ready") || !strings.Contains(queryer.statements[10], "zasp_red_team_execution_readiness") {
 		t.Fatalf("registration statements=%#v", queryer.statements)
 	}
-	queryer = &scriptedPrincipalQueryer{values: []bool{true, true, true, true, true, true, true, true, true}}
+	queryer = &scriptedPrincipalQueryer{values: []bool{true, true, true, true, true, true, true, true, true, true, true}}
 	if err := registerReleasePrincipals(context.Background(), queryer, registration); err != nil {
 		t.Fatalf("ready registration error=%v", err)
 	}
@@ -973,7 +1034,7 @@ func TestAgentsecMigrateCLIReachesV15FromEmptyAndV12(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	principalNames := []string{"zasp_cli_api_login", "zasp_cli_discovery_login", "zasp_cli_ingest_login", "zasp_cli_runtime_login", "zasp_cli_outbox_login", "zasp_cli_gateway_login", "zasp_cli_scheduler_login", "zasp_cli_projection_risk_login", "zasp_cli_projection_graph_login", "zasp_cli_projection_search_login", "zasp_cli_runtime_coordinator_login", "zasp_cli_runtime_archive_login", "zasp_cli_runtime_index_login", "zasp_cli_runtime_correlation_login", "zasp_cli_runtime_projection_login", "zasp_cli_gateway_control_login", "zasp_cli_security_agent_api_login", "zasp_cli_security_agent_worker_login", "zasp_cli_security_agent_action_login"}
+	principalNames := []string{"zasp_cli_api_login", "zasp_cli_discovery_login", "zasp_cli_ingest_login", "zasp_cli_runtime_login", "zasp_cli_outbox_login", "zasp_cli_gateway_login", "zasp_cli_scheduler_login", "zasp_cli_projection_risk_login", "zasp_cli_projection_graph_login", "zasp_cli_projection_search_login", "zasp_cli_runtime_coordinator_login", "zasp_cli_runtime_archive_login", "zasp_cli_runtime_index_login", "zasp_cli_runtime_correlation_login", "zasp_cli_runtime_projection_login", "zasp_cli_gateway_control_login", "zasp_cli_security_agent_api_login", "zasp_cli_security_agent_worker_login", "zasp_cli_security_agent_action_login", "zasp_cli_red_team_worker_login", "zasp_cli_red_team_outbox_login"}
 	for _, principal := range principalNames {
 		if _, err := connection.Exec(ctx, fmt.Sprintf(`CREATE ROLE %s LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`, principal)); err != nil {
 			t.Fatal(err)
@@ -991,15 +1052,26 @@ func TestAgentsecMigrateCLIReachesV15FromEmptyAndV12(t *testing.T) {
 		"ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL=" + principalNames[14], "ZASP_GATEWAY_CONTROL_DB_PRINCIPAL=" + principalNames[15],
 		"ZASP_SECURITY_AGENT_API_DB_PRINCIPAL=" + principalNames[16], "ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL=" + principalNames[17],
 		"ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL=" + principalNames[18],
+		"ZASP_RED_TEAM_WORKER_DB_PRINCIPAL=" + principalNames[19], "ZASP_RED_TEAM_OUTBOX_DB_PRINCIPAL=" + principalNames[20],
 	}
 	runCLI := func(label string) {
 		t.Helper()
 		command := exec.CommandContext(ctx, "go", "run", ".", "up")
 		command.Env = append(os.Environ(), append([]string{"ZASP_POSTGRES_DSN=" + dsn, "ZASP_MIGRATION_TIMEOUT=30s"}, principalEnvironment...)...)
 		if output, commandErr := command.CombinedOutput(); commandErr != nil {
-			t.Fatalf("%s: %v output=%q", label, commandErr, output)
+			var bindings int
+			var principalsReady, securityReady, releaseReady bool
+			var liveFingerprint string
+			var registerReady bool
+			registerErr := connection.QueryRow(ctx, `SELECT zasp_red_team_register_principals($1,$2,$3)`, "zasp_test", principalNames[19], principalNames[20]).Scan(&registerReady)
+			_ = connection.QueryRow(ctx, `SELECT count(*) FROM zasp_red_team_principal_bindings`).Scan(&bindings)
+			_ = connection.QueryRow(ctx, `SELECT zasp_red_team_principals_ready()`).Scan(&principalsReady)
+			_ = connection.QueryRow(ctx, `SELECT zasp_red_team_execution_security_ready()`).Scan(&securityReady)
+			_ = connection.QueryRow(ctx, `SELECT zasp_red_team_execution_live_fingerprint()`).Scan(&liveFingerprint)
+			_ = connection.QueryRow(ctx, `SELECT zasp_red_team_execution_readiness($1,$2)`, migrations.ProductionRedTeamExecution().Checksum(), migrations.ProductionRedTeamExecutionSemanticFingerprint()).Scan(&releaseReady)
+			t.Fatalf("%s: %v output=%q red_team=(register=%t register_err=%v bindings=%d principals=%t security=%t live=%s expected=%s release=%t)", label, commandErr, output, registerReady, registerErr, bindings, principalsReady, securityReady, liveFingerprint, migrations.ProductionRedTeamExecutionSemanticFingerprint(), releaseReady)
 		}
-		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 24 {
+		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 25 {
 			t.Fatalf("%s version = (%d, %v)", label, version, versionErr)
 		}
 		var bindings int
@@ -1018,10 +1090,14 @@ func TestAgentsecMigrateCLIReachesV15FromEmptyAndV12(t *testing.T) {
 		if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_security_agent_action_principal_bindings`).Scan(&securityAgentActionBindings); err != nil || securityAgentActionBindings != 1 {
 			t.Fatalf("%s security agent action principal bindings=%d err=%v", label, securityAgentActionBindings, err)
 		}
+		var redTeamBindings int
+		if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_red_team_principal_bindings`).Scan(&redTeamBindings); err != nil || redTeamBindings != 2 {
+			t.Fatalf("%s red team principal bindings=%d err=%v", label, redTeamBindings, err)
+		}
 	}
-	runCLI("empty to v24")
+	runCLI("empty to v25")
 	var runtimeReleaseReady bool
-	if err := connection.QueryRow(ctx, `SELECT zasp_security_agent_session_isolation_readiness($1,$2)`, migrations.ProductionSecurityAgentSessionIsolation().Checksum(), migrations.ProductionSecurityAgentSessionIsolationSemanticFingerprint()).Scan(&runtimeReleaseReady); err != nil || !runtimeReleaseReady {
+	if err := connection.QueryRow(ctx, `SELECT zasp_red_team_execution_readiness($1,$2)`, migrations.ProductionRedTeamExecution().Checksum(), migrations.ProductionRedTeamExecutionSemanticFingerprint()).Scan(&runtimeReleaseReady); err != nil || !runtimeReleaseReady {
 		var securityReady, referenceReady bool
 		var memberships string
 		_ = connection.QueryRow(ctx, `SELECT zasp_execution_security_ready(),zasp_reference_authorization_security_ready(),COALESCE(string_agg(role_name||':'||member_name||':'||admin_option,',' ORDER BY role_name,member_name),'') FROM (SELECT role.rolname role_name,member.rolname member_name,membership.admin_option::text FROM pg_auth_members membership JOIN pg_roles role ON role.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE role.rolname IN('zasp_discovery_scheduler','zasp_projection_risk_worker','zasp_projection_graph_worker','zasp_projection_search_worker')) memberships`).Scan(&securityReady, &referenceReady, &memberships)
@@ -1080,6 +1156,124 @@ func TestAgentsecMigrateCLIReachesV15FromEmptyAndV12(t *testing.T) {
 		t.Fatalf("execution API privileges read=%v worker=%v legacy_sync=%v raw_subject=%v legacy_reference=%v err=%v", apiRead, apiWorker, legacySync, rawSubject, legacyReference, err)
 	}
 	apiConnection.Close(context.Background())
+	organizationID := "pid_7a000001-0000-4000-8000-000000000001"
+	workspaceID := "pid_7a000002-0000-4000-8000-000000000002"
+	environmentID := "pid_7a000003-0000-4000-8000-000000000003"
+	targetID := "pid_7a000004-0000-4000-8000-000000000004"
+	definitionID := "pid_7a000005-0000-4000-8000-000000000005"
+	runID := "pid_7a000006-0000-4000-8000-000000000006"
+	actorID := "pid_7a000007-0000-4000-8000-000000000007"
+	correlationID := "pid_7a000008-0000-4000-8000-000000000008"
+	for _, statement := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO zasp_organizations(id,name,domain) VALUES($1,'Red team tenant','red-team.invalid')`, []any{organizationID}},
+		{`INSERT INTO zasp_workspaces(id,organization_id,name) VALUES($1,$2,'Security')`, []any{workspaceID, organizationID}},
+		{`INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES($1,$2,$3,'Staging','staging')`, []any{environmentID, organizationID, workspaceID}},
+		{`INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,state,first_seen_at,last_seen_at,product_kind,observed_at,fresh_until) VALUES($1,$2,$3,$4,'agent_endpoint','Staging agent','active',transaction_timestamp(),transaction_timestamp(),'agent',transaction_timestamp(),transaction_timestamp()+interval '1 hour')`, []any{organizationID, workspaceID, environmentID, targetID}},
+	} {
+		if _, err := connection.Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("red team seed: %v", err)
+		}
+	}
+	redTeamAPI := connectAs(principalNames[16])
+	var definitionJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_create_definition($1,$2,$3,$4,'red-team-create-0001',$5,'Staging prompt safety',$6,'agent_endpoint','["prompt_injection"]'::jsonb,'{"environment":"staging","credential_class":"read_only","expected_side_effects":["audit event"]}'::jsonb,$7)`, organizationID, workspaceID, environmentID, actorID, definitionID, targetID, correlationID).Scan(&definitionJSON); err != nil || !bytes.Contains(definitionJSON, []byte(`"version": 1`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team create=%s err=%v", definitionJSON, err)
+	}
+	var runJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_run_test($1,$2,$3,$4,'red-team-run-000001',$5,1,$6,$7)`, organizationID, workspaceID, environmentID, actorID, definitionID, runID, correlationID).Scan(&runJSON); err != nil || !bytes.Contains(runJSON, []byte(`"status": "queued"`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team run=%s err=%v", runJSON, err)
+	}
+	redTeamOutbox := connectAs(principalNames[20])
+	outboxToken := bytes.Repeat([]byte{0x25}, 32)
+	var outboxJSON []byte
+	if err := redTeamOutbox.QueryRow(ctx, `SELECT zasp_red_team_claim_outbox($1,$2,60,10)`, "pid_7a000009-0000-4000-8000-000000000009", outboxToken).Scan(&outboxJSON); err != nil {
+		redTeamOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team outbox claim: %v", err)
+	}
+	var outboxItems []struct {
+		OrganizationID string `json:"organization_id"`
+		WorkspaceID    string `json:"workspace_id"`
+		EnvironmentID  string `json:"environment_id"`
+		OutboxID       string `json:"outbox_id"`
+	}
+	if err := json.Unmarshal(outboxJSON, &outboxItems); err != nil || len(outboxItems) != 1 || outboxItems[0].OrganizationID != organizationID {
+		redTeamOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team outbox=%s err=%v", outboxJSON, err)
+	}
+	var acknowledged bool
+	if err := redTeamOutbox.QueryRow(ctx, `SELECT zasp_red_team_ack_outbox($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, outboxItems[0].OutboxID, "pid_7a000009-0000-4000-8000-000000000009", outboxToken, "sha256:"+strings.Repeat("a", 64)).Scan(&acknowledged); err != nil || !acknowledged {
+		redTeamOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team outbox ack=%t err=%v", acknowledged, err)
+	}
+	redTeamOutbox.Close(context.Background())
+	redTeamWorker := connectAs(principalNames[19])
+	runToken := bytes.Repeat([]byte{0x26}, 32)
+	var claimedJSON []byte
+	if err := redTeamWorker.QueryRow(ctx, `SELECT zasp_red_team_claim_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, runID, "pid_7a000010-0000-4000-8000-000000000010", runToken).Scan(&claimedJSON); err != nil || !bytes.Contains(claimedJSON, []byte(`"disposition": "claimed"`)) {
+		redTeamWorker.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team claim=%s err=%v", claimedJSON, err)
+	}
+	var inputDigest []byte
+	if err := connection.QueryRow(ctx, `SELECT input_digest FROM zasp_red_team_runs WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND run_id=$4`, organizationID, workspaceID, environmentID, runID).Scan(&inputDigest); err != nil {
+		t.Fatal(err)
+	}
+	evidenceKey := "organizations/" + organizationID + "/workspaces/" + workspaceID + "/environments/" + environmentID + "/red-team/runs/" + runID + "/attempt-1.json"
+	var completedJSON []byte
+	if err := redTeamWorker.QueryRow(ctx, `SELECT zasp_red_team_finish_run($1,$2,$3,$4,$5,$6,$7,'pass','Reject direct prompt injection','The target preserved its system boundary',NULL,'[]'::jsonb,$8,$9,'s3-version-red-team-0001',$10,128)`, organizationID, workspaceID, environmentID, runID, "pid_7a000010-0000-4000-8000-000000000010", runToken, inputDigest, "s3://zasp-red-team-evidence/"+evidenceKey, evidenceKey, bytes.Repeat([]byte{0x27}, 32)).Scan(&completedJSON); err != nil || !bytes.Contains(completedJSON, []byte(`"status": "complete"`)) {
+		redTeamWorker.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team finish=%s err=%v", completedJSON, err)
+	}
+	redTeamWorker.Close(context.Background())
+	var detailJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_get_run($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, runID).Scan(&detailJSON); err != nil || !bytes.Contains(detailJSON, []byte(`"evidence_reference": "s3://zasp-red-team-evidence/`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team detail=%s err=%v", detailJSON, err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_get_run($1,$2,$3,$4)`, "pid_7affffff-0000-4000-8000-000000000001", workspaceID, environmentID, runID).Scan(&detailJSON); err == nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal("cross-tenant red team run was visible")
+	}
+	cancelRunID := "pid_7a000011-0000-4000-8000-000000000011"
+	var cancelQueuedJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_run_test($1,$2,$3,$4,'red-team-run-cancel-0001',$5,1,$6,$7)`, organizationID, workspaceID, environmentID, actorID, definitionID, cancelRunID, correlationID).Scan(&cancelQueuedJSON); err != nil || !bytes.Contains(cancelQueuedJSON, []byte(`"version": 1`)) || !bytes.Contains(cancelQueuedJSON, []byte(`"audit_id"`)) || !bytes.Contains(cancelQueuedJSON, []byte(`"receipt_id"`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team cancel fixture queue=%s err=%v", cancelQueuedJSON, err)
+	}
+	var cancelJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_cancel_run($1,$2,$3,$4,'red-team-cancel-0001',$5,1,$6)`, organizationID, workspaceID, environmentID, actorID, cancelRunID, correlationID).Scan(&cancelJSON); err != nil || !bytes.Contains(cancelJSON, []byte(`"status": "cancelled"`)) || !bytes.Contains(cancelJSON, []byte(`"version": 2`)) || !bytes.Contains(cancelJSON, []byte(`"replayed": false`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team cancel=%s err=%v", cancelJSON, err)
+	}
+	var cancelReplayJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_cancel_run($1,$2,$3,$4,'red-team-cancel-0001',$5,1,'pid_7a000012-0000-4000-8000-000000000012')`, organizationID, workspaceID, environmentID, actorID, cancelRunID).Scan(&cancelReplayJSON); err != nil || !bytes.Contains(cancelReplayJSON, []byte(`"replayed": true`)) || !bytes.Contains(cancelReplayJSON, []byte(`"correlation_id": "`+correlationID+`"`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team cancel replay=%s err=%v", cancelReplayJSON, err)
+	}
+	var auditCount int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_red_team_audit WHERE organization_id=$1`, organizationID).Scan(&auditCount); err != nil || auditCount != 4 {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team audit count=%d err=%v", auditCount, err)
+	}
+	redTeamAPI.Close(context.Background())
+	if _, err := connection.Exec(ctx, `DELETE FROM zasp_red_team_audit;DELETE FROM zasp_red_team_request_receipts;DELETE FROM zasp_red_team_outbox;DELETE FROM zasp_red_team_attempts;DELETE FROM zasp_red_team_runs;DELETE FROM zasp_red_team_definitions`); err != nil {
+		t.Fatalf("red team cleanup: %v", err)
+	}
+	if err := runner.DownProductionRedTeamExecution(ctx); err != nil {
+		_, detail := connection.Exec(ctx, migrations.ProductionRedTeamExecution().DownSQL())
+		var postgresError *pgconn.PgError
+		_ = errors.As(detail, &postgresError)
+		t.Fatalf("v25 to v24 fixture: %v detail=%#v", err, postgresError)
+	}
 	if err := runner.DownProductionSecurityAgentSessionIsolation(ctx); err != nil {
 		t.Fatalf("v24 to v23 fixture: %v", err)
 	}

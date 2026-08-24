@@ -2288,6 +2288,159 @@ paths:
         '200': { description: Product service version., content: { application/json: { schema: { $ref: '#/components/schemas/SystemVersion' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/tests:
+    get:
+      operationId: listTests
+      summary: List tenant-scoped red team definitions
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - { name: cursor, in: query, required: false, schema: { type: string, minLength: 2, maxLength: 512, pattern: '^[A-Za-z0-9_-]+$' } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200': { description: Stable definition page., content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinitionPage' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: createTest
+      summary: Create a bounded tenant-scoped red team definition
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinitionInput' } } } }
+      responses:
+        '201':
+          description: Durable definition.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinition' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/tests/{id}:
+    parameters: [ { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } } ]
+    get:
+      operationId: getTest
+      summary: Get one tenant-scoped red team definition
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      responses:
+        '200': { description: Red team definition., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinition' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    patch:
+      operationId: updateTest
+      summary: Update one version-fenced red team definition
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinitionUpdateInput' } } } }
+      responses:
+        '200': { description: Updated definition., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/TestDefinition' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/tests/{id}/runs:
+    parameters: [ { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } } ]
+    post:
+      operationId: runTest
+      summary: Queue one durable red team run
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TestRunInput' } } } }
+      responses:
+        '202': { description: Durable queued test run., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/TestRun' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/test-runs:
+    get:
+      operationId: listTestRuns
+      summary: List tenant-scoped red team runs
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - { name: cursor, in: query, required: false, schema: { type: string, minLength: 2, maxLength: 1024, pattern: '^[A-Za-z0-9_-]+$' } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200': { description: Stable red team run page., content: { application/json: { schema: { $ref: '#/components/schemas/TestRunPage' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/test-runs/{id}:
+    parameters: [ { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } } ]
+    get:
+      operationId: getTestRun
+      summary: Get one redacted red team run and its immutable evidence attempts
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      responses:
+        '200': { description: Redacted red team run detail., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/TestRunDetail' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/test-runs/{id}/cancel:
+    parameters: [ { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } } ]
+    post:
+      operationId: cancelTestRun
+      summary: Request cancellation of one nonterminal red team run
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      responses:
+        '200': { description: Cancelled or cancellation-requested run., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/TestRun' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
 security:
   - BrowserSession: []
     BrowserExpectedScope: []
@@ -4257,9 +4410,6 @@ components:
     FindingStatus:
       type: string
       enum: [open, under_review, resolved, accepted]
-    RedTeamID:
-      type: string
-      pattern: '^(test|run)-[a-z0-9][a-z0-9-]{0,126}$'
     SafetyMetadata:
       type: object
       additionalProperties: false
@@ -4270,56 +4420,127 @@ components:
         expected_side_effects:
           type: array
           minItems: 1
-          maxItems: 32
+          maxItems: 16
           uniqueItems: true
           items: { type: string, minLength: 1, maxLength: 256 }
     TestDefinition:
       type: object
       additionalProperties: false
-      required: [id, name, target_id, categories, safety]
+      required: [id, version, name, target_id, target_kind, categories, safety, enabled, created_at, updated_at]
       properties:
-        id: { $ref: '#/components/schemas/RedTeamID' }
-        name: { type: string, minLength: 1, maxLength: 256 }
-        target_id: { type: string, minLength: 1, maxLength: 128 }
+        id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 1, maximum: 1000000 }
+        name: { type: string, minLength: 1, maxLength: 128 }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        target_kind: { type: string, enum: [agent_endpoint, mcp_server, coding_agent] }
         categories:
           type: array
           minItems: 1
-          maxItems: 32
+          maxItems: 16
           uniqueItems: true
-          items: { type: string, minLength: 1, maxLength: 64 }
+          items: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information] }
         safety: { $ref: '#/components/schemas/SafetyMetadata' }
+        enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    TestDefinitionInput:
+      type: object
+      additionalProperties: false
+      required: [id, name, target_id, target_kind, categories, safety]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        name: { type: string, minLength: 1, maxLength: 128 }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        target_kind: { type: string, enum: [agent_endpoint, mcp_server, coding_agent] }
+        categories: { type: array, minItems: 1, maxItems: 16, uniqueItems: true, items: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information] } }
+        safety: { $ref: '#/components/schemas/SafetyMetadata' }
+    TestDefinitionUpdateInput:
+      type: object
+      additionalProperties: false
+      required: [name, target_id, target_kind, categories, safety, enabled]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 128 }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        target_kind: { type: string, enum: [agent_endpoint, mcp_server, coding_agent] }
+        categories: { type: array, minItems: 1, maxItems: 16, uniqueItems: true, items: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information] } }
+        safety: { $ref: '#/components/schemas/SafetyMetadata' }
+        enabled: { type: boolean }
     TestDefinitionPage:
       type: object
       additionalProperties: false
       required: [items]
       properties:
-        items: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/TestDefinition' } }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/TestDefinition' } }
+        next_cursor: { type: string, minLength: 2, maxLength: 512, pattern: '^[A-Za-z0-9_-]+$' }
     TestRunInput:
       type: object
       additionalProperties: false
       required: [run_id]
       properties:
-        run_id: { $ref: '#/components/schemas/RedTeamID' }
+        run_id: { $ref: '#/components/schemas/ProductID' }
     TestRun:
       type: object
       additionalProperties: false
-      required: [id, definition_id, status]
+      required: [id, version, definition_id, definition_version, status, attempt, cancel_requested, queued_at]
       properties:
-        id: { $ref: '#/components/schemas/RedTeamID' }
-        definition_id: { $ref: '#/components/schemas/RedTeamID' }
-        status: { type: string, enum: [queued, running, complete, failed, cancelled] }
+        id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 1, maximum: 1000000 }
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+        status: { type: string, enum: [queued, leased, retryable, complete, failed, cancelled] }
+        attempt: { type: integer, minimum: 0, maximum: 5 }
+        cancel_requested: { type: boolean }
+        queued_at: { type: string, format: date-time }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        verdict: { type: string, enum: [pass, fail, engine_error] }
+        error_code: { type: string, enum: [retryable, rate_limited, denied, malformed, outcome_unknown, cancelled, exhausted] }
+        evidence_reference: { type: string, minLength: 1, maxLength: 1024 }
+    TestAttempt:
+      type: object
+      additionalProperties: false
+      required: [attempt, verdict, objective, behavior, evidence, evidence_reference, completed_at]
+      properties:
+        attempt: { type: integer, minimum: 1, maximum: 5 }
+        verdict: { type: string, enum: [pass, fail, engine_error] }
+        objective: { type: string, minLength: 1, maxLength: 512 }
+        behavior: { type: string, minLength: 1, maxLength: 2048 }
+        error_code: { type: string, minLength: 1, maxLength: 64 }
+        evidence: { type: array, maxItems: 64, items: { type: string, minLength: 1, maxLength: 512 } }
+        evidence_reference: { type: string, minLength: 1, maxLength: 1024 }
+        completed_at: { type: string, format: date-time }
+    TestRunDetail:
+      type: object
+      additionalProperties: false
+      required: [id, version, definition_id, definition_version, status, attempt, cancel_requested, queued_at, attempts]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 1, maximum: 1000000 }
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+        status: { type: string, enum: [queued, leased, retryable, complete, failed, cancelled] }
+        attempt: { type: integer, minimum: 0, maximum: 5 }
+        cancel_requested: { type: boolean }
+        queued_at: { type: string, format: date-time }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        verdict: { type: string, enum: [pass, fail, engine_error] }
+        error_code: { type: string, enum: [retryable, rate_limited, denied, malformed, outcome_unknown, cancelled, exhausted] }
+        evidence_reference: { type: string, minLength: 1, maxLength: 1024 }
+        attempts: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/TestAttempt' } }
     TestRunPage:
       type: object
       additionalProperties: false
       required: [items]
       properties:
-        items: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/TestRun' } }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/TestRun' } }
+        next_cursor: { type: string, minLength: 2, maxLength: 1024, pattern: '^[A-Za-z0-9_-]+$' }
     AttackLabRun:
       type: object
       additionalProperties: false
       required: [id, environment, credential_class, destination, status, verdict]
       properties:
-        id: { $ref: '#/components/schemas/RedTeamID' }
+        id: { $ref: '#/components/schemas/ProductID' }
         environment: { type: string, enum: [development, test, staging] }
         credential_class: { type: string, enum: [read_only, test_write] }
         destination: { type: string, minLength: 1, maxLength: 256 }

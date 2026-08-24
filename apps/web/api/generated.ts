@@ -1680,6 +1680,118 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/test-runs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List tenant-scoped red team runs */
+        readonly get: operations["listTestRuns"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/test-runs/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one redacted red team run and its immutable evidence attempts */
+        readonly get: operations["getTestRun"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/test-runs/{id}/cancel": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Request cancellation of one nonterminal red team run */
+        readonly post: operations["cancelTestRun"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/tests": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List tenant-scoped red team definitions */
+        readonly get: operations["listTests"];
+        readonly put?: never;
+        /** Create a bounded tenant-scoped red team definition */
+        readonly post: operations["createTest"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/tests/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one tenant-scoped red team definition */
+        readonly get: operations["getTest"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        /** Update one version-fenced red team definition */
+        readonly patch: operations["updateTest"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/tests/{id}/runs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Queue one durable red team run */
+        readonly post: operations["runTest"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/tools": {
         readonly parameters: {
             readonly query?: never;
@@ -1894,7 +2006,7 @@ export type components = {
             readonly destination: string;
             /** @enum {string} */
             readonly environment: "development" | "test" | "staging";
-            readonly id: components["schemas"]["RedTeamID"];
+            readonly id: components["schemas"]["ProductID"];
             /** @enum {string} */
             readonly status: "queued" | "running" | "complete" | "failed" | "cancelled";
             /** @enum {string} */
@@ -2585,7 +2697,6 @@ export type components = {
             readonly resource_version: number;
             readonly result: components["schemas"]["IntegrationSchedule"];
         };
-        readonly RedTeamID: string;
         readonly ReferenceAuthorizationReceiptIntent: components["schemas"]["AWSReferenceAuthorizationReceiptIntent"] | components["schemas"]["KubernetesReferenceAuthorizationReceiptIntent"];
         readonly ReferenceAuthorizationReceiptScope: {
             readonly environment_id: components["schemas"]["ProductID"];
@@ -3132,27 +3243,104 @@ export type components = {
         readonly SystemVersion: {
             readonly version: string;
         };
+        readonly TestAttempt: {
+            readonly attempt: number;
+            readonly behavior: string;
+            /** Format: date-time */
+            readonly completed_at: string;
+            readonly error_code?: string;
+            readonly evidence: readonly string[];
+            readonly evidence_reference: string;
+            readonly objective: string;
+            /** @enum {string} */
+            readonly verdict: "pass" | "fail" | "engine_error";
+        };
         readonly TestDefinition: {
-            readonly categories: readonly string[];
-            readonly id: components["schemas"]["RedTeamID"];
+            readonly categories: readonly ("prompt_injection" | "tool_abuse" | "data_leakage" | "authorization_bypass" | "excessive_agency" | "sensitive_information")[];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly enabled: boolean;
+            readonly id: components["schemas"]["ProductID"];
             readonly name: string;
             readonly safety: components["schemas"]["SafetyMetadata"];
-            readonly target_id: string;
+            readonly target_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly target_kind: "agent_endpoint" | "mcp_server" | "coding_agent";
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly version: number;
+        };
+        readonly TestDefinitionInput: {
+            readonly categories: readonly ("prompt_injection" | "tool_abuse" | "data_leakage" | "authorization_bypass" | "excessive_agency" | "sensitive_information")[];
+            readonly id: components["schemas"]["ProductID"];
+            readonly name: string;
+            readonly safety: components["schemas"]["SafetyMetadata"];
+            readonly target_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly target_kind: "agent_endpoint" | "mcp_server" | "coding_agent";
         };
         readonly TestDefinitionPage: {
             readonly items: readonly components["schemas"]["TestDefinition"][];
+            readonly next_cursor?: string;
+        };
+        readonly TestDefinitionUpdateInput: {
+            readonly categories: readonly ("prompt_injection" | "tool_abuse" | "data_leakage" | "authorization_bypass" | "excessive_agency" | "sensitive_information")[];
+            readonly enabled: boolean;
+            readonly name: string;
+            readonly safety: components["schemas"]["SafetyMetadata"];
+            readonly target_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly target_kind: "agent_endpoint" | "mcp_server" | "coding_agent";
         };
         readonly TestRun: {
-            readonly definition_id: components["schemas"]["RedTeamID"];
-            readonly id: components["schemas"]["RedTeamID"];
+            readonly attempt: number;
+            readonly cancel_requested: boolean;
+            /** Format: date-time */
+            readonly completed_at?: string;
+            readonly definition_id: components["schemas"]["ProductID"];
+            readonly definition_version: number;
             /** @enum {string} */
-            readonly status: "queued" | "running" | "complete" | "failed" | "cancelled";
+            readonly error_code?: "retryable" | "rate_limited" | "denied" | "malformed" | "outcome_unknown" | "cancelled" | "exhausted";
+            readonly evidence_reference?: string;
+            readonly id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly queued_at: string;
+            /** Format: date-time */
+            readonly started_at?: string;
+            /** @enum {string} */
+            readonly status: "queued" | "leased" | "retryable" | "complete" | "failed" | "cancelled";
+            /** @enum {string} */
+            readonly verdict?: "pass" | "fail" | "engine_error";
+            readonly version: number;
+        };
+        readonly TestRunDetail: {
+            readonly attempt: number;
+            readonly attempts: readonly components["schemas"]["TestAttempt"][];
+            readonly cancel_requested: boolean;
+            /** Format: date-time */
+            readonly completed_at?: string;
+            readonly definition_id: components["schemas"]["ProductID"];
+            readonly definition_version: number;
+            /** @enum {string} */
+            readonly error_code?: "retryable" | "rate_limited" | "denied" | "malformed" | "outcome_unknown" | "cancelled" | "exhausted";
+            readonly evidence_reference?: string;
+            readonly id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly queued_at: string;
+            /** Format: date-time */
+            readonly started_at?: string;
+            /** @enum {string} */
+            readonly status: "queued" | "leased" | "retryable" | "complete" | "failed" | "cancelled";
+            /** @enum {string} */
+            readonly verdict?: "pass" | "fail" | "engine_error";
+            readonly version: number;
         };
         readonly TestRunInput: {
-            readonly run_id: components["schemas"]["RedTeamID"];
+            readonly run_id: components["schemas"]["ProductID"];
         };
         readonly TestRunPage: {
             readonly items: readonly components["schemas"]["TestRun"][];
+            readonly next_cursor?: string;
         };
         readonly WorkflowMutationIntent: {
             readonly body: components["schemas"]["Policy"] | components["schemas"]["PolicyRolloutInput"] | components["schemas"]["EmptyInput"] | components["schemas"]["IntegrationInput"] | components["schemas"]["IntegrationUpdateInput"] | components["schemas"]["IntegrationAuthorizationRemediationInput"] | components["schemas"]["SecurityAgentInput"] | components["schemas"]["SecurityAgentDefinition"] | components["schemas"]["FindingUpdateInput"] | components["schemas"]["FindingAcceptanceInput"];
@@ -3352,7 +3540,6 @@ export type ProductError = components['schemas']['ProductError'];
 export type ProductId = components['schemas']['ProductID'];
 export type PutIntegrationScheduleReceiptIntent = components['schemas']['PutIntegrationScheduleReceiptIntent'];
 export type PutIntegrationScheduleWorkflowMutationReceipt = components['schemas']['PutIntegrationScheduleWorkflowMutationReceipt'];
-export type RedTeamId = components['schemas']['RedTeamID'];
 export type ReferenceAuthorizationReceiptIntent = components['schemas']['ReferenceAuthorizationReceiptIntent'];
 export type ReferenceAuthorizationReceiptScope = components['schemas']['ReferenceAuthorizationReceiptScope'];
 export type ReferenceAuthorizationWorkflowMutationReceipt = components['schemas']['ReferenceAuthorizationWorkflowMutationReceipt'];
@@ -3432,9 +3619,13 @@ export type SystemComponent = components['schemas']['SystemComponent'];
 export type SystemComponentPage = components['schemas']['SystemComponentPage'];
 export type SystemStatus = components['schemas']['SystemStatus'];
 export type SystemVersion = components['schemas']['SystemVersion'];
+export type TestAttempt = components['schemas']['TestAttempt'];
 export type TestDefinition = components['schemas']['TestDefinition'];
+export type TestDefinitionInput = components['schemas']['TestDefinitionInput'];
 export type TestDefinitionPage = components['schemas']['TestDefinitionPage'];
+export type TestDefinitionUpdateInput = components['schemas']['TestDefinitionUpdateInput'];
 export type TestRun = components['schemas']['TestRun'];
+export type TestRunDetail = components['schemas']['TestRunDetail'];
 export type TestRunInput = components['schemas']['TestRunInput'];
 export type TestRunPage = components['schemas']['TestRunPage'];
 export type WorkflowMutationIntent = components['schemas']['WorkflowMutationIntent'];
@@ -6983,6 +7174,283 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listTestRuns: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: string;
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Stable red team run page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestRunPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getTestRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Redacted red team run detail. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestRunDetail"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly cancelTestRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Cancelled or cancellation-requested run. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestRun"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listTests: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: string;
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Stable definition page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestDefinitionPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createTest: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["TestDefinitionInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable definition. */
+            readonly 201: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestDefinition"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getTest: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Red team definition. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestDefinition"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly updateTest: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["TestDefinitionUpdateInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Updated definition. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestDefinition"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly runTest: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["TestRunInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable queued test run. */
+            readonly 202: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["TestRun"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

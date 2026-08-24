@@ -681,16 +681,28 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 123);
+    assert.equal(operations.size, 131);
     for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [
-      "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
       "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
       "simulatePolicy", "listPolicyDecisions",
       "createAIExplanation",
     ]) assert.equal(operations.has(operationId), false, operationId);
+
+    for (const operationId of ["listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun"]) {
+      assert.ok(operations.has(operationId), operationId);
+    }
+    assert.ok(document.components.schemas.TestRun.required.includes("version"));
+    assert.ok(document.components.schemas.TestRunDetail.required.includes("version"));
+    for (const operationId of ["createTest", "updateTest", "runTest", "cancelTestRun"]) {
+      const response = operations.get(operationId).operation.responses[operationId === "createTest" ? "201" : operationId === "runTest" ? "202" : "200"];
+      assert.deepEqual(response.headers["X-Audit-ID"], { $ref: "#/components/headers/WorkflowAuditID" });
+      assert.deepEqual(response.headers["X-Mutation-Receipt-ID"], { $ref: "#/components/headers/WorkflowMutationReceiptID" });
+      assert.deepEqual(response.headers.ETag, { $ref: "#/components/headers/WorkflowETag" });
+    }
+    assert.ok(operations.get("cancelTestRun").operation.parameters.some((parameter) => parameter.$ref === "#/components/parameters/ResourceVersion"));
 
     const actions = operations.get("listSecurityActions");
     assert.equal(actions.path, "/api/v1/security-actions");

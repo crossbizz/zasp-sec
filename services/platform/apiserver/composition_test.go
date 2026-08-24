@@ -134,8 +134,19 @@ func TestTaskSevenCompositionHasExactActivationSurfaceWithoutExecutionOverclaims
 			t.Errorf("sensor mutation %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
 		}
 	}
+	for _, operationID := range []string{"listTests", "getTest", "listTestRuns", "getTestRun"} {
+		definition, ok := definitions[operationID]
+		if !ok || definition.Permission != "view" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
+			t.Errorf("red team read %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
+		}
+	}
+	for _, operationID := range []string{"createTest", "updateTest", "runTest", "cancelTestRun"} {
+		definition, ok := definitions[operationID]
+		if !ok || definition.Permission != "run_tests" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
+			t.Errorf("red team mutation %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
+		}
+	}
 	for _, operationID := range []string{
-		"listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun",
 		"listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
 		"simulatePolicy", "listPolicyDecisions",
 		"createAIExplanation",

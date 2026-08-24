@@ -194,6 +194,13 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = 'security-age
   AND zasp_security_agent_session_isolation_readiness($1, $2)
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 24)`
 
+const postgresRedTeamExecutionSchemaVersionSQL = `SELECT metadata.value
+FROM zasp_schema_metadata AS metadata
+JOIN zasp_schema_versions AS release ON release.version = 25 AND release.name = 'red_team_execution'
+WHERE metadata.key = 'production_core_schema' AND metadata.value = 'red-team-execution-v1'
+  AND zasp_red_team_execution_readiness($1, $2)
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 25)`
+
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
 func expectedCoreSchemaFingerprint() string {
 	return migrations.ProductionRiskProjectionSemanticFingerprint()
@@ -282,6 +289,12 @@ func expectedSecurityAgentSessionIsolationSchemaChecksum() string {
 func expectedSecurityAgentSessionIsolationSchemaFingerprint() string {
 	return migrations.ProductionSecurityAgentSessionIsolationSemanticFingerprint()
 }
+func expectedRedTeamExecutionSchemaChecksum() string {
+	return migrations.ProductionRedTeamExecution().Checksum()
+}
+func expectedRedTeamExecutionSchemaFingerprint() string {
+	return migrations.ProductionRedTeamExecutionSemanticFingerprint()
+}
 
 type PostgresRow interface{ Scan(...any) error }
 
@@ -318,7 +331,11 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", classifyPostgresError(err)
 	}
 	var version string
-	if marker == SecurityAgentSessionIsolationSchemaVersion {
+	if marker == RedTeamExecutionSchemaVersion {
+		if err := database.driver.QueryRow(ctx, postgresRedTeamExecutionSchemaVersionSQL, expectedRedTeamExecutionSchemaChecksum(), expectedRedTeamExecutionSchemaFingerprint()).Scan(&version); err != nil {
+			return "", classifyPostgresError(err)
+		}
+	} else if marker == SecurityAgentSessionIsolationSchemaVersion {
 		if err := database.driver.QueryRow(ctx, postgresSecurityAgentSessionIsolationSchemaVersionSQL, expectedSecurityAgentSessionIsolationSchemaChecksum(), expectedSecurityAgentSessionIsolationSchemaFingerprint()).Scan(&version); err != nil {
 			return "", classifyPostgresError(err)
 		}
