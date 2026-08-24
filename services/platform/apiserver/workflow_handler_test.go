@@ -43,10 +43,15 @@ type workflowRepositoryStub struct {
 	receiptListIdentity          RequestIdentity
 	receiptAckIdentity           RequestIdentity
 	connectorRevocationAvailable *bool
+	sessionIsolationAvailable    *bool
 }
 
 func (repository *workflowRepositoryStub) SecurityAgentConnectorRevocationAvailable() bool {
 	return repository.connectorRevocationAvailable == nil || *repository.connectorRevocationAvailable
+}
+
+func (repository *workflowRepositoryStub) SecurityAgentSessionIsolationAvailable() bool {
+	return repository.sessionIsolationAvailable == nil || *repository.sessionIsolationAvailable
 }
 
 func (repository *workflowRepositoryStub) ListWorkflows(_ context.Context, scope domain.Scope, _, _, _ string) (json.RawMessage, error) {
@@ -649,8 +654,34 @@ func TestWorkflowHandlerPublishesOnlyLocallyCompleteCatalogAndTemplates(t *testi
 			VerificationKind string   `json:"verification_kind"`
 		} `json:"items"`
 	}
-	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &actions) != nil || len(actions.Items) != 3 || actions.Items[0].Key != "create_temporary_policy" || actions.Items[0].RiskClass != "containment" || !slices.Equal(actions.Items[0].TargetTypes, []string{"environment"}) || actions.Items[0].ApprovalFloor != "operator" || !actions.Items[0].Reversible || actions.Items[0].VerificationKind != "policy_state" || actions.Items[1].Key != "revoke_integration_connection" || actions.Items[1].RiskClass != "destructive" || !slices.Equal(actions.Items[1].TargetTypes, []string{"integration_connection"}) || actions.Items[1].ApprovalFloor != "admin" || actions.Items[1].Reversible || actions.Items[1].VerificationKind != "connection_state" || actions.Items[2].Key != "update_finding_response" || actions.Items[2].RiskClass != "low" || !slices.Equal(actions.Items[2].TargetTypes, []string{"finding"}) || actions.Items[2].ApprovalFloor != "none" || !actions.Items[2].Reversible || actions.Items[2].VerificationKind != "finding_state" {
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &actions) != nil || len(actions.Items) != 4 || actions.Items[0].Key != "create_temporary_policy" || actions.Items[0].RiskClass != "containment" || !slices.Equal(actions.Items[0].TargetTypes, []string{"environment"}) || actions.Items[0].ApprovalFloor != "operator" || !actions.Items[0].Reversible || actions.Items[0].VerificationKind != "policy_state" || actions.Items[1].Key != "isolate_session" || actions.Items[1].RiskClass != "containment" || !slices.Equal(actions.Items[1].TargetTypes, []string{"session"}) || actions.Items[1].ApprovalFloor != "operator" || !actions.Items[1].Reversible || actions.Items[1].VerificationKind != "gateway_decision" || actions.Items[2].Key != "revoke_integration_connection" || actions.Items[2].RiskClass != "destructive" || !slices.Equal(actions.Items[2].TargetTypes, []string{"integration_connection"}) || actions.Items[2].ApprovalFloor != "admin" || actions.Items[2].Reversible || actions.Items[2].VerificationKind != "connection_state" || actions.Items[3].Key != "update_finding_response" || actions.Items[3].RiskClass != "low" || !slices.Equal(actions.Items[3].TargetTypes, []string{"finding"}) || actions.Items[3].ApprovalFloor != "none" || !actions.Items[3].Reversible || actions.Items[3].VerificationKind != "finding_state" {
 		t.Fatalf("production action catalog = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestWorkflowHandlerHidesAndRejectsSessionIsolationWithoutV24Authority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	available := false
+	repository := &workflowRepositoryStub{sessionIsolationAvailable: &available}
+	handler, err := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := workflowRequest(t, identity, testCorrelationID, "listSecurityActions", nil, http.MethodGet, "/api/v1/security-actions", "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), `"key":"isolate_session"`) {
+		t.Fatalf("pre-v24 action catalog = %d %s", response.Code, response.Body.String())
+	}
+
+	body := `{"name":"Isolate compromised session","trigger_kind":"runtime_decision","trigger_source":"gateway","environment_ids":["pid_10000003-0000-4000-8000-000000000003"],"autonomy":"supervised","max_steps":1,"max_duration_seconds":900,"temporary_policy_seconds":3600,"ai_token_budget":4000,"concurrency_limit":1,"allowed_actions":["isolate_session"],"verification_kind":"gateway_decision","definition_version":1,"enabled":false}`
+	request = workflowRequest(t, identity, testCorrelationID, "createSecurityAgent", nil, http.MethodPost, "/api/v1/security-agents", body)
+	request.Header.Set("Idempotency-Key", "idem-reject-v24-action-on-v23")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || repository.mutationCalls != 0 {
+		t.Fatalf("pre-v24 definition response = %d %s mutations=%d", response.Code, response.Body.String(), repository.mutationCalls)
 	}
 }
 

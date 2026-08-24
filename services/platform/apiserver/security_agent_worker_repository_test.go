@@ -52,7 +52,25 @@ func TestSecurityAgentWorkerRepositoryClaimsPlansHeartbeatsAndExecutesExactTenan
 	if result, err := repository.ExecuteSecurityAgentRun(context.Background(), claims[0], "security-agent-worker-1", "lease-token-000000000001", auditID, correlationID); err != nil || result.OutcomeID != outcomeID {
 		t.Fatalf("execute=%#v err=%v", result, err)
 	}
-	if len(database.statements) != 7 || database.statements[0] != postgresSecurityAgentWorkerReadyV23SQL || database.statements[1] != postgresSecurityAgentWorkerReadySQL || database.statements[2] != postgresSecurityAgentScheduleTriggersSQL || database.statements[3] != postgresSecurityAgentClaimRunsSQL || database.statements[4] != postgresSecurityAgentHeartbeatRunSQL || database.statements[5] != postgresSecurityAgentPrepareRunSQL || database.statements[6] != postgresSecurityAgentExecuteRunSQL {
+	if len(database.statements) != 8 || database.statements[0] != postgresSecurityAgentWorkerReadyV24SQL || database.statements[1] != postgresSecurityAgentWorkerReadyV23SQL || database.statements[2] != postgresSecurityAgentWorkerReadySQL || database.statements[3] != postgresSecurityAgentScheduleTriggersSQL || database.statements[4] != postgresSecurityAgentClaimRunsSQL || database.statements[5] != postgresSecurityAgentHeartbeatRunSQL || database.statements[6] != postgresSecurityAgentPrepareRunSQL || database.statements[7] != postgresSecurityAgentExecuteRunSQL {
+		t.Fatalf("statements=%#v", database.statements)
+	}
+}
+
+func TestSecurityAgentWorkerRepositoryUsesExactV24SessionIsolationAuthority(t *testing.T) {
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentWorkerReadyV24SQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentScheduleV24SQL:    json.RawMessage(`{"created":1}`),
+	}}
+	repository, err := NewSecurityAgentWorkerRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := repository.ScheduleSecurityAgentTriggers(context.Background(), "security-agent-worker-1", 10)
+	if err != nil || created != 1 {
+		t.Fatalf("created=%d err=%v", created, err)
+	}
+	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentWorkerReadyV24SQL || database.statements[1] != postgresSecurityAgentScheduleV24SQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }

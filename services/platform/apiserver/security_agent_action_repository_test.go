@@ -60,6 +60,34 @@ func TestSecurityAgentActionRepositoryClaimsHeartbeatsStoresReadsAndFinishesExac
 	}
 }
 
+func TestSecurityAgentActionRepositoryClaimsExactV24SessionIsolation(t *testing.T) {
+	now := time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)
+	organizationID := "pid_70000001-0000-4000-8000-000000000001"
+	workspaceID := "pid_70000002-0000-4000-8000-000000000002"
+	environmentID := "pid_70000003-0000-4000-8000-000000000003"
+	runID := "pid_78000001-0000-4000-8000-000000000001"
+	stepID := "pid_78000002-0000-4000-8000-000000000002"
+	sessionID := "pid_78000003-0000-4000-8000-000000000003"
+	deviceID := "pid_78000004-0000-4000-8000-000000000004"
+	credentialID := "pid_78000005-0000-4000-8000-000000000005"
+	claimPayload := `{"items":[{"organization_id":"` + organizationID + `","workspace_id":"` + workspaceID + `","environment_id":"` + environmentID + `","run_id":"` + runID + `","step_id":"` + stepID + `","action_key":"isolate_session","session_id":"` + sessionID + `","phase":"apply","input_digest":"sha256:` + strings.Repeat("a", 64) + `","ttl_seconds":600,"lease_expires_at":"` + now.Add(time.Minute).Format(time.RFC3339) + `","targets":[{"device_id":"` + deviceID + `","credential_id":"` + credentialID + `","sequence":2,"policy_version":2}]}]}`
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentActionReadyV24SQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentActionClaimV24SQL: json.RawMessage(claimPayload),
+	}}
+	repository, err := NewSecurityAgentActionRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claims, err := repository.ClaimTemporaryPolicyEffects(context.Background(), "security-agent-action-1", "lease-token-000000000001", 60, 10)
+	if err != nil || len(claims) != 1 || claims[0].ActionKey != "isolate_session" || claims[0].SessionID != sessionID || claims[0].Targets[0].DeviceID != deviceID {
+		t.Fatalf("claims=%#v err=%v", claims, err)
+	}
+	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentActionReadyV24SQL || database.statements[1] != postgresSecurityAgentActionClaimV24SQL {
+		t.Fatalf("statements=%#v", database.statements)
+	}
+}
+
 func TestSecurityAgentActionRepositoryRejectsCrossTenantAndDriftedEnvelopeBeforeDatabase(t *testing.T) {
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{postgresSecurityAgentActionReadySQL: json.RawMessage(`{"release":true,"principal":true}`)}}
 	repository, err := NewSecurityAgentActionRepository(database)
@@ -70,7 +98,7 @@ func TestSecurityAgentActionRepositoryRejectsCrossTenantAndDriftedEnvelopeBefore
 	if err := repository.StoreTemporaryPolicyTarget(context.Background(), claim, "security-agent-action-1", "lease-token-000000000001", TemporaryPolicyTargetEnvelope{}); err != ErrRepositoryOperation {
 		t.Fatalf("store err=%v", err)
 	}
-	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentActionReadyV23SQL || database.statements[1] != postgresSecurityAgentActionReadySQL {
+	if len(database.statements) != 3 || database.statements[0] != postgresSecurityAgentActionReadyV24SQL || database.statements[1] != postgresSecurityAgentActionReadyV23SQL || database.statements[2] != postgresSecurityAgentActionReadySQL {
 		t.Fatalf("unexpected database statements=%#v", database.statements)
 	}
 }
@@ -87,7 +115,7 @@ func TestSecurityAgentActionRepositoryReconcilesConnectorRevocationsOnlyOnV23(t 
 	if reconciled, err := repository.ReconcileConnectorRevocations(context.Background(), "security-agent-action-1", 10); err != nil || reconciled != 2 {
 		t.Fatalf("reconciled=%d err=%v", reconciled, err)
 	}
-	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentActionReadyV23SQL || database.statements[1] != postgresSecurityAgentActionReconcileSQL {
+	if len(database.statements) != 3 || database.statements[0] != postgresSecurityAgentActionReadyV24SQL || database.statements[1] != postgresSecurityAgentActionReadyV23SQL || database.statements[2] != postgresSecurityAgentActionReconcileSQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }
@@ -103,7 +131,7 @@ func TestSecurityAgentActionRepositoryTreatsConnectorReconciliationAsUnavailable
 	if reconciled, err := repository.ReconcileConnectorRevocations(context.Background(), "security-agent-action-1", 10); err != nil || reconciled != 0 {
 		t.Fatalf("reconciled=%d err=%v", reconciled, err)
 	}
-	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentActionReadyV23SQL || database.statements[1] != postgresSecurityAgentActionReadySQL {
+	if len(database.statements) != 3 || database.statements[0] != postgresSecurityAgentActionReadyV24SQL || database.statements[1] != postgresSecurityAgentActionReadyV23SQL || database.statements[2] != postgresSecurityAgentActionReadySQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }

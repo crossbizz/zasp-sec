@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeSecurityAgentApproval, decodeSecurityAgentRunDetail } from "./decoders";
+import { decodeSecurityAgentApproval, decodeSecurityAgentExecutionControls, decodeSecurityAgentRunDetail } from "./decoders";
 
 const runID = "pid_78000006-0000-4000-8000-000000000006";
 const definitionID = "pid_78000001-0000-4000-8000-000000000001";
@@ -53,6 +53,13 @@ describe("security agent approval effects", () => {
     expect(() => decodeSecurityAgentApproval({ ...revocation, ttl_seconds: 60 })).toThrow("schema mismatch");
   });
 
+  it("accepts exact reversible session isolation metadata", () => {
+    const isolation = { ...approval, expected_effect: "Isolate runtime session", reversible: true, ttl_seconds: 600 };
+    expect(decodeSecurityAgentApproval(isolation).ttl_seconds).toBe(600);
+    expect(() => decodeSecurityAgentApproval({ ...isolation, reversible: false })).toThrow("schema mismatch");
+    expect(() => decodeSecurityAgentApproval({ ...isolation, ttl_seconds: 0 })).toThrow("schema mismatch");
+  });
+
   it.each([
     { expected_effect: "Move finding to under review", ttl_seconds: 300 },
     { expected_effect: "Apply temporary containment policy", ttl_seconds: 0 },
@@ -74,5 +81,29 @@ describe("security agent approval effects", () => {
     };
     expect(decodeSecurityAgentRunDetail(detail).approvals[0]?.expected_effect).toBe("Apply temporary containment policy");
     expect(() => decodeSecurityAgentRunDetail({ ...detail, approvals: [{ ...approval, expected_effect: "Move finding to under review", ttl_seconds: 0 }] })).toThrow("schema mismatch");
+  });
+});
+
+describe("security agent v24 execution controls", () => {
+  const control = (target: string, action_key: string, version = 0) => ({ target, action_key, enabled: true, version });
+  const value = {
+    global: control("global", "*", 1),
+    environment: control("environment", "*"),
+    actions: [
+      control("action", "create_temporary_policy"),
+      control("action", "isolate_session"),
+      control("action", "revoke_integration_connection"),
+      control("action", "update_finding_response"),
+    ],
+  };
+
+  it("accepts the exact four-action matrix", () => {
+    expect(decodeSecurityAgentExecutionControls(value).actions[1]?.action_key).toBe("isolate_session");
+  });
+
+  it("rejects missing, reordered, and foreign controls", () => {
+    expect(() => decodeSecurityAgentExecutionControls({ ...value, actions: value.actions.slice(1) })).toThrow("schema mismatch");
+    expect(() => decodeSecurityAgentExecutionControls({ ...value, actions: [value.actions[1], value.actions[0], ...value.actions.slice(2)] })).toThrow("schema mismatch");
+    expect(() => decodeSecurityAgentExecutionControls({ ...value, actions: value.actions.map((item, index) => index === 1 ? { ...item, action_key: "run_test" } : item) })).toThrow("schema mismatch");
   });
 });

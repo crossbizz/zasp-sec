@@ -11,14 +11,20 @@ import (
 )
 
 const (
-	postgresSecurityAgentActionReadyV23SQL  = `SELECT jsonb_build_object('release',zasp_security_agent_connector_revocation_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
-	postgresSecurityAgentActionReadySQL     = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
-	postgresSecurityAgentActionReconcileSQL = `SELECT zasp_security_agent_reconcile_connector_revocations($1,$2)`
-	postgresSecurityAgentActionClaimSQL     = `SELECT zasp_security_agent_claim_temporary_policy_effects($1,$2,$3,$4)`
-	postgresSecurityAgentActionHeartbeatSQL = `SELECT zasp_security_agent_heartbeat_temporary_policy_effect($1,$2,$3,$4,$5,$6,$7,$8)`
-	postgresSecurityAgentActionStoreSQL     = `SELECT zasp_security_agent_store_temporary_policy_target($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`
-	postgresSecurityAgentActionReadSQL      = `SELECT zasp_security_agent_read_temporary_policy_target($1,$2,$3,$4,$5,$6,$7)`
-	postgresSecurityAgentActionFinishSQL    = `SELECT zasp_security_agent_finish_temporary_policy_effect($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+	postgresSecurityAgentActionReadyV24SQL     = `SELECT jsonb_build_object('release',zasp_security_agent_session_isolation_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
+	postgresSecurityAgentActionReadyV23SQL     = `SELECT jsonb_build_object('release',zasp_security_agent_connector_revocation_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
+	postgresSecurityAgentActionReadySQL        = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
+	postgresSecurityAgentActionReconcileSQL    = `SELECT zasp_security_agent_reconcile_connector_revocations($1,$2)`
+	postgresSecurityAgentActionClaimSQL        = `SELECT zasp_security_agent_claim_temporary_policy_effects($1,$2,$3,$4)`
+	postgresSecurityAgentActionHeartbeatSQL    = `SELECT zasp_security_agent_heartbeat_temporary_policy_effect($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresSecurityAgentActionStoreSQL        = `SELECT zasp_security_agent_store_temporary_policy_target($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`
+	postgresSecurityAgentActionReadSQL         = `SELECT zasp_security_agent_read_temporary_policy_target($1,$2,$3,$4,$5,$6,$7)`
+	postgresSecurityAgentActionFinishSQL       = `SELECT zasp_security_agent_finish_temporary_policy_effect($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+	postgresSecurityAgentActionClaimV24SQL     = `SELECT zasp_security_agent_claim_session_policy_effects($1,$2,$3,$4)`
+	postgresSecurityAgentActionHeartbeatV24SQL = `SELECT zasp_security_agent_heartbeat_session_policy_effect($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresSecurityAgentActionStoreV24SQL     = `SELECT zasp_security_agent_store_session_policy_target($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`
+	postgresSecurityAgentActionReadV24SQL      = `SELECT zasp_security_agent_read_session_policy_target($1,$2,$3,$4,$5,$6,$7)`
+	postgresSecurityAgentActionFinishV24SQL    = `SELECT zasp_security_agent_finish_session_policy_effect($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
 )
 
 type TemporaryPolicyTarget struct {
@@ -34,6 +40,8 @@ type TemporaryPolicyEffectClaim struct {
 	EnvironmentID  string                  `json:"environment_id"`
 	RunID          string                  `json:"run_id"`
 	StepID         string                  `json:"step_id"`
+	ActionKey      string                  `json:"action_key,omitempty"`
+	SessionID      string                  `json:"session_id,omitempty"`
 	Phase          string                  `json:"phase"`
 	InputDigest    string                  `json:"input_digest"`
 	TTLSeconds     int                     `json:"ttl_seconds"`
@@ -78,9 +86,10 @@ type SecurityAgentConnectorRevocationAuthority interface {
 }
 
 type SecurityAgentActionRepository struct {
-	database                  JSONDatabase
-	readySQL, checksum        string
-	fingerprint, reconcileSQL string
+	database                                             JSONDatabase
+	readySQL, checksum, fingerprint, reconcileSQL        string
+	claimSQL, heartbeatSQL, storeSQL, readSQL, finishSQL string
+	sessionIsolation                                     bool
 }
 
 func NewSecurityAgentActionRepository(database JSONDatabase) (*SecurityAgentActionRepository, error) {
@@ -90,8 +99,9 @@ func NewSecurityAgentActionRepository(database JSONDatabase) (*SecurityAgentActi
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	configurations := []SecurityAgentActionRepository{
-		{database: database, readySQL: postgresSecurityAgentActionReadyV23SQL, checksum: migrations.ProductionSecurityAgentConnectorRevocation().Checksum(), fingerprint: migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint(), reconcileSQL: postgresSecurityAgentActionReconcileSQL},
-		{database: database, readySQL: postgresSecurityAgentActionReadySQL, checksum: migrations.ProductionSecurityAgentTemporaryPolicy().Checksum(), fingerprint: migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint()},
+		{database: database, readySQL: postgresSecurityAgentActionReadyV24SQL, checksum: migrations.ProductionSecurityAgentSessionIsolation().Checksum(), fingerprint: migrations.ProductionSecurityAgentSessionIsolationSemanticFingerprint(), reconcileSQL: postgresSecurityAgentActionReconcileSQL, claimSQL: postgresSecurityAgentActionClaimV24SQL, heartbeatSQL: postgresSecurityAgentActionHeartbeatV24SQL, storeSQL: postgresSecurityAgentActionStoreV24SQL, readSQL: postgresSecurityAgentActionReadV24SQL, finishSQL: postgresSecurityAgentActionFinishV24SQL, sessionIsolation: true},
+		{database: database, readySQL: postgresSecurityAgentActionReadyV23SQL, checksum: migrations.ProductionSecurityAgentConnectorRevocation().Checksum(), fingerprint: migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint(), reconcileSQL: postgresSecurityAgentActionReconcileSQL, claimSQL: postgresSecurityAgentActionClaimSQL, heartbeatSQL: postgresSecurityAgentActionHeartbeatSQL, storeSQL: postgresSecurityAgentActionStoreSQL, readSQL: postgresSecurityAgentActionReadSQL, finishSQL: postgresSecurityAgentActionFinishSQL},
+		{database: database, readySQL: postgresSecurityAgentActionReadySQL, checksum: migrations.ProductionSecurityAgentTemporaryPolicy().Checksum(), fingerprint: migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint(), claimSQL: postgresSecurityAgentActionClaimSQL, heartbeatSQL: postgresSecurityAgentActionHeartbeatSQL, storeSQL: postgresSecurityAgentActionStoreSQL, readSQL: postgresSecurityAgentActionReadSQL, finishSQL: postgresSecurityAgentActionFinishSQL},
 	}
 	for index := range configurations {
 		if configurations[index].Ready(ctx) == nil {
@@ -146,7 +156,7 @@ func (repository *SecurityAgentActionRepository) ClaimTemporaryPolicyEffects(ctx
 	if repository == nil || ctx == nil || ctx.Err() != nil || !validSecurityAgentWorkerLease(workerID, leaseToken, leaseSeconds) || limit < 1 || limit > 25 {
 		return nil, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentActionClaimSQL, workerID, leaseToken, leaseSeconds, limit)
+	payload, err := repository.database.QueryJSON(ctx, repository.claimSQL, workerID, leaseToken, leaseSeconds, limit)
 	if err != nil {
 		return nil, discoveryProviderError(err)
 	}
@@ -158,7 +168,11 @@ func (repository *SecurityAgentActionRepository) ClaimTemporaryPolicyEffects(ctx
 	}
 	claims := make([]TemporaryPolicyEffectClaim, len(envelope.Items))
 	for index, raw := range envelope.Items {
-		if !exactJSONFields(raw, "environment_id", "input_digest", "lease_expires_at", "organization_id", "phase", "run_id", "step_id", "targets", "ttl_seconds", "workspace_id") || decodeStrictDiscovery(raw, &claims[index]) != nil || !validTemporaryPolicyEffectClaim(claims[index]) {
+		fieldsValid := exactJSONFields(raw, "environment_id", "input_digest", "lease_expires_at", "organization_id", "phase", "run_id", "step_id", "targets", "ttl_seconds", "workspace_id")
+		if repository.sessionIsolation {
+			fieldsValid = exactJSONFields(raw, "action_key", "environment_id", "input_digest", "lease_expires_at", "organization_id", "phase", "run_id", "session_id", "step_id", "targets", "ttl_seconds", "workspace_id")
+		}
+		if !fieldsValid || decodeStrictDiscovery(raw, &claims[index]) != nil || !validTemporaryPolicyEffectClaim(claims[index]) {
 			return nil, ErrRepositoryUnavailable
 		}
 	}
@@ -169,7 +183,7 @@ func (repository *SecurityAgentActionRepository) HeartbeatTemporaryPolicyEffect(
 	if repository == nil || ctx == nil || ctx.Err() != nil || !validTemporaryPolicyEffectClaim(claim) || !validSecurityAgentWorkerLease(workerID, leaseToken, leaseSeconds) {
 		return ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentActionHeartbeatSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, claim.StepID, workerID, leaseToken, leaseSeconds)
+	payload, err := repository.database.QueryJSON(ctx, repository.heartbeatSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, claim.StepID, workerID, leaseToken, leaseSeconds)
 	if err != nil {
 		return discoveryProviderError(err)
 	}
@@ -188,7 +202,7 @@ func (repository *SecurityAgentActionRepository) StoreTemporaryPolicyTarget(ctx 
 	if repository == nil || ctx == nil || ctx.Err() != nil || !validTemporaryPolicyEffectClaim(claim) || !validSecurityAgentWorkerIdentity(workerID, leaseToken) || !validTemporaryPolicyTargetEnvelope(claim, envelope) || !payloadOK || !envelopeOK {
 		return ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentActionStoreSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, claim.StepID, claim.Phase, workerID, leaseToken, envelope.Target.DeviceID, envelope.Target.CredentialID, envelope.Target.Sequence, envelope.Target.PolicyVersion, envelope.KeyID, envelope.IssuedAt, envelope.ExpiresAt, envelope.FailureMode, payloadDigest, envelope.Policies, envelope.Signature, envelopeDigest)
+	payload, err := repository.database.QueryJSON(ctx, repository.storeSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, claim.StepID, claim.Phase, workerID, leaseToken, envelope.Target.DeviceID, envelope.Target.CredentialID, envelope.Target.Sequence, envelope.Target.PolicyVersion, envelope.KeyID, envelope.IssuedAt, envelope.ExpiresAt, envelope.FailureMode, payloadDigest, envelope.Policies, envelope.Signature, envelopeDigest)
 	if err != nil {
 		return discoveryProviderError(err)
 	}
@@ -209,7 +223,7 @@ func (repository *SecurityAgentActionRepository) ReadTemporaryPolicyTarget(ctx c
 	if repository == nil || ctx == nil || ctx.Err() != nil || !validTemporaryPolicyEffectClaim(claim) || !validTemporaryPolicyTarget(target) || !containsTemporaryPolicyTarget(claim.Targets, target) {
 		return TemporaryPolicyTargetEnvelope{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentActionReadSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, claim.StepID, claim.Phase, target.DeviceID)
+	payload, err := repository.database.QueryJSON(ctx, repository.readSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, claim.StepID, claim.Phase, target.DeviceID)
 	if err != nil {
 		return TemporaryPolicyTargetEnvelope{}, discoveryProviderError(err)
 	}
@@ -244,7 +258,7 @@ func (repository *SecurityAgentActionRepository) FinishTemporaryPolicyEffect(ctx
 	if repository == nil || ctx == nil || ctx.Err() != nil || !validTemporaryPolicyEffectClaim(claim) || !validSecurityAgentWorkerIdentity(workerID, leaseToken) || !digestOK || !validProductID(auditID) || !validProductID(correlationID) {
 		return TemporaryPolicyFinishResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentActionFinishSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, claim.StepID, claim.Phase, workerID, leaseToken, digest, auditID, correlationID)
+	payload, err := repository.database.QueryJSON(ctx, repository.finishSQL, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, claim.StepID, claim.Phase, workerID, leaseToken, digest, auditID, correlationID)
 	if err != nil {
 		return TemporaryPolicyFinishResult{}, discoveryProviderError(err)
 	}
@@ -257,7 +271,11 @@ func (repository *SecurityAgentActionRepository) FinishTemporaryPolicyEffect(ctx
 
 func validTemporaryPolicyEffectClaim(claim TemporaryPolicyEffectClaim) bool {
 	_, digestOK := decodeTemporaryPolicyDigest(claim.InputDigest)
-	if !validProductID(claim.OrganizationID) || !validProductID(claim.WorkspaceID) || !validProductID(claim.EnvironmentID) || !validProductID(claim.RunID) || !validProductID(claim.StepID) || claim.Phase != "apply" && claim.Phase != "cleanup" || claim.TTLSeconds < 60 || claim.TTLSeconds > 3600 || claim.LeaseExpiresAt.IsZero() || claim.LeaseExpiresAt.Location() != time.UTC || !digestOK || len(claim.Targets) < 1 || len(claim.Targets) > 1000 {
+	actionKey := claim.ActionKey
+	if actionKey == "" {
+		actionKey = "create_temporary_policy"
+	}
+	if !validProductID(claim.OrganizationID) || !validProductID(claim.WorkspaceID) || !validProductID(claim.EnvironmentID) || !validProductID(claim.RunID) || !validProductID(claim.StepID) || claim.Phase != "apply" && claim.Phase != "cleanup" || claim.TTLSeconds < 60 || claim.TTLSeconds > 3600 || claim.LeaseExpiresAt.IsZero() || claim.LeaseExpiresAt.Location() != time.UTC || !digestOK || len(claim.Targets) < 1 || len(claim.Targets) > 1000 || actionKey != "create_temporary_policy" && actionKey != "isolate_session" || actionKey == "create_temporary_policy" && claim.SessionID != "" || actionKey == "isolate_session" && !validProductID(claim.SessionID) {
 		return false
 	}
 	seen := make(map[string]struct{}, len(claim.Targets))

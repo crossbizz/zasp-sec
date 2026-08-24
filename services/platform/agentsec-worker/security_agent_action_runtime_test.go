@@ -77,6 +77,43 @@ func TestSecurityAgentActionProcessorAppliesAndCleansTenantBoundSignedGatewayPol
 	}
 }
 
+func TestSessionIsolationPoliciesBlockOnlyTheExactSessionAcrossGatewayActions(t *testing.T) {
+	targetSession := "pid_78000009-0000-4000-8000-000000000009"
+	otherSession := "pid_78000010-0000-4000-8000-000000000010"
+	compiled, err := temporaryContainmentPolicies("isolate_session", targetSession, "apply")
+	if err != nil || len(compiled) != 2 {
+		t.Fatalf("compiled=%#v err=%v", compiled, err)
+	}
+	for _, value := range compiled {
+		input := map[string]string{"session_id": targetSession}
+		if value.Trigger == "tool_call" {
+			input["tool.name"] = "shell"
+		} else {
+			input["http.method"] = "POST"
+		}
+		blocked, blockedErr := policy.Evaluate(context.Background(), value, input)
+		input["session_id"] = otherSession
+		allowed, allowedErr := policy.Evaluate(context.Background(), value, input)
+		if blockedErr != nil || !blocked.Matched || blocked.Action != policy.ActionBlock || allowedErr != nil || allowed.Matched {
+			t.Fatalf("policy=%#v blocked=%#v blocked_err=%v allowed=%#v allowed_err=%v", value, blocked, blockedErr, allowed, allowedErr)
+		}
+	}
+	cleanup, err := temporaryContainmentPolicies("isolate_session", targetSession, "cleanup")
+	if err != nil || len(cleanup) != 0 {
+		t.Fatalf("cleanup=%#v err=%v", cleanup, err)
+	}
+	for _, invalid := range []struct{ action, session, phase string }{
+		{"isolate_session", "", "apply"},
+		{"isolate_session", "foreign-session", "apply"},
+		{"create_temporary_policy", targetSession, "apply"},
+		{"unknown", targetSession, "apply"},
+	} {
+		if _, err := temporaryContainmentPolicies(invalid.action, invalid.session, invalid.phase); err == nil {
+			t.Fatalf("accepted invalid=%#v", invalid)
+		}
+	}
+}
+
 func TestSecurityAgentActionProcessorFailsClosedWhenDurableReadbackDrifts(t *testing.T) {
 	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 	_, privateKey, err := ed25519.GenerateKey(nil)

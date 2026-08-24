@@ -836,7 +836,7 @@ func validGatewayEvaluationRequest(request gatewayEvaluationRequest) bool {
 		len(request.Attributes) < 1 || len(request.Attributes) > 8 || !validGatewayClassification(request.Classification) {
 		return false
 	}
-	allowed := map[string]struct{}{"resource.class": {}, "principal.class": {}}
+	allowed := map[string]struct{}{"resource.class": {}, "principal.class": {}, "session_id": {}}
 	if request.ActionKind == "http" {
 		allowed["http.method"] = struct{}{}
 		allowed["http.route_class"] = struct{}{}
@@ -854,11 +854,19 @@ func validGatewayEvaluationRequest(request gatewayEvaluationRequest) bool {
 			return false
 		}
 	}
+	if sessionID, present := request.Attributes["session_id"]; present && !validGatewayProductID(sessionID) {
+		return false
+	}
+	attributeSession, attributeHasSession := request.Attributes["session_id"]
+	classificationSession, classificationHasSession := request.Classification["session_id"]
+	if attributeHasSession != classificationHasSession || attributeHasSession && attributeSession != classificationSession {
+		return false
+	}
 	return true
 }
 
 func validGatewayClassification(classification map[string]string) bool {
-	if len(classification) != 4 && len(classification) != 8 {
+	if len(classification) != 4 && len(classification) != 5 && len(classification) != 8 && len(classification) != 9 {
 		return false
 	}
 	for _, key := range []string{"category", "route_class", "resource_class", "outcome"} {
@@ -866,7 +874,14 @@ func validGatewayClassification(classification map[string]string) bool {
 			return false
 		}
 	}
-	if len(classification) == 4 {
+	if sessionID, present := classification["session_id"]; present && !validGatewayProductID(sessionID) {
+		return false
+	}
+	baseCount := 4
+	if _, present := classification["session_id"]; present {
+		baseCount++
+	}
+	if len(classification) == baseCount {
 		return true
 	}
 	return validGatewayProductID(classification["agent_id"]) && validGatewayProductID(classification["target_id"]) &&

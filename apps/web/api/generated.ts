@@ -2717,7 +2717,7 @@ export type components = {
         readonly SecurityAgentApproval: {
             readonly evidence_summary: readonly components["schemas"]["ProductID"][];
             /** @enum {string} */
-            readonly expected_effect: "Move finding to under review" | "Apply temporary containment policy" | "Revoke integration connection";
+            readonly expected_effect: "Move finding to under review" | "Apply temporary containment policy" | "Isolate runtime session" | "Revoke integration connection";
             /** Format: date-time */
             readonly expires_at: string;
             readonly id: components["schemas"]["ProductID"];
@@ -2758,7 +2758,7 @@ export type components = {
         };
         readonly SecurityAgentExecutionControl: {
             /** @enum {string} */
-            readonly action_key: "*" | "create_temporary_policy" | "revoke_integration_connection" | "update_finding_response";
+            readonly action_key: "*" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "update_finding_response";
             readonly enabled: boolean;
             /** @enum {string} */
             readonly target: "global" | "environment" | "action";
@@ -2766,14 +2766,14 @@ export type components = {
         };
         readonly SecurityAgentExecutionControlInput: {
             /** @enum {string} */
-            readonly action_key: "*" | "create_temporary_policy" | "revoke_integration_connection" | "update_finding_response";
+            readonly action_key: "*" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "update_finding_response";
             readonly enabled: boolean;
             /** @enum {string} */
             readonly target: "environment" | "action";
         };
         readonly SecurityAgentExecutionControlResult: {
             /** @enum {string} */
-            readonly action_key: "*" | "create_temporary_policy" | "revoke_integration_connection" | "update_finding_response";
+            readonly action_key: "*" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "update_finding_response";
             readonly audit_id: components["schemas"]["ProductID"];
             readonly correlation_id: components["schemas"]["ProductID"];
             readonly enabled: boolean;

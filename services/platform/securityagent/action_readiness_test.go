@@ -12,7 +12,7 @@ import (
 
 func TestProductionActionReadinessExposesOnlyVerifiedActions(t *testing.T) {
 	values := ProductionActionMetadata()
-	if len(values) != 3 || values[0].Key != "create_temporary_policy" || values[1].Key != "revoke_integration_connection" || values[2].Key != "update_finding_response" {
+	if len(values) != 4 || values[0].Key != "create_temporary_policy" || values[1].Key != "isolate_session" || values[2].Key != "revoke_integration_connection" || values[3].Key != "update_finding_response" {
 		t.Fatalf("production actions=%#v", values)
 	}
 	if !ProductionActionAvailable("create_temporary_policy", AutonomySupervised) || ProductionActionAvailable("create_temporary_policy", AutonomyAutonomous) {
@@ -24,7 +24,10 @@ func TestProductionActionReadinessExposesOnlyVerifiedActions(t *testing.T) {
 	if !ProductionActionAvailable("revoke_integration_connection", AutonomySupervised) || ProductionActionAvailable("revoke_integration_connection", AutonomyAutonomous) {
 		t.Fatal("connector revocation action autonomy is not exact")
 	}
-	for _, key := range []string{"isolate_session", "run_test", "rerun_test", "start_attack_lab", "create_evidence_export", "send_response_webhook"} {
+	if !ProductionActionAvailable("isolate_session", AutonomySupervised) || ProductionActionAvailable("isolate_session", AutonomyAutonomous) {
+		t.Fatal("session isolation action autonomy is not exact")
+	}
+	for _, key := range []string{"run_test", "rerun_test", "start_attack_lab", "create_evidence_export", "send_response_webhook"} {
 		if ProductionActionAvailable(key, AutonomySupervised) || ProductionActionAvailable(key, AutonomyAutonomous) {
 			t.Fatalf("unverified action %q is available", key)
 		}

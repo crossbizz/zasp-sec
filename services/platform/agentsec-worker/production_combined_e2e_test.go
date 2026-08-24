@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -103,6 +104,13 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	if phase != "apply" && phase != "cleanup" && phase != "reconcile" {
 		t.Fatal("combined E2E action phase is invalid")
 	}
+	actionKey := os.Getenv("ZASP_COMBINED_E2E_ACTION_KEY")
+	if actionKey == "" {
+		actionKey = "create_temporary_policy"
+	}
+	if actionKey != "create_temporary_policy" && actionKey != "isolate_session" {
+		t.Fatal("combined E2E action key is invalid")
+	}
 	privateKeyBytes, err := base64.RawURLEncoding.DecodeString(os.Getenv("ZASP_COMBINED_E2E_ACTION_PRIVATE_KEY"))
 	if err != nil || len(privateKeyBytes) != ed25519.PrivateKeySize {
 		t.Fatal("combined E2E action signing authority is invalid")
@@ -160,6 +168,13 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	if phase == "cleanup" {
 		afterSequence, expectedPolicies, expectedRunState = 1, 0, "remediated"
 	}
+	if rawSequence := os.Getenv("ZASP_COMBINED_E2E_AFTER_SEQUENCE"); rawSequence != "" {
+		parsed, parseErr := strconv.ParseInt(rawSequence, 10, 64)
+		if parseErr != nil || parsed < 0 {
+			t.Fatal("combined E2E action sequence is invalid")
+		}
+		afterSequence = parsed
+	}
 	var raw json.RawMessage
 	if err := gatewayPool.QueryRow(ctx, `SELECT zasp_runtime_gateway_policy_bundle($1,$2)`, "pid_79000003-0000-4000-8000-000000000003", afterSequence).Scan(&raw); err != nil {
 		t.Fatal(err)
@@ -178,6 +193,26 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	if err != nil || len(verified.Policies) != expectedPolicies {
 		t.Fatalf("gateway bundle=%s policies=%d err=%v", raw, len(verified.Policies), err)
 	}
+	if actionKey == "isolate_session" && phase == "apply" {
+		targetSession, otherSession := os.Getenv("ZASP_COMBINED_E2E_ACTION_SESSION_ID"), os.Getenv("ZASP_COMBINED_E2E_ACTION_OTHER_SESSION_ID")
+		if targetSession == "" || otherSession == "" || targetSession == otherSession {
+			t.Fatal("combined E2E session authority is invalid")
+		}
+		for _, compiled := range verified.Policies {
+			input := map[string]string{"session_id": targetSession}
+			if compiled.Trigger == "tool_call" {
+				input["tool.name"] = "shell"
+			} else {
+				input["http.method"] = "POST"
+			}
+			blocked, blockedErr := policy.Evaluate(ctx, compiled, input)
+			input["session_id"] = otherSession
+			allowed, allowedErr := policy.Evaluate(ctx, compiled, input)
+			if blockedErr != nil || !blocked.Matched || blocked.Action != policy.ActionBlock || allowedErr != nil || allowed.Matched {
+				t.Fatalf("session policy=%#v blocked=%#v blocked_err=%v allowed=%#v allowed_err=%v", compiled, blocked, blockedErr, allowed, allowedErr)
+			}
+		}
+	}
 	var runState string
 	if err := gatewayPool.QueryRow(ctx, `SELECT run.state FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) WHERE effect.action_key='create_temporary_policy' ORDER BY effect.updated_at DESC LIMIT 1`).Scan(&runState); err == nil {
 		t.Fatal("gateway principal read private Security Agent state")
@@ -185,7 +220,11 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	if envelope.Sequence != uint64(afterSequence+1) {
 		t.Fatalf("phase=%s sequence=%d", phase, envelope.Sequence)
 	}
-	t.Logf("signed temporary gateway policy %s and verified through gateway authority; state=%s", phase, expectedRunState)
+	if actionKey == "isolate_session" {
+		t.Logf("signed session isolation gateway policy %s and verified exact target plus unrelated allowance through gateway authority; state=%s", phase, expectedRunState)
+	} else {
+		t.Logf("signed temporary gateway policy %s and verified through gateway authority; state=%s", phase, expectedRunState)
+	}
 }
 
 func TestProductionCombinedE2EConnectorRevocationWorker(t *testing.T) {

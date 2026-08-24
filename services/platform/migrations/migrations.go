@@ -58,6 +58,8 @@ const (
 	securityAgentTemporaryPolicyName        = "security_agent_temporary_policy"
 	securityAgentConnectorRevocationVersion = int64(23)
 	securityAgentConnectorRevocationName    = "security_agent_connector_revocation"
+	securityAgentSessionIsolationVersion    = int64(24)
+	securityAgentSessionIsolationName       = "security_agent_session_isolation"
 	rollbackTimeout                         = 5 * time.Second
 
 	tableExistsSQL                                     = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
@@ -93,6 +95,7 @@ const (
 	securityAgentAutonomousReadinessSQL                = `SELECT zasp_security_agent_autonomous_readiness($1,$2)`
 	securityAgentTemporaryPolicyReadinessSQL           = `SELECT zasp_security_agent_temporary_policy_readiness($1,$2)`
 	securityAgentConnectorRevocationReadinessSQL       = `SELECT zasp_security_agent_connector_revocation_readiness($1,$2)`
+	securityAgentSessionIsolationReadinessSQL          = `SELECT zasp_security_agent_session_isolation_readiness($1,$2)`
 	typedInventoryRollbackAllowedSQL                   = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_inventory_cutover_state" WHERE "phase" = 'cutover')`
 	runtimeDataPlaneRollbackAllowedSQL                 = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_data_plane_state" WHERE "used_at" IS NOT NULL)`
 	runtimeGatewayReconciliationRollbackAllowedSQL     = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_gateway_reconciliation_state" WHERE "used_at" IS NOT NULL)`
@@ -103,6 +106,7 @@ const (
 	securityAgentAutonomousRollbackAllowedSQL          = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_definitions" WHERE "activation" = 'autonomous' OR "body"->>'autonomy' = 'autonomous') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_steps" WHERE "authorization_result" = 'autonomous')`
 	securityAgentTemporaryPolicyRollbackAllowedSQL     = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_effects" WHERE "action_key" = 'create_temporary_policy') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_temporary_policy_targets") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_definitions" WHERE "body"->'allowed_actions' ? 'create_temporary_policy') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_kill_switches" WHERE "action_key" = 'create_temporary_policy')`
 	securityAgentConnectorRevocationRollbackAllowedSQL = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_effects" WHERE "action_key" = 'revoke_integration_connection') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_connector_revocations") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_definitions" WHERE "body"->'allowed_actions' ? 'revoke_integration_connection') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_kill_switches" WHERE "action_key" = 'revoke_integration_connection')`
+	securityAgentSessionIsolationRollbackAllowedSQL    = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_effects" WHERE "action_key" = 'isolate_session') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_definitions" WHERE "body"->'allowed_actions' ? 'isolate_session') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_kill_switches" WHERE "action_key" = 'isolate_session')`
 )
 
 var (
@@ -253,6 +257,12 @@ var securityAgentConnectorRevocationUpSQL string
 
 //go:embed sql/0023_security_agent_connector_revocation.down.sql
 var securityAgentConnectorRevocationDownSQL string
+
+//go:embed sql/0024_security_agent_session_isolation.up.sql
+var securityAgentSessionIsolationUpSQL string
+
+//go:embed sql/0024_security_agent_session_isolation.down.sql
+var securityAgentSessionIsolationDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -435,6 +445,13 @@ func ProductionSecurityAgentConnectorRevocation() Metadata {
 	return Metadata{version: securityAgentConnectorRevocationVersion, name: securityAgentConnectorRevocationName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionSecurityAgentSessionIsolation() Metadata {
+	up := strings.TrimSpace(securityAgentSessionIsolationUpSQL)
+	down := strings.TrimSpace(securityAgentSessionIsolationDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: securityAgentSessionIsolationVersion, name: securityAgentSessionIsolationName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -531,6 +548,10 @@ func ProductionSecurityAgentTemporaryPolicySemanticFingerprint() string {
 
 func ProductionSecurityAgentConnectorRevocationSemanticFingerprint() string {
 	return semanticFingerprint(securityAgentConnectorRevocationUpSQL, "security_agent_connector_revocation_fingerprint")
+}
+
+func ProductionSecurityAgentSessionIsolationSemanticFingerprint() string {
+	return semanticFingerprint(securityAgentSessionIsolationUpSQL, "security_agent_session_isolation_fingerprint")
 }
 
 func semanticFingerprint(source, key string) string {
@@ -634,7 +655,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 23 {
+	if count < 1 || count > 24 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -683,6 +704,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy())
 	} else if count == 23 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation())
+	} else if count == 24 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -2076,6 +2099,75 @@ func (runner *Runner) DownProductionSecurityAgentConnectorRevocation(ctx context
 	})
 }
 
+func (runner *Runner) UpProductionSecurityAgentSessionIsolation(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockSecurityAgentControlsSQL, lockIdentityAdministrationSQL, lockSecurityAgentExecutionSQL, lockRuntimeIngestReconciliationSQL, lockRuntimeGatewayReconciliationSQL, lockRuntimeDataPlaneSQL, lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockAdministrationSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionSecurityAgentConnectorRevocationState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionSecurityAgentConnectorRevocation()
+		if err := requireMigrationReadiness(ctx, transaction, securityAgentConnectorRevocationReadinessSQL, prior.Checksum(), ProductionSecurityAgentConnectorRevocationSemanticFingerprint()); err != nil {
+			return err
+		}
+		metadata := ProductionSecurityAgentSessionIsolation()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionSecurityAgentSessionIsolationState(ctx, transaction); err != nil {
+			return err
+		}
+		return requireMigrationReadiness(ctx, transaction, securityAgentSessionIsolationReadinessSQL, metadata.Checksum(), ProductionSecurityAgentSessionIsolationSemanticFingerprint())
+	})
+}
+
+func (runner *Runner) DownProductionSecurityAgentSessionIsolation(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockSecurityAgentControlsSQL, lockIdentityAdministrationSQL, lockSecurityAgentExecutionSQL, lockRuntimeIngestReconciliationSQL, lockRuntimeGatewayReconciliationSQL, lockRuntimeDataPlaneSQL, lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockAdministrationSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionSecurityAgentSessionIsolationState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionSecurityAgentSessionIsolation()
+		if err := requireMigrationReadiness(ctx, transaction, securityAgentSessionIsolationReadinessSQL, metadata.Checksum(), ProductionSecurityAgentSessionIsolationSemanticFingerprint()); err != nil {
+			return err
+		}
+		var rollbackAllowed bool
+		if err := scanRow(ctx, transaction, securityAgentSessionIsolationRollbackAllowedSQL, nil, &rollbackAllowed); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if !rollbackAllowed {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionSecurityAgentConnectorRevocationState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionSecurityAgentConnectorRevocation()
+		return requireMigrationReadiness(ctx, transaction, securityAgentConnectorRevocationReadinessSQL, prior.Checksum(), ProductionSecurityAgentConnectorRevocationSemanticFingerprint())
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -2291,6 +2383,10 @@ func readProductionSecurityAgentTemporaryPolicyState(ctx context.Context, querye
 
 func readProductionSecurityAgentConnectorRevocationState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation()})
+}
+
+func readProductionSecurityAgentSessionIsolationState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

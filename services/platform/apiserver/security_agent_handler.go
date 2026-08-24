@@ -354,7 +354,10 @@ func validSecurityAgentExecutionControls(value SecurityAgentExecutionControls) b
 	if len(value.Actions) == 2 {
 		return validSecurityAgentExecutionControl(value.Actions[0], "action", "create_temporary_policy", true) && validSecurityAgentExecutionControl(value.Actions[1], "action", "update_finding_response", true)
 	}
-	return len(value.Actions) == 3 && validSecurityAgentExecutionControl(value.Actions[0], "action", "create_temporary_policy", true) && validSecurityAgentExecutionControl(value.Actions[1], "action", "revoke_integration_connection", true) && validSecurityAgentExecutionControl(value.Actions[2], "action", "update_finding_response", true)
+	if len(value.Actions) == 3 {
+		return validSecurityAgentExecutionControl(value.Actions[0], "action", "create_temporary_policy", true) && validSecurityAgentExecutionControl(value.Actions[1], "action", "revoke_integration_connection", true) && validSecurityAgentExecutionControl(value.Actions[2], "action", "update_finding_response", true)
+	}
+	return len(value.Actions) == 4 && validSecurityAgentExecutionControl(value.Actions[0], "action", "create_temporary_policy", true) && validSecurityAgentExecutionControl(value.Actions[1], "action", "isolate_session", true) && validSecurityAgentExecutionControl(value.Actions[2], "action", "revoke_integration_connection", true) && validSecurityAgentExecutionControl(value.Actions[3], "action", "update_finding_response", true)
 }
 
 func (handler *securityAgentPublicHTTPHandler) getExecutionControls(writer http.ResponseWriter, request *http.Request) {
@@ -387,7 +390,7 @@ func (handler *securityAgentPublicHTTPHandler) setExecutionControl(writer http.R
 	}
 	now := handler.config.Clock().UTC()
 	validTarget := func() bool {
-		return input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, "create_temporary_policy", "revoke_integration_connection", "update_finding_response")
+		return input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, "create_temporary_policy", "isolate_session", "revoke_integration_connection", "update_finding_response")
 	}
 	if !ok || request.Method != http.MethodPut || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now) || identity.FreshAuthExpiresAt.After(now.Add(5*time.Minute)) || !exactHeaderValue(request.Header.Values("X-Zasp-Fresh-Auth"), "confirmed") || !headersOK || decodeProductionJSON(request, &input) != nil || !validTarget() {
 		if ok && (identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now)) {

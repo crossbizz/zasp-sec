@@ -37,8 +37,8 @@ func TestSecurityAgentPostgresRepositorySimulatesWithCanonicalPlanAuthority(t *t
 		t.Fatalf("simulation=%#v err=%v", result, err)
 	}
 	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID, identity.PrincipalID.String(), input.IdempotencyKey, int64(2), runID, input.Goal, json.RawMessage(`["` + evidenceID + `"]`), expiresAt, auditID, correlationID, receiptID}
-	if database.statements[2] != postgresSecurityAgentSimulateSQL || !reflect.DeepEqual(database.arguments[2], want) {
-		t.Fatalf("statement=%q args=%#v", database.statements[2], database.arguments[2])
+	if database.statements[3] != postgresSecurityAgentSimulateSQL || !reflect.DeepEqual(database.arguments[3], want) {
+		t.Fatalf("statement=%q args=%#v", database.statements[3], database.arguments[3])
 	}
 }
 
@@ -56,7 +56,47 @@ func TestSecurityAgentPostgresRepositoryPrefersV23ScopedAuthority(t *testing.T) 
 	if err != nil || repository.schema != SecurityAgentConnectorRevocationSchemaVersion {
 		t.Fatalf("repository=%#v err=%v", repository, err)
 	}
-	if len(database.statements) != 1 || database.statements[0] != postgresSecurityAgentConnectorRevocationReadySQL {
+	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentSessionIsolationReadySQL || database.statements[1] != postgresSecurityAgentConnectorRevocationReadySQL {
+		t.Fatalf("statements=%#v", database.statements)
+	}
+}
+
+func TestSecurityAgentPostgresRepositoryPrefersV24SessionIsolationAuthority(t *testing.T) {
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentSessionIsolationReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+	}}
+	repository, err := NewSecurityAgentPostgresRepository(database)
+	if err != nil || repository.schema != SecurityAgentSessionIsolationSchemaVersion || !repository.SecurityAgentSessionIsolationAvailable() || !repository.SecurityAgentConnectorRevocationAvailable() {
+		t.Fatalf("repository=%#v err=%v", repository, err)
+	}
+	if len(database.statements) != 1 || database.statements[0] != postgresSecurityAgentSessionIsolationReadySQL {
+		t.Fatalf("statements=%#v", database.statements)
+	}
+}
+
+func TestSecurityAgentPostgresRepositoryRunsExactV24SessionTrigger(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	definitionID := "pid_78000001-0000-4000-8000-000000000001"
+	runID := "pid_78000002-0000-4000-8000-000000000002"
+	sessionID := "pid_78000003-0000-4000-8000-000000000003"
+	auditID := "pid_78000004-0000-4000-8000-000000000004"
+	correlationID := "pid_78000005-0000-4000-8000-000000000005"
+	receiptID := "pid_78000006-0000-4000-8000-000000000006"
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentSessionIsolationReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentRunV24SQL:                json.RawMessage(`{"id":"` + runID + `","agent_id":"` + definitionID + `","state":"queued","evidence_ids":["` + sessionID + `"],"definition_version":1,"version":1,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
+	}}
+	repository, err := NewSecurityAgentPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := SecurityAgentRunRequest{DefinitionID: definitionID, IdempotencyKey: "session-isolation-run-0001", ExpectedVersion: 1, RunID: runID, TriggerKind: "session", TriggerID: sessionID, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}
+	result, err := repository.RunSecurityAgent(context.Background(), identity, input)
+	if err != nil || result.ID != runID || result.AgentID != definitionID || result.State != "queued" || !reflect.DeepEqual(result.EvidenceIDs, []string{sessionID}) {
+		t.Fatalf("result=%#v err=%v", result, err)
+	}
+	if len(database.statements) != 2 || database.statements[1] != postgresSecurityAgentRunV24SQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }
@@ -89,11 +129,11 @@ func TestSecurityAgentPostgresRepositoryReadsAndMutatesExactTenantControls(t *te
 	}
 	wantScope := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String()}
 	wantMutation := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IdempotencyKey, input.Target, input.ActionKey, true, int64(0), identity.FreshAuthExpiresAt, auditID, correlationID, receiptID}
-	if !reflect.DeepEqual(database.arguments[2], wantScope) || !reflect.DeepEqual(database.arguments[3], wantMutation) {
+	if !reflect.DeepEqual(database.arguments[3], wantScope) || !reflect.DeepEqual(database.arguments[4], wantMutation) {
 		t.Fatalf("arguments=%#v", database.arguments)
 	}
 	input.Target = "global"
-	if _, err := repository.SetSecurityAgentExecutionControl(context.Background(), identity, input); !errors.Is(err, ErrRepositoryOperation) || len(database.statements) != 4 {
+	if _, err := repository.SetSecurityAgentExecutionControl(context.Background(), identity, input); !errors.Is(err, ErrRepositoryOperation) || len(database.statements) != 5 {
 		t.Fatalf("global mutation err=%v statements=%#v", err, database.statements)
 	}
 }
@@ -118,8 +158,8 @@ func TestSecurityAgentPostgresRepositoryReadsExactActivationState(t *testing.T) 
 		t.Fatalf("activation=%#v err=%v", result, err)
 	}
 	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID}
-	if database.statements[2] != postgresSecurityAgentDefinitionActivationSQL || !reflect.DeepEqual(database.arguments[2], want) {
-		t.Fatalf("statement=%q args=%#v", database.statements[2], database.arguments[2])
+	if database.statements[3] != postgresSecurityAgentDefinitionActivationSQL || !reflect.DeepEqual(database.arguments[3], want) {
+		t.Fatalf("statement=%q args=%#v", database.statements[3], database.arguments[3])
 	}
 }
 
@@ -149,8 +189,8 @@ func TestSecurityAgentPostgresRepositoryActivatesWithExactScopeAndReceiptAuthori
 		t.Fatalf("activation=%#v err=%v", result, err)
 	}
 	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID, identity.PrincipalID.String(), input.IdempotencyKey, int64(1), "validated", identity.FreshAuthExpiresAt, auditID, correlationID, receiptID}
-	if database.statements[2] != postgresSecurityAgentActivateSQL || !reflect.DeepEqual(database.arguments[2], want) {
-		t.Fatalf("statement=%q args=%#v", database.statements[2], database.arguments[2])
+	if database.statements[3] != postgresSecurityAgentActivateSQL || !reflect.DeepEqual(database.arguments[3], want) {
+		t.Fatalf("statement=%q args=%#v", database.statements[3], database.arguments[3])
 	}
 }
 
@@ -191,7 +231,7 @@ func TestSecurityAgentPostgresRepositoryRunsAndApprovesWithExactScopedAuthority(
 	}
 	wantRun := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID, identity.PrincipalID.String(), runInput.IdempotencyKey, int64(3), runID, "finding", evidenceID, auditID, correlationID, receiptID}
 	wantDecision := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), approvalID, identity.PrincipalID.String(), decisionInput.IdempotencyKey, int64(1), "approved", freshAuthAt, auditID, correlationID, receiptID}
-	if database.statements[2] != postgresSecurityAgentRunSQL || !reflect.DeepEqual(database.arguments[2], wantRun) || database.statements[3] != postgresSecurityAgentDecideApprovalV22SQL || !reflect.DeepEqual(database.arguments[3], wantDecision) {
+	if database.statements[3] != postgresSecurityAgentRunSQL || !reflect.DeepEqual(database.arguments[3], wantRun) || database.statements[4] != postgresSecurityAgentDecideApprovalV22SQL || !reflect.DeepEqual(database.arguments[4], wantDecision) {
 		t.Fatalf("statements=%#v args=%#v", database.statements, database.arguments)
 	}
 }
@@ -238,7 +278,7 @@ func TestSecurityAgentPostgresRepositoryReadsExactScopedRunsAndApprovals(t *test
 	}
 	wantRunPage := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID, "waiting_approval", createdAt.Add(time.Minute), "pid_78000009-0000-4000-8000-000000000009", 25}
 	wantApprovalPage := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), "pending", runID, nil, "", 25}
-	if !reflect.DeepEqual(database.arguments[2], wantRunPage) || !reflect.DeepEqual(database.arguments[3], []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), runID}) || !reflect.DeepEqual(database.arguments[4], wantApprovalPage) || !reflect.DeepEqual(database.arguments[5], []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), approvalID}) {
+	if !reflect.DeepEqual(database.arguments[3], wantRunPage) || !reflect.DeepEqual(database.arguments[4], []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), runID}) || !reflect.DeepEqual(database.arguments[5], wantApprovalPage) || !reflect.DeepEqual(database.arguments[6], []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), approvalID}) {
 		t.Fatalf("arguments=%#v", database.arguments)
 	}
 }
@@ -340,8 +380,8 @@ func TestSecurityAgentPostgresRepositoryCancelsWithoutExposingMutationAuthority(
 		t.Fatalf("result=%#v err=%v", result, err)
 	}
 	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), runID, identity.PrincipalID.String(), input.IdempotencyKey, int64(4), auditID, correlationID, receiptID}
-	if database.statements[2] != postgresSecurityAgentCancelRunSQL || !reflect.DeepEqual(database.arguments[2], want) {
-		t.Fatalf("statement=%q args=%#v", database.statements[2], database.arguments[2])
+	if database.statements[3] != postgresSecurityAgentCancelRunSQL || !reflect.DeepEqual(database.arguments[3], want) {
+		t.Fatalf("statement=%q args=%#v", database.statements[3], database.arguments[3])
 	}
 }
 
@@ -373,7 +413,7 @@ func TestSecurityAgentPostgresRepositoryUsesOnlyV18ScopedAuthority(t *testing.T)
 	if err != nil || len(page.Items) != 1 || page.NextID != "" {
 		t.Fatalf("page=%#v err=%v", page, err)
 	}
-	if len(database.statements) != 7 || database.statements[0] != postgresSecurityAgentConnectorRevocationReadySQL || database.statements[1] != postgresSecurityAgentTemporaryPolicyReadySQL || database.statements[2] != postgresSecurityAgentAutonomousReadySQL || database.statements[3] != postgresSecurityAgentControlsReadySQL || database.statements[4] != postgresIdentityAdminSecurityAgentReadySQL || database.statements[5] != postgresSecurityAgentAuthorityReadySQL || database.statements[6] != postgresSecurityAgentDefinitionPageSQL {
+	if len(database.statements) != 8 || database.statements[0] != postgresSecurityAgentSessionIsolationReadySQL || database.statements[1] != postgresSecurityAgentConnectorRevocationReadySQL || database.statements[2] != postgresSecurityAgentTemporaryPolicyReadySQL || database.statements[3] != postgresSecurityAgentAutonomousReadySQL || database.statements[4] != postgresSecurityAgentControlsReadySQL || database.statements[5] != postgresIdentityAdminSecurityAgentReadySQL || database.statements[6] != postgresSecurityAgentAuthorityReadySQL || database.statements[7] != postgresSecurityAgentDefinitionPageSQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 	if _, err := repository.ListWorkflowPage(context.Background(), scope, "policy", "", 10); !errors.Is(err, ErrRepositoryOperation) {

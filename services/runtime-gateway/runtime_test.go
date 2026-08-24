@@ -41,6 +41,48 @@ func TestGatewayRuntimeSyncsSignedPolicyAndEvaluatesWithoutControlPlaneCall(t *t
 	}
 }
 
+func TestGatewayRuntimeBlocksOnlyTheSignedIsolatedSession(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	now := gatewayRuntimeTime()
+	authority := gatewayRuntimeAuthority()
+	targetSession := gatewayRuntimeSequenceID(41)
+	otherSession := gatewayRuntimeSequenceID(42)
+	compiled, err := policy.Compile(policy.Policy{ID: "session-isolation-v1", Trigger: "tool_call", Action: policy.ActionBlock, Conditions: []policy.Condition{{Field: "session_id", Operator: "equals", Value: targetSession}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := signedGatewayRuntimePolicies(t, private, authority, now, "closed", []policy.CompiledPolicy{compiled})
+	control := &gatewayControlStub{authority: authority, envelope: &envelope}
+	keys, _ := policy.NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
+	cache, _ := policy.NewGatewayPolicyCache(keys, authority.Binding(), func() time.Time { return now })
+	runtime, err := newGatewayRuntime(gatewayRuntimeConfig{Control: control, Cache: cache, CredentialID: authority.CredentialID, BootstrapFailureMode: "closed", MaximumPendingEvents: 8, Now: func() time.Time { return now }})
+	if err != nil || runtime.SyncOnce(context.Background()) != nil {
+		t.Fatalf("runtime=%#v err=%v", runtime, err)
+	}
+	targetClassification := gatewayRuntimeClassification("blocked")
+	targetClassification["session_id"] = targetSession
+	target, err := runtime.Evaluate(context.Background(), gatewayEvaluationRequest{EventID: gatewayRuntimeSequenceID(43), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "shell", "session_id": targetSession}, Classification: targetClassification})
+	if err != nil || target.Decision != "block" || len(target.MatchedPolicyIDs) != 1 || target.MatchedPolicyIDs[0] != "session-isolation-v1" {
+		t.Fatalf("target=%#v err=%v", target, err)
+	}
+	otherClassification := gatewayRuntimeClassification("allowed")
+	otherClassification["session_id"] = otherSession
+	other, err := runtime.Evaluate(context.Background(), gatewayEvaluationRequest{EventID: gatewayRuntimeSequenceID(44), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "shell", "session_id": otherSession}, Classification: otherClassification})
+	if err != nil || other.Decision != "allow" || len(other.MatchedPolicyIDs) != 0 {
+		t.Fatalf("other=%#v err=%v", other, err)
+	}
+	invalid := gatewayEvaluationRequest{EventID: gatewayRuntimeSequenceID(45), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "shell", "session_id": "foreign-session"}, Classification: gatewayRuntimeClassification("blocked")}
+	if result, err := runtime.Evaluate(context.Background(), invalid); !errors.Is(err, errGatewayRuntime) || result.Decision != "" {
+		t.Fatalf("invalid=%#v err=%v", result, err)
+	}
+	mismatchedClassification := gatewayRuntimeClassification("blocked")
+	mismatchedClassification["session_id"] = otherSession
+	mismatched := gatewayEvaluationRequest{EventID: gatewayRuntimeSequenceID(46), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "shell", "session_id": targetSession}, Classification: mismatchedClassification}
+	if result, err := runtime.Evaluate(context.Background(), mismatched); !errors.Is(err, errGatewayRuntime) || result.Decision != "" {
+		t.Fatalf("mismatched=%#v err=%v", result, err)
+	}
+}
+
 func TestGatewayRuntimeBindsBlockedCapabilityEvidence(t *testing.T) {
 	public, private, _ := ed25519.GenerateKey(rand.Reader)
 	now := gatewayRuntimeTime()
@@ -814,7 +856,12 @@ func signedGatewayRuntimeEnvelope(t *testing.T, private ed25519.PrivateKey, auth
 	if err != nil {
 		t.Fatal(err)
 	}
-	envelope := policy.GatewayPolicyEnvelope{ContractVersion: 1, KeyID: "gateway-key-1", Algorithm: "Ed25519", Audience: "runtime-gateway-policy", OrganizationID: authority.OrganizationID, WorkspaceID: authority.WorkspaceID, EnvironmentID: authority.EnvironmentID, DeviceID: authority.DeviceID, Sequence: 1, PolicyVersion: 1, IssuedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour), FailureMode: failureMode, Policies: []policy.CompiledPolicy{compiled}}
+	return signedGatewayRuntimePolicies(t, private, authority, now, failureMode, []policy.CompiledPolicy{compiled})
+}
+
+func signedGatewayRuntimePolicies(t *testing.T, private ed25519.PrivateKey, authority gatewayAuthority, now time.Time, failureMode string, compiled []policy.CompiledPolicy) policy.GatewayPolicyEnvelope {
+	t.Helper()
+	envelope := policy.GatewayPolicyEnvelope{ContractVersion: 1, KeyID: "gateway-key-1", Algorithm: "Ed25519", Audience: "runtime-gateway-policy", OrganizationID: authority.OrganizationID, WorkspaceID: authority.WorkspaceID, EnvironmentID: authority.EnvironmentID, DeviceID: authority.DeviceID, Sequence: 1, PolicyVersion: 1, IssuedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour), FailureMode: failureMode, Policies: compiled}
 	policies := append([]policy.CompiledPolicy(nil), envelope.Policies...)
 	sort.Slice(policies, func(i, j int) bool { return policies[i].ID < policies[j].ID })
 	payload, _ := json.Marshal(struct {

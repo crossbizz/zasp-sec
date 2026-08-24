@@ -30,7 +30,7 @@ export type SecurityAgentsAPI = {
   listSecurityAgentTemplates(signal?: AbortSignal): Promise<readonly SecurityAgentTemplate[]>;
   listSecurityActions(signal?: AbortSignal): Promise<readonly SecurityAction[]>;
   getSecurityAgentExecutionControls(signal?: AbortSignal): Promise<SecurityAgentExecutionControls>;
-  setSecurityAgentExecutionControl(target: "environment" | "action", actionKey: "*" | "create_temporary_policy" | "revoke_integration_connection" | "update_finding_response", version: number, enabled: boolean, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentExecutionControlResult>>;
+  setSecurityAgentExecutionControl(target: "environment" | "action", actionKey: "*" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "update_finding_response", version: number, enabled: boolean, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentExecutionControlResult>>;
   listSecurityAgents(options?: { cursor?: string; limit?: number }, signal?: AbortSignal): Promise<SecurityAgentPage>;
   createSecurityAgent(value: SecurityAgentInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentDefinition>>;
   getSecurityAgent(id: string, signal?: AbortSignal): Promise<Versioned<SecurityAgentDefinition>>;
@@ -61,7 +61,7 @@ export function createSecurityAgentsAPI(client: APIClient = createAPIClient()): 
       return requireAPIData(result, decodeSecurityAgentExecutionControls);
     },
     async setSecurityAgentExecutionControl(target, actionKey, version, enabled, attempt) {
-      if (target === "environment" && actionKey !== "*" || target === "action" && actionKey !== "create_temporary_policy" && actionKey !== "revoke_integration_connection" && actionKey !== "update_finding_response") throw new TypeError("Security Agent execution control target is invalid");
+      if (target === "environment" && actionKey !== "*" || target === "action" && actionKey !== "create_temporary_policy" && actionKey !== "isolate_session" && actionKey !== "revoke_integration_connection" && actionKey !== "update_finding_response") throw new TypeError("Security Agent execution control target is invalid");
       return executeWorkflowMutation(async (active) => {
         const params = { header: { ...workflowMutationHeaders(active, `"${version}"`), "X-Zasp-Fresh-Auth": "confirmed" } } as never;
         const result = await client.PUT("/api/v1/security-agent-execution-controls", { params, body: { target, action_key: actionKey, enabled } }); requireSecurityAgentNoStore(result.response);
@@ -170,7 +170,7 @@ type SecurityAgentApprovalDecisionIntent = { id: string; version: number; decisi
 type SecurityAgentActivationIntent = { id: string; version: number; activation: "validated" | "supervised" | "autonomous" };
 type SecurityAgentSimulationIntent = { id: string; version: number; goal: string; environmentID: string; evidenceIDs: readonly string[] };
 type SecurityAgentManualRunIntent = { id: string; version: number; environmentID: string; triggerKind: "finding" | "attack_path" | "session"; triggerID: string };
-type SecurityAgentControlIntent = { target: "environment" | "action"; actionKey: "*" | "create_temporary_policy" | "revoke_integration_connection" | "update_finding_response"; version: number; enabled: boolean };
+type SecurityAgentControlIntent = { target: "environment" | "action"; actionKey: "*" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "update_finding_response"; version: number; enabled: boolean };
 
 async function loadSecurityAgentSnapshot(api: SecurityAgentsAPI, includeControls = false, signal?: AbortSignal): Promise<SecurityAgentSnapshot> {
   const [firstPage, templates, actions, firstRuns, firstApprovals, controls] = await Promise.all([
@@ -207,7 +207,7 @@ type SecurityAgentControlMutation = ReturnType<typeof useRetainedWorkflowMutatio
 
 function ExecutionControls({ value, api, fresh, mutation, onReauthenticate, onChange }: { value: SecurityAgentExecutionControls; api: SecurityAgentsAPI; fresh: boolean; mutation: SecurityAgentControlMutation; onReauthenticate(): void; onChange(value: SecurityAgentExecutionControls): void }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(false);
-  const change = async (target: "environment" | "action", actionKey: "*" | "create_temporary_policy" | "revoke_integration_connection" | "update_finding_response") => {
+  const change = async (target: "environment" | "action", actionKey: "*" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "update_finding_response") => {
     const current = target === "environment" ? value.environment : value.actions.find((action) => action.action_key === actionKey);
     if (!current) return;
     setBusy(true); setError(false);

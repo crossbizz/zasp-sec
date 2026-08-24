@@ -711,10 +711,11 @@ describe("production workflow concurrency contract", () => {
     assert.equal(document.components.schemas.SecurityAgentExecutionControlInput.properties.target.enum.includes("global"), false);
     assert.deepEqual(document.components.schemas.SecurityAgentExecutionControls.properties.actions, {
       type: "array",
-      minItems: 3,
-      maxItems: 3,
+      minItems: 4,
+      maxItems: 4,
       items: { $ref: "#/components/schemas/SecurityAgentExecutionControl" },
     });
+    assert.deepEqual(document.components.schemas.SecurityAgentExecutionControlInput.properties.action_key.enum, ["*", "create_temporary_policy", "isolate_session", "revoke_integration_connection", "update_finding_response"]);
 
     const activationState = operations.get("getSecurityAgentActivation");
     assert.equal(activationState.path, "/api/v1/security-agents/{id}/activation");

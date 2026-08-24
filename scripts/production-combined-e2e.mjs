@@ -137,8 +137,8 @@ try {
     ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL: "zasp_e2e_security_agent_worker",
     ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL: "zasp_e2e_security_agent_action",
   } });
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, and connector-revocation releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, and session-isolation releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -146,7 +146,7 @@ try {
   console.log("combined E2E: schema 19 identity_administration verified");
   console.log("combined E2E: schema 20 security_agent_controls verified");
   console.log("combined E2E: schema 21 security_agent_autonomous_response verified");
-  console.log("combined E2E: schema 23 security_agent_connector_revocation verified");
+  console.log("combined E2E: schema 24 security_agent_session_isolation verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -1648,6 +1648,9 @@ async function exerciseSecurityAgentAutomaticLifecycle(cdp, workerBinary, worker
 	const connectorFinding = "pid_30000103-0000-4000-8000-000000000103";
 	const connectorEvidence = "pid_77000001-0000-4000-8000-000000000001";
 	const connectorDefinition = "pid_78000020-0000-4000-8000-000000000020";
+	const sessionDefinition = "pid_78000030-0000-4000-8000-000000000030";
+	const isolatedSession = "pid_79000010-0000-4000-8000-000000000010";
+	const unrelatedSession = "pid_79000011-0000-4000-8000-000000000011";
 	const gatewayDevice = "pid_79000001-0000-4000-8000-000000000001";
 	const gatewayEnrollment = "pid_79000002-0000-4000-8000-000000000002";
 	const gatewayCredential = "pid_79000003-0000-4000-8000-000000000003";
@@ -1656,6 +1659,9 @@ async function exerciseSecurityAgentAutomaticLifecycle(cdp, workerBinary, worker
 	const foreignEnvironment = "pid_90000003-0000-4000-8000-000000000003";
 	const foreignDefinition = "pid_90000008-0000-4000-8000-000000000008";
 	const foreignFinding = "pid_90000007-0000-4000-8000-000000000007";
+	const foreignGatewayDevice = "pid_90000020-0000-4000-8000-000000000020";
+	const foreignGatewayEnrollment = "pid_90000021-0000-4000-8000-000000000021";
+	const foreignGatewayCredential = "pid_90000022-0000-4000-8000-000000000022";
 
 	await clickBrowserAria(cdp, "Open Bounded response definition");
 	await clickBrowserText(cdp, "Validate definition");
@@ -1675,6 +1681,9 @@ jsonb_build_object('id','${foreignDefinition}','name','Foreign autonomous respon
 INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${temporaryDefinition}','supervised',1,1,
 jsonb_build_object('id','${temporaryDefinition}','name','Temporary containment response','trigger_kind','finding','trigger_source','temporary_policy','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',900,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('create_temporary_policy'),'verification_kind','policy_state','definition_version',1,'enabled',true),'security-agent-actions-v1');
+INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
+VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${sessionDefinition}','supervised',1,1,
+jsonb_build_object('id','${sessionDefinition}','name','Compromised runtime session','trigger_kind','runtime_decision','trigger_source','gateway','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',900,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('isolate_session'),'verification_kind','gateway_decision','definition_version',1,'enabled',true),'security-agent-actions-v1');
 INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,body)
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','integration','${task5GitHubIntegrationID}',jsonb_build_object('id','${task5GitHubIntegrationID}','connector_key','github','name','Harness GitHub inventory','configuration',jsonb_build_object('installation_id','424242'),'status','active','created_at','2026-08-19T00:00:00Z','updated_at','2026-08-19T00:00:00Z'));
 INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status)
@@ -1691,13 +1700,23 @@ INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,envir
 ('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','*',true,'production-e2e-security-agent'),
 ('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','update_finding_response',true,'production-e2e-security-agent'),
 ('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','create_temporary_policy',true,'production-e2e-security-agent'),
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','isolate_session',true,'production-e2e-security-agent'),
 ('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','revoke_integration_connection',true,'production-e2e-security-agent'),
 ('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','*',true,'production-e2e-security-agent'),
 ('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','update_finding_response',true,'production-e2e-security-agent')
 ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO UPDATE SET execution_enabled=EXCLUDED.execution_enabled,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();
 INSERT INTO zasp_gateway_devices(organization_id,workspace_id,environment_id,id,name,state) VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','Production E2E gateway','active');
 INSERT INTO zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,id,device_id,audience,salt,token_hash,expires_at) VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayEnrollment}','${gatewayDevice}','runtime-gateway-enroll',repeat(E'\\001',16)::bytea,repeat(E'\\002',32)::bytea,transaction_timestamp()+interval '1 hour');
-INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id,id,device_id,enrollment_token_id,enrollment_digest,audience,key_reference,public_key,expires_at,format_version,credential_generation,key_id,algorithm,v15_issued_at) VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayCredential}','${gatewayDevice}','${gatewayEnrollment}',repeat(E'\\003',32)::bytea,'runtime-gateway','ref:gateway/public/production-e2e',repeat(E'\\004',32)::bytea,transaction_timestamp()+interval '1 hour',1,1,'gateway-device-key-01','Ed25519',transaction_timestamp());`;
+INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id,id,device_id,enrollment_token_id,enrollment_digest,audience,key_reference,public_key,expires_at,format_version,credential_generation,key_id,algorithm,v15_issued_at) VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayCredential}','${gatewayDevice}','${gatewayEnrollment}',repeat(E'\\003',32)::bytea,'runtime-gateway','ref:gateway/public/production-e2e',repeat(E'\\004',32)::bytea,transaction_timestamp()+interval '1 hour',1,1,'gateway-device-key-01','Ed25519',transaction_timestamp());
+INSERT INTO zasp_gateway_devices(organization_id,workspace_id,environment_id,id,name,state) VALUES('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignGatewayDevice}','Foreign E2E gateway','active');
+INSERT INTO zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,id,device_id,audience,salt,token_hash,expires_at) VALUES('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignGatewayEnrollment}','${foreignGatewayDevice}','runtime-gateway-enroll',decode(repeat('05',16),'hex'),decode(repeat('06',32),'hex'),transaction_timestamp()+interval '1 hour');
+INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id,id,device_id,enrollment_token_id,enrollment_digest,audience,key_reference,public_key,expires_at,format_version,credential_generation,key_id,algorithm,v15_issued_at) VALUES('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignGatewayCredential}','${foreignGatewayDevice}','${foreignGatewayEnrollment}',decode(repeat('07',32),'hex'),'runtime-gateway','ref:gateway/public/production-e2e-foreign',decode(repeat('08',32),'hex'),transaction_timestamp()+interval '1 hour',1,1,'gateway-device-key-foreign','Ed25519',transaction_timestamp());
+INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment_id,device_id,credential_id,event_id,sequence,request_digest,policy_version,decision,action_kind,classification,occurred_at) VALUES
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000020-0000-4000-8000-000000000020',1,decode(repeat('21',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),transaction_timestamp()-interval '3 seconds'),
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000021-0000-4000-8000-000000000021',2,decode(repeat('22',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),transaction_timestamp()-interval '2 seconds'),
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000022-0000-4000-8000-000000000022',3,decode(repeat('23',32),'hex'),1,'block','mcp',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),transaction_timestamp()-interval '1 second'),
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000023-0000-4000-8000-000000000023',4,decode(repeat('24',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${unrelatedSession}'),transaction_timestamp()),
+('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignGatewayDevice}','${foreignGatewayCredential}','pid_90000023-0000-4000-8000-000000000023',1,decode(repeat('25',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),transaction_timestamp());`;
 	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: seed });
 	const connectorSeed = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-v", "ON_ERROR_STOP=1", "-c", `SELECT concat_ws('|',count(*),max(workflow.body->>'status'),max(connection.state),max(credential.status)) FROM zasp_inventory_evidence evidence JOIN zasp_workflow_records workflow ON (workflow.organization_id,workflow.workspace_id,workflow.environment_id,workflow.kind,workflow.id)=(evidence.organization_id,evidence.workspace_id,evidence.environment_id,'integration',evidence.integration_id) JOIN zasp_integration_connections connection ON (connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id)=(evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.integration_id) JOIN zasp_connector_credentials credential ON (credential.organization_id,credential.workspace_id,credential.environment_id,credential.integration_id,credential.provider,credential.credential_reference)=(connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id,connection.provider,connection.connection_reference) WHERE evidence.id='${connectorEvidence}';`])).stdout.trim();
 	assert.equal(connectorSeed, "1|active|verified|active", "connector response seed was not fully actionable");
@@ -1840,6 +1859,48 @@ INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id
 	const cleaned = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,count(target.*),max(target.sequence)) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_temporary_policy_targets target USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE run.run_id='${temporaryRunID}' GROUP BY run.state,effect.state;`])).stdout.trim();
 	assert.equal(cleaned, "remediated|cleaned|2|2", "temporary containment cleanup did not durably restore the gateway policy");
 
+	let sessionApprovalID = "";
+	let sessionRunID = "";
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		const state = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',COALESCE(run.run_id,''),COALESCE(run.state,''),COALESCE(approval.approval_id,'')) FROM zasp_security_agent_runs run LEFT JOIN zasp_security_agent_approvals approval USING(organization_id,workspace_id,environment_id,run_id) WHERE (run.organization_id,run.workspace_id,run.environment_id,run.definition_id,run.trigger_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${sessionDefinition}','${isolatedSession}');`])).stdout.trim();
+		const [candidateRun, runState, candidateApproval] = state.split("|");
+		if (/^pid_[0-9a-f-]{36}$/.test(candidateRun) && runState === "waiting_approval" && /^pid_[0-9a-f-]{36}$/.test(candidateApproval)) {
+			sessionRunID = candidateRun;
+			sessionApprovalID = candidateApproval;
+			break;
+		}
+		await delay(50);
+	}
+	assert.match(sessionApprovalID, /^pid_[0-9a-f-]{36}$/, "automatic session isolation did not reach supervised approval");
+	api = startChild(apiBinary, [], { env: apiEnvironment });
+	await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
+	await navigateBrowser(cdp, `${publicOrigin}/protect/approvals`);
+	await waitForBrowserText(cdp, /Isolate runtime session/);
+	await clickBrowserAria(cdp, `Open approval ${sessionApprovalID}`);
+	await waitForBrowserText(cdp, /Isolate runtime session/);
+	await waitForBrowserText(cdp, /TTL 600s/);
+	await clickBrowserText(cdp, "Approve");
+	await waitForBrowserText(cdp, /approved/);
+	worker = startTask4Worker(workerBinary, securityAgentWorkerEnvironment);
+	await assertReadyTask4Worker(worker, "security-agent");
+	let sessionEffectState = "";
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		sessionEffectState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,approval.state) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_approvals approval USING(organization_id,workspace_id,environment_id,run_id) WHERE run.run_id='${sessionRunID}' AND effect.action_key='isolate_session';`])).stdout.trim();
+		if (sessionEffectState === "running|pending|approved") break;
+		await delay(50);
+	}
+	assert.equal(sessionEffectState, "running|pending|approved", "approved session isolation did not reach the action worker");
+	await stopChild(worker);
+	await stopChild(api);
+	api = undefined;
+	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "apply", { key: "isolate_session", afterSequence: 2, sessionID: isolatedSession, otherSessionID: unrelatedSession });
+	const sessionApplied = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,count(target.*),max(target.sequence),(SELECT count(*) FROM zasp_security_agent_temporary_policy_targets foreign_target WHERE foreign_target.action_key='isolate_session' AND foreign_target.organization_id='${foreignOrganization}')) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_temporary_policy_targets target USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE run.run_id='${sessionRunID}' GROUP BY run.state,effect.state;`])).stdout.trim();
+	assert.equal(sessionApplied, "contained|cleanup_pending|1|3|0", "session isolation was not exact, durable, and tenant scoped");
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_security_agent_effects SET updated_at=transaction_timestamp() WHERE run_id='${sessionRunID}' AND action_key='isolate_session' AND state='cleanup_pending';`]);
+	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "cleanup", { key: "isolate_session", afterSequence: 3, sessionID: isolatedSession, otherSessionID: unrelatedSession });
+	const sessionCleaned = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,count(target.*),max(target.sequence)) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_temporary_policy_targets target USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE run.run_id='${sessionRunID}' GROUP BY run.state,effect.state;`])).stdout.trim();
+	assert.equal(sessionCleaned, "remediated|cleaned|2|4", "session isolation cleanup did not restore unrelated gateway activity");
+
 	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "reconcile");
 	const connectorFinalState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,link.state,connection.state,credential.status,integration.state,workflow.body->>'status') FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_connector_revocations link USING(organization_id,workspace_id,environment_id,run_id,step_id) JOIN zasp_integration_connections connection ON (connection.organization_id,connection.workspace_id,connection.environment_id,connection.id)=(link.organization_id,link.workspace_id,link.environment_id,link.connection_id) JOIN zasp_connector_credentials credential ON (credential.organization_id,credential.workspace_id,credential.environment_id,credential.id)=(link.organization_id,link.workspace_id,link.environment_id,link.credential_id) JOIN zasp_integrations integration ON (integration.organization_id,integration.workspace_id,integration.environment_id,integration.id)=(link.organization_id,link.workspace_id,link.environment_id,link.integration_id) JOIN zasp_workflow_records workflow ON (workflow.organization_id,workflow.workspace_id,workflow.environment_id,workflow.kind,workflow.id)=(link.organization_id,link.workspace_id,link.environment_id,'integration',link.integration_id) WHERE run.run_id='${connectorRunID}';`])).stdout.trim();
 	assert.equal(connectorFinalState, "remediated|verified|verified|revoked|revoked|pending|pending_authorization", "connector revocation did not finish through provider and action worker authority");
@@ -1854,7 +1915,7 @@ INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id
 	const history = await waitForBrowserText(cdp, /Approval history/);
 	assert.match(history, /approved/);
 	assert.doesNotMatch(history, /Foreign autonomous response/);
-	console.log("combined E2E: multi-tenant supervised approval, autonomous response, signed temporary policy apply/cleanup, and irreversible connector revocation proven through real production workers");
+	console.log("combined E2E: multi-tenant supervised approval, autonomous response, exact-session isolation with unrelated allowance and cleanup, signed temporary policy apply/cleanup, and irreversible connector revocation proven through real production workers");
 }
 
 async function runConnectorRevocationProviderWorker(workerE2EBinary, postgresPort, integrationID) {
@@ -1873,7 +1934,7 @@ async function runConnectorRevocationProviderWorker(workerE2EBinary, postgresPor
 	assert.match(result.stdout, new RegExp(`real connector reconciler revoked exact reference ${reference.replaceAll("/", "\\/")}`));
 }
 
-async function runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, phase) {
+async function runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, phase, action = { key: "create_temporary_policy", afterSequence: phase === "cleanup" ? 1 : 0 }) {
 	const result = await command(workerE2EBinary, ["-test.run=^TestProductionCombinedE2ETemporaryPolicyActionWorker$", "-test.v", "-test.count=1"], {
 		cwd: platform,
 		timeout: 60_000,
@@ -1883,9 +1944,14 @@ async function runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, act
 			ZASP_COMBINED_E2E_GATEWAY_DSN: `postgres://zasp_e2e_gateway_control@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_ACTION_PRIVATE_KEY: actionPrivateKey,
 			ZASP_COMBINED_E2E_ACTION_PHASE: phase,
+			ZASP_COMBINED_E2E_ACTION_KEY: action.key,
+			ZASP_COMBINED_E2E_AFTER_SEQUENCE: String(action.afterSequence),
+			...(action.sessionID ? { ZASP_COMBINED_E2E_ACTION_SESSION_ID: action.sessionID } : {}),
+			...(action.otherSessionID ? { ZASP_COMBINED_E2E_ACTION_OTHER_SESSION_ID: action.otherSessionID } : {}),
 		},
 	});
 	if (phase === "reconcile") assert.match(result.stdout, /connector revocation reconciled through the production action worker/);
+	else if (action.key === "isolate_session") assert.match(result.stdout, new RegExp(`signed session isolation gateway policy ${phase} and verified exact target plus unrelated allowance through gateway authority`));
 	else assert.match(result.stdout, new RegExp(`signed temporary gateway policy ${phase} and verified through gateway authority`));
 }
 

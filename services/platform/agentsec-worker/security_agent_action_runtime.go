@@ -127,7 +127,11 @@ func (processor *securityAgentActionProcessor) process(ctx context.Context, clai
 
 func (processor *securityAgentActionProcessor) applyClaim(ctx context.Context, claim apiserver.TemporaryPolicyEffectClaim, leaseToken string) error {
 	now := processor.config.Now().UTC().Truncate(time.Second)
-	compiled, err := temporaryContainmentPolicies(claim.Phase)
+	actionKey := claim.ActionKey
+	if actionKey == "" {
+		actionKey = "create_temporary_policy"
+	}
+	compiled, err := temporaryContainmentPolicies(actionKey, claim.SessionID, claim.Phase)
 	if err != nil {
 		return errWorkerExecution
 	}
@@ -249,16 +253,27 @@ func temporaryPolicyRepositoryEnvelope(target apiserver.TemporaryPolicyTarget, p
 	return apiserver.TemporaryPolicyTargetEnvelope{Target: target, Phase: phase, KeyID: signed.KeyID, IssuedAt: signed.IssuedAt, ExpiresAt: signed.ExpiresAt, FailureMode: signed.FailureMode, PayloadDigest: "sha256:" + signed.PayloadDigest, Policies: policies, Signature: signature, EnvelopeDigest: "sha256:" + hex.EncodeToString(envelopeDigest[:])}, nil
 }
 
-func temporaryContainmentPolicies(phase string) ([]policy.CompiledPolicy, error) {
+func temporaryContainmentPolicies(actionKey, sessionID, phase string) ([]policy.CompiledPolicy, error) {
+	if actionKey == "create_temporary_policy" && sessionID != "" || actionKey == "isolate_session" && !validActionSessionID(sessionID) || actionKey != "create_temporary_policy" && actionKey != "isolate_session" {
+		return nil, errWorkerExecution
+	}
 	if phase == "cleanup" {
 		return []policy.CompiledPolicy{}, nil
 	}
 	if phase != "apply" {
 		return nil, errWorkerExecution
 	}
-	definitions := []policy.Policy{
-		{ID: "temporary-containment-http-v1", Trigger: "http_request", Conditions: []policy.Condition{{Field: "http.method", Operator: "present"}}, Action: policy.ActionBlock},
-		{ID: "temporary-containment-mcp-v1", Trigger: "tool_call", Conditions: []policy.Condition{{Field: "tool.name", Operator: "present"}}, Action: policy.ActionBlock},
+	definitions := []policy.Policy{}
+	if actionKey == "create_temporary_policy" {
+		definitions = []policy.Policy{
+			{ID: "temporary-containment-http-v1", Trigger: "http_request", Conditions: []policy.Condition{{Field: "http.method", Operator: "present"}}, Action: policy.ActionBlock},
+			{ID: "temporary-containment-mcp-v1", Trigger: "tool_call", Conditions: []policy.Condition{{Field: "tool.name", Operator: "present"}}, Action: policy.ActionBlock},
+		}
+	} else {
+		definitions = []policy.Policy{
+			{ID: "session-isolation-http-v1", Trigger: "http_request", Conditions: []policy.Condition{{Field: "http.method", Operator: "present"}, {Field: "session_id", Operator: "equals", Value: sessionID}}, Action: policy.ActionBlock},
+			{ID: "session-isolation-mcp-v1", Trigger: "tool_call", Conditions: []policy.Condition{{Field: "tool.name", Operator: "present"}, {Field: "session_id", Operator: "equals", Value: sessionID}}, Action: policy.ActionBlock},
+		}
 	}
 	compiled := make([]policy.CompiledPolicy, len(definitions))
 	for index, definition := range definitions {
@@ -269,6 +284,11 @@ func temporaryContainmentPolicies(phase string) ([]policy.CompiledPolicy, error)
 		compiled[index] = value
 	}
 	return compiled, nil
+}
+
+func validActionSessionID(value string) bool {
+	_, err := domain.ParseProductID(value)
+	return err == nil
 }
 
 func sameTemporaryPolicyEnvelope(left, right apiserver.TemporaryPolicyTargetEnvelope) bool {
