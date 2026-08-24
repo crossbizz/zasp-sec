@@ -41,7 +41,7 @@ CREATE TABLE public.zasp_attack_lab_runs(
   requested_by text NOT NULL,state text NOT NULL DEFAULT 'queued',attempt integer NOT NULL DEFAULT 0,cancel_requested boolean NOT NULL DEFAULT false,
   cleanup_state text NOT NULL DEFAULT 'pending',controller_id text,lease_token bytea,lease_expires_at timestamptz,
   queued_at timestamptz NOT NULL DEFAULT transaction_timestamp(),started_at timestamptz,completed_at timestamptz,next_attempt_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
-  input_digest bytea NOT NULL,verdict text,error_code text,evidence_reference text,evidence_key text,evidence_version_id text,evidence_checksum bytea,evidence_size bigint,
+  input_digest bytea NOT NULL,sandbox_reference text,verdict text,error_code text,evidence_reference text,evidence_key text,evidence_version_id text,evidence_checksum bytea,evidence_size bigint,
   created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
   PRIMARY KEY(organization_id,workspace_id,environment_id,run_id),
   FOREIGN KEY(organization_id,workspace_id,environment_id,source_run_id) REFERENCES public.zasp_red_team_runs(organization_id,workspace_id,environment_id,run_id),
@@ -53,7 +53,7 @@ CREATE TABLE public.zasp_attack_lab_runs(
   CHECK(state IN('queued','leased','running','retryable','cleanup','complete','failed','cancelled')),CHECK(attempt BETWEEN 0 AND 5),CHECK(cleanup_state IN('pending','in_progress','complete','failed')),
   CHECK((state IN('leased','running','cleanup'))=(controller_id IS NOT NULL AND lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)),
   CHECK(controller_id IS NULL OR length(controller_id) BETWEEN 3 AND 128 AND controller_id~'^[a-z][a-z0-9.-]{2,127}$'),CHECK(lease_token IS NULL OR octet_length(lease_token)=32),CHECK(octet_length(input_digest)=32),
-  CHECK(verdict IS NULL OR verdict IN('verified','not_reproduced','inconclusive')),CHECK(error_code IS NULL OR error_code IN('retryable','denied','malformed','outcome_unknown','cleanup_failed','cancelled','exhausted')),
+  CHECK(sandbox_reference IS NULL OR sandbox_reference~'^k8s://attack-lab/jobs/zasp-attack-lab-[a-z0-9-]{8,64}@[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'),CHECK(verdict IS NULL OR verdict IN('verified','not_reproduced','inconclusive')),CHECK(error_code IS NULL OR error_code IN('retryable','denied','malformed','outcome_unknown','cleanup_failed','cancelled','exhausted')),
   CHECK(evidence_checksum IS NULL OR octet_length(evidence_checksum)=32),CHECK(evidence_size IS NULL OR evidence_size BETWEEN 1 AND 67108864)
 );
 
@@ -66,20 +66,32 @@ CREATE TABLE public.zasp_attack_lab_attempts(
   FOREIGN KEY(organization_id,workspace_id,environment_id,run_id) REFERENCES public.zasp_attack_lab_runs(organization_id,workspace_id,environment_id,run_id),
   CHECK(attempt BETWEEN 1 AND 5 AND octet_length(input_digest)=32),CHECK(verdict IN('verified','not_reproduced','inconclusive')),
   CHECK(error_code IS NULL OR error_code IN('denied','malformed','outcome_unknown','cleanup_failed','exhausted')),
-  CHECK(jsonb_typeof(evidence)='array' AND jsonb_array_length(evidence) BETWEEN 1 AND 5),CHECK(octet_length(evidence_checksum)=32),CHECK(evidence_size BETWEEN 1 AND 67108864),
+  CHECK(jsonb_typeof(evidence)='array' AND jsonb_array_length(evidence)=5 AND evidence->>0 LIKE 'semantic:%' AND evidence->>1 LIKE 'gateway:%' AND evidence->>2 LIKE 'egress:%' AND evidence->>3 LIKE 'kubernetes:%' AND evidence->>4 LIKE 'cloud:%'),CHECK(octet_length(evidence_checksum)=32),CHECK(evidence_size BETWEEN 1 AND 67108864),
   CHECK(verdict<>'verified' OR criterion_observed AND canary_touched),CHECK(verdict<>'not_reproduced' OR NOT criterion_observed AND NOT canary_touched),CHECK(cleanup_completed)
+);
+
+CREATE TABLE public.zasp_attack_lab_cleanup_checkpoints(
+  organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,run_id text NOT NULL,attempt integer NOT NULL,input_digest bytea NOT NULL,sandbox_reference text NOT NULL,
+  verdict text NOT NULL,criterion_observed boolean NOT NULL,canary_touched boolean NOT NULL,error_code text,evidence jsonb NOT NULL,evidence_reference text NOT NULL,evidence_key text NOT NULL,evidence_version_id text NOT NULL,evidence_checksum bytea NOT NULL,evidence_size bigint NOT NULL,
+  finish_digest bytea,finish_result jsonb,finished_at timestamptz,created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+  PRIMARY KEY(organization_id,workspace_id,environment_id,run_id,attempt),
+  FOREIGN KEY(organization_id,workspace_id,environment_id,run_id) REFERENCES public.zasp_attack_lab_runs(organization_id,workspace_id,environment_id,run_id),
+  CHECK(attempt BETWEEN 1 AND 5 AND octet_length(input_digest)=32),CHECK(sandbox_reference~'^k8s://attack-lab/jobs/zasp-attack-lab-[a-z0-9-]{8,64}@[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'),
+  CHECK(verdict IN('verified','not_reproduced','inconclusive')),CHECK(verdict<>'verified' OR criterion_observed AND canary_touched),CHECK(verdict<>'not_reproduced' OR NOT criterion_observed AND NOT canary_touched),CHECK(error_code IS NULL OR verdict='inconclusive' AND error_code IN('denied','malformed','outcome_unknown','exhausted')),
+  CHECK(jsonb_typeof(evidence)='array' AND jsonb_array_length(evidence)=5 AND evidence->>0 LIKE 'semantic:%' AND evidence->>1 LIKE 'gateway:%' AND evidence->>2 LIKE 'egress:%' AND evidence->>3 LIKE 'kubernetes:%' AND evidence->>4 LIKE 'cloud:%'),CHECK(octet_length(evidence_checksum)=32),CHECK(evidence_size BETWEEN 1 AND 67108864),CHECK(finish_digest IS NULL OR octet_length(finish_digest)=32),CHECK(finish_result IS NULL OR jsonb_typeof(finish_result)='object'),CHECK((finish_digest IS NULL AND finish_result IS NULL AND finished_at IS NULL) OR (finish_digest IS NOT NULL AND finish_result IS NOT NULL AND finished_at IS NOT NULL))
 );
 
 CREATE TABLE public.zasp_attack_lab_outbox(
   organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,outbox_id text NOT NULL,
   topic text NOT NULL DEFAULT 'attack-lab-jobs',deterministic_key text NOT NULL,payload jsonb NOT NULL,payload_digest bytea NOT NULL,
   state text NOT NULL DEFAULT 'pending',attempt integer NOT NULL DEFAULT 0,worker_id text,lease_token bytea,lease_expires_at timestamptz,
-  available_at timestamptz NOT NULL DEFAULT transaction_timestamp(),provider_ack text,created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
+  available_at timestamptz NOT NULL DEFAULT transaction_timestamp(),provider_ack text,published_at timestamptz,last_error text,completion_digest bytea,completion_result jsonb,created_at timestamptz NOT NULL DEFAULT transaction_timestamp(),updated_at timestamptz NOT NULL DEFAULT transaction_timestamp(),
   PRIMARY KEY(organization_id,workspace_id,environment_id,outbox_id),UNIQUE(organization_id,workspace_id,environment_id,deterministic_key),
   FOREIGN KEY(organization_id,workspace_id,environment_id) REFERENCES public.zasp_environments(organization_id,workspace_id,id),
   CHECK(zasp_valid_product_id(outbox_id)),CHECK(topic='attack-lab-jobs'),CHECK(length(deterministic_key) BETWEEN 16 AND 256),CHECK(jsonb_typeof(payload)='object'),CHECK(octet_length(payload_digest)=32),
   CHECK(state IN('pending','leased','published','failed')),CHECK(attempt BETWEEN 0 AND 100),
-  CHECK((state='leased')=(worker_id IS NOT NULL AND lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)),CHECK(worker_id IS NULL OR length(worker_id) BETWEEN 3 AND 128 AND worker_id~'^[a-z][a-z0-9.-]{2,127}$'),CHECK(lease_token IS NULL OR octet_length(lease_token)=32),CHECK(provider_ack IS NULL OR provider_ack~'^sha256:[a-f0-9]{64}$')
+  CHECK((state='leased')=(worker_id IS NOT NULL AND lease_token IS NOT NULL AND lease_expires_at IS NOT NULL)),CHECK(worker_id IS NULL OR length(worker_id) BETWEEN 3 AND 128 AND worker_id~'^[a-z][a-z0-9.-]{2,127}$'),CHECK(lease_token IS NULL OR octet_length(lease_token)=32),
+  CHECK((state='published')=(provider_ack IS NOT NULL AND published_at IS NOT NULL)),CHECK(provider_ack IS NULL OR provider_ack~'^sha256:[a-f0-9]{64}$'),CHECK(last_error IS NULL OR last_error='queue_publish_unknown'),CHECK(completion_digest IS NULL OR octet_length(completion_digest)=32),CHECK(completion_result IS NULL OR jsonb_typeof(completion_result)='object')
 );
 
 CREATE TABLE public.zasp_attack_lab_request_receipts(
@@ -106,7 +118,7 @@ CREATE INDEX zasp_attack_lab_receipts_expiry_idx ON public.zasp_attack_lab_reque
 DO $authority$
 DECLARE table_name text;
 BEGIN
-  FOREACH table_name IN ARRAY ARRAY['zasp_attack_lab_principal_bindings','zasp_attack_lab_runs','zasp_attack_lab_attempts','zasp_attack_lab_outbox','zasp_attack_lab_request_receipts','zasp_attack_lab_audit'] LOOP
+  FOREACH table_name IN ARRAY ARRAY['zasp_attack_lab_principal_bindings','zasp_attack_lab_runs','zasp_attack_lab_attempts','zasp_attack_lab_cleanup_checkpoints','zasp_attack_lab_outbox','zasp_attack_lab_request_receipts','zasp_attack_lab_audit'] LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',table_name);
     EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',table_name);
     EXECUTE format('ALTER TABLE public.%I OWNER TO zasp_discovery_authority',table_name);
@@ -241,19 +253,190 @@ EXCEPTION WHEN no_data_found THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE=
 END
 $rerun$;
 
+CREATE FUNCTION public.zasp_attack_lab_claim_outbox(worker_value text,token_value bytea,lease_seconds integer,limit_value integer) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $claim$
+DECLARE result_value jsonb;
+BEGIN
+ IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_outbox_worker') OR length(worker_value) NOT BETWEEN 3 AND 128 OR worker_value!~'^[a-z][a-z0-9.-]{2,127}$' OR octet_length(token_value)<>32 OR lease_seconds NOT BETWEEN 5 AND 900 OR limit_value NOT BETWEEN 1 AND 10 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab outbox claim rejected';END IF;
+ WITH eligible AS (
+  SELECT outbox.ctid,row_number() OVER(PARTITION BY outbox.organization_id ORDER BY outbox.available_at,outbox.created_at,outbox.outbox_id) organization_ordinal,outbox.available_at,outbox.created_at,outbox.outbox_id
+  FROM zasp_attack_lab_outbox outbox
+  WHERE outbox.topic='attack-lab-jobs' AND outbox.attempt<100 AND (outbox.state='pending' OR outbox.state='leased' AND outbox.lease_expires_at<=transaction_timestamp()) AND outbox.available_at<=transaction_timestamp()
+   AND NOT EXISTS(SELECT 1 FROM zasp_attack_lab_outbox live WHERE live.organization_id=outbox.organization_id AND live.topic='attack-lab-jobs' AND live.state='leased' AND live.lease_expires_at>transaction_timestamp())
+ ),candidates AS (
+  SELECT outbox.ctid FROM zasp_attack_lab_outbox outbox JOIN eligible ON eligible.ctid=outbox.ctid WHERE eligible.organization_ordinal=1 ORDER BY eligible.available_at,eligible.created_at,eligible.outbox_id FOR UPDATE OF outbox SKIP LOCKED LIMIT limit_value
+ ),leased AS (
+  UPDATE zasp_attack_lab_outbox outbox SET state='leased',attempt=attempt+1,worker_id=worker_value,lease_token=token_value,lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds),provider_ack=NULL,published_at=NULL,last_error=NULL,completion_digest=NULL,completion_result=NULL,updated_at=transaction_timestamp() FROM candidates WHERE outbox.ctid=candidates.ctid RETURNING outbox.*
+ ) SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'outbox_id',outbox_id,'topic',topic,'payload',payload::text,'payload_digest',encode(payload_digest,'hex'),'attempt',attempt,'lease_expires_at',lease_expires_at) ORDER BY available_at,created_at,outbox_id),'[]'::jsonb)) INTO result_value FROM leased;
+ RETURN result_value;
+END
+$claim$;
+
+CREATE FUNCTION public.zasp_attack_lab_heartbeat_outbox(worker_value text,token_value bytea,lease_seconds integer,expected_count integer) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $heartbeat$
+DECLARE expiration_value timestamptz;updated_count integer;
+BEGIN
+ IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_outbox_worker') OR length(worker_value) NOT BETWEEN 3 AND 128 OR worker_value!~'^[a-z][a-z0-9.-]{2,127}$' OR octet_length(token_value)<>32 OR lease_seconds NOT BETWEEN 5 AND 900 OR expected_count NOT BETWEEN 1 AND 10 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab outbox heartbeat rejected';END IF;
+ expiration_value:=transaction_timestamp()+make_interval(secs=>lease_seconds);
+ UPDATE zasp_attack_lab_outbox SET lease_expires_at=expiration_value,updated_at=transaction_timestamp() WHERE topic='attack-lab-jobs' AND state='leased' AND worker_id=worker_value AND lease_token=token_value AND lease_expires_at>transaction_timestamp();GET DIAGNOSTICS updated_count=ROW_COUNT;
+ IF updated_count<>expected_count THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='attack lab outbox lease set conflict';END IF;
+ RETURN jsonb_build_object('topic','attack-lab-jobs','lease_expires_at',expiration_value,'remaining_count',updated_count);
+END
+$heartbeat$;
+
+CREATE FUNCTION public.zasp_attack_lab_ack_outbox(organization_value text,workspace_value text,environment_value text,outbox_value text,worker_value text,token_value bytea,ack_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $ack$
+DECLARE requested_value bytea;result_value jsonb;published_value timestamptz;remaining_count integer;
+BEGIN
+ IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_outbox_worker') OR NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(outbox_value) OR length(worker_value) NOT BETWEEN 3 AND 128 OR worker_value!~'^[a-z][a-z0-9.-]{2,127}$' OR octet_length(token_value)<>32 OR ack_value!~'^sha256:[a-f0-9]{64}$' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab outbox acknowledgement rejected';END IF;
+ requested_value:=digest(convert_to(concat_ws(chr(31),outbox_value,worker_value,encode(token_value,'hex'),ack_value),'UTF8'),'sha256');
+ SELECT completion_result INTO result_value FROM zasp_attack_lab_outbox WHERE (organization_id,workspace_id,environment_id,outbox_id,topic,state,completion_digest)=(organization_value,workspace_value,environment_value,outbox_value,'attack-lab-jobs','published',requested_value) FOR UPDATE;
+ IF FOUND THEN SELECT count(*) INTO remaining_count FROM zasp_attack_lab_outbox WHERE topic='attack-lab-jobs' AND state='leased' AND worker_id=worker_value AND lease_token=token_value AND lease_expires_at>transaction_timestamp();RETURN result_value||jsonb_build_object('remaining_count',remaining_count,'replayed',true);END IF;
+ IF EXISTS(SELECT 1 FROM zasp_attack_lab_outbox WHERE (organization_id,workspace_id,environment_id,outbox_id,topic,state)=(organization_value,workspace_value,environment_value,outbox_value,'attack-lab-jobs','published')) THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='attack lab outbox acknowledgement conflict';END IF;
+ UPDATE zasp_attack_lab_outbox SET state='published',provider_ack=ack_value,published_at=transaction_timestamp(),worker_id=NULL,lease_token=NULL,lease_expires_at=NULL,last_error=NULL,completion_digest=requested_value,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,outbox_id,topic,state,worker_id,lease_token)=(organization_value,workspace_value,environment_value,outbox_value,'attack-lab-jobs','leased',worker_value,token_value) AND lease_expires_at>transaction_timestamp() RETURNING published_at INTO published_value;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='attack lab outbox lease rejected';END IF;
+ result_value:=jsonb_build_object('outbox_id',outbox_value,'state','published','provider_ack',ack_value,'published_at',published_value);UPDATE zasp_attack_lab_outbox SET completion_result=result_value WHERE (organization_id,workspace_id,environment_id,outbox_id)=(organization_value,workspace_value,environment_value,outbox_value);
+ SELECT count(*) INTO remaining_count FROM zasp_attack_lab_outbox WHERE topic='attack-lab-jobs' AND state='leased' AND worker_id=worker_value AND lease_token=token_value AND lease_expires_at>transaction_timestamp();RETURN result_value||jsonb_build_object('remaining_count',remaining_count,'replayed',false);
+END
+$ack$;
+
+CREATE FUNCTION public.zasp_attack_lab_retry_outbox(organization_value text,workspace_value text,environment_value text,outbox_value text,worker_value text,token_value bytea,retry_seconds integer,error_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $retry$
+DECLARE requested_value bytea;result_value jsonb;available_value timestamptz;state_value text;remaining_count integer;
+BEGIN
+ IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_outbox_worker') OR NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(outbox_value) OR length(worker_value) NOT BETWEEN 3 AND 128 OR worker_value!~'^[a-z][a-z0-9.-]{2,127}$' OR octet_length(token_value)<>32 OR retry_seconds NOT BETWEEN 1 AND 3600 OR error_value<>'queue_publish_unknown' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab outbox retry rejected';END IF;
+ requested_value:=digest(convert_to(concat_ws(chr(31),outbox_value,worker_value,encode(token_value,'hex'),retry_seconds::text,error_value),'UTF8'),'sha256');
+ SELECT completion_result INTO result_value FROM zasp_attack_lab_outbox WHERE (organization_id,workspace_id,environment_id,outbox_id,topic,completion_digest)=(organization_value,workspace_value,environment_value,outbox_value,'attack-lab-jobs',requested_value) AND state IN('pending','failed') FOR UPDATE;
+ IF FOUND THEN SELECT count(*) INTO remaining_count FROM zasp_attack_lab_outbox WHERE topic='attack-lab-jobs' AND state='leased' AND worker_id=worker_value AND lease_token=token_value AND lease_expires_at>transaction_timestamp();RETURN result_value||jsonb_build_object('remaining_count',remaining_count,'replayed',true);END IF;
+ UPDATE zasp_attack_lab_outbox SET state=CASE WHEN attempt>=100 THEN 'failed' ELSE 'pending' END,available_at=transaction_timestamp()+make_interval(secs=>retry_seconds),worker_id=NULL,lease_token=NULL,lease_expires_at=NULL,last_error=error_value,completion_digest=requested_value,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,outbox_id,topic,state,worker_id,lease_token)=(organization_value,workspace_value,environment_value,outbox_value,'attack-lab-jobs','leased',worker_value,token_value) AND lease_expires_at>transaction_timestamp() RETURNING available_at,state INTO available_value,state_value;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='attack lab outbox lease rejected';END IF;
+ result_value:=jsonb_build_object('outbox_id',outbox_value,'state',state_value,'available_at',available_value,'error_code',error_value);UPDATE zasp_attack_lab_outbox SET completion_result=result_value WHERE (organization_id,workspace_id,environment_id,outbox_id)=(organization_value,workspace_value,environment_value,outbox_value);
+ SELECT count(*) INTO remaining_count FROM zasp_attack_lab_outbox WHERE topic='attack-lab-jobs' AND state='leased' AND worker_id=worker_value AND lease_token=token_value AND lease_expires_at>transaction_timestamp();RETURN result_value||jsonb_build_object('remaining_count',remaining_count,'replayed',false);
+END
+$retry$;
+
+CREATE FUNCTION public.zasp_attack_lab_claim_run(organization_value text,workspace_value text,environment_value text,run_value text,controller_value text,token_value bytea,lease_seconds integer) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $claim$
+DECLARE run_row zasp_attack_lab_runs%ROWTYPE;definition_row zasp_red_team_definitions%ROWTYPE;target_row zasp_inventory_entities%ROWTYPE;source_row zasp_red_team_runs%ROWTYPE;source_attempt zasp_red_team_attempts%ROWTYPE;checkpoint_row zasp_attack_lab_cleanup_checkpoints%ROWTYPE;destination_value text;
+BEGIN
+ IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_controller') OR NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(run_value) OR length(controller_value) NOT BETWEEN 3 AND 128 OR controller_value!~'^[a-z][a-z0-9.-]{2,127}$' OR octet_length(token_value)<>32 OR lease_seconds NOT BETWEEN 30 AND 900 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab run claim rejected';END IF;
+ SELECT * INTO run_row FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id)=(organization_value,workspace_value,environment_value,run_value) FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='attack lab run not found';END IF;
+ IF run_row.state IN('complete','failed','cancelled') THEN RETURN jsonb_build_object('disposition','ack_terminal');END IF;
+ IF run_row.state IN('leased','running','cleanup') AND run_row.lease_expires_at>transaction_timestamp() OR run_row.next_attempt_at>transaction_timestamp() THEN RETURN jsonb_build_object('disposition','retry_later');END IF;
+ IF run_row.state='cleanup' THEN UPDATE zasp_attack_lab_runs SET controller_id=controller_value,lease_token=token_value,lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds),updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id)=(organization_value,workspace_value,environment_value,run_value) RETURNING * INTO run_row;SELECT * INTO STRICT checkpoint_row FROM zasp_attack_lab_cleanup_checkpoints WHERE (organization_id,workspace_id,environment_id,run_id,attempt,input_digest)=(organization_value,workspace_value,environment_value,run_value,run_row.attempt,run_row.input_digest);RETURN jsonb_build_object('disposition','cleanup','run',zasp_attack_lab_run_json(run_row),'checkpoint',jsonb_build_object('attempt',checkpoint_row.attempt,'sandbox_reference',checkpoint_row.sandbox_reference,'verdict',checkpoint_row.verdict,'criterion_observed',checkpoint_row.criterion_observed,'canary_touched',checkpoint_row.canary_touched,'error_code',checkpoint_row.error_code,'evidence',checkpoint_row.evidence,'evidence_reference',checkpoint_row.evidence_reference,'evidence_key',checkpoint_row.evidence_key,'evidence_version_id',checkpoint_row.evidence_version_id,'evidence_checksum',encode(checkpoint_row.evidence_checksum,'hex'),'evidence_size',checkpoint_row.evidence_size),'input_digest',encode(run_row.input_digest,'hex'),'lease_expires_at',run_row.lease_expires_at);END IF;
+ IF run_row.state='running' THEN
+  UPDATE zasp_attack_lab_runs SET controller_id=controller_value,lease_token=token_value,lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds),updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id,state)=(organization_value,workspace_value,environment_value,run_value,'running') AND sandbox_reference IS NOT NULL RETURNING * INTO run_row;
+  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab running checkpoint missing';END IF;
+  RETURN jsonb_build_object('disposition','running','run',zasp_attack_lab_run_json(run_row),'sandbox_reference',run_row.sandbox_reference,'input_digest',encode(run_row.input_digest,'hex'),'lease_expires_at',run_row.lease_expires_at);
+ END IF;
+ IF run_row.state IN('queued','retryable') AND run_row.attempt>=5 THEN UPDATE zasp_attack_lab_runs SET version=version+1,state='failed',cleanup_state='complete',error_code='exhausted',completed_at=transaction_timestamp(),controller_id=NULL,lease_token=NULL,lease_expires_at=NULL,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id)=(organization_value,workspace_value,environment_value,run_value) RETURNING * INTO run_row;RETURN jsonb_build_object('disposition','ack_terminal','run',zasp_attack_lab_run_json(run_row));END IF;
+ SELECT * INTO STRICT source_row FROM zasp_red_team_runs WHERE (organization_id,workspace_id,environment_id,run_id,state,verdict)=(organization_value,workspace_value,environment_value,run_row.source_run_id,'complete','fail') FOR SHARE;
+ SELECT * INTO STRICT source_attempt FROM zasp_red_team_attempts WHERE (organization_id,workspace_id,environment_id,run_id,attempt,verdict)=(organization_value,workspace_value,environment_value,run_row.source_run_id,source_row.attempt,'fail') FOR SHARE;
+ SELECT * INTO STRICT definition_row FROM zasp_red_team_definitions WHERE (organization_id,workspace_id,environment_id,definition_id,version,enabled,target_id,target_kind)=(organization_value,workspace_value,environment_value,run_row.definition_id,run_row.definition_version,true,run_row.target_id,run_row.target_kind) FOR SHARE;
+ SELECT * INTO STRICT target_row FROM zasp_inventory_entities WHERE (organization_id,workspace_id,environment_id,id,state)=(organization_value,workspace_value,environment_value,run_row.target_id,'active') AND fresh_until>transaction_timestamp() AND zasp_red_team_target_binding_valid(winning_attributes->'red_team',run_row.target_kind) FOR SHARE;
+ destination_value:=substring(target_row.winning_attributes->'red_team'->>'endpoint' FROM '^https://([^/]+)/v1/evaluate$');
+ IF destination_value IS NULL OR destination_value<>run_row.destination OR definition_row.safety->>'environment'<>run_row.environment OR definition_row.safety->>'credential_class'<>run_row.credential_class THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab run authority drift';END IF;
+ UPDATE zasp_attack_lab_runs SET version=version+1,state='leased',attempt=CASE WHEN state IN('queued','retryable') THEN attempt+1 ELSE attempt END,controller_id=controller_value,lease_token=token_value,lease_expires_at=transaction_timestamp()+make_interval(secs=>lease_seconds),started_at=COALESCE(started_at,transaction_timestamp()),error_code=NULL,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id)=(organization_value,workspace_value,environment_value,run_value) RETURNING * INTO run_row;
+ RETURN jsonb_build_object('disposition','claimed','run',zasp_attack_lab_run_json(run_row),'preflight',jsonb_build_object('environment',run_row.environment,'credential_class',run_row.credential_class,'destination',run_row.destination,'allowed_destinations',jsonb_build_array(run_row.destination),'success_criterion',source_attempt.objective,'expected_side_effects',definition_row.safety->'expected_side_effects'),'input_digest',encode(run_row.input_digest,'hex'),'lease_expires_at',run_row.lease_expires_at);
+EXCEPTION WHEN no_data_found THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab run authority unavailable';
+END
+$claim$;
+
+CREATE FUNCTION public.zasp_attack_lab_heartbeat_run(organization_value text,workspace_value text,environment_value text,run_value text,controller_value text,token_value bytea,lease_seconds integer) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $heartbeat$
+DECLARE cancel_value boolean;expiration_value timestamptz;
+BEGIN
+ IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_controller') OR NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(run_value) OR length(controller_value) NOT BETWEEN 3 AND 128 OR controller_value!~'^[a-z][a-z0-9.-]{2,127}$' OR octet_length(token_value)<>32 OR lease_seconds NOT BETWEEN 30 AND 900 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab run heartbeat rejected';END IF;
+ expiration_value:=transaction_timestamp()+make_interval(secs=>lease_seconds);UPDATE zasp_attack_lab_runs SET lease_expires_at=expiration_value,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id,controller_id,lease_token)=(organization_value,workspace_value,environment_value,run_value,controller_value,token_value) AND state IN('leased','running','cleanup') AND lease_expires_at>transaction_timestamp() RETURNING cancel_requested INTO cancel_value;
+ RETURN jsonb_build_object('renewed',FOUND,'cancel_requested',COALESCE(cancel_value,false),'lease_expires_at',CASE WHEN FOUND THEN expiration_value END);
+END
+$heartbeat$;
+
+CREATE FUNCTION public.zasp_attack_lab_retry_run(organization_value text,workspace_value text,environment_value text,run_value text,controller_value text,token_value bytea,input_digest_value bytea,error_value text,retry_at_value timestamptz) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $retry_run$
+DECLARE run_row zasp_attack_lab_runs%ROWTYPE;
+BEGIN
+ IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_controller') OR NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(run_value) OR length(controller_value) NOT BETWEEN 3 AND 128 OR controller_value!~'^[a-z][a-z0-9.-]{2,127}$' OR octet_length(token_value)<>32 OR octet_length(input_digest_value)<>32 OR error_value NOT IN('retryable','denied','malformed') OR retry_at_value IS NULL OR retry_at_value<transaction_timestamp() OR retry_at_value>transaction_timestamp()+interval '1 hour' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab run retry rejected';END IF;
+ UPDATE zasp_attack_lab_runs SET version=version+1,
+  state=CASE WHEN cancel_requested THEN 'cancelled' WHEN error_value='retryable' AND attempt<5 THEN 'retryable' ELSE 'failed' END,
+  cleanup_state=CASE WHEN NOT cancel_requested AND error_value='retryable' AND attempt<5 THEN 'pending' ELSE 'complete' END,
+  error_code=CASE WHEN cancel_requested THEN 'cancelled' WHEN error_value='retryable' AND attempt>=5 THEN 'exhausted' ELSE error_value END,
+  next_attempt_at=retry_at_value,completed_at=CASE WHEN cancel_requested OR error_value<>'retryable' OR attempt>=5 THEN transaction_timestamp() END,
+  controller_id=NULL,lease_token=NULL,lease_expires_at=NULL,updated_at=transaction_timestamp()
+ WHERE (organization_id,workspace_id,environment_id,run_id,state,controller_id,lease_token,input_digest)=(organization_value,workspace_value,environment_value,run_value,'leased',controller_value,token_value,input_digest_value) AND sandbox_reference IS NULL AND lease_expires_at>transaction_timestamp() RETURNING * INTO run_row;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab run retry lease rejected';END IF;
+ RETURN zasp_attack_lab_run_json(run_row);
+END
+$retry_run$;
+
+CREATE FUNCTION public.zasp_attack_lab_mark_running(organization_value text,workspace_value text,environment_value text,run_value text,controller_value text,token_value bytea,input_digest_value bytea,sandbox_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $running$
+DECLARE run_row zasp_attack_lab_runs%ROWTYPE;
+BEGIN
+ IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_controller') OR NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(run_value) OR length(controller_value) NOT BETWEEN 3 AND 128 OR controller_value!~'^[a-z][a-z0-9.-]{2,127}$' OR octet_length(token_value)<>32 OR octet_length(input_digest_value)<>32 OR sandbox_value!~'^k8s://attack-lab/jobs/zasp-attack-lab-[a-z0-9-]{8,64}@[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab running transition rejected';END IF;
+ SELECT * INTO run_row FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id,state,controller_id,lease_token,input_digest,sandbox_reference)=(organization_value,workspace_value,environment_value,run_value,'running',controller_value,token_value,input_digest_value,sandbox_value) AND lease_expires_at>transaction_timestamp() FOR UPDATE;
+ IF FOUND THEN RETURN zasp_attack_lab_run_json(run_row)||jsonb_build_object('replayed',true);END IF;
+ UPDATE zasp_attack_lab_runs SET version=version+1,state='running',sandbox_reference=sandbox_value,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id,state,controller_id,lease_token,input_digest)=(organization_value,workspace_value,environment_value,run_value,'leased',controller_value,token_value,input_digest_value) AND lease_expires_at>transaction_timestamp() AND (sandbox_reference IS NULL OR sandbox_reference=sandbox_value) RETURNING * INTO run_row;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab running lease rejected';END IF;RETURN zasp_attack_lab_run_json(run_row)||jsonb_build_object('replayed',false);
+END
+$running$;
+
+CREATE FUNCTION public.zasp_attack_lab_resolve_egress(organization_value text,workspace_value text,environment_value text,run_value text,destination_value text) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $resolve$
+DECLARE run_row zasp_attack_lab_runs%ROWTYPE;expiration_value timestamptz;
+BEGIN
+ IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_proxy') OR NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(run_value) OR length(destination_value) NOT BETWEEN 1 AND 253 OR destination_value<>lower(destination_value) OR destination_value!~'^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$' OR destination_value LIKE '%..%' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab egress resolution rejected';END IF;
+ SELECT * INTO STRICT run_row FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id,state,destination)=(organization_value,workspace_value,environment_value,run_value,'running',destination_value) AND cleanup_state='pending' AND NOT cancel_requested AND lease_expires_at>transaction_timestamp();expiration_value:=LEAST(run_row.lease_expires_at,run_row.started_at+interval '300 seconds');IF expiration_value<=transaction_timestamp() THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='attack lab egress expired';END IF;
+ RETURN jsonb_build_object('organization_id',organization_value,'workspace_id',workspace_value,'environment_id',environment_value,'run_id',run_value,'destination',destination_value,'methods',jsonb_build_array('POST'),'expires_at',expiration_value);
+EXCEPTION WHEN no_data_found THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='attack lab egress unavailable';
+END
+$resolve$;
+
+CREATE FUNCTION public.zasp_attack_lab_begin_cleanup(organization_value text,workspace_value text,environment_value text,run_value text,controller_value text,token_value bytea,input_digest_value bytea,sandbox_value text,verdict_value text,criterion_value boolean,canary_value boolean,error_value text,evidence_value jsonb,reference_value text,key_value text,version_value text,checksum_value bytea,size_value bigint) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $cleanup$
+DECLARE run_row zasp_attack_lab_runs%ROWTYPE;checkpoint_row zasp_attack_lab_cleanup_checkpoints%ROWTYPE;
+BEGIN
+ IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_controller') OR octet_length(input_digest_value)<>32 OR sandbox_value!~'^k8s://attack-lab/jobs/zasp-attack-lab-[a-z0-9-]{8,64}@[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' OR verdict_value NOT IN('verified','not_reproduced','inconclusive') OR verdict_value='verified' AND (NOT criterion_value OR NOT canary_value) OR verdict_value='not_reproduced' AND (criterion_value OR canary_value) OR verdict_value IN('verified','not_reproduced') AND error_value IS NOT NULL OR verdict_value='inconclusive' AND error_value NOT IN('denied','malformed','outcome_unknown','exhausted') OR jsonb_typeof(evidence_value)<>'array' OR jsonb_array_length(evidence_value)<>5 OR evidence_value->>0 NOT LIKE 'semantic:%' OR evidence_value->>1 NOT LIKE 'gateway:%' OR evidence_value->>2 NOT LIKE 'egress:%' OR evidence_value->>3 NOT LIKE 'kubernetes:%' OR evidence_value->>4 NOT LIKE 'cloud:%' OR EXISTS(SELECT 1 FROM jsonb_array_elements(evidence_value) item WHERE jsonb_typeof(item)<>'string' OR length(item#>>'{}') NOT BETWEEN 1 AND 512 OR item#>>'{}'<>btrim(item#>>'{}') OR item#>>'{}'~'[[:cntrl:]]') OR reference_value!~'^s3://[a-z0-9][a-z0-9.-]{2,62}/organizations/' OR key_value IS DISTINCT FROM 'organizations/'||organization_value||'/workspaces/'||workspace_value||'/environments/'||environment_value||'/attack-lab/'||run_value||'/attempts/'||(SELECT attempt::text FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id)=(organization_value,workspace_value,environment_value,run_value))||'/evidence.json' OR substring(reference_value FROM '^s3://[a-z0-9][a-z0-9.-]{2,62}/(.+)$') IS DISTINCT FROM key_value OR length(version_value) NOT BETWEEN 1 AND 512 OR version_value~'[[:space:][:cntrl:]]' OR octet_length(checksum_value)<>32 OR size_value NOT BETWEEN 1 AND 67108864 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab cleanup checkpoint rejected';END IF;
+ SELECT * INTO checkpoint_row FROM zasp_attack_lab_cleanup_checkpoints WHERE (organization_id,workspace_id,environment_id,run_id)=(organization_value,workspace_value,environment_value,run_value) ORDER BY attempt DESC LIMIT 1 FOR UPDATE;
+ IF FOUND THEN
+  IF (checkpoint_row.input_digest,checkpoint_row.sandbox_reference,checkpoint_row.verdict,checkpoint_row.criterion_observed,checkpoint_row.canary_touched,checkpoint_row.error_code,checkpoint_row.evidence,checkpoint_row.evidence_reference,checkpoint_row.evidence_key,checkpoint_row.evidence_version_id,checkpoint_row.evidence_checksum,checkpoint_row.evidence_size) IS DISTINCT FROM (input_digest_value,sandbox_value,verdict_value,criterion_value,canary_value,error_value,evidence_value,reference_value,key_value,version_value,checksum_value,size_value) THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='attack lab cleanup checkpoint conflict';END IF;
+  SELECT * INTO STRICT run_row FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id,state,controller_id,lease_token,input_digest,attempt)=(organization_value,workspace_value,environment_value,run_value,'cleanup',controller_value,token_value,input_digest_value,checkpoint_row.attempt) AND lease_expires_at>transaction_timestamp();RETURN zasp_attack_lab_run_json(run_row)||jsonb_build_object('replayed',true);
+ END IF;
+ SELECT * INTO STRICT run_row FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id,state,controller_id,lease_token,input_digest,sandbox_reference)=(organization_value,workspace_value,environment_value,run_value,'running',controller_value,token_value,input_digest_value,sandbox_value) AND lease_expires_at>transaction_timestamp() FOR UPDATE;
+ INSERT INTO zasp_attack_lab_cleanup_checkpoints(organization_id,workspace_id,environment_id,run_id,attempt,input_digest,sandbox_reference,verdict,criterion_observed,canary_touched,error_code,evidence,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size) VALUES(organization_value,workspace_value,environment_value,run_value,run_row.attempt,input_digest_value,sandbox_value,verdict_value,criterion_value,canary_value,error_value,evidence_value,reference_value,key_value,version_value,checksum_value,size_value);
+ UPDATE zasp_attack_lab_runs SET version=version+1,state='cleanup',cleanup_state='in_progress',updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id)=(organization_value,workspace_value,environment_value,run_value) RETURNING * INTO run_row;RETURN zasp_attack_lab_run_json(run_row)||jsonb_build_object('replayed',false);
+EXCEPTION WHEN no_data_found THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab cleanup lease rejected';
+END
+$cleanup$;
+
+CREATE FUNCTION public.zasp_attack_lab_finish_cleanup(organization_value text,workspace_value text,environment_value text,run_value text,controller_value text,token_value bytea,input_digest_value bytea) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $finish$
+DECLARE run_row zasp_attack_lab_runs%ROWTYPE;checkpoint_row zasp_attack_lab_cleanup_checkpoints%ROWTYPE;requested_value bytea;result_value jsonb;
+BEGIN
+ IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_controller') OR NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(run_value) OR length(controller_value) NOT BETWEEN 3 AND 128 OR controller_value!~'^[a-z][a-z0-9.-]{2,127}$' OR octet_length(token_value)<>32 OR octet_length(input_digest_value)<>32 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab cleanup completion rejected';END IF;
+ requested_value:=digest(convert_to(concat_ws(chr(31),run_value,controller_value,encode(token_value,'hex'),encode(input_digest_value,'hex')),'UTF8'),'sha256');SELECT * INTO checkpoint_row FROM zasp_attack_lab_cleanup_checkpoints WHERE (organization_id,workspace_id,environment_id,run_id,input_digest)=(organization_value,workspace_value,environment_value,run_value,input_digest_value) ORDER BY attempt DESC LIMIT 1 FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='attack lab cleanup checkpoint missing';END IF;
+ IF checkpoint_row.finish_digest=requested_value THEN RETURN checkpoint_row.finish_result||jsonb_build_object('replayed',true);ELSIF checkpoint_row.finish_digest IS NOT NULL THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='attack lab cleanup completion conflict';END IF;
+ SELECT * INTO STRICT run_row FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id,state,controller_id,lease_token,input_digest,attempt)=(organization_value,workspace_value,environment_value,run_value,'cleanup',controller_value,token_value,input_digest_value,checkpoint_row.attempt) AND lease_expires_at>transaction_timestamp() FOR UPDATE;
+ IF run_row.cancel_requested THEN
+  UPDATE zasp_attack_lab_runs SET version=version+1,state='cancelled',cleanup_state='complete',verdict=NULL,error_code='cancelled',evidence_reference=NULL,evidence_key=NULL,evidence_version_id=NULL,evidence_checksum=NULL,evidence_size=NULL,completed_at=transaction_timestamp(),controller_id=NULL,lease_token=NULL,lease_expires_at=NULL,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id)=(organization_value,workspace_value,environment_value,run_value) RETURNING * INTO run_row;
+ ELSE
+  INSERT INTO zasp_attack_lab_attempts(organization_id,workspace_id,environment_id,run_id,attempt,input_digest,verdict,criterion_observed,canary_touched,cleanup_completed,error_code,evidence,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size) VALUES(organization_value,workspace_value,environment_value,run_value,checkpoint_row.attempt,input_digest_value,checkpoint_row.verdict,checkpoint_row.criterion_observed,checkpoint_row.canary_touched,true,checkpoint_row.error_code,checkpoint_row.evidence,checkpoint_row.evidence_reference,checkpoint_row.evidence_key,checkpoint_row.evidence_version_id,checkpoint_row.evidence_checksum,checkpoint_row.evidence_size);
+  UPDATE zasp_attack_lab_runs SET version=version+1,state='complete',cleanup_state='complete',verdict=checkpoint_row.verdict,error_code=NULL,evidence_reference=checkpoint_row.evidence_reference,evidence_key=checkpoint_row.evidence_key,evidence_version_id=checkpoint_row.evidence_version_id,evidence_checksum=checkpoint_row.evidence_checksum,evidence_size=checkpoint_row.evidence_size,completed_at=transaction_timestamp(),controller_id=NULL,lease_token=NULL,lease_expires_at=NULL,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id)=(organization_value,workspace_value,environment_value,run_value) RETURNING * INTO run_row;
+ END IF;
+ result_value:=zasp_attack_lab_run_json(run_row);UPDATE zasp_attack_lab_cleanup_checkpoints SET finish_digest=requested_value,finish_result=result_value,finished_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id,attempt)=(organization_value,workspace_value,environment_value,run_value,checkpoint_row.attempt);RETURN result_value||jsonb_build_object('replayed',false);
+EXCEPTION WHEN no_data_found THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab cleanup lease rejected';
+END
+$finish$;
+
 DO $function_owners$
 DECLARE function_value regprocedure;
 BEGIN
  FOREACH function_value IN ARRAY ARRAY[
   'public.zasp_attack_lab_register_principals(text,text,text,text)'::regprocedure,'public.zasp_attack_lab_principal_ready(text)'::regprocedure,'public.zasp_attack_lab_principals_ready()'::regprocedure,'public.zasp_attack_lab_run_json(public.zasp_attack_lab_runs)'::regprocedure,'public.zasp_attack_lab_mutation_result(text,text,text,text,text,text,text,text,jsonb)'::regprocedure,
-  'public.zasp_attack_lab_list_runs(text,text,text,timestamptz,text,integer)'::regprocedure,'public.zasp_attack_lab_get_run(text,text,text,text)'::regprocedure,'public.zasp_attack_lab_create_run(text,text,text,text,text,text,text,text)'::regprocedure,'public.zasp_attack_lab_cancel_run(text,text,text,text,text,text,bigint,text)'::regprocedure,'public.zasp_attack_lab_rerun(text,text,text,text,text,text,bigint,text,text)'::regprocedure
+  'public.zasp_attack_lab_list_runs(text,text,text,timestamptz,text,integer)'::regprocedure,'public.zasp_attack_lab_get_run(text,text,text,text)'::regprocedure,'public.zasp_attack_lab_create_run(text,text,text,text,text,text,text,text)'::regprocedure,'public.zasp_attack_lab_cancel_run(text,text,text,text,text,text,bigint,text)'::regprocedure,'public.zasp_attack_lab_rerun(text,text,text,text,text,text,bigint,text,text)'::regprocedure,
+  'public.zasp_attack_lab_claim_outbox(text,bytea,integer,integer)'::regprocedure,'public.zasp_attack_lab_heartbeat_outbox(text,bytea,integer,integer)'::regprocedure,'public.zasp_attack_lab_ack_outbox(text,text,text,text,text,bytea,text)'::regprocedure,'public.zasp_attack_lab_retry_outbox(text,text,text,text,text,bytea,integer,text)'::regprocedure,
+  'public.zasp_attack_lab_claim_run(text,text,text,text,text,bytea,integer)'::regprocedure,'public.zasp_attack_lab_heartbeat_run(text,text,text,text,text,bytea,integer)'::regprocedure,'public.zasp_attack_lab_retry_run(text,text,text,text,text,bytea,bytea,text,timestamptz)'::regprocedure,'public.zasp_attack_lab_mark_running(text,text,text,text,text,bytea,bytea,text)'::regprocedure,'public.zasp_attack_lab_resolve_egress(text,text,text,text,text)'::regprocedure,'public.zasp_attack_lab_begin_cleanup(text,text,text,text,text,bytea,bytea,text,text,boolean,boolean,text,jsonb,text,text,text,bytea,bigint)'::regprocedure,'public.zasp_attack_lab_finish_cleanup(text,text,text,text,text,bytea,bytea)'::regprocedure
  ] LOOP EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',function_value);END LOOP;
 END
 $function_owners$;
 
-REVOKE ALL ON FUNCTION public.zasp_attack_lab_register_principals(text,text,text,text),public.zasp_attack_lab_principal_ready(text),public.zasp_attack_lab_principals_ready(),public.zasp_attack_lab_run_json(public.zasp_attack_lab_runs),public.zasp_attack_lab_mutation_result(text,text,text,text,text,text,text,text,jsonb),public.zasp_attack_lab_list_runs(text,text,text,timestamptz,text,integer),public.zasp_attack_lab_get_run(text,text,text,text),public.zasp_attack_lab_create_run(text,text,text,text,text,text,text,text),public.zasp_attack_lab_cancel_run(text,text,text,text,text,text,bigint,text),public.zasp_attack_lab_rerun(text,text,text,text,text,text,bigint,text,text) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_api,zasp_attack_lab_controller,zasp_attack_lab_outbox_worker,zasp_attack_lab_proxy;
+REVOKE ALL ON FUNCTION public.zasp_attack_lab_register_principals(text,text,text,text),public.zasp_attack_lab_principal_ready(text),public.zasp_attack_lab_principals_ready(),public.zasp_attack_lab_run_json(public.zasp_attack_lab_runs),public.zasp_attack_lab_mutation_result(text,text,text,text,text,text,text,text,jsonb),public.zasp_attack_lab_list_runs(text,text,text,timestamptz,text,integer),public.zasp_attack_lab_get_run(text,text,text,text),public.zasp_attack_lab_create_run(text,text,text,text,text,text,text,text),public.zasp_attack_lab_cancel_run(text,text,text,text,text,text,bigint,text),public.zasp_attack_lab_rerun(text,text,text,text,text,text,bigint,text,text),public.zasp_attack_lab_claim_outbox(text,bytea,integer,integer),public.zasp_attack_lab_heartbeat_outbox(text,bytea,integer,integer),public.zasp_attack_lab_ack_outbox(text,text,text,text,text,bytea,text),public.zasp_attack_lab_retry_outbox(text,text,text,text,text,bytea,integer,text),public.zasp_attack_lab_claim_run(text,text,text,text,text,bytea,integer),public.zasp_attack_lab_heartbeat_run(text,text,text,text,text,bytea,integer),public.zasp_attack_lab_retry_run(text,text,text,text,text,bytea,bytea,text,timestamptz),public.zasp_attack_lab_mark_running(text,text,text,text,text,bytea,bytea,text),public.zasp_attack_lab_resolve_egress(text,text,text,text,text),public.zasp_attack_lab_begin_cleanup(text,text,text,text,text,bytea,bytea,text,text,boolean,boolean,text,jsonb,text,text,text,bytea,bigint),public.zasp_attack_lab_finish_cleanup(text,text,text,text,text,bytea,bytea) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_api,zasp_attack_lab_controller,zasp_attack_lab_outbox_worker,zasp_attack_lab_proxy;
 GRANT EXECUTE ON FUNCTION public.zasp_attack_lab_list_runs(text,text,text,timestamptz,text,integer),public.zasp_attack_lab_get_run(text,text,text,text),public.zasp_attack_lab_create_run(text,text,text,text,text,text,text,text),public.zasp_attack_lab_cancel_run(text,text,text,text,text,text,bigint,text),public.zasp_attack_lab_rerun(text,text,text,text,text,text,bigint,text,text) TO zasp_security_agent_api;
 GRANT EXECUTE ON FUNCTION public.zasp_attack_lab_principal_ready(text) TO zasp_attack_lab_controller,zasp_attack_lab_outbox_worker,zasp_attack_lab_proxy;
+GRANT EXECUTE ON FUNCTION public.zasp_attack_lab_claim_outbox(text,bytea,integer,integer),public.zasp_attack_lab_heartbeat_outbox(text,bytea,integer,integer),public.zasp_attack_lab_ack_outbox(text,text,text,text,text,bytea,text),public.zasp_attack_lab_retry_outbox(text,text,text,text,text,bytea,integer,text) TO zasp_attack_lab_outbox_worker;
+GRANT EXECUTE ON FUNCTION public.zasp_attack_lab_claim_run(text,text,text,text,text,bytea,integer),public.zasp_attack_lab_heartbeat_run(text,text,text,text,text,bytea,integer),public.zasp_attack_lab_retry_run(text,text,text,text,text,bytea,bytea,text,timestamptz),public.zasp_attack_lab_mark_running(text,text,text,text,text,bytea,bytea,text),public.zasp_attack_lab_begin_cleanup(text,text,text,text,text,bytea,bytea,text,text,boolean,boolean,text,jsonb,text,text,text,bytea,bigint),public.zasp_attack_lab_finish_cleanup(text,text,text,text,text,bytea,bytea) TO zasp_attack_lab_controller;
+GRANT EXECUTE ON FUNCTION public.zasp_attack_lab_resolve_egress(text,text,text,text,text) TO zasp_attack_lab_proxy;
 
 CREATE FUNCTION public.zasp_attack_lab_execution_security_ready() RETURNS boolean LANGUAGE sql STABLE SET search_path TO pg_catalog, public AS $security$
  SELECT zasp_red_team_execution_security_ready()
@@ -263,6 +446,17 @@ CREATE FUNCTION public.zasp_attack_lab_execution_security_ready() RETURNS boolea
  AND NOT EXISTS(SELECT 1 FROM pg_auth_members membership JOIN pg_roles granted ON granted.oid=membership.roleid JOIN pg_roles member ON member.oid=membership.member WHERE (granted.rolname IN('zasp_attack_lab_controller','zasp_attack_lab_outbox_worker','zasp_attack_lab_proxy') OR member.rolname IN('zasp_attack_lab_controller','zasp_attack_lab_outbox_worker','zasp_attack_lab_proxy')) AND NOT (granted.rolname IN('zasp_attack_lab_controller','zasp_attack_lab_outbox_worker','zasp_attack_lab_proxy') AND member.rolname='zasp_discovery_authority' AND membership.admin_option) AND NOT EXISTS(SELECT 1 FROM zasp_attack_lab_principal_bindings binding WHERE binding.principal_name=member.rolname AND binding.authority_role=granted.rolname))
  AND has_function_privilege('zasp_security_agent_api','public.zasp_attack_lab_create_run(text,text,text,text,text,text,text,text)','EXECUTE')
  AND has_function_privilege('zasp_security_agent_api','public.zasp_attack_lab_cancel_run(text,text,text,text,text,text,bigint,text)','EXECUTE')
+ AND has_function_privilege('zasp_attack_lab_outbox_worker','public.zasp_attack_lab_claim_outbox(text,bytea,integer,integer)','EXECUTE')
+ AND has_function_privilege('zasp_attack_lab_outbox_worker','public.zasp_attack_lab_heartbeat_outbox(text,bytea,integer,integer)','EXECUTE')
+ AND has_function_privilege('zasp_attack_lab_outbox_worker','public.zasp_attack_lab_ack_outbox(text,text,text,text,text,bytea,text)','EXECUTE')
+ AND has_function_privilege('zasp_attack_lab_outbox_worker','public.zasp_attack_lab_retry_outbox(text,text,text,text,text,bytea,integer,text)','EXECUTE')
+ AND has_function_privilege('zasp_attack_lab_controller','public.zasp_attack_lab_claim_run(text,text,text,text,text,bytea,integer)','EXECUTE')
+ AND has_function_privilege('zasp_attack_lab_controller','public.zasp_attack_lab_heartbeat_run(text,text,text,text,text,bytea,integer)','EXECUTE')
+ AND has_function_privilege('zasp_attack_lab_controller','public.zasp_attack_lab_retry_run(text,text,text,text,text,bytea,bytea,text,timestamptz)','EXECUTE')
+ AND has_function_privilege('zasp_attack_lab_controller','public.zasp_attack_lab_mark_running(text,text,text,text,text,bytea,bytea,text)','EXECUTE')
+ AND has_function_privilege('zasp_attack_lab_controller','public.zasp_attack_lab_begin_cleanup(text,text,text,text,text,bytea,bytea,text,text,boolean,boolean,text,jsonb,text,text,text,bytea,bigint)','EXECUTE')
+ AND has_function_privilege('zasp_attack_lab_controller','public.zasp_attack_lab_finish_cleanup(text,text,text,text,text,bytea,bytea)','EXECUTE')
+ AND has_function_privilege('zasp_attack_lab_proxy','public.zasp_attack_lab_resolve_egress(text,text,text,text,text)','EXECUTE')
  AND NOT has_table_privilege('zasp_security_agent_api','public.zasp_attack_lab_runs','SELECT') AND NOT has_table_privilege('zasp_attack_lab_controller','public.zasp_attack_lab_runs','SELECT') AND NOT has_table_privilege('zasp_attack_lab_proxy','public.zasp_attack_lab_runs','SELECT')
 $security$;
 
@@ -302,4 +496,4 @@ END
 $product_release_evolution$;
 
 UPDATE public.zasp_schema_metadata SET value='attack-lab-execution-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='red-team-execution-v1';
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('attack_lab_execution_fingerprint', '0418f278a333033bd22578eba39806d489e9a819978b8aaf3d2ea394ef06ac38') ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('attack_lab_execution_fingerprint', '2c37978b56e0be1e0ada05390bc1b03a60d4f9efe18da2b064d5e54a6e51fa36') ON CONFLICT(key) DO UPDATE SET value=excluded.value;

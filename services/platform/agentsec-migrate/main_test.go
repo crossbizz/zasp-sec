@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1409,6 +1410,278 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab rerun=%s err=%v", attackLabRerunJSON, err)
 	}
+	attackLabOutbox := connectAs(principalNames[23])
+	attackLabOutboxToken := bytes.Repeat([]byte{0x42}, 32)
+	var attackLabOutboxJSON []byte
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_claim_outbox($1,$2,60,10)`, "attack-lab-outbox-e2e", attackLabOutboxToken).Scan(&attackLabOutboxJSON); err != nil {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab outbox claim=%s err=%v", attackLabOutboxJSON, err)
+	}
+	type attackLabOutboxItem struct {
+		OrganizationID string `json:"organization_id"`
+		WorkspaceID    string `json:"workspace_id"`
+		EnvironmentID  string `json:"environment_id"`
+		OutboxID       string `json:"outbox_id"`
+		Topic          string `json:"topic"`
+		Payload        string `json:"payload"`
+		PayloadDigest  string `json:"payload_digest"`
+		Attempt        int    `json:"attempt"`
+	}
+	var attackLabClaim struct {
+		Items []attackLabOutboxItem `json:"items"`
+	}
+	if err := json.Unmarshal(attackLabOutboxJSON, &attackLabClaim); err != nil || len(attackLabClaim.Items) != 1 {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab outbox decode=%s items=%d err=%v", attackLabOutboxJSON, len(attackLabClaim.Items), err)
+	}
+	validateAttackLabOutboxItem := func(item attackLabOutboxItem) string {
+		t.Helper()
+		var payload struct {
+			RunID string `json:"run_id"`
+		}
+		digest := fmt.Sprintf("%x", sha256.Sum256([]byte(item.Payload)))
+		if err := json.Unmarshal([]byte(item.Payload), &payload); err != nil || item.OrganizationID != organizationID || item.WorkspaceID != workspaceID || item.EnvironmentID != environmentID || item.Topic != "attack-lab-jobs" || item.Attempt != 1 || item.PayloadDigest != digest {
+			attackLabOutbox.Close(context.Background())
+			redTeamAPI.Close(context.Background())
+			t.Fatalf("attack lab outbox item=%#v payload=%#v digest=%s err=%v", item, payload, digest, err)
+		}
+		return payload.RunID
+	}
+	firstItem := attackLabClaim.Items[0]
+	firstRunID := validateAttackLabOutboxItem(firstItem)
+	var attackLabHeartbeatJSON []byte
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_heartbeat_outbox($1,$2,60,1)`, "attack-lab-outbox-e2e", attackLabOutboxToken).Scan(&attackLabHeartbeatJSON); err != nil || !bytes.Contains(attackLabHeartbeatJSON, []byte(`"remaining_count": 1`)) {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab outbox heartbeat=%s err=%v", attackLabHeartbeatJSON, err)
+	}
+	providerAck := "sha256:" + strings.Repeat("a", 64)
+	var attackLabAckJSON []byte
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_ack_outbox($1,$2,$3,$4,$5,$6,$7)`, firstItem.OrganizationID, firstItem.WorkspaceID, firstItem.EnvironmentID, firstItem.OutboxID, "attack-lab-outbox-e2e", attackLabOutboxToken, providerAck).Scan(&attackLabAckJSON); err != nil || !bytes.Contains(attackLabAckJSON, []byte(`"provider_ack": "`+providerAck+`"`)) || !bytes.Contains(attackLabAckJSON, []byte(`"remaining_count": 0`)) || !bytes.Contains(attackLabAckJSON, []byte(`"replayed": false`)) {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab outbox ack=%s err=%v", attackLabAckJSON, err)
+	}
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_ack_outbox($1,$2,$3,$4,$5,$6,$7)`, firstItem.OrganizationID, firstItem.WorkspaceID, firstItem.EnvironmentID, firstItem.OutboxID, "attack-lab-outbox-e2e", attackLabOutboxToken, providerAck).Scan(&attackLabAckJSON); err != nil || !bytes.Contains(attackLabAckJSON, []byte(`"remaining_count": 0`)) || !bytes.Contains(attackLabAckJSON, []byte(`"replayed": true`)) {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab outbox ack replay=%s err=%v", attackLabAckJSON, err)
+	}
+	attackLabRetryToken := bytes.Repeat([]byte{0x43}, 32)
+	attackLabOutboxJSON = nil
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_claim_outbox($1,$2,60,10)`, "attack-lab-outbox-e2e", attackLabRetryToken).Scan(&attackLabOutboxJSON); err != nil {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab second outbox claim=%s err=%v", attackLabOutboxJSON, err)
+	}
+	attackLabClaim.Items = nil
+	if err := json.Unmarshal(attackLabOutboxJSON, &attackLabClaim); err != nil || len(attackLabClaim.Items) != 1 {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab second outbox decode=%s items=%d err=%v", attackLabOutboxJSON, len(attackLabClaim.Items), err)
+	}
+	retryItem := attackLabClaim.Items[0]
+	secondRunID := validateAttackLabOutboxItem(retryItem)
+	if firstRunID == secondRunID || firstRunID != attackLabRunID && firstRunID != attackLabRerunID || secondRunID != attackLabRunID && secondRunID != attackLabRerunID {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab outbox fair runs first=%s second=%s", firstRunID, secondRunID)
+	}
+	var attackLabRetryJSON []byte
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_retry_outbox($1,$2,$3,$4,$5,$6,10,'queue_publish_unknown')`, retryItem.OrganizationID, retryItem.WorkspaceID, retryItem.EnvironmentID, retryItem.OutboxID, "attack-lab-outbox-e2e", attackLabRetryToken).Scan(&attackLabRetryJSON); err != nil || !bytes.Contains(attackLabRetryJSON, []byte(`"remaining_count": 0`)) || !bytes.Contains(attackLabRetryJSON, []byte(`"state": "pending"`)) || !bytes.Contains(attackLabRetryJSON, []byte(`"replayed": false`)) {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab outbox retry=%s err=%v", attackLabRetryJSON, err)
+	}
+	attackLabOutbox.Close(context.Background())
+	attackLabController := connectAs(principalNames[22])
+	attackLabRetryRunID := "pid_7a000016-0000-4000-8000-000000000016"
+	var attackLabRetryRunJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_rerun($1,$2,$3,$4,'attack-lab-rerun-retry-0001',$5,2,$6,$7)`, organizationID, workspaceID, environmentID, actorID, attackLabRunID, attackLabRetryRunID, correlationID).Scan(&attackLabRetryRunJSON); err != nil || !bytes.Contains(attackLabRetryRunJSON, []byte(`"status": "queued"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab retry fixture=%s err=%v", attackLabRetryRunJSON, err)
+	}
+	attackLabRetryControllerToken := bytes.Repeat([]byte{0x48}, 32)
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_claim_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, attackLabRetryRunID, "attack-lab-controller-retry-e2e", attackLabRetryControllerToken).Scan(&attackLabRetryRunJSON); err != nil || !bytes.Contains(attackLabRetryRunJSON, []byte(`"status": "leased"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab retry claim=%s err=%v", attackLabRetryRunJSON, err)
+	}
+	var attackLabRetryInputDigest []byte
+	if err := connection.QueryRow(ctx, `SELECT input_digest FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRetryRunID).Scan(&attackLabRetryInputDigest); err != nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_retry_run($1,$2,$3,$4,$5,$6,$7,'retryable',transaction_timestamp()+interval '10 seconds')`, organizationID, workspaceID, environmentID, attackLabRetryRunID, "attack-lab-controller-retry-e2e", attackLabRetryControllerToken, attackLabRetryInputDigest).Scan(&attackLabRetryRunJSON); err != nil || !bytes.Contains(attackLabRetryRunJSON, []byte(`"status": "retryable"`)) || !bytes.Contains(attackLabRetryRunJSON, []byte(`"error_code": "retryable"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab retry run=%s err=%v", attackLabRetryRunJSON, err)
+	}
+	attackLabCancelActiveRunID := "pid_7a000017-0000-4000-8000-000000000017"
+	var attackLabCancelActiveJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_rerun($1,$2,$3,$4,'attack-lab-rerun-cancel-active-0001',$5,2,$6,$7)`, organizationID, workspaceID, environmentID, actorID, attackLabRunID, attackLabCancelActiveRunID, correlationID).Scan(&attackLabCancelActiveJSON); err != nil || !bytes.Contains(attackLabCancelActiveJSON, []byte(`"status": "queued"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab active cancel fixture=%s err=%v", attackLabCancelActiveJSON, err)
+	}
+	attackLabCancelActiveToken := bytes.Repeat([]byte{0x49}, 32)
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_claim_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, attackLabCancelActiveRunID, "attack-lab-controller-cancel-e2e", attackLabCancelActiveToken).Scan(&attackLabCancelActiveJSON); err != nil || !bytes.Contains(attackLabCancelActiveJSON, []byte(`"status": "leased"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab active cancel claim=%s err=%v", attackLabCancelActiveJSON, err)
+	}
+	var attackLabCancelActiveDigest []byte
+	if err := connection.QueryRow(ctx, `SELECT input_digest FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabCancelActiveRunID).Scan(&attackLabCancelActiveDigest); err != nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_cancel_run($1,$2,$3,$4,'attack-lab-cancel-active-0001',$5,2,$6)`, organizationID, workspaceID, environmentID, actorID, attackLabCancelActiveRunID, correlationID).Scan(&attackLabCancelActiveJSON); err != nil || !bytes.Contains(attackLabCancelActiveJSON, []byte(`"status": "leased"`)) || !bytes.Contains(attackLabCancelActiveJSON, []byte(`"cancel_requested": true`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab active cancel request=%s err=%v", attackLabCancelActiveJSON, err)
+	}
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_heartbeat_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, attackLabCancelActiveRunID, "attack-lab-controller-cancel-e2e", attackLabCancelActiveToken).Scan(&attackLabCancelActiveJSON); err != nil || !bytes.Contains(attackLabCancelActiveJSON, []byte(`"renewed": true`)) || !bytes.Contains(attackLabCancelActiveJSON, []byte(`"cancel_requested": true`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab active cancel heartbeat=%s err=%v", attackLabCancelActiveJSON, err)
+	}
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_retry_run($1,$2,$3,$4,$5,$6,$7,'retryable',transaction_timestamp()+interval '10 seconds')`, organizationID, workspaceID, environmentID, attackLabCancelActiveRunID, "attack-lab-controller-cancel-e2e", attackLabCancelActiveToken, attackLabCancelActiveDigest).Scan(&attackLabCancelActiveJSON); err != nil || !bytes.Contains(attackLabCancelActiveJSON, []byte(`"status": "cancelled"`)) || !bytes.Contains(attackLabCancelActiveJSON, []byte(`"cleanup_state": "complete"`)) || !bytes.Contains(attackLabCancelActiveJSON, []byte(`"error_code": "cancelled"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab active cancel finish=%s err=%v", attackLabCancelActiveJSON, err)
+	}
+	attackLabControllerToken := bytes.Repeat([]byte{0x44}, 32)
+	var attackLabClaimJSON []byte
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_claim_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken).Scan(&attackLabClaimJSON); err != nil || !bytes.Contains(attackLabClaimJSON, []byte(`"disposition": "claimed"`)) || !bytes.Contains(attackLabClaimJSON, []byte(`"status": "leased"`)) || !bytes.Contains(attackLabClaimJSON, []byte(`"success_criterion": "Reject direct prompt injection"`)) || !bytes.Contains(attackLabClaimJSON, []byte(`"allowed_destinations": ["adapter-rerun.customer.example"]`)) || !bytes.Contains(attackLabClaimJSON, []byte(`"expected_side_effects": ["audit event"]`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab controller claim=%s err=%v", attackLabClaimJSON, err)
+	}
+	var attackLabInputDigest []byte
+	if err := connection.QueryRow(ctx, `SELECT input_digest FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabInputDigest); err != nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	var attackLabRunHeartbeatJSON []byte
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_heartbeat_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken).Scan(&attackLabRunHeartbeatJSON); err != nil || !bytes.Contains(attackLabRunHeartbeatJSON, []byte(`"renewed": true`)) || !bytes.Contains(attackLabRunHeartbeatJSON, []byte(`"cancel_requested": false`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab run heartbeat=%s err=%v", attackLabRunHeartbeatJSON, err)
+	}
+	sandboxReference := "k8s://attack-lab/jobs/zasp-attack-lab-7a000015@123e4567-e89b-12d3-a456-426614174000"
+	var attackLabRunningJSON []byte
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_mark_running($1,$2,$3,$4,$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken, attackLabInputDigest, sandboxReference).Scan(&attackLabRunningJSON); err != nil || !bytes.Contains(attackLabRunningJSON, []byte(`"status": "running"`)) || !bytes.Contains(attackLabRunningJSON, []byte(`"replayed": false`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab mark running=%s err=%v", attackLabRunningJSON, err)
+	}
+	attackLabProxy := connectAs(principalNames[24])
+	var attackLabEgressJSON []byte
+	if err := attackLabProxy.QueryRow(ctx, `SELECT zasp_attack_lab_resolve_egress($1,$2,$3,$4,$5)`, organizationID, workspaceID, environmentID, attackLabRerunID, "adapter-rerun.customer.example").Scan(&attackLabEgressJSON); err != nil || !bytes.Contains(attackLabEgressJSON, []byte(`"destination": "adapter-rerun.customer.example"`)) || !bytes.Contains(attackLabEgressJSON, []byte(`"methods": ["POST"]`)) {
+		attackLabProxy.Close(context.Background())
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab egress resolve=%s err=%v", attackLabEgressJSON, err)
+	}
+	if err := attackLabProxy.QueryRow(ctx, `SELECT zasp_attack_lab_resolve_egress($1,$2,$3,$4,'evil.example')`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabEgressJSON); err == nil {
+		attackLabProxy.Close(context.Background())
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal("attack lab proxy resolved an undeclared destination")
+	}
+	attackLabProxy.Close(context.Background())
+	if _, err := connection.Exec(ctx, `UPDATE zasp_attack_lab_runs SET lease_expires_at=transaction_timestamp()-interval '1 second' WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID); err != nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	runningResumeToken := bytes.Repeat([]byte{0x4a}, 32)
+	var attackLabRunningResumeJSON []byte
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_claim_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", runningResumeToken).Scan(&attackLabRunningResumeJSON); err != nil || !bytes.Contains(attackLabRunningResumeJSON, []byte(`"disposition": "running"`)) || !bytes.Contains(attackLabRunningResumeJSON, []byte(`"sandbox_reference": "`+sandboxReference+`"`)) || !bytes.Contains(attackLabRunningResumeJSON, []byte(`"status": "running"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab running resume=%s err=%v", attackLabRunningResumeJSON, err)
+	}
+	attackLabControllerToken = runningResumeToken
+	attackLabEvidenceKey := "organizations/" + organizationID + "/workspaces/" + workspaceID + "/environments/" + environmentID + "/attack-lab/" + attackLabRerunID + "/attempts/1/evidence.json"
+	attackLabEvidenceReference := "s3://zasp-attack-lab-evidence/" + attackLabEvidenceKey
+	attackLabEvidenceChecksum := bytes.Repeat([]byte{0x45}, 32)
+	var attackLabCleanupJSON []byte
+	wrongControllerToken := bytes.Repeat([]byte{0x46}, 32)
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_begin_cleanup($1,$2,$3,$4,$5,$6,$7,$8,'verified',true,true,NULL,'["semantic:criterion observed","gateway:allowed","egress:adapter-rerun.customer.example","kubernetes:job complete","cloud:canary touched"]'::jsonb,$9,$10,'s3-version-attack-lab-0001',$11,512)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", wrongControllerToken, attackLabInputDigest, sandboxReference, attackLabEvidenceReference, attackLabEvidenceKey, attackLabEvidenceChecksum).Scan(&attackLabCleanupJSON); err == nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal("attack lab cleanup accepted the wrong lease")
+	}
+	var attackLabCheckpointCount int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_attack_lab_cleanup_checkpoints WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabCheckpointCount); err != nil || attackLabCheckpointCount != 0 {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab wrong-lease checkpoint residue=%d err=%v", attackLabCheckpointCount, err)
+	}
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_begin_cleanup($1,$2,$3,$4,$5,$6,$7,$8,'verified',true,true,NULL,'["semantic:criterion observed","gateway:allowed","egress:adapter-rerun.customer.example","kubernetes:job complete"]'::jsonb,$9,$10,'s3-version-attack-lab-0001',$11,512)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken, attackLabInputDigest, sandboxReference, attackLabEvidenceReference, attackLabEvidenceKey, attackLabEvidenceChecksum).Scan(&attackLabCleanupJSON); err == nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal("attack lab cleanup accepted incomplete evidence")
+	}
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_attack_lab_cleanup_checkpoints WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabCheckpointCount); err != nil || attackLabCheckpointCount != 0 {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab incomplete-evidence checkpoint residue=%d err=%v", attackLabCheckpointCount, err)
+	}
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_begin_cleanup($1,$2,$3,$4,$5,$6,$7,$8,'verified',true,true,NULL,'["semantic:criterion observed","gateway:allowed","egress:adapter-rerun.customer.example","kubernetes:job complete","cloud:canary touched"]'::jsonb,$9,$10,'s3-version-attack-lab-0001',$11,512)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken, attackLabInputDigest, sandboxReference, attackLabEvidenceReference, attackLabEvidenceKey, attackLabEvidenceChecksum).Scan(&attackLabCleanupJSON); err != nil || !bytes.Contains(attackLabCleanupJSON, []byte(`"status": "cleanup"`)) || !bytes.Contains(attackLabCleanupJSON, []byte(`"replayed": false`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab begin cleanup=%s err=%v", attackLabCleanupJSON, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_attack_lab_runs SET lease_expires_at=transaction_timestamp()-interval '1 second' WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID); err != nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	resumedControllerToken := bytes.Repeat([]byte{0x47}, 32)
+	var attackLabResumeJSON []byte
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_claim_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", resumedControllerToken).Scan(&attackLabResumeJSON); err != nil || !bytes.Contains(attackLabResumeJSON, []byte(`"disposition": "cleanup"`)) || !bytes.Contains(attackLabResumeJSON, []byte(`"sandbox_reference": "`+sandboxReference+`"`)) || !bytes.Contains(attackLabResumeJSON, []byte(`"evidence_reference": "`+attackLabEvidenceReference+`"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab cleanup resume=%s err=%v", attackLabResumeJSON, err)
+	}
+	var attackLabFinishedJSON []byte
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_finish_cleanup($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken, attackLabInputDigest).Scan(&attackLabFinishedJSON); err == nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal("attack lab cleanup accepted the expired lease")
+	}
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_finish_cleanup($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", resumedControllerToken, attackLabInputDigest).Scan(&attackLabFinishedJSON); err != nil || !bytes.Contains(attackLabFinishedJSON, []byte(`"status": "complete"`)) || !bytes.Contains(attackLabFinishedJSON, []byte(`"cleanup_state": "complete"`)) || !bytes.Contains(attackLabFinishedJSON, []byte(`"verdict": "verified"`)) || !bytes.Contains(attackLabFinishedJSON, []byte(`"replayed": false`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab finish cleanup=%s err=%v", attackLabFinishedJSON, err)
+	}
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_finish_cleanup($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", resumedControllerToken, attackLabInputDigest).Scan(&attackLabFinishedJSON); err != nil || !bytes.Contains(attackLabFinishedJSON, []byte(`"status": "complete"`)) || !bytes.Contains(attackLabFinishedJSON, []byte(`"replayed": true`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab finish cleanup replay=%s err=%v", attackLabFinishedJSON, err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_get_run($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabDetailJSON); err != nil || !bytes.Contains(attackLabDetailJSON, []byte(`"attempt": 1`)) || !bytes.Contains(attackLabDetailJSON, []byte(`"cleanup_completed": true`)) || !bytes.Contains(attackLabDetailJSON, []byte(`"evidence_reference": "`+attackLabEvidenceReference+`"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab completed detail=%s err=%v", attackLabDetailJSON, err)
+	}
+	attackLabProxy = connectAs(principalNames[24])
+	if err := attackLabProxy.QueryRow(ctx, `SELECT zasp_attack_lab_resolve_egress($1,$2,$3,$4,$5)`, organizationID, workspaceID, environmentID, attackLabRerunID, "adapter-rerun.customer.example").Scan(&attackLabEgressJSON); err == nil {
+		attackLabProxy.Close(context.Background())
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal("attack lab proxy retained access after cleanup")
+	}
+	attackLabProxy.Close(context.Background())
+	attackLabController.Close(context.Background())
 	if _, err := connection.Exec(ctx, `UPDATE zasp_red_team_definitions SET enabled=false,updated_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,definition_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, definitionID); err != nil {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("disable attack lab definition: %v", err)
@@ -1480,7 +1753,7 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		t.Fatal("attack lab accepted a cancelled red team source")
 	}
 	var attackLabRunCount int
-	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_attack_lab_runs WHERE organization_id=$1`, organizationID).Scan(&attackLabRunCount); err != nil || attackLabRunCount != 2 {
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_attack_lab_runs WHERE organization_id=$1`, organizationID).Scan(&attackLabRunCount); err != nil || attackLabRunCount != 4 {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab residue count=%d err=%v", attackLabRunCount, err)
 	}
@@ -1490,7 +1763,7 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		t.Fatalf("red team audit count=%d err=%v", auditCount, err)
 	}
 	redTeamAPI.Close(context.Background())
-	if _, err := connection.Exec(ctx, `DELETE FROM zasp_attack_lab_audit;DELETE FROM zasp_attack_lab_request_receipts;DELETE FROM zasp_attack_lab_outbox;DELETE FROM zasp_attack_lab_attempts;DELETE FROM zasp_attack_lab_runs`); err != nil {
+	if _, err := connection.Exec(ctx, `DELETE FROM zasp_attack_lab_audit;DELETE FROM zasp_attack_lab_request_receipts;DELETE FROM zasp_attack_lab_outbox;DELETE FROM zasp_attack_lab_cleanup_checkpoints;DELETE FROM zasp_attack_lab_attempts;DELETE FROM zasp_attack_lab_runs`); err != nil {
 		t.Fatalf("attack lab cleanup: %v", err)
 	}
 	if _, err := connection.Exec(ctx, `DELETE FROM zasp_red_team_audit;DELETE FROM zasp_red_team_request_receipts;DELETE FROM zasp_red_team_outbox;DELETE FROM zasp_red_team_attempts;DELETE FROM zasp_red_team_runs;DELETE FROM zasp_red_team_definitions`); err != nil {

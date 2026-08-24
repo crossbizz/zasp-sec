@@ -230,7 +230,7 @@ func validAttackLabRun(value AttackLabRun) bool {
 	case "queued":
 		return value.Attempt == 0 && !value.CancelRequested && value.CleanupState == "pending" && !started && !completed && !verdict && !failure && !evidence
 	case "leased", "running":
-		return value.Attempt >= 1 && !value.CancelRequested && value.CleanupState == "pending" && started && !completed && !verdict && !failure && !evidence
+		return value.Attempt >= 1 && value.CleanupState == "pending" && started && !completed && !verdict && !failure && !evidence
 	case "retryable":
 		return value.Attempt >= 1 && value.Attempt < 5 && !value.CancelRequested && value.CleanupState == "pending" && started && !completed && !verdict && stringIn(value.ErrorCode, "retryable", "outcome_unknown") && !evidence
 	case "cleanup":
@@ -247,11 +247,12 @@ func validAttackLabRun(value AttackLabRun) bool {
 }
 
 func validAttackLabAttempt(value AttackLabAttempt) bool {
-	if value.Attempt < 1 || value.Attempt > 5 || !stringIn(value.Verdict, "verified", "not_reproduced", "inconclusive") || len(value.Evidence) < 1 || len(value.Evidence) > 5 || !canonicalInventoryText(value.EvidenceReference, 1, 1024) || !canonicalRedTeamTime(value.CompletedAt) || !value.CleanupCompleted || value.Verdict == "verified" && (!value.CriterionObserved || !value.CanaryTouched) || value.Verdict == "not_reproduced" && (value.CriterionObserved || value.CanaryTouched) {
+	if value.Attempt < 1 || value.Attempt > 5 || !stringIn(value.Verdict, "verified", "not_reproduced", "inconclusive") || len(value.Evidence) != 5 || !canonicalInventoryText(value.EvidenceReference, 1, 1024) || !canonicalRedTeamTime(value.CompletedAt) || !value.CleanupCompleted || value.Verdict == "verified" && (!value.CriterionObserved || !value.CanaryTouched) || value.Verdict == "not_reproduced" && (value.CriterionObserved || value.CanaryTouched) {
 		return false
 	}
-	for _, item := range value.Evidence {
-		if !canonicalInventoryText(item, 1, 512) {
+	prefixes := [...]string{"semantic:", "gateway:", "egress:", "kubernetes:", "cloud:"}
+	for index, item := range value.Evidence {
+		if !canonicalInventoryText(item, 1, 512) || !strings.HasPrefix(item, prefixes[index]) || len(item) == len(prefixes[index]) {
 			return false
 		}
 	}

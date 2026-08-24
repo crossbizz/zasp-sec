@@ -64,3 +64,48 @@ func TestAttackLabRepositoryRejectsHostileStateTuplesAndClientAuthority(t *testi
 		t.Fatalf("unapproved run reached provider err=%v statements=%#v", err, database.statements)
 	}
 }
+
+func TestAttackLabRepositoryAcceptsActiveCancellationAndRequiresCompleteEvidence(t *testing.T) {
+	queuedAt := time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)
+	startedAt := queuedAt.Add(time.Minute)
+	active := AttackLabRun{
+		ID:                "pid_79300001-0000-4000-8000-000000000001",
+		Version:           2,
+		SourceRunID:       "pid_79300002-0000-4000-8000-000000000002",
+		DefinitionID:      "pid_79300003-0000-4000-8000-000000000003",
+		DefinitionVersion: 1,
+		TargetID:          "pid_79300004-0000-4000-8000-000000000004",
+		TargetKind:        "coding_agent",
+		Environment:       "test",
+		CredentialClass:   "test_write",
+		Destination:       "canary.attack-lab.internal",
+		Status:            "running",
+		Attempt:           1,
+		CancelRequested:   true,
+		CleanupState:      "pending",
+		Limits:            AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300},
+		QueuedAt:          queuedAt,
+		StartedAt:         &startedAt,
+	}
+	if !validAttackLabRun(active) {
+		t.Fatal("active cancellation state rejected")
+	}
+
+	attempt := AttackLabAttempt{
+		Attempt:           1,
+		Verdict:           "verified",
+		CriterionObserved: true,
+		CanaryTouched:     true,
+		CleanupCompleted:  true,
+		Evidence:          []string{"semantic:criterion", "gateway:decision", "egress:allowlist", "kubernetes:job", "cloud:task"},
+		EvidenceReference: "s3://attack-lab-evidence/organizations/evidence.json",
+		CompletedAt:       startedAt.Add(time.Minute),
+	}
+	if !validAttackLabAttempt(attempt) {
+		t.Fatal("complete ordered evidence rejected")
+	}
+	attempt.Evidence = attempt.Evidence[:4]
+	if validAttackLabAttempt(attempt) {
+		t.Fatal("incomplete evidence accepted")
+	}
+}
