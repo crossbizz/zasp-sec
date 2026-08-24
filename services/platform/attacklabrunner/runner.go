@@ -156,7 +156,7 @@ func validConfig(config Config) bool {
 	digest, err := hex.DecodeString(config.InputDigest)
 	validDigest := err == nil && len(digest) == 32 && !bytes.Equal(digest, make([]byte, 32)) && strings.ToLower(config.InputDigest) == config.InputDigest
 	clear(digest)
-	if !validDigest || !validRunnerDestination(config.Destination) || config.ProxyEndpoint != "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress" || !validRunnerSecret(config.EgressToken, 16, 4096) || !validRunnerText(config.SuccessCriterion, 512) || len(config.ExpectedSideEffects) < 1 || len(config.ExpectedSideEffects) > 16 || config.Timeout < time.Second || config.Timeout > 30*time.Second {
+	if !validDigest || !validRunnerDestination(config.Destination) || config.ProxyEndpoint != "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress" || !validRunnerSecret(config.EgressToken, 16, 4096) || !validRunnerText(config.SuccessCriterion, 512) || len(config.ExpectedSideEffects) < 1 || len(config.ExpectedSideEffects) > 16 || config.Timeout < time.Second || config.Timeout > 30*time.Second {
 		return false
 	}
 	for _, value := range config.ExpectedSideEffects {

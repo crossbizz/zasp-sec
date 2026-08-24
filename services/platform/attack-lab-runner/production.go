@@ -27,7 +27,7 @@ func newProductionHTTPClient(config runtimeConfig) (*http.Client, *http.Transpor
 	if !roots.AppendCertsFromPEM(caBundle) {
 		return nil, nil, errRuntimeUnavailable
 	}
-	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: config.Runner.Timeout, KeepAlive: -1}).DialContext, ForceAttemptHTTP2: true, DisableKeepAlives: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots, ServerName: "agentsec-attack-lab-proxy.zasp.svc.cluster.local"}, TLSHandshakeTimeout: config.Runner.Timeout, ResponseHeaderTimeout: config.Runner.Timeout, MaxResponseHeaderBytes: 32 << 10}
+	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: config.Runner.Timeout, KeepAlive: -1}).DialContext, ForceAttemptHTTP2: true, DisableKeepAlives: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots, ServerName: "agentsec-attack-lab-proxy.agentsec.svc.cluster.local"}, TLSHandshakeTimeout: config.Runner.Timeout, ResponseHeaderTimeout: config.Runner.Timeout, MaxResponseHeaderBytes: 32 << 10}
 	client := &http.Client{Transport: transport, Timeout: config.Runner.Timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return errRuntimeUnavailable }}
 	return client, transport, nil
 }

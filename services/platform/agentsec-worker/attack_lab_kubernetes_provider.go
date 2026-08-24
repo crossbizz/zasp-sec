@@ -68,7 +68,7 @@ func newProductionAttackLabKubernetesProvider(config productionAttackLabKubernet
 }
 
 func validProductionAttackLabKubernetesProviderConfig(config productionAttackLabKubernetesProviderConfig) bool {
-	if config.Cluster == nil || config.Namespace != "zasp-attack-lab" || config.ServiceAccount != "agentsec-attack-lab-runner" || config.ProxyEndpoint != "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress" || config.ProxyCAFile != "/var/run/secrets/zasp-attack-lab/proxy-ca.crt" || len(config.SigningKey) < 32 || len(config.SigningKey) > 64 || config.OperationTimeout < time.Second || config.OperationTimeout > 30*time.Second || config.Now == nil {
+	if config.Cluster == nil || config.Namespace != "zasp-attack-lab" || config.ServiceAccount != "agentsec-attack-lab-runner" || config.ProxyEndpoint != "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress" || config.ProxyCAFile != "/var/run/secrets/zasp-attack-lab/proxy-ca.crt" || len(config.SigningKey) < 32 || len(config.SigningKey) > 64 || config.OperationTimeout < time.Second || config.OperationTimeout > 30*time.Second || config.Now == nil {
 		return false
 	}
 	if !regexp.MustCompile(`^[0-9]{12}\.dkr\.ecr\.[a-z]{2}(?:-gov)?-[a-z]+-[0-9]\.amazonaws\.com/zasp/attack-lab-runner@sha256:[a-f0-9]{64}$`).MatchString(config.RunnerImage) {

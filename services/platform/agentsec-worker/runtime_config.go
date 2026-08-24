@@ -382,7 +382,7 @@ func validAttackLabRuntimeAuthority(config workerRuntimeConfig) bool {
 		config.AttackLabTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && config.AttackLabNamespace == "zasp-attack-lab" && config.AttackLabRunnerService == "agentsec-attack-lab-runner" &&
 		attackLabKubernetesSecurityGroupPattern.MatchString(config.AttackLabSecurityGroup) &&
 		config.AttackLabKubernetesURL == "https://kubernetes.default.svc" && config.AttackLabKubernetesToken == "/var/run/secrets/kubernetes.io/serviceaccount/token" && config.AttackLabKubernetesCA == "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt" &&
-		config.AttackLabProxyEndpoint == "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress" && config.AttackLabProxyCAFile == "/var/run/secrets/zasp-attack-lab/proxy-ca.crt" && config.AttackLabSigningKeyFile == "/var/run/secrets/zasp-attack-lab/egress-signing-key" &&
+		config.AttackLabProxyEndpoint == "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress" && config.AttackLabProxyCAFile == "/var/run/secrets/zasp-attack-lab/proxy-ca.crt" && config.AttackLabSigningKeyFile == "/var/run/secrets/zasp-attack-lab/egress-signing-key" &&
 		config.AttackLabOperationTimeout >= time.Second && config.AttackLabOperationTimeout <= 30*time.Second && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.RedTeamQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
 }
 

@@ -25,7 +25,7 @@ func TestProductionAttackLabKubernetesAPICreatesExactHardenedJob(t *testing.T) {
 	}
 	job := attackLabKubernetesJob{
 		Namespace: "zasp-attack-lab", Name: "zasp-attack-lab-7e300001000040008000000000000001", ServiceAccount: "agentsec-attack-lab-runner",
-		Image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", EgressToken: "signed.capability",
+		Image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", EgressToken: "signed.capability",
 		OrganizationID: "pid_7d100010-0000-4000-8000-000000000010", WorkspaceID: "pid_7d100011-0000-4000-8000-000000000011", EnvironmentID: "pid_7d100012-0000-4000-8000-000000000012", RunID: "pid_7e300001-0000-4000-8000-000000000001", Destination: "adapter.customer.example",
 		SuccessCriterion: "Observe exact canary touch", ExpectedSideEffects: []string{"one bounded canary mutation"}, InputDigest: strings.Repeat("b", 64), Labels: map[string]string{"zasp.io/execution": "attack-lab", "zasp.io/run-id": "pid_7e300001-0000-4000-8000-000000000001"},
 		Limits: apiserver.AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, ActiveDeadlineSeconds: 300,
@@ -164,7 +164,7 @@ func TestProductionAttackLabKubernetesAPIReconcilesExactCreateConflictWithoutDup
 	}
 	job := attackLabKubernetesJob{
 		Namespace: "zasp-attack-lab", Name: "zasp-attack-lab-7e300001000040008000000000000001", ServiceAccount: "agentsec-attack-lab-runner",
-		Image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", EgressToken: "signed.capability.production",
+		Image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", EgressToken: "signed.capability.production",
 		OrganizationID: "pid_7d100010-0000-4000-8000-000000000010", WorkspaceID: "pid_7d100011-0000-4000-8000-000000000011", EnvironmentID: "pid_7d100012-0000-4000-8000-000000000012", RunID: "pid_7e300001-0000-4000-8000-000000000001", Destination: "adapter.customer.example",
 		SuccessCriterion: "Observe exact canary touch", ExpectedSideEffects: []string{"one bounded canary mutation"}, InputDigest: strings.Repeat("b", 64), Labels: map[string]string{"zasp.io/execution": "attack-lab", "zasp.io/run-id": "pid_7e300001-0000-4000-8000-000000000001"},
 		Limits: apiserver.AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, ActiveDeadlineSeconds: 300,
@@ -241,7 +241,7 @@ func TestProductionAttackLabKubernetesAPIReadinessRejectsPrivilegeAndEgressDrift
 func attackLabKubernetesTestJob() attackLabKubernetesJob {
 	return attackLabKubernetesJob{
 		Namespace: "zasp-attack-lab", Name: "zasp-attack-lab-7e300001000040008000000000000001", ServiceAccount: "agentsec-attack-lab-runner",
-		Image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", EgressToken: "signed.capability.production",
+		Image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", EgressToken: "signed.capability.production",
 		OrganizationID: "pid_7d100010-0000-4000-8000-000000000010", WorkspaceID: "pid_7d100011-0000-4000-8000-000000000011", EnvironmentID: "pid_7d100012-0000-4000-8000-000000000012", RunID: "pid_7e300001-0000-4000-8000-000000000001", Destination: "adapter.customer.example",
 		SuccessCriterion: "Observe exact canary touch", ExpectedSideEffects: []string{"one bounded canary mutation"}, InputDigest: strings.Repeat("b", 64), Labels: map[string]string{"zasp.io/execution": "attack-lab", "zasp.io/run-id": "pid_7e300001-0000-4000-8000-000000000001"},
 		Limits: apiserver.AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, ActiveDeadlineSeconds: 300,

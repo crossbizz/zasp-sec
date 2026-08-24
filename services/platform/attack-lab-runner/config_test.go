@@ -37,7 +37,7 @@ func validRunnerEnvironment() map[string]string {
 		"ZASP_ATTACK_LAB_SUCCESS_CRITERION":     "Observe exact canary touch",
 		"ZASP_ATTACK_LAB_EXPECTED_SIDE_EFFECTS": `["one bounded canary mutation"]`,
 		"ZASP_ATTACK_LAB_INPUT_DIGEST":          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		"ZASP_ATTACK_LAB_EGRESS_PROXY":          "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress",
+		"ZASP_ATTACK_LAB_EGRESS_PROXY":          "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress",
 		"ZASP_ATTACK_LAB_EGRESS_PROXY_CA_FILE":  "/var/run/secrets/zasp-attack-lab/proxy-ca.crt",
 		"ZASP_ATTACK_LAB_EGRESS_TOKEN":          "signed.capability.production",
 		"ZASP_ATTACK_LAB_REQUEST_TIMEOUT":       "30s",

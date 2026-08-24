@@ -19,7 +19,7 @@ func TestProductionAttackLabProviderCreatesCollectsAndDestroysExactOwnedJob(t *t
 	provider, err := newProductionAttackLabKubernetesProvider(productionAttackLabKubernetesProviderConfig{
 		Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner",
 		RunnerImage:   "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64),
-		ProxyEndpoint: "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt",
+		ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt",
 		SigningKey: []byte("test-only-attack-lab-signing-key-32"), OperationTimeout: 10 * time.Second, Now: func() time.Time { return now },
 	})
 	if err != nil {
@@ -60,7 +60,7 @@ func TestProductionAttackLabProviderRejectsProductionDriftBeforeClusterIO(t *tes
 	provider, err := newProductionAttackLabKubernetesProvider(productionAttackLabKubernetesProviderConfig{
 		Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner",
 		RunnerImage:   "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64),
-		ProxyEndpoint: "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt",
+		ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt",
 		SigningKey: []byte("test-only-attack-lab-signing-key-32"), OperationTimeout: 10 * time.Second, Now: func() time.Time { return now },
 	})
 	if err != nil {

@@ -19,7 +19,7 @@ func TestRunnerCallsExactProxyAndReturnsTenantBoundCanaryOutcome(t *testing.T) {
 	config := Config{
 		OrganizationID: "pid_7d100010-0000-4000-8000-000000000010", WorkspaceID: "pid_7d100011-0000-4000-8000-000000000011", EnvironmentID: "pid_7d100012-0000-4000-8000-000000000012",
 		RunID: "pid_7e300001-0000-4000-8000-000000000001", Destination: "adapter.customer.example", SuccessCriterion: "Observe exact canary touch", ExpectedSideEffects: []string{"one bounded canary mutation"}, InputDigest: hex.EncodeToString(digest[:]),
-		ProxyEndpoint: "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", EgressToken: "signed.capability.production", Timeout: 30 * time.Second,
+		ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", EgressToken: "signed.capability.production", Timeout: 30 * time.Second,
 	}
 	canary := `{"schema_version":"attack-lab-canary-v1","organization_id":"` + config.OrganizationID + `","workspace_id":"` + config.WorkspaceID + `","environment_id":"` + config.EnvironmentID + `","run_id":"` + config.RunID + `","input_digest":"` + config.InputDigest + `","criterion_observed":true,"canary_touched":true,"evidence":"cloud canary changed once"}`
 	proxyBody := `{"status_code":200,"content_type":"application/json","body_base64":"` + base64.RawURLEncoding.EncodeToString([]byte(canary)) + `"}`

@@ -128,7 +128,7 @@ func validAttackLabControllerRuntimeEnvironment() map[string]string {
 		"ZASP_ATTACK_LAB_SECURITY_GROUP_ID":   "sg-1234abcd",
 		"ZASP_ATTACK_LAB_RUNNER_IMAGE":        "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64),
 		"ZASP_ATTACK_LAB_KUBERNETES_ENDPOINT": "https://kubernetes.default.svc", "ZASP_ATTACK_LAB_KUBERNETES_TOKEN_FILE": "/var/run/secrets/kubernetes.io/serviceaccount/token", "ZASP_ATTACK_LAB_KUBERNETES_CA_FILE": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
-		"ZASP_ATTACK_LAB_PROXY_ENDPOINT": "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", "ZASP_ATTACK_LAB_PROXY_CA_FILE": "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", "ZASP_ATTACK_LAB_EGRESS_SIGNING_KEY_FILE": "/var/run/secrets/zasp-attack-lab/egress-signing-key",
+		"ZASP_ATTACK_LAB_PROXY_ENDPOINT": "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", "ZASP_ATTACK_LAB_PROXY_CA_FILE": "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", "ZASP_ATTACK_LAB_EGRESS_SIGNING_KEY_FILE": "/var/run/secrets/zasp-attack-lab/egress-signing-key",
 		"ZASP_ATTACK_LAB_OPERATION_TIMEOUT": "10s",
 	}
 }

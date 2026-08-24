@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const proxyTLSHostname = "agentsec-attack-lab-proxy.zasp.svc.cluster.local"
+const proxyTLSHostname = "agentsec-attack-lab-proxy.agentsec.svc.cluster.local"
 
 func loadPinnedTLSCertificate(certificatePath, privateKeyPath string) (tls.Certificate, error) {
 	certificatePEM, certificateOK := readProxyPinnedFile(certificatePath, 64, 128<<10)

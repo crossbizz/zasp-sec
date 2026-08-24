@@ -35,7 +35,7 @@ func TestHandlerAuthorizesExactDurableRunBeforeBoundedForward(t *testing.T) {
 		t.Fatal(err)
 	}
 	payload, _ := json.Marshal(Request{Path: "/v1/attack-lab/canary", ContentType: "application/json", BodyBase64: base64.RawURLEncoding.EncodeToString(proxyCanaryBody(t, grant))})
-	request := httptest.NewRequest(http.MethodPost, "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", bytes.NewReader(payload))
+	request := httptest.NewRequest(http.MethodPost, "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", bytes.NewReader(payload))
 	request.Header.Set("Authorization", "Bearer "+token)
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
