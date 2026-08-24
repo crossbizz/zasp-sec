@@ -182,7 +182,19 @@ func validateManifest(manifest RecoveryManifest) error {
 }
 
 func validScopedReference(reference, organizationID string) bool {
-	return len(reference) <= 512 && strings.HasPrefix(reference, "organizations/"+organizationID+"/") && !strings.ContainsAny(reference, "\r\n\x00")
+	if len(reference) > 512 || strings.ContainsAny(reference, "\\\r\n\x00") {
+		return false
+	}
+	segments := strings.Split(reference, "/")
+	if len(segments) < 4 || segments[0] != "organizations" || segments[1] != organizationID {
+		return false
+	}
+	for _, segment := range segments[2:] {
+		if segment == "." || segment == ".." || !validIdentifier(segment) {
+			return false
+		}
+	}
+	return true
 }
 
 type RestoreRuntime interface {
