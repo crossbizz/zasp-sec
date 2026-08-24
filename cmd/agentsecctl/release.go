@@ -220,7 +220,7 @@ type RestoreResult struct {
 }
 
 func RunRestoreRehearsal(ctx context.Context, request RestoreRequest, runtime RestoreRuntime) (result RestoreResult, resultErr error) {
-	if ctx == nil || runtime == nil || !request.DisposableTarget || request.TargetEnvironment == "" || request.TargetEnvironment == "production" || request.TargetEnvironment == request.SourceEnvironment || request.PollLimit < 1 || request.PollLimit > 60 {
+	if ctx == nil || runtime == nil || !request.DisposableTarget || !validEnvironmentName(request.SourceEnvironment) || !validEnvironmentName(request.TargetEnvironment) || request.TargetEnvironment == "production" || request.TargetEnvironment == request.SourceEnvironment || request.PollLimit < 1 || request.PollLimit > 60 {
 		return result, errRestoreRejected
 	}
 	if err := validateManifest(request.Manifest); err != nil {
@@ -367,6 +367,20 @@ func validIdentifier(value string) bool {
 	return true
 }
 
+func validEnvironmentName(value string) bool {
+	if len(value) < 1 || len(value) > 63 || value[0] == '-' || value[len(value)-1] == '-' {
+		return false
+	}
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		if character >= 'a' && character <= 'z' || character >= '0' && character <= '9' || character == '-' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 func validReference(value string) bool {
 	return len(value) >= 8 && len(value) <= 512 && !strings.ContainsAny(value, "\r\n\x00") && (strings.HasPrefix(value, "s3://") || strings.HasPrefix(value, "oci://"))
 }
@@ -429,7 +443,7 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 		}
 		return encodeJSON(output, manifest)
 	case "restore-validate":
-		if len(arguments) != 3 || arguments[1] == arguments[2] || arguments[2] == "production" || !validIdentifier(arguments[1]) || !validIdentifier(arguments[2]) {
+		if len(arguments) != 3 || arguments[1] == arguments[2] || arguments[2] == "production" || !validEnvironmentName(arguments[1]) || !validEnvironmentName(arguments[2]) {
 			return errRestoreRejected
 		}
 		manifest, err := DecodeRecoveryManifest(input)

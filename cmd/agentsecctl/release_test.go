@@ -156,6 +156,24 @@ func TestRunRestoreRehearsalRejectsUnsafeTargetsMismatchAndCleanupFailure(t *tes
 	}
 }
 
+func TestRunRestoreRehearsalRejectsNoncanonicalEnvironmentsBeforeMutation(t *testing.T) {
+	for name, environments := range map[string][2]string{
+		"source uppercase": {"Production", "rehearsal-a"},
+		"target path":      {"production", "../production"},
+		"target dot":       {"production", ".."},
+		"target uppercase": {"production", "Rehearsal-a"},
+		"target prefix":    {"production", "-rehearsal-a"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			runtime := &fakeRestoreRuntime{states: []string{"complete"}, counts: validManifest().ExpectedResourceCount}
+			request := RestoreRequest{SourceEnvironment: environments[0], TargetEnvironment: environments[1], DisposableTarget: true, Manifest: validManifest(), PollLimit: 1}
+			if _, err := RunRestoreRehearsal(context.Background(), request, runtime); !errors.Is(err, errRestoreRejected) || runtime.startCalls != 0 {
+				t.Fatalf("RunRestoreRehearsal() error=%v startCalls=%d", err, runtime.startCalls)
+			}
+		})
+	}
+}
+
 func TestEvaluateAndRunUpgrade(t *testing.T) {
 	input := UpgradeInput{CurrentVersion: "1.4.2", TargetVersion: "1.5.0", MigrationCompatible: true, BundleFormatCompatible: true, RollbackArtifactReference: "oci://zasp/release@sha256:abc", RecoveryReference: "s3://recovery/manifest.json"}
 	report, err := EvaluateUpgrade(input)
@@ -223,9 +241,11 @@ type fakeRestoreRuntime struct {
 	cleanupErr             error
 	cleanupCalls           int
 	cleanupMaximumDuration time.Duration
+	startCalls             int
 }
 
-func (*fakeRestoreRuntime) Start(context.Context, string, RecoveryManifest) (string, error) {
+func (runtime *fakeRestoreRuntime) Start(context.Context, string, RecoveryManifest) (string, error) {
+	runtime.startCalls++
 	return "rehearsal-1", nil
 }
 func (runtime *fakeRestoreRuntime) Poll(context.Context, string) (string, error) {
