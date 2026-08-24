@@ -6,6 +6,7 @@ COPY services/platform/go.mod services/platform/go.sum ./
 RUN go mod download
 COPY services/platform ./
 RUN test -n "$VERSION" && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.buildVersion=$VERSION" -o /out/agentsec-worker ./agentsec-worker && \
+    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.buildVersion=$VERSION" -o /out/red-team-adapter ./red-team-adapter && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/zasp-healthcheck ./cmd/zasp-healthcheck
 
 FROM ghcr.io/promptfoo/promptfoo:0.121.19@sha256:50d3a796710e4db7a5ede90bf27dc28146ef022a7ebb83914c5105608396fd96
@@ -17,9 +18,9 @@ ENV HOME=/tmp \
     PROMPTFOO_DISABLE_TELEMETRY=1 \
     PROMPTFOO_DISABLE_UPDATE=1
 WORKDIR /app
-COPY --from=build --chown=promptfoo:promptfoo /out/agentsec-worker /out/zasp-healthcheck ./
+COPY --from=build --chown=1000:1000 /out/agentsec-worker /out/red-team-adapter /out/zasp-healthcheck ./
 COPY --chown=promptfoo:promptfoo workers/redteam-node/runner.mjs ./redteam-runner.mjs
-USER promptfoo
-EXPOSE 8081
+USER 1000:1000
+EXPOSE 8081 8443
 HEALTHCHECK --interval=10s --timeout=2s --start-period=10s --retries=3 CMD ["/app/zasp-healthcheck", "http://127.0.0.1:8081/healthz"]
 ENTRYPOINT ["/app/agentsec-worker"]

@@ -10,6 +10,7 @@ global:
     web: ""
     agentsecApi: ""
     agentsecWorker: ""
+    redTeamWorker: ""
     eventIngest: ""
     gatewayControl: ""
     runtimeGateway: ""
@@ -30,6 +31,9 @@ replicas:
   projectionGraph: 2
   projectionSearch: 2
   outboxPublisher: 2
+  redTeamOutbox: 2
+  redTeamWorker: 2
+  redTeamAdapter: 2
   runtimeIngest: 2
   gatewayControl: 2
   runtimeOutbox: 2
@@ -55,6 +59,9 @@ secrets:
   projectionGraphProviderClassName: zasp-production-projection-graph-secrets
   projectionSearchProviderClassName: zasp-production-projection-search-secrets
   outboxProviderClassName: zasp-production-outbox-secrets
+  redTeamOutboxProviderClassName: zasp-production-red-team-outbox-secrets
+  redTeamWorkerProviderClassName: zasp-production-red-team-worker-secrets
+  redTeamAdapterProviderClassName: zasp-production-red-team-adapter-secrets
   runtimeIngestProviderClassName: zasp-production-runtime-ingest-secrets
   runtimeCoordinatorProviderClassName: zasp-production-runtime-coordinator-secrets
   runtimeArchiveProviderClassName: zasp-production-runtime-archive-secrets
@@ -76,6 +83,12 @@ secrets:
   projectionGraphPostgresDSNObjectName: ""
   projectionSearchPostgresDSNObjectName: ""
   outboxPostgresDSNObjectName: ""
+  redTeamOutboxPostgresDSNObjectName: ""
+  redTeamWorkerPostgresDSNObjectName: ""
+  redTeamAdapterPostgresDSNObjectName: ""
+  redTeamAdapterTokenObjectName: ""
+  redTeamAdapterTLSCertificateObjectName: ""
+  redTeamAdapterTLSPrivateKeyObjectName: ""
   runtimeIngestPostgresDSNObjectName: ""
   runtimeCoordinatorPostgresDSNObjectName: ""
   runtimeArchivePostgresDSNObjectName: ""
@@ -164,6 +177,22 @@ outbox:
   queueURL: ""
   roleArn: ""
   webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+redTeam:
+  awsRegion: ""
+  queueURL: ""
+  evidenceBucket: ""
+  evidenceBucketOwner: ""
+  evidenceKMSKeyArn: ""
+  outboxRoleArn: ""
+  workerRoleArn: ""
+  adapterRoleArn: ""
+  webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+  runnerTimeout: 10m
+  targetEndpoint: ""
+  targetAllowedCIDRs: []
+  readinessCredentialReference: ""
+  adapterRequestTimeout: 10s
+  adapterShutdownTimeout: 15s
 runtime:
   awsRegion: ""
   queueURL: ""
@@ -182,7 +211,7 @@ runtime:
   projectionRoleArn: ""
   completeRoleArn: ""
 schema:
-  expectedVersion: 24
+  expectedVersion: 25
   migrationTimeout: 10m
 databasePrincipals:
   migration: ""
@@ -194,6 +223,9 @@ databasePrincipals:
   runtimeIngest: ""
   runtimeWorker: ""
   outboxWorker: ""
+  redTeamOutboxWorker: ""
+  redTeamWorker: ""
+  redTeamAdapter: ""
   runtimeGateway: ""
   discoveryScheduler: ""
   projectionRisk: ""
@@ -243,6 +275,15 @@ serviceAccounts:
   outbox:
     name: zasp-outbox-publisher
     roleArn: ""
+  redTeamOutbox:
+    name: zasp-red-team-outbox
+    roleArn: ""
+  redTeamWorker:
+    name: zasp-red-team-worker
+    roleArn: ""
+  redTeamAdapter:
+    name: zasp-red-team-adapter
+    roleArn: ""
   runtimeIngest:
     name: zasp-runtime-ingest
     roleArn: ""
@@ -285,6 +326,7 @@ network:
   opensearchCIDR: ""
   neo4jCIDR: ""
   outboxEgressCIDRs: []
+  redTeamEgressCIDRs: []
   runtimeEgressCIDRs: []
   controlPlaneCIDRs: []
   kubernetesAPICIDRs: []

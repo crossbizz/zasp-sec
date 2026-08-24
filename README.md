@@ -30,20 +30,20 @@ Findings and attack paths are the Batch 4 production risk slice:
 | Attack paths | Scoped list/detail and ranked path-local break options |
 | Risk authority | Typed, scope-keyed PostgreSQL v9 serving projection |
 | Connector authorization | OAuth for GitHub/Okta and reference authorization for AWS/Kubernetes, capability-gated by composed runtime readiness |
+| Continuous discovery | Tenant-scoped manual and scheduled synchronization with durable history, freshness, and independent risk/search/graph projections |
+| Red Team | Tenant-scoped definitions and Promptfoo runs against fresh discovered agent/MCP targets with curated categories and immutable normalized evidence |
 | Empty scopes | Honest empty state; no fixture or fake producer fallback |
-| Future enrichment | Provider ingestion, OpenSearch indexing, and Neo4j graph projection |
 
-Red Team, Attack Lab, reports, guardrail prototype controls, finding tickets,
-AI explanations, sensors/provider sync, policy simulation/decisions,
-security-agent execution/approvals, exports, and deletion jobs remain hidden
+Attack Lab, reports, guardrail prototype controls, AI explanations, exports,
+and deletion jobs remain hidden
 until their provider, job, artifact, and recovery boundaries are complete.
 
-Production packaging now supplies seven immutable non-root images for the web,
-API, worker, event-ingest, gateway-control, and customer-edge runtime-gateway
-and sensor-agent boundaries. Separate TLS ingress routes the public product and authenticated
+Production packaging now supplies eight immutable non-root images for the web,
+API, worker, Red Team worker/adapter, event-ingest, gateway-control, and customer-edge
+runtime-gateway and sensor-agent boundaries. Separate TLS ingress routes the public product and authenticated
 runtime control/data-plane paths while health, readiness, and metrics remain
 private on 8081. Secrets are resolved through secret-manager CSI references,
-schema v17 is a blocking release Job, and the hosted chart renders 17 isolated
+schema v25 is a blocking release Job, and the hosted chart renders 24 isolated
 deployments with default-deny network policy, disruption/spread/drain controls,
 read-only canaries, security headers, SLO alerts, and exact cloud identities.
 The customer-edge profile contains the database-free runtime gateway plus a

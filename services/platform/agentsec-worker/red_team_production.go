@@ -47,13 +47,13 @@ func newProductionRedTeamDependencies(config workerRuntimeConfig) (*productionRe
 	}
 	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{
 		Artifacts: artifacts, Command: productionRedTeamCommand{}, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/node_modules/.bin/promptfoo",
-		TargetEndpoint: config.RedTeamTargetEndpoint, TargetTokenFile: config.RedTeamTargetTokenFile, TempRoot: "/tmp", Timeout: config.RedTeamRunnerTimeout, Clock: func() time.Time { return time.Now().UTC() },
+		TargetEndpoint: config.RedTeamTargetEndpoint, TargetTokenFile: config.RedTeamTargetTokenFile, TargetCAFile: config.RedTeamTargetCAFile, TempRoot: "/tmp", Timeout: config.RedTeamRunnerTimeout, Clock: func() time.Time { return time.Now().UTC() },
 	})
 	if err != nil {
 		return fail()
 	}
 	ready := func(ctx context.Context) error {
-		if ctx == nil || ctx.Err() != nil || !validRedTeamTokenFile(config.RedTeamTargetTokenFile) || readyProductionDiscoveryRole(ctx, cloud.assumeRole, cloudConfig, artifactConfig) != nil || readyProductionDiscoveryArtifactAuthority(ctx, cloud.s3, cloud.kms, cloudConfig, artifactConfig) != nil || queue.Ready(ctx) != nil {
+		if ctx == nil || ctx.Err() != nil || !validRedTeamTokenFile(config.RedTeamTargetTokenFile) || !validRedTeamCAFile(config.RedTeamTargetCAFile) || readyProductionDiscoveryRole(ctx, cloud.assumeRole, cloudConfig, artifactConfig) != nil || readyProductionDiscoveryArtifactAuthority(ctx, cloud.s3, cloud.kms, cloudConfig, artifactConfig) != nil || queue.Ready(ctx) != nil {
 			return errRuntimeUnavailable
 		}
 		return nil

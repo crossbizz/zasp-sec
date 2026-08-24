@@ -69,6 +69,21 @@ spec:
           for: 5m
           labels: { severity: page }
           annotations: { summary: "Zasp API workload is unavailable or absent" }
+        {{- range $redTeam := list
+              (dict "alert" "ZaspRedTeamOutboxUnavailable" "name" "agentsec-red-team-outbox")
+              (dict "alert" "ZaspRedTeamWorkerUnavailable" "name" "agentsec-red-team-worker")
+              (dict "alert" "ZaspRedTeamAdapterUnavailable" "name" "agentsec-red-team-adapter") }}
+        - alert: {{ $redTeam.alert }}
+          expr: kube_deployment_status_replicas_available{namespace="{{ $.Release.Namespace }}",deployment="{{ $redTeam.name }}"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ $.Release.Namespace }}",deployment="{{ $redTeam.name }}"})
+          for: 5m
+          labels: { severity: page, workload: {{ $redTeam.name }} }
+          annotations: { summary: "A Red Team workload is unavailable or absent" }
+        {{- end }}
+        - alert: ZaspRedTeamDependencyNotReady
+          expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service=~"agentsec-red-team-(outbox|worker|adapter)"} == 0
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "A Red Team dependency is not ready" }
         - alert: ZaspDiscoveryWorkerUnavailable
           expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-discovery-worker"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-discovery-worker"})
           for: 5m

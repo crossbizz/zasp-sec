@@ -1,0 +1,311 @@
+{{- if ne .Values.profile "customer_edge" }}
+{{- $root := . -}}
+{{- range $account := list .Values.serviceAccounts.redTeamOutbox .Values.serviceAccounts.redTeamWorker .Values.serviceAccounts.redTeamAdapter }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $account.name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    eks.amazonaws.com/role-arn: {{ required (printf "service account %s roleArn is required" $account.name) $account.roleArn | quote }}
+automountServiceAccountToken: false
+{{- end }}
+{{- $secretProviders := list
+  (dict "name" .Values.secrets.redTeamOutboxProviderClassName "dsn" .Values.secrets.redTeamOutboxPostgresDSNObjectName "token" false "certificate" "" "tls" false)
+  (dict "name" .Values.secrets.redTeamWorkerProviderClassName "dsn" .Values.secrets.redTeamWorkerPostgresDSNObjectName "token" true "certificate" "adapter-ca.crt" "tls" false)
+  (dict "name" .Values.secrets.redTeamAdapterProviderClassName "dsn" .Values.secrets.redTeamAdapterPostgresDSNObjectName "token" true "certificate" "tls.crt" "tls" true)
+-}}
+{{- range $provider := $secretProviders }}
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata: { name: {{ $provider.name }}, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  provider: aws
+  parameters:
+    region: {{ $root.Values.secrets.region | quote }}
+    objects: |
+      - objectName: {{ required (printf "%s database object is required" $provider.name) $provider.dsn | quote }}
+        objectType: secretsmanager
+        objectAlias: postgres-dsn
+        filePermission: "0444"
+      {{- if $provider.token }}
+      - objectName: {{ required "secrets.redTeamAdapterTokenObjectName is required" $root.Values.secrets.redTeamAdapterTokenObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: adapter-token
+        filePermission: "0444"
+      {{- end }}
+      {{- if $provider.certificate }}
+      - objectName: {{ required "secrets.redTeamAdapterTLSCertificateObjectName is required" $root.Values.secrets.redTeamAdapterTLSCertificateObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: {{ $provider.certificate }}
+        filePermission: "0444"
+      {{- end }}
+      {{- if $provider.tls }}
+      - objectName: {{ required "secrets.redTeamAdapterTLSPrivateKeyObjectName is required" $root.Values.secrets.redTeamAdapterTLSPrivateKeyObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: tls.key
+        filePermission: "0444"
+      {{- end }}
+{{- end }}
+{{- $workers := list
+  (dict "name" "agentsec-red-team-outbox" "replicas" .Values.replicas.redTeamOutbox "account" .Values.serviceAccounts.redTeamOutbox "image" .Values.global.productImages.agentsecWorker "mode" "red-team-outbox" "authority" "zasp_red_team_outbox_worker" "secrets" .Values.secrets.redTeamOutboxProviderClassName "mount" "/var/run/secrets/zasp-red-team-outbox" "roleEnv" "ZASP_OUTBOX_ROLE_ARN" "role" .Values.redTeam.outboxRoleArn "uid" 65532)
+  (dict "name" "agentsec-red-team-worker" "replicas" .Values.replicas.redTeamWorker "account" .Values.serviceAccounts.redTeamWorker "image" .Values.global.productImages.redTeamWorker "mode" "red-team" "authority" "zasp_red_team_worker" "secrets" .Values.secrets.redTeamWorkerProviderClassName "mount" "/var/run/secrets/zasp-red-team" "roleEnv" "ZASP_RED_TEAM_ROLE_ARN" "role" .Values.redTeam.workerRoleArn "uid" 1000)
+-}}
+{{- range $worker := $workers }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: {{ $worker.name }}, labels: { app.kubernetes.io/name: {{ $worker.name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: {{ $worker.replicas }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: {{ $worker.name }} } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: {{ $worker.name }}, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ $root.Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ $worker.account.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ $root.Values.global.terminationGracePeriodSeconds }}
+      securityContext: { runAsNonRoot: true, runAsUser: {{ $worker.uid }}, runAsGroup: {{ $worker.uid }}, fsGroup: {{ $worker.uid }}, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ $worker.name }} } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ $worker.name }} } } }
+      initContainers:
+        - name: materialize-red-team-authority
+          image: {{ required (printf "%s immutable image is required" $worker.name) $worker.image | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          {{- if eq $worker.mode "red-team" }}
+          args: ['cp /source/postgres-dsn /config/postgres-dsn; cp /source/adapter-token /config/adapter-token; cp /source/adapter-ca.crt /config/adapter-ca.crt; chmod 0400 /config/postgres-dsn /config/adapter-token /config/adapter-ca.crt']
+          {{- else }}
+          args: ['cp /source/postgres-dsn /config/postgres-dsn; chmod 0400 /config/postgres-dsn']
+          {{- end }}
+          resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { cpu: 100m, memory: 32Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: {{ $worker.uid }}, runAsGroup: {{ $worker.uid }} }
+          volumeMounts:
+            - { name: secrets-source, mountPath: /source, readOnly: true }
+            - { name: secrets, mountPath: /config }
+      containers:
+        - name: worker
+          image: {{ required (printf "%s immutable image is required" $worker.name) $worker.image | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: [{{ printf "export ZASP_POSTGRES_DSN=\"$(cat %s/postgres-dsn)\"; exec /app/agentsec-worker" $worker.mount | quote }}]
+          ports: [{ name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 256Mi, ephemeral-storage: 128Mi }, limits: { cpu: "2", memory: 2Gi, ephemeral-storage: 1Gi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: {{ $worker.uid }}, runAsGroup: {{ $worker.uid }} }
+          env:
+            - { name: ZASP_WORKER_MODE, value: {{ $worker.mode | quote }} }
+            - { name: ZASP_DATABASE_AUTHORITY, value: {{ $worker.authority | quote }} }
+            - name: ZASP_WORKER_ID
+              valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
+            - { name: ZASP_POLL_INTERVAL, value: "1s" }
+            - { name: ZASP_LEASE_DURATION, value: "15m" }
+            - { name: ZASP_BATCH_SIZE, value: "4" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
+            - { name: ZASP_RED_TEAM_QUEUE_URL, value: {{ required "redTeam.queueURL is required" $root.Values.redTeam.queueURL | quote }} }
+            - { name: ZASP_AWS_REGION, value: {{ required "redTeam.awsRegion is required" $root.Values.redTeam.awsRegion | quote }} }
+            - { name: {{ $worker.roleEnv }}, value: {{ required "red team role is required" $worker.role | quote }} }
+            {{- if eq $worker.mode "red-team-outbox" }}
+            - { name: ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE, value: {{ $root.Values.redTeam.webIdentityTokenFile | quote }} }
+            {{- else }}
+            - { name: ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE, value: {{ $root.Values.redTeam.webIdentityTokenFile | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET, value: {{ required "redTeam.evidenceBucket is required" $root.Values.redTeam.evidenceBucket | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET_OWNER, value: {{ required "redTeam.evidenceBucketOwner is required" $root.Values.redTeam.evidenceBucketOwner | quote }} }
+            - { name: ZASP_EVIDENCE_KMS_KEY_ARN, value: {{ required "redTeam.evidenceKMSKeyArn is required" $root.Values.redTeam.evidenceKMSKeyArn | quote }} }
+            - { name: ZASP_RED_TEAM_TARGET_ENDPOINT, value: {{ required "redTeam.targetEndpoint is required" $root.Values.redTeam.targetEndpoint | quote }} }
+            - { name: ZASP_RED_TEAM_TARGET_TOKEN_FILE, value: "/var/run/secrets/zasp-red-team/adapter-token" }
+            - { name: ZASP_RED_TEAM_TARGET_CA_FILE, value: "/var/run/secrets/zasp-red-team/adapter-ca.crt" }
+            - { name: ZASP_RED_TEAM_RUNNER_TIMEOUT, value: {{ $root.Values.redTeam.runnerTimeout | quote }} }
+            {{- end }}
+          volumeMounts:
+            - { name: secrets, mountPath: {{ $worker.mount }}, readOnly: true }
+            - { name: web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+      volumes:
+        - name: secrets-source
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ $worker.secrets | quote }} } }
+        - name: secrets
+          emptyDir: { medium: Memory, sizeLimit: 256Ki }
+        - name: web-identity
+          projected:
+            defaultMode: 256
+            sources: [{ serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token } }]
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: agentsec-red-team-adapter, labels: { app.kubernetes.io/name: agentsec-red-team-adapter, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: {{ .Values.replicas.redTeamAdapter }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-red-team-adapter } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-red-team-adapter, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.redTeamAdapter.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.global.terminationGracePeriodSeconds }}
+      securityContext: { runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-red-team-adapter } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-red-team-adapter } } }
+      initContainers:
+        - name: materialize-red-team-authority
+          image: {{ required "global.productImages.redTeamWorker must be an immutable digest" .Values.global.productImages.redTeamWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['cp /source/postgres-dsn /config/postgres-dsn; cp /source/adapter-token /config/adapter-token; cp /source/tls.crt /config/tls.crt; cp /source/tls.key /config/tls.key; chmod 0400 /config/postgres-dsn /config/adapter-token /config/tls.crt /config/tls.key']
+          resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { cpu: 100m, memory: 32Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000 }
+          volumeMounts:
+            - { name: secrets-source, mountPath: /source, readOnly: true }
+            - { name: secrets, mountPath: /config }
+      containers:
+        - name: adapter
+          image: {{ required "global.productImages.redTeamWorker must be an immutable digest" .Values.global.productImages.redTeamWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_DATABASE_URL="$(cat /var/run/secrets/zasp-red-team-adapter-db/postgres-dsn)"; exec /app/red-team-adapter']
+          ports: [{ name: target, containerPort: 8443, protocol: TCP }, { name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000 }
+          env:
+            - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_red_team_adapter" }
+            - { name: ZASP_AWS_REGION, value: {{ required "redTeam.awsRegion is required" .Values.redTeam.awsRegion | quote }} }
+            - { name: ZASP_RED_TEAM_ADAPTER_ROLE_ARN, value: {{ required "redTeam.adapterRoleArn is required" .Values.redTeam.adapterRoleArn | quote }} }
+            - { name: ZASP_RED_TEAM_ADAPTER_WEB_IDENTITY_TOKEN_FILE, value: {{ .Values.redTeam.webIdentityTokenFile | quote }} }
+            - { name: ZASP_RED_TEAM_READINESS_CREDENTIAL_REFERENCE, value: {{ required "redTeam.readinessCredentialReference is required" .Values.redTeam.readinessCredentialReference | quote }} }
+            - { name: ZASP_RED_TEAM_ALLOWED_TARGET_CIDRS, value: {{ join "," (required "redTeam.targetAllowedCIDRs is required" .Values.redTeam.targetAllowedCIDRs) | quote }} }
+            - { name: ZASP_RED_TEAM_ADAPTER_TOKEN_FILE, value: "/var/run/secrets/zasp/red-team-adapter/token" }
+            - { name: ZASP_RED_TEAM_ADAPTER_TLS_CERT_FILE, value: "/var/run/secrets/zasp/red-team-adapter-tls/tls.crt" }
+            - { name: ZASP_RED_TEAM_ADAPTER_TLS_KEY_FILE, value: "/var/run/secrets/zasp/red-team-adapter-tls/tls.key" }
+            - { name: ZASP_RED_TEAM_ADAPTER_REQUEST_TIMEOUT, value: {{ .Values.redTeam.adapterRequestTimeout | quote }} }
+            - { name: ZASP_RED_TEAM_ADAPTER_SHUTDOWN_TIMEOUT, value: {{ .Values.redTeam.adapterShutdownTimeout | quote }} }
+          volumeMounts:
+            - { name: secrets, mountPath: /var/run/secrets/zasp-red-team-adapter-db, readOnly: true }
+            - { name: secrets, mountPath: /var/run/secrets/zasp/red-team-adapter/token, subPath: adapter-token, readOnly: true }
+            - { name: secrets, mountPath: /var/run/secrets/zasp/red-team-adapter-tls/tls.crt, subPath: tls.crt, readOnly: true }
+            - { name: secrets, mountPath: /var/run/secrets/zasp/red-team-adapter-tls/tls.key, subPath: tls.key, readOnly: true }
+            - { name: web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+      volumes:
+        - name: secrets-source
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.redTeamAdapterProviderClassName | quote }} } }
+        - name: secrets
+          emptyDir: { medium: Memory, sizeLimit: 256Ki }
+        - name: web-identity
+          projected:
+            defaultMode: 256
+            sources: [{ serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: agentsec-red-team-adapter, labels: { app.kubernetes.io/name: agentsec-red-team-adapter, app.kubernetes.io/part-of: zasp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: agentsec-red-team-adapter }
+  ports: [{ name: target, port: 443, targetPort: target, protocol: TCP }, { name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+{{- range $name := list "agentsec-red-team-outbox" "agentsec-red-team-worker" }}
+---
+apiVersion: v1
+kind: Service
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: {{ $name }} }
+  ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+{{- end }}
+{{- range $name := list "agentsec-red-team-outbox" "agentsec-red-team-worker" "agentsec-red-team-adapter" }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+spec: { minAvailable: 1, selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $name }} }
+  minReplicas: 2
+  maxReplicas: {{ if eq $name "agentsec-red-team-worker" }}10{{ else }}6{{ end }}
+  behavior:
+    scaleUp: { stabilizationWindowSeconds: 60, policies: [{ type: Percent, value: 100, periodSeconds: 60 }] }
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Percent, value: 25, periodSeconds: 60 }] }
+  metrics: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } } }]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  namespaceSelector: { matchNames: [{{ $.Release.Namespace }}] }
+  selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
+  endpoints: [{ port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }]
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: red-team-monitoring, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector:
+    matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: [agentsec-red-team-outbox, agentsec-red-team-worker, agentsec-red-team-adapter] }]
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: red-team-adapter-from-worker, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-red-team-adapter } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-red-team-worker } } }]
+      ports: [{ protocol: TCP, port: 8443 }]
+{{- range $name := list "agentsec-red-team-outbox" "agentsec-red-team-worker" "agentsec-red-team-adapter" }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: {{ $name }}-dependencies, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" $.Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+      {{- range $cidr := required "network.redTeamEgressCIDRs is required" $.Values.network.redTeamEgressCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      {{- if eq $name "agentsec-red-team-adapter" }}
+      {{- range $cidr := required "redTeam.targetAllowedCIDRs is required" $.Values.redTeam.targetAllowedCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+    {{- if eq $name "agentsec-red-team-worker" }}
+    - to: [{ podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-red-team-adapter } } }]
+      ports: [{ protocol: TCP, port: 8443 }]
+    {{- end }}
+{{- end }}
+{{- end }}

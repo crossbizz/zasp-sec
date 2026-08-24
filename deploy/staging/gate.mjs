@@ -8,6 +8,9 @@ const expectedWorkloads = Object.freeze([
   Object.freeze({ name: "agentsec-security-agent", serviceAccount: "zasp-security-agent", role: "security-agent-worker" }),
   Object.freeze({ name: "agentsec-security-agent-action", serviceAccount: "zasp-security-agent-action", role: "security-agent-action-worker" }),
   Object.freeze({ name: "agentsec-outbox-publisher", serviceAccount: "zasp-outbox-publisher", role: "outbox" }),
+  Object.freeze({ name: "agentsec-red-team-outbox", serviceAccount: "zasp-red-team-outbox", role: "red-team-outbox" }),
+  Object.freeze({ name: "agentsec-red-team-worker", serviceAccount: "zasp-red-team-worker", role: "red-team-worker" }),
+  Object.freeze({ name: "agentsec-red-team-adapter", serviceAccount: "zasp-red-team-adapter", role: "red-team-adapter" }),
   Object.freeze({ name: "agentsec-projection-risk", serviceAccount: "zasp-projection-risk", role: "projection-risk" }),
   Object.freeze({ name: "agentsec-projection-graph", serviceAccount: "zasp-projection-graph", role: "projection-graph" }),
   Object.freeze({ name: "agentsec-projection-search", serviceAccount: "zasp-projection-search", role: "projection-search" }),
@@ -24,7 +27,7 @@ const expectedWorkloads = Object.freeze([
   Object.freeze({ name: "otel-collector", serviceAccount: "otel-collector", role: null, image: "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5" }),
 ]);
 const expectedJobIdentities = Object.freeze([
-  Object.freeze({ name: "agentsec-schema-v24", serviceAccount: "agentsec-migration", role: "migration" }),
+  Object.freeze({ name: "agentsec-schema-v25", serviceAccount: "agentsec-migration", role: "migration" }),
   Object.freeze({ name: "agentsec-projection-graph-init-v1", serviceAccount: "agentsec-projection-graph-init", role: "projection-graph-init" }),
   Object.freeze({ name: "agentsec-projection-search-init-v1", serviceAccount: "agentsec-projection-search-init", role: "projection-search-init" }),
   Object.freeze({ name: "nango-migrate", serviceAccount: "nango-migrate", role: null }),

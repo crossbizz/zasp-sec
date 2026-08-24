@@ -127,6 +127,24 @@ output "outbox_runtime_config" {
     ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
   }
 }
+output "red_team_release_authority" {
+  description = "Non-secret, isolated Red Team queue, evidence, target adapter, and workload identities."
+  value = {
+    aws_region               = var.region
+    queue_url                = aws_sqs_queue.work["red-team-tests"].id
+    evidence_bucket          = aws_s3_bucket.red_team_evidence.bucket
+    evidence_bucket_owner    = var.account_id
+    evidence_kms_key_arn     = aws_kms_key.red_team.arn
+    outbox_role_arn          = aws_iam_role.red_team["outbox"].arn
+    worker_role_arn          = aws_iam_role.red_team["worker"].arn
+    adapter_role_arn         = aws_iam_role.red_team["adapter"].arn
+    web_identity_token_file  = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+    target_endpoint          = "https://agentsec-red-team-adapter.agentsec.svc.cluster.local/v1/evaluate"
+    target_secret_prefix     = "zasp/red-team/targets"
+    readiness_credential_ref = "ref:red-team/readiness-0001"
+    readiness_secret_arn     = aws_secretsmanager_secret.red_team_readiness_target.arn
+  }
+}
 output "projection_search_role_arn" {
   value = aws_iam_role.projection_search.arn
 }

@@ -549,7 +549,7 @@ func validRedTeamRuntimeConfig() workerRuntimeConfig {
 		Mode: workerModeRedTeam, PostgresDSN: "postgres://red_team@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_red_team_worker", WorkerID: "red-team-worker-01",
 		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
 		RedTeamQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests", AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-evidence", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
-		RedTeamRoleARN: "arn:aws:iam::123456789012:role/zasp-production-red-team", RedTeamTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RedTeamTargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", RedTeamTargetTokenFile: "/var/run/secrets/zasp-red-team/adapter-token", RedTeamRunnerTimeout: 10 * time.Minute,
+		RedTeamRoleARN: "arn:aws:iam::123456789012:role/zasp-production-red-team", RedTeamTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RedTeamTargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", RedTeamTargetTokenFile: "/var/run/secrets/zasp-red-team/adapter-token", RedTeamTargetCAFile: "/var/run/secrets/zasp-red-team/adapter-ca.crt", RedTeamRunnerTimeout: 10 * time.Minute,
 	}
 }
 

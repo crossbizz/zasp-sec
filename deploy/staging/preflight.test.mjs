@@ -13,6 +13,7 @@ const input = {
     web: digest("zasp/web", "a"),
     agentsecApi: digest("zasp/api", "b"),
     agentsecWorker: digest("zasp/worker", "c"),
+    redTeamWorker: digest("zasp/red-team-worker", "2"),
     eventIngest: digest("zasp/event-ingest", "d"),
     gatewayControl: digest("zasp/gateway-control", "e"),
     runtimeGateway: digest("zasp/runtime-gateway", "f"),
@@ -33,6 +34,9 @@ const input = {
     projectionGraph: { serviceAccount: "zasp-projection-graph", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-graph" },
     projectionSearch: { serviceAccount: "zasp-projection-search", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search" },
     outboxPublisher: { serviceAccount: "zasp-outbox-publisher", roleArn: "arn:aws:iam::123456789012:role/zasp-production-outbox" },
+    redTeamOutbox: { serviceAccount: "zasp-red-team-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-outbox" },
+    redTeamWorker: { serviceAccount: "zasp-red-team-worker", roleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-worker" },
+    redTeamAdapter: { serviceAccount: "zasp-red-team-adapter", roleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-adapter" },
     runtimeIngest: { serviceAccount: "zasp-runtime-ingest", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-ingest" },
     gatewayControl: { serviceAccount: "zasp-gateway-control", roleArn: "arn:aws:iam::123456789012:role/zasp-production-gateway-control" },
     runtimeOutbox: { serviceAccount: "zasp-runtime-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-outbox" },
@@ -53,10 +57,10 @@ const input = {
   },
 };
 
-test("release preflight validates all nine images and least-privilege identities", () => {
+test("release preflight validates all ten images and least-privilege identities", () => {
   const calls = [];
   const value = runPreflight(["--input", "release.json"], { read: () => JSON.stringify(input), spawn: (tool, args, options) => { calls.push({ tool, args, options }); return { status: 0 }; } });
-  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 9, deployments: 21, cloudIdentities: 22 });
+  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 10, deployments: 24, cloudIdentities: 25 });
   assert.deepEqual(calls.map(({ tool, args }) => ({ tool, args })), [
     { tool: "terraform", args: ["version", "-json"] },
     { tool: "helm", args: ["version", "--short"] },

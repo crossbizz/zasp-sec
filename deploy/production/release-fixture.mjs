@@ -34,6 +34,18 @@ export const productionReleaseFixture = Object.freeze({
     roleArn: "arn:aws:iam::123456789012:role/zasp-production-outbox", webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
     egressCIDRs: Object.freeze(["10.70.0.0/28"]),
   }),
+  redTeam: Object.freeze({
+    awsRegion: "us-west-2", queueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests",
+    evidenceBucket: "zasp-production-red-team-evidence", evidenceBucketOwner: "123456789012",
+    evidenceKMSKeyArn: "arn:aws:kms:us-west-2:123456789012:key/33333333-3333-4333-8333-333333333333",
+    outboxRoleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-outbox",
+    workerRoleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-worker",
+    adapterRoleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-adapter",
+    webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", runnerTimeout: "10m",
+    targetEndpoint: "https://agentsec-red-team-adapter.agentsec.svc.cluster.local/v1/evaluate",
+    targetAllowedCIDRs: Object.freeze(["203.0.113.0/28"]), readinessCredentialReference: "ref:red-team/readiness-0001",
+    egressCIDRs: Object.freeze(["10.72.0.0/28"]),
+  }),
   runtime: Object.freeze({
     awsRegion: "us-west-2", queueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-runtime-events",
     rawBucket: "zasp-production-runtime-raw", rawBucketOwner: "123456789012",
@@ -80,7 +92,7 @@ export const productionReleaseFixture = Object.freeze({
   }),
   telemetry: Object.freeze({ backend: "none", endpoint: "", authSecretName: "", egressCIDRs: Object.freeze([]) }),
   images: Object.freeze({
-    web: digest("web", "a"), agentsecApi: digest("api", "b"), agentsecWorker: digest("worker", "c"),
+    web: digest("web", "a"), agentsecApi: digest("api", "b"), agentsecWorker: digest("worker", "c"), redTeamWorker: digest("red-team-worker", "2"),
     eventIngest: digest("event-ingest", "d"), gatewayControl: digest("gateway-control", "e"), runtimeGateway: digest("runtime-gateway", "f"), sensorAgent: digest("sensor-agent", "1"),
   }),
 });

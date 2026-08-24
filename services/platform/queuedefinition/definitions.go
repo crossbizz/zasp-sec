@@ -84,9 +84,9 @@ func canonicalDefinitions() [3]Definition {
 		},
 		{
 			kind:               KindTests,
-			name:               "agentsec-tests",
-			deadLetterName:     "agentsec-tests-dlq",
-			schemaID:           "agentsec.tests.v1",
+			name:               "agentsec-red-team-tests",
+			deadLetterName:     "agentsec-red-team-tests-dlq",
+			schemaID:           "agentsec.red-team-tests.v1",
 			requiredFields:     [requiredFieldCount]string{"version", "organization_id", "workspace_id", "environment_id", "test_run_id", "kind", "payload"},
 			requiredFieldCount: requiredFieldCount,
 			settings: Settings{

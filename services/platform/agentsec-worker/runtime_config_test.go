@@ -304,7 +304,7 @@ func TestRedTeamModesRequireSeparateExactQueueDatabaseAndRunnerAuthority(t *test
 		"ZASP_RED_TEAM_QUEUE_URL": "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests", "ZASP_AWS_REGION": "us-west-2",
 		"ZASP_EVIDENCE_BUCKET": "zasp-production-evidence", "ZASP_EVIDENCE_BUCKET_OWNER": "123456789012", "ZASP_EVIDENCE_KMS_KEY_ARN": "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
 		"ZASP_RED_TEAM_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-red-team", "ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
-		"ZASP_RED_TEAM_TARGET_ENDPOINT": "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", "ZASP_RED_TEAM_TARGET_TOKEN_FILE": "/var/run/secrets/zasp-red-team/adapter-token", "ZASP_RED_TEAM_RUNNER_TIMEOUT": "10m",
+		"ZASP_RED_TEAM_TARGET_ENDPOINT": "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", "ZASP_RED_TEAM_TARGET_TOKEN_FILE": "/var/run/secrets/zasp-red-team/adapter-token", "ZASP_RED_TEAM_TARGET_CA_FILE": "/var/run/secrets/zasp-red-team/adapter-ca.crt", "ZASP_RED_TEAM_RUNNER_TIMEOUT": "10m",
 	}
 	worker := cloneStringMap(base)
 	worker["ZASP_WORKER_MODE"], worker["ZASP_DATABASE_AUTHORITY"] = "red-team", "zasp_red_team_worker"
@@ -318,6 +318,7 @@ func TestRedTeamModesRequireSeparateExactQueueDatabaseAndRunnerAuthority(t *test
 	delete(outbox, "ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE")
 	delete(outbox, "ZASP_RED_TEAM_TARGET_ENDPOINT")
 	delete(outbox, "ZASP_RED_TEAM_TARGET_TOKEN_FILE")
+	delete(outbox, "ZASP_RED_TEAM_TARGET_CA_FILE")
 	delete(outbox, "ZASP_RED_TEAM_RUNNER_TIMEOUT")
 	delete(outbox, "ZASP_EVIDENCE_BUCKET")
 	delete(outbox, "ZASP_EVIDENCE_BUCKET_OWNER")
@@ -327,7 +328,7 @@ func TestRedTeamModesRequireSeparateExactQueueDatabaseAndRunnerAuthority(t *test
 	}
 	for key, value := range map[string]string{
 		"ZASP_DATABASE_AUTHORITY": "zasp_discovery_worker", "ZASP_RED_TEAM_QUEUE_URL": "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs",
-		"ZASP_RED_TEAM_TARGET_ENDPOINT": "https://example.com/v1/evaluate", "ZASP_RED_TEAM_TARGET_TOKEN_FILE": "/tmp/token", "ZASP_RED_TEAM_RUNNER_TIMEOUT": "16m",
+		"ZASP_RED_TEAM_TARGET_ENDPOINT": "https://example.com/v1/evaluate", "ZASP_RED_TEAM_TARGET_TOKEN_FILE": "/tmp/token", "ZASP_RED_TEAM_TARGET_CA_FILE": "/tmp/ca.crt", "ZASP_RED_TEAM_RUNNER_TIMEOUT": "16m",
 	} {
 		drift := cloneStringMap(worker)
 		drift[key] = value

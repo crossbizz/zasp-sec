@@ -16,6 +16,7 @@ test("production container builds are exact, non-root, health-bound, and secret-
     { name: "web", user: "65532:65532", port: 3000 },
     { name: "agentsec-api", user: "65532:65532", port: 8080 },
     { name: "agentsec-worker", user: "65532:65532", port: 8081 },
+    { name: "red-team-worker", user: "1000:1000", port: 8081 },
     { name: "event-ingest", user: "65532:65532", port: 8081 },
     { name: "gateway-control", user: "65532:65532", port: 8081 },
     { name: "runtime-gateway", user: "65532:65532", port: 8081 },
@@ -386,7 +387,7 @@ test("production release renders private Nango dependency plus a fail-closed loc
 test("rendered release rejects an unreviewed job identity", async () => {
   const resources = await renderRelease(release);
   const names = resources.filter(({ kind }) => kind === "Job").map(({ metadata }) => metadata.name).sort();
-  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v24", "nango-migrate", "zasp-canary-secret-sync"]);
+  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v25", "nango-migrate", "zasp-canary-secret-sync"]);
   assert.throws(() => validateRenderedRelease([...resources, {
     apiVersion: "batch/v1",
     kind: "Job",
@@ -467,9 +468,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.deepEqual(one(resources, "Service", "agentsec-api").spec.ports.map(({ name, port }) => [name, port]), [["product", 8080], ["internal", 8081]]);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Ingress").map(({ metadata }) => metadata.name).sort(), ["zasp-product", "zasp-runtime"]);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Service" && ["neo4j", "nango", "otel-collector"].includes(metadata.name) && metadata.annotations?.["service.beta.kubernetes.io/aws-load-balancer-type"]), false);
-  assert.equal(one(resources, "Job", "agentsec-schema-v24").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
-  assert.match(one(resources, "Job", "agentsec-schema-v24").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
-  const migration = one(resources, "Job", "agentsec-schema-v24");
+  assert.equal(one(resources, "Job", "agentsec-schema-v25").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.match(one(resources, "Job", "agentsec-schema-v25").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
+  const migration = one(resources, "Job", "agentsec-schema-v25");
   assert.equal(migration.spec.template.spec.serviceAccountName, "agentsec-migration");
   assert.equal(migration.spec.template.spec.containers[0].env.some(({ valueFrom }) => valueFrom?.secretKeyRef), false);
   assert.equal(migration.spec.template.spec.containers[0].volumeMounts[0].mountPath, "/var/run/secrets/zasp-migration");
@@ -485,6 +486,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_RUNTIME_INGEST_DB_PRINCIPAL: "zasp_ingest_runtime",
     ZASP_RUNTIME_WORKER_DB_PRINCIPAL: "zasp_runtime_worker_runtime",
     ZASP_OUTBOX_WORKER_DB_PRINCIPAL: "zasp_outbox_runtime",
+    ZASP_RED_TEAM_OUTBOX_DB_PRINCIPAL: "zasp_red_team_outbox_runtime",
+    ZASP_RED_TEAM_WORKER_DB_PRINCIPAL: "zasp_red_team_worker_runtime",
+    ZASP_RED_TEAM_ADAPTER_DB_PRINCIPAL: "zasp_red_team_adapter_runtime",
     ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL: "zasp_gateway_runtime",
     ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL: "zasp_runtime_coordinator_runtime",
     ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL: "zasp_runtime_archive_runtime",
@@ -496,13 +500,13 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL: "zasp_security_agent_worker_runtime",
     ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL: "zasp_security_agent_action_worker_runtime",
   });
-  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v24", "-10"]]) {
+  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v25", "-10"]]) {
     const resource = one(resources, kind, name);
     assert.equal(resource.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
     assert.equal(resource.metadata.annotations["helm.sh/hook-weight"], weight);
   }
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "24");
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "24");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "25");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "25");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
   const apiSecretProvider = one(resources, "SecretProviderClass", release.secretProviderClass);
   assert.equal(apiSecretProvider.spec.secretObjects[0].data.length, 9);
@@ -611,19 +615,20 @@ test("release runs temporary policy actions with a separate signing identity", a
 
 test("release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies", async () => {
   const resources = await renderRelease(release);
-  const workloadNames = ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-event-ingest", "agentsec-gateway-control", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection", "agentsec-security-agent", "agentsec-security-agent-action", "nango", "otel-collector", "web"];
+  const workloadNames = ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-event-ingest", "agentsec-gateway-control", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "agentsec-red-team-adapter", "agentsec-red-team-outbox", "agentsec-red-team-worker", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection", "agentsec-security-agent", "agentsec-security-agent-action", "nango", "otel-collector", "web"];
   assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), workloadNames);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Service").map(({ metadata }) => metadata.name).sort(), workloadNames);
   for (const name of workloadNames) {
     const deployment = one(resources, "Deployment", name);
     assert.deepEqual(deployment.spec.strategy.rollingUpdate, { maxSurge: 1, maxUnavailable: 0 });
     assert.equal(deployment.spec.template.spec.securityContext.seccompProfile.type, "RuntimeDefault");
-    if (name !== "nango") assert.equal(deployment.spec.template.spec.containers[0].securityContext.runAsUser, 65532);
+    if (["agentsec-red-team-adapter", "agentsec-red-team-worker"].includes(name)) assert.equal(deployment.spec.template.spec.containers[0].securityContext.runAsUser, 1000);
+    else if (name !== "nango") assert.equal(deployment.spec.template.spec.containers[0].securityContext.runAsUser, 65532);
     else assert.equal(deployment.spec.template.spec.containers[0].securityContext.runAsNonRoot, true);
     assert.equal(deployment.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem, true);
     assert.equal(deployment.spec.template.spec.containers[0].lifecycle.preStop.exec.command.at(-1), "sleep 10");
     if (name !== "web" && name !== "nango" && name !== "otel-collector") {
-      const shutdown = deployment.spec.template.spec.containers[0].env.find(({ name: key }) => ["ZASP_SHUTDOWN_TIMEOUT", "ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT", "ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT"].includes(key));
+      const shutdown = deployment.spec.template.spec.containers[0].env.find(({ name: key }) => ["ZASP_SHUTDOWN_TIMEOUT", "ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT", "ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT", "ZASP_RED_TEAM_ADAPTER_SHUTDOWN_TIMEOUT"].includes(key));
       assert.equal(shutdown.value, name === "agentsec-security-agent" || name === "agentsec-security-agent-action" ? "20s" : "15s");
       assert.ok(10 + Number.parseInt(shutdown.value, 10) + 5 <= deployment.spec.template.spec.terminationGracePeriodSeconds);
     }
@@ -864,6 +869,75 @@ test("release mounts one readiness-gated discovery worker with exact provider an
   assert.doesNotMatch(JSON.stringify(deployment), /AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_SESSION_TOKEN|ZASP_CONNECTOR_|ZASP_OUTBOX_|ZASP_PROJECTION_/);
 });
 
+test("release isolates the red team outbox runner and tenant target adapter", async () => {
+  const resources = await renderRelease(release);
+  const deployments = ["agentsec-red-team-outbox", "agentsec-red-team-worker", "agentsec-red-team-adapter"].map((name) => one(resources, "Deployment", name));
+  assert.deepEqual(deployments.map(({ spec }) => spec.template.spec.serviceAccountName), ["zasp-red-team-outbox", "zasp-red-team-worker", "zasp-red-team-adapter"]);
+  assert.deepEqual(deployments.map(({ spec }) => spec.template.spec.automountServiceAccountToken), [false, false, false]);
+  for (const [index, deployment] of deployments.entries()) {
+    const pod = deployment.spec.template.spec;
+    const materializer = pod.initContainers.find(({ name }) => name === "materialize-red-team-authority");
+    assert.ok(materializer);
+    assert.equal(materializer.securityContext.runAsUser, index === 0 ? 65532 : 1000);
+    assert.equal(materializer.securityContext.runAsNonRoot, true);
+    assert.deepEqual(materializer.securityContext.capabilities, { drop: ["ALL"] });
+    assert.ok(materializer.volumeMounts.some(({ name, mountPath, readOnly }) => name === "secrets-source" && mountPath === "/source" && readOnly));
+    assert.ok(materializer.volumeMounts.some(({ name, mountPath }) => name === "secrets" && mountPath === "/config"));
+    assert.equal(pod.containers[0].volumeMounts.some(({ name }) => name === "secrets-source"), false);
+    assert.deepEqual(pod.volumes.find(({ name }) => name === "secrets").emptyDir, { medium: "Memory", sizeLimit: "256Ki" });
+    assert.equal(pod.volumes.find(({ name }) => name === "secrets-source").csi.driver, "secrets-store.csi.k8s.io");
+    assert.doesNotMatch(materializer.args[0], /chown/);
+    assert.match(materializer.args[0], /chmod 0400/);
+  }
+
+  const outboxEnv = Object.fromEntries(deployments[0].spec.template.spec.containers[0].env.map(({ name, value }) => [name, value]));
+  assert.equal(outboxEnv.ZASP_WORKER_MODE, "red-team-outbox");
+  assert.equal(outboxEnv.ZASP_DATABASE_AUTHORITY, "zasp_red_team_outbox_worker");
+
+  const runner = deployments[1].spec.template.spec;
+  const runnerEnv = Object.fromEntries(runner.containers[0].env.map(({ name, value }) => [name, value]));
+  assert.equal(runnerEnv.ZASP_WORKER_MODE, "red-team");
+  assert.equal(runnerEnv.ZASP_DATABASE_AUTHORITY, "zasp_red_team_worker");
+  assert.equal(runnerEnv.ZASP_RED_TEAM_TARGET_ENDPOINT, "https://agentsec-red-team-adapter.agentsec.svc.cluster.local/v1/evaluate");
+  assert.equal(runnerEnv.ZASP_RED_TEAM_TARGET_CA_FILE, "/var/run/secrets/zasp-red-team/adapter-ca.crt");
+  assert.ok(runner.containers[0].volumeMounts.some(({ mountPath, readOnly }) => mountPath === "/var/run/secrets/zasp-red-team" && readOnly));
+
+  const adapter = deployments[2].spec.template.spec;
+  const adapterContainer = adapter.containers[0];
+  const adapterEnv = Object.fromEntries(adapterContainer.env.map(({ name, value }) => [name, value]));
+  assert.deepEqual(adapterContainer.command, ["/bin/sh", "-ec"]);
+  assert.match(adapterContainer.args[0], /exec \/app\/red-team-adapter/);
+  assert.equal(adapterEnv.ZASP_DATABASE_AUTHORITY, "zasp_red_team_adapter");
+  assert.equal(adapterEnv.ZASP_RED_TEAM_ADAPTER_TOKEN_FILE, "/var/run/secrets/zasp/red-team-adapter/token");
+  assert.equal(adapterEnv.ZASP_RED_TEAM_ADAPTER_TLS_CERT_FILE, "/var/run/secrets/zasp/red-team-adapter-tls/tls.crt");
+  assert.equal(adapterEnv.ZASP_RED_TEAM_ADAPTER_TLS_KEY_FILE, "/var/run/secrets/zasp/red-team-adapter-tls/tls.key");
+  const workerProvider = one(resources, "SecretProviderClass", "zasp-production-red-team-worker-secrets");
+  assert.match(workerProvider.spec.parameters.objects, /objectAlias: adapter-ca\.crt[\s\S]*filePermission: "0444"/);
+  for (const name of ["zasp-production-red-team-outbox-secrets", "zasp-production-red-team-worker-secrets", "zasp-production-red-team-adapter-secrets"]) {
+    assert.equal(one(resources, "SecretProviderClass", name).spec.secretObjects, undefined);
+  }
+  assert.match(runner.initContainers[0].args[0], /adapter-token.*adapter-ca\.crt/);
+  assert.match(adapter.initContainers[0].args[0], /adapter-token.*tls\.crt.*tls\.key/);
+
+  const adapterService = one(resources, "Service", "agentsec-red-team-adapter");
+  assert.equal(adapterService.spec.type, "ClusterIP");
+  assert.deepEqual(adapterService.spec.ports, [
+    { name: "target", port: 443, targetPort: "target", protocol: "TCP" },
+    { name: "internal", port: 8081, targetPort: "internal", protocol: "TCP" },
+  ]);
+  assert.equal(resources.filter((resource) => resource.kind === "Ingress" && JSON.stringify(resource).includes("red-team")).length, 0);
+  for (const name of ["agentsec-red-team-outbox", "agentsec-red-team-worker", "agentsec-red-team-adapter"]) {
+    assert.equal(one(resources, "PodDisruptionBudget", name).spec.minAvailable, 1);
+    assert.equal(one(resources, "HorizontalPodAutoscaler", name).spec.minReplicas, 2);
+    assert.equal(one(resources, "ServiceMonitor", name).spec.endpoints[0].path, "/metrics");
+  }
+  const alerts = new Map(one(resources, "PrometheusRule", "zasp-production-slos").spec.groups.flatMap(({ rules }) => rules).map((rule) => [rule.alert, rule.expr]));
+  assert.match(alerts.get("ZaspRedTeamOutboxUnavailable"), /agentsec-red-team-outbox/);
+  assert.match(alerts.get("ZaspRedTeamWorkerUnavailable"), /agentsec-red-team-worker/);
+  assert.match(alerts.get("ZaspRedTeamAdapterUnavailable"), /agentsec-red-team-adapter/);
+  assert.ok(alerts.get("ZaspRedTeamDependencyNotReady").includes('service=~"agentsec-red-team-(outbox|worker|adapter)"'));
+});
+
 test("release gives only API an explicit connector identity, reference-only config, and bounded provider egress", async () => {
   const resources = await renderRelease(release);
   const api = one(resources, "Deployment", "agentsec-api");
@@ -1018,6 +1092,11 @@ test("release rejects unpinned images and hostile public identifiers", async () 
   await assert.rejects(() => renderRelease({ ...release, discovery: { ...release.discovery, queueURL: "https://sqs.us-east-1.amazonaws.com/123456789012/agentsec-discovery-jobs" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, discovery: { ...release.discovery, secretPrefix: release.connectors.secretPrefix } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, discovery: { ...release.discovery, githubAppID: "654321" } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, redTeam: { ...release.redTeam, targetAllowedCIDRs: ["10.40.0.0/24"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, redTeam: { ...release.redTeam, targetAllowedCIDRs: ["0.0.0.0/1"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, redTeam: { ...release.redTeam, targetAllowedCIDRs: ["192.0.2.0/24", "192.0.2.0/25"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, redTeam: { ...release.redTeam, egressCIDRs: ["203.0.113.0/28"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, redTeam: { ...release.redTeam, egressCIDRs: ["10.0.0.0/8"] } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, projectionRisk: { roleArn: release.projectionGraph.roleArn } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, projectionGraph: { ...release.projectionGraph, credentialReference: "ref:neo4j/runtime" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, projectionGraph: { ...release.projectionGraph, schemaCredentialReference: release.projectionGraph.credentialReference } }), /release rejected/);
@@ -1216,6 +1295,43 @@ test("terraform isolates connector mutation and reference authorization behind o
   assert.match(outputs, /output "connector_runtime_config"/);
   for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_FINDING_TICKET_EGRESS_CIDRS", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
   assert.doesNotMatch(terraform, /aws_secretsmanager_secret_version|secret_string|secret_binary/i);
+});
+
+test("terraform isolates red team queue evidence and target credentials behind three identities", async () => {
+  const [terraform, variables, outputs] = await Promise.all([
+    readFile(new URL("../staging/main.tf", import.meta.url), "utf8"),
+    readFile(new URL("../staging/variables.tf", import.meta.url), "utf8"),
+    readFile(new URL("../staging/outputs.tf", import.meta.url), "utf8"),
+  ]);
+  for (const resource of [
+    'resource "aws_kms_key" "red_team"',
+    'resource "aws_s3_bucket" "red_team_evidence"',
+    'resource "aws_s3_bucket_public_access_block" "red_team_evidence"',
+    'resource "aws_s3_bucket_versioning" "red_team_evidence"',
+    'resource "aws_s3_bucket_server_side_encryption_configuration" "red_team_evidence"',
+    'resource "aws_iam_role" "red_team"',
+    'resource "aws_iam_role_policy" "red_team"',
+  ]) assert.match(terraform, new RegExp(resource.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(terraform, /"red-team-tests"\s*=\s*\{ visibility = 900, schema = "agentsec\.red-team-tests\.v1" \}/);
+  assert.equal((terraform.match(/each\.key == "red-team-tests" \? aws_kms_key\.red_team\.arn : aws_kms_key\.staging\.arn/g) || []).length, 2);
+  for (const [key, account, secret] of [
+    ["outbox", "zasp-red-team-outbox", "postgres-red-team-outbox-dsn"],
+    ["worker", "zasp-red-team-worker", "postgres-red-team-worker-dsn"],
+    ["adapter", "zasp-red-team-adapter", "postgres-red-team-adapter-dsn"],
+  ]) assert.match(terraform, new RegExp(`${key}\\s*=\\s*\\{[\\s\\S]*?principal\\s*=\\s*"system:serviceaccount:agentsec:${account}"[\\s\\S]*?database_secret\\s*=\\s*"${secret}"`));
+  const policyStart = terraform.indexOf('resource "aws_iam_role_policy" "red_team"');
+  const policy = terraform.slice(policyStart, terraform.indexOf("\nresource ", policyStart + 1));
+  for (const action of ["sqs:SendMessage", "sqs:ReceiveMessage", "s3:PutObject", "secretsmanager:GetSecretValue"]) assert.match(policy, new RegExp(action));
+  assert.match(policy, /aws_sqs_queue\.work\["red-team-tests"\]\.arn/);
+  assert.match(policy, /aws_s3_bucket\.red_team_evidence\.arn/);
+  assert.match(policy, /secret:zasp\/red-team\/targets\/\*/);
+  assert.doesNotMatch(policy, /"(?:s3|sqs|secretsmanager):\*"/);
+  for (const principal of ["red_team_outbox_worker", "red_team_worker", "red_team_adapter"]) {
+    assert.match(variables, new RegExp(`${principal}\\s*=\\s*string`));
+    assert.match(terraform, new RegExp(`${principal}\\s*=\\s*var\\.database_principals\\.${principal}`));
+  }
+  assert.match(outputs, /output "red_team_release_authority"/);
+  for (const name of ["queue_url", "evidence_bucket", "evidence_kms_key_arn", "outbox_role_arn", "worker_role_arn", "adapter_role_arn"]) assert.match(outputs, new RegExp(`${name}\\s*=`));
 });
 
 test("terraform provisions the exact encrypted v15 runtime plane and isolated identities", async () => {

@@ -96,7 +96,7 @@ func serveProduction(ctx context.Context, version string, config runtimeConfig, 
 		return errRuntimeUnavailable
 	}
 	defer dependencies.close()
-	certificate, err := tls.LoadX509KeyPair(config.TLSCertificateFile, config.TLSPrivateKeyFile)
+	certificate, err := loadPinnedTLSCertificate(config.TLSCertificateFile, config.TLSPrivateKeyFile)
 	if err != nil {
 		return errRuntimeUnavailable
 	}

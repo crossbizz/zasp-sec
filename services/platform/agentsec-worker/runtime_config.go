@@ -91,6 +91,7 @@ type workerRuntimeConfig struct {
 	RedTeamTokenFile           string
 	RedTeamTargetEndpoint      string
 	RedTeamTargetTokenFile     string
+	RedTeamTargetCAFile        string
 	RedTeamRunnerTimeout       time.Duration
 	GatewaySigningKeyID        string
 	GatewaySigningPrivateFile  string
@@ -149,7 +150,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		Neo4jExpectedPrincipal: getenv("ZASP_NEO4J_EXPECTED_PRINCIPAL"), Neo4jExpectedRole: getenv("ZASP_NEO4J_EXPECTED_ROLE"),
 		ProjectionRoleARN: getenv("ZASP_PROJECTION_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE"), ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"),
 		OutboxRoleARN: getenv("ZASP_OUTBOX_ROLE_ARN"), OutboxTokenFile: getenv("ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE"),
-		RedTeamRoleARN: getenv("ZASP_RED_TEAM_ROLE_ARN"), RedTeamTokenFile: getenv("ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE"), RedTeamTargetEndpoint: getenv("ZASP_RED_TEAM_TARGET_ENDPOINT"), RedTeamTargetTokenFile: getenv("ZASP_RED_TEAM_TARGET_TOKEN_FILE"), RedTeamRunnerTimeout: redTeamRunnerTimeout,
+		RedTeamRoleARN: getenv("ZASP_RED_TEAM_ROLE_ARN"), RedTeamTokenFile: getenv("ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE"), RedTeamTargetEndpoint: getenv("ZASP_RED_TEAM_TARGET_ENDPOINT"), RedTeamTargetTokenFile: getenv("ZASP_RED_TEAM_TARGET_TOKEN_FILE"), RedTeamTargetCAFile: getenv("ZASP_RED_TEAM_TARGET_CA_FILE"), RedTeamRunnerTimeout: redTeamRunnerTimeout,
 		GatewaySigningKeyID: getenv("ZASP_GATEWAY_SIGNING_KEY_ID"), GatewaySigningPrivateFile: getenv("ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE"),
 		RuntimeRoleARN: getenv("ZASP_RUNTIME_ROLE_ARN"), RuntimeTokenFile: getenv("ZASP_RUNTIME_WEB_IDENTITY_TOKEN_FILE"),
 		RuntimeStageRoleARN: getenv("ZASP_RUNTIME_STAGE_ROLE_ARN"), RuntimeStageTokenFile: getenv("ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE"), RuntimeStageVersion: getenv("ZASP_RUNTIME_STAGE_VERSION"),
@@ -340,7 +341,7 @@ func validRedTeamRuntimeAuthority(config workerRuntimeConfig) bool {
 	parts := strings.Split(strings.TrimPrefix(queue.Path, "/"), "/")
 	return len(parts) == 2 && parts[0] == role[1] && parts[1] == "agentsec-red-team-tests" && queue.Hostname() == "sqs."+config.AWSRegion+".amazonaws.com" &&
 		workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner &&
-		config.RedTeamTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && redTeamTargetEndpointPattern.MatchString(config.RedTeamTargetEndpoint) && config.RedTeamTargetTokenFile == "/var/run/secrets/zasp-red-team/adapter-token" && config.RedTeamRunnerTimeout >= 30*time.Second && config.RedTeamRunnerTimeout <= 15*time.Minute
+		config.RedTeamTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && redTeamTargetEndpointPattern.MatchString(config.RedTeamTargetEndpoint) && config.RedTeamTargetTokenFile == "/var/run/secrets/zasp-red-team/adapter-token" && config.RedTeamTargetCAFile == "/var/run/secrets/zasp-red-team/adapter-ca.crt" && config.RedTeamRunnerTimeout >= 30*time.Second && config.RedTeamRunnerTimeout <= 15*time.Minute
 }
 
 func validProjectionAWSAuthority(config workerRuntimeConfig) bool {

@@ -60,7 +60,7 @@ func loadRuntimeConfig(getenv func(string) string) (runtimeConfig, error) {
 
 func validRuntimeConfig(config runtimeConfig) bool {
 	parsed, err := url.Parse(config.DatabaseURL)
-	return err == nil && parsed.String() == config.DatabaseURL && (parsed.Scheme == "postgres" || parsed.Scheme == "postgresql") && parsed.User != nil && databaseUserRE.MatchString(parsed.User.Username()) && parsed.Hostname() != "" && net.ParseIP(parsed.Hostname()) == nil && parsed.Port() == "" && parsed.Path == "/zasp" && parsed.RawQuery == "sslmode=verify-full" && parsed.Fragment == "" &&
+	return err == nil && parsed.String() == config.DatabaseURL && (parsed.Scheme == "postgres" || parsed.Scheme == "postgresql") && parsed.User != nil && databaseUserRE.MatchString(parsed.User.Username()) && parsed.Hostname() != "" && net.ParseIP(parsed.Hostname()) == nil && (parsed.Port() == "" || parsed.Port() == "5432") && parsed.Path == "/zasp" && parsed.RawQuery == "sslmode=verify-full" && parsed.Fragment == "" &&
 		config.DatabaseAuthority == "zasp_red_team_adapter" && config.WorkerTokenFile == "/var/run/secrets/zasp/red-team-adapter/token" && config.TLSCertificateFile == "/var/run/secrets/zasp/red-team-adapter-tls/tls.crt" && config.TLSPrivateKeyFile == "/var/run/secrets/zasp/red-team-adapter-tls/tls.key" &&
 		redteamadapter.ValidTargetCIDRs(config.AllowedTargetCIDRs) && redteamadapter.ValidCloudConfig(config.AWS) && config.MaximumRequestBytes == 64<<10 && config.RequestTimeout >= time.Second && config.RequestTimeout <= 30*time.Second && config.ShutdownTimeout >= time.Second && config.ShutdownTimeout <= 30*time.Second
 }

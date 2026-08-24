@@ -75,6 +75,9 @@ spec:
             - { name: ZASP_RUNTIME_INGEST_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeIngest is required" .Values.databasePrincipals.runtimeIngest | quote }} }
             - { name: ZASP_RUNTIME_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeWorker is required" .Values.databasePrincipals.runtimeWorker | quote }} }
             - { name: ZASP_OUTBOX_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.outboxWorker is required" .Values.databasePrincipals.outboxWorker | quote }} }
+            - { name: ZASP_RED_TEAM_OUTBOX_DB_PRINCIPAL, value: {{ required "databasePrincipals.redTeamOutboxWorker is required" .Values.databasePrincipals.redTeamOutboxWorker | quote }} }
+            - { name: ZASP_RED_TEAM_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.redTeamWorker is required" .Values.databasePrincipals.redTeamWorker | quote }} }
+            - { name: ZASP_RED_TEAM_ADAPTER_DB_PRINCIPAL, value: {{ required "databasePrincipals.redTeamAdapter is required" .Values.databasePrincipals.redTeamAdapter | quote }} }
             - { name: ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeGateway is required" .Values.databasePrincipals.runtimeGateway | quote }} }
             - { name: ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeCoordinator is required" .Values.databasePrincipals.runtimeCoordinator | quote }} }
             - { name: ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeArchive is required" .Values.databasePrincipals.runtimeArchive | quote }} }

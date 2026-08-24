@@ -34,6 +34,7 @@ type productionRedTeamRunnerConfig struct {
 	PromptfooPath   string
 	TargetEndpoint  string
 	TargetTokenFile string
+	TargetCAFile    string
 	TempRoot        string
 	Timeout         time.Duration
 	Clock           func() time.Time
@@ -81,18 +82,18 @@ func (productionRedTeamCommand) Run(ctx context.Context, executable string, argu
 }
 
 func newProductionRedTeamRunner(config productionRedTeamRunnerConfig) (*productionRedTeamRunner, error) {
-	if nilWorkerDependency(config.Artifacts) || nilWorkerDependency(config.Command) || config.NodePath != "/usr/local/bin/node" || config.ScriptPath != "/app/redteam-runner.mjs" || config.PromptfooPath != "/app/node_modules/.bin/promptfoo" || !redTeamTargetEndpointPattern.MatchString(config.TargetEndpoint) || !filepath.IsAbs(config.TargetTokenFile) || !filepath.IsAbs(config.TempRoot) || config.Timeout < 30*time.Second || config.Timeout > 15*time.Minute || config.Clock == nil {
+	if nilWorkerDependency(config.Artifacts) || nilWorkerDependency(config.Command) || config.NodePath != "/usr/local/bin/node" || config.ScriptPath != "/app/redteam-runner.mjs" || config.PromptfooPath != "/app/node_modules/.bin/promptfoo" || !redTeamTargetEndpointPattern.MatchString(config.TargetEndpoint) || !filepath.IsAbs(config.TargetTokenFile) || !filepath.IsAbs(config.TargetCAFile) || !filepath.IsAbs(config.TempRoot) || config.Timeout < 30*time.Second || config.Timeout > 15*time.Minute || config.Clock == nil {
 		return nil, errRuntimeUnavailable
 	}
 	now := config.Clock()
-	if now.IsZero() || now.Location() != time.UTC || !validRedTeamTokenFile(config.TargetTokenFile) {
+	if now.IsZero() || now.Location() != time.UTC || !validRedTeamTokenFile(config.TargetTokenFile) || !validRedTeamCAFile(config.TargetCAFile) {
 		return nil, errRuntimeUnavailable
 	}
 	return &productionRedTeamRunner{config: config}, nil
 }
 
 func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamExecutionRequest) (redTeamExecutionResult, error) {
-	if runner == nil || ctx == nil || ctx.Err() != nil || !validProductionRedTeamRequest(request) || !validRedTeamTokenFile(runner.config.TargetTokenFile) {
+	if runner == nil || ctx == nil || ctx.Err() != nil || !validProductionRedTeamRequest(request) || !validRedTeamTokenFile(runner.config.TargetTokenFile) || !validRedTeamCAFile(runner.config.TargetCAFile) {
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	workspace, err := os.MkdirTemp(runner.config.TempRoot, "zasp-red-team-")
@@ -113,7 +114,7 @@ func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamE
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
 	bounded, cancel := context.WithTimeout(ctx, runner.config.Timeout)
-	environment := []string{"HOME=" + workspace, "ZASP_PROMPTFOO_BIN=" + runner.config.PromptfooPath, "ZASP_RED_TEAM_TARGET_ENDPOINT=" + runner.config.TargetEndpoint, "ZASP_RED_TEAM_ADAPTER_TOKEN_FILE=" + runner.config.TargetTokenFile}
+	environment := []string{"HOME=" + workspace, "ZASP_PROMPTFOO_BIN=" + runner.config.PromptfooPath, "ZASP_RED_TEAM_TARGET_ENDPOINT=" + runner.config.TargetEndpoint, "ZASP_RED_TEAM_ADAPTER_TOKEN_FILE=" + runner.config.TargetTokenFile, "ZASP_RED_TEAM_TARGET_CA_FILE=" + runner.config.TargetCAFile}
 	commandErr := runner.config.Command.Run(bounded, runner.config.NodePath, []string{runner.config.ScriptPath, "run", inputPath, outputPath}, environment, workspace)
 	boundedErr := bounded.Err()
 	cancel()
@@ -192,18 +193,36 @@ func validRedTeamBoundedWorkerText(value string, maximum int) bool {
 }
 
 func validRedTeamTokenFile(path string) bool {
+	payload, ok := readRedTeamPinnedFile(path, 64, 16_384)
+	defer clear(payload)
+	return ok && redTeamAdapterTokenPattern.Match(payload)
+}
+
+func validRedTeamCAFile(path string) bool {
+	payload, ok := readRedTeamPinnedFile(path, 64, 32<<10)
+	defer clear(payload)
+	return ok && validDiscoveryCABundle(payload)
+}
+
+func readRedTeamPinnedFile(path string, minimum, maximum int64) ([]byte, bool) {
 	before, err := os.Lstat(path)
-	if err != nil || !before.Mode().IsRegular() || before.Mode()&os.ModeSymlink != 0 || before.Mode().Perm() != 0o600 || before.Size() < 64 || before.Size() > 16_384 {
-		return false
+	if err != nil || minimum < 1 || maximum < minimum || !before.Mode().IsRegular() || before.Mode()&os.ModeSymlink != 0 || before.Mode().Perm() != 0o400 || before.Size() < minimum || before.Size() > maximum {
+		return nil, false
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return false
+		return nil, false
 	}
-	payload, readErr := io.ReadAll(io.LimitReader(file, 16_385))
-	after, statErr := file.Stat()
+	opened, statErr := file.Stat()
+	payload, readErr := io.ReadAll(io.LimitReader(file, maximum+1))
 	closeErr := file.Close()
-	return readErr == nil && statErr == nil && closeErr == nil && os.SameFile(before, after) && after.Mode().Perm() == 0o600 && after.Size() == before.Size() && int64(len(payload)) == before.Size() && redTeamAdapterTokenPattern.Match(payload)
+	after, afterErr := os.Lstat(path)
+	ok := statErr == nil && readErr == nil && closeErr == nil && afterErr == nil && opened.Mode().IsRegular() && opened.Mode().Perm() == 0o400 && after.Mode().IsRegular() && after.Mode().Perm() == 0o400 && os.SameFile(before, opened) && os.SameFile(opened, after) && opened.Size() == before.Size() && after.Size() == before.Size() && int64(len(payload)) == before.Size()
+	if !ok {
+		clear(payload)
+		return nil, false
+	}
+	return payload, true
 }
 
 func writeRedTeamFile(path string, payload []byte) error {

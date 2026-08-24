@@ -56,9 +56,9 @@ var expectedDefinitions = []expectedDefinition{
 	},
 	{
 		kind:           KindTests,
-		name:           "agentsec-tests",
-		deadLetterName: "agentsec-tests-dlq",
-		schemaID:       "agentsec.tests.v1",
+		name:           "agentsec-red-team-tests",
+		deadLetterName: "agentsec-red-team-tests-dlq",
+		schemaID:       "agentsec.red-team-tests.v1",
 		requiredFields: []string{"version", "organization_id", "workspace_id", "environment_id", "test_run_id", "kind", "payload"},
 		settings: Settings{
 			MessageRetentionSeconds:            345600,
@@ -109,7 +109,7 @@ func TestZeroDefinitionRejectsAndExposesNoState(t *testing.T) {
 }
 
 func TestDefinitionsJSONIsExactDeterministicAndFresh(t *testing.T) {
-	want := []byte("{\"version\":1,\"definitions\":[{\"kind\":\"background\",\"name\":\"agentsec-background\",\"dead_letter_name\":\"agentsec-background-dlq\",\"schema\":{\"id\":\"agentsec.background.v1\",\"required_fields\":[\"version\",\"organization_id\",\"workspace_id\",\"environment_id\",\"job_id\",\"kind\",\"payload\"]},\"settings\":{\"message_retention_seconds\":345600,\"dead_letter_retention_seconds\":1209600,\"visibility_timeout_seconds\":300,\"dead_letter_visibility_timeout_seconds\":30,\"receive_wait_seconds\":20,\"maximum_message_bytes\":262144,\"delay_seconds\":0,\"max_receive_count\":5}},{\"kind\":\"runtime_events\",\"name\":\"agentsec-runtime-events\",\"dead_letter_name\":\"agentsec-runtime-events-dlq\",\"schema\":{\"id\":\"agentsec.runtime-events.v1\",\"required_fields\":[\"version\",\"organization_id\",\"workspace_id\",\"environment_id\",\"batch_id\",\"event_count\",\"events\"]},\"settings\":{\"message_retention_seconds\":345600,\"dead_letter_retention_seconds\":1209600,\"visibility_timeout_seconds\":120,\"dead_letter_visibility_timeout_seconds\":30,\"receive_wait_seconds\":20,\"maximum_message_bytes\":262144,\"delay_seconds\":0,\"max_receive_count\":5}},{\"kind\":\"tests\",\"name\":\"agentsec-tests\",\"dead_letter_name\":\"agentsec-tests-dlq\",\"schema\":{\"id\":\"agentsec.tests.v1\",\"required_fields\":[\"version\",\"organization_id\",\"workspace_id\",\"environment_id\",\"test_run_id\",\"kind\",\"payload\"]},\"settings\":{\"message_retention_seconds\":345600,\"dead_letter_retention_seconds\":1209600,\"visibility_timeout_seconds\":900,\"dead_letter_visibility_timeout_seconds\":30,\"receive_wait_seconds\":20,\"maximum_message_bytes\":262144,\"delay_seconds\":0,\"max_receive_count\":5}}]}\n")
+	want := []byte("{\"version\":1,\"definitions\":[{\"kind\":\"background\",\"name\":\"agentsec-background\",\"dead_letter_name\":\"agentsec-background-dlq\",\"schema\":{\"id\":\"agentsec.background.v1\",\"required_fields\":[\"version\",\"organization_id\",\"workspace_id\",\"environment_id\",\"job_id\",\"kind\",\"payload\"]},\"settings\":{\"message_retention_seconds\":345600,\"dead_letter_retention_seconds\":1209600,\"visibility_timeout_seconds\":300,\"dead_letter_visibility_timeout_seconds\":30,\"receive_wait_seconds\":20,\"maximum_message_bytes\":262144,\"delay_seconds\":0,\"max_receive_count\":5}},{\"kind\":\"runtime_events\",\"name\":\"agentsec-runtime-events\",\"dead_letter_name\":\"agentsec-runtime-events-dlq\",\"schema\":{\"id\":\"agentsec.runtime-events.v1\",\"required_fields\":[\"version\",\"organization_id\",\"workspace_id\",\"environment_id\",\"batch_id\",\"event_count\",\"events\"]},\"settings\":{\"message_retention_seconds\":345600,\"dead_letter_retention_seconds\":1209600,\"visibility_timeout_seconds\":120,\"dead_letter_visibility_timeout_seconds\":30,\"receive_wait_seconds\":20,\"maximum_message_bytes\":262144,\"delay_seconds\":0,\"max_receive_count\":5}},{\"kind\":\"tests\",\"name\":\"agentsec-red-team-tests\",\"dead_letter_name\":\"agentsec-red-team-tests-dlq\",\"schema\":{\"id\":\"agentsec.red-team-tests.v1\",\"required_fields\":[\"version\",\"organization_id\",\"workspace_id\",\"environment_id\",\"test_run_id\",\"kind\",\"payload\"]},\"settings\":{\"message_retention_seconds\":345600,\"dead_letter_retention_seconds\":1209600,\"visibility_timeout_seconds\":900,\"dead_letter_visibility_timeout_seconds\":30,\"receive_wait_seconds\":20,\"maximum_message_bytes\":262144,\"delay_seconds\":0,\"max_receive_count\":5}}]}\n")
 
 	first, err := JSON()
 	if err != nil {

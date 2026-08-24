@@ -92,7 +92,8 @@ async function run(inputPath, outputPath) {
   const targetEndpoint = process.env.ZASP_RED_TEAM_TARGET_ENDPOINT;
   const promptfoo = process.env.ZASP_PROMPTFOO_BIN;
   const tokenFile = process.env.ZASP_RED_TEAM_ADAPTER_TOKEN_FILE;
-  if (promptfoo !== "/app/node_modules/.bin/promptfoo" || typeof tokenFile !== "string" || resolve(tokenFile) !== tokenFile) invalid();
+  const targetCAFile = process.env.ZASP_RED_TEAM_TARGET_CA_FILE;
+  if (promptfoo !== "/app/node_modules/.bin/promptfoo" || typeof tokenFile !== "string" || resolve(tokenFile) !== tokenFile || typeof targetCAFile !== "string" || resolve(targetCAFile) !== targetCAFile) invalid();
   const token = (await boundedRead(tokenFile, 16_384)).toString("utf8");
   if (token.length < 64 || token.trim() !== token || /[\s\0]/.test(token)) invalid();
   const configurationPath = resolve(dirname(inputPath), "promptfooconfig.json");
@@ -102,16 +103,7 @@ async function run(inputPath, outputPath) {
   await chmod(configurationPath, 0o400);
   const child = spawn(promptfoo, ["eval", "-c", configurationPath, "--no-cache", "--no-table", "--no-write", "-o", rawPath], {
     cwd: dirname(inputPath),
-    env: {
-      HOME: dirname(inputPath),
-      PROMPTFOO_CACHE_ENABLED: "false",
-      PROMPTFOO_CONFIG_DIR: dirname(inputPath),
-      PROMPTFOO_DISABLE_ERROR_LOG: "1",
-      PROMPTFOO_DISABLE_REMOTE_GENERATION: "1",
-      PROMPTFOO_DISABLE_TELEMETRY: "1",
-      PROMPTFOO_DISABLE_UPDATE: "1",
-      ZASP_RED_TEAM_ADAPTER_TOKEN: token,
-    },
+    env: promptfooChildEnvironment(dirname(inputPath), token, targetCAFile),
     stdio: "ignore",
   });
   const exitCode = await new Promise((resolveExit, rejectExit) => {
@@ -128,6 +120,21 @@ async function run(inputPath, outputPath) {
   await writeFile(outputPath, JSON.stringify(normalized), { flag: "wx", mode: 0o600 });
   await rm(rawPath, { force: true });
   await rm(configurationPath, { force: true });
+}
+
+export function promptfooChildEnvironment(home, token, targetCAFile) {
+  if (typeof home !== "string" || resolve(home) !== home || typeof targetCAFile !== "string" || resolve(targetCAFile) !== targetCAFile || typeof token !== "string" || token.length < 64 || token.length > 16_384 || token.trim() !== token || /[\s\0]/.test(token)) invalid();
+  return {
+    HOME: home,
+    NODE_EXTRA_CA_CERTS: targetCAFile,
+    PROMPTFOO_CACHE_ENABLED: "false",
+    PROMPTFOO_CONFIG_DIR: home,
+    PROMPTFOO_DISABLE_ERROR_LOG: "1",
+    PROMPTFOO_DISABLE_REMOTE_GENERATION: "1",
+    PROMPTFOO_DISABLE_TELEMETRY: "1",
+    PROMPTFOO_DISABLE_UPDATE: "1",
+    ZASP_RED_TEAM_ADAPTER_TOKEN: token,
+  };
 }
 
 function validateInput(input) {

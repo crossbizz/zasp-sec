@@ -2,8 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,12 +22,13 @@ import (
 func TestProductionRedTeamRunnerInvokesFixedAdapterAndPersistsOnlyNormalizedEvidence(t *testing.T) {
 	root := t.TempDir()
 	tokenFile := filepath.Join(root, "adapter-token")
-	if err := os.WriteFile(tokenFile, []byte(strings.Repeat("t", 64)), 0o600); err != nil {
+	if err := os.WriteFile(tokenFile, []byte(strings.Repeat("t", 64)), 0o400); err != nil {
 		t.Fatal(err)
 	}
+	caFile := writeRedTeamTestCA(t, root)
 	store := &redTeamArtifactStoreStub{}
 	command := redTeamCommandFunc(func(_ context.Context, executable string, arguments, environment []string, directory string) error {
-		if executable != "/usr/local/bin/node" || len(arguments) != 4 || arguments[0] != "/app/redteam-runner.mjs" || arguments[1] != "run" || filepath.Dir(arguments[2]) != directory || filepath.Dir(arguments[3]) != directory || !containsWorkerString(environment, "ZASP_RED_TEAM_ADAPTER_TOKEN_FILE="+tokenFile) {
+		if executable != "/usr/local/bin/node" || len(arguments) != 4 || arguments[0] != "/app/redteam-runner.mjs" || arguments[1] != "run" || filepath.Dir(arguments[2]) != directory || filepath.Dir(arguments[3]) != directory || !containsWorkerString(environment, "ZASP_RED_TEAM_ADAPTER_TOKEN_FILE="+tokenFile) || !containsWorkerString(environment, "ZASP_RED_TEAM_TARGET_CA_FILE="+caFile) {
 			t.Fatalf("command executable=%q args=%#v env=%#v dir=%q", executable, arguments, environment, directory)
 		}
 		inputBytes, err := os.ReadFile(arguments[2])
@@ -40,7 +46,7 @@ func TestProductionRedTeamRunnerInvokesFixedAdapterAndPersistsOnlyNormalizedEvid
 		}
 		return os.WriteFile(arguments[3], bytes, 0o600)
 	})
-	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{Artifacts: store, Command: command, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/node_modules/.bin/promptfoo", TargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", TargetTokenFile: tokenFile, TempRoot: root, Timeout: time.Minute, Clock: func() time.Time { return time.Now().UTC() }})
+	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{Artifacts: store, Command: command, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/node_modules/.bin/promptfoo", TargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", TargetTokenFile: tokenFile, TargetCAFile: caFile, TempRoot: root, Timeout: time.Minute, Clock: func() time.Time { return time.Now().UTC() }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,6 +61,25 @@ func TestProductionRedTeamRunnerInvokesFixedAdapterAndPersistsOnlyNormalizedEvid
 	if strings.Contains(string(store.puts[0].Body), strings.Repeat("t", 32)) || !strings.Contains(string(store.puts[0].Body), `"schema_version":"red-team-evidence-v1"`) {
 		t.Fatalf("stored body=%q", store.puts[0].Body)
 	}
+}
+
+func writeRedTeamTestCA(t *testing.T, root string) string {
+	t.Helper()
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	template := &x509.Certificate{SerialNumber: big.NewInt(1), NotBefore: now.Add(-time.Minute), NotAfter: now.Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
+	certificate, err := x509.CreateCertificate(rand.Reader, template, template, publicKey, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "adapter-ca.crt")
+	if err := os.WriteFile(path, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate}), 0o400); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 type redTeamCommandFunc func(context.Context, string, []string, []string, string) error

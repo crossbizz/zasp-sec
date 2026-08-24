@@ -14,7 +14,7 @@ const digestPattern = /^[a-z0-9][a-z0-9./_-]*(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-
 const hostPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const namePattern = /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/;
 const productIDPattern = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const imageNames = Object.freeze(["web", "agentsecApi", "agentsecWorker", "eventIngest", "gatewayControl", "runtimeGateway", "sensorAgent"]);
+const imageNames = Object.freeze(["web", "agentsecApi", "agentsecWorker", "redTeamWorker", "eventIngest", "gatewayControl", "runtimeGateway", "sensorAgent"]);
 const tetragonChartDigest = "4935787067939cacfe779366e9959962458d0cb6accdb368ec2554c1b733b3b2";
 const discoveryKeys = Object.freeze([
   "parserVersion", "toolVersion", "awsCollectorVersion", "kubernetesCollectorVersion", "githubCollectorVersion", "oktaCollectorVersion",
@@ -25,6 +25,7 @@ const projectionSearchKeys = Object.freeze(["awsRegion", "endpoint", "index", "r
 const projectionRiskKeys = Object.freeze(["roleArn"]);
 const projectionGraphKeys = Object.freeze(["awsRegion", "endpoint", "endpointCIDR", "credentialReference", "schemaCredentialReference", "secretPrefix", "roleArn", "webIdentityTokenFile", "initRoleArn", "expectedPrincipal", "expectedRole"]);
 const outboxKeys = Object.freeze(["awsRegion", "queueURL", "roleArn", "webIdentityTokenFile", "egressCIDRs"]);
+const redTeamKeys = Object.freeze(["awsRegion", "queueURL", "evidenceBucket", "evidenceBucketOwner", "evidenceKMSKeyArn", "outboxRoleArn", "workerRoleArn", "adapterRoleArn", "webIdentityTokenFile", "runnerTimeout", "targetEndpoint", "targetAllowedCIDRs", "readinessCredentialReference", "egressCIDRs"]);
 const runtimeKeys = Object.freeze([
   "awsRegion", "queueURL", "rawBucket", "rawBucketOwner", "rawKMSKeyArn", "openSearchEndpoint", "openSearchIndex", "webIdentityTokenFile",
   "eventIngestRoleArn", "gatewayControlRoleArn", "outboxRoleArn", "coordinatorRoleArn", "archiveRoleArn", "indexRoleArn", "correlationRoleArn", "projectionRoleArn", "completeRoleArn", "egressCIDRs",
@@ -39,12 +40,13 @@ export async function inspectContainerBuilds() {
     { name: "web", file: "web.Dockerfile", port: 3000 },
     { name: "agentsec-api", file: "api.Dockerfile", port: 8080 },
     { name: "agentsec-worker", file: "worker.Dockerfile", port: 8081 },
+    { name: "red-team-worker", file: "redteam-worker.Dockerfile", port: 8081, user: "1000:1000" },
     { name: "event-ingest", file: "event-ingest.Dockerfile", port: 8081 },
     { name: "gateway-control", file: "gateway-control.Dockerfile", port: 8081 },
     { name: "runtime-gateway", file: "runtime-gateway.Dockerfile", port: 8081 },
     { name: "sensor-agent", file: "sensor-agent.Dockerfile", port: 8081 },
   ];
-  return Promise.all(definitions.map(async ({ name, file, port }) => {
+  return Promise.all(definitions.map(async ({ name, file, port, user: expectedUser = "65532:65532" }) => {
     const source = await readFile(path.join(here, file), "utf8");
     const runtime = source.slice(source.lastIndexOf("\nFROM "));
     const fromLines = [...source.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1]);
@@ -53,7 +55,7 @@ export async function inspectContainerBuilds() {
     const exposed = runtime.match(/^EXPOSE ([^\n]+)$/m)?.[1]?.split(/\s+/).map(Number) ?? [];
     return Object.freeze({
       name, user, port, healthcheck,
-      readOnlyCompatible: user === "65532:65532" && exposed.includes(port) && !/\b(?:VOLUME|sudo|chmod 777)\b/i.test(runtime),
+      readOnlyCompatible: user === expectedUser && exposed.includes(port) && !/\b(?:VOLUME|sudo|chmod 777)\b/i.test(runtime),
       digestPinned: fromLines.length >= 2 && fromLines.every((image) => /@sha256:[0-9a-f]{64}$/.test(image)),
       containsSecret: /(?:ARG|ENV)\s+[^\n]*(?:SECRET|TOKEN|PASSWORD|DSN)/i.test(source),
     });
@@ -78,6 +80,9 @@ export async function renderRelease(value) {
     ["serviceAccounts.projectionSearch.roleArn", value.projectionSearch.roleArn],
     ["serviceAccounts.projectionSearchInit.roleArn", value.projectionSearch.initRoleArn],
     ["serviceAccounts.outbox.roleArn", value.outbox.roleArn],
+    ["serviceAccounts.redTeamOutbox.roleArn", value.redTeam.outboxRoleArn],
+    ["serviceAccounts.redTeamWorker.roleArn", value.redTeam.workerRoleArn],
+    ["serviceAccounts.redTeamAdapter.roleArn", value.redTeam.adapterRoleArn],
     ["serviceAccounts.runtimeIngest.roleArn", value.runtime.eventIngestRoleArn],
     ["serviceAccounts.gatewayControl.roleArn", value.runtime.gatewayControlRoleArn],
     ["serviceAccounts.runtimeOutbox.roleArn", value.runtime.outboxRoleArn],
@@ -101,6 +106,12 @@ export async function renderRelease(value) {
     ["secrets.projectionGraphPostgresDSNObjectName", "zasp/production/postgres-projection-graph-dsn"],
     ["secrets.projectionSearchPostgresDSNObjectName", "zasp/production/postgres-projection-search-dsn"],
     ["secrets.outboxPostgresDSNObjectName", "zasp/production/postgres-outbox-worker-dsn"],
+    ["secrets.redTeamOutboxPostgresDSNObjectName", "zasp/production/postgres-red-team-outbox-dsn"],
+    ["secrets.redTeamWorkerPostgresDSNObjectName", "zasp/production/postgres-red-team-worker-dsn"],
+    ["secrets.redTeamAdapterPostgresDSNObjectName", "zasp/production/postgres-red-team-adapter-dsn"],
+    ["secrets.redTeamAdapterTokenObjectName", "zasp/production/red-team/adapter-token"],
+    ["secrets.redTeamAdapterTLSCertificateObjectName", "zasp/production/red-team/adapter-tls-certificate"],
+    ["secrets.redTeamAdapterTLSPrivateKeyObjectName", "zasp/production/red-team/adapter-tls-private-key"],
     ["secrets.runtimeIngestPostgresDSNObjectName", "zasp/production/postgres-runtime-ingest-dsn"],
     ["secrets.runtimeCoordinatorPostgresDSNObjectName", "zasp/production/postgres-runtime-coordinator-dsn"],
     ["secrets.runtimeArchivePostgresDSNObjectName", "zasp/production/postgres-runtime-archive-dsn"],
@@ -126,6 +137,9 @@ export async function renderRelease(value) {
     ["databasePrincipals.runtimeIngest", "zasp_ingest_runtime"],
     ["databasePrincipals.runtimeWorker", "zasp_runtime_worker_runtime"],
     ["databasePrincipals.outboxWorker", "zasp_outbox_runtime"],
+    ["databasePrincipals.redTeamOutboxWorker", "zasp_red_team_outbox_runtime"],
+    ["databasePrincipals.redTeamWorker", "zasp_red_team_worker_runtime"],
+    ["databasePrincipals.redTeamAdapter", "zasp_red_team_adapter_runtime"],
     ["databasePrincipals.runtimeGateway", "zasp_gateway_runtime"],
     ["databasePrincipals.discoveryScheduler", "zasp_scheduler_runtime"],
     ["databasePrincipals.projectionRisk", "zasp_projection_risk_runtime"],
@@ -180,6 +194,20 @@ export async function renderRelease(value) {
     ["outbox.roleArn", value.outbox.roleArn],
     ["outbox.webIdentityTokenFile", value.outbox.webIdentityTokenFile],
     ...value.outbox.egressCIDRs.map((cidr, index) => [`network.outboxEgressCIDRs[${index}]`, cidr]),
+    ["redTeam.awsRegion", value.redTeam.awsRegion],
+    ["redTeam.queueURL", value.redTeam.queueURL],
+    ["redTeam.evidenceBucket", value.redTeam.evidenceBucket],
+    ["redTeam.evidenceBucketOwner", value.redTeam.evidenceBucketOwner],
+    ["redTeam.evidenceKMSKeyArn", value.redTeam.evidenceKMSKeyArn],
+    ["redTeam.outboxRoleArn", value.redTeam.outboxRoleArn],
+    ["redTeam.workerRoleArn", value.redTeam.workerRoleArn],
+    ["redTeam.adapterRoleArn", value.redTeam.adapterRoleArn],
+    ["redTeam.webIdentityTokenFile", value.redTeam.webIdentityTokenFile],
+    ["redTeam.runnerTimeout", value.redTeam.runnerTimeout],
+    ["redTeam.targetEndpoint", value.redTeam.targetEndpoint],
+    ["redTeam.readinessCredentialReference", value.redTeam.readinessCredentialReference],
+    ...value.redTeam.targetAllowedCIDRs.map((cidr, index) => [`redTeam.targetAllowedCIDRs[${index}]`, cidr]),
+    ...value.redTeam.egressCIDRs.map((cidr, index) => [`network.redTeamEgressCIDRs[${index}]`, cidr]),
     ["runtime.awsRegion", value.runtime.awsRegion],
     ["runtime.queueURL", value.runtime.queueURL],
     ["runtime.rawBucket", value.runtime.rawBucket],
@@ -310,7 +338,7 @@ function validCustomerEdgeRelease(value) {
 }
 
 function validRelease(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "findingTicketEgressCIDRs", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "runtime", "nango", "telemetry", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["connectorEgressCIDRs", "connectors", "discovery", "findingTicketEgressCIDRs", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "redTeam", "runtime", "nango", "telemetry", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
   if (!hostPattern.test(value.host) || !namePattern.test(value.tlsSecretName) || !namePattern.test(value.secretProviderClass)) return false;
   if (!value.images || typeof value.images !== "object" || Array.isArray(value.images) || Object.keys(value.images).sort().join("\0") !== [...imageNames].sort().join("\0")) return false;
   if (!imageNames.every((name) => digestPattern.test(value.images[name]))) return false;
@@ -341,6 +369,13 @@ function validRelease(value) {
   const outboxRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-outbox$/.exec(value.outbox.roleArn);
   const outboxQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-discovery-jobs$/.exec(value.outbox.queueURL);
   if (!outboxRole || !outboxQueue || value.outbox.awsRegion !== outboxQueue[1] || outboxRole[1] !== outboxQueue[2] || outboxRole[1] !== discoveryRole[1] || value.outbox.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validCIDRList(value.outbox.egressCIDRs)) return false;
+  if (!value.redTeam || typeof value.redTeam !== "object" || Array.isArray(value.redTeam) || Object.keys(value.redTeam).sort().join("\0") !== [...redTeamKeys].sort().join("\0")) return false;
+  const redTeamQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-red-team-tests$/.exec(value.redTeam.queueURL);
+  const redTeamKMS = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.redTeam.evidenceKMSKeyArn);
+  const redTeamRoles = ["outbox", "worker", "adapter"].map((name) => new RegExp(`^arn:aws:iam::([0-9]{12}):role/zasp-production-red-team-${name}$`).exec(value.redTeam[`${name}RoleArn`]));
+  if (!redTeamQueue || !redTeamKMS || redTeamRoles.some((role) => !role) || redTeamRoles.some((role) => role[1] !== discoveryRole[1]) || redTeamQueue[2] !== discoveryRole[1] || redTeamKMS[2] !== discoveryRole[1]) return false;
+  if (value.redTeam.awsRegion !== redTeamQueue[1] || value.redTeam.awsRegion !== redTeamKMS[1] || value.redTeam.evidenceBucketOwner !== discoveryRole[1] || !namePattern.test(value.redTeam.evidenceBucket) || value.redTeam.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.redTeam.runnerTimeout !== "10m") return false;
+  if (value.redTeam.targetEndpoint !== "https://agentsec-red-team-adapter.agentsec.svc.cluster.local/v1/evaluate" || value.redTeam.readinessCredentialReference !== "ref:red-team/readiness-0001" || !validProviderCIDRList(value.redTeam.targetAllowedCIDRs) || !validPrivateCIDRList(value.redTeam.egressCIDRs)) return false;
   if (!value.runtime || typeof value.runtime !== "object" || Array.isArray(value.runtime) || Object.keys(value.runtime).sort().join("\0") !== [...runtimeKeys].sort().join("\0")) return false;
   const runtimeQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-runtime-events$/.exec(value.runtime.queueURL);
   const runtimeKMS = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.runtime.rawKMSKeyArn);
@@ -385,6 +420,9 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["agentsec-security-agent", "zasp-security-agent"],
     ["agentsec-security-agent-action", "zasp-security-agent-action"],
     ["agentsec-outbox-publisher", "zasp-outbox-publisher"],
+    ["agentsec-red-team-outbox", "zasp-red-team-outbox"],
+    ["agentsec-red-team-worker", "zasp-red-team-worker"],
+    ["agentsec-red-team-adapter", "zasp-red-team-adapter"],
     ["agentsec-projection-risk", "zasp-projection-risk"],
     ["agentsec-projection-graph", "zasp-projection-graph"],
     ["agentsec-projection-search", "zasp-projection-search"],
@@ -409,6 +447,9 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["zasp-security-agent", "security-agent-worker"],
     ["zasp-security-agent-action", "security-agent-action-worker"],
     ["zasp-outbox-publisher", "outbox"],
+    ["zasp-red-team-outbox", "red-team-outbox"],
+    ["zasp-red-team-worker", "red-team-worker"],
+    ["zasp-red-team-adapter", "red-team-adapter"],
     ["zasp-projection-risk", "projection-risk"],
     ["zasp-projection-graph", "projection-graph"],
     ["zasp-projection-search", "projection-search"],
@@ -438,7 +479,7 @@ export function validateRenderedRelease(resources, platformAccountID) {
     if (!rendered || (role === null ? roleArn !== undefined : roleArn !== `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`)) throw new Error("release rejected");
   }
   const jobIdentities = new Map([
-    ["agentsec-schema-v24", "agentsec-migration"],
+    ["agentsec-schema-v25", "agentsec-migration"],
     ["agentsec-projection-graph-init-v1", "agentsec-projection-graph-init"],
     ["agentsec-projection-search-init-v1", "agentsec-projection-search-init"],
     ["nango-migrate", "nango-migrate"],

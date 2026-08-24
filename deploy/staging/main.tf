@@ -27,6 +27,9 @@ locals {
     runtime_ingest               = var.database_principals.runtime_ingest
     runtime_worker               = var.database_principals.runtime_worker
     outbox_worker                = var.database_principals.outbox_worker
+    red_team_outbox_worker       = var.database_principals.red_team_outbox_worker
+    red_team_worker              = var.database_principals.red_team_worker
+    red_team_adapter             = var.database_principals.red_team_adapter
     runtime_gateway              = var.database_principals.runtime_gateway
     discovery_scheduler          = var.database_principals.discovery_scheduler
     projection_risk              = var.database_principals.projection_risk
@@ -49,6 +52,9 @@ locals {
     postgres-runtime-ingest-dsn               = local.database_principals.runtime_ingest
     postgres-runtime-worker-dsn               = local.database_principals.runtime_worker
     postgres-outbox-worker-dsn                = local.database_principals.outbox_worker
+    postgres-red-team-outbox-dsn              = local.database_principals.red_team_outbox_worker
+    postgres-red-team-worker-dsn              = local.database_principals.red_team_worker
+    postgres-red-team-adapter-dsn             = local.database_principals.red_team_adapter
     postgres-runtime-gateway-dsn              = local.database_principals.runtime_gateway
     postgres-scheduler-dsn                    = local.database_principals.discovery_scheduler
     postgres-projection-risk-dsn              = local.database_principals.projection_risk
@@ -76,7 +82,7 @@ locals {
     background       = { visibility = 300, schema = "agentsec.background.v1" }
     "discovery-jobs" = { visibility = 30, schema = "agentsec.discovery-jobs.v1" }
     runtime-events   = { visibility = 120, schema = "agentsec.runtime-events.v1" }
-    tests            = { visibility = 900, schema = "agentsec.tests.v1" }
+    "red-team-tests" = { visibility = 900, schema = "agentsec.red-team-tests.v1" }
   }
   runtime_irsa_contract = {
     ingest          = { role_name = "runtime-ingest", principal = "system:serviceaccount:agentsec:zasp-runtime-ingest", database_secret = "postgres-runtime-ingest-dsn" }
@@ -88,6 +94,16 @@ locals {
     correlation     = { role_name = "runtime-correlation", principal = "system:serviceaccount:agentsec:zasp-runtime-correlation", database_secret = "postgres-runtime-correlation-dsn" }
     projection      = { role_name = "runtime-projection", principal = "system:serviceaccount:agentsec:zasp-runtime-projection", database_secret = "postgres-runtime-projection-dsn" }
     complete        = { role_name = "runtime-complete", principal = "system:serviceaccount:agentsec:zasp-runtime-complete", database_secret = "postgres-runtime-coordinator-dsn" }
+  }
+  red_team_irsa_contract = {
+    outbox  = { role_name = "red-team-outbox", principal = "system:serviceaccount:agentsec:zasp-red-team-outbox", database_secret = "postgres-red-team-outbox-dsn" }
+    worker  = { role_name = "red-team-worker", principal = "system:serviceaccount:agentsec:zasp-red-team-worker", database_secret = "postgres-red-team-worker-dsn" }
+    adapter = { role_name = "red-team-adapter", principal = "system:serviceaccount:agentsec:zasp-red-team-adapter", database_secret = "postgres-red-team-adapter-dsn" }
+  }
+  red_team_mount_secrets = {
+    outbox  = ["postgres-red-team-outbox-dsn"]
+    worker  = ["postgres-red-team-worker-dsn", "red-team-adapter-token"]
+    adapter = ["postgres-red-team-adapter-dsn", "red-team-adapter-token", "red-team-adapter-tls-certificate", "red-team-adapter-tls-private-key"]
   }
   connector_secret_root   = "${var.cluster_name}/connectors"
   connector_secret_prefix = "${local.connector_secret_root}/oauth"
@@ -126,6 +142,7 @@ locals {
   }
   bucket_name             = "zasp-product-data-${md5(var.account_id)}"
   runtime_raw_bucket_name = "zasp-runtime-raw-${md5(var.account_id)}"
+  red_team_bucket_name    = "zasp-red-team-evidence-${md5(var.account_id)}"
   partition               = startswith(var.region, "cn-") ? "aws-cn" : startswith(var.region, "us-gov-") ? "aws-us-gov" : "aws"
 }
 
@@ -260,6 +277,17 @@ resource "aws_kms_alias" "runtime_raw" {
   target_key_id = aws_kms_key.runtime_raw.key_id
 }
 
+resource "aws_kms_key" "red_team" {
+  description             = "ZASP immutable tenant Red Team evidence, queue, and target credentials"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+}
+
+resource "aws_kms_alias" "red_team" {
+  name          = "alias/${var.cluster_name}-red-team"
+  target_key_id = aws_kms_key.red_team.key_id
+}
+
 resource "aws_s3_bucket" "evidence" {
   bucket = local.bucket_name
 }
@@ -301,6 +329,59 @@ resource "aws_s3_bucket_lifecycle_configuration" "evidence" {
 
 resource "aws_s3_bucket" "runtime_raw" {
   bucket = local.runtime_raw_bucket_name
+}
+
+resource "aws_s3_bucket" "red_team_evidence" {
+  bucket = local.red_team_bucket_name
+}
+
+resource "aws_s3_bucket_ownership_controls" "red_team_evidence" {
+  bucket = aws_s3_bucket.red_team_evidence.id
+  rule { object_ownership = "BucketOwnerEnforced" }
+}
+
+resource "aws_s3_bucket_public_access_block" "red_team_evidence" {
+  bucket                  = aws_s3_bucket.red_team_evidence.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "red_team_evidence" {
+  bucket = aws_s3_bucket.red_team_evidence.id
+  versioning_configuration { status = "Enabled" }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "red_team_evidence" {
+  bucket = aws_s3_bucket.red_team_evidence.id
+  rule {
+    bucket_key_enabled = true
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.red_team.arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "red_team_evidence" {
+  bucket = aws_s3_bucket.red_team_evidence.id
+  rule {
+    id     = "tenant-red-team-evidence-retention"
+    status = "Enabled"
+    filter { prefix = "organizations/" }
+    noncurrent_version_expiration { noncurrent_days = var.evidence_retention_days }
+    abort_incomplete_multipart_upload { days_after_initiation = 7 }
+  }
+}
+
+resource "aws_s3_bucket_policy" "red_team_evidence" {
+  bucket = aws_s3_bucket.red_team_evidence.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Sid = "DenyInsecureTransport", Effect = "Deny", Principal = "*", Action = "s3:*", Resource = [aws_s3_bucket.red_team_evidence.arn, "${aws_s3_bucket.red_team_evidence.arn}/*"], Condition = { Bool = { "aws:SecureTransport" = "false" } } },
+    { Sid = "DenyUnencryptedWrites", Effect = "Deny", Principal = "*", Action = "s3:PutObject", Resource = "${aws_s3_bucket.red_team_evidence.arn}/organizations/*", Condition = { StringNotEquals = { "s3:x-amz-server-side-encryption" = "aws:kms" } } },
+    { Sid = "DenyWrongKey", Effect = "Deny", Principal = "*", Action = "s3:PutObject", Resource = "${aws_s3_bucket.red_team_evidence.arn}/organizations/*", Condition = { ArnNotEquals = { "s3:x-amz-server-side-encryption-aws-kms-key-id" = aws_kms_key.red_team.arn } } },
+  ] })
 }
 
 resource "aws_s3_bucket_ownership_controls" "runtime_raw" {
@@ -387,6 +468,9 @@ resource "aws_secretsmanager_secret" "product" {
     "postgres-runtime-ingest-dsn",
     "postgres-runtime-worker-dsn",
     "postgres-outbox-worker-dsn",
+    "postgres-red-team-outbox-dsn",
+    "postgres-red-team-worker-dsn",
+    "postgres-red-team-adapter-dsn",
     "postgres-runtime-gateway-dsn",
     "postgres-scheduler-dsn",
     "postgres-projection-risk-dsn",
@@ -407,6 +491,9 @@ resource "aws_secretsmanager_secret" "product" {
     "token-reveal-key",
     "canary-read-token",
     "gateway-policy-signing-private-key",
+    "red-team-adapter-token",
+    "red-team-adapter-tls-certificate",
+    "red-team-adapter-tls-private-key",
   ])
 
   name                    = "${var.cluster_name}/${each.key}"
@@ -415,6 +502,13 @@ resource "aws_secretsmanager_secret" "product" {
   tags = contains(keys(local.postgres_secret_principals), each.key) ? {
     DatabasePrincipal = local.postgres_secret_principals[each.key]
   } : {}
+}
+
+resource "aws_secretsmanager_secret" "red_team_readiness_target" {
+  name                    = "zasp/red-team/targets/readiness-0001"
+  kms_key_id              = aws_kms_key.red_team.arn
+  recovery_window_in_days = 30
+  tags                    = { CredentialClass = "red_team_target", Authority = "red-team-adapter" }
 }
 
 resource "aws_secretsmanager_secret" "connector_provider" {
@@ -455,7 +549,7 @@ resource "aws_sqs_queue" "dead_letter" {
   name                       = "agentsec-${each.key}-dlq"
   message_retention_seconds  = 1209600
   visibility_timeout_seconds = 30
-  kms_master_key_id          = aws_kms_key.staging.arn
+  kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : aws_kms_key.staging.arn
   sqs_managed_sse_enabled    = false
   tags                       = { Schema = each.value.schema }
 }
@@ -468,7 +562,7 @@ resource "aws_sqs_queue" "work" {
   visibility_timeout_seconds = each.value.visibility
   receive_wait_time_seconds  = 20
   max_message_size           = 262144
-  kms_master_key_id          = aws_kms_key.staging.arn
+  kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : aws_kms_key.staging.arn
   sqs_managed_sse_enabled    = false
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.dead_letter[each.key].arn
@@ -973,6 +1067,68 @@ resource "aws_iam_role_policy" "outbox" {
       } }
     },
   ] })
+}
+
+resource "aws_iam_role" "red_team" {
+  for_each = local.red_team_irsa_contract
+  name     = "${var.cluster_name}-${each.value.role_name}"
+  assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{
+    Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+    Condition = { StringEquals = {
+      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = each.value.principal
+    } }
+  }] })
+}
+
+resource "aws_iam_role_policy" "red_team" {
+  for_each = local.red_team_irsa_contract
+  name     = "${var.cluster_name}-${each.value.role_name}-exact"
+  role     = aws_iam_role.red_team[each.key].id
+  policy = jsonencode({ Version = "2012-10-17", Statement = concat(
+    [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"]
+      Resource = [for name in local.red_team_mount_secrets[each.key] : aws_secretsmanager_secret.product[name].arn]
+      }, {
+      Effect   = "Allow"
+      Action   = ["kms:Decrypt"]
+      Resource = aws_kms_key.staging.arn
+      Condition = {
+        StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" }
+        StringLike   = { "kms:EncryptionContext:SecretARN" = [for name in local.red_team_mount_secrets[each.key] : aws_secretsmanager_secret.product[name].arn] }
+      }
+      }, {
+      Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*"
+    }],
+    [for statement in [{
+      Effect = "Allow", Action = ["sqs:SendMessage", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.work["red-team-tests"].arn
+      }, {
+      Effect    = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = aws_kms_key.red_team.arn
+      Condition = { StringEquals = { "kms:ViaService" = "sqs.${var.region}.amazonaws.com", "kms:EncryptionContext:aws:sqs:arn" = aws_sqs_queue.work["red-team-tests"].arn } }
+    }] : statement if each.key == "outbox"],
+    [for statement in [{
+      Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.work["red-team-tests"].arn
+      }, {
+      Effect = "Allow", Action = ["s3:ListBucket", "s3:GetBucketVersioning", "s3:GetEncryptionConfiguration"], Resource = aws_s3_bucket.red_team_evidence.arn
+      }, {
+      Effect = "Allow", Action = ["s3:PutObject", "s3:GetObject", "s3:GetObjectVersion"], Resource = "${aws_s3_bucket.red_team_evidence.arn}/organizations/*"
+      }, {
+      Effect    = "Allow", Action = ["kms:GenerateDataKey", "kms:Decrypt"], Resource = aws_kms_key.red_team.arn
+      Condition = { StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" }, StringLike = { "kms:EncryptionContext:aws:s3:arn" = "${aws_s3_bucket.red_team_evidence.arn}/organizations/*" } }
+      }, {
+      Effect    = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.red_team.arn
+      Condition = { StringEquals = { "kms:ViaService" = "sqs.${var.region}.amazonaws.com", "kms:EncryptionContext:aws:sqs:arn" = aws_sqs_queue.work["red-team-tests"].arn } }
+      }, {
+      Effect = "Allow", Action = ["kms:DescribeKey"], Resource = aws_kms_key.red_team.arn
+    }] : statement if each.key == "worker"],
+    [for statement in [{
+      Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:zasp/red-team/targets/*"
+      }, {
+      Effect    = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.red_team.arn
+      Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" }, StringLike = { "kms:EncryptionContext:SecretARN" = "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:zasp/red-team/targets/*" } }
+    }] : statement if each.key == "adapter"]
+  ) })
 }
 
 resource "aws_iam_role" "projection_risk" {

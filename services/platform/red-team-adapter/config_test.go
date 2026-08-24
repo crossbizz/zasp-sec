@@ -6,7 +6,7 @@ import (
 
 func TestRuntimeConfigRequiresExactLeastPrivilegeAuthorityAndFixedFiles(t *testing.T) {
 	values := map[string]string{
-		"ZASP_DATABASE_URL":                             "postgres://zasp_red_team_adapter_login@postgres.internal/zasp?sslmode=verify-full",
+		"ZASP_DATABASE_URL":                             "postgres://zasp_red_team_adapter_login@postgres.internal:5432/zasp?sslmode=verify-full",
 		"ZASP_DATABASE_AUTHORITY":                       "zasp_red_team_adapter",
 		"ZASP_AWS_REGION":                               "us-west-2",
 		"ZASP_RED_TEAM_ADAPTER_ROLE_ARN":                "arn:aws:iam::123456789012:role/zasp-red-team-adapter",

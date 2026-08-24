@@ -92,6 +92,9 @@ variable "database_principals" {
     runtime_ingest               = string
     runtime_worker               = string
     outbox_worker                = string
+    red_team_outbox_worker       = string
+    red_team_worker              = string
+    red_team_adapter             = string
     runtime_gateway              = string
     discovery_scheduler          = string
     projection_risk              = string
@@ -114,6 +117,9 @@ variable "database_principals" {
     runtime_ingest               = "zasp_ingest_runtime"
     runtime_worker               = "zasp_runtime_worker_runtime"
     outbox_worker                = "zasp_outbox_runtime"
+    red_team_outbox_worker       = "zasp_red_team_outbox_runtime"
+    red_team_worker              = "zasp_red_team_worker_runtime"
+    red_team_adapter             = "zasp_red_team_adapter_runtime"
     runtime_gateway              = "zasp_gateway_runtime"
     discovery_scheduler          = "zasp_scheduler_runtime"
     projection_risk              = "zasp_projection_risk_runtime"
@@ -128,10 +134,10 @@ variable "database_principals" {
   }
 
   validation {
-    condition = length(distinct(values(var.database_principals))) == 20 && alltrue([
+    condition = length(distinct(values(var.database_principals))) == 23 && alltrue([
       for principal in values(var.database_principals) : can(regex("^[a-z][a-z0-9_]{2,62}$", principal))
     ])
-    error_message = "database_principals must contain twenty distinct bounded PostgreSQL login names."
+    error_message = "database_principals must contain twenty-three distinct bounded PostgreSQL login names."
   }
 }
 
