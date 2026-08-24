@@ -28,6 +28,7 @@ const SecurityAgentTemporaryPolicySchemaVersion = "security-agent-temporary-poli
 const SecurityAgentConnectorRevocationSchemaVersion = "security-agent-connector-revocation-v1"
 const SecurityAgentSessionIsolationSchemaVersion = "security-agent-session-isolation-v1"
 const RedTeamExecutionSchemaVersion = "red-team-execution-v1"
+const AttackLabExecutionSchemaVersion = "attack-lab-execution-v1"
 
 const postgresRuntimeDataPlaneReadinessSQL = `SELECT to_jsonb(zasp_runtime_data_plane_readiness($1,$2))`
 const postgresRuntimeGatewayReconciliationReadinessSQL = `SELECT to_jsonb(zasp_runtime_gateway_reconciliation_readiness($1,$2))`
@@ -136,7 +137,7 @@ func isIdentityAdministrationSchema(version string) bool {
 }
 
 func isSecurityAgentSessionIsolationSchema(version string) bool {
-	return version == SecurityAgentSessionIsolationSchemaVersion || version == RedTeamExecutionSchemaVersion
+	return version == SecurityAgentSessionIsolationSchemaVersion || version == RedTeamExecutionSchemaVersion || version == AttackLabExecutionSchemaVersion
 }
 
 func exactProductReadiness(version string) (string, string, string, bool) {

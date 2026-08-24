@@ -173,6 +173,11 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/test-runs", "listTestRuns", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/test-runs/{id}", "getTestRun", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/test-runs/{id}/cancel", "cancelTestRun", "run_tests", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/attack-lab/runs", "listAttackLabRuns", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/attack-lab/runs", "createAttackLabRun", "run_tests", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/attack-lab/runs/{id}", "getAttackLabRun", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/attack-lab/runs/{id}/cancel", "cancelAttackLabRun", "run_tests", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/attack-lab/runs/{id}/rerun", "rerunAttackLabRun", "run_tests", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 })
 
 func withBrowserExpectedScope(operations []coreOperation) []coreOperation {

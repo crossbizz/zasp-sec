@@ -396,6 +396,84 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/attack-lab/runs": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** List tenant-scoped isolated Attack Lab runs */
+        readonly get: operations["listAttackLabRuns"];
+        readonly put?: never;
+        /**
+         * Queue one isolated Attack Lab verification from a failed Red Team run
+         * @description Target, environment, credential class, destination, success criterion, and sandbox limits are derived from durable tenant authority. BrowserSession requests require the shared CSRF header and a same-origin Origin.
+         */
+        readonly post: operations["createAttackLabRun"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/attack-lab/runs/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one isolated Attack Lab run with redacted immutable evidence */
+        readonly get: operations["getAttackLabRun"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/attack-lab/runs/{id}/cancel": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Request cancellation and independently bounded cleanup of one Attack Lab run */
+        readonly post: operations["cancelAttackLabRun"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/attack-lab/runs/{id}/rerun": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Queue a new isolated run from one terminal Attack Lab authority */
+        readonly post: operations["rerunAttackLabRun"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/attack-paths": {
         readonly parameters: {
             readonly query?: never;
@@ -2000,20 +2078,109 @@ export type components = {
             readonly operation: "createAPIToken" | "rotateAPIToken";
             readonly token_id: components["schemas"]["ProductID"];
         };
-        readonly AttackLabRun: {
+        readonly AttackLabAttempt: {
+            readonly attempt: number;
+            readonly canary_touched: boolean;
+            readonly cleanup_completed: boolean;
+            /** Format: date-time */
+            readonly completed_at: string;
+            readonly criterion_observed: boolean;
             /** @enum {string} */
-            readonly credential_class: "read_only" | "test_write";
-            readonly destination: string;
-            /** @enum {string} */
-            readonly environment: "development" | "test" | "staging";
-            readonly id: components["schemas"]["ProductID"];
-            /** @enum {string} */
-            readonly status: "queued" | "running" | "complete" | "failed" | "cancelled";
+            readonly error_code?: "retryable" | "denied" | "malformed" | "outcome_unknown" | "cleanup_failed" | "cancelled" | "exhausted";
+            readonly evidence: readonly string[];
+            readonly evidence_reference: string;
             /** @enum {string} */
             readonly verdict: "verified" | "not_reproduced" | "inconclusive";
         };
+        readonly AttackLabRerunInput: {
+            readonly run_id: components["schemas"]["ProductID"];
+        };
+        readonly AttackLabRun: {
+            readonly attempt: number;
+            readonly cancel_requested: boolean;
+            /** @enum {string} */
+            readonly cleanup_state: "pending" | "in_progress" | "complete" | "failed";
+            /** Format: date-time */
+            readonly completed_at?: string;
+            /** @enum {string} */
+            readonly credential_class: "read_only" | "test_write";
+            readonly definition_id: components["schemas"]["ProductID"];
+            readonly definition_version: number;
+            readonly destination: string;
+            /** @enum {string} */
+            readonly environment: "development" | "test" | "staging";
+            /** @enum {string} */
+            readonly error_code?: "retryable" | "denied" | "malformed" | "outcome_unknown" | "cleanup_failed" | "cancelled" | "exhausted";
+            readonly evidence_reference?: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly limits: components["schemas"]["AttackLabSandboxLimits"];
+            /** Format: date-time */
+            readonly queued_at: string;
+            readonly source_run_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly started_at?: string;
+            /** @enum {string} */
+            readonly status: "queued" | "leased" | "running" | "retryable" | "cleanup" | "complete" | "failed" | "cancelled";
+            readonly target_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly target_kind: "agent_endpoint" | "mcp_server" | "coding_agent";
+            /** @enum {string} */
+            readonly verdict?: "verified" | "not_reproduced" | "inconclusive";
+            readonly version: number;
+        };
+        readonly AttackLabRunDetail: {
+            readonly attempt: number;
+            readonly attempts: readonly components["schemas"]["AttackLabAttempt"][];
+            readonly cancel_requested: boolean;
+            /** @enum {string} */
+            readonly cleanup_state: "pending" | "in_progress" | "complete" | "failed";
+            /** Format: date-time */
+            readonly completed_at?: string;
+            /** @enum {string} */
+            readonly credential_class: "read_only" | "test_write";
+            readonly definition_id: components["schemas"]["ProductID"];
+            readonly definition_version: number;
+            readonly destination: string;
+            /** @enum {string} */
+            readonly environment: "development" | "test" | "staging";
+            /** @enum {string} */
+            readonly error_code?: "retryable" | "denied" | "malformed" | "outcome_unknown" | "cleanup_failed" | "cancelled" | "exhausted";
+            readonly evidence_reference?: string;
+            readonly id: components["schemas"]["ProductID"];
+            readonly limits: components["schemas"]["AttackLabSandboxLimits"];
+            /** Format: date-time */
+            readonly queued_at: string;
+            readonly source_run_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly started_at?: string;
+            /** @enum {string} */
+            readonly status: "queued" | "leased" | "running" | "retryable" | "cleanup" | "complete" | "failed" | "cancelled";
+            readonly target_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly target_kind: "agent_endpoint" | "mcp_server" | "coding_agent";
+            /** @enum {string} */
+            readonly verdict?: "verified" | "not_reproduced" | "inconclusive";
+            readonly version: number;
+        };
+        readonly AttackLabRunInput: {
+            /** @constant */
+            readonly approved: true;
+            readonly run_id: components["schemas"]["ProductID"];
+            readonly source_run_id: components["schemas"]["ProductID"];
+        };
         readonly AttackLabRunPage: {
             readonly items: readonly components["schemas"]["AttackLabRun"][];
+            readonly next_cursor?: string;
+        };
+        readonly AttackLabSandboxLimits: {
+            /** @constant */
+            readonly cpu: "500m";
+            /** @constant */
+            readonly ephemeral_storage: "2Gi";
+            /** @constant */
+            readonly memory: "1Gi";
+            /** @constant */
+            readonly timeout_seconds: 300;
         };
         readonly AttackPath: {
             readonly blocked_edge: number;
@@ -3430,8 +3597,13 @@ export type ApiTokenRevealedCredential = components['schemas']['APITokenRevealed
 export type ApiTokenRevealGrant = components['schemas']['APITokenRevealGrant'];
 export type ApiTokenRevealGrantPage = components['schemas']['APITokenRevealGrantPage'];
 export type ApiTokenRevealGrantSummary = components['schemas']['APITokenRevealGrantSummary'];
+export type AttackLabAttempt = components['schemas']['AttackLabAttempt'];
+export type AttackLabRerunInput = components['schemas']['AttackLabRerunInput'];
 export type AttackLabRun = components['schemas']['AttackLabRun'];
+export type AttackLabRunDetail = components['schemas']['AttackLabRunDetail'];
+export type AttackLabRunInput = components['schemas']['AttackLabRunInput'];
 export type AttackLabRunPage = components['schemas']['AttackLabRunPage'];
+export type AttackLabSandboxLimits = components['schemas']['AttackLabSandboxLimits'];
 export type AttackPath = components['schemas']['AttackPath'];
 export type AttackPathPage = components['schemas']['AttackPathPage'];
 export type AuditEvent = components['schemas']['AuditEvent'];
@@ -4433,6 +4605,186 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly listAttackLabRuns: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: string;
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Stable Attack Lab run page. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackLabRunPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly createAttackLabRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AttackLabRunInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable queued isolated run. */
+            readonly 202: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackLabRun"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getAttackLabRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Attack Lab run detail. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackLabRunDetail"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly cancelAttackLabRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Cancelled or cancellation-requested run. */
+            readonly 200: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackLabRun"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly rerunAttackLabRun: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["AttackLabRerunInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable queued rerun. */
+            readonly 202: {
+                headers: {
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackLabRun"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

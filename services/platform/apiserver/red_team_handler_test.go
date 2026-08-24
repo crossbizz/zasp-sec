@@ -12,6 +12,9 @@ type redTeamAuthorityStub struct {
 	definitionResult RedTeamDefinitionMutationResult
 	runResult        RedTeamRunMutationResult
 	cancelInput      RedTeamCancelRequest
+	attackLabResult  AttackLabMutationResult
+	attackLabCreate  AttackLabCreateRequest
+	attackLabRerun   AttackLabRerunRequest
 	calls            int
 }
 
@@ -43,6 +46,26 @@ func (stub *redTeamAuthorityStub) CancelRedTeamRun(_ context.Context, _ RequestI
 	stub.calls++
 	stub.cancelInput = input
 	return stub.runResult, nil
+}
+func (stub *redTeamAuthorityStub) ListAttackLabRuns(context.Context, RequestIdentity, AttackLabRunPageRequest) (AttackLabRunPage, error) {
+	return AttackLabRunPage{}, nil
+}
+func (stub *redTeamAuthorityStub) GetAttackLabRun(context.Context, RequestIdentity, string) (AttackLabRunDetail, error) {
+	return AttackLabRunDetail{AttackLabRun: stub.attackLabResult.Body, Attempts: []AttackLabAttempt{}}, nil
+}
+func (stub *redTeamAuthorityStub) CreateAttackLabRun(_ context.Context, _ RequestIdentity, input AttackLabCreateRequest) (AttackLabMutationResult, error) {
+	stub.calls++
+	stub.attackLabCreate = input
+	return stub.attackLabResult, nil
+}
+func (stub *redTeamAuthorityStub) CancelAttackLabRun(context.Context, RequestIdentity, AttackLabCancelRequest) (AttackLabMutationResult, error) {
+	stub.calls++
+	return stub.attackLabResult, nil
+}
+func (stub *redTeamAuthorityStub) RerunAttackLabRun(_ context.Context, _ RequestIdentity, input AttackLabRerunRequest) (AttackLabMutationResult, error) {
+	stub.calls++
+	stub.attackLabRerun = input
+	return stub.attackLabResult, nil
 }
 
 func TestRedTeamHandlerCreatesAuditedDefinitionAndSuppressesPATReceiptHeader(t *testing.T) {
@@ -102,5 +125,44 @@ func TestRedTeamHandlerVersionFencesCancellation(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"4"` || stub.cancelInput.ExpectedVersion != 3 || stub.cancelInput.RunID != runID {
 		t.Fatalf("response=%d headers=%v input=%#v body=%s", response.Code, response.Header(), stub.cancelInput, response.Body.String())
+	}
+}
+
+func TestRedTeamHandlerCreatesOnlyApprovedServerDerivedAttackLabRun(t *testing.T) {
+	runID := "pid_79000301-0000-4000-8000-000000000001"
+	sourceRunID := "pid_79000302-0000-4000-8000-000000000002"
+	definitionID := "pid_79000303-0000-4000-8000-000000000003"
+	targetID := "pid_79000304-0000-4000-8000-000000000004"
+	queuedAt := time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)
+	stub := &redTeamAuthorityStub{attackLabResult: AttackLabMutationResult{
+		Body:    AttackLabRun{ID: runID, Version: 1, SourceRunID: sourceRunID, DefinitionID: definitionID, DefinitionVersion: 3, TargetID: targetID, TargetKind: "mcp_server", Environment: "staging", CredentialClass: "read_only", Destination: "canary.attack-lab.internal", Status: "queued", CleanupState: "pending", Limits: AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, QueuedAt: queuedAt},
+		AuditID: "pid_79000305-0000-4000-8000-000000000005", CorrelationID: testCorrelationID, ReceiptID: "pid_79000306-0000-4000-8000-000000000006",
+	}}
+	handler, err := NewRedTeamPublicHTTPHandler(stub, []byte("0123456789abcdef0123456789abcdef"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	request := workflowRequest(t, identity, testCorrelationID, "createAttackLabRun", nil, http.MethodPost, "/api/v1/attack-lab/runs", `{"run_id":"`+runID+`","source_run_id":"`+sourceRunID+`","approved":true}`)
+	request.Header.Set("Idempotency-Key", "attack-lab-create-0001")
+	request.Header.Set("If-Match", `"0"`)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted || response.Header().Get("ETag") != `"1"` || stub.calls != 1 || stub.attackLabCreate.RunID != runID || stub.attackLabCreate.SourceRunID != sourceRunID || !stub.attackLabCreate.Approved {
+		t.Fatalf("response=%d headers=%v calls=%d input=%#v body=%s", response.Code, response.Header(), stub.calls, stub.attackLabCreate, response.Body.String())
+	}
+	for name, body := range map[string]string{
+		"not approved":     `{"run_id":"` + runID + `","source_run_id":"` + sourceRunID + `","approved":false}`,
+		"client authority": `{"run_id":"` + runID + `","source_run_id":"` + sourceRunID + `","approved":true,"destination":"evil.example"}`,
+	} {
+		request := workflowRequest(t, identity, testCorrelationID, "createAttackLabRun", nil, http.MethodPost, "/api/v1/attack-lab/runs", body)
+		request.Header.Set("Idempotency-Key", "attack-lab-create-0002")
+		request.Header.Set("If-Match", `"0"`)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest || stub.calls != 1 {
+			t.Fatalf("%s response=%d calls=%d body=%s", name, response.Code, stub.calls, response.Body.String())
+		}
 	}
 }

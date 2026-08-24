@@ -2441,6 +2441,105 @@ paths:
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/attack-lab/runs:
+    get:
+      operationId: listAttackLabRuns
+      summary: List tenant-scoped isolated Attack Lab runs
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - { name: cursor, in: query, required: false, schema: { type: string, minLength: 2, maxLength: 1024, pattern: '^[A-Za-z0-9_-]+$' } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200': { description: Stable Attack Lab run page., content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRunPage' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: createAttackLabRun
+      summary: Queue one isolated Attack Lab verification from a failed Red Team run
+      description: Target, environment, credential class, destination, success criterion, and sandbox limits are derived from durable tenant authority. BrowserSession requests require the shared CSRF header and a same-origin Origin.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRunInput' } } } }
+      responses:
+        '202': { description: Durable queued isolated run., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRun' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/attack-lab/runs/{id}:
+    parameters: [ { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } } ]
+    get:
+      operationId: getAttackLabRun
+      summary: Get one isolated Attack Lab run with redacted immutable evidence
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      responses:
+        '200': { description: Attack Lab run detail., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRunDetail' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/attack-lab/runs/{id}/cancel:
+    parameters: [ { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } } ]
+    post:
+      operationId: cancelAttackLabRun
+      summary: Request cancellation and independently bounded cleanup of one Attack Lab run
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      responses:
+        '200': { description: Cancelled or cancellation-requested run., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRun' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/attack-lab/runs/{id}/rerun:
+    parameters: [ { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } } ]
+    post:
+      operationId: rerunAttackLabRun
+      summary: Queue a new isolated run from one terminal Attack Lab authority
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRerunInput' } } } }
+      responses:
+        '202': { description: Durable queued rerun., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' }, X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }, X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' } }, content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabRun' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
 security:
   - BrowserSession: []
     BrowserExpectedScope: []
@@ -4535,23 +4634,103 @@ components:
       properties:
         items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/TestRun' } }
         next_cursor: { type: string, minLength: 2, maxLength: 1024, pattern: '^[A-Za-z0-9_-]+$' }
+    AttackLabRunInput:
+      type: object
+      additionalProperties: false
+      required: [run_id, source_run_id, approved]
+      properties:
+        run_id: { $ref: '#/components/schemas/ProductID' }
+        source_run_id: { $ref: '#/components/schemas/ProductID' }
+        approved: { type: boolean, const: true }
+    AttackLabRerunInput:
+      type: object
+      additionalProperties: false
+      required: [run_id]
+      properties:
+        run_id: { $ref: '#/components/schemas/ProductID' }
+    AttackLabSandboxLimits:
+      type: object
+      additionalProperties: false
+      required: [cpu, memory, ephemeral_storage, timeout_seconds]
+      properties:
+        cpu: { type: string, const: 500m }
+        memory: { type: string, const: 1Gi }
+        ephemeral_storage: { type: string, const: 2Gi }
+        timeout_seconds: { type: integer, const: 300 }
     AttackLabRun:
       type: object
       additionalProperties: false
-      required: [id, environment, credential_class, destination, status, verdict]
+      required: [id, version, source_run_id, definition_id, definition_version, target_id, target_kind, environment, credential_class, destination, status, attempt, cancel_requested, cleanup_state, limits, queued_at]
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 1, maximum: 1000000 }
+        source_run_id: { $ref: '#/components/schemas/ProductID' }
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        target_kind: { type: string, enum: [agent_endpoint, mcp_server, coding_agent] }
         environment: { type: string, enum: [development, test, staging] }
         credential_class: { type: string, enum: [read_only, test_write] }
-        destination: { type: string, minLength: 1, maxLength: 256 }
-        status: { type: string, enum: [queued, running, complete, failed, cancelled] }
+        destination: { type: string, minLength: 1, maxLength: 253, pattern: '^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$' }
+        status: { type: string, enum: [queued, leased, running, retryable, cleanup, complete, failed, cancelled] }
+        attempt: { type: integer, minimum: 0, maximum: 5 }
+        cancel_requested: { type: boolean }
+        cleanup_state: { type: string, enum: [pending, in_progress, complete, failed] }
+        limits: { $ref: '#/components/schemas/AttackLabSandboxLimits' }
+        queued_at: { type: string, format: date-time }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
         verdict: { type: string, enum: [verified, not_reproduced, inconclusive] }
+        error_code: { type: string, enum: [retryable, denied, malformed, outcome_unknown, cleanup_failed, cancelled, exhausted] }
+        evidence_reference: { type: string, minLength: 1, maxLength: 1024 }
+    AttackLabAttempt:
+      type: object
+      additionalProperties: false
+      required: [attempt, verdict, criterion_observed, canary_touched, cleanup_completed, evidence, evidence_reference, completed_at]
+      properties:
+        attempt: { type: integer, minimum: 1, maximum: 5 }
+        verdict: { type: string, enum: [verified, not_reproduced, inconclusive] }
+        criterion_observed: { type: boolean }
+        canary_touched: { type: boolean }
+        cleanup_completed: { type: boolean }
+        error_code: { type: string, enum: [retryable, denied, malformed, outcome_unknown, cleanup_failed, cancelled, exhausted] }
+        evidence: { type: array, minItems: 1, maxItems: 5, items: { type: string, minLength: 1, maxLength: 512 } }
+        evidence_reference: { type: string, minLength: 1, maxLength: 1024 }
+        completed_at: { type: string, format: date-time }
+    AttackLabRunDetail:
+      type: object
+      additionalProperties: false
+      required: [id, version, source_run_id, definition_id, definition_version, target_id, target_kind, environment, credential_class, destination, status, attempt, cancel_requested, cleanup_state, limits, queued_at, attempts]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 1, maximum: 1000000 }
+        source_run_id: { $ref: '#/components/schemas/ProductID' }
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        target_kind: { type: string, enum: [agent_endpoint, mcp_server, coding_agent] }
+        environment: { type: string, enum: [development, test, staging] }
+        credential_class: { type: string, enum: [read_only, test_write] }
+        destination: { type: string, minLength: 1, maxLength: 253, pattern: '^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$' }
+        status: { type: string, enum: [queued, leased, running, retryable, cleanup, complete, failed, cancelled] }
+        attempt: { type: integer, minimum: 0, maximum: 5 }
+        cancel_requested: { type: boolean }
+        cleanup_state: { type: string, enum: [pending, in_progress, complete, failed] }
+        limits: { $ref: '#/components/schemas/AttackLabSandboxLimits' }
+        queued_at: { type: string, format: date-time }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        verdict: { type: string, enum: [verified, not_reproduced, inconclusive] }
+        error_code: { type: string, enum: [retryable, denied, malformed, outcome_unknown, cleanup_failed, cancelled, exhausted] }
+        evidence_reference: { type: string, minLength: 1, maxLength: 1024 }
+        attempts: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/AttackLabAttempt' } }
     AttackLabRunPage:
       type: object
       additionalProperties: false
       required: [items]
       properties:
-        items: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/AttackLabRun' } }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AttackLabRun' } }
+        next_cursor: { type: string, minLength: 2, maxLength: 1024, pattern: '^[A-Za-z0-9_-]+$' }
     PolicyID:
       type: string
       pattern: '^policy-[a-z0-9][a-z0-9-]{0,120}$'
