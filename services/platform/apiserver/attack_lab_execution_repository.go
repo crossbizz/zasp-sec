@@ -37,9 +37,10 @@ const (
 )
 
 var (
-	attackLabExecutionWorkerPattern  = regexp.MustCompile(`^[a-z][a-z0-9.-]{2,127}$`)
-	attackLabExecutionTokenPattern   = regexp.MustCompile(`^[a-f0-9]{32}$`)
-	attackLabSandboxReferencePattern = regexp.MustCompile(
+	attackLabExecutionWorkerPattern     = regexp.MustCompile(`^[a-z][a-z0-9.-]{2,127}$`)
+	attackLabExecutionTokenPattern      = regexp.MustCompile(`^[a-f0-9]{32}$`)
+	attackLabCredentialReferencePattern = regexp.MustCompile(`^ref:red-team/[a-z][a-z0-9_-]{7,127}$`)
+	attackLabSandboxReferencePattern    = regexp.MustCompile(
 		`^k8s://attack-lab/jobs/zasp-attack-lab-[a-z0-9-]{8,64}@[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`,
 	)
 )
@@ -139,13 +140,14 @@ type AttackLabRunTransition struct {
 }
 
 type AttackLabEgressAuthority struct {
-	OrganizationID string    `json:"organization_id"`
-	WorkspaceID    string    `json:"workspace_id"`
-	EnvironmentID  string    `json:"environment_id"`
-	RunID          string    `json:"run_id"`
-	Destination    string    `json:"destination"`
-	Methods        []string  `json:"methods"`
-	ExpiresAt      time.Time `json:"expires_at"`
+	OrganizationID      string    `json:"organization_id"`
+	WorkspaceID         string    `json:"workspace_id"`
+	EnvironmentID       string    `json:"environment_id"`
+	RunID               string    `json:"run_id"`
+	Destination         string    `json:"destination"`
+	CredentialReference string    `json:"credential_reference"`
+	Methods             []string  `json:"methods"`
+	ExpiresAt           time.Time `json:"expires_at"`
 }
 
 func NewAttackLabExecutionRepository(database JSONDatabase, authority string) (*AttackLabExecutionRepository, error) {
@@ -380,7 +382,7 @@ func (repository *AttackLabExecutionRepository) ResolveAttackLabEgress(ctx conte
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresAttackLabResolveEgressSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), runID, destination)
 	var result AttackLabEgressAuthority
-	if err != nil || decodeStrictDiscovery(payload, &result) != nil || result.OrganizationID != scope.OrganizationID().String() || result.WorkspaceID != scope.WorkspaceID().String() || result.EnvironmentID != scope.EnvironmentID().String() || result.RunID != runID || result.Destination != destination || len(result.Methods) != 1 || result.Methods[0] != "POST" || !canonicalRedTeamTime(result.ExpiresAt) || !result.ExpiresAt.After(time.Now().UTC()) || result.ExpiresAt.After(time.Now().UTC().Add(5*time.Minute)) {
+	if err != nil || decodeStrictDiscovery(payload, &result) != nil || result.OrganizationID != scope.OrganizationID().String() || result.WorkspaceID != scope.WorkspaceID().String() || result.EnvironmentID != scope.EnvironmentID().String() || result.RunID != runID || result.Destination != destination || !attackLabCredentialReferencePattern.MatchString(result.CredentialReference) || len(result.Methods) != 1 || result.Methods[0] != "POST" || !canonicalRedTeamTime(result.ExpiresAt) || !result.ExpiresAt.After(time.Now().UTC()) || result.ExpiresAt.After(time.Now().UTC().Add(5*time.Minute)) {
 		return AttackLabEgressAuthority{}, ErrRepositoryUnavailable
 	}
 	result.ExpiresAt = result.ExpiresAt.UTC()

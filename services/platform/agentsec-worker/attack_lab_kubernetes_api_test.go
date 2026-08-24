@@ -23,11 +23,6 @@ func TestProductionAttackLabKubernetesAPICreatesExactHardenedJob(t *testing.T) {
 	if err := os.WriteFile(tokenPath, []byte("header.payload.signature-with-bounded-production-length-1234567890"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{{
-		StatusCode: http.StatusCreated, Header: http.Header{"Content-Type": []string{"application/json"}},
-		Body: io.NopCloser(strings.NewReader(`{"apiVersion":"batch/v1","kind":"Job","metadata":{"name":"zasp-attack-lab-7e300001000040008000000000000001","namespace":"zasp-attack-lab","uid":"123e4567-e89b-12d3-a456-426614174000","resourceVersion":"12345","creationTimestamp":"2026-08-24T00:00:00Z"}}`)),
-	}}}
-	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, client: &http.Client{Transport: transport}}
 	job := attackLabKubernetesJob{
 		Namespace: "zasp-attack-lab", Name: "zasp-attack-lab-7e300001000040008000000000000001", ServiceAccount: "agentsec-attack-lab-runner",
 		Image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", EgressToken: "signed.capability",
@@ -35,6 +30,11 @@ func TestProductionAttackLabKubernetesAPICreatesExactHardenedJob(t *testing.T) {
 		SuccessCriterion: "Observe exact canary touch", ExpectedSideEffects: []string{"one bounded canary mutation"}, InputDigest: strings.Repeat("b", 64), Labels: map[string]string{"zasp.io/execution": "attack-lab", "zasp.io/run-id": "pid_7e300001-0000-4000-8000-000000000001"},
 		Limits: apiserver.AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, ActiveDeadlineSeconds: 300,
 	}
+	uid := "123e4567-e89b-12d3-a456-426614174000"
+	transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{
+		attackLabKubernetesTestResponse(http.StatusCreated, attackLabKubernetesExactJobResponse(t, job, uid)),
+	}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
 	uid, err := api.Create(context.Background(), job)
 	if err != nil || uid != "123e4567-e89b-12d3-a456-426614174000" {
 		t.Fatalf("uid=%q err=%v", uid, err)
@@ -55,6 +55,12 @@ func TestProductionAttackLabKubernetesAPICreatesExactHardenedJob(t *testing.T) {
 			Template                                                      struct {
 				Metadata struct{ Labels map[string]string } `json:"metadata"`
 				Spec     struct {
+					SecurityContext struct {
+						RunAsNonRoot          *bool
+						RunAsUser, RunAsGroup int64
+						FSGroup               int64 `json:"fsGroup"`
+						SeccompProfile        struct{ Type string }
+					}
 					ServiceAccountName            string
 					AutomountServiceAccountToken  *bool
 					RestartPolicy                 string
@@ -87,7 +93,7 @@ func TestProductionAttackLabKubernetesAPICreatesExactHardenedJob(t *testing.T) {
 	}
 	pod := manifest.Spec.Template.Spec
 	runner := container[0]
-	if pod.ServiceAccountName != job.ServiceAccount || pod.AutomountServiceAccountToken == nil || *pod.AutomountServiceAccountToken || pod.RestartPolicy != "Never" || pod.EnableServiceLinks == nil || *pod.EnableServiceLinks || pod.TerminationGracePeriodSeconds != 5 || pod.HostNetwork || pod.HostPID || pod.HostIPC || runner.Name != "runner" || runner.Image != job.Image || runner.ImagePullPolicy != "IfNotPresent" || strings.Join(runner.Command, " ") != "/app/agentsec-attack-lab-runner" || strings.Join(runner.Args, " ") != "run" {
+	if pod.ServiceAccountName != job.ServiceAccount || pod.AutomountServiceAccountToken == nil || *pod.AutomountServiceAccountToken || pod.RestartPolicy != "Never" || pod.EnableServiceLinks == nil || *pod.EnableServiceLinks || pod.TerminationGracePeriodSeconds != 5 || pod.HostNetwork || pod.HostPID || pod.HostIPC || pod.SecurityContext.RunAsNonRoot == nil || !*pod.SecurityContext.RunAsNonRoot || pod.SecurityContext.RunAsUser != 65532 || pod.SecurityContext.RunAsGroup != 65532 || pod.SecurityContext.FSGroup != 65532 || pod.SecurityContext.SeccompProfile.Type != "RuntimeDefault" || runner.Name != "runner" || runner.Image != job.Image || runner.ImagePullPolicy != "IfNotPresent" || strings.Join(runner.Command, " ") != "/app/agentsec-attack-lab-runner" || strings.Join(runner.Args, " ") != "run" {
 		t.Fatal("Pod execution authority drifted")
 	}
 	security := runner.SecurityContext
@@ -111,15 +117,16 @@ func TestProductionAttackLabKubernetesAPIReadinessCollectsAndUIDFencesCleanup(t 
 	transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{
 		attackLabKubernetesTestResponse(http.StatusOK, `{"major":"1","minor":"30"}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"zasp-attack-lab","uid":"223e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"status":{"phase":"Active"}}`),
-		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000"},"automountServiceAccountToken":false}`),
+		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"agentsec-attack-lab-proxy-ca","namespace":"zasp-attack-lab","uid":"423e4567-e89b-12d3-a456-426614174000"},"data":{"proxy-ca.crt":`+strconv.Quote(testDiscoveryCACertificatePEM)+`}}`),
+		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"vpcresources.k8s.aws/v1beta1","kind":"SecurityGroupPolicy","metadata":{"name":"agentsec-attack-lab-egress","namespace":"zasp-attack-lab","uid":"623e4567-e89b-12d3-a456-426614174000"},"spec":{"podSelector":{"matchLabels":{"zasp.io/execution":"attack-lab"}},"securityGroups":{"groupIds":["sg-1234abcd"]}}}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"batch/v1","kind":"Job","metadata":{"name":"`+name+`","namespace":"zasp-attack-lab","uid":"`+uid+`"},"status":{"succeeded":1,"failed":0,"conditions":[{"type":"Complete","status":"True"}]}}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"PodList","metadata":{"continue":""},"items":[{"apiVersion":"v1","kind":"Pod","metadata":{"name":"`+name+`-abcde","namespace":"zasp-attack-lab","uid":"523e4567-e89b-12d3-a456-426614174000","labels":{"job-name":"`+name+`","zasp.io/execution":"attack-lab","eks.amazonaws.com/fargate-profile":"agentsec-attack-lab"},"ownerReferences":[{"apiVersion":"batch/v1","kind":"Job","name":"`+name+`","uid":"`+uid+`","controller":true}]},"spec":{"nodeName":"fargate-ip-10-0-1-10","containers":[{"name":"runner","image":"`+image+`"}]},"status":{"phase":"Succeeded","containerStatuses":[{"name":"runner","image":"`+image+`","imageID":"`+image+`","ready":false,"restartCount":0,"state":{"terminated":{"exitCode":0,"reason":"Completed","message":`+strconv.Quote(termination)+`}}}]}}]}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"batch/v1","kind":"Job","metadata":{"name":"`+name+`","namespace":"zasp-attack-lab","uid":"`+uid+`"}}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"Status","status":"Success","reason":"Deleted","code":200}`),
 		attackLabKubernetesTestResponse(http.StatusNotFound, `{"apiVersion":"v1","kind":"Status","status":"Failure","reason":"NotFound","code":404}`),
 	}}
-	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, client: &http.Client{Transport: transport}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
 	if err := api.Ready(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -133,10 +140,10 @@ func TestProductionAttackLabKubernetesAPIReadinessCollectsAndUIDFencesCleanup(t 
 	if err := api.Destroy(context.Background(), "zasp-attack-lab", name, uid); err != nil {
 		t.Fatal(err)
 	}
-	if len(transport.requests) != 9 {
+	if len(transport.requests) != 10 {
 		t.Fatalf("requests=%d", len(transport.requests))
 	}
-	deleteRequest := transport.requests[7]
+	deleteRequest := transport.requests[8]
 	if deleteRequest.Method != http.MethodDelete || deleteRequest.URL.Path != "/apis/batch/v1/namespaces/zasp-attack-lab/jobs/"+name {
 		t.Fatal("cleanup path drifted")
 	}
@@ -162,20 +169,108 @@ func TestProductionAttackLabKubernetesAPIReconcilesExactCreateConflictWithoutDup
 		SuccessCriterion: "Observe exact canary touch", ExpectedSideEffects: []string{"one bounded canary mutation"}, InputDigest: strings.Repeat("b", 64), Labels: map[string]string{"zasp.io/execution": "attack-lab", "zasp.io/run-id": "pid_7e300001-0000-4000-8000-000000000001"},
 		Limits: apiserver.AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, ActiveDeadlineSeconds: 300,
 	}
-	annotations, err := json.Marshal(attackLabKubernetesJobAnnotations(job))
-	if err != nil {
-		t.Fatal(err)
-	}
 	uid := "123e4567-e89b-12d3-a456-426614174000"
 	transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{
 		attackLabKubernetesTestResponse(http.StatusConflict, `{"apiVersion":"v1","kind":"Status","reason":"AlreadyExists","code":409}`),
-		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"batch/v1","kind":"Job","metadata":{"name":"`+job.Name+`","namespace":"zasp-attack-lab","uid":"`+uid+`","annotations":`+string(annotations)+`}}`),
+		attackLabKubernetesTestResponse(http.StatusOK, attackLabKubernetesExactJobResponse(t, job, uid)),
 	}}
-	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, client: &http.Client{Transport: transport}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
 	got, err := api.Create(context.Background(), job)
 	if err != nil || got != uid || len(transport.requests) != 2 || transport.requests[0].Method != http.MethodPost || transport.requests[1].Method != http.MethodGet {
 		t.Fatalf("uid=%q requests=%d err=%v", got, len(transport.requests), err)
 	}
+}
+
+func TestProductionAttackLabKubernetesAPIRejectsCreateConflictWithDriftedJobSpec(t *testing.T) {
+	tokenPath := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(tokenPath, []byte("header.payload.signature-with-bounded-production-length-1234567890"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	job := attackLabKubernetesTestJob()
+	drifted := attackLabKubernetesExactJobManifest(job, "123e4567-e89b-12d3-a456-426614174000")
+	drifted.Spec.Template.Spec.ServiceAccountName = "production-admin"
+	drifted.Spec.Template.Spec.Containers = append(drifted.Spec.Template.Spec.Containers, drifted.Spec.Template.Spec.Containers[0])
+	raw, err := json.Marshal(drifted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{
+		attackLabKubernetesTestResponse(http.StatusConflict, `{"apiVersion":"v1","kind":"Status","reason":"AlreadyExists","code":409}`),
+		attackLabKubernetesTestResponse(http.StatusOK, string(raw)),
+	}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+	if uid, err := api.Create(context.Background(), job); err == nil || uid != "" {
+		t.Fatalf("drifted existing job adopted: uid=%q err=%v", uid, err)
+	}
+}
+
+func TestProductionAttackLabKubernetesAPIReadinessRejectsPrivilegeAndEgressDrift(t *testing.T) {
+	for name, fixture := range map[string]struct {
+		serviceAccount string
+		policy         string
+	}{
+		"service account role": {
+			serviceAccount: `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"},"annotations":{"eks.amazonaws.com/role-arn":"arn:aws:iam::123456789012:role/production-admin"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`,
+			policy:         `{"apiVersion":"vpcresources.k8s.aws/v1beta1","kind":"SecurityGroupPolicy","metadata":{"name":"agentsec-attack-lab-egress","namespace":"zasp-attack-lab","uid":"623e4567-e89b-12d3-a456-426614174000"},"spec":{"podSelector":{"matchLabels":{"zasp.io/execution":"attack-lab"}},"securityGroups":{"groupIds":["sg-1234abcd"]}}}`,
+		},
+		"foreign security group": {
+			serviceAccount: `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`,
+			policy:         `{"apiVersion":"vpcresources.k8s.aws/v1beta1","kind":"SecurityGroupPolicy","metadata":{"name":"agentsec-attack-lab-egress","namespace":"zasp-attack-lab","uid":"623e4567-e89b-12d3-a456-426614174000"},"spec":{"podSelector":{"matchLabels":{"zasp.io/execution":"attack-lab"}},"securityGroups":{"groupIds":["sg-deadbeef"]}}}`,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			tokenPath := filepath.Join(t.TempDir(), "token")
+			if err := os.WriteFile(tokenPath, []byte("header.payload.signature-with-bounded-production-length-1234567890"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{
+				attackLabKubernetesTestResponse(http.StatusOK, `{"major":"1","minor":"30"}`),
+				attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"zasp-attack-lab","uid":"223e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"status":{"phase":"Active"}}`),
+				attackLabKubernetesTestResponse(http.StatusOK, fixture.serviceAccount),
+				attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"agentsec-attack-lab-proxy-ca","namespace":"zasp-attack-lab","uid":"423e4567-e89b-12d3-a456-426614174000"},"data":{"proxy-ca.crt":`+strconv.Quote(testDiscoveryCACertificatePEM)+`}}`),
+				attackLabKubernetesTestResponse(http.StatusOK, fixture.policy),
+			}}
+			api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+			if err := api.Ready(context.Background()); err == nil {
+				t.Fatal("privilege or egress drift accepted")
+			}
+		})
+	}
+}
+
+func attackLabKubernetesTestJob() attackLabKubernetesJob {
+	return attackLabKubernetesJob{
+		Namespace: "zasp-attack-lab", Name: "zasp-attack-lab-7e300001000040008000000000000001", ServiceAccount: "agentsec-attack-lab-runner",
+		Image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", EgressToken: "signed.capability.production",
+		OrganizationID: "pid_7d100010-0000-4000-8000-000000000010", WorkspaceID: "pid_7d100011-0000-4000-8000-000000000011", EnvironmentID: "pid_7d100012-0000-4000-8000-000000000012", RunID: "pid_7e300001-0000-4000-8000-000000000001", Destination: "adapter.customer.example",
+		SuccessCriterion: "Observe exact canary touch", ExpectedSideEffects: []string{"one bounded canary mutation"}, InputDigest: strings.Repeat("b", 64), Labels: map[string]string{"zasp.io/execution": "attack-lab", "zasp.io/run-id": "pid_7e300001-0000-4000-8000-000000000001"},
+		Limits: apiserver.AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, ActiveDeadlineSeconds: 300,
+	}
+}
+
+func attackLabKubernetesExactJobResponse(t *testing.T, job attackLabKubernetesJob, uid string) string {
+	t.Helper()
+	raw, err := json.Marshal(attackLabKubernetesExactJobManifest(job, uid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+func attackLabKubernetesExactJobManifest(job attackLabKubernetesJob, uid string) attackLabKubernetesJobManifest {
+	expectedSideEffects, _ := json.Marshal(job.ExpectedSideEffects)
+	manifest := attackLabKubernetesJobManifest{
+		APIVersion: "batch/v1", Kind: "Job", Metadata: attackLabKubernetesObjectMeta{Name: job.Name, Namespace: job.Namespace, UID: uid, Labels: cloneAttackLabLabels(job.Labels), Annotations: attackLabKubernetesJobAnnotations(job)},
+		Spec: attackLabKubernetesJobSpec{ActiveDeadlineSeconds: int64(job.ActiveDeadlineSeconds), BackoffLimit: 0, Completions: 1, Parallelism: 1, TTLSecondsAfterFinished: 60,
+			Template: attackLabKubernetesPodTemplate{Metadata: attackLabKubernetesObjectMeta{Labels: cloneAttackLabLabels(job.Labels)}, Spec: attackLabKubernetesPodSpec{
+				ServiceAccountName: job.ServiceAccount, AutomountServiceAccountToken: false, RestartPolicy: "Never", EnableServiceLinks: false, TerminationGracePeriodSeconds: 5,
+				SecurityContext: attackLabKubernetesPodSecurityContext{RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, FSGroup: 65532, SeccompProfile: attackLabKubernetesSeccompProfile{Type: "RuntimeDefault"}},
+				Containers:      []attackLabKubernetesContainer{{Name: "runner", Image: job.Image, ImagePullPolicy: "IfNotPresent", Command: []string{"/app/agentsec-attack-lab-runner"}, Args: []string{"run"}, Env: attackLabKubernetesJobEnvironment(job, string(expectedSideEffects)), SecurityContext: attackLabKubernetesSecurityContext{AllowPrivilegeEscalation: false, ReadOnlyRootFilesystem: true, RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, Capabilities: attackLabKubernetesCapabilities{Drop: []string{"ALL"}}}, Resources: attackLabKubernetesResources{Requests: attackLabKubernetesResourceValues(job), Limits: attackLabKubernetesResourceValues(job)}, VolumeMounts: []attackLabKubernetesVolumeMount{{Name: "proxy-ca", MountPath: "/var/run/secrets/zasp-attack-lab", ReadOnly: true}}, TerminationMessagePath: "/dev/termination-log", TerminationMessagePolicy: "File"}},
+				Volumes:         []attackLabKubernetesVolume{{Name: "proxy-ca", ConfigMap: &attackLabKubernetesConfigMapVolume{Name: "agentsec-attack-lab-proxy-ca", DefaultMode: 0o444}}},
+			}},
+		},
+	}
+	return manifest
 }
 
 func attackLabKubernetesTestResponse(status int, body string) *http.Response {

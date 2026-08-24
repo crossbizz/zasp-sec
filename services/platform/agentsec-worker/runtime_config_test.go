@@ -90,7 +90,8 @@ func TestAttackLabControllerModeRequiresExactSandboxAndCloudAuthority(t *testing
 		"queue drift": func(input map[string]string) {
 			input["ZASP_ATTACK_LAB_QUEUE_URL"] = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests"
 		},
-		"namespace drift": func(input map[string]string) { input["ZASP_ATTACK_LAB_NAMESPACE"] = "default" },
+		"namespace drift":        func(input map[string]string) { input["ZASP_ATTACK_LAB_NAMESPACE"] = "default" },
+		"foreign security group": func(input map[string]string) { input["ZASP_ATTACK_LAB_SECURITY_GROUP_ID"] = "sg-not-valid" },
 		"mutable image": func(input map[string]string) {
 			input["ZASP_ATTACK_LAB_RUNNER_IMAGE"] = "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner:latest"
 		},
@@ -124,6 +125,7 @@ func validAttackLabControllerRuntimeEnvironment() map[string]string {
 		"ZASP_EVIDENCE_BUCKET": "zasp-production-evidence", "ZASP_EVIDENCE_BUCKET_OWNER": "123456789012", "ZASP_EVIDENCE_KMS_KEY_ARN": "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
 		"ZASP_ATTACK_LAB_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-attack-lab-controller", "ZASP_ATTACK_LAB_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
 		"ZASP_ATTACK_LAB_NAMESPACE": "zasp-attack-lab", "ZASP_ATTACK_LAB_RUNNER_SERVICE_ACCOUNT": "agentsec-attack-lab-runner",
+		"ZASP_ATTACK_LAB_SECURITY_GROUP_ID":   "sg-1234abcd",
 		"ZASP_ATTACK_LAB_RUNNER_IMAGE":        "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64),
 		"ZASP_ATTACK_LAB_KUBERNETES_ENDPOINT": "https://kubernetes.default.svc", "ZASP_ATTACK_LAB_KUBERNETES_TOKEN_FILE": "/var/run/secrets/kubernetes.io/serviceaccount/token", "ZASP_ATTACK_LAB_KUBERNETES_CA_FILE": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
 		"ZASP_ATTACK_LAB_PROXY_ENDPOINT": "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress", "ZASP_ATTACK_LAB_PROXY_CA_FILE": "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", "ZASP_ATTACK_LAB_EGRESS_SIGNING_KEY_FILE": "/var/run/secrets/zasp-attack-lab/egress-signing-key",

@@ -1733,7 +1733,7 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 	}
 	attackLabProxy := connectAs(principalNames[24])
 	var attackLabEgressJSON []byte
-	if err := attackLabProxy.QueryRow(ctx, `SELECT zasp_attack_lab_resolve_egress($1,$2,$3,$4,$5)`, organizationID, workspaceID, environmentID, attackLabRerunID, "adapter-rerun.customer.example").Scan(&attackLabEgressJSON); err != nil || !bytes.Contains(attackLabEgressJSON, []byte(`"destination": "adapter-rerun.customer.example"`)) || !bytes.Contains(attackLabEgressJSON, []byte(`"methods": ["POST"]`)) {
+	if err := attackLabProxy.QueryRow(ctx, `SELECT zasp_attack_lab_resolve_egress($1,$2,$3,$4,$5)`, organizationID, workspaceID, environmentID, attackLabRerunID, "adapter-rerun.customer.example").Scan(&attackLabEgressJSON); err != nil || !bytes.Contains(attackLabEgressJSON, []byte(`"destination": "adapter-rerun.customer.example"`)) || !bytes.Contains(attackLabEgressJSON, []byte(`"credential_reference": "ref:red-team/target-0001"`)) || !bytes.Contains(attackLabEgressJSON, []byte(`"methods": ["POST"]`)) {
 		attackLabProxy.Close(context.Background())
 		attackLabController.Close(context.Background())
 		redTeamAPI.Close(context.Background())
@@ -1744,6 +1744,15 @@ func TestAgentsecMigrateCLIReachesV26FromEmptyAndV12(t *testing.T) {
 		attackLabController.Close(context.Background())
 		redTeamAPI.Close(context.Background())
 		t.Fatal("attack lab proxy resolved an undeclared destination")
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_attack_lab_credential_bindings SET state='revoked' WHERE (organization_id,workspace_id,environment_id,target_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, targetID); err != nil {
+		t.Fatal(err)
+	}
+	if err := attackLabProxy.QueryRow(ctx, `SELECT zasp_attack_lab_resolve_egress($1,$2,$3,$4,$5)`, organizationID, workspaceID, environmentID, attackLabRerunID, "adapter-rerun.customer.example").Scan(&attackLabEgressJSON); err == nil {
+		t.Fatal("attack lab proxy retained access after credential revocation")
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_attack_lab_credential_bindings SET state='active' WHERE (organization_id,workspace_id,environment_id,target_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, targetID); err != nil {
+		t.Fatal(err)
 	}
 	attackLabProxy.Close(context.Background())
 	if _, err := connection.Exec(ctx, `UPDATE zasp_attack_lab_runs SET lease_expires_at=transaction_timestamp()-interval '1 second' WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID); err != nil {

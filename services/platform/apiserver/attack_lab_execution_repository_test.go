@@ -51,7 +51,7 @@ func TestAttackLabExecutionRepositoryBindsOutboxControllerAndProxyAuthority(t *t
 		postgresAttackLabRetryOutboxSQL: mustRedTeamJSON(t, map[string]any{"outbox_id": outboxID, "state": "pending", "available_at": now.Add(30 * time.Second), "error_code": "queue_publish_unknown", "remaining_count": 0, "replayed": false}),
 		postgresAttackLabClaimRunSQL:    claimRun, postgresAttackLabHeartbeatRunSQL: mustRedTeamJSON(t, map[string]any{"renewed": true, "cancel_requested": false, "lease_expires_at": now.Add(60 * time.Second)}), postgresAttackLabRetryRunSQL: mustRedTeamJSON(t, mergeAttackLabRun(retryable, nil)),
 		postgresAttackLabMarkRunningSQL: mustRedTeamJSON(t, mergeAttackLabRun(running, map[string]any{"replayed": false})), postgresAttackLabBeginCleanupSQL: mustRedTeamJSON(t, mergeAttackLabRun(cleanup, map[string]any{"replayed": false})), postgresAttackLabFinishCleanupSQL: mustRedTeamJSON(t, mergeAttackLabRun(complete, map[string]any{"replayed": false})),
-		postgresAttackLabResolveEgressSQL: mustRedTeamJSON(t, map[string]any{"organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "run_id": runID, "destination": "adapter.customer.example", "methods": []string{"POST"}, "expires_at": now.Add(60 * time.Second)}),
+		postgresAttackLabResolveEgressSQL: mustRedTeamJSON(t, map[string]any{"organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "run_id": runID, "destination": "adapter.customer.example", "credential_reference": "ref:red-team/target-0001", "methods": []string{"POST"}, "expires_at": now.Add(60 * time.Second)}),
 	}}
 
 	outbox, err := NewAttackLabExecutionRepository(database, AttackLabExecutionAuthorityOutbox)
@@ -106,7 +106,7 @@ func TestAttackLabExecutionRepositoryBindsOutboxControllerAndProxyAuthority(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	if authority, err := proxy.ResolveAttackLabEgress(context.Background(), identity.Scope, runID, "adapter.customer.example"); err != nil || authority.RunID != runID || !reflect.DeepEqual(authority.Methods, []string{"POST"}) {
+	if authority, err := proxy.ResolveAttackLabEgress(context.Background(), identity.Scope, runID, "adapter.customer.example"); err != nil || authority.RunID != runID || authority.CredentialReference != "ref:red-team/target-0001" || !reflect.DeepEqual(authority.Methods, []string{"POST"}) {
 		t.Fatalf("egress=%#v err=%v", authority, err)
 	}
 	wantClaim := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), runID, worker, token, 60}
@@ -138,6 +138,32 @@ func TestAttackLabExecutionRepositoryRejectsIncompleteEvidenceBeforeDatabaseIO(t
 	}
 	if calls := database.callsFor(postgresAttackLabBeginCleanupSQL); len(calls) != 0 {
 		t.Fatalf("prefixed evidence object path reached database: %#v", calls)
+	}
+}
+
+func TestAttackLabExecutionRepositoryRejectsMissingOrMalformedProxyCredentialAuthority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	now := time.Now().UTC()
+	runID := "pid_7c000031-0000-4000-8000-000000000031"
+	for name, reference := range map[string]any{
+		"missing": nil,
+		"foreign": "ref:github/installation/123456",
+		"inline":  "plaintext-secret",
+	} {
+		t.Run(name, func(t *testing.T) {
+			value := map[string]any{"organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "run_id": runID, "destination": "adapter.customer.example", "methods": []string{"POST"}, "expires_at": now.Add(time.Minute)}
+			if reference != nil {
+				value["credential_reference"] = reference
+			}
+			database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresAttackLabExecutionReadinessSQL: json.RawMessage(`true`), postgresAttackLabPrincipalReadySQL: json.RawMessage(`true`), postgresAttackLabResolveEgressSQL: mustRedTeamJSON(t, value)}}
+			repository, err := NewAttackLabExecutionRepository(database, AttackLabExecutionAuthorityProxy)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if authority, err := repository.ResolveAttackLabEgress(context.Background(), identity.Scope, runID, "adapter.customer.example"); !errors.Is(err, ErrRepositoryUnavailable) || !reflect.DeepEqual(authority, AttackLabEgressAuthority{}) {
+				t.Fatalf("authority=%#v err=%v", authority, err)
+			}
+		})
 	}
 }
 

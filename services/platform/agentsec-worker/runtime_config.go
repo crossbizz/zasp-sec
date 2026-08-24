@@ -101,6 +101,7 @@ type workerRuntimeConfig struct {
 	AttackLabNamespace         string
 	AttackLabRunnerService     string
 	AttackLabRunnerImage       string
+	AttackLabSecurityGroup     string
 	AttackLabKubernetesURL     string
 	AttackLabKubernetesToken   string
 	AttackLabKubernetesCA      string
@@ -168,6 +169,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		OutboxRoleARN: getenv("ZASP_OUTBOX_ROLE_ARN"), OutboxTokenFile: getenv("ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE"),
 		RedTeamRoleARN: getenv("ZASP_RED_TEAM_ROLE_ARN"), RedTeamTokenFile: getenv("ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE"), RedTeamTargetEndpoint: getenv("ZASP_RED_TEAM_TARGET_ENDPOINT"), RedTeamTargetTokenFile: getenv("ZASP_RED_TEAM_TARGET_TOKEN_FILE"), RedTeamTargetCAFile: getenv("ZASP_RED_TEAM_TARGET_CA_FILE"), RedTeamRunnerTimeout: redTeamRunnerTimeout,
 		AttackLabRoleARN: getenv("ZASP_ATTACK_LAB_ROLE_ARN"), AttackLabTokenFile: getenv("ZASP_ATTACK_LAB_WEB_IDENTITY_TOKEN_FILE"), AttackLabNamespace: getenv("ZASP_ATTACK_LAB_NAMESPACE"), AttackLabRunnerService: getenv("ZASP_ATTACK_LAB_RUNNER_SERVICE_ACCOUNT"), AttackLabRunnerImage: getenv("ZASP_ATTACK_LAB_RUNNER_IMAGE"),
+		AttackLabSecurityGroup: getenv("ZASP_ATTACK_LAB_SECURITY_GROUP_ID"),
 		AttackLabKubernetesURL: getenv("ZASP_ATTACK_LAB_KUBERNETES_ENDPOINT"), AttackLabKubernetesToken: getenv("ZASP_ATTACK_LAB_KUBERNETES_TOKEN_FILE"), AttackLabKubernetesCA: getenv("ZASP_ATTACK_LAB_KUBERNETES_CA_FILE"), AttackLabProxyEndpoint: getenv("ZASP_ATTACK_LAB_PROXY_ENDPOINT"), AttackLabProxyCAFile: getenv("ZASP_ATTACK_LAB_PROXY_CA_FILE"), AttackLabSigningKeyFile: getenv("ZASP_ATTACK_LAB_EGRESS_SIGNING_KEY_FILE"), AttackLabOperationTimeout: attackLabOperationTimeout,
 		GatewaySigningKeyID: getenv("ZASP_GATEWAY_SIGNING_KEY_ID"), GatewaySigningPrivateFile: getenv("ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE"),
 		RuntimeRoleARN: getenv("ZASP_RUNTIME_ROLE_ARN"), RuntimeTokenFile: getenv("ZASP_RUNTIME_WEB_IDENTITY_TOKEN_FILE"),
@@ -378,6 +380,7 @@ func validAttackLabRuntimeAuthority(config workerRuntimeConfig) bool {
 	return len(parts) == 2 && parts[0] == role[1] && parts[1] == "agentsec-attack-lab-jobs" && queue.Hostname() == "sqs."+config.AWSRegion+".amazonaws.com" &&
 		workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && image[1] == config.EvidenceOwner && image[2] == config.AWSRegion &&
 		config.AttackLabTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && config.AttackLabNamespace == "zasp-attack-lab" && config.AttackLabRunnerService == "agentsec-attack-lab-runner" &&
+		attackLabKubernetesSecurityGroupPattern.MatchString(config.AttackLabSecurityGroup) &&
 		config.AttackLabKubernetesURL == "https://kubernetes.default.svc" && config.AttackLabKubernetesToken == "/var/run/secrets/kubernetes.io/serviceaccount/token" && config.AttackLabKubernetesCA == "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt" &&
 		config.AttackLabProxyEndpoint == "https://agentsec-attack-lab-proxy.zasp.svc.cluster.local/v1/egress" && config.AttackLabProxyCAFile == "/var/run/secrets/zasp-attack-lab/proxy-ca.crt" && config.AttackLabSigningKeyFile == "/var/run/secrets/zasp-attack-lab/egress-signing-key" &&
 		config.AttackLabOperationTimeout >= time.Second && config.AttackLabOperationTimeout <= 30*time.Second && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.RedTeamQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""

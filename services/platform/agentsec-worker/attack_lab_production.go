@@ -57,7 +57,7 @@ func newProductionAttackLabDependencies(config workerRuntimeConfig) (*production
 	if err != nil {
 		return fail()
 	}
-	kubernetes, err = newProductionAttackLabKubernetesAPI(config.AttackLabKubernetesURL, config.AttackLabKubernetesToken, config.AttackLabKubernetesCA, requestTimeout)
+	kubernetes, err = newProductionAttackLabKubernetesAPI(config.AttackLabKubernetesURL, config.AttackLabKubernetesToken, config.AttackLabKubernetesCA, config.AttackLabSecurityGroup, requestTimeout)
 	if err != nil {
 		return fail()
 	}

@@ -34,6 +34,7 @@ func (stub *credentialResolverStub) ResolveTargetCredential(_ context.Context, r
 
 func TestHTTPSInvokerSignsCanonicalPayloadAndZeroizesCredential(t *testing.T) {
 	secret := []byte("0123456789abcdef0123456789abcdef")
+	expectedSecret := append([]byte(nil), secret...)
 	destroyed := &atomic.Bool{}
 	resolver := &credentialResolverStub{secret: secret, destroyed: destroyed}
 	var calls atomic.Int32
@@ -41,7 +42,7 @@ func TestHTTPSInvokerSignsCanonicalPayloadAndZeroizesCredential(t *testing.T) {
 		calls.Add(1)
 		body, _ := io.ReadAll(request.Body)
 		digest := sha256.Sum256(body)
-		mac := hmac.New(sha256.New, secret)
+		mac := hmac.New(sha256.New, expectedSecret)
 		_, _ = mac.Write(body)
 		if request.Method != http.MethodPost || request.URL.Path != "/v1/evaluate" || request.URL.RawQuery != "" || request.Header.Get("Content-Type") != "application/json" || request.Header.Get("Accept") != "application/json" || request.Header.Get("Authorization") != "" || request.Header.Get("Cookie") != "" || request.Header.Get("X-Zasp-Run-ID") != testRunID || request.Header.Get("X-Zasp-Payload-Digest") != "sha256:"+hex.EncodeToString(digest[:]) || request.Header.Get("X-Zasp-Signature") != "sha256:"+hex.EncodeToString(mac.Sum(nil)) {
 			t.Errorf("request = %s %s headers=%#v body=%s", request.Method, request.URL.String(), request.Header, body)
@@ -69,6 +70,20 @@ func TestHTTPSInvokerSignsCanonicalPayloadAndZeroizesCredential(t *testing.T) {
 		if value != 0 {
 			t.Fatal("credential resolver bytes were not zeroized")
 		}
+	}
+}
+
+func TestAuthorizeTargetPayloadReturnsOnlyDigestAndSignatureAndDestroysCredential(t *testing.T) {
+	secret := []byte("0123456789abcdef0123456789abcdef")
+	destroyed := &atomic.Bool{}
+	resolver := &credentialResolverStub{secret: secret, destroyed: destroyed}
+	payload := []byte(`{"schema_version":"attack-lab-canary-request-v1"}`)
+	authorization, err := AuthorizeTargetPayload(context.Background(), resolver, "ref:red-team/target-0001", payload)
+	digest := sha256.Sum256(payload)
+	mac := hmac.New(sha256.New, []byte("0123456789abcdef0123456789abcdef"))
+	_, _ = mac.Write(payload)
+	if err != nil || authorization.PayloadDigest != "sha256:"+hex.EncodeToString(digest[:]) || authorization.Signature != "sha256:"+hex.EncodeToString(mac.Sum(nil)) || resolver.calls != 1 || !destroyed.Load() {
+		t.Fatalf("authorization=%#v calls=%d destroyed=%t err=%v", authorization, resolver.calls, destroyed.Load(), err)
 	}
 }
 

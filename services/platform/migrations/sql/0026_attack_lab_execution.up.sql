@@ -427,11 +427,18 @@ END
 $running$;
 
 CREATE FUNCTION public.zasp_attack_lab_resolve_egress(organization_value text,workspace_value text,environment_value text,run_value text,destination_value text) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $resolve$
-DECLARE run_row zasp_attack_lab_runs%ROWTYPE;expiration_value timestamptz;
+DECLARE run_row zasp_attack_lab_runs%ROWTYPE;definition_row zasp_red_team_definitions%ROWTYPE;target_row zasp_inventory_entities%ROWTYPE;binding_row zasp_attack_lab_credential_bindings%ROWTYPE;expiration_value timestamptz;current_destination text;environment_class_value text;
 BEGIN
  IF NOT zasp_attack_lab_principal_ready('zasp_attack_lab_proxy') OR NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR NOT zasp_valid_product_id(run_value) OR length(destination_value) NOT BETWEEN 1 AND 253 OR destination_value<>lower(destination_value) OR destination_value!~'^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$' OR destination_value LIKE '%..%' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab egress resolution rejected';END IF;
- SELECT * INTO STRICT run_row FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id,state,destination)=(organization_value,workspace_value,environment_value,run_value,'running',destination_value) AND cleanup_state='pending' AND NOT cancel_requested AND lease_expires_at>transaction_timestamp();expiration_value:=LEAST(run_row.lease_expires_at,run_row.attempt_started_at+interval '300 seconds');IF expiration_value<=transaction_timestamp() THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='attack lab egress expired';END IF;
- RETURN jsonb_build_object('organization_id',organization_value,'workspace_id',workspace_value,'environment_id',environment_value,'run_id',run_value,'destination',destination_value,'methods',jsonb_build_array('POST'),'expires_at',expiration_value);
+ SELECT * INTO STRICT run_row FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id,state,destination)=(organization_value,workspace_value,environment_value,run_value,'running',destination_value) AND cleanup_state='pending' AND NOT cancel_requested AND lease_expires_at>transaction_timestamp();
+ SELECT * INTO STRICT definition_row FROM zasp_red_team_definitions WHERE (organization_id,workspace_id,environment_id,definition_id,version,enabled,target_id,target_kind)=(organization_value,workspace_value,environment_value,run_row.definition_id,run_row.definition_version,true,run_row.target_id,run_row.target_kind);
+ SELECT environment_class INTO STRICT environment_class_value FROM zasp_environments WHERE (organization_id,workspace_id,id)=(organization_value,workspace_value,environment_value);
+ SELECT * INTO STRICT target_row FROM zasp_inventory_entities WHERE (organization_id,workspace_id,environment_id,id,state)=(organization_value,workspace_value,environment_value,run_row.target_id,'active') AND fresh_until>transaction_timestamp() AND zasp_red_team_target_binding_valid(winning_attributes->'red_team',run_row.target_kind);
+ SELECT * INTO STRICT binding_row FROM zasp_attack_lab_credential_bindings WHERE (organization_id,workspace_id,environment_id,binding_id,target_id,credential_reference,credential_class,version,reference_digest,state)=(organization_value,workspace_value,environment_value,run_row.credential_binding_id,run_row.target_id,target_row.winning_attributes->'red_team'->>'credential_reference',run_row.credential_class,run_row.credential_binding_version,run_row.credential_binding_digest,'active') AND valid_until>transaction_timestamp();
+ current_destination:=substring(target_row.winning_attributes->'red_team'->>'endpoint' FROM '^https://([^/]+)/v1/evaluate$');
+ IF environment_class_value='production' OR environment_class_value<>run_row.environment OR current_destination IS NULL OR current_destination<>run_row.destination OR definition_row.safety->>'environment'<>run_row.environment OR definition_row.safety->>'credential_class'<>run_row.credential_class THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='attack lab egress unavailable';END IF;
+ expiration_value:=LEAST(run_row.lease_expires_at,run_row.attempt_started_at+interval '300 seconds');IF expiration_value<=transaction_timestamp() THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='attack lab egress expired';END IF;
+ RETURN jsonb_build_object('organization_id',organization_value,'workspace_id',workspace_value,'environment_id',environment_value,'run_id',run_value,'destination',destination_value,'credential_reference',binding_row.credential_reference,'methods',jsonb_build_array('POST'),'expires_at',expiration_value);
 EXCEPTION WHEN no_data_found THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='attack lab egress unavailable';
 END
 $resolve$;
@@ -554,4 +561,4 @@ END
 $product_release_evolution$;
 
 UPDATE public.zasp_schema_metadata SET value='attack-lab-execution-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='red-team-execution-v1';
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('attack_lab_execution_fingerprint', '4d3bd83a615a5f8c550fd017af4ba55d0b81f921f3d78260b913104d1241ad97') ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('attack_lab_execution_fingerprint', 'd5268295167680640db3be3d86f1b88a3a8f19214014a1d057bed7a4e60b7938') ON CONFLICT(key) DO UPDATE SET value=excluded.value;

@@ -41,7 +41,7 @@ func loadRuntimeConfig(getenv func(string) string) (runtimeConfig, error) {
 		DatabaseAuthority: getenv("ZASP_DATABASE_AUTHORITY"),
 		AWS: redteamadapter.CloudConfig{
 			Region: getenv("ZASP_AWS_REGION"), RoleARN: getenv("ZASP_RED_TEAM_ADAPTER_ROLE_ARN"),
-			WebIdentityTokenFile: getenv("ZASP_RED_TEAM_ADAPTER_WEB_IDENTITY_TOKEN_FILE"), ReadinessCredentialReference: getenv("ZASP_RED_TEAM_READINESS_CREDENTIAL_REFERENCE"),
+			RoleSessionName: "zasp-red-team-adapter", WebIdentityTokenFile: getenv("ZASP_RED_TEAM_ADAPTER_WEB_IDENTITY_TOKEN_FILE"), SecretPrefix: "zasp/red-team/targets", ReadinessCredentialReference: getenv("ZASP_RED_TEAM_READINESS_CREDENTIAL_REFERENCE"),
 			Timeout: requestTimeout, Clock: func() time.Time { return time.Now().UTC() },
 		},
 		AllowedTargetCIDRs:  splitExactCSV(getenv("ZASP_RED_TEAM_ALLOWED_TARGET_CIDRS")),

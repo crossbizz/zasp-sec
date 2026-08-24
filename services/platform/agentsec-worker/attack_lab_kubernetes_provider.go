@@ -1,15 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"io"
 	"regexp"
 	"strings"
 	"time"
@@ -17,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/attacklab"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
@@ -63,18 +59,6 @@ type productionAttackLabKubernetesProvider struct {
 	config productionAttackLabKubernetesProviderConfig
 }
 
-type attackLabEgressClaims struct {
-	SchemaVersion  string   `json:"schema_version"`
-	OrganizationID string   `json:"organization_id"`
-	WorkspaceID    string   `json:"workspace_id"`
-	EnvironmentID  string   `json:"environment_id"`
-	RunID          string   `json:"run_id"`
-	Destination    string   `json:"destination"`
-	Methods        []string `json:"methods"`
-	ExpiresAt      int64    `json:"expires_at"`
-	InputDigest    string   `json:"input_digest"`
-}
-
 func newProductionAttackLabKubernetesProvider(config productionAttackLabKubernetesProviderConfig) (*productionAttackLabKubernetesProvider, error) {
 	if !validProductionAttackLabKubernetesProviderConfig(config) {
 		return nil, errRuntimeUnavailable
@@ -110,7 +94,7 @@ func (provider *productionAttackLabKubernetesProvider) Create(ctx context.Contex
 		return attackLabSandbox{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	expires := request.Run.StartedAt.Add(time.Duration(request.Run.Limits.TimeoutSeconds) * time.Second)
-	token, err := signAttackLabEgressToken(provider.config.SigningKey, request, expires)
+	token, err := signAttackLabEgressToken(provider.config.SigningKey, request, provider.config.Now(), expires)
 	if err != nil {
 		return attackLabSandbox{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
@@ -234,44 +218,16 @@ func attackLabSandboxIdentity(reference string) (string, string, bool) {
 	return parts[0], parts[1], true
 }
 
-func signAttackLabEgressToken(key []byte, request attackLabSandboxRequest, expires time.Time) (string, error) {
-	if len(key) < 32 || len(key) > 64 || expires.IsZero() || expires.Location() != time.UTC {
-		return "", errWorkerExecution
-	}
-	claims := attackLabEgressClaims{SchemaVersion: "attack-lab-egress-v1", OrganizationID: request.Scope.OrganizationID().String(), WorkspaceID: request.Scope.WorkspaceID().String(), EnvironmentID: request.Scope.EnvironmentID().String(), RunID: request.Run.ID, Destination: request.Run.Destination, Methods: []string{"POST"}, ExpiresAt: expires.Unix(), InputDigest: hex.EncodeToString(request.InputDigest[:])}
-	payload, err := json.Marshal(claims)
-	if err != nil {
-		return "", errWorkerExecution
-	}
-	encoded := base64.RawURLEncoding.EncodeToString(payload)
-	mac := hmac.New(sha256.New, key)
-	_, _ = mac.Write([]byte(encoded))
-	return encoded + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil)), nil
+func signAttackLabEgressToken(key []byte, request attackLabSandboxRequest, now, expires time.Time) (string, error) {
+	return attacklab.SignEgressCapability(key, attacklab.EgressGrant{Scope: request.Scope, RunID: request.Run.ID, Destination: request.Run.Destination, Methods: []string{"POST"}, ExpiresAt: expires, InputDigest: request.InputDigest}, now)
 }
 
 func verifyAttackLabEgressToken(key []byte, token string, scope domain.Scope, runID, destination, method string, now time.Time) error {
-	parts := strings.Split(token, ".")
-	if len(key) < 32 || len(parts) != 2 || scope.Validate() != nil || method != "POST" || now.IsZero() || now.Location() != time.UTC {
-		return errWorkerExecution
-	}
-	signature, signatureErr := base64.RawURLEncoding.DecodeString(parts[1])
-	mac := hmac.New(sha256.New, key)
-	_, _ = mac.Write([]byte(parts[0]))
-	if signatureErr != nil || subtleCompare(signature, mac.Sum(nil)) == false {
-		return errWorkerExecution
-	}
-	payload, payloadErr := base64.RawURLEncoding.DecodeString(parts[0])
-	var claims attackLabEgressClaims
-	decoder := json.NewDecoder(bytes.NewReader(payload))
-	decoder.DisallowUnknownFields()
-	if payloadErr != nil || decoder.Decode(&claims) != nil || !errors.Is(decoder.Decode(&struct{}{}), io.EOF) || claims.SchemaVersion != "attack-lab-egress-v1" || claims.OrganizationID != scope.OrganizationID().String() || claims.WorkspaceID != scope.WorkspaceID().String() || claims.EnvironmentID != scope.EnvironmentID().String() || claims.RunID != runID || claims.Destination != destination || len(claims.Methods) != 1 || claims.Methods[0] != method || now.Unix() >= claims.ExpiresAt || len(claims.InputDigest) != sha256.Size*2 {
+	grant, err := attacklab.VerifyEgressCapability(key, token, now)
+	if err != nil || grant.Scope != scope || grant.RunID != runID || grant.Destination != destination || len(grant.Methods) != 1 || grant.Methods[0] != method {
 		return errWorkerExecution
 	}
 	return nil
-}
-
-func subtleCompare(left, right []byte) bool {
-	return hmac.Equal(left, right)
 }
 
 func productionAttackLabProviderError(err error, fallback string) error {

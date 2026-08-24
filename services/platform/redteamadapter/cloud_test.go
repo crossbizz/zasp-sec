@@ -28,7 +28,7 @@ func TestCloudAuthorityReadinessBindsExactRoleIdentityAndSecretAccess(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := CloudConfig{Region: "us-west-2", RoleARN: "arn:aws:iam::123456789012:role/zasp-red-team-adapter", WebIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", ReadinessCredentialReference: "ref:red-team/readiness-0001", Timeout: time.Second, Clock: func() time.Time { return time.Now().UTC() }}
+	config := CloudConfig{Region: "us-west-2", RoleARN: "arn:aws:iam::123456789012:role/zasp-red-team-adapter", RoleSessionName: "zasp-red-team-adapter", WebIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", SecretPrefix: "zasp/red-team/targets", ReadinessCredentialReference: "ref:red-team/readiness-0001", Timeout: time.Second, Clock: func() time.Time { return time.Now().UTC() }}
 	authority := &CloudAuthority{credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
 		return aws.Credentials{AccessKeyID: "A", SecretAccessKey: "B"}, nil
 	}), identity: identity, resolver: resolver, config: config}
@@ -45,7 +45,7 @@ func TestCloudAuthorityReadinessBindsExactRoleIdentityAndSecretAccess(t *testing
 }
 
 func TestCloudConfigurationRejectsAmbientOrBroadAuthority(t *testing.T) {
-	valid := CloudConfig{Region: "us-west-2", RoleARN: "arn:aws:iam::123456789012:role/zasp-red-team-adapter", WebIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", ReadinessCredentialReference: "ref:red-team/readiness-0001", Timeout: time.Second, Clock: func() time.Time { return time.Now().UTC() }}
+	valid := CloudConfig{Region: "us-west-2", RoleARN: "arn:aws:iam::123456789012:role/zasp-red-team-adapter", RoleSessionName: "zasp-red-team-adapter", WebIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", SecretPrefix: "zasp/red-team/targets", ReadinessCredentialReference: "ref:red-team/readiness-0001", Timeout: time.Second, Clock: func() time.Time { return time.Now().UTC() }}
 	if !validCloudConfig(valid) {
 		t.Fatal("valid cloud configuration rejected")
 	}

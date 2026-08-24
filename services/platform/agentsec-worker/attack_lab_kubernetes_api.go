@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -22,16 +23,18 @@ import (
 const attackLabKubernetesResponseLimit = 64 << 10
 
 var attackLabKubernetesLabelPattern = regexp.MustCompile(`^[a-z0-9](?:[-a-z0-9_.]{0,61}[a-z0-9])?$`)
+var attackLabKubernetesSecurityGroupPattern = regexp.MustCompile(`^sg-[a-f0-9]{8}(?:[a-f0-9]{9})?$`)
 
 type productionAttackLabKubernetesAPI struct {
-	endpoint  string
-	tokenFile string
-	client    *http.Client
-	transport *http.Transport
+	endpoint        string
+	tokenFile       string
+	securityGroupID string
+	client          *http.Client
+	transport       *http.Transport
 }
 
-func newProductionAttackLabKubernetesAPI(endpoint, tokenFile, caFile string, timeout time.Duration) (*productionAttackLabKubernetesAPI, error) {
-	if endpoint != "https://kubernetes.default.svc" || tokenFile != "/var/run/secrets/kubernetes.io/serviceaccount/token" || caFile != "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt" || timeout < time.Second || timeout > 30*time.Second {
+func newProductionAttackLabKubernetesAPI(endpoint, tokenFile, caFile, securityGroupID string, timeout time.Duration) (*productionAttackLabKubernetesAPI, error) {
+	if endpoint != "https://kubernetes.default.svc" || tokenFile != "/var/run/secrets/kubernetes.io/serviceaccount/token" || caFile != "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt" || !attackLabKubernetesSecurityGroupPattern.MatchString(securityGroupID) || timeout < time.Second || timeout > 30*time.Second {
 		return nil, errRuntimeUnavailable
 	}
 	caBundle, err := os.ReadFile(caFile)
@@ -49,7 +52,7 @@ func newProductionAttackLabKubernetesAPI(endpoint, tokenFile, caFile string, tim
 		TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots, ServerName: "kubernetes.default.svc"}, TLSHandshakeTimeout: timeout, ResponseHeaderTimeout: timeout, MaxResponseHeaderBytes: 64 << 10,
 	}
 	client := &http.Client{Transport: transport, Timeout: timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirect rejected") }}
-	return &productionAttackLabKubernetesAPI{endpoint: endpoint, tokenFile: tokenFile, client: client, transport: transport}, nil
+	return &productionAttackLabKubernetesAPI{endpoint: endpoint, tokenFile: tokenFile, securityGroupID: securityGroupID, client: client, transport: transport}, nil
 }
 
 func (api *productionAttackLabKubernetesAPI) Close() error {
@@ -98,16 +101,31 @@ type attackLabKubernetesPodTemplate struct {
 }
 
 type attackLabKubernetesPodSpec struct {
-	ServiceAccountName            string                         `json:"serviceAccountName"`
-	AutomountServiceAccountToken  bool                           `json:"automountServiceAccountToken"`
-	RestartPolicy                 string                         `json:"restartPolicy"`
-	EnableServiceLinks            bool                           `json:"enableServiceLinks"`
-	TerminationGracePeriodSeconds int64                          `json:"terminationGracePeriodSeconds"`
-	HostNetwork                   bool                           `json:"hostNetwork"`
-	HostPID                       bool                           `json:"hostPID"`
-	HostIPC                       bool                           `json:"hostIPC"`
-	Containers                    []attackLabKubernetesContainer `json:"containers"`
-	Volumes                       []attackLabKubernetesVolume    `json:"volumes"`
+	ServiceAccountName            string                                `json:"serviceAccountName"`
+	AutomountServiceAccountToken  bool                                  `json:"automountServiceAccountToken"`
+	RestartPolicy                 string                                `json:"restartPolicy"`
+	EnableServiceLinks            bool                                  `json:"enableServiceLinks"`
+	TerminationGracePeriodSeconds int64                                 `json:"terminationGracePeriodSeconds"`
+	HostNetwork                   bool                                  `json:"hostNetwork"`
+	HostPID                       bool                                  `json:"hostPID"`
+	HostIPC                       bool                                  `json:"hostIPC"`
+	SchedulerName                 string                                `json:"schedulerName,omitempty"`
+	ServiceAccount                string                                `json:"serviceAccount,omitempty"`
+	SecurityContext               attackLabKubernetesPodSecurityContext `json:"securityContext"`
+	Containers                    []attackLabKubernetesContainer        `json:"containers"`
+	Volumes                       []attackLabKubernetesVolume           `json:"volumes"`
+}
+
+type attackLabKubernetesPodSecurityContext struct {
+	RunAsNonRoot   bool                              `json:"runAsNonRoot"`
+	RunAsUser      int64                             `json:"runAsUser"`
+	RunAsGroup     int64                             `json:"runAsGroup"`
+	FSGroup        int64                             `json:"fsGroup"`
+	SeccompProfile attackLabKubernetesSeccompProfile `json:"seccompProfile"`
+}
+
+type attackLabKubernetesSeccompProfile struct {
+	Type string `json:"type"`
 }
 
 type attackLabKubernetesContainer struct {
@@ -178,10 +196,31 @@ type attackLabKubernetesNamespace struct {
 }
 
 type attackLabKubernetesServiceAccount struct {
-	APIVersion                   string                        `json:"apiVersion"`
-	Kind                         string                        `json:"kind"`
-	Metadata                     attackLabKubernetesObjectMeta `json:"metadata"`
-	AutomountServiceAccountToken *bool                         `json:"automountServiceAccountToken"`
+	APIVersion                   string                              `json:"apiVersion"`
+	Kind                         string                              `json:"kind"`
+	Metadata                     attackLabKubernetesObjectMeta       `json:"metadata"`
+	AutomountServiceAccountToken *bool                               `json:"automountServiceAccountToken"`
+	Secrets                      []attackLabKubernetesLocalReference `json:"secrets"`
+	ImagePullSecrets             []attackLabKubernetesLocalReference `json:"imagePullSecrets"`
+}
+
+type attackLabKubernetesLocalReference struct {
+	Name string `json:"name"`
+}
+
+type attackLabKubernetesSecurityGroupPolicy struct {
+	APIVersion string                        `json:"apiVersion"`
+	Kind       string                        `json:"kind"`
+	Metadata   attackLabKubernetesObjectMeta `json:"metadata"`
+	Spec       struct {
+		PodSelector struct {
+			MatchLabels      map[string]string `json:"matchLabels"`
+			MatchExpressions []json.RawMessage `json:"matchExpressions"`
+		} `json:"podSelector"`
+		SecurityGroups struct {
+			GroupIDs []string `json:"groupIds"`
+		} `json:"securityGroups"`
+	} `json:"spec"`
 }
 
 type attackLabKubernetesConfigMap struct {
@@ -195,6 +234,7 @@ type attackLabKubernetesJobRead struct {
 	APIVersion string                        `json:"apiVersion"`
 	Kind       string                        `json:"kind"`
 	Metadata   attackLabKubernetesObjectMeta `json:"metadata"`
+	Spec       attackLabKubernetesJobSpec    `json:"spec"`
 	Status     struct {
 		Succeeded  int32 `json:"succeeded"`
 		Failed     int32 `json:"failed"`
@@ -275,6 +315,7 @@ func (api *productionAttackLabKubernetesAPI) Ready(ctx context.Context) error {
 		{path: "/api/v1/namespaces/zasp-attack-lab", out: &attackLabKubernetesNamespace{}},
 		{path: "/api/v1/namespaces/zasp-attack-lab/serviceaccounts/agentsec-attack-lab-runner", out: &attackLabKubernetesServiceAccount{}},
 		{path: "/api/v1/namespaces/zasp-attack-lab/configmaps/agentsec-attack-lab-proxy-ca", out: &attackLabKubernetesConfigMap{}},
+		{path: "/apis/vpcresources.k8s.aws/v1beta1/namespaces/zasp-attack-lab/securitygrouppolicies/agentsec-attack-lab-egress", out: &attackLabKubernetesSecurityGroupPolicy{}},
 	}
 	for _, check := range checks {
 		body, status, err := api.do(ctx, http.MethodGet, check.path, nil)
@@ -286,7 +327,8 @@ func (api *productionAttackLabKubernetesAPI) Ready(ctx context.Context) error {
 	namespace := checks[1].out.(*attackLabKubernetesNamespace)
 	serviceAccount := checks[2].out.(*attackLabKubernetesServiceAccount)
 	configMap := checks[3].out.(*attackLabKubernetesConfigMap)
-	if version.Major != "1" || !regexp.MustCompile(`^[0-9]{1,3}[+]?$`).MatchString(version.Minor) || namespace.APIVersion != "v1" || namespace.Kind != "Namespace" || namespace.Metadata.Name != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(namespace.Metadata.UID) || namespace.Metadata.Labels["zasp.io/execution"] != "attack-lab" || namespace.Status.Phase != "Active" || serviceAccount.APIVersion != "v1" || serviceAccount.Kind != "ServiceAccount" || serviceAccount.Metadata.Name != "agentsec-attack-lab-runner" || serviceAccount.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(serviceAccount.Metadata.UID) || serviceAccount.AutomountServiceAccountToken == nil || *serviceAccount.AutomountServiceAccountToken || configMap.APIVersion != "v1" || configMap.Kind != "ConfigMap" || configMap.Metadata.Name != "agentsec-attack-lab-proxy-ca" || configMap.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(configMap.Metadata.UID) || len(configMap.Data) != 1 || !validDiscoveryCABundle([]byte(configMap.Data["proxy-ca.crt"])) {
+	securityGroupPolicy := checks[4].out.(*attackLabKubernetesSecurityGroupPolicy)
+	if version.Major != "1" || !regexp.MustCompile(`^[0-9]{1,3}[+]?$`).MatchString(version.Minor) || namespace.APIVersion != "v1" || namespace.Kind != "Namespace" || namespace.Metadata.Name != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(namespace.Metadata.UID) || !reflect.DeepEqual(namespace.Metadata.Labels, map[string]string{"zasp.io/execution": "attack-lab"}) || namespace.Status.Phase != "Active" || serviceAccount.APIVersion != "v1" || serviceAccount.Kind != "ServiceAccount" || serviceAccount.Metadata.Name != "agentsec-attack-lab-runner" || serviceAccount.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(serviceAccount.Metadata.UID) || !reflect.DeepEqual(serviceAccount.Metadata.Labels, map[string]string{"zasp.io/execution": "attack-lab"}) || len(serviceAccount.Metadata.Annotations) != 0 || serviceAccount.AutomountServiceAccountToken == nil || *serviceAccount.AutomountServiceAccountToken || len(serviceAccount.Secrets) != 0 || len(serviceAccount.ImagePullSecrets) != 0 || configMap.APIVersion != "v1" || configMap.Kind != "ConfigMap" || configMap.Metadata.Name != "agentsec-attack-lab-proxy-ca" || configMap.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(configMap.Metadata.UID) || len(configMap.Data) != 1 || !validDiscoveryCABundle([]byte(configMap.Data["proxy-ca.crt"])) || securityGroupPolicy.APIVersion != "vpcresources.k8s.aws/v1beta1" || securityGroupPolicy.Kind != "SecurityGroupPolicy" || securityGroupPolicy.Metadata.Name != "agentsec-attack-lab-egress" || securityGroupPolicy.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(securityGroupPolicy.Metadata.UID) || len(securityGroupPolicy.Metadata.Annotations) != 0 || !reflect.DeepEqual(securityGroupPolicy.Spec.PodSelector.MatchLabels, map[string]string{"zasp.io/execution": "attack-lab"}) || len(securityGroupPolicy.Spec.PodSelector.MatchExpressions) != 0 || !reflect.DeepEqual(securityGroupPolicy.Spec.SecurityGroups.GroupIDs, []string{api.securityGroupID}) {
 		return errRuntimeUnavailable
 	}
 	return nil
@@ -443,6 +485,7 @@ func (api *productionAttackLabKubernetesAPI) Create(ctx context.Context, job att
 					RestartPolicy:                 "Never",
 					EnableServiceLinks:            false,
 					TerminationGracePeriodSeconds: 5,
+					SecurityContext:               attackLabKubernetesPodSecurityContext{RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, FSGroup: 65532, SeccompProfile: attackLabKubernetesSeccompProfile{Type: "RuntimeDefault"}},
 					Containers: []attackLabKubernetesContainer{{
 						Name: "runner", Image: job.Image, ImagePullPolicy: "IfNotPresent", Command: []string{"/app/agentsec-attack-lab-runner"}, Args: []string{"run"},
 						Env:             attackLabKubernetesJobEnvironment(job, string(expectedSideEffects)),
@@ -474,7 +517,7 @@ func (api *productionAttackLabKubernetesAPI) Create(ctx context.Context, job att
 		return "", attackLabKubernetesStatusError(status, "outcome_unknown")
 	}
 	var created attackLabKubernetesJobManifest
-	if !decodeAttackLabKubernetesJSON(responseBody, &created) || created.APIVersion != "batch/v1" || created.Kind != "Job" || created.Metadata.Name != job.Name || created.Metadata.Namespace != job.Namespace || !attackLabKubernetesUIDPattern.MatchString(created.Metadata.UID) {
+	if !decodeAttackLabKubernetesJob(responseBody, &created) || !validExactAttackLabKubernetesJob(created, job) {
 		return "", &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
 	return created.Metadata.UID, nil
@@ -486,17 +529,177 @@ func (api *productionAttackLabKubernetesAPI) reconcileCreatedJob(ctx context.Con
 	if err != nil || status != http.StatusOK {
 		return "", &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
-	var existing attackLabKubernetesJobRead
-	wantAnnotations := attackLabKubernetesJobAnnotations(job)
-	if !decodeAttackLabKubernetesJSON(body, &existing) || existing.APIVersion != "batch/v1" || existing.Kind != "Job" || existing.Metadata.Name != job.Name || existing.Metadata.Namespace != job.Namespace || !attackLabKubernetesUIDPattern.MatchString(existing.Metadata.UID) || len(existing.Metadata.Annotations) != len(wantAnnotations) {
+	var existing attackLabKubernetesJobManifest
+	if !decodeAttackLabKubernetesJob(body, &existing) || !validExactAttackLabKubernetesJob(existing, job) {
 		return "", &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
-	for key, value := range wantAnnotations {
-		if existing.Metadata.Annotations[key] != value {
-			return "", &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+	return existing.Metadata.UID, nil
+}
+
+func validExactAttackLabKubernetesJob(actual attackLabKubernetesJobManifest, job attackLabKubernetesJob) bool {
+	expectedSideEffects, err := json.Marshal(job.ExpectedSideEffects)
+	if err != nil || !attackLabKubernetesUIDPattern.MatchString(actual.Metadata.UID) || actual.APIVersion != "batch/v1" || actual.Kind != "Job" || actual.Metadata.Name != job.Name || actual.Metadata.Namespace != job.Namespace || len(actual.Metadata.OwnerReferences) != 0 || !reflect.DeepEqual(actual.Metadata.Annotations, attackLabKubernetesJobAnnotations(job)) || !validAttackLabKubernetesJobLabels(actual.Metadata.Labels, job.Labels, actual.Metadata.UID, job.Name) {
+		return false
+	}
+	if actual.Spec.ActiveDeadlineSeconds != int64(job.ActiveDeadlineSeconds) || actual.Spec.BackoffLimit != 0 || actual.Spec.Completions != 1 || actual.Spec.Parallelism != 1 || actual.Spec.TTLSecondsAfterFinished != 60 || len(actual.Spec.Template.Metadata.Annotations) != 0 || !validAttackLabKubernetesJobLabels(actual.Spec.Template.Metadata.Labels, job.Labels, actual.Metadata.UID, job.Name) {
+		return false
+	}
+	pod := actual.Spec.Template.Spec
+	wantPodSecurity := attackLabKubernetesPodSecurityContext{RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, FSGroup: 65532, SeccompProfile: attackLabKubernetesSeccompProfile{Type: "RuntimeDefault"}}
+	if pod.ServiceAccountName != job.ServiceAccount || pod.ServiceAccount != "" && pod.ServiceAccount != job.ServiceAccount || pod.AutomountServiceAccountToken || pod.RestartPolicy != "Never" || pod.EnableServiceLinks || pod.TerminationGracePeriodSeconds != 5 || pod.HostNetwork || pod.HostPID || pod.HostIPC || pod.SchedulerName != "" && pod.SchedulerName != "default-scheduler" || pod.SecurityContext != wantPodSecurity || len(pod.Containers) != 1 || len(pod.Volumes) != 1 {
+		return false
+	}
+	wantContainer := attackLabKubernetesContainer{Name: "runner", Image: job.Image, ImagePullPolicy: "IfNotPresent", Command: []string{"/app/agentsec-attack-lab-runner"}, Args: []string{"run"}, Env: attackLabKubernetesJobEnvironment(job, string(expectedSideEffects)), SecurityContext: attackLabKubernetesSecurityContext{AllowPrivilegeEscalation: false, ReadOnlyRootFilesystem: true, RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, Capabilities: attackLabKubernetesCapabilities{Drop: []string{"ALL"}}}, Resources: attackLabKubernetesResources{Requests: attackLabKubernetesResourceValues(job), Limits: attackLabKubernetesResourceValues(job)}, VolumeMounts: []attackLabKubernetesVolumeMount{{Name: "proxy-ca", MountPath: "/var/run/secrets/zasp-attack-lab", ReadOnly: true}}, TerminationMessagePath: "/dev/termination-log", TerminationMessagePolicy: "File"}
+	wantVolume := attackLabKubernetesVolume{Name: "proxy-ca", ConfigMap: &attackLabKubernetesConfigMapVolume{Name: "agentsec-attack-lab-proxy-ca", DefaultMode: 0o444}}
+	return reflect.DeepEqual(pod.Containers[0], wantContainer) && reflect.DeepEqual(pod.Volumes[0], wantVolume)
+}
+
+func validAttackLabKubernetesJobLabels(actual, required map[string]string, uid, name string) bool {
+	if len(actual) < len(required) || len(actual) > len(required)+4 {
+		return false
+	}
+	for key, value := range required {
+		if actual[key] != value {
+			return false
 		}
 	}
-	return existing.Metadata.UID, nil
+	allowed := map[string]string{"batch.kubernetes.io/controller-uid": uid, "batch.kubernetes.io/job-name": name, "controller-uid": uid, "job-name": name}
+	for key, value := range actual {
+		if required[key] == value {
+			continue
+		}
+		if allowed[key] != value {
+			return false
+		}
+	}
+	return true
+}
+
+func decodeAttackLabKubernetesJob(raw []byte, destination *attackLabKubernetesJobManifest) bool {
+	if destination == nil || !decodeAttackLabKubernetesJSON(raw, destination) {
+		return false
+	}
+	top, ok := attackLabKubernetesJSONObject(raw)
+	if !ok || !attackLabKubernetesExactKeys(top, "apiVersion", "kind", "metadata", "spec", "status") || !attackLabKubernetesRequiredKeys(top, "apiVersion", "kind", "metadata", "spec") {
+		return false
+	}
+	metadata, ok := attackLabKubernetesJSONObject(top["metadata"])
+	if !ok || !attackLabKubernetesExactKeys(metadata, "annotations", "creationTimestamp", "generation", "labels", "managedFields", "name", "namespace", "resourceVersion", "selfLink", "uid") || !attackLabKubernetesRequiredKeys(metadata, "annotations", "labels", "name", "namespace", "uid") {
+		return false
+	}
+	spec, ok := attackLabKubernetesJSONObject(top["spec"])
+	if !ok || !attackLabKubernetesExactKeys(spec, "activeDeadlineSeconds", "backoffLimit", "completionMode", "completions", "manualSelector", "parallelism", "podFailurePolicy", "podReplacementPolicy", "selector", "suspend", "template", "ttlSecondsAfterFinished") || !attackLabKubernetesRequiredKeys(spec, "activeDeadlineSeconds", "backoffLimit", "completions", "parallelism", "template", "ttlSecondsAfterFinished") {
+		return false
+	}
+	template, ok := attackLabKubernetesJSONObject(spec["template"])
+	if !ok || !attackLabKubernetesExactKeys(template, "metadata", "spec") || !attackLabKubernetesRequiredKeys(template, "metadata", "spec") {
+		return false
+	}
+	templateMetadata, ok := attackLabKubernetesJSONObject(template["metadata"])
+	if !ok || !attackLabKubernetesExactKeys(templateMetadata, "annotations", "creationTimestamp", "generateName", "labels", "name", "namespace") || !attackLabKubernetesRequiredKeys(templateMetadata, "labels") {
+		return false
+	}
+	pod, ok := attackLabKubernetesJSONObject(template["spec"])
+	if !ok || !attackLabKubernetesExactKeys(pod, "automountServiceAccountToken", "containers", "dnsPolicy", "enableServiceLinks", "hostIPC", "hostNetwork", "hostPID", "preemptionPolicy", "priority", "restartPolicy", "schedulerName", "securityContext", "serviceAccount", "serviceAccountName", "terminationGracePeriodSeconds", "volumes") || !attackLabKubernetesRequiredKeys(pod, "automountServiceAccountToken", "containers", "enableServiceLinks", "hostIPC", "hostNetwork", "hostPID", "restartPolicy", "securityContext", "serviceAccountName", "terminationGracePeriodSeconds", "volumes") {
+		return false
+	}
+	podSecurity, ok := attackLabKubernetesJSONObject(pod["securityContext"])
+	if !ok || !attackLabKubernetesExactKeys(podSecurity, "fsGroup", "runAsGroup", "runAsNonRoot", "runAsUser", "seccompProfile") || !attackLabKubernetesRequiredKeys(podSecurity, "fsGroup", "runAsGroup", "runAsNonRoot", "runAsUser", "seccompProfile") {
+		return false
+	}
+	seccomp, ok := attackLabKubernetesJSONObject(podSecurity["seccompProfile"])
+	if !ok || !attackLabKubernetesExactKeys(seccomp, "type") || !attackLabKubernetesRequiredKeys(seccomp, "type") {
+		return false
+	}
+	containers, ok := attackLabKubernetesJSONArray(pod["containers"])
+	if !ok || len(containers) != 1 || !validAttackLabKubernetesContainerJSON(containers[0]) {
+		return false
+	}
+	volumes, ok := attackLabKubernetesJSONArray(pod["volumes"])
+	if !ok || len(volumes) != 1 {
+		return false
+	}
+	volume, ok := attackLabKubernetesJSONObject(volumes[0])
+	if !ok || !attackLabKubernetesExactKeys(volume, "configMap", "name") || !attackLabKubernetesRequiredKeys(volume, "configMap", "name") {
+		return false
+	}
+	configMap, ok := attackLabKubernetesJSONObject(volume["configMap"])
+	return ok && attackLabKubernetesExactKeys(configMap, "defaultMode", "name") && attackLabKubernetesRequiredKeys(configMap, "defaultMode", "name")
+}
+
+func validAttackLabKubernetesContainerJSON(raw json.RawMessage) bool {
+	container, ok := attackLabKubernetesJSONObject(raw)
+	if !ok || !attackLabKubernetesExactKeys(container, "args", "command", "env", "image", "imagePullPolicy", "name", "resources", "securityContext", "terminationMessagePath", "terminationMessagePolicy", "volumeMounts") || !attackLabKubernetesRequiredKeys(container, "args", "command", "env", "image", "imagePullPolicy", "name", "resources", "securityContext", "terminationMessagePath", "terminationMessagePolicy", "volumeMounts") {
+		return false
+	}
+	security, ok := attackLabKubernetesJSONObject(container["securityContext"])
+	if !ok || !attackLabKubernetesExactKeys(security, "allowPrivilegeEscalation", "capabilities", "readOnlyRootFilesystem", "runAsGroup", "runAsNonRoot", "runAsUser") || !attackLabKubernetesRequiredKeys(security, "allowPrivilegeEscalation", "capabilities", "readOnlyRootFilesystem", "runAsGroup", "runAsNonRoot", "runAsUser") {
+		return false
+	}
+	capabilities, ok := attackLabKubernetesJSONObject(security["capabilities"])
+	if !ok || !attackLabKubernetesExactKeys(capabilities, "drop") || !attackLabKubernetesRequiredKeys(capabilities, "drop") {
+		return false
+	}
+	resources, ok := attackLabKubernetesJSONObject(container["resources"])
+	if !ok || !attackLabKubernetesExactKeys(resources, "limits", "requests") || !attackLabKubernetesRequiredKeys(resources, "limits", "requests") {
+		return false
+	}
+	environment, ok := attackLabKubernetesJSONArray(container["env"])
+	if !ok {
+		return false
+	}
+	for _, value := range environment {
+		entry, valid := attackLabKubernetesJSONObject(value)
+		if !valid || !attackLabKubernetesExactKeys(entry, "name", "value") || !attackLabKubernetesRequiredKeys(entry, "name", "value") {
+			return false
+		}
+	}
+	mounts, ok := attackLabKubernetesJSONArray(container["volumeMounts"])
+	if !ok || len(mounts) != 1 {
+		return false
+	}
+	mount, ok := attackLabKubernetesJSONObject(mounts[0])
+	return ok && attackLabKubernetesExactKeys(mount, "mountPath", "name", "readOnly") && attackLabKubernetesRequiredKeys(mount, "mountPath", "name", "readOnly")
+}
+
+func attackLabKubernetesJSONObject(raw json.RawMessage) (map[string]json.RawMessage, bool) {
+	if len(raw) == 0 {
+		return nil, false
+	}
+	var value map[string]json.RawMessage
+	ok := decodeExactAttackLabKubernetesJSON(raw, &value)
+	return value, ok
+}
+
+func attackLabKubernetesJSONArray(raw json.RawMessage) ([]json.RawMessage, bool) {
+	if len(raw) == 0 {
+		return nil, false
+	}
+	var value []json.RawMessage
+	ok := decodeExactAttackLabKubernetesJSON(raw, &value)
+	return value, ok
+}
+
+func attackLabKubernetesExactKeys(value map[string]json.RawMessage, allowed ...string) bool {
+	allowedKeys := make(map[string]struct{}, len(allowed))
+	for _, key := range allowed {
+		allowedKeys[key] = struct{}{}
+	}
+	for key := range value {
+		if _, ok := allowedKeys[key]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func attackLabKubernetesRequiredKeys(value map[string]json.RawMessage, required ...string) bool {
+	for _, key := range required {
+		if _, ok := value[key]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func (api *productionAttackLabKubernetesAPI) do(ctx context.Context, method, path string, body []byte) ([]byte, int, error) {
@@ -586,6 +789,8 @@ func attackLabKubernetesJobEnvironment(job attackLabKubernetesJob, sideEffects s
 		{Name: "ZASP_ATTACK_LAB_EGRESS_PROXY", Value: job.ProxyEndpoint},
 		{Name: "ZASP_ATTACK_LAB_EGRESS_PROXY_CA_FILE", Value: job.ProxyCAFile},
 		{Name: "ZASP_ATTACK_LAB_EGRESS_TOKEN", Value: job.EgressToken},
+		{Name: "ZASP_ATTACK_LAB_REQUEST_TIMEOUT", Value: "30s"},
+		{Name: "ZASP_ATTACK_LAB_TERMINATION_PATH", Value: "/dev/termination-log"},
 	}
 }
 

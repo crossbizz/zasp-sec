@@ -1,8 +1,8 @@
 DO $rollback_guard$
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='attack-lab-execution-v1') OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>26)
-	    OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='attack_lab_execution_fingerprint' AND value='4d3bd83a615a5f8c550fd017af4ba55d0b81f921f3d78260b913104d1241ad97')
-	    OR NOT public.zasp_attack_lab_execution_security_ready() OR public.zasp_attack_lab_execution_live_fingerprint()<>'4d3bd83a615a5f8c550fd017af4ba55d0b81f921f3d78260b913104d1241ad97'
+	    OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='attack_lab_execution_fingerprint' AND value='d5268295167680640db3be3d86f1b88a3a8f19214014a1d057bed7a4e60b7938')
+	    OR NOT public.zasp_attack_lab_execution_security_ready() OR public.zasp_attack_lab_execution_live_fingerprint()<>'d5268295167680640db3be3d86f1b88a3a8f19214014a1d057bed7a4e60b7938'
     OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_credential_bindings) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_runs) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_cleanup_checkpoints) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_outbox) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_audit) THEN
    RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab execution rollback rejected';
  END IF;

@@ -66,6 +66,34 @@ type CredentialResolver interface {
 	ResolveTargetCredential(context.Context, string) (*Credential, error)
 }
 
+type TargetAuthorization struct {
+	PayloadDigest string
+	Signature     string
+}
+
+func AuthorizeTargetPayload(ctx context.Context, resolver CredentialResolver, reference string, payload []byte) (TargetAuthorization, error) {
+	if ctx == nil || ctx.Err() != nil || resolver == nil || !credentialReferenceRE.MatchString(reference) || len(payload) < 2 || len(payload) > 64*1024 || !json.Valid(payload) {
+		return TargetAuthorization{}, ErrAdapter
+	}
+	credential, err := resolver.ResolveTargetCredential(ctx, reference)
+	if err != nil || credential == nil {
+		if credential != nil {
+			credential.Destroy()
+		}
+		return TargetAuthorization{}, ErrAdapter
+	}
+	defer credential.Destroy()
+	secret, ok := credential.bytes()
+	if !ok {
+		return TargetAuthorization{}, ErrAdapter
+	}
+	defer clear(secret)
+	digest := sha256.Sum256(payload)
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write(payload)
+	return TargetAuthorization{PayloadDigest: "sha256:" + hex.EncodeToString(digest[:]), Signature: "sha256:" + hex.EncodeToString(mac.Sum(nil))}, nil
+}
+
 type HTTPSInvoker struct {
 	client      *http.Client
 	credentials CredentialResolver
@@ -110,26 +138,14 @@ func (invoker *HTTPSInvoker) Invoke(ctx context.Context, invocation Invocation) 
 	if invoker == nil || invoker.client == nil || invoker.credentials == nil || ctx == nil || ctx.Err() != nil || invocation.Scope.Validate() != nil || !validBinding(invocation.Binding) || invocation.RunID == invocation.Binding.TargetID || !validRequestBody(requestBody{TargetID: invocation.Binding.TargetID, TargetKind: invocation.Binding.TargetKind, Category: invocation.Category, Input: invocation.Input}) {
 		return "", ErrAdapter
 	}
-	credential, err := invoker.credentials.ResolveTargetCredential(ctx, invocation.Binding.CredentialReference)
-	if err != nil || credential == nil {
-		if credential != nil {
-			credential.Destroy()
-		}
-		return "", ErrAdapter
-	}
-	defer credential.Destroy()
-	secret, ok := credential.bytes()
-	if !ok {
-		return "", ErrAdapter
-	}
-	defer clear(secret)
 	payload, err := json.Marshal(targetWireRequest{SchemaVersion: "red-team-target-v1", RunID: invocation.RunID, TargetID: invocation.Binding.TargetID, TargetKind: invocation.Binding.TargetKind, Category: invocation.Category, Input: invocation.Input})
 	if err != nil || len(payload) < 1 || len(payload) > 64*1024 {
 		return "", ErrAdapter
 	}
-	digest := sha256.Sum256(payload)
-	mac := hmac.New(sha256.New, secret)
-	_, _ = mac.Write(payload)
+	authorization, err := AuthorizeTargetPayload(ctx, invoker.credentials, invocation.Binding.CredentialReference, payload)
+	if err != nil {
+		return "", ErrAdapter
+	}
 	bounded, cancel := context.WithTimeout(ctx, invoker.timeout)
 	defer cancel()
 	request, err := http.NewRequestWithContext(bounded, http.MethodPost, invocation.Binding.Endpoint, bytes.NewReader(payload))
@@ -141,8 +157,8 @@ func (invoker *HTTPSInvoker) Invoke(ctx context.Context, invocation Invocation) 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "zasp-red-team-target-adapter/1")
 	request.Header.Set("X-Zasp-Run-ID", invocation.RunID)
-	request.Header.Set("X-Zasp-Payload-Digest", "sha256:"+hex.EncodeToString(digest[:]))
-	request.Header.Set("X-Zasp-Signature", "sha256:"+hex.EncodeToString(mac.Sum(nil)))
+	request.Header.Set("X-Zasp-Payload-Digest", authorization.PayloadDigest)
+	request.Header.Set("X-Zasp-Signature", authorization.Signature)
 	response, err := invoker.client.Do(request)
 	if err != nil || bounded.Err() != nil || response == nil {
 		closeResponse(response)
