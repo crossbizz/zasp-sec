@@ -6,6 +6,7 @@ COPY services/platform/go.mod services/platform/go.sum ./
 RUN go mod download
 COPY services/platform ./
 RUN test -n "$VERSION" && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.buildVersion=$VERSION" -o /out/agentsec-worker ./agentsec-worker && \
+    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.buildVersion=$VERSION" -o /out/agentsec-attack-lab-proxy ./attack-lab-proxy && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/zasp-healthcheck ./cmd/zasp-healthcheck
 
 FROM python:3.13.11-slim-bookworm@sha256:20080e807bfc404f8450b185cf0fc95d553462673598549613735f70a5b4d5d0 AS security-python-build
@@ -27,7 +28,7 @@ RUN python -m venv /opt/zasp/security/prowler && \
 FROM python:3.13.11-slim-bookworm@sha256:20080e807bfc404f8450b185cf0fc95d553462673598549613735f70a5b4d5d0 AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
-COPY --from=build --chown=65532:65532 /out/agentsec-worker /out/zasp-healthcheck ./
+COPY --from=build --chown=65532:65532 /out/agentsec-worker /out/agentsec-attack-lab-proxy /out/zasp-healthcheck ./
 COPY --from=security-python-build --chown=65532:65532 /opt/zasp/security /opt/zasp/security
 USER 65532:65532
 EXPOSE 8081

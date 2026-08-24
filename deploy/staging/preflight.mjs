@@ -24,6 +24,10 @@ const identityContract = Object.freeze({
   redTeamOutbox: Object.freeze({ serviceAccount: "zasp-red-team-outbox", role: "red-team-outbox", deployment: true }),
   redTeamWorker: Object.freeze({ serviceAccount: "zasp-red-team-worker", role: "red-team-worker", deployment: true }),
   redTeamAdapter: Object.freeze({ serviceAccount: "zasp-red-team-adapter", role: "red-team-adapter", deployment: true }),
+  attackLabOutbox: Object.freeze({ serviceAccount: "zasp-attack-lab-outbox", role: "attack-lab-outbox", deployment: true }),
+  attackLabController: Object.freeze({ serviceAccount: "zasp-attack-lab-controller", role: "attack-lab-controller", deployment: true }),
+  attackLabProxy: Object.freeze({ serviceAccount: "zasp-attack-lab-proxy", role: "attack-lab-proxy", deployment: true }),
+  attackLabRunner: Object.freeze({ serviceAccount: "agentsec-attack-lab-runner", role: null, deployment: false }),
   projectionRisk: Object.freeze({ serviceAccount: "zasp-projection-risk", role: "projection-risk", deployment: true }),
   projectionGraph: Object.freeze({ serviceAccount: "zasp-projection-graph", role: "projection-graph", deployment: true }),
   projectionSearch: Object.freeze({ serviceAccount: "zasp-projection-search", role: "projection-search", deployment: true }),
@@ -52,7 +56,7 @@ function exactKeys(value, keys) {
 
 export function validateReleaseInput(input) {
   if (!exactKeys(input, ["environment", "platformAccountID", "privateEndpointOnly", "endpoint_public_access", "productImages", "dependencyImages", "workloadIdentities"]) || input.environment !== "production" || !/^[0-9]{12}$/.test(input.platformAccountID) || input.platformAccountID === "000000000000" || input.privateEndpointOnly !== true || input.endpoint_public_access !== false) throw new Error("release preflight rejected");
-  if (!exactKeys(input.productImages, ["web", "agentsecApi", "agentsecWorker", "redTeamWorker", "eventIngest", "gatewayControl", "runtimeGateway", "sensorAgent"]) || !Object.values(input.productImages).every((value) => digestPattern.test(value))) throw new Error("release preflight rejected");
+  if (!exactKeys(input.productImages, ["web", "agentsecApi", "agentsecWorker", "attackLabRunner", "redTeamWorker", "eventIngest", "gatewayControl", "runtimeGateway", "sensorAgent"]) || !Object.values(input.productImages).every((value) => digestPattern.test(value))) throw new Error("release preflight rejected");
   if (!exactKeys(input.dependencyImages, Object.keys(dependencyImages)) || Object.entries(dependencyImages).some(([name, image]) => input.dependencyImages[name] !== image)) throw new Error("release preflight rejected");
   if (!exactKeys(input.workloadIdentities, Object.keys(identityContract))) throw new Error("release preflight rejected");
   for (const [name, expected] of Object.entries(identityContract)) {
@@ -60,7 +64,7 @@ export function validateReleaseInput(input) {
     const expectedRole = expected.role === null ? null : `arn:aws:iam::${input.platformAccountID}:role/zasp-production-${expected.role}`;
     if (!exactKeys(identity, ["serviceAccount", "roleArn"]) || identity.serviceAccount !== expected.serviceAccount || identity.roleArn !== expectedRole) throw new Error("release preflight rejected");
   }
-  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 10, deployments: Object.values(identityContract).filter(({ deployment }) => deployment).length, cloudIdentities: Object.values(identityContract).filter(({ role }) => role !== null).length });
+  return Object.freeze({ environment: "production", privateEndpointOnly: true, images: 11, deployments: Object.values(identityContract).filter(({ deployment }) => deployment).length, cloudIdentities: Object.values(identityContract).filter(({ role }) => role !== null).length });
 }
 
 export function runPreflight(argv = process.argv.slice(2), runtime = { spawn: spawnSync, read: readFileSync }) {

@@ -4,6 +4,12 @@ export const productionReleaseFixture = Object.freeze({
   host: "app.zasp.example",
   tlsSecretName: "zasp-product-tls",
   secretProviderClass: "zasp-production-secrets",
+  awsS3CIDRs: Object.freeze([
+    "1.178.9.0/24", "1.178.65.0/24", "3.2.68.0/24", "3.5.76.0/22",
+    "3.5.80.0/21", "16.12.88.0/21", "16.12.96.0/21", "16.12.104.0/21",
+    "16.12.112.0/21", "16.15.32.0/20", "18.34.48.0/20", "18.34.244.0/22",
+    "35.80.36.208/28", "35.80.36.224/28", "52.92.128.0/17", "52.218.128.0/17",
+  ]),
   discovery: Object.freeze({
     parserVersion: "inventory-parser-2026.08.20", toolVersion: "collector-tool-2026.08.20",
     awsCollectorVersion: "aws-collector-2026.08.20", kubernetesCollectorVersion: "kubernetes-collector-2026.08.20",
@@ -45,6 +51,19 @@ export const productionReleaseFixture = Object.freeze({
     targetEndpoint: "https://agentsec-red-team-adapter.agentsec.svc.cluster.local/v1/evaluate",
     targetAllowedCIDRs: Object.freeze(["203.0.113.0/28"]), readinessCredentialReference: "ref:red-team/readiness-0001",
     egressCIDRs: Object.freeze(["10.72.0.0/28"]),
+  }),
+  attackLab: Object.freeze({
+    awsRegion: "us-west-2", queueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-attack-lab-jobs",
+    evidenceBucket: "zasp-production-attack-lab-evidence", evidenceBucketOwner: "123456789012",
+    evidenceKMSKeyArn: "arn:aws:kms:us-west-2:123456789012:key/44444444-4444-4444-8444-444444444444",
+    controllerRoleArn: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-controller",
+    outboxRoleArn: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-outbox",
+    proxyRoleArn: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-proxy",
+    webIdentityTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+    securityGroupID: "sg-1234abcd", proxySecurityGroupID: "sg-5678abcd",
+    targetAllowedCIDRs: Object.freeze(["203.0.113.0/28"]), egressCIDRs: Object.freeze(["10.73.0.0/28"]), kubernetesAPICIDRs: Object.freeze(["10.96.0.1/32"]),
+    readinessCredentialReference: "ref:red-team/readiness-0001", operationTimeout: "10s", proxyRequestTimeout: "10s", proxyShutdownTimeout: "15s",
+    proxyCABundleBase64: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN2akNDQWFZQ0NRQ2E3Y3haNlkzTWlUQU5CZ2txaGtpRzl3MEJBUXNGQURBaE1SOHdIUVlEVlFRRERCWjYKWVhOd0xXUnBjMk52ZG1WeWVTMTBaWE4wTFdOaE1CNFhEVEkyTURneU1EQTVNVFF4TmxvWERUTTJNRGd4TnpBNQpNVFF4Tmxvd0lURWZNQjBHQTFVRUF3d1dlbUZ6Y0Mxa2FYTmpiM1psY25rdGRHVnpkQzFqWVRDQ0FTSXdEUVlKCktvWklodmNOQVFFQkJRQURnZ0VQQURDQ0FRb0NnZ0VCQU5oNmtwNjkzSnM1cy95d2VwSEdHZkU3UlRrMXB0MXcKUGtQbnFybkthNHQxV1hydklUZzFxZWRCM0wzUnZ2WEJQWFlHVis4Vk9iYTRybUE3dXRFUzBzSGNiemZJTkdZcQp3a2RwT3R1aCtSd0xtQ05WMjNPTitzblI5TmJLdHFlRkIxUmVzL0FrV3Z5bklGb3RWMWR3OEh4MkFnTXpCank4CkhjZmZnMjhyTjBDNEd3emV2Vi9rWi9ySkZLc2FLMk5RUjEza2hpVGRWc2J4b1ZQeUk4MDlUMGlKMS9DNEh0aEgKaEwzMC92dFBkQ1FyQVdtVXJpLyt2L21DVmJOYU9iQlNRU3grMUlsV1d5WGNuZ0p5SWFWNVVGN3IwZ0p0bVB4cQpkeTlRSkRjZzEyOVVZdEVJMW5yREZPUWFyaW5vdHFpM1BpdWw2S0VFV3BDZlY4WFBBZWpSUGxrQ0F3RUFBVEFOCkJna3Foa2lHOXcwQkFRc0ZBQU9DQVFFQU1IN0RSd0dXU0dRc2dZWjYwR0hBVGd4dGpNZ3lQZGoyNWdkZ0FzNGwKbXBXbnExWlBqYmlwNnFUS3NpZUxMVHduYmtUSTJ3SDRUUHE3MGFwOXlvcEpWYzBjbXl0QVd6UlQySWFFQ0RwNwpaUHJZTEx6dVo5YWNvMHBkRUNEWk9iTzAzNlJMV25QR1dUcjh1VW5MaVM2U0NKS0RZU0JvbHR4SHdZT3hsR2xDCk1PY1ZaV3dSZUJXbVpQZHF2WGJXVkpiY2YxWG5DWW5hTU9oNTdNeSs2SE81bi9IVFJGUjZlR1R4NmdLOUlMMjUKYyt5Y3E0K1ppN2V1eEFLVmxHTG1FVlRMWDl5MDlBUXE5WU9rOEE4U1d1WWhZVitDY09kdVh5OWsxNU8wT0pJSgpiVlRVVjVMVGNsdElLdXRhdnZVRHp1Q2VCQjEzREhtaXo4NEpwT3VzalVqQlFRPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=",
   }),
   runtime: Object.freeze({
     awsRegion: "us-west-2", queueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-runtime-events",
@@ -92,7 +111,7 @@ export const productionReleaseFixture = Object.freeze({
   }),
   telemetry: Object.freeze({ backend: "none", endpoint: "", authSecretName: "", egressCIDRs: Object.freeze([]) }),
   images: Object.freeze({
-    web: digest("web", "a"), agentsecApi: digest("api", "b"), agentsecWorker: digest("worker", "c"), redTeamWorker: digest("red-team-worker", "2"),
+    web: digest("web", "a"), agentsecApi: digest("api", "b"), agentsecWorker: digest("worker", "c"), attackLabRunner: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + "4".repeat(64), redTeamWorker: digest("red-team-worker", "2"),
     eventIngest: digest("event-ingest", "d"), gatewayControl: digest("gateway-control", "e"), runtimeGateway: digest("runtime-gateway", "f"), sensorAgent: digest("sensor-agent", "1"),
   }),
 });

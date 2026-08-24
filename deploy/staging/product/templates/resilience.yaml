@@ -255,7 +255,7 @@ spec:
     - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 5432 }]
     - to:
-      {{- range $cidr := concat (required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws) (required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github) (required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta) (required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes) }}
+      {{- range $cidr := concat (required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws) (required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github) (required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta) (required "network.connectorEgressCIDRs.kubernetes is required" .Values.network.connectorEgressCIDRs.kubernetes) (required "network.s3CIDRs is required" .Values.network.s3CIDRs) }}
         - ipBlock: { cidr: {{ $cidr | quote }} }
       {{- end }}
       ports: [{ protocol: TCP, port: 443 }]

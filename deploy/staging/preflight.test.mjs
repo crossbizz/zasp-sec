@@ -13,6 +13,7 @@ const input = {
     web: digest("zasp/web", "a"),
     agentsecApi: digest("zasp/api", "b"),
     agentsecWorker: digest("zasp/worker", "c"),
+    attackLabRunner: digest("zasp/attack-lab-runner", "4"),
     redTeamWorker: digest("zasp/red-team-worker", "2"),
     eventIngest: digest("zasp/event-ingest", "d"),
     gatewayControl: digest("zasp/gateway-control", "e"),
@@ -37,6 +38,10 @@ const input = {
     redTeamOutbox: { serviceAccount: "zasp-red-team-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-outbox" },
     redTeamWorker: { serviceAccount: "zasp-red-team-worker", roleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-worker" },
     redTeamAdapter: { serviceAccount: "zasp-red-team-adapter", roleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-adapter" },
+    attackLabOutbox: { serviceAccount: "zasp-attack-lab-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-outbox" },
+    attackLabController: { serviceAccount: "zasp-attack-lab-controller", roleArn: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-controller" },
+    attackLabProxy: { serviceAccount: "zasp-attack-lab-proxy", roleArn: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-proxy" },
+    attackLabRunner: { serviceAccount: "agentsec-attack-lab-runner", roleArn: null },
     runtimeIngest: { serviceAccount: "zasp-runtime-ingest", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-ingest" },
     gatewayControl: { serviceAccount: "zasp-gateway-control", roleArn: "arn:aws:iam::123456789012:role/zasp-production-gateway-control" },
     runtimeOutbox: { serviceAccount: "zasp-runtime-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-outbox" },
@@ -57,10 +62,10 @@ const input = {
   },
 };
 
-test("release preflight validates all ten images and least-privilege identities", () => {
+test("release preflight validates all eleven images and least-privilege identities", () => {
   const calls = [];
   const value = runPreflight(["--input", "release.json"], { read: () => JSON.stringify(input), spawn: (tool, args, options) => { calls.push({ tool, args, options }); return { status: 0 }; } });
-  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 10, deployments: 24, cloudIdentities: 25 });
+  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 11, deployments: 27, cloudIdentities: 28 });
   assert.deepEqual(calls.map(({ tool, args }) => ({ tool, args })), [
     { tool: "terraform", args: ["version", "-json"] },
     { tool: "helm", args: ["version", "--short"] },

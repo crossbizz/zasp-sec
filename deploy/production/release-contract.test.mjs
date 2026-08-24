@@ -16,6 +16,7 @@ test("production container builds are exact, non-root, health-bound, and secret-
     { name: "web", user: "65532:65532", port: 3000 },
     { name: "agentsec-api", user: "65532:65532", port: 8080 },
     { name: "agentsec-worker", user: "65532:65532", port: 8081 },
+    { name: "attack-lab-runner", user: "65532:65532", port: null },
     { name: "red-team-worker", user: "1000:1000", port: 8081 },
     { name: "event-ingest", user: "65532:65532", port: 8081 },
     { name: "gateway-control", user: "65532:65532", port: 8081 },
@@ -25,7 +26,8 @@ test("production container builds are exact, non-root, health-bound, and secret-
   for (const build of builds) {
     assert.equal(build.readOnlyCompatible, true);
     assert.equal(build.containsSecret, false);
-    assert.match(build.healthcheck, /127\.0\.0\.1/);
+    if (build.name === "attack-lab-runner") assert.equal(build.healthcheck, "");
+    else assert.match(build.healthcheck, /127\.0\.0\.1/);
     assert.equal(build.digestPinned, true);
   }
   const webDockerfile = await readFile(new URL("./web.Dockerfile", import.meta.url), "utf8");
@@ -387,7 +389,7 @@ test("production release renders private Nango dependency plus a fail-closed loc
 test("rendered release rejects an unreviewed job identity", async () => {
   const resources = await renderRelease(release);
   const names = resources.filter(({ kind }) => kind === "Job").map(({ metadata }) => metadata.name).sort();
-  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v25", "nango-migrate", "zasp-canary-secret-sync"]);
+  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v26", "nango-migrate", "zasp-canary-secret-sync"]);
   assert.throws(() => validateRenderedRelease([...resources, {
     apiVersion: "batch/v1",
     kind: "Job",
@@ -468,9 +470,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.deepEqual(one(resources, "Service", "agentsec-api").spec.ports.map(({ name, port }) => [name, port]), [["product", 8080], ["internal", 8081]]);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Ingress").map(({ metadata }) => metadata.name).sort(), ["zasp-product", "zasp-runtime"]);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Service" && ["neo4j", "nango", "otel-collector"].includes(metadata.name) && metadata.annotations?.["service.beta.kubernetes.io/aws-load-balancer-type"]), false);
-  assert.equal(one(resources, "Job", "agentsec-schema-v25").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
-  assert.match(one(resources, "Job", "agentsec-schema-v25").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
-  const migration = one(resources, "Job", "agentsec-schema-v25");
+  assert.equal(one(resources, "Job", "agentsec-schema-v26").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.match(one(resources, "Job", "agentsec-schema-v26").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
+  const migration = one(resources, "Job", "agentsec-schema-v26");
   assert.equal(migration.spec.template.spec.serviceAccountName, "agentsec-migration");
   assert.equal(migration.spec.template.spec.containers[0].env.some(({ valueFrom }) => valueFrom?.secretKeyRef), false);
   assert.equal(migration.spec.template.spec.containers[0].volumeMounts[0].mountPath, "/var/run/secrets/zasp-migration");
@@ -489,6 +491,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_RED_TEAM_OUTBOX_DB_PRINCIPAL: "zasp_red_team_outbox_runtime",
     ZASP_RED_TEAM_WORKER_DB_PRINCIPAL: "zasp_red_team_worker_runtime",
     ZASP_RED_TEAM_ADAPTER_DB_PRINCIPAL: "zasp_red_team_adapter_runtime",
+    ZASP_ATTACK_LAB_CONTROLLER_DB_PRINCIPAL: "zasp_attack_lab_controller_runtime",
+    ZASP_ATTACK_LAB_OUTBOX_DB_PRINCIPAL: "zasp_attack_lab_outbox_runtime",
+    ZASP_ATTACK_LAB_PROXY_DB_PRINCIPAL: "zasp_attack_lab_proxy_runtime",
     ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL: "zasp_gateway_runtime",
     ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL: "zasp_runtime_coordinator_runtime",
     ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL: "zasp_runtime_archive_runtime",
@@ -500,13 +505,13 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL: "zasp_security_agent_worker_runtime",
     ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL: "zasp_security_agent_action_worker_runtime",
   });
-  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v25", "-10"]]) {
+  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v26", "-10"]]) {
     const resource = one(resources, kind, name);
     assert.equal(resource.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
     assert.equal(resource.metadata.annotations["helm.sh/hook-weight"], weight);
   }
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "25");
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "25");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "26");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "26");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
   const apiSecretProvider = one(resources, "SecretProviderClass", release.secretProviderClass);
   assert.equal(apiSecretProvider.spec.secretObjects[0].data.length, 9);
@@ -615,7 +620,7 @@ test("release runs temporary policy actions with a separate signing identity", a
 
 test("release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies", async () => {
   const resources = await renderRelease(release);
-  const workloadNames = ["agentsec-api", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-event-ingest", "agentsec-gateway-control", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "agentsec-red-team-adapter", "agentsec-red-team-outbox", "agentsec-red-team-worker", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection", "agentsec-security-agent", "agentsec-security-agent-action", "nango", "otel-collector", "web"];
+  const workloadNames = ["agentsec-api", "agentsec-attack-lab-controller", "agentsec-attack-lab-outbox", "agentsec-attack-lab-proxy", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-event-ingest", "agentsec-gateway-control", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "agentsec-red-team-adapter", "agentsec-red-team-outbox", "agentsec-red-team-worker", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection", "agentsec-security-agent", "agentsec-security-agent-action", "nango", "otel-collector", "web"];
   assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), workloadNames);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Service").map(({ metadata }) => metadata.name).sort(), workloadNames);
   for (const name of workloadNames) {
@@ -628,7 +633,7 @@ test("release applies non-root rollout, zone and host spread, drain, PDB, and de
     assert.equal(deployment.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem, true);
     assert.equal(deployment.spec.template.spec.containers[0].lifecycle.preStop.exec.command.at(-1), "sleep 10");
     if (name !== "web" && name !== "nango" && name !== "otel-collector") {
-      const shutdown = deployment.spec.template.spec.containers[0].env.find(({ name: key }) => ["ZASP_SHUTDOWN_TIMEOUT", "ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT", "ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT", "ZASP_RED_TEAM_ADAPTER_SHUTDOWN_TIMEOUT"].includes(key));
+      const shutdown = deployment.spec.template.spec.containers[0].env.find(({ name: key }) => ["ZASP_SHUTDOWN_TIMEOUT", "ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT", "ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT", "ZASP_RED_TEAM_ADAPTER_SHUTDOWN_TIMEOUT", "ZASP_ATTACK_LAB_PROXY_SHUTDOWN_TIMEOUT"].includes(key));
       assert.equal(shutdown.value, name === "agentsec-security-agent" || name === "agentsec-security-agent-action" ? "20s" : "15s");
       assert.ok(10 + Number.parseInt(shutdown.value, 10) + 5 <= deployment.spec.template.spec.terminationGracePeriodSeconds);
     }
@@ -735,6 +740,7 @@ test("release gives the runtime data plane bounded ingress and dependency egress
     const cidrs = policy.spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr));
     assert.ok(cidrs.includes("10.30.0.0/24"));
     for (const cidr of release.runtime.egressCIDRs) assert.ok(cidrs.includes(cidr));
+    for (const cidr of release.awsS3CIDRs) assert.equal(cidrs.includes(cidr), ["event-ingest-dependencies", "runtime-stage-dependencies", "runtime-index-dependencies"].includes(name));
     assert.equal(cidrs.includes("10.50.0.0/24"), name === "runtime-index-dependencies");
   }
 });
@@ -861,7 +867,7 @@ test("release mounts one readiness-gated discovery worker with exact provider an
   assert.deepEqual(container.volumeMounts.find(({ name }) => name === "discovery-web-identity"), { name: "discovery-web-identity", mountPath: "/var/run/secrets/eks.amazonaws.com/serviceaccount", readOnly: true });
   assert.deepEqual(pod.volumes.find(({ name }) => name === "discovery-web-identity").projected.sources, [{ serviceAccountToken: { audience: "sts.amazonaws.com", expirationSeconds: 900, path: "token" } }]);
   assert.equal(one(resources, "SecretProviderClass", "zasp-production-worker-secrets").spec.secretObjects[0].data.length, 1);
-  assert.deepEqual(one(resources, "NetworkPolicy", "discovery-worker-dependencies").spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)).sort(), ["10.30.0.0/24", ...Object.values(release.connectorEgressCIDRs).flat()].sort());
+  assert.deepEqual(one(resources, "NetworkPolicy", "discovery-worker-dependencies").spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)).sort(), ["10.30.0.0/24", ...Object.values(release.connectorEgressCIDRs).flat(), ...release.awsS3CIDRs].sort());
   const hpa = one(resources, "HorizontalPodAutoscaler", "agentsec-discovery-worker");
   assert.equal(hpa.spec.minReplicas, 2);
   assert.equal(hpa.spec.maxReplicas, 10);
@@ -893,6 +899,10 @@ test("release isolates the red team outbox runner and tenant target adapter", as
   const outboxEnv = Object.fromEntries(deployments[0].spec.template.spec.containers[0].env.map(({ name, value }) => [name, value]));
   assert.equal(outboxEnv.ZASP_WORKER_MODE, "red-team-outbox");
   assert.equal(outboxEnv.ZASP_DATABASE_AUTHORITY, "zasp_red_team_outbox_worker");
+  for (const [name, expectsS3] of [["agentsec-red-team-outbox-dependencies", false], ["agentsec-red-team-worker-dependencies", true], ["agentsec-red-team-adapter-dependencies", false]]) {
+    const cidrs = one(resources, "NetworkPolicy", name).spec.egress.flatMap(({ to }) => to.flatMap(({ ipBlock }) => ipBlock ? [ipBlock.cidr] : []));
+    for (const cidr of release.awsS3CIDRs) assert.equal(cidrs.includes(cidr), expectsS3, `${name} ${cidr}`);
+  }
 
   const runner = deployments[1].spec.template.spec;
   const runnerEnv = Object.fromEntries(runner.containers[0].env.map(({ name, value }) => [name, value]));
@@ -936,6 +946,89 @@ test("release isolates the red team outbox runner and tenant target adapter", as
   assert.match(alerts.get("ZaspRedTeamWorkerUnavailable"), /agentsec-red-team-worker/);
   assert.match(alerts.get("ZaspRedTeamAdapterUnavailable"), /agentsec-red-team-adapter/);
   assert.ok(alerts.get("ZaspRedTeamDependencyNotReady").includes('service=~"agentsec-red-team-(outbox|worker|adapter)"'));
+});
+
+test("release isolates Attack Lab execution behind a proxy-only Fargate authority", async () => {
+  const resources = await renderRelease(release);
+  const controller = one(resources, "Deployment", "agentsec-attack-lab-controller");
+  const outbox = one(resources, "Deployment", "agentsec-attack-lab-outbox");
+  const proxy = one(resources, "Deployment", "agentsec-attack-lab-proxy");
+  assert.equal(controller.spec.template.spec.serviceAccountName, "zasp-attack-lab-controller");
+  assert.equal(outbox.spec.template.spec.serviceAccountName, "zasp-attack-lab-outbox");
+  assert.equal(proxy.spec.template.spec.serviceAccountName, "zasp-attack-lab-proxy");
+  const controllerEnv = envOf(controller);
+  assert.equal(controllerEnv.ZASP_WORKER_MODE, "attack-lab-controller");
+  assert.equal(controllerEnv.ZASP_ATTACK_LAB_QUEUE_URL, release.attackLab.queueURL);
+  assert.equal(controllerEnv.ZASP_ATTACK_LAB_NAMESPACE, "zasp-attack-lab");
+  assert.equal(controllerEnv.ZASP_ATTACK_LAB_RUNNER_IMAGE, release.images.attackLabRunner);
+  assert.equal(controllerEnv.ZASP_ATTACK_LAB_SECURITY_GROUP_ID, release.attackLab.securityGroupID);
+  assert.equal(controllerEnv.ZASP_ATTACK_LAB_PROXY_ENDPOINT, "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress");
+  assert.equal(controller.spec.template.spec.automountServiceAccountToken, false);
+  assert.ok(controller.spec.template.spec.volumes.some(({ name, projected }) => name === "kubernetes-api" && projected.sources.some(({ serviceAccountToken }) => serviceAccountToken?.audience === "https://kubernetes.default.svc")));
+
+  const runnerAccount = one(resources, "ServiceAccount", "agentsec-attack-lab-runner");
+  assert.equal(runnerAccount.metadata.namespace, "zasp-attack-lab");
+  assert.deepEqual(runnerAccount.metadata.labels, { "zasp.io/execution": "attack-lab" });
+  assert.equal(runnerAccount.metadata.annotations, undefined);
+  assert.equal(runnerAccount.automountServiceAccountToken, false);
+  assert.equal(one(resources, "Namespace", "zasp-attack-lab").metadata.labels["zasp.io/execution"], "attack-lab");
+
+  const runnerPolicy = one(resources, "SecurityGroupPolicy", "agentsec-attack-lab-egress");
+  assert.equal(runnerPolicy.metadata.namespace, "zasp-attack-lab");
+  assert.deepEqual(runnerPolicy.spec.podSelector, { matchLabels: { "zasp.io/execution": "attack-lab" } });
+  assert.deepEqual(runnerPolicy.spec.securityGroups.groupIds, [release.attackLab.securityGroupID]);
+  assert.deepEqual(one(resources, "SecurityGroupPolicy", "agentsec-attack-lab-proxy").spec.securityGroups.groupIds, [release.attackLab.proxySecurityGroupID]);
+
+  const runEgress = one(resources, "NetworkPolicy", "attack-lab-runner-egress");
+  assert.equal(runEgress.metadata.namespace, "zasp-attack-lab");
+  assert.equal(JSON.stringify(runEgress.spec.egress).includes("0.0.0.0/0"), false);
+  assert.ok(JSON.stringify(runEgress.spec.egress).includes("agentsec-attack-lab-proxy"));
+  for (const [name, expectsS3] of [["agentsec-attack-lab-controller-dependencies", true], ["agentsec-attack-lab-outbox-dependencies", false], ["agentsec-attack-lab-proxy-dependencies", false]]) {
+    const cidrs = one(resources, "NetworkPolicy", name).spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr));
+    for (const cidr of release.awsS3CIDRs) assert.equal(cidrs.includes(cidr), expectsS3, `${name} ${cidr}`);
+  }
+  const defaultDeny = one(resources, "NetworkPolicy", "attack-lab-default-deny");
+  assert.deepEqual(defaultDeny.spec.podSelector, {});
+  assert.deepEqual(defaultDeny.spec.policyTypes, ["Ingress", "Egress"]);
+
+  const role = one(resources, "Role", "agentsec-attack-lab-controller");
+  assert.equal(role.metadata.namespace, "zasp-attack-lab");
+  assert.deepEqual(role.rules.find(({ resources: names }) => names.includes("jobs")).verbs, ["create", "get", "delete"]);
+  assert.deepEqual(role.rules.find(({ resources: names }) => names.includes("securitygrouppolicies")).verbs, ["get"]);
+  assert.equal(resources.some(({ kind, metadata }) => kind === "RoleBinding" && metadata?.name === "agentsec-attack-lab-runner"), false);
+
+  const proxyContainer = proxy.spec.template.spec.containers.find(({ name }) => name === "proxy");
+  assert.deepEqual(proxyContainer.command, ["/app/agentsec-attack-lab-proxy"]);
+  assert.equal(envOf(proxy).ZASP_ATTACK_LAB_READINESS_CREDENTIAL_REFERENCE, release.attackLab.readinessCredentialReference);
+  assert.equal(one(resources, "Service", "agentsec-attack-lab-proxy").spec.ports.find(({ name }) => name === "proxy").port, 443);
+  for (const name of ["agentsec-attack-lab-controller", "agentsec-attack-lab-outbox", "agentsec-attack-lab-proxy"]) {
+    assert.equal(one(resources, "PodDisruptionBudget", name).spec.minAvailable, 1);
+    assert.equal(one(resources, "HorizontalPodAutoscaler", name).spec.minReplicas, 2);
+    assert.equal(one(resources, "ServiceMonitor", name).spec.endpoints[0].path, "/metrics");
+  }
+  const alerts = new Map(one(resources, "PrometheusRule", "zasp-production-slos").spec.groups.flatMap(({ rules }) => rules).map((rule) => [rule.alert, rule.expr]));
+  assert.match(alerts.get("ZaspAttackLabControllerUnavailable"), /agentsec-attack-lab-controller/);
+  assert.match(alerts.get("ZaspAttackLabOutboxUnavailable"), /agentsec-attack-lab-outbox/);
+  assert.match(alerts.get("ZaspAttackLabProxyUnavailable"), /agentsec-attack-lab-proxy/);
+  assert.match(alerts.get("ZaspAttackLabDependencyNotReady"), /agentsec-attack-lab-\(controller\|outbox\|proxy\)/);
+  const trust = one(resources, "ConfigMap", "agentsec-attack-lab-proxy-ca");
+  assert.equal(trust.metadata.namespace, "zasp-attack-lab");
+  assert.match(trust.data["proxy-ca.crt"], /^-----BEGIN CERTIFICATE-----/);
+
+  const migration = one(resources, "Job", "agentsec-schema-v26");
+  assert.equal(envOf(migration).ZASP_ATTACK_LAB_CONTROLLER_DB_PRINCIPAL, "zasp_attack_lab_controller_runtime");
+  assert.equal(envOf(migration).ZASP_ATTACK_LAB_OUTBOX_DB_PRINCIPAL, "zasp_attack_lab_outbox_runtime");
+  assert.equal(envOf(migration).ZASP_ATTACK_LAB_PROXY_DB_PRINCIPAL, "zasp_attack_lab_proxy_runtime");
+
+  const [workerDockerfile, runnerDockerfile] = await Promise.all([
+    readFile(new URL("./worker.Dockerfile", import.meta.url), "utf8"),
+    readFile(new URL("./attack-lab-runner.Dockerfile", import.meta.url), "utf8"),
+  ]);
+  assert.match(workerDockerfile, /go build[^\n]+-o \/out\/agentsec-attack-lab-proxy \.\/attack-lab-proxy/);
+  assert.doesNotMatch(workerDockerfile, /agentsec-attack-lab-runner/);
+  assert.match(runnerDockerfile, /go build[^\n]+-o \/out\/agentsec-attack-lab-runner \.\/attack-lab-runner/);
+  assert.match(runnerDockerfile, /COPY --from=build --chown=65532:65532 \/out\/agentsec-attack-lab-runner \.\//);
+  assert.doesNotMatch(runnerDockerfile, /agentsec-worker|agentsec-attack-lab-proxy|prowler|scoutsuite/);
 });
 
 test("release gives only API an explicit connector identity, reference-only config, and bounded provider egress", async () => {
@@ -1097,6 +1190,10 @@ test("release rejects unpinned images and hostile public identifiers", async () 
   await assert.rejects(() => renderRelease({ ...release, redTeam: { ...release.redTeam, targetAllowedCIDRs: ["192.0.2.0/24", "192.0.2.0/25"] } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, redTeam: { ...release.redTeam, egressCIDRs: ["203.0.113.0/28"] } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, redTeam: { ...release.redTeam, egressCIDRs: ["10.0.0.0/8"] } }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, awsS3CIDRs: [] }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, awsS3CIDRs: ["10.40.0.0/24"] }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, awsS3CIDRs: ["52.92.128.0/17", "52.92.128.0/18"] }), /release rejected/);
+  await assert.rejects(() => renderRelease({ ...release, awsS3CIDRs: ["0.0.0.0/1", "128.0.0.0/1"] }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, projectionRisk: { roleArn: release.projectionGraph.roleArn } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, projectionGraph: { ...release.projectionGraph, credentialReference: "ref:neo4j/runtime" } }), /release rejected/);
   await assert.rejects(() => renderRelease({ ...release, projectionGraph: { ...release.projectionGraph, schemaCredentialReference: release.projectionGraph.credentialReference } }), /release rejected/);
@@ -1313,7 +1410,7 @@ test("terraform isolates red team queue evidence and target credentials behind t
     'resource "aws_iam_role_policy" "red_team"',
   ]) assert.match(terraform, new RegExp(resource.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(terraform, /"red-team-tests"\s*=\s*\{ visibility = 900, schema = "agentsec\.red-team-tests\.v1" \}/);
-  assert.equal((terraform.match(/each\.key == "red-team-tests" \? aws_kms_key\.red_team\.arn : aws_kms_key\.staging\.arn/g) || []).length, 2);
+  assert.equal((terraform.match(/each\.key == "red-team-tests" \? aws_kms_key\.red_team\.arn : each\.key == "attack-lab-jobs" \? aws_kms_key\.attack_lab\.arn : aws_kms_key\.staging\.arn/g) || []).length, 2);
   for (const [key, account, secret] of [
     ["outbox", "zasp-red-team-outbox", "postgres-red-team-outbox-dsn"],
     ["worker", "zasp-red-team-worker", "postgres-red-team-worker-dsn"],
@@ -1332,6 +1429,75 @@ test("terraform isolates red team queue evidence and target credentials behind t
   }
   assert.match(outputs, /output "red_team_release_authority"/);
   for (const name of ["queue_url", "evidence_bucket", "evidence_kms_key_arn", "outbox_role_arn", "worker_role_arn", "adapter_role_arn"]) assert.match(outputs, new RegExp(`${name}\\s*=`));
+});
+
+test("terraform isolates Attack Lab queue evidence proxy and runner pod networks", async () => {
+  const [terraform, variables, outputs] = await Promise.all([
+    readFile(new URL("../staging/main.tf", import.meta.url), "utf8"),
+    readFile(new URL("../staging/variables.tf", import.meta.url), "utf8"),
+    readFile(new URL("../staging/outputs.tf", import.meta.url), "utf8"),
+  ]);
+  for (const resource of [
+    'resource "aws_kms_key" "attack_lab"',
+    'resource "aws_s3_bucket" "attack_lab_evidence"',
+    'resource "aws_s3_bucket_public_access_block" "attack_lab_evidence"',
+    'resource "aws_s3_bucket_versioning" "attack_lab_evidence"',
+    'resource "aws_s3_bucket_server_side_encryption_configuration" "attack_lab_evidence"',
+    'resource "aws_s3_bucket_policy" "attack_lab_evidence"',
+    'resource "aws_iam_role" "attack_lab"',
+    'resource "aws_iam_role_policy" "attack_lab"',
+    'resource "aws_eks_addon" "vpc_cni"',
+    'resource "aws_iam_role_policy_attachment" "eks_vpc_resource_controller"',
+    'resource "aws_security_group" "attack_lab_proxy"',
+    'resource "aws_security_group" "attack_lab_ecr_endpoints"',
+    'resource "aws_vpc_security_group_ingress_rule" "attack_lab_proxy_internal"',
+    'resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_ecr"',
+    'resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_s3"',
+    'resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_control_plane"',
+    'resource "aws_vpc_security_group_ingress_rule" "attack_lab_runner_kubelet"',
+  ]) assert.match(terraform, new RegExp(resource.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(terraform, /"attack-lab-jobs"\s*=\s*\{ visibility = 60, schema = "agentsec\.attack-lab-jobs\.v1" \}/);
+  assert.match(terraform, /ENABLE_POD_ENI\s*=\s*"true"/);
+  assert.match(terraform, /POD_SECURITY_GROUP_ENFORCING_MODE\s*=\s*"strict"/);
+  assert.match(terraform, /addon_version\s*=\s*var\.vpc_cni_addon_version/);
+  assert.match(terraform, /resource "aws_eks_cluster" "staging"[\s\S]*?version\s*=\s*var\.eks_kubernetes_version/);
+  assert.match(terraform, /policy_arn\s*=\s*"arn:\$\{local\.partition\}:iam::aws:policy\/AmazonEKSVPCResourceController"/);
+  assert.match(terraform, /aws:SourceArn[\s\S]*?arn:\$\{local\.partition\}:eks:\$\{var\.region\}:\$\{var\.account_id\}:fargateprofile\/\$\{var\.cluster_name\}\/\*[\s\S]*?aws:SourceAccount[\s\S]*?var\.account_id/);
+  assert.match(terraform, /resource "aws_eks_fargate_profile" "attack_lab"[\s\S]*?depends_on\s*=\s*\[[\s\S]*?aws_eks_addon\.vpc_cni,[\s\S]*?aws_iam_role_policy_attachment\.eks_vpc_resource_controller,[\s\S]*?aws_iam_role_policy_attachment\.attack_lab_pod,[\s\S]*?\]/);
+  assert.match(terraform, /toset\(\["ecr\.api", "ecr\.dkr", "kms", "logs", "secretsmanager", "sqs", "sts"\]\)/);
+  assert.match(terraform, /resource "aws_vpc_endpoint" "s3"[\s\S]*?route_table_ids\s*=\s*\[aws_vpc\.staging\.main_route_table_id\]/);
+  assert.match(terraform, /contains\(\["ecr\.api", "ecr\.dkr"\], each\.value\)\s*\?\s*\[[\s\S]*?aws_security_group\.vpc_endpoints\.id,[\s\S]*?aws_security_group\.attack_lab_ecr_endpoints\.id,[\s\S]*?\]\s*:\s*\[aws_security_group\.vpc_endpoints\.id\]/);
+  for (const [key, account, secret] of [
+    ["controller", "zasp-attack-lab-controller", "postgres-attack-lab-controller-dsn"],
+    ["outbox", "zasp-attack-lab-outbox", "postgres-attack-lab-outbox-dsn"],
+    ["proxy", "zasp-attack-lab-proxy", "postgres-attack-lab-proxy-dsn"],
+  ]) assert.match(terraform, new RegExp(`${key}\\s*=\\s*\\{[\\s\\S]*?principal\\s*=\\s*"system:serviceaccount:agentsec:${account}"[\\s\\S]*?database_secret\\s*=\\s*"${secret}"`));
+  const policyStart = terraform.indexOf('resource "aws_iam_role_policy" "attack_lab"');
+  const policy = terraform.slice(policyStart, terraform.indexOf("\nresource ", policyStart + 1));
+  for (const action of ["sqs:SendMessage", "sqs:ReceiveMessage", "s3:PutObject", "secretsmanager:GetSecretValue"]) assert.match(policy, new RegExp(action));
+  assert.match(policy, /aws_sqs_queue\.work\["attack-lab-jobs"\]\.arn/);
+  assert.match(policy, /aws_s3_bucket\.attack_lab_evidence\.arn/);
+  assert.doesNotMatch(policy, /"(?:s3|sqs|secretsmanager):\*"/);
+  const runnerGroup = terraform.slice(terraform.indexOf('resource "aws_security_group" "attack_lab"'), terraform.indexOf("\nresource ", terraform.indexOf('resource "aws_security_group" "attack_lab"') + 1));
+  assert.doesNotMatch(runnerGroup, /cidr_blocks\s*=\s*\[aws_vpc\.staging\.cidr_block\]/);
+  assert.match(terraform, /referenced_security_group_id\s*=\s*aws_security_group\.attack_lab_proxy\.id[\s\S]*?from_port\s*=\s*8443[\s\S]*?to_port\s*=\s*8443/);
+  assert.match(terraform, /referenced_security_group_id\s*=\s*aws_security_group\.attack_lab\.id[\s\S]*?from_port\s*=\s*8443[\s\S]*?to_port\s*=\s*8443/);
+  assert.match(terraform, /security_group_id\s*=\s*aws_security_group\.attack_lab_proxy\.id[\s\S]*?referenced_security_group_id\s*=\s*aws_eks_cluster\.staging\.vpc_config\[0\]\.cluster_security_group_id[\s\S]*?from_port\s*=\s*8081[\s\S]*?to_port\s*=\s*8081/);
+  assert.match(terraform, /resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_s3"[\s\S]*?prefix_list_id\s*=\s*aws_vpc_endpoint\.s3\.prefix_list_id[\s\S]*?from_port\s*=\s*443[\s\S]*?to_port\s*=\s*443/);
+  assert.match(terraform, /resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_control_plane"[\s\S]*?referenced_security_group_id\s*=\s*aws_eks_cluster\.staging\.vpc_config\[0\]\.cluster_security_group_id[\s\S]*?from_port\s*=\s*443[\s\S]*?to_port\s*=\s*443/);
+  assert.match(terraform, /resource "aws_vpc_security_group_ingress_rule" "attack_lab_runner_kubelet"[\s\S]*?referenced_security_group_id\s*=\s*aws_eks_cluster\.staging\.vpc_config\[0\]\.cluster_security_group_id[\s\S]*?from_port\s*=\s*10250[\s\S]*?to_port\s*=\s*10250/);
+  assert.match(terraform, /for_each\s*=\s*toset\(var\.attack_lab_target_egress_cidrs\)/);
+  for (const principal of ["attack_lab_controller", "attack_lab_outbox", "attack_lab_proxy"]) {
+    assert.match(variables, new RegExp(`${principal}\\s*=\\s*string`));
+    assert.match(terraform, new RegExp(`${principal}\\s*=\\s*var\\.database_principals\\.${principal}`));
+  }
+  assert.match(variables, /variable "vpc_cni_addon_version"/);
+  assert.match(variables, /variable "eks_kubernetes_version"[\s\S]*?default\s*=\s*"1\.34"/);
+  assert.match(variables, /variable "vpc_cni_addon_version"[\s\S]*?default\s*=\s*"v1\.22\.4-eksbuild\.3"/);
+  assert.match(variables, /variable "attack_lab_target_egress_cidrs"/);
+  assert.match(outputs, /output "s3_cidr_snapshot"[\s\S]*?sort\(aws_vpc_endpoint\.s3\.cidr_blocks\)/);
+  assert.match(outputs, /output "attack_lab_release_authority"/);
+  for (const name of ["queue_url", "evidence_bucket", "evidence_kms_key_arn", "controller_role_arn", "outbox_role_arn", "proxy_role_arn", "security_group_id", "proxy_security_group_id"]) assert.match(outputs, new RegExp(`${name}\\s*=`));
 });
 
 test("terraform provisions the exact encrypted v15 runtime plane and isolated identities", async () => {

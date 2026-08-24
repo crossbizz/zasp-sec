@@ -95,6 +95,9 @@ variable "database_principals" {
     red_team_outbox_worker       = string
     red_team_worker              = string
     red_team_adapter             = string
+    attack_lab_controller        = string
+    attack_lab_outbox            = string
+    attack_lab_proxy             = string
     runtime_gateway              = string
     discovery_scheduler          = string
     projection_risk              = string
@@ -120,6 +123,9 @@ variable "database_principals" {
     red_team_outbox_worker       = "zasp_red_team_outbox_runtime"
     red_team_worker              = "zasp_red_team_worker_runtime"
     red_team_adapter             = "zasp_red_team_adapter_runtime"
+    attack_lab_controller        = "zasp_attack_lab_controller_runtime"
+    attack_lab_outbox            = "zasp_attack_lab_outbox_runtime"
+    attack_lab_proxy             = "zasp_attack_lab_proxy_runtime"
     runtime_gateway              = "zasp_gateway_runtime"
     discovery_scheduler          = "zasp_scheduler_runtime"
     projection_risk              = "zasp_projection_risk_runtime"
@@ -134,10 +140,54 @@ variable "database_principals" {
   }
 
   validation {
-    condition = length(distinct(values(var.database_principals))) == 23 && alltrue([
+    condition = length(distinct(values(var.database_principals))) == 26 && alltrue([
       for principal in values(var.database_principals) : can(regex("^[a-z][a-z0-9_]{2,62}$", principal))
     ])
-    error_message = "database_principals must contain twenty-three distinct bounded PostgreSQL login names."
+    error_message = "database_principals must contain twenty-six distinct bounded PostgreSQL login names."
+  }
+}
+
+variable "eks_kubernetes_version" {
+  description = "Exact reviewed EKS Kubernetes minor used by the production cluster."
+  type        = string
+  default     = "1.34"
+  validation {
+    condition     = var.eks_kubernetes_version == "1.34"
+    error_message = "eks_kubernetes_version must remain on the reviewed 1.34 production minor."
+  }
+}
+
+variable "vpc_cni_addon_version" {
+  description = "Exact reviewed VPC CNI build required for strict security groups for pods."
+  type        = string
+  default     = "v1.22.4-eksbuild.3"
+  validation {
+    condition     = can(regex("^v[0-9]+\\.[0-9]+\\.[0-9]+-eksbuild\\.[0-9]+$", var.vpc_cni_addon_version))
+    error_message = "vpc_cni_addon_version must be one exact EKS build."
+  }
+}
+
+variable "attack_lab_target_egress_cidrs" {
+  description = "Canonical public CIDR snapshots for approved Attack Lab target adapters."
+  type        = set(string)
+  default     = ["203.0.113.0/28"]
+  validation {
+    condition = length(var.attack_lab_target_egress_cidrs) >= 1 && length(var.attack_lab_target_egress_cidrs) <= 16 && alltrue([
+      for cidr in var.attack_lab_target_egress_cidrs : can(cidrhost(cidr, 0)) && "${cidrhost(cidr, 0)}/${split("/", cidr)[1]}" == cidr && tonumber(split("/", cidr)[1]) >= 16 && !can(regex("^(?:0|10|127|169\\.254|172\\.(?:1[6-9]|2[0-9]|3[01])|192\\.168|22[4-9]|23[0-9]|24[0-9]|25[0-5])\\.", cidr))
+    ])
+    error_message = "attack_lab_target_egress_cidrs must contain one to 16 canonical public IPv4 CIDRs at /16 or narrower."
+  }
+}
+
+variable "attack_lab_database_egress_cidrs" {
+  description = "Canonical private CIDR snapshots for the Attack Lab proxy database authority."
+  type        = set(string)
+  default     = ["10.30.0.0/24"]
+  validation {
+    condition = length(var.attack_lab_database_egress_cidrs) >= 1 && length(var.attack_lab_database_egress_cidrs) <= 8 && alltrue([
+      for cidr in var.attack_lab_database_egress_cidrs : can(cidrhost(cidr, 0)) && "${cidrhost(cidr, 0)}/${split("/", cidr)[1]}" == cidr && tonumber(split("/", cidr)[1]) >= 24 && can(regex("^(?:10|172\\.(?:1[6-9]|2[0-9]|3[01])|192\\.168)\\.", cidr))
+    ])
+    error_message = "attack_lab_database_egress_cidrs must contain one to eight canonical private IPv4 CIDRs at /24 or narrower."
   }
 }
 

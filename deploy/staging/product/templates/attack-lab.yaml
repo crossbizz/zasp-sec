@@ -1,0 +1,499 @@
+{{- if ne .Values.profile "customer_edge" }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zasp-attack-lab
+  labels: { zasp.io/execution: attack-lab }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agentsec-attack-lab-runner
+  namespace: zasp-attack-lab
+  labels: { zasp.io/execution: attack-lab }
+automountServiceAccountToken: false
+---
+{{- range $account := list .Values.serviceAccounts.attackLabController .Values.serviceAccounts.attackLabOutbox .Values.serviceAccounts.attackLabProxy }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $account.name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    eks.amazonaws.com/role-arn: {{ required "Attack Lab service account role is required" $account.roleArn | quote }}
+automountServiceAccountToken: false
+---
+{{- end }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: agentsec-attack-lab-controller, namespace: zasp-attack-lab }
+rules:
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [create, get, delete]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [list]
+  - apiGroups: [""]
+    resources: [serviceaccounts]
+    resourceNames: [agentsec-attack-lab-runner]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [agentsec-attack-lab-proxy-ca]
+    verbs: [get]
+  - apiGroups: [vpcresources.k8s.aws]
+    resources: [securitygrouppolicies]
+    resourceNames: [agentsec-attack-lab-egress]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: agentsec-attack-lab-controller, namespace: zasp-attack-lab }
+subjects:
+  - { kind: ServiceAccount, name: {{ .Values.serviceAccounts.attackLabController.name }}, namespace: {{ .Release.Namespace | quote }} }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: agentsec-attack-lab-controller }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: { name: agentsec-attack-lab-controller }
+rules:
+  - nonResourceURLs: [/version]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [namespaces]
+    resourceNames: [zasp-attack-lab]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: { name: agentsec-attack-lab-controller }
+subjects:
+  - { kind: ServiceAccount, name: {{ .Values.serviceAccounts.attackLabController.name }}, namespace: {{ .Release.Namespace | quote }} }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: agentsec-attack-lab-controller }
+---
+apiVersion: vpcresources.k8s.aws/v1beta1
+kind: SecurityGroupPolicy
+metadata: { name: agentsec-attack-lab-egress, namespace: zasp-attack-lab }
+spec:
+  podSelector: { matchLabels: { zasp.io/execution: attack-lab } }
+  securityGroups:
+    groupIds: [{{ required "attackLab.securityGroupID is required" .Values.attackLab.securityGroupID | quote }}]
+---
+apiVersion: vpcresources.k8s.aws/v1beta1
+kind: SecurityGroupPolicy
+metadata: { name: agentsec-attack-lab-proxy, namespace: {{ .Release.Namespace }} }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-proxy } }
+  securityGroups:
+    groupIds: [{{ required "attackLab.proxySecurityGroupID is required" .Values.attackLab.proxySecurityGroupID | quote }}]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: agentsec-attack-lab-proxy-ca, namespace: zasp-attack-lab }
+immutable: true
+data:
+  proxy-ca.crt: |
+{{ required "attackLab.proxyCABundleBase64 is required" .Values.attackLab.proxyCABundleBase64 | b64dec | indent 4 }}
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata: { name: {{ .Values.secrets.attackLabControllerProviderClassName }}, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  provider: aws
+  secretObjects:
+    - secretName: zasp-attack-lab-controller-secrets
+      type: Opaque
+      data: [{ objectName: postgres-dsn, key: ZASP_POSTGRES_DSN }]
+  parameters:
+    region: {{ .Values.attackLab.awsRegion | quote }}
+    objects: |
+      - objectName: {{ required "secrets.attackLabControllerPostgresDSNObjectName is required" .Values.secrets.attackLabControllerPostgresDSNObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: postgres-dsn
+        filePermission: "0400"
+      - objectName: {{ required "secrets.attackLabSigningKeyObjectName is required" .Values.secrets.attackLabSigningKeyObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: egress-signing-key
+        filePermission: "0400"
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata: { name: {{ .Values.secrets.attackLabOutboxProviderClassName }}, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  provider: aws
+  secretObjects:
+    - secretName: zasp-attack-lab-outbox-secrets
+      type: Opaque
+      data: [{ objectName: postgres-dsn, key: ZASP_POSTGRES_DSN }]
+  parameters:
+    region: {{ .Values.attackLab.awsRegion | quote }}
+    objects: |
+      - objectName: {{ required "secrets.attackLabOutboxPostgresDSNObjectName is required" .Values.secrets.attackLabOutboxPostgresDSNObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: postgres-dsn
+        filePermission: "0400"
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata: { name: {{ .Values.secrets.attackLabProxyProviderClassName }}, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  provider: aws
+  secretObjects:
+    - secretName: zasp-attack-lab-proxy-secrets
+      type: Opaque
+      data: [{ objectName: postgres-dsn, key: ZASP_DATABASE_URL }]
+  parameters:
+    region: {{ .Values.attackLab.awsRegion | quote }}
+    objects: |
+      - objectName: {{ required "secrets.attackLabProxyPostgresDSNObjectName is required" .Values.secrets.attackLabProxyPostgresDSNObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: postgres-dsn
+        filePermission: "0400"
+      - objectName: {{ required "secrets.attackLabSigningKeyObjectName is required" .Values.secrets.attackLabSigningKeyObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: egress-signing-key
+        filePermission: "0400"
+      - objectName: {{ required "secrets.attackLabProxyTLSCertificateObjectName is required" .Values.secrets.attackLabProxyTLSCertificateObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: tls.crt
+        filePermission: "0400"
+      - objectName: {{ required "secrets.attackLabProxyTLSPrivateKeyObjectName is required" .Values.secrets.attackLabProxyTLSPrivateKeyObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: tls.key
+        filePermission: "0400"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: agentsec-attack-lab-outbox, labels: { app.kubernetes.io/name: agentsec-attack-lab-outbox, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: {{ .Values.replicas.attackLabOutbox }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-outbox } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-attack-lab-outbox, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.attackLabOutbox.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 40
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-outbox } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-outbox } } }
+      containers:
+        - name: outbox
+          image: {{ required "global.productImages.agentsecWorker is required" .Values.global.productImages.agentsecWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: [/app/agentsec-worker]
+          ports: [{ name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 100m, memory: 96Mi, ephemeral-storage: 32Mi }, limits: { cpu: "1", memory: 256Mi, ephemeral-storage: 128Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_POSTGRES_DSN, valueFrom: { secretKeyRef: { name: zasp-attack-lab-outbox-secrets, key: ZASP_POSTGRES_DSN } } }
+            - { name: ZASP_WORKER_MODE, value: attack-lab-outbox }
+            - { name: ZASP_DATABASE_AUTHORITY, value: zasp_attack_lab_outbox_worker }
+            - { name: ZASP_WORKER_ID, valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } } }
+            - { name: ZASP_POLL_INTERVAL, value: 1s }
+            - { name: ZASP_LEASE_DURATION, value: 60s }
+            - { name: ZASP_BATCH_SIZE, value: "8" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: 15s }
+            - { name: ZASP_AWS_REGION, value: {{ .Values.attackLab.awsRegion | quote }} }
+            - { name: ZASP_ATTACK_LAB_QUEUE_URL, value: {{ .Values.attackLab.queueURL | quote }} }
+            - { name: ZASP_OUTBOX_ROLE_ARN, value: {{ .Values.attackLab.outboxRoleArn | quote }} }
+            - { name: ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE, value: {{ .Values.attackLab.webIdentityTokenFile | quote }} }
+          volumeMounts:
+            - { name: attack-lab-outbox-secrets, mountPath: /var/run/secrets/zasp-attack-lab-outbox, readOnly: true }
+            - { name: aws-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+      volumes:
+        - name: attack-lab-outbox-secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.attackLabOutboxProviderClassName | quote }} } }
+        - name: aws-identity
+          projected:
+            defaultMode: 0400
+            sources: [{ serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 3600, path: token } }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: agentsec-attack-lab-controller, labels: { app.kubernetes.io/name: agentsec-attack-lab-controller, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: {{ .Values.replicas.attackLabController }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-controller } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-attack-lab-controller, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.attackLabController.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 40
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-controller } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-controller } } }
+      containers:
+        - name: controller
+          image: {{ required "global.productImages.agentsecWorker is required" .Values.global.productImages.agentsecWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: [/app/agentsec-worker]
+          ports: [{ name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 200m, memory: 192Mi, ephemeral-storage: 64Mi }, limits: { cpu: "2", memory: 512Mi, ephemeral-storage: 256Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_POSTGRES_DSN, valueFrom: { secretKeyRef: { name: zasp-attack-lab-controller-secrets, key: ZASP_POSTGRES_DSN } } }
+            - { name: ZASP_WORKER_MODE, value: attack-lab-controller }
+            - { name: ZASP_DATABASE_AUTHORITY, value: zasp_attack_lab_controller }
+            - { name: ZASP_WORKER_ID, valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } } }
+            - { name: ZASP_POLL_INTERVAL, value: 1s }
+            - { name: ZASP_LEASE_DURATION, value: 60s }
+            - { name: ZASP_BATCH_SIZE, value: "4" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: 15s }
+            - { name: ZASP_AWS_REGION, value: {{ .Values.attackLab.awsRegion | quote }} }
+            - { name: ZASP_ATTACK_LAB_QUEUE_URL, value: {{ .Values.attackLab.queueURL | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET, value: {{ .Values.attackLab.evidenceBucket | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET_OWNER, value: {{ .Values.attackLab.evidenceBucketOwner | quote }} }
+            - { name: ZASP_EVIDENCE_KMS_KEY_ARN, value: {{ .Values.attackLab.evidenceKMSKeyArn | quote }} }
+            - { name: ZASP_ATTACK_LAB_ROLE_ARN, value: {{ .Values.attackLab.controllerRoleArn | quote }} }
+            - { name: ZASP_ATTACK_LAB_WEB_IDENTITY_TOKEN_FILE, value: {{ .Values.attackLab.webIdentityTokenFile | quote }} }
+            - { name: ZASP_ATTACK_LAB_NAMESPACE, value: zasp-attack-lab }
+            - { name: ZASP_ATTACK_LAB_RUNNER_SERVICE_ACCOUNT, value: agentsec-attack-lab-runner }
+            - { name: ZASP_ATTACK_LAB_RUNNER_IMAGE, value: {{ required "global.productImages.attackLabRunner is required" .Values.global.productImages.attackLabRunner | quote }} }
+            - { name: ZASP_ATTACK_LAB_SECURITY_GROUP_ID, value: {{ .Values.attackLab.securityGroupID | quote }} }
+            - { name: ZASP_ATTACK_LAB_KUBERNETES_ENDPOINT, value: https://kubernetes.default.svc }
+            - { name: ZASP_ATTACK_LAB_KUBERNETES_TOKEN_FILE, value: /var/run/secrets/kubernetes.io/serviceaccount/token }
+            - { name: ZASP_ATTACK_LAB_KUBERNETES_CA_FILE, value: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt }
+            - { name: ZASP_ATTACK_LAB_PROXY_ENDPOINT, value: https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress }
+            - { name: ZASP_ATTACK_LAB_PROXY_CA_FILE, value: /var/run/secrets/zasp-attack-lab/proxy-ca.crt }
+            - { name: ZASP_ATTACK_LAB_EGRESS_SIGNING_KEY_FILE, value: /var/run/secrets/zasp-attack-lab/egress-signing-key }
+            - { name: ZASP_ATTACK_LAB_OPERATION_TIMEOUT, value: {{ .Values.attackLab.operationTimeout | quote }} }
+          volumeMounts:
+            - { name: attack-lab-controller-secrets, mountPath: /var/run/secrets/zasp-attack-lab-controller, readOnly: true }
+            - { name: attack-lab-runtime, mountPath: /var/run/secrets/zasp-attack-lab, readOnly: true }
+            - { name: proxy-ca, mountPath: /var/run/secrets/zasp-attack-lab/proxy-ca.crt, subPath: proxy-ca.crt, readOnly: true }
+            - { name: attack-lab-controller-secrets, mountPath: /var/run/secrets/zasp-attack-lab/egress-signing-key, subPath: egress-signing-key, readOnly: true }
+            - { name: aws-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+            - { name: kubernetes-api, mountPath: /var/run/secrets/kubernetes.io/serviceaccount, readOnly: true }
+      volumes:
+        - name: attack-lab-controller-secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.attackLabControllerProviderClassName | quote }} } }
+        - { name: attack-lab-runtime, emptyDir: { medium: Memory, sizeLimit: 1Mi } }
+        - name: proxy-ca
+          configMap: { name: agentsec-attack-lab-proxy-ca, defaultMode: 0444 }
+        - name: aws-identity
+          projected:
+            defaultMode: 0400
+            sources: [{ serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 3600, path: token } }]
+        - name: kubernetes-api
+          projected:
+            defaultMode: 0400
+            sources:
+              - serviceAccountToken: { audience: https://kubernetes.default.svc, expirationSeconds: 3600, path: token }
+              - configMap: { name: kube-root-ca.crt, items: [{ key: ca.crt, path: ca.crt }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: agentsec-attack-lab-proxy, labels: { app.kubernetes.io/name: agentsec-attack-lab-proxy, app.kubernetes.io/part-of: zasp } }
+spec:
+  replicas: {{ .Values.replicas.attackLabProxy }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-proxy } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: agentsec-attack-lab-proxy, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.attackLabProxy.name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 40
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-proxy } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-proxy } } }
+      containers:
+        - name: proxy
+          image: {{ required "global.productImages.agentsecWorker is required" .Values.global.productImages.agentsecWorker | quote }}
+          imagePullPolicy: IfNotPresent
+          command: [/app/agentsec-attack-lab-proxy]
+          ports: [{ name: proxy, containerPort: 8443, protocol: TCP }, { name: internal, containerPort: 8081, protocol: TCP }]
+          startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          resources: { requests: { cpu: 200m, memory: 128Mi, ephemeral-storage: 32Mi }, limits: { cpu: "1", memory: 384Mi, ephemeral-storage: 128Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+          env:
+            - { name: ZASP_DATABASE_URL, valueFrom: { secretKeyRef: { name: zasp-attack-lab-proxy-secrets, key: ZASP_DATABASE_URL } } }
+            - { name: ZASP_DATABASE_AUTHORITY, value: zasp_attack_lab_proxy }
+            - { name: ZASP_AWS_REGION, value: {{ .Values.attackLab.awsRegion | quote }} }
+            - { name: ZASP_ATTACK_LAB_ALLOWED_TARGET_CIDRS, value: {{ join "," .Values.attackLab.targetAllowedCIDRs | quote }} }
+            - { name: ZASP_ATTACK_LAB_EGRESS_SIGNING_KEY_FILE, value: /var/run/secrets/zasp-attack-lab/egress-signing-key }
+            - { name: ZASP_ATTACK_LAB_PROXY_TLS_CERT_FILE, value: /var/run/secrets/zasp-attack-lab-proxy-tls/tls.crt }
+            - { name: ZASP_ATTACK_LAB_PROXY_TLS_KEY_FILE, value: /var/run/secrets/zasp-attack-lab-proxy-tls/tls.key }
+            - { name: ZASP_ATTACK_LAB_PROXY_REQUEST_TIMEOUT, value: {{ .Values.attackLab.proxyRequestTimeout | quote }} }
+            - { name: ZASP_ATTACK_LAB_PROXY_SHUTDOWN_TIMEOUT, value: {{ .Values.attackLab.proxyShutdownTimeout | quote }} }
+            - { name: ZASP_ATTACK_LAB_PROXY_ROLE_ARN, value: {{ .Values.attackLab.proxyRoleArn | quote }} }
+            - { name: ZASP_ATTACK_LAB_PROXY_WEB_IDENTITY_TOKEN_FILE, value: {{ .Values.attackLab.webIdentityTokenFile | quote }} }
+            - { name: ZASP_ATTACK_LAB_READINESS_CREDENTIAL_REFERENCE, value: {{ .Values.attackLab.readinessCredentialReference | quote }} }
+          volumeMounts:
+            - { name: attack-lab-proxy-secrets, mountPath: /var/run/secrets/zasp-attack-lab-proxy, readOnly: true }
+            - { name: attack-lab-signing, mountPath: /var/run/secrets/zasp-attack-lab, readOnly: true }
+            - { name: attack-lab-proxy-secrets, mountPath: /var/run/secrets/zasp-attack-lab/egress-signing-key, subPath: egress-signing-key, readOnly: true }
+            - { name: attack-lab-tls, mountPath: /var/run/secrets/zasp-attack-lab-proxy-tls, readOnly: true }
+            - { name: attack-lab-proxy-secrets, mountPath: /var/run/secrets/zasp-attack-lab-proxy-tls/tls.crt, subPath: tls.crt, readOnly: true }
+            - { name: attack-lab-proxy-secrets, mountPath: /var/run/secrets/zasp-attack-lab-proxy-tls/tls.key, subPath: tls.key, readOnly: true }
+            - { name: aws-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+      volumes:
+        - name: attack-lab-proxy-secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.attackLabProxyProviderClassName | quote }} } }
+        - { name: attack-lab-signing, emptyDir: { medium: Memory, sizeLimit: 1Mi } }
+        - { name: attack-lab-tls, emptyDir: { medium: Memory, sizeLimit: 1Mi } }
+        - name: aws-identity
+          projected:
+            defaultMode: 0400
+            sources: [{ serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 3600, path: token } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: agentsec-attack-lab-proxy, labels: { app.kubernetes.io/name: agentsec-attack-lab-proxy, app.kubernetes.io/part-of: zasp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: agentsec-attack-lab-proxy }
+  ports: [{ name: proxy, port: 443, targetPort: proxy, protocol: TCP }, { name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+{{- range $name := list "agentsec-attack-lab-controller" "agentsec-attack-lab-outbox" }}
+---
+apiVersion: v1
+kind: Service
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: {{ $name }} }
+  ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+{{- end }}
+{{- range $name := list "agentsec-attack-lab-controller" "agentsec-attack-lab-outbox" "agentsec-attack-lab-proxy" }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+spec: { minAvailable: 1, selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $name }} }
+  minReplicas: 2
+  maxReplicas: {{ if eq $name "agentsec-attack-lab-controller" }}10{{ else }}6{{ end }}
+  behavior:
+    scaleUp: { stabilizationWindowSeconds: 60, policies: [{ type: Percent, value: 100, periodSeconds: 60 }] }
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Percent, value: 25, periodSeconds: 60 }] }
+  metrics: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } } }]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+  namespaceSelector: { matchNames: [{{ $.Release.Namespace | quote }}] }
+  endpoints: [{ port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }]
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: attack-lab-default-deny, namespace: zasp-attack-lab }
+spec: { podSelector: {}, policyTypes: [Ingress, Egress] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: attack-lab-runner-egress, namespace: zasp-attack-lab }
+spec:
+  podSelector: { matchLabels: { zasp.io/execution: attack-lab } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Release.Namespace | quote }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-proxy } }
+      ports: [{ protocol: TCP, port: 8443 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: attack-lab-proxy-from-runners, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-proxy } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: zasp-attack-lab } }
+          podSelector: { matchLabels: { zasp.io/execution: attack-lab } }
+      ports: [{ protocol: TCP, port: 8443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: attack-lab-monitoring, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector:
+    matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: [agentsec-attack-lab-controller, agentsec-attack-lab-outbox, agentsec-attack-lab-proxy] }]
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+{{- range $workload := list "controller" "outbox" "proxy" }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: agentsec-attack-lab-{{ $workload }}-dependencies, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-attack-lab-{{ $workload }} } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" $.Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+      {{- range $cidr := required "network.attackLabEgressCIDRs is required" $.Values.network.attackLabEgressCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      {{- if eq $workload "controller" }}
+      {{- range $cidr := required "network.s3CIDRs is required" $.Values.network.s3CIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+    {{- if eq $workload "controller" }}
+    - to:
+      {{- range $cidr := required "network.attackLabKubernetesAPICIDRs is required" $.Values.network.attackLabKubernetesAPICIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+    {{- end }}
+    {{- if eq $workload "proxy" }}
+    - to:
+      {{- range $cidr := required "attackLab.targetAllowedCIDRs is required" $.Values.attackLab.targetAllowedCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+    {{- end }}
+{{- end }}
+{{- end }}

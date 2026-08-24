@@ -286,11 +286,11 @@ spec:
     - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
       ports: [{ protocol: TCP, port: 8081 }]
 {{- range $policy := list
-      (dict "name" "event-ingest-dependencies" "workloads" (list "agentsec-event-ingest") "search" false)
-      (dict "name" "runtime-outbox-dependencies" "workloads" (list "agentsec-runtime-outbox") "search" false)
-      (dict "name" "runtime-coordinator-dependencies" "workloads" (list "agentsec-runtime-coordinator") "search" false)
-      (dict "name" "runtime-stage-dependencies" "workloads" (list "agentsec-runtime-archive" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete") "search" false)
-      (dict "name" "runtime-index-dependencies" "workloads" (list "agentsec-runtime-index") "search" true) }}
+      (dict "name" "event-ingest-dependencies" "workloads" (list "agentsec-event-ingest") "search" false "s3" true)
+      (dict "name" "runtime-outbox-dependencies" "workloads" (list "agentsec-runtime-outbox") "search" false "s3" false)
+      (dict "name" "runtime-coordinator-dependencies" "workloads" (list "agentsec-runtime-coordinator") "search" false "s3" false)
+      (dict "name" "runtime-stage-dependencies" "workloads" (list "agentsec-runtime-archive" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete") "search" false "s3" true)
+      (dict "name" "runtime-index-dependencies" "workloads" (list "agentsec-runtime-index") "search" true "s3" true) }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -309,6 +309,11 @@ spec:
     - to:
       {{- range $cidr := required "network.runtimeEgressCIDRs is required" $root.Values.network.runtimeEgressCIDRs }}
         - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      {{- if $policy.s3 }}
+      {{- range $cidr := required "network.s3CIDRs is required" $root.Values.network.s3CIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
       {{- end }}
       ports: [{ protocol: TCP, port: 443 }]
     {{- if $policy.search }}

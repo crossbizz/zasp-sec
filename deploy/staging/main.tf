@@ -30,6 +30,9 @@ locals {
     red_team_outbox_worker       = var.database_principals.red_team_outbox_worker
     red_team_worker              = var.database_principals.red_team_worker
     red_team_adapter             = var.database_principals.red_team_adapter
+    attack_lab_controller        = var.database_principals.attack_lab_controller
+    attack_lab_outbox            = var.database_principals.attack_lab_outbox
+    attack_lab_proxy             = var.database_principals.attack_lab_proxy
     runtime_gateway              = var.database_principals.runtime_gateway
     discovery_scheduler          = var.database_principals.discovery_scheduler
     projection_risk              = var.database_principals.projection_risk
@@ -55,6 +58,9 @@ locals {
     postgres-red-team-outbox-dsn              = local.database_principals.red_team_outbox_worker
     postgres-red-team-worker-dsn              = local.database_principals.red_team_worker
     postgres-red-team-adapter-dsn             = local.database_principals.red_team_adapter
+    postgres-attack-lab-controller-dsn        = local.database_principals.attack_lab_controller
+    postgres-attack-lab-outbox-dsn            = local.database_principals.attack_lab_outbox
+    postgres-attack-lab-proxy-dsn             = local.database_principals.attack_lab_proxy
     postgres-runtime-gateway-dsn              = local.database_principals.runtime_gateway
     postgres-scheduler-dsn                    = local.database_principals.discovery_scheduler
     postgres-projection-risk-dsn              = local.database_principals.projection_risk
@@ -79,10 +85,11 @@ locals {
     "token-reveal-key",
   ])
   queue_contract = {
-    background       = { visibility = 300, schema = "agentsec.background.v1" }
-    "discovery-jobs" = { visibility = 30, schema = "agentsec.discovery-jobs.v1" }
-    runtime-events   = { visibility = 120, schema = "agentsec.runtime-events.v1" }
-    "red-team-tests" = { visibility = 900, schema = "agentsec.red-team-tests.v1" }
+    background        = { visibility = 300, schema = "agentsec.background.v1" }
+    "discovery-jobs"  = { visibility = 30, schema = "agentsec.discovery-jobs.v1" }
+    runtime-events    = { visibility = 120, schema = "agentsec.runtime-events.v1" }
+    "red-team-tests"  = { visibility = 900, schema = "agentsec.red-team-tests.v1" }
+    "attack-lab-jobs" = { visibility = 60, schema = "agentsec.attack-lab-jobs.v1" }
   }
   runtime_irsa_contract = {
     ingest          = { role_name = "runtime-ingest", principal = "system:serviceaccount:agentsec:zasp-runtime-ingest", database_secret = "postgres-runtime-ingest-dsn" }
@@ -104,6 +111,16 @@ locals {
     outbox  = ["postgres-red-team-outbox-dsn"]
     worker  = ["postgres-red-team-worker-dsn", "red-team-adapter-token"]
     adapter = ["postgres-red-team-adapter-dsn", "red-team-adapter-token", "red-team-adapter-tls-certificate", "red-team-adapter-tls-private-key"]
+  }
+  attack_lab_irsa_contract = {
+    controller = { role_name = "attack-lab-controller", principal = "system:serviceaccount:agentsec:zasp-attack-lab-controller", database_secret = "postgres-attack-lab-controller-dsn" }
+    outbox     = { role_name = "attack-lab-outbox", principal = "system:serviceaccount:agentsec:zasp-attack-lab-outbox", database_secret = "postgres-attack-lab-outbox-dsn" }
+    proxy      = { role_name = "attack-lab-proxy", principal = "system:serviceaccount:agentsec:zasp-attack-lab-proxy", database_secret = "postgres-attack-lab-proxy-dsn" }
+  }
+  attack_lab_mount_secrets = {
+    controller = ["postgres-attack-lab-controller-dsn", "attack-lab-egress-signing-key"]
+    outbox     = ["postgres-attack-lab-outbox-dsn"]
+    proxy      = ["postgres-attack-lab-proxy-dsn", "attack-lab-egress-signing-key", "attack-lab-proxy-tls-certificate", "attack-lab-proxy-tls-private-key"]
   }
   connector_secret_root   = "${var.cluster_name}/connectors"
   connector_secret_prefix = "${local.connector_secret_root}/oauth"
@@ -143,6 +160,7 @@ locals {
   bucket_name             = "zasp-product-data-${md5(var.account_id)}"
   runtime_raw_bucket_name = "zasp-runtime-raw-${md5(var.account_id)}"
   red_team_bucket_name    = "zasp-red-team-evidence-${md5(var.account_id)}"
+  attack_lab_bucket_name  = "zasp-attack-lab-evidence-${md5(var.account_id)}"
   partition               = startswith(var.region, "cn-") ? "aws-cn" : startswith(var.region, "us-gov-") ? "aws-us-gov" : "aws"
 }
 
@@ -186,9 +204,15 @@ resource "aws_iam_role_policy_attachment" "eks_cluster" {
   policy_arn = "arn:${local.partition}:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
+resource "aws_iam_role_policy_attachment" "eks_vpc_resource_controller" {
+  role       = aws_iam_role.eks_cluster.name
+  policy_arn = "arn:${local.partition}:iam::aws:policy/AmazonEKSVPCResourceController"
+}
+
 resource "aws_eks_cluster" "staging" {
   name     = var.cluster_name
   role_arn = aws_iam_role.eks_cluster.arn
+  version  = var.eks_kubernetes_version
 
   vpc_config {
     subnet_ids              = aws_subnet.private[*].id
@@ -244,6 +268,19 @@ resource "aws_eks_node_group" "staging" {
   depends_on = [aws_iam_role_policy_attachment.eks_nodes]
 }
 
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name                = aws_eks_cluster.staging.name
+  addon_name                  = "vpc-cni"
+  addon_version               = var.vpc_cni_addon_version
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+  configuration_values = jsonencode({ env = {
+    ENABLE_POD_ENI                    = "true"
+    POD_SECURITY_GROUP_ENFORCING_MODE = "strict"
+  } })
+  depends_on = [aws_iam_role_policy_attachment.eks_nodes]
+}
+
 resource "aws_kms_key" "staging" {
   description             = "ZASP staging evidence, queue, secret, and cluster encryption"
   deletion_window_in_days = 30
@@ -286,6 +323,17 @@ resource "aws_kms_key" "red_team" {
 resource "aws_kms_alias" "red_team" {
   name          = "alias/${var.cluster_name}-red-team"
   target_key_id = aws_kms_key.red_team.key_id
+}
+
+resource "aws_kms_key" "attack_lab" {
+  description             = "ZASP isolated Attack Lab queue, evidence, and proxy credentials"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+}
+
+resource "aws_kms_alias" "attack_lab" {
+  name          = "alias/${var.cluster_name}-attack-lab"
+  target_key_id = aws_kms_key.attack_lab.key_id
 }
 
 resource "aws_s3_bucket" "evidence" {
@@ -381,6 +429,59 @@ resource "aws_s3_bucket_policy" "red_team_evidence" {
     { Sid = "DenyInsecureTransport", Effect = "Deny", Principal = "*", Action = "s3:*", Resource = [aws_s3_bucket.red_team_evidence.arn, "${aws_s3_bucket.red_team_evidence.arn}/*"], Condition = { Bool = { "aws:SecureTransport" = "false" } } },
     { Sid = "DenyUnencryptedWrites", Effect = "Deny", Principal = "*", Action = "s3:PutObject", Resource = "${aws_s3_bucket.red_team_evidence.arn}/organizations/*", Condition = { StringNotEquals = { "s3:x-amz-server-side-encryption" = "aws:kms" } } },
     { Sid = "DenyWrongKey", Effect = "Deny", Principal = "*", Action = "s3:PutObject", Resource = "${aws_s3_bucket.red_team_evidence.arn}/organizations/*", Condition = { ArnNotEquals = { "s3:x-amz-server-side-encryption-aws-kms-key-id" = aws_kms_key.red_team.arn } } },
+  ] })
+}
+
+resource "aws_s3_bucket" "attack_lab_evidence" {
+  bucket = local.attack_lab_bucket_name
+}
+
+resource "aws_s3_bucket_ownership_controls" "attack_lab_evidence" {
+  bucket = aws_s3_bucket.attack_lab_evidence.id
+  rule { object_ownership = "BucketOwnerEnforced" }
+}
+
+resource "aws_s3_bucket_public_access_block" "attack_lab_evidence" {
+  bucket                  = aws_s3_bucket.attack_lab_evidence.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "attack_lab_evidence" {
+  bucket = aws_s3_bucket.attack_lab_evidence.id
+  versioning_configuration { status = "Enabled" }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "attack_lab_evidence" {
+  bucket = aws_s3_bucket.attack_lab_evidence.id
+  rule {
+    bucket_key_enabled = true
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.attack_lab.arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "attack_lab_evidence" {
+  bucket = aws_s3_bucket.attack_lab_evidence.id
+  rule {
+    id     = "tenant-attack-lab-evidence-retention"
+    status = "Enabled"
+    filter { prefix = "organizations/" }
+    noncurrent_version_expiration { noncurrent_days = var.evidence_retention_days }
+    abort_incomplete_multipart_upload { days_after_initiation = 7 }
+  }
+}
+
+resource "aws_s3_bucket_policy" "attack_lab_evidence" {
+  bucket = aws_s3_bucket.attack_lab_evidence.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Sid = "DenyInsecureTransport", Effect = "Deny", Principal = "*", Action = "s3:*", Resource = [aws_s3_bucket.attack_lab_evidence.arn, "${aws_s3_bucket.attack_lab_evidence.arn}/*"], Condition = { Bool = { "aws:SecureTransport" = "false" } } },
+    { Sid = "DenyUnencryptedWrites", Effect = "Deny", Principal = "*", Action = "s3:PutObject", Resource = "${aws_s3_bucket.attack_lab_evidence.arn}/organizations/*", Condition = { StringNotEquals = { "s3:x-amz-server-side-encryption" = "aws:kms" } } },
+    { Sid = "DenyWrongKey", Effect = "Deny", Principal = "*", Action = "s3:PutObject", Resource = "${aws_s3_bucket.attack_lab_evidence.arn}/organizations/*", Condition = { ArnNotEquals = { "s3:x-amz-server-side-encryption-aws-kms-key-id" = aws_kms_key.attack_lab.arn } } },
   ] })
 }
 
@@ -494,10 +595,16 @@ resource "aws_secretsmanager_secret" "product" {
     "red-team-adapter-token",
     "red-team-adapter-tls-certificate",
     "red-team-adapter-tls-private-key",
+    "postgres-attack-lab-controller-dsn",
+    "postgres-attack-lab-outbox-dsn",
+    "postgres-attack-lab-proxy-dsn",
+    "attack-lab-egress-signing-key",
+    "attack-lab-proxy-tls-certificate",
+    "attack-lab-proxy-tls-private-key",
   ])
 
   name                    = "${var.cluster_name}/${each.key}"
-  kms_key_id              = aws_kms_key.staging.arn
+  kms_key_id              = startswith(each.key, "attack-lab-") || startswith(each.key, "postgres-attack-lab-") ? aws_kms_key.attack_lab.arn : aws_kms_key.staging.arn
   recovery_window_in_days = 30
   tags = contains(keys(local.postgres_secret_principals), each.key) ? {
     DatabasePrincipal = local.postgres_secret_principals[each.key]
@@ -549,7 +656,7 @@ resource "aws_sqs_queue" "dead_letter" {
   name                       = "agentsec-${each.key}-dlq"
   message_retention_seconds  = 1209600
   visibility_timeout_seconds = 30
-  kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : aws_kms_key.staging.arn
+  kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : aws_kms_key.staging.arn
   sqs_managed_sse_enabled    = false
   tags                       = { Schema = each.value.schema }
 }
@@ -562,7 +669,7 @@ resource "aws_sqs_queue" "work" {
   visibility_timeout_seconds = each.value.visibility
   receive_wait_time_seconds  = 20
   max_message_size           = 262144
-  kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : aws_kms_key.staging.arn
+  kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : aws_kms_key.staging.arn
   sqs_managed_sse_enabled    = false
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.dead_letter[each.key].arn
@@ -1131,6 +1238,68 @@ resource "aws_iam_role_policy" "red_team" {
   ) })
 }
 
+resource "aws_iam_role" "attack_lab" {
+  for_each = local.attack_lab_irsa_contract
+  name     = "${var.cluster_name}-${each.value.role_name}"
+  assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{
+    Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+    Condition = { StringEquals = {
+      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = each.value.principal
+    } }
+  }] })
+}
+
+resource "aws_iam_role_policy" "attack_lab" {
+  for_each = local.attack_lab_irsa_contract
+  name     = "${var.cluster_name}-${each.value.role_name}-exact"
+  role     = aws_iam_role.attack_lab[each.key].id
+  policy = jsonencode({ Version = "2012-10-17", Statement = concat(
+    [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"]
+      Resource = [for name in local.attack_lab_mount_secrets[each.key] : aws_secretsmanager_secret.product[name].arn]
+      }, {
+      Effect   = "Allow"
+      Action   = ["kms:Decrypt"]
+      Resource = aws_kms_key.attack_lab.arn
+      Condition = {
+        StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" }
+        StringLike   = { "kms:EncryptionContext:SecretARN" = [for name in local.attack_lab_mount_secrets[each.key] : aws_secretsmanager_secret.product[name].arn] }
+      }
+      }, {
+      Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*"
+    }],
+    [for statement in [{
+      Effect = "Allow", Action = ["sqs:SendMessage", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.work["attack-lab-jobs"].arn
+      }, {
+      Effect    = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = aws_kms_key.attack_lab.arn
+      Condition = { StringEquals = { "kms:ViaService" = "sqs.${var.region}.amazonaws.com", "kms:EncryptionContext:aws:sqs:arn" = aws_sqs_queue.work["attack-lab-jobs"].arn } }
+    }] : statement if each.key == "outbox"],
+    [for statement in [{
+      Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.work["attack-lab-jobs"].arn
+      }, {
+      Effect = "Allow", Action = ["s3:ListBucket", "s3:GetBucketVersioning", "s3:GetEncryptionConfiguration"], Resource = aws_s3_bucket.attack_lab_evidence.arn
+      }, {
+      Effect = "Allow", Action = ["s3:PutObject", "s3:GetObject", "s3:GetObjectVersion"], Resource = "${aws_s3_bucket.attack_lab_evidence.arn}/organizations/*"
+      }, {
+      Effect    = "Allow", Action = ["kms:GenerateDataKey", "kms:Decrypt"], Resource = aws_kms_key.attack_lab.arn
+      Condition = { StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" }, StringLike = { "kms:EncryptionContext:aws:s3:arn" = "${aws_s3_bucket.attack_lab_evidence.arn}/organizations/*" } }
+      }, {
+      Effect    = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.attack_lab.arn
+      Condition = { StringEquals = { "kms:ViaService" = "sqs.${var.region}.amazonaws.com", "kms:EncryptionContext:aws:sqs:arn" = aws_sqs_queue.work["attack-lab-jobs"].arn } }
+      }, {
+      Effect = "Allow", Action = ["kms:DescribeKey"], Resource = aws_kms_key.attack_lab.arn
+    }] : statement if each.key == "controller"],
+    [for statement in [{
+      Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:zasp/red-team/targets/*"
+      }, {
+      Effect    = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.red_team.arn
+      Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" }, StringLike = { "kms:EncryptionContext:SecretARN" = "arn:${local.partition}:secretsmanager:${var.region}:${var.account_id}:secret:zasp/red-team/targets/*" } }
+    }] : statement if each.key == "proxy"]
+  ) })
+}
+
 resource "aws_iam_role" "projection_risk" {
   name = "${var.cluster_name}-projection-risk"
   assume_role_policy = jsonencode({
@@ -1351,27 +1520,43 @@ resource "aws_security_group" "vpc_endpoints" {
   }
 }
 
+resource "aws_security_group" "attack_lab_ecr_endpoints" {
+  name_prefix = "${var.cluster_name}-attack-lab-ecr-endpoints-"
+  description = "Image-pull-only ECR endpoints for isolated Attack Lab runners"
+  vpc_id      = aws_vpc.staging.id
+}
+
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.staging.id
   service_name      = "com.amazonaws.${var.region}.s3"
   vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_vpc.staging.main_route_table_id]
 }
 
 resource "aws_vpc_endpoint" "private_services" {
-  for_each            = toset(["ecr.api", "ecr.dkr", "logs", "secretsmanager", "sqs", "sts"])
-  vpc_id              = aws_vpc.staging.id
-  service_name        = "com.amazonaws.${var.region}.${each.value}"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = aws_subnet.private[*].id
-  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  for_each          = toset(["ecr.api", "ecr.dkr", "kms", "logs", "secretsmanager", "sqs", "sts"])
+  vpc_id            = aws_vpc.staging.id
+  service_name      = "com.amazonaws.${var.region}.${each.value}"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = aws_subnet.private[*].id
+  security_group_ids = contains(["ecr.api", "ecr.dkr"], each.value) ? [
+    aws_security_group.vpc_endpoints.id,
+    aws_security_group.attack_lab_ecr_endpoints.id,
+  ] : [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 }
 
 resource "aws_iam_role" "attack_lab_pod" {
   name = "${var.cluster_name}-attack-lab-pod"
   assume_role_policy = jsonencode({
-    Version   = "2012-10-17"
-    Statement = [{ Effect = "Allow", Principal = { Service = "eks-fargate-pods.amazonaws.com" }, Action = "sts:AssumeRole" }]
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Service = "eks-fargate-pods.amazonaws.com" }, Action = "sts:AssumeRole"
+      Condition = {
+        ArnLike      = { "aws:SourceArn" = "arn:${local.partition}:eks:${var.region}:${var.account_id}:fargateprofile/${var.cluster_name}/*" }
+        StringEquals = { "aws:SourceAccount" = var.account_id }
+      }
+    }]
   })
 }
 
@@ -1389,18 +1574,183 @@ resource "aws_eks_fargate_profile" "attack_lab" {
     namespace = var.attack_lab_namespace
     labels    = { "zasp.io/execution" = "attack-lab" }
   }
-  depends_on = [aws_iam_role_policy_attachment.attack_lab_pod]
+  depends_on = [
+    aws_eks_addon.vpc_cni,
+    aws_iam_role_policy_attachment.eks_vpc_resource_controller,
+    aws_iam_role_policy_attachment.attack_lab_pod,
+  ]
 }
 
 resource "aws_security_group" "attack_lab" {
   name_prefix = "${var.cluster_name}-attack-lab-"
-  description = "Bounded egress for Attack Lab Fargate pods"
+  description = "Proxy-only egress for isolated Attack Lab Fargate runners"
   vpc_id      = aws_vpc.staging.id
-  egress {
-    description = "TLS to approved private endpoints and product proxy"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [aws_vpc.staging.cidr_block]
-  }
+}
+
+resource "aws_security_group" "attack_lab_proxy" {
+  name_prefix = "${var.cluster_name}-attack-lab-proxy-"
+  description = "Bounded target and dependency egress for the Attack Lab proxy"
+  vpc_id      = aws_vpc.staging.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "attack_lab_ecr_runner" {
+  security_group_id            = aws_security_group.attack_lab_ecr_endpoints.id
+  referenced_security_group_id = aws_security_group.attack_lab.id
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+}
+
+resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_proxy" {
+  security_group_id            = aws_security_group.attack_lab.id
+  referenced_security_group_id = aws_security_group.attack_lab_proxy.id
+  ip_protocol                  = "tcp"
+  from_port                    = 8443
+  to_port                      = 8443
+}
+
+resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_ecr" {
+  security_group_id            = aws_security_group.attack_lab.id
+  referenced_security_group_id = aws_security_group.attack_lab_ecr_endpoints.id
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+}
+
+resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_s3" {
+  security_group_id = aws_security_group.attack_lab.id
+  prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+}
+
+resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_control_plane" {
+  security_group_id            = aws_security_group.attack_lab.id
+  referenced_security_group_id = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+}
+
+resource "aws_vpc_security_group_ingress_rule" "attack_lab_control_plane_runner" {
+  security_group_id            = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  referenced_security_group_id = aws_security_group.attack_lab.id
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+}
+
+resource "aws_vpc_security_group_ingress_rule" "attack_lab_runner_kubelet" {
+  security_group_id            = aws_security_group.attack_lab.id
+  referenced_security_group_id = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  ip_protocol                  = "tcp"
+  from_port                    = 10250
+  to_port                      = 10250
+}
+
+resource "aws_vpc_security_group_ingress_rule" "attack_lab_proxy_runner" {
+  security_group_id            = aws_security_group.attack_lab_proxy.id
+  referenced_security_group_id = aws_security_group.attack_lab.id
+  ip_protocol                  = "tcp"
+  from_port                    = 8443
+  to_port                      = 8443
+}
+
+resource "aws_vpc_security_group_ingress_rule" "attack_lab_proxy_internal" {
+  security_group_id            = aws_security_group.attack_lab_proxy.id
+  referenced_security_group_id = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  ip_protocol                  = "tcp"
+  from_port                    = 8081
+  to_port                      = 8081
+}
+
+resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_dns_udp" {
+  security_group_id            = aws_security_group.attack_lab.id
+  referenced_security_group_id = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  ip_protocol                  = "udp"
+  from_port                    = 53
+  to_port                      = 53
+}
+
+resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_dns_tcp" {
+  security_group_id            = aws_security_group.attack_lab.id
+  referenced_security_group_id = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  ip_protocol                  = "tcp"
+  from_port                    = 53
+  to_port                      = 53
+}
+
+resource "aws_vpc_security_group_egress_rule" "attack_lab_proxy_dns_udp" {
+  security_group_id            = aws_security_group.attack_lab_proxy.id
+  referenced_security_group_id = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  ip_protocol                  = "udp"
+  from_port                    = 53
+  to_port                      = 53
+}
+
+resource "aws_vpc_security_group_egress_rule" "attack_lab_proxy_dns_tcp" {
+  security_group_id            = aws_security_group.attack_lab_proxy.id
+  referenced_security_group_id = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  ip_protocol                  = "tcp"
+  from_port                    = 53
+  to_port                      = 53
+}
+
+resource "aws_vpc_security_group_ingress_rule" "attack_lab_dns_runner_udp" {
+  security_group_id            = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  referenced_security_group_id = aws_security_group.attack_lab.id
+  ip_protocol                  = "udp"
+  from_port                    = 53
+  to_port                      = 53
+}
+
+resource "aws_vpc_security_group_ingress_rule" "attack_lab_dns_runner_tcp" {
+  security_group_id            = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  referenced_security_group_id = aws_security_group.attack_lab.id
+  ip_protocol                  = "tcp"
+  from_port                    = 53
+  to_port                      = 53
+}
+
+resource "aws_vpc_security_group_ingress_rule" "attack_lab_dns_proxy_udp" {
+  security_group_id            = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  referenced_security_group_id = aws_security_group.attack_lab_proxy.id
+  ip_protocol                  = "udp"
+  from_port                    = 53
+  to_port                      = 53
+}
+
+resource "aws_vpc_security_group_ingress_rule" "attack_lab_dns_proxy_tcp" {
+  security_group_id            = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
+  referenced_security_group_id = aws_security_group.attack_lab_proxy.id
+  ip_protocol                  = "tcp"
+  from_port                    = 53
+  to_port                      = 53
+}
+
+resource "aws_vpc_security_group_egress_rule" "attack_lab_proxy_endpoints" {
+  security_group_id            = aws_security_group.attack_lab_proxy.id
+  referenced_security_group_id = aws_security_group.vpc_endpoints.id
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+}
+
+resource "aws_vpc_security_group_egress_rule" "attack_lab_proxy_targets" {
+  for_each          = toset(var.attack_lab_target_egress_cidrs)
+  security_group_id = aws_security_group.attack_lab_proxy.id
+  cidr_ipv4         = each.value
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+}
+
+resource "aws_vpc_security_group_egress_rule" "attack_lab_proxy_database" {
+  for_each          = toset(var.attack_lab_database_egress_cidrs)
+  security_group_id = aws_security_group.attack_lab_proxy.id
+  cidr_ipv4         = each.value
+  ip_protocol       = "tcp"
+  from_port         = 5432
+  to_port           = 5432
 }

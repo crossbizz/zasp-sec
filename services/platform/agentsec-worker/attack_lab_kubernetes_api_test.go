@@ -116,7 +116,7 @@ func TestProductionAttackLabKubernetesAPIReadinessCollectsAndUIDFencesCleanup(t 
 	termination := `{"schema_version":"attack-lab-outcome-v1","criterion_observed":true,"canary_touched":true,"gateway_evidence":"proxy authorized one POST","egress_evidence":"destination exact","cloud_evidence":"canary changed"}`
 	transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{
 		attackLabKubernetesTestResponse(http.StatusOK, `{"major":"1","minor":"30"}`),
-		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"zasp-attack-lab","uid":"223e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"status":{"phase":"Active"}}`),
+		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"zasp-attack-lab","uid":"223e4567-e89b-12d3-a456-426614174000","labels":{"kubernetes.io/metadata.name":"zasp-attack-lab","zasp.io/execution":"attack-lab"}},"status":{"phase":"Active"}}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"agentsec-attack-lab-proxy-ca","namespace":"zasp-attack-lab","uid":"423e4567-e89b-12d3-a456-426614174000"},"data":{"proxy-ca.crt":`+strconv.Quote(testDiscoveryCACertificatePEM)+`}}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"vpcresources.k8s.aws/v1beta1","kind":"SecurityGroupPolicy","metadata":{"name":"agentsec-attack-lab-egress","namespace":"zasp-attack-lab","uid":"623e4567-e89b-12d3-a456-426614174000"},"spec":{"podSelector":{"matchLabels":{"zasp.io/execution":"attack-lab"}},"securityGroups":{"groupIds":["sg-1234abcd"]}}}`),
@@ -206,16 +206,24 @@ func TestProductionAttackLabKubernetesAPIRejectsCreateConflictWithDriftedJobSpec
 
 func TestProductionAttackLabKubernetesAPIReadinessRejectsPrivilegeAndEgressDrift(t *testing.T) {
 	for name, fixture := range map[string]struct {
+		namespace      string
 		serviceAccount string
 		policy         string
 	}{
 		"service account role": {
+			namespace:      `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"zasp-attack-lab","uid":"223e4567-e89b-12d3-a456-426614174000","labels":{"kubernetes.io/metadata.name":"zasp-attack-lab","zasp.io/execution":"attack-lab"}},"status":{"phase":"Active"}}`,
 			serviceAccount: `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"},"annotations":{"eks.amazonaws.com/role-arn":"arn:aws:iam::123456789012:role/production-admin"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`,
 			policy:         `{"apiVersion":"vpcresources.k8s.aws/v1beta1","kind":"SecurityGroupPolicy","metadata":{"name":"agentsec-attack-lab-egress","namespace":"zasp-attack-lab","uid":"623e4567-e89b-12d3-a456-426614174000"},"spec":{"podSelector":{"matchLabels":{"zasp.io/execution":"attack-lab"}},"securityGroups":{"groupIds":["sg-1234abcd"]}}}`,
 		},
 		"foreign security group": {
+			namespace:      `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"zasp-attack-lab","uid":"223e4567-e89b-12d3-a456-426614174000","labels":{"kubernetes.io/metadata.name":"zasp-attack-lab","zasp.io/execution":"attack-lab"}},"status":{"phase":"Active"}}`,
 			serviceAccount: `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`,
 			policy:         `{"apiVersion":"vpcresources.k8s.aws/v1beta1","kind":"SecurityGroupPolicy","metadata":{"name":"agentsec-attack-lab-egress","namespace":"zasp-attack-lab","uid":"623e4567-e89b-12d3-a456-426614174000"},"spec":{"podSelector":{"matchLabels":{"zasp.io/execution":"attack-lab"}},"securityGroups":{"groupIds":["sg-deadbeef"]}}}`,
+		},
+		"foreign namespace label": {
+			namespace:      `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"zasp-attack-lab","uid":"223e4567-e89b-12d3-a456-426614174000","labels":{"kubernetes.io/metadata.name":"zasp-attack-lab","zasp.io/execution":"attack-lab","example.com/admin":"true"}},"status":{"phase":"Active"}}`,
+			serviceAccount: `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`,
+			policy:         `{"apiVersion":"vpcresources.k8s.aws/v1beta1","kind":"SecurityGroupPolicy","metadata":{"name":"agentsec-attack-lab-egress","namespace":"zasp-attack-lab","uid":"623e4567-e89b-12d3-a456-426614174000"},"spec":{"podSelector":{"matchLabels":{"zasp.io/execution":"attack-lab"}},"securityGroups":{"groupIds":["sg-1234abcd"]}}}`,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -225,7 +233,7 @@ func TestProductionAttackLabKubernetesAPIReadinessRejectsPrivilegeAndEgressDrift
 			}
 			transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{
 				attackLabKubernetesTestResponse(http.StatusOK, `{"major":"1","minor":"30"}`),
-				attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"zasp-attack-lab","uid":"223e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"status":{"phase":"Active"}}`),
+				attackLabKubernetesTestResponse(http.StatusOK, fixture.namespace),
 				attackLabKubernetesTestResponse(http.StatusOK, fixture.serviceAccount),
 				attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"agentsec-attack-lab-proxy-ca","namespace":"zasp-attack-lab","uid":"423e4567-e89b-12d3-a456-426614174000"},"data":{"proxy-ca.crt":`+strconv.Quote(testDiscoveryCACertificatePEM)+`}}`),
 				attackLabKubernetesTestResponse(http.StatusOK, fixture.policy),

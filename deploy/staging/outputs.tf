@@ -4,6 +4,10 @@ output "vpc_id" {
 output "private_subnet_ids" {
   value = aws_subnet.private[*].id
 }
+output "s3_cidr_snapshot" {
+  description = "Regional Amazon S3 destination CIDRs required by native Kubernetes NetworkPolicy while the gateway endpoint keeps traffic on the AWS network."
+  value       = sort(aws_vpc_endpoint.s3.cidr_blocks)
+}
 output "cluster_name" {
   value = aws_eks_cluster.staging.name
 }
@@ -232,4 +236,20 @@ output "attack_lab_security_group_id" {
 }
 output "attack_lab_fargate_profile_arn" {
   value = aws_eks_fargate_profile.attack_lab.arn
+}
+output "attack_lab_release_authority" {
+  description = "Non-secret isolated Attack Lab queue, evidence, workload identities, and pod network authorities."
+  value = {
+    aws_region              = var.region
+    queue_url               = aws_sqs_queue.work["attack-lab-jobs"].id
+    evidence_bucket         = aws_s3_bucket.attack_lab_evidence.bucket
+    evidence_bucket_owner   = var.account_id
+    evidence_kms_key_arn    = aws_kms_key.attack_lab.arn
+    controller_role_arn     = aws_iam_role.attack_lab["controller"].arn
+    outbox_role_arn         = aws_iam_role.attack_lab["outbox"].arn
+    proxy_role_arn          = aws_iam_role.attack_lab["proxy"].arn
+    security_group_id       = aws_security_group.attack_lab.id
+    proxy_security_group_id = aws_security_group.attack_lab_proxy.id
+    web_identity_token_file = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+  }
 }

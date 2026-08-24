@@ -297,6 +297,11 @@ spec:
       {{- range $cidr := required "network.redTeamEgressCIDRs is required" $.Values.network.redTeamEgressCIDRs }}
         - ipBlock: { cidr: {{ $cidr | quote }} }
       {{- end }}
+      {{- if eq $name "agentsec-red-team-worker" }}
+      {{- range $cidr := required "network.s3CIDRs is required" $.Values.network.s3CIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      {{- end }}
       {{- if eq $name "agentsec-red-team-adapter" }}
       {{- range $cidr := required "redTeam.targetAllowedCIDRs is required" $.Values.redTeam.targetAllowedCIDRs }}
         - ipBlock: { cidr: {{ $cidr | quote }} }

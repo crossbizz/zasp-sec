@@ -10,6 +10,7 @@ global:
     web: ""
     agentsecApi: ""
     agentsecWorker: ""
+    attackLabRunner: ""
     redTeamWorker: ""
     eventIngest: ""
     gatewayControl: ""
@@ -34,6 +35,9 @@ replicas:
   redTeamOutbox: 2
   redTeamWorker: 2
   redTeamAdapter: 2
+  attackLabController: 2
+  attackLabOutbox: 2
+  attackLabProxy: 2
   runtimeIngest: 2
   gatewayControl: 2
   runtimeOutbox: 2
@@ -62,6 +66,9 @@ secrets:
   redTeamOutboxProviderClassName: zasp-production-red-team-outbox-secrets
   redTeamWorkerProviderClassName: zasp-production-red-team-worker-secrets
   redTeamAdapterProviderClassName: zasp-production-red-team-adapter-secrets
+  attackLabControllerProviderClassName: zasp-production-attack-lab-controller-secrets
+  attackLabOutboxProviderClassName: zasp-production-attack-lab-outbox-secrets
+  attackLabProxyProviderClassName: zasp-production-attack-lab-proxy-secrets
   runtimeIngestProviderClassName: zasp-production-runtime-ingest-secrets
   runtimeCoordinatorProviderClassName: zasp-production-runtime-coordinator-secrets
   runtimeArchiveProviderClassName: zasp-production-runtime-archive-secrets
@@ -89,6 +96,12 @@ secrets:
   redTeamAdapterTokenObjectName: ""
   redTeamAdapterTLSCertificateObjectName: ""
   redTeamAdapterTLSPrivateKeyObjectName: ""
+  attackLabControllerPostgresDSNObjectName: ""
+  attackLabOutboxPostgresDSNObjectName: ""
+  attackLabProxyPostgresDSNObjectName: ""
+  attackLabSigningKeyObjectName: ""
+  attackLabProxyTLSCertificateObjectName: ""
+  attackLabProxyTLSPrivateKeyObjectName: ""
   runtimeIngestPostgresDSNObjectName: ""
   runtimeCoordinatorPostgresDSNObjectName: ""
   runtimeArchivePostgresDSNObjectName: ""
@@ -193,6 +206,24 @@ redTeam:
   readinessCredentialReference: ""
   adapterRequestTimeout: 10s
   adapterShutdownTimeout: 15s
+attackLab:
+  awsRegion: ""
+  queueURL: ""
+  evidenceBucket: ""
+  evidenceBucketOwner: ""
+  evidenceKMSKeyArn: ""
+  controllerRoleArn: ""
+  outboxRoleArn: ""
+  proxyRoleArn: ""
+  webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+  securityGroupID: ""
+  proxySecurityGroupID: ""
+  targetAllowedCIDRs: []
+  readinessCredentialReference: ""
+  operationTimeout: 10s
+  proxyRequestTimeout: 10s
+  proxyShutdownTimeout: 15s
+  proxyCABundleBase64: ""
 runtime:
   awsRegion: ""
   queueURL: ""
@@ -211,7 +242,7 @@ runtime:
   projectionRoleArn: ""
   completeRoleArn: ""
 schema:
-  expectedVersion: 25
+  expectedVersion: 26
   migrationTimeout: 10m
 databasePrincipals:
   migration: ""
@@ -226,6 +257,9 @@ databasePrincipals:
   redTeamOutboxWorker: ""
   redTeamWorker: ""
   redTeamAdapter: ""
+  attackLabController: ""
+  attackLabOutbox: ""
+  attackLabProxy: ""
   runtimeGateway: ""
   discoveryScheduler: ""
   projectionRisk: ""
@@ -284,6 +318,15 @@ serviceAccounts:
   redTeamAdapter:
     name: zasp-red-team-adapter
     roleArn: ""
+  attackLabController:
+    name: zasp-attack-lab-controller
+    roleArn: ""
+  attackLabOutbox:
+    name: zasp-attack-lab-outbox
+    roleArn: ""
+  attackLabProxy:
+    name: zasp-attack-lab-proxy
+    roleArn: ""
   runtimeIngest:
     name: zasp-runtime-ingest
     roleArn: ""
@@ -327,6 +370,9 @@ network:
   neo4jCIDR: ""
   outboxEgressCIDRs: []
   redTeamEgressCIDRs: []
+  s3CIDRs: []
+  attackLabEgressCIDRs: []
+  attackLabKubernetesAPICIDRs: []
   runtimeEgressCIDRs: []
   controlPlaneCIDRs: []
   kubernetesAPICIDRs: []
