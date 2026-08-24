@@ -259,6 +259,11 @@ func parseCIDRs(values []string) ([]*net.IPNet, bool) {
 	return result, true
 }
 
+func ValidTargetCIDRs(values []string) bool {
+	_, ok := parseCIDRs(values)
+	return ok
+}
+
 func validPublicIP(ip net.IP) bool {
 	return ip != nil && ip.IsGlobalUnicast() && !ip.IsPrivate() && !ip.IsLoopback() && !ip.IsLinkLocalUnicast() && !ip.IsUnspecified()
 }
