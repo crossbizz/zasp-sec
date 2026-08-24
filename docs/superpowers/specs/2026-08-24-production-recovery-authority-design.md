@@ -52,7 +52,7 @@ Required headers follow existing mutation rules: `Idempotency-Key`, `If-Match: "
 
 ```json
 {
-  "backup_id": "pid_...",
+  "backup_id": "pid_71000004-0000-4000-8000-000000000004",
   "retention_days": 30
 }
 ```
