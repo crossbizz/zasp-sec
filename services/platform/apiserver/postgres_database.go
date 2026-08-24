@@ -201,6 +201,13 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = 'red-team-exe
   AND zasp_red_team_execution_readiness($1, $2)
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 25)`
 
+const postgresAttackLabExecutionSchemaVersionSQL = `SELECT metadata.value
+FROM zasp_schema_metadata AS metadata
+JOIN zasp_schema_versions AS release ON release.version = 26 AND release.name = 'attack_lab_execution'
+WHERE metadata.key = 'production_core_schema' AND metadata.value = 'attack-lab-execution-v1'
+  AND zasp_attack_lab_execution_readiness($1, $2)
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 26)`
+
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
 func expectedCoreSchemaFingerprint() string {
 	return migrations.ProductionRiskProjectionSemanticFingerprint()
@@ -295,6 +302,12 @@ func expectedRedTeamExecutionSchemaChecksum() string {
 func expectedRedTeamExecutionSchemaFingerprint() string {
 	return migrations.ProductionRedTeamExecutionSemanticFingerprint()
 }
+func expectedAttackLabExecutionSchemaChecksum() string {
+	return migrations.ProductionAttackLabExecution().Checksum()
+}
+func expectedAttackLabExecutionSchemaFingerprint() string {
+	return migrations.ProductionAttackLabExecutionSemanticFingerprint()
+}
 
 type PostgresRow interface{ Scan(...any) error }
 
@@ -331,7 +344,11 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", classifyPostgresError(err)
 	}
 	var version string
-	if marker == RedTeamExecutionSchemaVersion {
+	if marker == AttackLabExecutionSchemaVersion {
+		if err := database.driver.QueryRow(ctx, postgresAttackLabExecutionSchemaVersionSQL, expectedAttackLabExecutionSchemaChecksum(), expectedAttackLabExecutionSchemaFingerprint()).Scan(&version); err != nil {
+			return "", classifyPostgresError(err)
+		}
+	} else if marker == RedTeamExecutionSchemaVersion {
 		if err := database.driver.QueryRow(ctx, postgresRedTeamExecutionSchemaVersionSQL, expectedRedTeamExecutionSchemaChecksum(), expectedRedTeamExecutionSchemaFingerprint()).Scan(&version); err != nil {
 			return "", classifyPostgresError(err)
 		}

@@ -441,13 +441,41 @@ func TestProductionHandlersRequireAndRouteCurrentSecurityAgentAuthority(t *testi
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Contain compromised runtime") {
 		t.Fatalf("security-agent list status=%d body=%s", response.Code, response.Body.String())
 	}
-	if len(securityDatabase.statements) != 8 || securityDatabase.statements[0] != postgresSecurityAgentSessionIsolationReadySQL || securityDatabase.statements[7] != postgresSecurityAgentDefinitionPageSQL {
+	if len(securityDatabase.statements) != 10 || securityDatabase.statements[0] != postgresAttackLabExecutionSecurityAgentReadySQL || securityDatabase.statements[1] != postgresRedTeamExecutionSecurityAgentReadySQL || securityDatabase.statements[9] != postgresSecurityAgentDefinitionPageSQL {
 		t.Fatalf("security-agent statements=%#v", securityDatabase.statements)
 	}
 	for _, statement := range mainDatabase.queries {
 		if statement == postgresSecurityAgentDefinitionPageSQL {
 			t.Fatalf("general API database handled security-agent definition page")
 		}
+	}
+}
+
+func TestProductionHandlersMountMatchingV26AttackLabAuthority(t *testing.T) {
+	mainDatabase := &discoveryCallDatabase{schema: AttackLabExecutionSchemaVersion, responses: map[string]json.RawMessage{
+		postgresAttackLabExecutionReadinessSQL: json.RawMessage(`true`),
+		postgresDiscoveryPrincipalReadySQL:     json.RawMessage(`true`),
+	}}
+	mainRepository, err := NewPostgresRepository(mainDatabase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	securityDatabase := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresAttackLabExecutionSecurityAgentReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+	}}
+	securityRepository, err := NewSecurityAgentPostgresRepository(securityDatabase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, err := NewRepositoryIdentityProvider(fixedExternalAuthenticator{}, &fixedGrantResolver{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := NewProductionHandlersWithSecurityAgent(mainRepository, securityRepository, provider, http.NotFoundHandler(), fixtureCookiePolicy()); err != nil {
+		t.Fatalf("v26 production handler error=%v", err)
+	}
+	if len(securityDatabase.statements) != 1 || securityDatabase.statements[0] != postgresAttackLabExecutionSecurityAgentReadySQL {
+		t.Fatalf("v26 readiness statements=%#v", securityDatabase.statements)
 	}
 }
 

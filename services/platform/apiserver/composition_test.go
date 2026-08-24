@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 123 || len(public) != 123 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 123/123", len(seen), len(public))
+	if len(seen) != 136 || len(public) != 136 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 136/136", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -88,7 +88,7 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 	}
 }
 
-func TestTaskSevenCompositionHasExactActivationSurfaceWithoutExecutionOverclaims(t *testing.T) {
+func TestCoreCompositionHasExactProductionSecuritySurfaceWithoutUnimplementedOverclaims(t *testing.T) {
 	definitions := make(map[string]OperationDefinition)
 	for _, operation := range CoreOperations() {
 		definitions[operation.OperationID] = operation
@@ -146,8 +146,19 @@ func TestTaskSevenCompositionHasExactActivationSurfaceWithoutExecutionOverclaims
 			t.Errorf("red team mutation %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
 		}
 	}
+	for _, operationID := range []string{"listAttackLabRuns", "getAttackLabRun"} {
+		definition, ok := definitions[operationID]
+		if !ok || definition.Permission != "view" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
+			t.Errorf("Attack Lab read %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
+		}
+	}
+	for _, operationID := range []string{"createAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun"} {
+		definition, ok := definitions[operationID]
+		if !ok || definition.Permission != "run_tests" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
+			t.Errorf("Attack Lab mutation %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
+		}
+	}
 	for _, operationID := range []string{
-		"listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun",
 		"simulatePolicy", "listPolicyDecisions",
 		"createAIExplanation",
 	} {

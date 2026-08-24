@@ -62,6 +62,8 @@ const (
 	securityAgentSessionIsolationName       = "security_agent_session_isolation"
 	redTeamExecutionVersion                 = int64(25)
 	redTeamExecutionName                    = "red_team_execution"
+	attackLabExecutionVersion               = int64(26)
+	attackLabExecutionName                  = "attack_lab_execution"
 	rollbackTimeout                         = 5 * time.Second
 
 	tableExistsSQL                                     = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
@@ -82,6 +84,7 @@ const (
 	lockRuntimeIngestReconciliationSQL                 = `LOCK TABLE "public"."zasp_runtime_ingest_reconciliation_state", "public"."zasp_runtime_ingest_reconciliation_work" IN ACCESS EXCLUSIVE MODE`
 	lockSecurityAgentExecutionSQL                      = `LOCK TABLE "public"."zasp_security_agent_execution_state", "public"."zasp_security_agent_definitions", "public"."zasp_security_agent_runs", "public"."zasp_security_agent_effects", "public"."zasp_security_agent_controls" IN ACCESS EXCLUSIVE MODE`
 	lockRedTeamExecutionSQL                            = `LOCK TABLE "public"."zasp_red_team_principal_bindings", "public"."zasp_red_team_definitions", "public"."zasp_red_team_runs", "public"."zasp_red_team_attempts", "public"."zasp_red_team_outbox", "public"."zasp_red_team_request_receipts", "public"."zasp_red_team_audit" IN ACCESS EXCLUSIVE MODE`
+	lockAttackLabExecutionSQL                          = `LOCK TABLE "public"."zasp_attack_lab_principal_bindings", "public"."zasp_attack_lab_runs", "public"."zasp_attack_lab_attempts", "public"."zasp_attack_lab_outbox", "public"."zasp_attack_lab_request_receipts", "public"."zasp_attack_lab_audit" IN ACCESS EXCLUSIVE MODE`
 	lockIdentityAdministrationSQL                      = `LOCK TABLE "public"."zasp_identity_administration_state", "public"."zasp_identity_provider_connections", "public"."zasp_identity_provider_mutations", "public"."zasp_identity_secret_reveal_grants", "public"."zasp_identity_webhook_events", "public"."zasp_identity_member_groups" IN ACCESS EXCLUSIVE MODE`
 	lockSecurityAgentControlsSQL                       = `LOCK TABLE "public"."zasp_security_agent_request_receipts", "public"."zasp_security_agent_kill_switches" IN ACCESS EXCLUSIVE MODE`
 	insertRowSQL                                       = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
@@ -100,6 +103,7 @@ const (
 	securityAgentConnectorRevocationReadinessSQL       = `SELECT zasp_security_agent_connector_revocation_readiness($1,$2)`
 	securityAgentSessionIsolationReadinessSQL          = `SELECT zasp_security_agent_session_isolation_readiness($1,$2)`
 	redTeamExecutionReadinessSQL                       = `SELECT zasp_red_team_execution_readiness($1,$2)`
+	attackLabExecutionReadinessSQL                     = `SELECT zasp_attack_lab_execution_readiness($1,$2)`
 	typedInventoryRollbackAllowedSQL                   = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_inventory_cutover_state" WHERE "phase" = 'cutover')`
 	runtimeDataPlaneRollbackAllowedSQL                 = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_data_plane_state" WHERE "used_at" IS NOT NULL)`
 	runtimeGatewayReconciliationRollbackAllowedSQL     = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_gateway_reconciliation_state" WHERE "used_at" IS NOT NULL)`
@@ -112,6 +116,7 @@ const (
 	securityAgentConnectorRevocationRollbackAllowedSQL = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_effects" WHERE "action_key" = 'revoke_integration_connection') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_connector_revocations") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_definitions" WHERE "body"->'allowed_actions' ? 'revoke_integration_connection') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_kill_switches" WHERE "action_key" = 'revoke_integration_connection')`
 	securityAgentSessionIsolationRollbackAllowedSQL    = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_effects" WHERE "action_key" = 'isolate_session') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_definitions" WHERE "body"->'allowed_actions' ? 'isolate_session') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_kill_switches" WHERE "action_key" = 'isolate_session')`
 	redTeamExecutionRollbackAllowedSQL                 = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_red_team_definitions") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_red_team_runs") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_red_team_outbox") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_red_team_request_receipts") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_red_team_audit")`
+	attackLabExecutionRollbackAllowedSQL               = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_attack_lab_runs") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_attack_lab_outbox") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_attack_lab_request_receipts") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_attack_lab_audit")`
 )
 
 var (
@@ -274,6 +279,12 @@ var redTeamExecutionUpSQL string
 
 //go:embed sql/0025_red_team_execution.down.sql
 var redTeamExecutionDownSQL string
+
+//go:embed sql/0026_attack_lab_execution.up.sql
+var attackLabExecutionUpSQL string
+
+//go:embed sql/0026_attack_lab_execution.down.sql
+var attackLabExecutionDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -470,6 +481,13 @@ func ProductionRedTeamExecution() Metadata {
 	return Metadata{version: redTeamExecutionVersion, name: redTeamExecutionName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionAttackLabExecution() Metadata {
+	up := strings.TrimSpace(attackLabExecutionUpSQL)
+	down := strings.TrimSpace(attackLabExecutionDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: attackLabExecutionVersion, name: attackLabExecutionName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -576,6 +594,10 @@ func ProductionRedTeamExecutionSemanticFingerprint() string {
 	return semanticFingerprint(redTeamExecutionUpSQL, "red_team_execution_fingerprint")
 }
 
+func ProductionAttackLabExecutionSemanticFingerprint() string {
+	return semanticFingerprint(attackLabExecutionUpSQL, "attack_lab_execution_fingerprint")
+}
+
 func semanticFingerprint(source, key string) string {
 	marker := "'" + key + "', '"
 	start := strings.Index(source, marker)
@@ -677,7 +699,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 25 {
+	if count < 1 || count > 26 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -730,6 +752,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation())
 	} else if count == 25 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution())
+	} else if count == 26 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -2261,6 +2285,75 @@ func (runner *Runner) DownProductionRedTeamExecution(ctx context.Context) error 
 	})
 }
 
+func (runner *Runner) UpProductionAttackLabExecution(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockRedTeamExecutionSQL, lockSecurityAgentControlsSQL, lockIdentityAdministrationSQL, lockSecurityAgentExecutionSQL, lockRuntimeIngestReconciliationSQL, lockRuntimeGatewayReconciliationSQL, lockRuntimeDataPlaneSQL, lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockAdministrationSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionRedTeamExecutionState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionRedTeamExecution()
+		if err := requireMigrationReadiness(ctx, transaction, redTeamExecutionReadinessSQL, prior.Checksum(), ProductionRedTeamExecutionSemanticFingerprint()); err != nil {
+			return err
+		}
+		metadata := ProductionAttackLabExecution()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionAttackLabExecutionState(ctx, transaction); err != nil {
+			return err
+		}
+		return requireMigrationReadiness(ctx, transaction, attackLabExecutionReadinessSQL, metadata.Checksum(), ProductionAttackLabExecutionSemanticFingerprint())
+	})
+}
+
+func (runner *Runner) DownProductionAttackLabExecution(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockAttackLabExecutionSQL, lockRedTeamExecutionSQL, lockSecurityAgentControlsSQL, lockIdentityAdministrationSQL, lockSecurityAgentExecutionSQL, lockRuntimeIngestReconciliationSQL, lockRuntimeGatewayReconciliationSQL, lockRuntimeDataPlaneSQL, lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockAdministrationSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionAttackLabExecutionState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionAttackLabExecution()
+		if err := requireMigrationReadiness(ctx, transaction, attackLabExecutionReadinessSQL, metadata.Checksum(), ProductionAttackLabExecutionSemanticFingerprint()); err != nil {
+			return err
+		}
+		var rollbackAllowed bool
+		if err := scanRow(ctx, transaction, attackLabExecutionRollbackAllowedSQL, nil, &rollbackAllowed); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if !rollbackAllowed {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionRedTeamExecutionState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionRedTeamExecution()
+		return requireMigrationReadiness(ctx, transaction, redTeamExecutionReadinessSQL, prior.Checksum(), ProductionRedTeamExecutionSemanticFingerprint())
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -2484,6 +2577,10 @@ func readProductionSecurityAgentSessionIsolationState(ctx context.Context, query
 
 func readProductionRedTeamExecutionState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution()})
+}
+
+func readProductionAttackLabExecutionState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

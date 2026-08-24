@@ -538,7 +538,7 @@ func TestReferenceAuthorizationMigrationOwnsAtomicFirstPartyReferenceCompletion(
 
 func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t *testing.T) {
 	baseline, core, workflows, receipts, safety, provenance, administration := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration()
-	reveal, risk, discovery, connector, reference, execution, typed, runtime, reconciliation, ingestReconciliation, securityAgent, identityAdministration, securityAgentControls, securityAgentAutonomous, securityAgentTemporaryPolicy, securityAgentConnectorRevocation, securityAgentSessionIsolation := APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation()
+	reveal, risk, discovery, connector, reference, execution, typed, runtime, reconciliation, ingestReconciliation, securityAgent, identityAdministration, securityAgentControls, securityAgentAutonomous, securityAgentTemporaryPolicy, securityAgentConnectorRevocation, securityAgentSessionIsolation, redTeam, attackLab := APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution()
 	throughReconciliation := []Metadata{baseline, core, workflows, receipts, safety, provenance, administration, reveal, risk, discovery, connector, reference, execution, typed, runtime, reconciliation}
 	throughIngestReconciliation := append(append([]Metadata(nil), throughReconciliation...), ingestReconciliation)
 	throughSecurityAgent := append(append([]Metadata(nil), throughIngestReconciliation...), securityAgent)
@@ -548,6 +548,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 	throughSecurityAgentTemporaryPolicy := append(append([]Metadata(nil), throughSecurityAgentAutonomous...), securityAgentTemporaryPolicy)
 	throughSecurityAgentConnectorRevocation := append(append([]Metadata(nil), throughSecurityAgentTemporaryPolicy...), securityAgentConnectorRevocation)
 	throughSecurityAgentSessionIsolation := append(append([]Metadata(nil), throughSecurityAgentConnectorRevocation...), securityAgentSessionIsolation)
+	throughRedTeam := append(append([]Metadata(nil), throughSecurityAgentSessionIsolation...), redTeam)
+	throughAttackLab := append(append([]Metadata(nil), throughRedTeam...), attackLab)
 	for _, test := range []struct {
 		name    string
 		rows    []Row
@@ -577,7 +579,9 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "security agent temporary policy", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSecurityAgentTemporaryPolicy...)...), want: 22},
 		{name: "security agent connector revocation", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSecurityAgentConnectorRevocation...)...), want: 23},
 		{name: "security agent session isolation", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSecurityAgentSessionIsolation...)...), want: 24},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(25)}}}, wantErr: ErrInvalidState},
+		{name: "red team execution", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughRedTeam...)...), want: 25},
+		{name: "attack lab execution", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughAttackLab...)...), want: 26},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(27)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}

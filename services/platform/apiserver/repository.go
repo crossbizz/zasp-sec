@@ -41,6 +41,7 @@ const postgresSecurityAgentTemporaryPolicyReadinessSQL = `SELECT to_jsonb(zasp_s
 const postgresSecurityAgentConnectorRevocationReadinessSQL = `SELECT to_jsonb(zasp_security_agent_connector_revocation_readiness($1,$2))`
 const postgresSecurityAgentSessionIsolationReadinessSQL = `SELECT to_jsonb(zasp_security_agent_session_isolation_readiness($1,$2))`
 const postgresRedTeamExecutionReadinessSQL = `SELECT to_jsonb(zasp_red_team_execution_readiness($1,$2))`
+const postgresAttackLabExecutionReadinessSQL = `SELECT to_jsonb(zasp_attack_lab_execution_readiness($1,$2))`
 
 const (
 	postgresAuthenticateSessionSQL    = `SELECT jsonb_build_object('principal_id', session.principal_id, 'organization_id', session.organization_id, 'workspace_id', session.workspace_id, 'environment_id', session.environment_id, 'permissions', zasp_effective_scope_permissions(scope.permissions, membership.role), 'csrf_token', session.csrf_token, 'fresh_authenticated', session.authenticated_at > now() - interval '5 minutes', 'fresh_auth_expires_at', session.authenticated_at + interval '5 minutes') FROM zasp_product_sessions AS session JOIN zasp_identity_memberships AS membership ON membership.principal_id = session.principal_id AND membership.organization_id = session.organization_id AND membership.active JOIN zasp_authorized_scopes AS scope ON scope.principal_id = session.principal_id AND scope.organization_id = session.organization_id AND scope.workspace_id = session.workspace_id AND scope.environment_id = session.environment_id WHERE session.token_digest = digest($1, 'sha256') AND session.revoked_at IS NULL AND session.expires_at > now()`
@@ -168,6 +169,8 @@ func exactProductReadiness(version string) (string, string, string, bool) {
 		return postgresSecurityAgentSessionIsolationReadinessSQL, migrations.ProductionSecurityAgentSessionIsolation().Checksum(), migrations.ProductionSecurityAgentSessionIsolationSemanticFingerprint(), true
 	case RedTeamExecutionSchemaVersion:
 		return postgresRedTeamExecutionReadinessSQL, migrations.ProductionRedTeamExecution().Checksum(), migrations.ProductionRedTeamExecutionSemanticFingerprint(), true
+	case AttackLabExecutionSchemaVersion:
+		return postgresAttackLabExecutionReadinessSQL, migrations.ProductionAttackLabExecution().Checksum(), migrations.ProductionAttackLabExecutionSemanticFingerprint(), true
 	default:
 		return "", "", "", false
 	}
