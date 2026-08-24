@@ -709,6 +709,12 @@ describe("production workflow concurrency contract", () => {
     assert.deepEqual(controlMutation.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentExecutionControlResult" });
     assert.deepEqual(document.components.schemas.SecurityAgentExecutionControlInput.properties.target.enum, ["environment", "action"]);
     assert.equal(document.components.schemas.SecurityAgentExecutionControlInput.properties.target.enum.includes("global"), false);
+    assert.deepEqual(document.components.schemas.SecurityAgentExecutionControls.properties.actions, {
+      type: "array",
+      minItems: 3,
+      maxItems: 3,
+      items: { $ref: "#/components/schemas/SecurityAgentExecutionControl" },
+    });
 
     const activationState = operations.get("getSecurityAgentActivation");
     assert.equal(activationState.path, "/api/v1/security-agents/{id}/activation");

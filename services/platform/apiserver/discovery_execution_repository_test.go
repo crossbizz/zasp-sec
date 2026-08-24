@@ -89,12 +89,14 @@ func newTestDiscoveryExecutionRepository(t *testing.T, database *discoveryCallDa
 type executionReadinessOnlyDatabase struct {
 	schemaCalls    int
 	temporaryCalls int
+	connectorCalls int
 	inventoryCalls int
 	executionCalls int
 	identityCalls  int
 	inventoryReady json.RawMessage
 	identityReady  json.RawMessage
 	temporaryReady json.RawMessage
+	connectorReady json.RawMessage
 	ready          json.RawMessage
 	principal      json.RawMessage
 }
@@ -106,6 +108,12 @@ func (database *executionReadinessOnlyDatabase) SchemaVersion(context.Context) (
 
 func (database *executionReadinessOnlyDatabase) QueryJSON(_ context.Context, query string, _ ...any) (json.RawMessage, error) {
 	switch query {
+	case postgresSecurityAgentConnectorRevocationReadinessSQL:
+		database.connectorCalls++
+		if database.connectorReady == nil {
+			return nil, errors.New("connector revocation authority unavailable")
+		}
+		return database.connectorReady, nil
 	case postgresSecurityAgentTemporaryPolicyReadinessSQL:
 		database.temporaryCalls++
 		if database.temporaryReady == nil {
@@ -128,6 +136,23 @@ func (database *executionReadinessOnlyDatabase) QueryJSON(_ context.Context, que
 		return database.principal, nil
 	default:
 		return nil, errors.New("unexpected query")
+	}
+}
+
+func TestDiscoveryExecutionConstructorsAcceptCurrentV23Readiness(t *testing.T) {
+	database := &executionReadinessOnlyDatabase{
+		connectorReady: json.RawMessage(`true`),
+		principal:      json.RawMessage(`true`),
+	}
+	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+	if err != nil {
+		t.Fatalf("v23 constructor error=%v", err)
+	}
+	if err := repository.Ready(context.Background()); err != nil {
+		t.Fatalf("v23 Ready() error=%v", err)
+	}
+	if database.schemaCalls != 0 || database.connectorCalls != 2 || database.temporaryCalls != 0 || database.identityCalls != 0 || database.inventoryCalls != 0 || database.executionCalls != 0 {
+		t.Fatalf("readiness calls schema=%d connector=%d temporary=%d identity=%d inventory=%d execution=%d", database.schemaCalls, database.connectorCalls, database.temporaryCalls, database.identityCalls, database.inventoryCalls, database.executionCalls)
 	}
 }
 

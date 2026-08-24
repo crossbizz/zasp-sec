@@ -137,8 +137,8 @@ try {
     ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL: "zasp_e2e_security_agent_worker",
     ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL: "zasp_e2e_security_agent_action",
   } });
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, and temporary-policy releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, and connector-revocation releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -146,7 +146,7 @@ try {
   console.log("combined E2E: schema 19 identity_administration verified");
   console.log("combined E2E: schema 20 security_agent_controls verified");
   console.log("combined E2E: schema 21 security_agent_autonomous_response verified");
-  console.log("combined E2E: schema 22 security_agent_temporary_policy verified");
+  console.log("combined E2E: schema 23 security_agent_connector_revocation verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -625,8 +625,8 @@ try {
   const reloadRecovery = await waitForBrowserText(browser.cdp, /Recover committed operations/);
   assert.match(reloadRecovery, /Delete Integration[\s\S]*revoking/);
   assert.doesNotMatch(reloadRecovery, /Integration deleted/);
+  await waitForBrowserAction(browser.cdp, `document.querySelector(${JSON.stringify('[aria-label="Open Harness reload revocation"]')})?.disabled === true`);
   assert.equal(await browserHasAriaLabel(browser.cdp, "Open Harness reload revocation"), true, "reload hid a still-revoking integration");
-  assert.equal(await browserAriaControlDisabled(browser.cdp, "Open Harness reload revocation"), true, "reload did not retain the scope mutation lock");
   assert.equal(await browserTextControlDisabled(browser.cdp, "Configure Generic Webhook"), true, "reload enabled a competing integration mutation");
   console.log("combined E2E: reload revocation receipt remained locked and pending without a deleted claim");
 
@@ -671,7 +671,7 @@ try {
   await clickBrowserText(browser.cdp, "Save Security Agent definition");
   await waitForBrowserText(browser.cdp, /Bounded response definition/);
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate plan|Start supervised run|Approve|Reject|Cancel run)$/i), false);
-	await exerciseSecurityAgentAutomaticLifecycle(browser.cdp, workerBinary, workerE2EBinary, postgresPort, dsn, publicOrigin, actionPrivateKey);
+	await exerciseSecurityAgentAutomaticLifecycle(browser.cdp, workerBinary, workerE2EBinary, apiBinary, apiEnvironment, healthPort, postgresPort, dsn, publicOrigin, actionPrivateKey);
 	console.log("combined E2E: full-document receipt recovery, local integration, and automatic Security Agent authority proven");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/identity-access`);
@@ -788,7 +788,7 @@ try {
   await waitForBrowserText(browser.cdp, /Save API token/);
   await clickBrowserText(browser.cdp, "I saved it — destroy recovery copy");
   await waitForBrowserMissing(browser.cdp, '[aria-label="Save API token"]');
-  await waitForBrowserActive(browser.cdp, "Create API token");
+  await waitForBrowserControlDisabled(browser.cdp, "Create API token", false);
 
   await fillBrowserLabel(browser.cdp, "Token name", "E2E API token");
   lostTokenResponses.create = true;
@@ -916,10 +916,18 @@ try {
   assert.equal(tokenResponses.every((request) => request.cacheControl === "no-store"), true, "API token response omitted cache-control no-store");
   console.log("combined E2E: production administration lifecycle and hidden provider/export mutations proven");
 
+  await selectBrowserOption(browser.cdp, "Authorized scope", "Production");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
+  await waitForBrowserScope(browser.cdp, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
+  await waitForBrowserTextMissing(browser.cdp, "Switching scope…");
   await stopChild(api);
   api = startChild(apiBinary, [], { env: apiEnvironment });
   await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
+  await waitForBrowserScope(browser.cdp, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
   await navigateBrowser(browser.cdp, `${publicOrigin}/violations`);
+  await waitForBrowserScope(browser.cdp, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
+  await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
+  await waitForBrowserText(browser.cdp, /Production credential exposure 0001/);
   await clickBrowserText(browser.cdp, "Production credential exposure 0001");
   assert.match(await waitForBrowserText(browser.cdp, /Accepted production exception/), /accepted/);
   await clickBrowserAria(browser.cdp, "Close");
@@ -1240,7 +1248,7 @@ INSERT INTO zasp_integration_connections(organization_id,workspace_id,environmen
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5KubernetesBIntegrationID}','pid_74000012-0000-4000-8000-000000000012','kubernetes','ref:kubernetes/cluster/e2e-b','verified',transaction_timestamp()),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5KubernetesPartialIntegrationID}','pid_74000013-0000-4000-8000-000000000013','kubernetes','ref:kubernetes/cluster/e2e-partial','verified',transaction_timestamp()),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5KubernetesFailedIntegrationID}','pid_74000014-0000-4000-8000-000000000014','kubernetes','ref:kubernetes/cluster/e2e-failed','verified',transaction_timestamp()),
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5GitHubIntegrationID}','pid_75000011-0000-4000-8000-000000000011','github','ref:github/installation/e2e-424242','verified',transaction_timestamp()),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5GitHubIntegrationID}','pid_75000011-0000-4000-8000-000000000011','github','ref:github/installation/424242','verified',transaction_timestamp()),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${task5OktaIntegrationID}','pid_76000011-0000-4000-8000-000000000011','okta','ref:okta/refresh/e2e-tenant','verified',transaction_timestamp());
 INSERT INTO zasp_discovery_connection_subjects(organization_id,workspace_id,environment_id,integration_id,connection_id,provider,subject_kind,subject_id,connection_version,configuration_digest,source)
 SELECT organization_id,workspace_id,environment_id,id,
@@ -1248,7 +1256,7 @@ SELECT organization_id,workspace_id,environment_id,id,
  'kubernetes','kubernetes_cluster',CASE id WHEN '${task5KubernetesAIntegrationID}' THEN 'prod.example/cluster-a' WHEN '${task5KubernetesBIntegrationID}' THEN 'prod.example/cluster-a' WHEN '${task5KubernetesPartialIntegrationID}' THEN 'prod.example/cluster-partial' ELSE 'prod.example/cluster-failed' END,1,digest(convert_to(configuration::text,'UTF8'),'sha256'),'reference'
 FROM zasp_integrations WHERE id IN('${task5KubernetesAIntegrationID}','${task5KubernetesBIntegrationID}','${task5KubernetesPartialIntegrationID}','${task5KubernetesFailedIntegrationID}');
 INSERT INTO zasp_connector_credentials(organization_id,workspace_id,environment_id,id,integration_id,provider,credential_class,credential_reference,version,metadata) VALUES
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_75000021-0000-4000-8000-000000000021','${task5GitHubIntegrationID}','github','github_installation_reference','ref:github/installation/e2e-424242',1,'{"installation_id":"424242"}'::jsonb),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_75000021-0000-4000-8000-000000000021','${task5GitHubIntegrationID}','github','github_installation_reference','ref:github/installation/424242',1,'{"installation_id":"424242"}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_76000021-0000-4000-8000-000000000021','${task5OktaIntegrationID}','okta','okta_refresh_reference','ref:okta/refresh/e2e-tenant',1,'{"tenant":"e2e.okta.com"}'::jsonb);
 SELECT zasp_inventory_backfill_scope('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003');
 SELECT zasp_inventory_cutover_scope('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003');
@@ -1630,13 +1638,16 @@ async function exerciseTask4ProductionWorkerBoundaries(workerBinary, postgresPor
   console.log("combined E2E: real launched discovery and per-kind projection worker boundaries proven; scheduler/risk ready and managed dependencies fail closed");
 }
 
-async function exerciseSecurityAgentAutomaticLifecycle(cdp, workerBinary, workerE2EBinary, postgresPort, dsn, publicOrigin, actionPrivateKey) {
+async function exerciseSecurityAgentAutomaticLifecycle(cdp, workerBinary, workerE2EBinary, apiBinary, apiEnvironment, healthPort, postgresPort, dsn, publicOrigin, actionPrivateKey) {
 	const primaryOrganization = "pid_10000001-0000-4000-8000-000000000001";
 	const primaryWorkspace = "pid_10000002-0000-4000-8000-000000000002";
 	const primaryEnvironment = "pid_10000003-0000-4000-8000-000000000003";
 	const primaryFinding = "pid_30000102-0000-4000-8000-000000000102";
 	const temporaryFinding = "pid_30000101-0000-4000-8000-000000000101";
 	const temporaryDefinition = "pid_78000010-0000-4000-8000-000000000010";
+	const connectorFinding = "pid_30000103-0000-4000-8000-000000000103";
+	const connectorEvidence = "pid_77000001-0000-4000-8000-000000000001";
+	const connectorDefinition = "pid_78000020-0000-4000-8000-000000000020";
 	const gatewayDevice = "pid_79000001-0000-4000-8000-000000000001";
 	const gatewayEnrollment = "pid_79000002-0000-4000-8000-000000000002";
 	const gatewayCredential = "pid_79000003-0000-4000-8000-000000000003";
@@ -1664,10 +1675,23 @@ jsonb_build_object('id','${foreignDefinition}','name','Foreign autonomous respon
 INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${temporaryDefinition}','supervised',1,1,
 jsonb_build_object('id','${temporaryDefinition}','name','Temporary containment response','trigger_kind','finding','trigger_source','temporary_policy','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',900,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('create_temporary_policy'),'verification_kind','policy_state','definition_version',1,'enabled',true),'security-agent-actions-v1');
+INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,body)
+VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','integration','${task5GitHubIntegrationID}',jsonb_build_object('id','${task5GitHubIntegrationID}','connector_key','github','name','Harness GitHub inventory','configuration',jsonb_build_object('installation_id','424242'),'status','active','created_at','2026-08-19T00:00:00Z','updated_at','2026-08-19T00:00:00Z'));
+INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status)
+VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorFinding}','posture','connector_revocation','Compromised GitHub integration','critical','open');
+INSERT INTO zasp_risk_finding_evidence(organization_id,workspace_id,environment_id,finding_id,position,evidence_id)
+VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorFinding}',1,'${connectorEvidence}');
+INSERT INTO zasp_inventory_evidence(organization_id,workspace_id,environment_id,id,integration_id,snapshot_id,finding_id,object_reference,checksum,media_type,schema_version,parser_version,collected_at)
+SELECT '${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorEvidence}','${task5GitHubIntegrationID}',snapshot.id,'${connectorFinding}','s3://zasp-production-e2e/security-agent/connector-revocation.json',decode(repeat('7a',32),'hex'),'application/json','1','parser_v1',transaction_timestamp()
+FROM zasp_discovery_snapshots snapshot WHERE (snapshot.organization_id,snapshot.workspace_id,snapshot.environment_id,snapshot.integration_id,snapshot.state,snapshot.complete,snapshot.is_last_good)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${task5GitHubIntegrationID}','complete',true,true) ORDER BY snapshot.generation DESC LIMIT 1;
+INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
+VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorDefinition}','supervised',1,1,
+jsonb_build_object('id','${connectorDefinition}','name','Compromised connector response','trigger_kind','finding','trigger_source','connector_revocation','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',300,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('revoke_integration_connection'),'verification_kind','connection_state','definition_version',1,'enabled',true),'security-agent-actions-v1');
 INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES
 ('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','*',true,'production-e2e-security-agent'),
 ('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','update_finding_response',true,'production-e2e-security-agent'),
 ('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','create_temporary_policy',true,'production-e2e-security-agent'),
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','revoke_integration_connection',true,'production-e2e-security-agent'),
 ('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','*',true,'production-e2e-security-agent'),
 ('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','update_finding_response',true,'production-e2e-security-agent')
 ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO UPDATE SET execution_enabled=EXCLUDED.execution_enabled,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();
@@ -1675,9 +1699,11 @@ INSERT INTO zasp_gateway_devices(organization_id,workspace_id,environment_id,id,
 INSERT INTO zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,id,device_id,audience,salt,token_hash,expires_at) VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayEnrollment}','${gatewayDevice}','runtime-gateway-enroll',repeat(E'\\001',16)::bytea,repeat(E'\\002',32)::bytea,transaction_timestamp()+interval '1 hour');
 INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id,id,device_id,enrollment_token_id,enrollment_digest,audience,key_reference,public_key,expires_at,format_version,credential_generation,key_id,algorithm,v15_issued_at) VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayCredential}','${gatewayDevice}','${gatewayEnrollment}',repeat(E'\\003',32)::bytea,'runtime-gateway','ref:gateway/public/production-e2e',repeat(E'\\004',32)::bytea,transaction_timestamp()+interval '1 hour',1,1,'gateway-device-key-01','Ed25519',transaction_timestamp());`;
 	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: seed });
+	const connectorSeed = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-v", "ON_ERROR_STOP=1", "-c", `SELECT concat_ws('|',count(*),max(workflow.body->>'status'),max(connection.state),max(credential.status)) FROM zasp_inventory_evidence evidence JOIN zasp_workflow_records workflow ON (workflow.organization_id,workflow.workspace_id,workflow.environment_id,workflow.kind,workflow.id)=(evidence.organization_id,evidence.workspace_id,evidence.environment_id,'integration',evidence.integration_id) JOIN zasp_integration_connections connection ON (connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id)=(evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.integration_id) JOIN zasp_connector_credentials credential ON (credential.organization_id,credential.workspace_id,credential.environment_id,credential.integration_id,credential.provider,credential.credential_reference)=(connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id,connection.provider,connection.connection_reference) WHERE evidence.id='${connectorEvidence}';`])).stdout.trim();
+	assert.equal(connectorSeed, "1|active|verified|active", "connector response seed was not fully actionable");
 
 	await assertPortAvailable(8081);
-	const worker = startTask4Worker(workerBinary, {
+	const securityAgentWorkerEnvironment = {
 		...process.env,
 		ZASP_WORKER_MODE: "security-agent",
 		ZASP_POSTGRES_DSN: `postgres://zasp_e2e_security_agent_worker@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
@@ -1687,24 +1713,26 @@ INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id
 		ZASP_LEASE_DURATION: "30s",
 		ZASP_BATCH_SIZE: "10",
 		ZASP_SHUTDOWN_TIMEOUT: "1s",
-	});
+	};
+	let worker = startTask4Worker(workerBinary, securityAgentWorkerEnvironment);
 	await assertReadyTask4Worker(worker, "security-agent");
 
 	let approvalID = "";
-	for (let attempt = 0; attempt < 100; attempt += 1) {
-		const state = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
+	let automaticState = "";
+	for (let attempt = 0; attempt < 200; attempt += 1) {
+		automaticState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
 			COALESCE((SELECT run.state FROM zasp_security_agent_runs run WHERE (run.organization_id,run.trigger_id)=('${primaryOrganization}','${primaryFinding}')),''),
 			COALESCE((SELECT approval.approval_id FROM zasp_security_agent_approvals approval JOIN zasp_security_agent_runs run USING(organization_id,workspace_id,environment_id,run_id) WHERE (run.organization_id,run.trigger_id,approval.state)=('${primaryOrganization}','${primaryFinding}','pending')),''),
 			COALESCE((SELECT run.state FROM zasp_security_agent_runs run WHERE (run.organization_id,run.trigger_id)=('${foreignOrganization}','${foreignFinding}')),''),
 			COALESCE((SELECT finding.status FROM zasp_risk_findings finding WHERE (finding.organization_id,finding.id)=('${foreignOrganization}','${foreignFinding}')),''));`])).stdout.trim();
-		const [primaryState, candidateApproval, foreignState, foreignFindingState] = state.split("|");
+		const [primaryState, candidateApproval, foreignState, foreignFindingState] = automaticState.split("|");
 		if (primaryState === "waiting_approval" && /^pid_[0-9a-f-]{36}$/.test(candidateApproval) && foreignState === "remediated" && foreignFindingState === "under_review") {
 			approvalID = candidateApproval;
 			break;
 		}
 		await delay(50);
 	}
-	assert.match(approvalID, /^pid_[0-9a-f-]{36}$/, `worker did not prepare supervised authority and execute autonomous authority: ${worker.output()}`);
+	assert.match(approvalID, /^pid_[0-9a-f-]{36}$/, `worker did not prepare supervised authority and execute autonomous authority: state=${automaticState}; output=${worker.output()}`);
 
 	await navigateBrowser(cdp, `${publicOrigin}/protect/approvals`);
 	await waitForBrowserText(cdp, /Move finding to under review/);
@@ -1729,6 +1757,44 @@ INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id
 	}
 	assert.equal(finalState, "under_review|remediated|approval_required|approved|under_review|remediated|autonomous|0|0", "multi-tenant automatic response did not preserve supervised, autonomous, and isolation authority");
 
+	let connectorApprovalID = "";
+	let connectorRunID = "";
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		const state = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',COALESCE(run.run_id,''),COALESCE(run.state,''),COALESCE(approval.approval_id,'')) FROM zasp_security_agent_runs run LEFT JOIN zasp_security_agent_approvals approval USING(organization_id,workspace_id,environment_id,run_id) WHERE (run.organization_id,run.workspace_id,run.environment_id,run.definition_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorDefinition}');`])).stdout.trim();
+		const [candidateRun, runState, candidateApproval] = state.split("|");
+		if (/^pid_[0-9a-f-]{36}$/.test(candidateRun) && runState === "waiting_approval" && /^pid_[0-9a-f-]{36}$/.test(candidateApproval)) {
+			connectorRunID = candidateRun;
+			connectorApprovalID = candidateApproval;
+			break;
+		}
+		await delay(50);
+	}
+	assert.match(connectorApprovalID, /^pid_[0-9a-f-]{36}$/, `connector revocation approval was not prepared: ${worker.output()}`);
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_identity_memberships SET role='security_engineer',version=version+1 WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND organization_id='${primaryOrganization}' AND active;`]);
+	await navigateBrowser(cdp, `${publicOrigin}/protect/approvals`);
+	await waitForBrowserText(cdp, /Revoke integration connection/);
+	await clickBrowserAria(cdp, `Open approval ${connectorApprovalID}`);
+	await waitForBrowserText(cdp, /Identity administrator approval required/);
+	assert.equal(await browserHasInteractiveText(cdp, /^Approve$/i), false, "non-admin browser could approve irreversible connector revocation");
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_identity_memberships SET role='security_admin',version=version+1 WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND organization_id='${primaryOrganization}' AND active; UPDATE zasp_authorized_scopes SET permissions='["view","manage_workflows","manage_findings","manage_identity"]'::jsonb WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND organization_id='${primaryOrganization}' AND workspace_id='${primaryWorkspace}' AND environment_id='${primaryEnvironment}'; UPDATE zasp_product_sessions SET permissions='["view","manage_workflows","manage_findings","manage_identity"]'::jsonb WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
+	await reloadBrowser(cdp);
+	await waitForBrowserText(cdp, /Revoke integration connection/);
+	await clickBrowserAria(cdp, `Open approval ${connectorApprovalID}`);
+	await stopChild(worker);
+	await clickBrowserText(cdp, "Approve");
+	await waitForBrowserText(cdp, /approved/);
+	await stopChild(api);
+	api = undefined;
+	worker = startTask4Worker(workerBinary, securityAgentWorkerEnvironment);
+	await assertReadyTask4Worker(worker, "security-agent");
+	let connectorEffectState = "";
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		connectorEffectState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,approval.state) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_approvals approval USING(organization_id,workspace_id,environment_id,run_id) WHERE run.run_id='${connectorRunID}' AND effect.action_key='revoke_integration_connection';`])).stdout.trim();
+		if (connectorEffectState === "running|pending|approved") break;
+		await delay(50);
+	}
+	assert.equal(connectorEffectState, "running|pending|approved", "approved connector revocation did not reach provider reconciliation");
+
 	let temporaryApprovalID = "";
 	let temporaryRunID = "";
 	for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -1742,6 +1808,10 @@ INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id
 		await delay(50);
 	}
 	assert.match(temporaryApprovalID, /^pid_[0-9a-f-]{36}$/, `temporary policy approval was not prepared: ${worker.output()}`);
+	await stopChild(worker);
+	await runConnectorRevocationProviderWorker(workerE2EBinary, postgresPort, task5GitHubIntegrationID);
+	api = startChild(apiBinary, [], { env: apiEnvironment });
+	await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
 	await navigateBrowser(cdp, `${publicOrigin}/protect/approvals`);
 	await waitForBrowserText(cdp, /Apply temporary containment policy/);
 	await clickBrowserAria(cdp, `Open approval ${temporaryApprovalID}`);
@@ -1749,6 +1819,8 @@ INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id
 	await waitForBrowserText(cdp, /TTL 600s/);
 	await clickBrowserText(cdp, "Approve");
 	await waitForBrowserText(cdp, /approved/);
+	worker = startTask4Worker(workerBinary, securityAgentWorkerEnvironment);
+	await assertReadyTask4Worker(worker, "security-agent");
 	let effectState = "";
 	for (let attempt = 0; attempt < 100; attempt += 1) {
 		effectState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,approval.state) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_approvals approval USING(organization_id,workspace_id,environment_id,run_id) WHERE run.run_id='${temporaryRunID}' AND effect.action_key='create_temporary_policy';`])).stdout.trim();
@@ -1757,6 +1829,8 @@ INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id
 	}
 	assert.equal(effectState, "running|pending|approved", "approved temporary policy did not reach the isolated action queue");
 	await stopChild(worker);
+	await stopChild(api);
+	api = undefined;
 
 	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "apply");
 	const applied = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,count(target.*)) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_temporary_policy_targets target USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE run.run_id='${temporaryRunID}' GROUP BY run.state,effect.state;`])).stdout.trim();
@@ -1766,6 +1840,12 @@ INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id
 	const cleaned = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,count(target.*),max(target.sequence)) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_temporary_policy_targets target USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE run.run_id='${temporaryRunID}' GROUP BY run.state,effect.state;`])).stdout.trim();
 	assert.equal(cleaned, "remediated|cleaned|2|2", "temporary containment cleanup did not durably restore the gateway policy");
 
+	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "reconcile");
+	const connectorFinalState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,link.state,connection.state,credential.status,integration.state,workflow.body->>'status') FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_connector_revocations link USING(organization_id,workspace_id,environment_id,run_id,step_id) JOIN zasp_integration_connections connection ON (connection.organization_id,connection.workspace_id,connection.environment_id,connection.id)=(link.organization_id,link.workspace_id,link.environment_id,link.connection_id) JOIN zasp_connector_credentials credential ON (credential.organization_id,credential.workspace_id,credential.environment_id,credential.id)=(link.organization_id,link.workspace_id,link.environment_id,link.credential_id) JOIN zasp_integrations integration ON (integration.organization_id,integration.workspace_id,integration.environment_id,integration.id)=(link.organization_id,link.workspace_id,link.environment_id,link.integration_id) JOIN zasp_workflow_records workflow ON (workflow.organization_id,workflow.workspace_id,workflow.environment_id,workflow.kind,workflow.id)=(link.organization_id,link.workspace_id,link.environment_id,'integration',link.integration_id) WHERE run.run_id='${connectorRunID}';`])).stdout.trim();
+	assert.equal(connectorFinalState, "remediated|verified|verified|revoked|revoked|pending|pending_authorization", "connector revocation did not finish through provider and action worker authority");
+	api = startChild(apiBinary, [], { env: apiEnvironment });
+	await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
+
 	await navigateBrowser(cdp, `${publicOrigin}/protect/security-agents`);
 	const visible = await waitForBrowserText(cdp, /remediated/);
 	assert.match(visible, /Bounded response definition/);
@@ -1774,7 +1854,23 @@ INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id
 	const history = await waitForBrowserText(cdp, /Approval history/);
 	assert.match(history, /approved/);
 	assert.doesNotMatch(history, /Foreign autonomous response/);
-	console.log("combined E2E: multi-tenant supervised approval, autonomous response, and signed temporary policy apply/cleanup proven through real production workers");
+	console.log("combined E2E: multi-tenant supervised approval, autonomous response, signed temporary policy apply/cleanup, and irreversible connector revocation proven through real production workers");
+}
+
+async function runConnectorRevocationProviderWorker(workerE2EBinary, postgresPort, integrationID) {
+	assert.equal(integrationID, task5GitHubIntegrationID, "unexpected Security Agent connector revocation target");
+	const reference = "ref:github/installation/424242";
+	const result = await command(workerE2EBinary, ["-test.run=^TestProductionCombinedE2EConnectorRevocationWorker$", "-test.v", "-test.count=1"], {
+		cwd: platform,
+		timeout: 60_000,
+		env: {
+			...process.env,
+			ZASP_COMBINED_E2E_CONNECTOR_DSN: `postgres://zasp_e2e_api@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
+			ZASP_COMBINED_E2E_CONNECTOR_INTEGRATION_ID: integrationID,
+			ZASP_COMBINED_E2E_CONNECTOR_REFERENCE: reference,
+		},
+	});
+	assert.match(result.stdout, new RegExp(`real connector reconciler revoked exact reference ${reference.replaceAll("/", "\\/")}`));
 }
 
 async function runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, phase) {
@@ -1789,7 +1885,8 @@ async function runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, act
 			ZASP_COMBINED_E2E_ACTION_PHASE: phase,
 		},
 	});
-	assert.match(result.stdout, new RegExp(`signed temporary gateway policy ${phase} and verified through gateway authority`));
+	if (phase === "reconcile") assert.match(result.stdout, /connector revocation reconciled through the production action worker/);
+	else assert.match(result.stdout, new RegExp(`signed temporary gateway policy ${phase} and verified through gateway authority`));
 }
 
 function startTask4Worker(workerBinary, environment) {
@@ -2264,7 +2361,7 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
       upstreamResponse.pipe(response);
     });
     upstream.on("error", () => { response.writeHead(502); response.end("upstream unavailable"); });
-		request.pipe(upstream);
+      request.pipe(upstream);
   });
   server.listen(port, "127.0.0.1");
   await once(server, "listening");

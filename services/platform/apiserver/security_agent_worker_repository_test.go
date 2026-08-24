@@ -52,7 +52,7 @@ func TestSecurityAgentWorkerRepositoryClaimsPlansHeartbeatsAndExecutesExactTenan
 	if result, err := repository.ExecuteSecurityAgentRun(context.Background(), claims[0], "security-agent-worker-1", "lease-token-000000000001", auditID, correlationID); err != nil || result.OutcomeID != outcomeID {
 		t.Fatalf("execute=%#v err=%v", result, err)
 	}
-	if len(database.statements) != 6 || database.statements[0] != postgresSecurityAgentWorkerReadySQL || database.statements[1] != postgresSecurityAgentScheduleTriggersSQL || database.statements[2] != postgresSecurityAgentClaimRunsSQL || database.statements[3] != postgresSecurityAgentHeartbeatRunSQL || database.statements[4] != postgresSecurityAgentPrepareRunSQL || database.statements[5] != postgresSecurityAgentExecuteRunSQL {
+	if len(database.statements) != 7 || database.statements[0] != postgresSecurityAgentWorkerReadyV23SQL || database.statements[1] != postgresSecurityAgentWorkerReadySQL || database.statements[2] != postgresSecurityAgentScheduleTriggersSQL || database.statements[3] != postgresSecurityAgentClaimRunsSQL || database.statements[4] != postgresSecurityAgentHeartbeatRunSQL || database.statements[5] != postgresSecurityAgentPrepareRunSQL || database.statements[6] != postgresSecurityAgentExecuteRunSQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }

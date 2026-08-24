@@ -180,6 +180,13 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = 'security-age
   AND zasp_security_agent_temporary_policy_readiness($1, $2)
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 22)`
 
+const postgresSecurityAgentConnectorRevocationSchemaVersionSQL = `SELECT metadata.value
+FROM zasp_schema_metadata AS metadata
+JOIN zasp_schema_versions AS release ON release.version = 23 AND release.name = 'security_agent_connector_revocation'
+WHERE metadata.key = 'production_core_schema' AND metadata.value = 'security-agent-connector-revocation-v1'
+  AND zasp_security_agent_connector_revocation_readiness($1, $2)
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 23)`
+
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
 func expectedCoreSchemaFingerprint() string {
 	return migrations.ProductionRiskProjectionSemanticFingerprint()
@@ -256,6 +263,12 @@ func expectedSecurityAgentTemporaryPolicySchemaChecksum() string {
 func expectedSecurityAgentTemporaryPolicySchemaFingerprint() string {
 	return migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint()
 }
+func expectedSecurityAgentConnectorRevocationSchemaChecksum() string {
+	return migrations.ProductionSecurityAgentConnectorRevocation().Checksum()
+}
+func expectedSecurityAgentConnectorRevocationSchemaFingerprint() string {
+	return migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint()
+}
 
 type PostgresRow interface{ Scan(...any) error }
 
@@ -292,7 +305,11 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 		return "", classifyPostgresError(err)
 	}
 	var version string
-	if marker == SecurityAgentTemporaryPolicySchemaVersion {
+	if marker == SecurityAgentConnectorRevocationSchemaVersion {
+		if err := database.driver.QueryRow(ctx, postgresSecurityAgentConnectorRevocationSchemaVersionSQL, expectedSecurityAgentConnectorRevocationSchemaChecksum(), expectedSecurityAgentConnectorRevocationSchemaFingerprint()).Scan(&version); err != nil {
+			return "", classifyPostgresError(err)
+		}
+	} else if marker == SecurityAgentTemporaryPolicySchemaVersion {
 		if err := database.driver.QueryRow(ctx, postgresSecurityAgentTemporaryPolicySchemaVersionSQL, expectedSecurityAgentTemporaryPolicySchemaChecksum(), expectedSecurityAgentTemporaryPolicySchemaFingerprint()).Scan(&version); err != nil {
 			return "", classifyPostgresError(err)
 		}

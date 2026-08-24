@@ -46,10 +46,18 @@ describe("security agent approval effects", () => {
     expect(decodeSecurityAgentApproval(approval).ttl_seconds).toBe(300);
   });
 
+  it("accepts only irreversible connector revocation metadata", () => {
+    const revocation = { ...approval, expected_effect: "Revoke integration connection", reversible: false, ttl_seconds: 0 };
+    expect(decodeSecurityAgentApproval(revocation).reversible).toBe(false);
+    expect(() => decodeSecurityAgentApproval({ ...revocation, reversible: true })).toThrow("schema mismatch");
+    expect(() => decodeSecurityAgentApproval({ ...revocation, ttl_seconds: 60 })).toThrow("schema mismatch");
+  });
+
   it.each([
     { expected_effect: "Move finding to under review", ttl_seconds: 300 },
     { expected_effect: "Apply temporary containment policy", ttl_seconds: 0 },
     { expected_effect: "Apply temporary containment policy", ttl_seconds: 3601 },
+    { expected_effect: "Revoke integration connection", ttl_seconds: 0 },
   ])("rejects mismatched effect and TTL metadata %#", (change) => {
     expect(() => decodeSecurityAgentApproval({ ...approval, ...change })).toThrow("schema mismatch");
   });

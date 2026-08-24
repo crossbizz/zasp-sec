@@ -9,16 +9,21 @@ import (
 )
 
 const (
+	postgresSecurityAgentWorkerReadyV23SQL   = `SELECT jsonb_build_object('release',zasp_security_agent_connector_revocation_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
 	postgresSecurityAgentWorkerReadySQL      = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
 	postgresSecurityAgentWorkerReadyV21SQL   = `SELECT jsonb_build_object('release',zasp_security_agent_autonomous_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
 	postgresSecurityAgentScheduleTriggersSQL = `SELECT zasp_security_agent_schedule_triggers_v22($1,$2)`
+	postgresSecurityAgentScheduleV23SQL      = `SELECT zasp_security_agent_schedule_triggers_v23($1,$2)`
 	postgresSecurityAgentScheduleV21SQL      = `SELECT zasp_security_agent_schedule_triggers_v21($1,$2)`
 	postgresSecurityAgentClaimRunsSQL        = `SELECT zasp_security_agent_claim_runs_v22($1,$2,$3,$4)`
+	postgresSecurityAgentClaimRunsV23SQL     = `SELECT zasp_security_agent_claim_runs_v23($1,$2,$3,$4)`
 	postgresSecurityAgentClaimRunsV21SQL     = `SELECT zasp_security_agent_claim_runs($1,$2,$3,$4)`
 	postgresSecurityAgentHeartbeatRunSQL     = `SELECT zasp_security_agent_heartbeat_run($1,$2,$3,$4,$5,$6,$7)`
 	postgresSecurityAgentPrepareRunSQL       = `SELECT zasp_security_agent_prepare_run_v22($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentPrepareRunV23SQL    = `SELECT zasp_security_agent_prepare_run_v23($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	postgresSecurityAgentPrepareRunV21SQL    = `SELECT zasp_security_agent_prepare_run_v21($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	postgresSecurityAgentExecuteRunSQL       = `SELECT zasp_security_agent_execute_run_v22($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresSecurityAgentExecuteRunV23SQL    = `SELECT zasp_security_agent_execute_run_v23($1,$2,$3,$4,$5,$6,$7,$8)`
 	postgresSecurityAgentExecuteRunV21SQL    = `SELECT zasp_security_agent_execute_run_v21($1,$2,$3,$4,$5,$6,$7,$8)`
 )
 
@@ -96,6 +101,7 @@ func NewSecurityAgentWorkerRepository(database JSONDatabase) (*SecurityAgentWork
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	configurations := []SecurityAgentWorkerRepository{
+		{database: database, readySQL: postgresSecurityAgentWorkerReadyV23SQL, checksum: migrations.ProductionSecurityAgentConnectorRevocation().Checksum(), fingerprint: migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleV23SQL, claimSQL: postgresSecurityAgentClaimRunsV23SQL, prepareSQL: postgresSecurityAgentPrepareRunV23SQL, executeSQL: postgresSecurityAgentExecuteRunV23SQL},
 		{database: database, readySQL: postgresSecurityAgentWorkerReadySQL, checksum: migrations.ProductionSecurityAgentTemporaryPolicy().Checksum(), fingerprint: migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleTriggersSQL, claimSQL: postgresSecurityAgentClaimRunsSQL, prepareSQL: postgresSecurityAgentPrepareRunSQL, executeSQL: postgresSecurityAgentExecuteRunSQL},
 		{database: database, readySQL: postgresSecurityAgentWorkerReadyV21SQL, checksum: migrations.ProductionSecurityAgentAutonomousResponse().Checksum(), fingerprint: migrations.ProductionSecurityAgentAutonomousResponseSemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleV21SQL, claimSQL: postgresSecurityAgentClaimRunsV21SQL, prepareSQL: postgresSecurityAgentPrepareRunV21SQL, executeSQL: postgresSecurityAgentExecuteRunV21SQL},
 	}

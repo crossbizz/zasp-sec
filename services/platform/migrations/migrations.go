@@ -12,93 +12,97 @@ import (
 )
 
 const (
-	baselineVersion                     = int64(1)
-	baselineName                        = "schema_versions"
-	coreVersion                         = int64(2)
-	coreName                            = "production_core"
-	workflowVersion                     = int64(3)
-	workflowName                        = "production_workflows"
-	receiptVersion                      = int64(4)
-	receiptName                         = "workflow_receipts"
-	safetyVersion                       = int64(5)
-	safetyName                          = "workflow_receipt_safety"
-	provenanceVersion                   = int64(6)
-	provenanceName                      = "workflow_receipt_provenance"
-	administrationVersion               = int64(7)
-	administrationName                  = "production_administration"
-	revealGrantsVersion                 = int64(8)
-	revealGrantsName                    = "api_token_reveal_grants"
-	riskProjectionVersion               = int64(9)
-	riskProjectionName                  = "production_risk_projection"
-	discoveryVersion                    = int64(10)
-	discoveryName                       = "production_discovery"
-	connectorVersion                    = int64(11)
-	connectorName                       = "connector_authorization"
-	referenceVersion                    = int64(12)
-	referenceName                       = "reference_authorization"
-	executionVersion                    = int64(13)
-	executionName                       = "production_discovery_execution"
-	typedInventoryVersion               = int64(14)
-	typedInventoryName                  = "typed_inventory_cutover"
-	runtimeDataPlaneVersion             = int64(15)
-	runtimeDataPlaneName                = "runtime_data_plane"
-	runtimeGatewayReconciliationVersion = int64(16)
-	runtimeGatewayReconciliationName    = "runtime_gateway_reconciliation"
-	runtimeIngestReconciliationVersion  = int64(17)
-	runtimeIngestReconciliationName     = "runtime_ingest_reconciliation"
-	securityAgentExecutionVersion       = int64(18)
-	securityAgentExecutionName          = "security_agent_execution"
-	identityAdministrationVersion       = int64(19)
-	identityAdministrationName          = "identity_administration"
-	securityAgentControlsVersion        = int64(20)
-	securityAgentControlsName           = "security_agent_controls"
-	securityAgentAutonomousVersion      = int64(21)
-	securityAgentAutonomousName         = "security_agent_autonomous_response"
-	securityAgentTemporaryPolicyVersion = int64(22)
-	securityAgentTemporaryPolicyName    = "security_agent_temporary_policy"
-	rollbackTimeout                     = 5 * time.Second
+	baselineVersion                         = int64(1)
+	baselineName                            = "schema_versions"
+	coreVersion                             = int64(2)
+	coreName                                = "production_core"
+	workflowVersion                         = int64(3)
+	workflowName                            = "production_workflows"
+	receiptVersion                          = int64(4)
+	receiptName                             = "workflow_receipts"
+	safetyVersion                           = int64(5)
+	safetyName                              = "workflow_receipt_safety"
+	provenanceVersion                       = int64(6)
+	provenanceName                          = "workflow_receipt_provenance"
+	administrationVersion                   = int64(7)
+	administrationName                      = "production_administration"
+	revealGrantsVersion                     = int64(8)
+	revealGrantsName                        = "api_token_reveal_grants"
+	riskProjectionVersion                   = int64(9)
+	riskProjectionName                      = "production_risk_projection"
+	discoveryVersion                        = int64(10)
+	discoveryName                           = "production_discovery"
+	connectorVersion                        = int64(11)
+	connectorName                           = "connector_authorization"
+	referenceVersion                        = int64(12)
+	referenceName                           = "reference_authorization"
+	executionVersion                        = int64(13)
+	executionName                           = "production_discovery_execution"
+	typedInventoryVersion                   = int64(14)
+	typedInventoryName                      = "typed_inventory_cutover"
+	runtimeDataPlaneVersion                 = int64(15)
+	runtimeDataPlaneName                    = "runtime_data_plane"
+	runtimeGatewayReconciliationVersion     = int64(16)
+	runtimeGatewayReconciliationName        = "runtime_gateway_reconciliation"
+	runtimeIngestReconciliationVersion      = int64(17)
+	runtimeIngestReconciliationName         = "runtime_ingest_reconciliation"
+	securityAgentExecutionVersion           = int64(18)
+	securityAgentExecutionName              = "security_agent_execution"
+	identityAdministrationVersion           = int64(19)
+	identityAdministrationName              = "identity_administration"
+	securityAgentControlsVersion            = int64(20)
+	securityAgentControlsName               = "security_agent_controls"
+	securityAgentAutonomousVersion          = int64(21)
+	securityAgentAutonomousName             = "security_agent_autonomous_response"
+	securityAgentTemporaryPolicyVersion     = int64(22)
+	securityAgentTemporaryPolicyName        = "security_agent_temporary_policy"
+	securityAgentConnectorRevocationVersion = int64(23)
+	securityAgentConnectorRevocationName    = "security_agent_connector_revocation"
+	rollbackTimeout                         = 5 * time.Second
 
-	tableExistsSQL                                 = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
-	countRowsSQL                                   = `SELECT count(*) FROM "public"."zasp_schema_versions"`
-	readRowSQL                                     = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`
-	readVersionSQL                                 = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`
-	lockTableSQL                                   = `LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`
-	lockWorkflowMutationsSQL                       = `LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`
-	lockAdministrationSQL                          = `LOCK TABLE "public"."zasp_identity_memberships", "public"."zasp_product_sessions", "public"."zasp_product_api_tokens", "public"."zasp_organizations", "public"."zasp_workspaces", "public"."zasp_environments", "public"."zasp_group_mappings", "public"."zasp_admin_audit", "public"."zasp_session_events", "public"."zasp_compliance_controls", "public"."zasp_compliance_evidence", "public"."zasp_data_controls" IN ACCESS EXCLUSIVE MODE`
-	lockRevealGrantsSQL                            = `LOCK TABLE "public"."zasp_admin_idempotency", "public"."zasp_api_token_reveal_grants", "public"."zasp_product_api_tokens" IN ACCESS EXCLUSIVE MODE`
-	lockRiskProjectionSQL                          = `LOCK TABLE "public"."zasp_risk_findings", "public"."zasp_risk_finding_evidence", "public"."zasp_risk_finding_factors", "public"."zasp_risk_attack_paths", "public"."zasp_risk_attack_path_nodes", "public"."zasp_risk_attack_path_evidence", "public"."zasp_risk_break_options", "public"."zasp_workflow_idempotency", "public"."zasp_workflow_audit", "public"."zasp_workflow_receipts" IN ACCESS EXCLUSIVE MODE`
-	lockDiscoverySQL                               = `LOCK TABLE "public"."zasp_discovery_principal_bindings", "public"."zasp_integrations", "public"."zasp_integration_connections", "public"."zasp_discovery_schedules", "public"."zasp_discovery_syncs", "public"."zasp_discovery_jobs", "public"."zasp_discovery_snapshots", "public"."zasp_discovery_cursors", "public"."zasp_inventory_entities", "public"."zasp_inventory_source_observations", "public"."zasp_inventory_relationships", "public"."zasp_inventory_evidence", "public"."zasp_sensors", "public"."zasp_sensor_tokens", "public"."zasp_sensor_heartbeats", "public"."zasp_runtime_batches", "public"."zasp_runtime_stages", "public"."zasp_discovery_outbox", "public"."zasp_projection_work", "public"."zasp_gateway_devices", "public"."zasp_gateway_enrollment_tokens", "public"."zasp_gateway_credentials", "public"."zasp_gateway_policy_subscriptions" IN ACCESS EXCLUSIVE MODE`
-	lockConnectorSQL                               = `LOCK TABLE "public"."zasp_connector_oauth_attempts", "public"."zasp_connector_effects", "public"."zasp_connector_credentials", "public"."zasp_connector_audit" IN ACCESS EXCLUSIVE MODE`
-	lockExecutionSQL                               = `LOCK TABLE "public"."zasp_discovery_execution_principals", "public"."zasp_discovery_connection_subjects", "public"."zasp_discovery_execution_quotas", "public"."zasp_discovery_generation_reservations", "public"."zasp_discovery_job_authorities", "public"."zasp_discovery_job_checkpoints", "public"."zasp_discovery_upgrade_transitions", "public"."zasp_discovery_snapshot_inputs", "public"."zasp_discovery_snapshot_projection_items", "public"."zasp_discovery_projection_cursors" IN ACCESS EXCLUSIVE MODE`
-	lockTypedInventorySQL                          = `LOCK TABLE "public"."zasp_inventory_cutover_state" IN ACCESS EXCLUSIVE MODE`
-	lockRuntimeDataPlaneSQL                        = `LOCK TABLE "public"."zasp_runtime_data_plane_state" IN ACCESS EXCLUSIVE MODE`
-	lockRuntimeGatewayReconciliationSQL            = `LOCK TABLE "public"."zasp_runtime_gateway_reconciliation_state" IN ACCESS EXCLUSIVE MODE`
-	lockRuntimeIngestReconciliationSQL             = `LOCK TABLE "public"."zasp_runtime_ingest_reconciliation_state", "public"."zasp_runtime_ingest_reconciliation_work" IN ACCESS EXCLUSIVE MODE`
-	lockSecurityAgentExecutionSQL                  = `LOCK TABLE "public"."zasp_security_agent_execution_state", "public"."zasp_security_agent_definitions", "public"."zasp_security_agent_runs", "public"."zasp_security_agent_effects", "public"."zasp_security_agent_controls" IN ACCESS EXCLUSIVE MODE`
-	lockIdentityAdministrationSQL                  = `LOCK TABLE "public"."zasp_identity_administration_state", "public"."zasp_identity_provider_connections", "public"."zasp_identity_provider_mutations", "public"."zasp_identity_secret_reveal_grants", "public"."zasp_identity_webhook_events", "public"."zasp_identity_member_groups" IN ACCESS EXCLUSIVE MODE`
-	lockSecurityAgentControlsSQL                   = `LOCK TABLE "public"."zasp_security_agent_request_receipts", "public"."zasp_security_agent_kill_switches" IN ACCESS EXCLUSIVE MODE`
-	insertRowSQL                                   = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
-	deleteRowSQL                                   = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
-	referenceAuthorizationReadinessSQL             = `SELECT zasp_reference_authorization_readiness($1,$2)`
-	discoveryExecutionReadinessSQL                 = `SELECT zasp_execution_readiness($1,$2)`
-	typedInventoryReadinessSQL                     = `SELECT zasp_inventory_readiness($1,$2)`
-	runtimeDataPlaneReadinessSQL                   = `SELECT zasp_runtime_data_plane_readiness($1,$2)`
-	runtimeGatewayReconciliationReadinessSQL       = `SELECT zasp_runtime_gateway_reconciliation_readiness($1,$2)`
-	runtimeIngestReconciliationReadinessSQL        = `SELECT zasp_runtime_ingest_reconciliation_readiness($1,$2)`
-	securityAgentExecutionReadinessSQL             = `SELECT zasp_security_agent_readiness($1,$2)`
-	identityAdministrationReadinessSQL             = `SELECT zasp_identity_administration_readiness($1,$2)`
-	securityAgentControlsReadinessSQL              = `SELECT zasp_security_agent_controls_readiness($1,$2)`
-	securityAgentAutonomousReadinessSQL            = `SELECT zasp_security_agent_autonomous_readiness($1,$2)`
-	securityAgentTemporaryPolicyReadinessSQL       = `SELECT zasp_security_agent_temporary_policy_readiness($1,$2)`
-	typedInventoryRollbackAllowedSQL               = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_inventory_cutover_state" WHERE "phase" = 'cutover')`
-	runtimeDataPlaneRollbackAllowedSQL             = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_data_plane_state" WHERE "used_at" IS NOT NULL)`
-	runtimeGatewayReconciliationRollbackAllowedSQL = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_gateway_reconciliation_state" WHERE "used_at" IS NOT NULL)`
-	runtimeIngestReconciliationRollbackAllowedSQL  = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_ingest_reconciliation_state" WHERE "used_at" IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_ingest_reconciliation_work" WHERE "state" = 'leased')`
-	securityAgentExecutionRollbackAllowedSQL       = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_execution_state" WHERE "used_at" IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_runs") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_effects")`
-	identityAdministrationRollbackAllowedSQL       = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_administration_state" WHERE "used_at" IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_provider_mutations") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_webhook_events") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_member_groups")`
-	securityAgentControlsRollbackAllowedSQL        = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_request_receipts" WHERE "operation" = 'setSecurityAgentExecutionControl')`
-	securityAgentAutonomousRollbackAllowedSQL      = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_definitions" WHERE "activation" = 'autonomous' OR "body"->>'autonomy' = 'autonomous') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_steps" WHERE "authorization_result" = 'autonomous')`
-	securityAgentTemporaryPolicyRollbackAllowedSQL = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_effects" WHERE "action_key" = 'create_temporary_policy') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_temporary_policy_targets") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_definitions" WHERE "body"->'allowed_actions' ? 'create_temporary_policy') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_kill_switches" WHERE "action_key" = 'create_temporary_policy')`
+	tableExistsSQL                                     = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
+	countRowsSQL                                       = `SELECT count(*) FROM "public"."zasp_schema_versions"`
+	readRowSQL                                         = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" ORDER BY "version"`
+	readVersionSQL                                     = `SELECT "version", "name", "checksum" FROM "public"."zasp_schema_versions" WHERE "version" = $1`
+	lockTableSQL                                       = `LOCK TABLE "public"."zasp_schema_versions" IN ACCESS EXCLUSIVE MODE`
+	lockWorkflowMutationsSQL                           = `LOCK TABLE "public"."zasp_workflow_idempotency" IN ACCESS EXCLUSIVE MODE`
+	lockAdministrationSQL                              = `LOCK TABLE "public"."zasp_identity_memberships", "public"."zasp_product_sessions", "public"."zasp_product_api_tokens", "public"."zasp_organizations", "public"."zasp_workspaces", "public"."zasp_environments", "public"."zasp_group_mappings", "public"."zasp_admin_audit", "public"."zasp_session_events", "public"."zasp_compliance_controls", "public"."zasp_compliance_evidence", "public"."zasp_data_controls" IN ACCESS EXCLUSIVE MODE`
+	lockRevealGrantsSQL                                = `LOCK TABLE "public"."zasp_admin_idempotency", "public"."zasp_api_token_reveal_grants", "public"."zasp_product_api_tokens" IN ACCESS EXCLUSIVE MODE`
+	lockRiskProjectionSQL                              = `LOCK TABLE "public"."zasp_risk_findings", "public"."zasp_risk_finding_evidence", "public"."zasp_risk_finding_factors", "public"."zasp_risk_attack_paths", "public"."zasp_risk_attack_path_nodes", "public"."zasp_risk_attack_path_evidence", "public"."zasp_risk_break_options", "public"."zasp_workflow_idempotency", "public"."zasp_workflow_audit", "public"."zasp_workflow_receipts" IN ACCESS EXCLUSIVE MODE`
+	lockDiscoverySQL                                   = `LOCK TABLE "public"."zasp_discovery_principal_bindings", "public"."zasp_integrations", "public"."zasp_integration_connections", "public"."zasp_discovery_schedules", "public"."zasp_discovery_syncs", "public"."zasp_discovery_jobs", "public"."zasp_discovery_snapshots", "public"."zasp_discovery_cursors", "public"."zasp_inventory_entities", "public"."zasp_inventory_source_observations", "public"."zasp_inventory_relationships", "public"."zasp_inventory_evidence", "public"."zasp_sensors", "public"."zasp_sensor_tokens", "public"."zasp_sensor_heartbeats", "public"."zasp_runtime_batches", "public"."zasp_runtime_stages", "public"."zasp_discovery_outbox", "public"."zasp_projection_work", "public"."zasp_gateway_devices", "public"."zasp_gateway_enrollment_tokens", "public"."zasp_gateway_credentials", "public"."zasp_gateway_policy_subscriptions" IN ACCESS EXCLUSIVE MODE`
+	lockConnectorSQL                                   = `LOCK TABLE "public"."zasp_connector_oauth_attempts", "public"."zasp_connector_effects", "public"."zasp_connector_credentials", "public"."zasp_connector_audit" IN ACCESS EXCLUSIVE MODE`
+	lockExecutionSQL                                   = `LOCK TABLE "public"."zasp_discovery_execution_principals", "public"."zasp_discovery_connection_subjects", "public"."zasp_discovery_execution_quotas", "public"."zasp_discovery_generation_reservations", "public"."zasp_discovery_job_authorities", "public"."zasp_discovery_job_checkpoints", "public"."zasp_discovery_upgrade_transitions", "public"."zasp_discovery_snapshot_inputs", "public"."zasp_discovery_snapshot_projection_items", "public"."zasp_discovery_projection_cursors" IN ACCESS EXCLUSIVE MODE`
+	lockTypedInventorySQL                              = `LOCK TABLE "public"."zasp_inventory_cutover_state" IN ACCESS EXCLUSIVE MODE`
+	lockRuntimeDataPlaneSQL                            = `LOCK TABLE "public"."zasp_runtime_data_plane_state" IN ACCESS EXCLUSIVE MODE`
+	lockRuntimeGatewayReconciliationSQL                = `LOCK TABLE "public"."zasp_runtime_gateway_reconciliation_state" IN ACCESS EXCLUSIVE MODE`
+	lockRuntimeIngestReconciliationSQL                 = `LOCK TABLE "public"."zasp_runtime_ingest_reconciliation_state", "public"."zasp_runtime_ingest_reconciliation_work" IN ACCESS EXCLUSIVE MODE`
+	lockSecurityAgentExecutionSQL                      = `LOCK TABLE "public"."zasp_security_agent_execution_state", "public"."zasp_security_agent_definitions", "public"."zasp_security_agent_runs", "public"."zasp_security_agent_effects", "public"."zasp_security_agent_controls" IN ACCESS EXCLUSIVE MODE`
+	lockIdentityAdministrationSQL                      = `LOCK TABLE "public"."zasp_identity_administration_state", "public"."zasp_identity_provider_connections", "public"."zasp_identity_provider_mutations", "public"."zasp_identity_secret_reveal_grants", "public"."zasp_identity_webhook_events", "public"."zasp_identity_member_groups" IN ACCESS EXCLUSIVE MODE`
+	lockSecurityAgentControlsSQL                       = `LOCK TABLE "public"."zasp_security_agent_request_receipts", "public"."zasp_security_agent_kill_switches" IN ACCESS EXCLUSIVE MODE`
+	insertRowSQL                                       = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
+	deleteRowSQL                                       = `DELETE FROM "public"."zasp_schema_versions" WHERE "version" = $1 AND "name" = $2 AND "checksum" = $3`
+	referenceAuthorizationReadinessSQL                 = `SELECT zasp_reference_authorization_readiness($1,$2)`
+	discoveryExecutionReadinessSQL                     = `SELECT zasp_execution_readiness($1,$2)`
+	typedInventoryReadinessSQL                         = `SELECT zasp_inventory_readiness($1,$2)`
+	runtimeDataPlaneReadinessSQL                       = `SELECT zasp_runtime_data_plane_readiness($1,$2)`
+	runtimeGatewayReconciliationReadinessSQL           = `SELECT zasp_runtime_gateway_reconciliation_readiness($1,$2)`
+	runtimeIngestReconciliationReadinessSQL            = `SELECT zasp_runtime_ingest_reconciliation_readiness($1,$2)`
+	securityAgentExecutionReadinessSQL                 = `SELECT zasp_security_agent_readiness($1,$2)`
+	identityAdministrationReadinessSQL                 = `SELECT zasp_identity_administration_readiness($1,$2)`
+	securityAgentControlsReadinessSQL                  = `SELECT zasp_security_agent_controls_readiness($1,$2)`
+	securityAgentAutonomousReadinessSQL                = `SELECT zasp_security_agent_autonomous_readiness($1,$2)`
+	securityAgentTemporaryPolicyReadinessSQL           = `SELECT zasp_security_agent_temporary_policy_readiness($1,$2)`
+	securityAgentConnectorRevocationReadinessSQL       = `SELECT zasp_security_agent_connector_revocation_readiness($1,$2)`
+	typedInventoryRollbackAllowedSQL                   = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_inventory_cutover_state" WHERE "phase" = 'cutover')`
+	runtimeDataPlaneRollbackAllowedSQL                 = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_data_plane_state" WHERE "used_at" IS NOT NULL)`
+	runtimeGatewayReconciliationRollbackAllowedSQL     = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_gateway_reconciliation_state" WHERE "used_at" IS NOT NULL)`
+	runtimeIngestReconciliationRollbackAllowedSQL      = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_ingest_reconciliation_state" WHERE "used_at" IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_ingest_reconciliation_work" WHERE "state" = 'leased')`
+	securityAgentExecutionRollbackAllowedSQL           = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_execution_state" WHERE "used_at" IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_runs") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_effects")`
+	identityAdministrationRollbackAllowedSQL           = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_administration_state" WHERE "used_at" IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_provider_mutations") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_webhook_events") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_identity_member_groups")`
+	securityAgentControlsRollbackAllowedSQL            = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_request_receipts" WHERE "operation" = 'setSecurityAgentExecutionControl')`
+	securityAgentAutonomousRollbackAllowedSQL          = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_definitions" WHERE "activation" = 'autonomous' OR "body"->>'autonomy' = 'autonomous') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_steps" WHERE "authorization_result" = 'autonomous')`
+	securityAgentTemporaryPolicyRollbackAllowedSQL     = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_effects" WHERE "action_key" = 'create_temporary_policy') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_temporary_policy_targets") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_definitions" WHERE "body"->'allowed_actions' ? 'create_temporary_policy') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_kill_switches" WHERE "action_key" = 'create_temporary_policy')`
+	securityAgentConnectorRevocationRollbackAllowedSQL = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_effects" WHERE "action_key" = 'revoke_integration_connection') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_connector_revocations") AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_definitions" WHERE "body"->'allowed_actions' ? 'revoke_integration_connection') AND NOT EXISTS (SELECT 1 FROM "public"."zasp_security_agent_kill_switches" WHERE "action_key" = 'revoke_integration_connection')`
 )
 
 var (
@@ -243,6 +247,12 @@ var securityAgentTemporaryPolicyUpSQL string
 
 //go:embed sql/0022_security_agent_temporary_policy.down.sql
 var securityAgentTemporaryPolicyDownSQL string
+
+//go:embed sql/0023_security_agent_connector_revocation.up.sql
+var securityAgentConnectorRevocationUpSQL string
+
+//go:embed sql/0023_security_agent_connector_revocation.down.sql
+var securityAgentConnectorRevocationDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -418,6 +428,13 @@ func ProductionSecurityAgentTemporaryPolicy() Metadata {
 	return Metadata{version: securityAgentTemporaryPolicyVersion, name: securityAgentTemporaryPolicyName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionSecurityAgentConnectorRevocation() Metadata {
+	up := strings.TrimSpace(securityAgentConnectorRevocationUpSQL)
+	down := strings.TrimSpace(securityAgentConnectorRevocationDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: securityAgentConnectorRevocationVersion, name: securityAgentConnectorRevocationName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -510,6 +527,10 @@ func ProductionSecurityAgentAutonomousResponseSemanticFingerprint() string {
 
 func ProductionSecurityAgentTemporaryPolicySemanticFingerprint() string {
 	return semanticFingerprint(securityAgentTemporaryPolicyUpSQL, "security_agent_temporary_policy_fingerprint")
+}
+
+func ProductionSecurityAgentConnectorRevocationSemanticFingerprint() string {
+	return semanticFingerprint(securityAgentConnectorRevocationUpSQL, "security_agent_connector_revocation_fingerprint")
 }
 
 func semanticFingerprint(source, key string) string {
@@ -613,7 +634,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 22 {
+	if count < 1 || count > 23 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -660,6 +681,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse())
 	} else if count == 22 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy())
+	} else if count == 23 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -1984,6 +2007,75 @@ func (runner *Runner) DownProductionSecurityAgentTemporaryPolicy(ctx context.Con
 	})
 }
 
+func (runner *Runner) UpProductionSecurityAgentConnectorRevocation(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockSecurityAgentControlsSQL, lockIdentityAdministrationSQL, lockSecurityAgentExecutionSQL, lockRuntimeIngestReconciliationSQL, lockRuntimeGatewayReconciliationSQL, lockRuntimeDataPlaneSQL, lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockAdministrationSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionSecurityAgentTemporaryPolicyState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionSecurityAgentTemporaryPolicy()
+		if err := requireMigrationReadiness(ctx, transaction, securityAgentTemporaryPolicyReadinessSQL, prior.Checksum(), ProductionSecurityAgentTemporaryPolicySemanticFingerprint()); err != nil {
+			return err
+		}
+		metadata := ProductionSecurityAgentConnectorRevocation()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionSecurityAgentConnectorRevocationState(ctx, transaction); err != nil {
+			return err
+		}
+		return requireMigrationReadiness(ctx, transaction, securityAgentConnectorRevocationReadinessSQL, metadata.Checksum(), ProductionSecurityAgentConnectorRevocationSemanticFingerprint())
+	})
+}
+
+func (runner *Runner) DownProductionSecurityAgentConnectorRevocation(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockSecurityAgentControlsSQL, lockIdentityAdministrationSQL, lockSecurityAgentExecutionSQL, lockRuntimeIngestReconciliationSQL, lockRuntimeGatewayReconciliationSQL, lockRuntimeDataPlaneSQL, lockTypedInventorySQL, lockExecutionSQL, lockDiscoverySQL, lockConnectorSQL, lockWorkflowMutationsSQL, lockAdministrationSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionSecurityAgentConnectorRevocationState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionSecurityAgentConnectorRevocation()
+		if err := requireMigrationReadiness(ctx, transaction, securityAgentConnectorRevocationReadinessSQL, metadata.Checksum(), ProductionSecurityAgentConnectorRevocationSemanticFingerprint()); err != nil {
+			return err
+		}
+		var rollbackAllowed bool
+		if err := scanRow(ctx, transaction, securityAgentConnectorRevocationRollbackAllowedSQL, nil, &rollbackAllowed); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if !rollbackAllowed {
+			return ErrInvalidState
+		}
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionSecurityAgentTemporaryPolicyState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionSecurityAgentTemporaryPolicy()
+		return requireMigrationReadiness(ctx, transaction, securityAgentTemporaryPolicyReadinessSQL, prior.Checksum(), ProductionSecurityAgentTemporaryPolicySemanticFingerprint())
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -2195,6 +2287,10 @@ func readProductionSecurityAgentAutonomousResponseState(ctx context.Context, que
 
 func readProductionSecurityAgentTemporaryPolicyState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy()})
+}
+
+func readProductionSecurityAgentConnectorRevocationState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

@@ -94,6 +94,8 @@ type releaseMigrationRunner interface {
 	DownProductionSecurityAgentAutonomousResponse(context.Context) error
 	UpProductionSecurityAgentTemporaryPolicy(context.Context) error
 	DownProductionSecurityAgentTemporaryPolicy(context.Context) error
+	UpProductionSecurityAgentConnectorRevocation(context.Context) error
+	DownProductionSecurityAgentConnectorRevocation(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -155,7 +157,7 @@ func registerReleasePrincipals(ctx context.Context, queryer principalQueryer, re
 		{`SELECT zasp_security_agent_register_principals($1,$2,$3)`, []any{registration.migration, registration.securityAgentAPI, registration.securityAgentWorker}},
 		{statement: `SELECT zasp_security_agent_principals_ready()`},
 		{`SELECT zasp_security_agent_register_action_principal($1,$2)`, []any{registration.migration, registration.securityAgentAction}},
-		{`SELECT zasp_security_agent_temporary_policy_readiness($1,$2)`, []any{migrations.ProductionSecurityAgentTemporaryPolicy().Checksum(), migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint()}},
+		{`SELECT zasp_security_agent_connector_revocation_readiness($1,$2)`, []any{migrations.ProductionSecurityAgentConnectorRevocation().Checksum(), migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint()}},
 	}
 	for _, check := range checks {
 		ready = false
@@ -353,10 +355,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 22
 		}
-		if version != 22 {
+		if version == 22 {
+			if err := runner.UpProductionSecurityAgentConnectorRevocation(ctx); err != nil {
+				return err
+			}
+			version = 23
+		}
+		if version != 23 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 23 {
+			if err := runner.DownProductionSecurityAgentConnectorRevocation(ctx); err != nil {
+				return err
+			}
+			version = 22
+		}
 		if version == 22 {
 			if err := runner.DownProductionSecurityAgentTemporaryPolicy(ctx); err != nil {
 				return err

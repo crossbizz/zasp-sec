@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -94,6 +95,24 @@ func TestSecurityAgentActionProcessorFailsClosedWhenDurableReadbackDrifts(t *tes
 	}
 }
 
+func TestSecurityAgentActionProcessorDoesNotStrandContainmentWhenConnectorReconciliationFails(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	_, privateKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim := apiserver.TemporaryPolicyEffectClaim{OrganizationID: "pid_70000001-0000-4000-8000-000000000001", WorkspaceID: "pid_70000002-0000-4000-8000-000000000002", EnvironmentID: "pid_70000003-0000-4000-8000-000000000003", RunID: "pid_78000001-0000-4000-8000-000000000001", StepID: "pid_78000002-0000-4000-8000-000000000002", Phase: "apply", InputDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", TTLSeconds: 600, LeaseExpiresAt: now.Add(time.Minute), Targets: []apiserver.TemporaryPolicyTarget{{DeviceID: "pid_78000003-0000-4000-8000-000000000003", CredentialID: "pid_78000004-0000-4000-8000-000000000004", Sequence: 2, PolicyVersion: 2}}}
+	authority := &temporaryPolicyAuthorityFixture{claims: []apiserver.TemporaryPolicyEffectClaim{claim}, reconcileErr: errors.New("fixture connector drift")}
+	processor, err := newSecurityAgentActionProcessor(securityAgentActionProcessorConfig{Authority: authority, WorkerID: "security-agent-action-1", LeaseSeconds: 60, BatchSize: 10, HeartbeatInterval: 10 * time.Millisecond, KeyID: "gateway-key-01", PrivateKey: privateKey, Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil }, NewProductID: sequentialActionProductIDs()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer processor.Close()
+	if err := processor.RunOnce(context.Background()); err != errWorkerExecution || authority.reconcileCalls != 1 || len(authority.finished) != 1 {
+		t.Fatalf("err=%v reconcile_calls=%d finished=%#v", err, authority.reconcileCalls, authority.finished)
+	}
+}
+
 func TestSecurityAgentActionProcessorAcceptsPostgresJSONBPolicyKeyOrdering(t *testing.T) {
 	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 	_, privateKey, err := ed25519.GenerateKey(nil)
@@ -156,9 +175,17 @@ type temporaryPolicyAuthorityFixture struct {
 	finished                []apiserver.TemporaryPolicyEffectClaim
 	driftReadback           bool
 	reorderReadbackPolicies bool
+	reconcileErr            error
+	reconcileCalls          int
 }
 
 func (*temporaryPolicyAuthorityFixture) Ready(context.Context) error { return nil }
+func (fixture *temporaryPolicyAuthorityFixture) ReconcileConnectorRevocations(context.Context, string, int) (int, error) {
+	fixture.mu.Lock()
+	defer fixture.mu.Unlock()
+	fixture.reconcileCalls++
+	return 0, fixture.reconcileErr
+}
 func (fixture *temporaryPolicyAuthorityFixture) ClaimTemporaryPolicyEffects(context.Context, string, string, int, int) ([]apiserver.TemporaryPolicyEffectClaim, error) {
 	fixture.mu.Lock()
 	defer fixture.mu.Unlock()

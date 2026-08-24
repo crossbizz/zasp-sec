@@ -538,7 +538,7 @@ func TestReferenceAuthorizationMigrationOwnsAtomicFirstPartyReferenceCompletion(
 
 func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t *testing.T) {
 	baseline, core, workflows, receipts, safety, provenance, administration := Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration()
-	reveal, risk, discovery, connector, reference, execution, typed, runtime, reconciliation, ingestReconciliation, securityAgent, identityAdministration, securityAgentControls, securityAgentAutonomous, securityAgentTemporaryPolicy := APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy()
+	reveal, risk, discovery, connector, reference, execution, typed, runtime, reconciliation, ingestReconciliation, securityAgent, identityAdministration, securityAgentControls, securityAgentAutonomous, securityAgentTemporaryPolicy, securityAgentConnectorRevocation := APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation()
 	throughReconciliation := []Metadata{baseline, core, workflows, receipts, safety, provenance, administration, reveal, risk, discovery, connector, reference, execution, typed, runtime, reconciliation}
 	throughIngestReconciliation := append(append([]Metadata(nil), throughReconciliation...), ingestReconciliation)
 	throughSecurityAgent := append(append([]Metadata(nil), throughIngestReconciliation...), securityAgent)
@@ -546,6 +546,7 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 	throughSecurityAgentControls := append(append([]Metadata(nil), throughIdentityAdministration...), securityAgentControls)
 	throughSecurityAgentAutonomous := append(append([]Metadata(nil), throughSecurityAgentControls...), securityAgentAutonomous)
 	throughSecurityAgentTemporaryPolicy := append(append([]Metadata(nil), throughSecurityAgentAutonomous...), securityAgentTemporaryPolicy)
+	throughSecurityAgentConnectorRevocation := append(append([]Metadata(nil), throughSecurityAgentTemporaryPolicy...), securityAgentConnectorRevocation)
 	for _, test := range []struct {
 		name    string
 		rows    []Row
@@ -573,7 +574,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "security agent controls", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSecurityAgentControls...)...), want: 20},
 		{name: "security agent autonomous", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSecurityAgentAutonomous...)...), want: 21},
 		{name: "security agent temporary policy", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSecurityAgentTemporaryPolicy...)...), want: 22},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(23)}}}, wantErr: ErrInvalidState},
+		{name: "security agent connector revocation", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSecurityAgentConnectorRevocation...)...), want: 23},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(24)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}

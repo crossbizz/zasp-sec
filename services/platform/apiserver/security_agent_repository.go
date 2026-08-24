@@ -10,35 +10,40 @@ import (
 )
 
 const (
-	postgresSecurityAgentAuthorityReadySQL       = `SELECT jsonb_build_object('release',zasp_security_agent_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
-	postgresIdentityAdminSecurityAgentReadySQL   = `SELECT jsonb_build_object('release',zasp_identity_administration_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
-	postgresSecurityAgentControlsReadySQL        = `SELECT jsonb_build_object('release',zasp_security_agent_controls_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
-	postgresSecurityAgentAutonomousReadySQL      = `SELECT jsonb_build_object('release',zasp_security_agent_autonomous_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
-	postgresSecurityAgentTemporaryPolicyReadySQL = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
-	postgresSecurityAgentExecutionControlsSQL    = `SELECT zasp_security_agent_execution_control_detail($1,$2,$3)`
-	postgresSecurityAgentSetExecutionControlSQL  = `SELECT zasp_security_agent_mutate_execution_control($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
-	postgresSecurityAgentDefinitionPageSQL       = `SELECT zasp_security_agent_definition_page($1,$2,$3,NULLIF($4,''),$5)`
-	postgresSecurityAgentDefinitionValueSQL      = `SELECT zasp_security_agent_definition_value($1,$2,$3,$4)`
-	postgresSecurityAgentDefinitionReplaySQL     = `SELECT zasp_security_agent_replay_definition($1,$2,$3,$4,$5,$6,$7::jsonb)`
-	postgresSecurityAgentDefinitionMutateSQL     = `SELECT zasp_security_agent_mutate_definition($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14)`
-	postgresSecurityAgentDefinitionActivationSQL = `SELECT zasp_security_agent_definition_detail($1,$2,$3,$4)`
-	postgresSecurityAgentActivateSQL             = `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
-	postgresSecurityAgentSimulateSQL             = `SELECT zasp_security_agent_simulate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14)`
-	postgresSecurityAgentRunSQL                  = `SELECT zasp_security_agent_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
-	postgresSecurityAgentRunPageSQL              = `SELECT zasp_security_agent_run_page($1,$2,$3,NULLIF($4,''),NULLIF($5,''),$6,NULLIF($7,''),$8)`
-	postgresSecurityAgentRunDetailSQL            = `SELECT zasp_security_agent_run_detail($1,$2,$3,$4)`
-	postgresSecurityAgentRunDetailV22SQL         = `SELECT zasp_security_agent_run_detail_v22($1,$2,$3,$4)`
-	postgresSecurityAgentCancelRunSQL            = `SELECT zasp_security_agent_cancel_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresSecurityAgentApprovalPageSQL         = `SELECT zasp_security_agent_approval_page($1,$2,$3,NULLIF($4,''),NULLIF($5,''),$6,NULLIF($7,''),$8)`
-	postgresSecurityAgentApprovalPageV22SQL      = `SELECT zasp_security_agent_approval_page_v22($1,$2,$3,NULLIF($4,''),NULLIF($5,''),$6,NULLIF($7,''),$8)`
-	postgresSecurityAgentApprovalDetailSQL       = `SELECT zasp_security_agent_approval_detail($1,$2,$3,$4)`
-	postgresSecurityAgentApprovalDetailV22SQL    = `SELECT zasp_security_agent_approval_detail_v22($1,$2,$3,$4)`
-	postgresSecurityAgentDecideApprovalSQL       = `SELECT zasp_security_agent_decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
-	postgresSecurityAgentDecideApprovalV22SQL    = `SELECT zasp_security_agent_decide_approval_v22($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+	postgresSecurityAgentAuthorityReadySQL           = `SELECT jsonb_build_object('release',zasp_security_agent_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
+	postgresIdentityAdminSecurityAgentReadySQL       = `SELECT jsonb_build_object('release',zasp_identity_administration_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
+	postgresSecurityAgentControlsReadySQL            = `SELECT jsonb_build_object('release',zasp_security_agent_controls_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
+	postgresSecurityAgentAutonomousReadySQL          = `SELECT jsonb_build_object('release',zasp_security_agent_autonomous_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
+	postgresSecurityAgentTemporaryPolicyReadySQL     = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
+	postgresSecurityAgentConnectorRevocationReadySQL = `SELECT jsonb_build_object('release',zasp_security_agent_connector_revocation_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_api'))`
+	postgresSecurityAgentExecutionControlsSQL        = `SELECT zasp_security_agent_execution_control_detail($1,$2,$3)`
+	postgresSecurityAgentSetExecutionControlSQL      = `SELECT zasp_security_agent_mutate_execution_control($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
+	postgresSecurityAgentDefinitionPageSQL           = `SELECT zasp_security_agent_definition_page($1,$2,$3,NULLIF($4,''),$5)`
+	postgresSecurityAgentDefinitionValueSQL          = `SELECT zasp_security_agent_definition_value($1,$2,$3,$4)`
+	postgresSecurityAgentDefinitionReplaySQL         = `SELECT zasp_security_agent_replay_definition($1,$2,$3,$4,$5,$6,$7::jsonb)`
+	postgresSecurityAgentDefinitionMutateSQL         = `SELECT zasp_security_agent_mutate_definition($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14)`
+	postgresSecurityAgentDefinitionActivationSQL     = `SELECT zasp_security_agent_definition_detail($1,$2,$3,$4)`
+	postgresSecurityAgentActivateSQL                 = `SELECT zasp_security_agent_activate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+	postgresSecurityAgentSimulateSQL                 = `SELECT zasp_security_agent_simulate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14)`
+	postgresSecurityAgentRunSQL                      = `SELECT zasp_security_agent_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
+	postgresSecurityAgentRunPageSQL                  = `SELECT zasp_security_agent_run_page($1,$2,$3,NULLIF($4,''),NULLIF($5,''),$6,NULLIF($7,''),$8)`
+	postgresSecurityAgentRunDetailSQL                = `SELECT zasp_security_agent_run_detail($1,$2,$3,$4)`
+	postgresSecurityAgentRunDetailV22SQL             = `SELECT zasp_security_agent_run_detail_v22($1,$2,$3,$4)`
+	postgresSecurityAgentRunDetailV23SQL             = `SELECT zasp_security_agent_run_detail_v23($1,$2,$3,$4)`
+	postgresSecurityAgentCancelRunSQL                = `SELECT zasp_security_agent_cancel_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentApprovalPageSQL             = `SELECT zasp_security_agent_approval_page($1,$2,$3,NULLIF($4,''),NULLIF($5,''),$6,NULLIF($7,''),$8)`
+	postgresSecurityAgentApprovalPageV22SQL          = `SELECT zasp_security_agent_approval_page_v22($1,$2,$3,NULLIF($4,''),NULLIF($5,''),$6,NULLIF($7,''),$8)`
+	postgresSecurityAgentApprovalPageV23SQL          = `SELECT zasp_security_agent_approval_page_v23($1,$2,$3,NULLIF($4,''),NULLIF($5,''),$6,NULLIF($7,''),$8)`
+	postgresSecurityAgentApprovalDetailSQL           = `SELECT zasp_security_agent_approval_detail($1,$2,$3,$4)`
+	postgresSecurityAgentApprovalDetailV22SQL        = `SELECT zasp_security_agent_approval_detail_v22($1,$2,$3,$4)`
+	postgresSecurityAgentApprovalDetailV23SQL        = `SELECT zasp_security_agent_approval_detail_v23($1,$2,$3,$4)`
+	postgresSecurityAgentDecideApprovalSQL           = `SELECT zasp_security_agent_decide_approval($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+	postgresSecurityAgentDecideApprovalV22SQL        = `SELECT zasp_security_agent_decide_approval_v22($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+	postgresSecurityAgentDecideApprovalV23SQL        = `SELECT zasp_security_agent_decide_approval_v23($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 )
 
 func (repository *PostgresRepository) GetSecurityAgentExecutionControls(ctx context.Context, identity RequestIdentity) (SecurityAgentExecutionControls, error) {
-	if repository == nil || !stringIn(repository.schema, SecurityAgentControlsSchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion) || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession {
+	if repository == nil || !stringIn(repository.schema, SecurityAgentControlsSchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion, SecurityAgentConnectorRevocationSchemaVersion) || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession {
 		return SecurityAgentExecutionControls{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentExecutionControlsSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String())
@@ -53,8 +58,8 @@ func (repository *PostgresRepository) GetSecurityAgentExecutionControls(ctx cont
 }
 
 func (repository *PostgresRepository) SetSecurityAgentExecutionControl(ctx context.Context, identity RequestIdentity, input SecurityAgentExecutionControlMutation) (SecurityAgentExecutionControlResult, error) {
-	validTarget := input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, "create_temporary_policy", "update_finding_response")
-	if repository == nil || !stringIn(repository.schema, SecurityAgentControlsSchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion) || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || identity.FreshAuthExpiresAt.Location() != time.UTC || input.FreshAuthExpiresAt != identity.FreshAuthExpiresAt || !validTarget || !validPublicIdempotency(input.IdempotencyKey) || input.ExpectedVersion < 0 || input.ExpectedVersion > 1000000 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || input.AuditID == input.CorrelationID || input.AuditID == input.ReceiptID || input.CorrelationID == input.ReceiptID {
+	validTarget := input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, "create_temporary_policy", "update_finding_response") || repository != nil && repository.schema == SecurityAgentConnectorRevocationSchemaVersion && input.Target == "action" && input.ActionKey == "revoke_integration_connection"
+	if repository == nil || !stringIn(repository.schema, SecurityAgentControlsSchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion, SecurityAgentConnectorRevocationSchemaVersion) || !repository.securityAgentExecution || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || identity.FreshAuthExpiresAt.Location() != time.UTC || input.FreshAuthExpiresAt != identity.FreshAuthExpiresAt || !validTarget || !validPublicIdempotency(input.IdempotencyKey) || input.ExpectedVersion < 0 || input.ExpectedVersion > 1000000 || !validProductID(input.AuditID) || !validProductID(input.CorrelationID) || !validProductID(input.ReceiptID) || input.AuditID == input.CorrelationID || input.AuditID == input.ReceiptID || input.CorrelationID == input.ReceiptID {
 		return SecurityAgentExecutionControlResult{}, ErrRepositoryOperation
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentSetExecutionControlSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IdempotencyKey, input.Target, input.ActionKey, input.Enabled, input.ExpectedVersion, input.FreshAuthExpiresAt, input.AuditID, input.CorrelationID, input.ReceiptID)
@@ -74,13 +79,17 @@ func NewSecurityAgentPostgresRepository(database JSONDatabase) (*PostgresReposit
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	for _, schema := range []string{SecurityAgentTemporaryPolicySchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentControlsSchemaVersion, IdentityAdministrationSchemaVersion, SecurityAgentExecutionSchemaVersion} {
+	for _, schema := range []string{SecurityAgentConnectorRevocationSchemaVersion, SecurityAgentTemporaryPolicySchemaVersion, SecurityAgentAutonomousSchemaVersion, SecurityAgentControlsSchemaVersion, IdentityAdministrationSchemaVersion, SecurityAgentExecutionSchemaVersion} {
 		repository := &PostgresRepository{database: database, schema: schema, securityAgentExecution: true}
 		if repository.readySecurityAgentAuthority(ctx) == nil {
 			return repository, nil
 		}
 	}
 	return nil, ErrRepositoryConfiguration
+}
+
+func (repository *PostgresRepository) SecurityAgentConnectorRevocationAvailable() bool {
+	return repository != nil && repository.schema == SecurityAgentConnectorRevocationSchemaVersion && repository.securityAgentExecution
 }
 
 func (repository *PostgresRepository) GetSecurityAgentActivation(ctx context.Context, identity RequestIdentity, definitionID string) (SecurityAgentActivationState, error) {
@@ -123,7 +132,7 @@ func (repository *PostgresRepository) GetSecurityAgentActivation(ctx context.Con
 		return SecurityAgentActivationState{}, ErrRepositoryUnavailable
 	}
 	definition := securityagent.SecurityAgent{ID: body.ID, OrganizationID: wire.OrganizationID, Name: body.Name, Trigger: securityagent.Trigger{Kind: body.TriggerKind, Source: body.TriggerSource}, Scope: securityagent.Scope{OrganizationID: wire.OrganizationID, EnvironmentIDs: body.EnvironmentIDs}, Autonomy: securityagent.Autonomy(body.Autonomy), Limits: securityagent.RunLimits{MaxSteps: body.MaxSteps, MaxDuration: time.Duration(body.MaxDurationSeconds) * time.Second, TemporaryPolicyTTL: time.Duration(body.TemporaryPolicySeconds) * time.Second, MaxAITokens: body.AITokenBudget, MaxConcurrent: body.ConcurrencyLimit}, AllowedActions: body.AllowedActions, Verification: securityagent.Verification{Kind: body.VerificationKind}, DefinitionVersion: body.DefinitionVersion, Enabled: body.Enabled}
-	if securityagent.ValidateAgent(definition) != nil || !exactWorkflowEnvironment(body.EnvironmentIDs, wire.EnvironmentID) || !servedWorkflowActionsAtAutonomy(body.AllowedActions, body.Autonomy) {
+	if securityagent.ValidateAgent(definition) != nil || !exactWorkflowEnvironment(body.EnvironmentIDs, wire.EnvironmentID) || !servedWorkflowActionsAtAutonomyWithCapabilities(body.AllowedActions, body.Autonomy, repository.SecurityAgentConnectorRevocationAvailable()) {
 		return SecurityAgentActivationState{}, ErrRepositoryUnavailable
 	}
 	return SecurityAgentActivationState{ID: wire.DefinitionID, Activation: wire.Activation, Enabled: body.Enabled, Version: wire.Version}, nil
@@ -222,7 +231,9 @@ func (repository *PostgresRepository) GetSecurityAgentRun(ctx context.Context, i
 		return SecurityAgentRunDetail{}, ErrRepositoryOperation
 	}
 	statement := postgresSecurityAgentRunDetailSQL
-	if repository.schema == SecurityAgentTemporaryPolicySchemaVersion {
+	if repository.schema == SecurityAgentConnectorRevocationSchemaVersion {
+		statement = postgresSecurityAgentRunDetailV23SQL
+	} else if repository.schema == SecurityAgentTemporaryPolicySchemaVersion {
 		statement = postgresSecurityAgentRunDetailV22SQL
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), runID)
@@ -265,7 +276,9 @@ func (repository *PostgresRepository) ListSecurityAgentApprovals(ctx context.Con
 		before = input.BeforeCreatedAt
 	}
 	statement := postgresSecurityAgentApprovalPageSQL
-	if repository.schema == SecurityAgentTemporaryPolicySchemaVersion {
+	if repository.schema == SecurityAgentConnectorRevocationSchemaVersion {
+		statement = postgresSecurityAgentApprovalPageV23SQL
+	} else if repository.schema == SecurityAgentTemporaryPolicySchemaVersion {
 		statement = postgresSecurityAgentApprovalPageV22SQL
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.State, input.RunID, before, input.BeforeID, input.Limit)
@@ -300,7 +313,9 @@ func (repository *PostgresRepository) GetSecurityAgentApproval(ctx context.Conte
 		return SecurityAgentApproval{}, ErrRepositoryOperation
 	}
 	statement := postgresSecurityAgentApprovalDetailSQL
-	if repository.schema == SecurityAgentTemporaryPolicySchemaVersion {
+	if repository.schema == SecurityAgentConnectorRevocationSchemaVersion {
+		statement = postgresSecurityAgentApprovalDetailV23SQL
+	} else if repository.schema == SecurityAgentTemporaryPolicySchemaVersion {
 		statement = postgresSecurityAgentApprovalDetailV22SQL
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), approvalID)
@@ -327,8 +342,8 @@ func validSecurityAgentApprovalState(value string) bool {
 }
 
 func validSecurityAgentApproval(value SecurityAgentApproval) bool {
-	validEffect := value.ExpectedEffect == "Move finding to under review" && value.TTLSeconds == 0 || value.ExpectedEffect == "Apply temporary containment policy" && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600
-	return validProductID(value.ID) && validProductID(value.RunID) && validProductID(value.StepID) && validSecurityAgentApprovalState(value.State) && !value.ExpiresAt.IsZero() && value.ExpiresAt.Location() == time.UTC && value.Version >= 1 && value.Version <= 1000000 && validEffect && value.Reversible && len(value.EvidenceSummary) == 1 && validProductID(value.EvidenceSummary[0])
+	validEffect := value.ExpectedEffect == "Move finding to under review" && value.TTLSeconds == 0 && value.Reversible || value.ExpectedEffect == "Apply temporary containment policy" && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600 && value.Reversible || value.ExpectedEffect == "Revoke integration connection" && value.TTLSeconds == 0 && !value.Reversible
+	return validProductID(value.ID) && validProductID(value.RunID) && validProductID(value.StepID) && validSecurityAgentApprovalState(value.State) && !value.ExpiresAt.IsZero() && value.ExpiresAt.Location() == time.UTC && value.Version >= 1 && value.Version <= 1000000 && validEffect && len(value.EvidenceSummary) == 1 && validProductID(value.EvidenceSummary[0])
 }
 
 func validSecurityAgentRunDetail(value SecurityAgentRunDetail, runID string) bool {
@@ -355,7 +370,7 @@ func validSecurityAgentRunDetail(value SecurityAgentRunDetail, runID string) boo
 	}
 	for _, approval := range value.Approvals {
 		action, ok := seenSteps[approval.StepID]
-		if !ok || action == "update_finding_response" && (approval.ExpectedEffect != "Move finding to under review" || approval.TTLSeconds != 0) || action == "create_temporary_policy" && (approval.ExpectedEffect != "Apply temporary containment policy" || approval.TTLSeconds < 60 || approval.TTLSeconds > 3600) || !stringIn(action, "update_finding_response", "create_temporary_policy") {
+		if !ok || action == "update_finding_response" && (approval.ExpectedEffect != "Move finding to under review" || approval.TTLSeconds != 0 || !approval.Reversible) || action == "create_temporary_policy" && (approval.ExpectedEffect != "Apply temporary containment policy" || approval.TTLSeconds < 60 || approval.TTLSeconds > 3600 || !approval.Reversible) || action == "revoke_integration_connection" && (approval.ExpectedEffect != "Revoke integration connection" || approval.TTLSeconds != 0 || approval.Reversible) || !stringIn(action, "update_finding_response", "create_temporary_policy", "revoke_integration_connection") {
 			return false
 		}
 	}
@@ -372,7 +387,9 @@ func (repository *PostgresRepository) DecideSecurityAgentApproval(ctx context.Co
 		return SecurityAgentApprovalResult{}, ErrRepositoryOperation
 	}
 	statement := postgresSecurityAgentDecideApprovalSQL
-	if repository.schema == SecurityAgentTemporaryPolicySchemaVersion {
+	if repository.schema == SecurityAgentConnectorRevocationSchemaVersion {
+		statement = postgresSecurityAgentDecideApprovalV23SQL
+	} else if repository.schema == SecurityAgentTemporaryPolicySchemaVersion {
 		statement = postgresSecurityAgentDecideApprovalV22SQL
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), input.ApprovalID, identity.PrincipalID.String(), input.IdempotencyKey, input.ExpectedVersion, input.Decision, input.FreshAuthAt, input.AuditID, input.CorrelationID, input.ReceiptID)
@@ -393,7 +410,11 @@ func (repository *PostgresRepository) readySecurityAgentAuthority(ctx context.Co
 	statement := postgresSecurityAgentAuthorityReadySQL
 	metadata := migrations.ProductionSecurityAgentExecution()
 	fingerprint := migrations.ProductionSecurityAgentExecutionSemanticFingerprint()
-	if repository.schema == SecurityAgentTemporaryPolicySchemaVersion {
+	if repository.schema == SecurityAgentConnectorRevocationSchemaVersion {
+		statement = postgresSecurityAgentConnectorRevocationReadySQL
+		metadata = migrations.ProductionSecurityAgentConnectorRevocation()
+		fingerprint = migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint()
+	} else if repository.schema == SecurityAgentTemporaryPolicySchemaVersion {
 		statement = postgresSecurityAgentTemporaryPolicyReadySQL
 		metadata = migrations.ProductionSecurityAgentTemporaryPolicy()
 		fingerprint = migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint()

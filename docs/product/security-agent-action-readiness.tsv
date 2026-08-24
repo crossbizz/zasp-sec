@@ -3,7 +3,7 @@ create_evidence_export	component-only	none	evidence_export	true	none	export	arti
 create_temporary_policy	production-available	supervised	runtime_policy	true	operator	policy_state	ttl_disable	v22 tenant-scoped supervised execution with signed gateway readback, credential-rotation reconciliation, TTL cleanup, and PostgreSQL E2E
 isolate_session	component-only	none	runtime_gateway	true	operator	gateway_decision	ttl_release	component contract only; gateway enforcement verification and cleanup pending
 rerun_test	component-only	none	red_team	true	none	test_run	none	component contract only; durable test worker and canary pending
-revoke_integration_connection	component-only	none	connector_broker	false	admin	connection_state	provider_reconciliation	component contract only; approved broker execution and provider canary pending
+revoke_integration_connection	production-available	supervised	connector_broker	false	admin	connection_state	provider_reconciliation	v23 tenant-scoped supervised execution through the existing connector reconciler with durable connection-state verification
 run_test	component-only	none	red_team	true	none	test_run	none	component contract only; durable test worker and canary pending
 send_response_webhook	component-only	none	configured_webhook	false	operator	signed_delivery	delivery_reconciliation	component contract only; destination authority delivery receipt and canary pending
 start_attack_lab	component-only	none	attack_lab	true	operator	attack_lab_run	sandbox_cleanup	component contract only; isolated sandbox deployment and canary pending

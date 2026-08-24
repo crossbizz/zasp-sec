@@ -30,7 +30,7 @@ export type SecurityAgentsAPI = {
   listSecurityAgentTemplates(signal?: AbortSignal): Promise<readonly SecurityAgentTemplate[]>;
   listSecurityActions(signal?: AbortSignal): Promise<readonly SecurityAction[]>;
   getSecurityAgentExecutionControls(signal?: AbortSignal): Promise<SecurityAgentExecutionControls>;
-  setSecurityAgentExecutionControl(target: "environment" | "action", actionKey: "*" | "create_temporary_policy" | "update_finding_response", version: number, enabled: boolean, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentExecutionControlResult>>;
+  setSecurityAgentExecutionControl(target: "environment" | "action", actionKey: "*" | "create_temporary_policy" | "revoke_integration_connection" | "update_finding_response", version: number, enabled: boolean, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentExecutionControlResult>>;
   listSecurityAgents(options?: { cursor?: string; limit?: number }, signal?: AbortSignal): Promise<SecurityAgentPage>;
   createSecurityAgent(value: SecurityAgentInput, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<SecurityAgentDefinition>>;
   getSecurityAgent(id: string, signal?: AbortSignal): Promise<Versioned<SecurityAgentDefinition>>;
@@ -61,7 +61,7 @@ export function createSecurityAgentsAPI(client: APIClient = createAPIClient()): 
       return requireAPIData(result, decodeSecurityAgentExecutionControls);
     },
     async setSecurityAgentExecutionControl(target, actionKey, version, enabled, attempt) {
-      if (target === "environment" && actionKey !== "*" || target === "action" && actionKey !== "create_temporary_policy" && actionKey !== "update_finding_response") throw new TypeError("Security Agent execution control target is invalid");
+      if (target === "environment" && actionKey !== "*" || target === "action" && actionKey !== "create_temporary_policy" && actionKey !== "revoke_integration_connection" && actionKey !== "update_finding_response") throw new TypeError("Security Agent execution control target is invalid");
       return executeWorkflowMutation(async (active) => {
         const params = { header: { ...workflowMutationHeaders(active, `"${version}"`), "X-Zasp-Fresh-Auth": "confirmed" } } as never;
         const result = await client.PUT("/api/v1/security-agent-execution-controls", { params, body: { target, action_key: actionKey, enabled } }); requireSecurityAgentNoStore(result.response);
@@ -170,7 +170,7 @@ type SecurityAgentApprovalDecisionIntent = { id: string; version: number; decisi
 type SecurityAgentActivationIntent = { id: string; version: number; activation: "validated" | "supervised" | "autonomous" };
 type SecurityAgentSimulationIntent = { id: string; version: number; goal: string; environmentID: string; evidenceIDs: readonly string[] };
 type SecurityAgentManualRunIntent = { id: string; version: number; environmentID: string; triggerKind: "finding" | "attack_path" | "session"; triggerID: string };
-type SecurityAgentControlIntent = { target: "environment" | "action"; actionKey: "*" | "create_temporary_policy" | "update_finding_response"; version: number; enabled: boolean };
+type SecurityAgentControlIntent = { target: "environment" | "action"; actionKey: "*" | "create_temporary_policy" | "revoke_integration_connection" | "update_finding_response"; version: number; enabled: boolean };
 
 async function loadSecurityAgentSnapshot(api: SecurityAgentsAPI, includeControls = false, signal?: AbortSignal): Promise<SecurityAgentSnapshot> {
   const [firstPage, templates, actions, firstRuns, firstApprovals, controls] = await Promise.all([
@@ -207,7 +207,7 @@ type SecurityAgentControlMutation = ReturnType<typeof useRetainedWorkflowMutatio
 
 function ExecutionControls({ value, api, fresh, mutation, onReauthenticate, onChange }: { value: SecurityAgentExecutionControls; api: SecurityAgentsAPI; fresh: boolean; mutation: SecurityAgentControlMutation; onReauthenticate(): void; onChange(value: SecurityAgentExecutionControls): void }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(false);
-  const change = async (target: "environment" | "action", actionKey: "*" | "create_temporary_policy" | "update_finding_response") => {
+  const change = async (target: "environment" | "action", actionKey: "*" | "create_temporary_policy" | "revoke_integration_connection" | "update_finding_response") => {
     const current = target === "environment" ? value.environment : value.actions.find((action) => action.action_key === actionKey);
     if (!current) return;
     setBusy(true); setError(false);
@@ -280,7 +280,7 @@ function AgentDetail({ selected, activation, actions, api, canWrite, fresh, onRe
   const save = () => void run(() => mutation.execute({ kind: "update", id: selected.value.id, version: selected.version, value: { ...selected.value, name, enabled } }, async (intent, attempt) => { if (intent.kind !== "update") throw new TypeError("Invalid retained Security Agent intent"); return { kind: "updated", receipt: await api.updateSecurityAgent(intent.id, intent.version, intent.value, attempt) }; }));
   const remove = () => void run(() => mutation.execute({ kind: "delete", id: selected.value.id, version: selected.version }, async (intent, attempt) => { if (intent.kind !== "delete") throw new TypeError("Invalid retained Security Agent intent"); return { kind: "deleted", receipt: await api.deleteSecurityAgent(intent.id, intent.version, attempt) }; }));
   const retry = () => void run(() => mutation.retry<SecurityAgentDetailResult>());
-  const autonomousAllowed = !selected.value.allowed_actions.includes("create_temporary_policy");
+  const autonomousAllowed = !selected.value.allowed_actions.includes("create_temporary_policy") && !selected.value.allowed_actions.includes("revoke_integration_connection");
   const nextActivation = activation.activation === "draft" ? "validated" : activation.activation === "validated" ? "supervised" : activation.activation === "supervised" && autonomousAllowed ? "autonomous" : null;
   const activate = async () => {
     if (!nextActivation) return;
@@ -337,7 +337,7 @@ function RunDetail({ value, api, canWrite, mutation, onCancelled, onClose }: { v
   </div></Drawer>;
 }
 
-function ApprovalDetail({ value, api, canWrite, fresh, onReauthenticate, mutation, onDecided, onClose }: { value: SecurityAgentApproval; api: SecurityAgentsAPI; canWrite: boolean; fresh: boolean; onReauthenticate(): void; mutation: SecurityAgentApprovalMutation; onDecided(value: SecurityAgentApproval): void; onClose(): void }) {
+function ApprovalDetail({ value, api, canWrite, canApproveIrreversible, fresh, onReauthenticate, mutation, onDecided, onClose }: { value: SecurityAgentApproval; api: SecurityAgentsAPI; canWrite: boolean; canApproveIrreversible: boolean; fresh: boolean; onReauthenticate(): void; mutation: SecurityAgentApprovalMutation; onDecided(value: SecurityAgentApproval): void; onClose(): void }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(false);
   const decide = async (decision: "approved" | "rejected") => {
     setBusy(true); setError(false);
@@ -352,12 +352,13 @@ function ApprovalDetail({ value, api, canWrite, fresh, onReauthenticate, mutatio
     <p><Badge tone={value.state === "approved" ? "success" : value.state === "rejected" || value.state === "expired" ? "critical" : "info"}>{value.state}</Badge> Version {value.version}</p>
     <p>Run {value.run_id} · step {value.step_id}</p><h3>Expected effect</h3><p>{value.expected_effect}</p><p>{value.reversible ? "Reversible" : "Not reversible"} · TTL {value.ttl_seconds}s · expires {value.expires_at}</p>
     <h3>Evidence</h3><ul>{value.evidence_summary?.map((id) => <li key={id}>{id}</li>)}</ul>
-    {canWrite && value.state === "pending" && (fresh ? <div className="button-row"><Button variant="primary" disabled={busy || mutation.isUnresolved && !mutation.canRetry} onClick={() => void decide("approved")}>{mutation.canRetry ? "Retry retained approval decision" : "Approve"}</Button>{!mutation.canRetry && <Button variant="danger" disabled={busy || mutation.isUnresolved} onClick={() => void decide("rejected")}>Reject</Button>}</div> : <Button onClick={onReauthenticate}>Reauthenticate to decide</Button>)}
+    {!value.reversible && !canApproveIrreversible && <p>Identity administrator approval required</p>}
+    {canWrite && value.state === "pending" && (fresh ? <div className="button-row">{(value.reversible || canApproveIrreversible) && <Button variant="primary" disabled={busy || mutation.isUnresolved && !mutation.canRetry} onClick={() => void decide("approved")}>{mutation.canRetry ? "Retry retained approval decision" : "Approve"}</Button>}{!mutation.canRetry && <Button variant="danger" disabled={busy || mutation.isUnresolved} onClick={() => void decide("rejected")}>Reject</Button>}</div> : <Button onClick={onReauthenticate}>Reauthenticate to decide</Button>)}
     {error && <p role="alert">{mutation.canRetry ? "The decision response was lost. Retry reuses the exact approval, version, decision, and idempotency key." : "The approval changed or could not be decided. Reopen it to load current authority."}</p>}
   </div></Drawer>;
 }
 
-export function SecurityAgentsView({ api = defaultSecurityAgentsAPI, environmentID = "production", canWrite = true, canManageControls = false, fresh = false, onReauthenticate = () => undefined, surface = "all", initialSnapshot, autoLoad = true }: { api?: SecurityAgentsAPI; environmentID?: string; canWrite?: boolean; canManageControls?: boolean; fresh?: boolean; onReauthenticate?: () => void; surface?: "all" | "approvals"; initialSnapshot?: SecurityAgentSnapshot; autoLoad?: boolean }) {
+export function SecurityAgentsView({ api = defaultSecurityAgentsAPI, environmentID = "production", canWrite = true, canManageControls = false, canApproveIrreversible = false, fresh = false, onReauthenticate = () => undefined, surface = "all", initialSnapshot, autoLoad = true }: { api?: SecurityAgentsAPI; environmentID?: string; canWrite?: boolean; canManageControls?: boolean; canApproveIrreversible?: boolean; fresh?: boolean; onReauthenticate?: () => void; surface?: "all" | "approvals"; initialSnapshot?: SecurityAgentSnapshot; autoLoad?: boolean }) {
   const [agents, setAgents] = useState<readonly SecurityAgentDefinition[]>(initialSnapshot?.agents ?? []);
   const [templates, setTemplates] = useState<readonly SecurityAgentTemplate[]>(initialSnapshot?.templates ?? []);
   const [actions, setActions] = useState<readonly SecurityAction[]>(initialSnapshot?.actions ?? []);
@@ -392,7 +393,7 @@ export function SecurityAgentsView({ api = defaultSecurityAgentsAPI, environment
     {approvalHistory.length > 0 && <Card title="Approval history"><div className="connection-list">{approvalHistory.map((approval) => <button type="button" key={approval.id} disabled={mutationLocked} aria-label={`Open approval ${approval.id}`} onClick={() => void openApproval(approval.id)}><strong>{approval.state}</strong><span>{approval.expected_effect}</span><span>{approval.run_id}</span></button>)}</div></Card>}
     {selected && selectedActivation && <AgentDetail selected={selected} activation={selectedActivation} actions={actions} api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} mutation={detailMutation} activationMutation={activationMutation} simulationMutation={simulationMutation} manualRunMutation={manualRunMutation} onChange={(value) => { setSelected(value); setSelectedActivation((current) => current ? { ...current, activation: "draft", enabled: false, version: Number(value.version.replaceAll('"', '')) } : null); setAgents((items) => items.map((item) => item.id === value.value.id ? value.value : item)); }} onActivation={(value) => { const autonomy = value.activation === "autonomous" ? "autonomous" : "supervised"; setSelectedActivation(value); setSelected((current) => current ? { value: { ...current.value, autonomy, enabled: value.enabled }, version: `"${value.version}"` } : null); setAgents((items) => items.map((item) => item.id === value.id ? { ...item, autonomy, enabled: value.enabled } : item)); }} onRun={(value) => setRuns((items) => [value, ...items.filter((item) => item.id !== value.id)])} onDelete={() => { const id = selected.value.id; setSelected(null); setSelectedActivation(null); setAgents((items) => items.filter((item) => item.id !== id)); }} onClose={() => { setSelected(null); setSelectedActivation(null); }} />}
     {selectedRun && <RunDetail value={selectedRun} api={api} canWrite={canWrite} mutation={runMutation} onCancelled={(run) => { setRuns((items) => items.map((item) => item.id === run.id ? run : item)); setSelectedRun((detail) => detail ? { ...detail, run, authorization: "cancelled", approvals: detail.approvals.map((approval) => approval.state === "pending" ? { ...approval, state: "cancelled", version: approval.version + 1 } : approval), execution: detail.execution.map((step) => ["succeeded", "failed", "inconclusive", "cancelled"].includes(step.state) ? step : { ...step, state: "cancelled", version: step.version + 1 }), plan: detail.plan ? { ...detail.plan, steps: detail.plan.steps.map((step) => ["succeeded", "failed", "inconclusive", "cancelled"].includes(step.state) ? step : { ...step, state: "cancelled", version: step.version + 1 }) } : null } : null); }} onClose={() => setSelectedRun(null)} />}
-    {selectedApproval && <ApprovalDetail value={selectedApproval} api={api} canWrite={canWrite} fresh={fresh} onReauthenticate={onReauthenticate} mutation={approvalMutation} onDecided={(approval) => { setSelectedApproval(approval); setApprovals((items) => items.map((item) => item.id === approval.id ? approval : item)); }} onClose={() => setSelectedApproval(null)} />}
+    {selectedApproval && <ApprovalDetail value={selectedApproval} api={api} canWrite={canWrite} canApproveIrreversible={canApproveIrreversible} fresh={fresh} onReauthenticate={onReauthenticate} mutation={approvalMutation} onDecided={(approval) => { setSelectedApproval(approval); setApprovals((items) => items.map((item) => item.id === approval.id ? approval : item)); }} onClose={() => setSelectedApproval(null)} />}
   </div>;
 }
 
@@ -407,5 +408,5 @@ export function ProductionSecurityAgentsView({ environmentID, surface = "all" }:
   if (query.status === "forbidden") return <p role="alert">You are not authorized to view Security Agents.</p>;
   if (query.status === "error") return <p role="alert">Security Agent definitions are unavailable. <Button onClick={() => void query.retry()}>Retry</Button></p>;
   if (!query.data) return null;
-  return <SecurityAgentsView key={`${environmentID}:${surface}`} api={api} initialSnapshot={query.data} autoLoad={false} environmentID={environmentID} canWrite={session.hasCapability("security-agents.write")} canManageControls={canManageControls} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} surface={surface} />;
+  return <SecurityAgentsView key={`${environmentID}:${surface}`} api={api} initialSnapshot={query.data} autoLoad={false} environmentID={environmentID} canWrite={session.hasCapability("security-agents.write")} canManageControls={canManageControls} canApproveIrreversible={canManageControls} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} surface={surface} />;
 }

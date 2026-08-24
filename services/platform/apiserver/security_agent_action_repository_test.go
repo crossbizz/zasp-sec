@@ -70,7 +70,40 @@ func TestSecurityAgentActionRepositoryRejectsCrossTenantAndDriftedEnvelopeBefore
 	if err := repository.StoreTemporaryPolicyTarget(context.Background(), claim, "security-agent-action-1", "lease-token-000000000001", TemporaryPolicyTargetEnvelope{}); err != ErrRepositoryOperation {
 		t.Fatalf("store err=%v", err)
 	}
-	if len(database.statements) != 1 {
+	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentActionReadyV23SQL || database.statements[1] != postgresSecurityAgentActionReadySQL {
 		t.Fatalf("unexpected database statements=%#v", database.statements)
+	}
+}
+
+func TestSecurityAgentActionRepositoryReconcilesConnectorRevocationsOnlyOnV23(t *testing.T) {
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentActionReadyV23SQL:  json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentActionReconcileSQL: json.RawMessage(`{"reconciled":2}`),
+	}}
+	repository, err := NewSecurityAgentActionRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reconciled, err := repository.ReconcileConnectorRevocations(context.Background(), "security-agent-action-1", 10); err != nil || reconciled != 2 {
+		t.Fatalf("reconciled=%d err=%v", reconciled, err)
+	}
+	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentActionReadyV23SQL || database.statements[1] != postgresSecurityAgentActionReconcileSQL {
+		t.Fatalf("statements=%#v", database.statements)
+	}
+}
+
+func TestSecurityAgentActionRepositoryTreatsConnectorReconciliationAsUnavailableNoopOnV22(t *testing.T) {
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentActionReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+	}}
+	repository, err := NewSecurityAgentActionRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reconciled, err := repository.ReconcileConnectorRevocations(context.Background(), "security-agent-action-1", 10); err != nil || reconciled != 0 {
+		t.Fatalf("reconciled=%d err=%v", reconciled, err)
+	}
+	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentActionReadyV23SQL || database.statements[1] != postgresSecurityAgentActionReadySQL {
+		t.Fatalf("statements=%#v", database.statements)
 	}
 }

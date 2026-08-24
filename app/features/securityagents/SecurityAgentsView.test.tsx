@@ -18,18 +18,19 @@ const expiresAt = "2026-08-21T20:00:00Z";
 const template: SecurityAgentTemplate = { id: "pid_70000001-0000-4000-8000-000000000001", name: "Finding Response", version: 1, trigger_kind: "finding", default_actions: ["update_finding_response"], verification_condition: "finding_state" };
 const action: SecurityAction = { key: "update_finding_response", risk_class: "low", target_types: ["finding"], approval_floor: "none", reversible: true, verification_kind: "finding_state" };
 const temporaryPolicyAction: SecurityAction = { key: "create_temporary_policy", risk_class: "containment", target_types: ["finding"], approval_floor: "operator", reversible: true, verification_kind: "policy_state" };
+const connectorRevocationAction: SecurityAction = { key: "revoke_integration_connection", risk_class: "destructive", target_types: ["integration"], approval_floor: "admin", reversible: false, verification_kind: "connection_state" };
 const created: SecurityAgentDefinition = { id: agentID, name: "Bounded response definition", trigger_kind: "finding", trigger_source: "credential", environment_ids: [environmentID], autonomy: "supervised", max_steps: 10, max_duration_seconds: 900, temporary_policy_seconds: 3600, ai_token_budget: 4000, concurrency_limit: 2, allowed_actions: ["update_finding_response"], verification_kind: "finding_state", definition_version: 1, enabled: false };
 const draftActivation: SecurityAgentActivationState = { id: agentID, activation: "draft", enabled: false, version: 7 };
 const simulation: SecurityAgentSimulation = { run_id: "pid_40000008-0000-4000-8000-000000000008", definition_id: agentID, definition_version: 3, plan_hash: `sha256:${"b".repeat(64)}`, catalog_version: "security-agent-actions-v1", expires_at: expiresAt, matched_evidence_ids: [evidenceID], summary: "Planned one finding response", steps: [{ index: 0, action: "update_finding_response", authorization: "approval_required", approval_required: true }], side_effects: 0, version: 1 };
 const run: SecurityAgentRun = { id: runID, agent_id: agentID, state: "waiting_approval", evidence_ids: [evidenceID], definition_version: 1, version: 4 };
 const approval: SecurityAgentApproval = { id: approvalID, run_id: runID, step_id: stepID, state: "pending", expires_at: expiresAt, version: 1, expected_effect: "Move finding to under review", reversible: true, ttl_seconds: 0, evidence_summary: [evidenceID] };
 const runDetail: SecurityAgentRunDetail = { run, evidence_ids: [evidenceID], plan: { plan_hash: `sha256:${"a".repeat(64)}`, catalog_version: "security-agent-actions-v1", expires_at: expiresAt, steps: [{ id: stepID, index: 0, action: "update_finding_response", authorization: "approval_required", state: "waiting_approval", version: 1 }] }, authorization: "approval_required", approvals: [approval], execution: [{ step_id: stepID, action: "update_finding_response", state: "waiting_approval", version: 1 }], verification: "not_started" };
-const controls: SecurityAgentExecutionControls = { global: { target: "global", action_key: "*", enabled: true, version: 1 }, environment: { target: "environment", action_key: "*", enabled: false, version: 0 }, actions: [{ target: "action", action_key: "create_temporary_policy", enabled: false, version: 0 }, { target: "action", action_key: "update_finding_response", enabled: false, version: 0 }] };
+const controls: SecurityAgentExecutionControls = { global: { target: "global", action_key: "*", enabled: true, version: 1 }, environment: { target: "environment", action_key: "*", enabled: false, version: 0 }, actions: [{ target: "action", action_key: "create_temporary_policy", enabled: false, version: 0 }, { target: "action", action_key: "revoke_integration_connection", enabled: false, version: 0 }, { target: "action", action_key: "update_finding_response", enabled: false, version: 0 }] };
 
 function fixtureAPI(overrides: Partial<SecurityAgentsAPI> = {}): SecurityAgentsAPI {
   return {
     listSecurityAgentTemplates: async () => [template],
-    listSecurityActions: async () => [temporaryPolicyAction, action],
+    listSecurityActions: async () => [temporaryPolicyAction, connectorRevocationAction, action],
     getSecurityAgentExecutionControls: async () => controls,
     setSecurityAgentExecutionControl: async (target, actionKey, version, enabled) => ({ value: { target, action_key: actionKey, enabled, version: version + 1, audit_id: auditID, correlation_id: "pid_40000009-0000-4000-8000-000000000009", receipt_id: receiptID, replayed: false }, version: `"${version + 1}"`, auditID, receiptID }),
     listSecurityAgents: async () => ({ items: [], page_info: { next_cursor: null, has_more: false } }),
@@ -194,6 +195,20 @@ describe("Security Agent definition surface", () => {
     expect(screen.getAllByText(/update_finding_response/)).toHaveLength(2);
     await user.click(screen.getByRole("button", { name: "Cancel run" }));
     await waitFor(() => expect(cancelSecurityAgentRun).toHaveBeenCalledWith(runID, 4, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+  });
+
+  it("does not offer irreversible connector revocation approval without identity-admin authority", async () => {
+    const user = userEvent.setup();
+    const destructiveApproval: SecurityAgentApproval = { ...approval, expected_effect: "Revoke integration connection", reversible: false };
+    const decideSecurityAgentApproval = vi.fn(fixtureAPI().decideSecurityAgentApproval);
+    render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentApproval: async () => destructiveApproval, decideSecurityAgentApproval })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [created], templates: [template], runs: [run], approvals: [destructiveApproval] }} fresh />);
+    await user.click(screen.getByRole("button", { name: `Open approval ${approvalID}` }));
+    const dialog = await screen.findByRole("dialog", { name: `Approval ${approvalID}` });
+    expect(within(dialog).getByText("Revoke integration connection")).toBeInTheDocument();
+    expect(within(dialog).getByText("Identity administrator approval required")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Reject" })).toBeInTheDocument();
+    expect(decideSecurityAgentApproval).not.toHaveBeenCalled();
   });
 
   it("applies stale UI intent with the displayed ETag and never refetches before mutation", async () => {

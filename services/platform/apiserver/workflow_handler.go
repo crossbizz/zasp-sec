@@ -33,6 +33,10 @@ type workflowRepository interface {
 	AcknowledgeWorkflowMutationReceipt(context.Context, RequestIdentity, string) error
 }
 
+type workflowSecurityAgentCapabilities interface {
+	SecurityAgentConnectorRevocationAvailable() bool
+}
+
 type workflowHTTPHandler struct {
 	repository   workflowRepository
 	signingKey   []byte
@@ -108,11 +112,11 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 		return
 	}
 	if routed.OperationID == "listSecurityAgentTemplates" {
-		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": workflowTemplates()}, nil)
+		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": workflowTemplates(handler.connectorRevocationAvailable())}, nil)
 		return
 	}
 	if routed.OperationID == "listSecurityActions" {
-		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": workflowActions()}, nil)
+		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": workflowActions(handler.connectorRevocationAvailable())}, nil)
 		return
 	}
 	kind, list, parentField, parentID, ok := workflowReadTarget(routed)
@@ -535,7 +539,7 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 		if routed.OperationID == "createSecurityAgent" && id == "" {
 			id = handler.idempotentProductID(identity.Scope, routed.OperationID, idempotencyKey)
 		}
-		body, id, err = securityAgentBody(request, identity.Scope, id, routed.OperationID == "createSecurityAgent")
+		body, id, err = securityAgentBody(request, identity.Scope, id, routed.OperationID == "createSecurityAgent", handler.connectorRevocationAvailable())
 		if err != nil {
 			return WorkflowMutation{}, 0, "", err
 		}
@@ -650,7 +654,7 @@ func (handler *workflowHTTPHandler) integrationBody(request *http.Request, scope
 	return body, id, nil
 }
 
-func securityAgentBody(request *http.Request, scope domain.Scope, id string, create bool) (json.RawMessage, string, error) {
+func securityAgentBody(request *http.Request, scope domain.Scope, id string, create, connectorRevocationAvailable bool) (json.RawMessage, string, error) {
 	var input struct {
 		ID                     *string  `json:"id"`
 		Name                   string   `json:"name"`
@@ -681,7 +685,7 @@ func securityAgentBody(request *http.Request, scope domain.Scope, id string, cre
 		return nil, "", ErrRepositoryOperation
 	}
 	value := securityagent.SecurityAgent{ID: id, OrganizationID: scope.OrganizationID().String(), Name: input.Name, Trigger: securityagent.Trigger{Kind: input.TriggerKind, Source: input.TriggerSource}, Scope: securityagent.Scope{OrganizationID: scope.OrganizationID().String(), EnvironmentIDs: input.EnvironmentIDs}, Autonomy: securityagent.Autonomy(input.Autonomy), Limits: securityagent.RunLimits{MaxSteps: input.MaxSteps, MaxDuration: time.Duration(input.MaxDurationSeconds) * time.Second, TemporaryPolicyTTL: time.Duration(input.TemporaryPolicySeconds) * time.Second, MaxAITokens: input.AITokenBudget, MaxConcurrent: input.ConcurrencyLimit}, AllowedActions: input.AllowedActions, Verification: securityagent.Verification{Kind: input.VerificationKind}, DefinitionVersion: input.DefinitionVersion, Enabled: input.Enabled}
-	if securityagent.ValidateAgent(value) != nil || !exactWorkflowEnvironment(input.EnvironmentIDs, scope.EnvironmentID().String()) || !servedWorkflowActionsAtAutonomy(input.AllowedActions, input.Autonomy) {
+	if securityagent.ValidateAgent(value) != nil || !exactWorkflowEnvironment(input.EnvironmentIDs, scope.EnvironmentID().String()) || !servedWorkflowActionsAtAutonomyWithCapabilities(input.AllowedActions, input.Autonomy, connectorRevocationAvailable) {
 		return nil, "", ErrRepositoryOperation
 	}
 	body, _ := json.Marshal(map[string]any{"id": id, "name": input.Name, "trigger_kind": input.TriggerKind, "trigger_source": input.TriggerSource, "environment_ids": input.EnvironmentIDs, "autonomy": input.Autonomy, "max_steps": input.MaxSteps, "max_duration_seconds": input.MaxDurationSeconds, "temporary_policy_seconds": input.TemporaryPolicySeconds, "ai_token_budget": input.AITokenBudget, "concurrency_limit": input.ConcurrencyLimit, "allowed_actions": input.AllowedActions, "verification_kind": input.VerificationKind, "definition_version": input.DefinitionVersion, "enabled": input.Enabled})
@@ -702,11 +706,11 @@ func workflowPolicyCapabilities() platformpolicy.Capabilities {
 	return platformpolicy.Capabilities{Triggers: []string{"tool", "runtime", "network", "file", "credential"}, Fields: []string{"action", "resource", "principal_id", "agent_id", "session_id", "environment_id"}, Actions: []platformpolicy.Action{platformpolicy.ActionMonitor, platformpolicy.ActionBlock}}
 }
 
-func workflowTemplates() []map[string]any {
+func workflowTemplates(connectorRevocationAvailable bool) []map[string]any {
 	values := securityagent.BuiltInTemplates()
 	result := make([]map[string]any, 0, len(values))
 	for index, value := range values {
-		if !servedWorkflowActions(value.DefaultActions) {
+		if !servedWorkflowActionsWithCapabilities(value.DefaultActions, connectorRevocationAvailable) {
 			continue
 		}
 		result = append(result, map[string]any{"id": deterministicProductID(index + 1), "name": value.Name, "version": value.Version, "trigger_kind": value.TriggerKind, "default_actions": value.DefaultActions, "verification_condition": value.VerificationCondition})
@@ -714,10 +718,13 @@ func workflowTemplates() []map[string]any {
 	return result
 }
 
-func workflowActions() []map[string]any {
+func workflowActions(connectorRevocationAvailable bool) []map[string]any {
 	values := securityagent.ProductionActionMetadata()
 	result := make([]map[string]any, 0, len(values))
 	for _, value := range values {
+		if value.Key == "revoke_integration_connection" && !connectorRevocationAvailable {
+			continue
+		}
 		result = append(result, map[string]any{"key": value.Key, "risk_class": value.RiskClass, "target_types": value.TargetTypes, "approval_floor": value.ApprovalFloor, "reversible": value.Reversible, "verification_kind": value.VerificationKind})
 	}
 	return result
@@ -759,17 +766,33 @@ func exactWorkflowEnvironment(values []string, environmentID string) bool {
 }
 
 func servedWorkflowActions(values []string) bool {
-	return servedWorkflowActionsAtAutonomy(values, string(securityagent.AutonomySupervised))
+	return servedWorkflowActionsWithCapabilities(values, true)
+}
+
+func servedWorkflowActionsWithCapabilities(values []string, connectorRevocationAvailable bool) bool {
+	return servedWorkflowActionsAtAutonomyWithCapabilities(values, string(securityagent.AutonomySupervised), connectorRevocationAvailable)
 }
 
 func servedWorkflowActionsAtAutonomy(values []string, autonomy string) bool {
+	return servedWorkflowActionsAtAutonomyWithCapabilities(values, autonomy, true)
+}
+
+func servedWorkflowActionsAtAutonomyWithCapabilities(values []string, autonomy string, connectorRevocationAvailable bool) bool {
 	requested := securityagent.Autonomy(autonomy)
 	for _, value := range values {
+		if value == "revoke_integration_connection" && !connectorRevocationAvailable {
+			return false
+		}
 		if !securityagent.ProductionActionAvailable(value, requested) {
 			return false
 		}
 	}
 	return true
+}
+
+func (handler *workflowHTTPHandler) connectorRevocationAvailable() bool {
+	capabilities, ok := handler.repository.(workflowSecurityAgentCapabilities)
+	return ok && capabilities.SecurityAgentConnectorRevocationAvailable()
 }
 
 func deterministicProductID(index int) string {

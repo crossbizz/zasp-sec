@@ -319,7 +319,10 @@ func TestSecurityAgentPublicHandlerApprovesWithFreshSeparateBrowserAuthority(t *
 	correlationID := "pid_78000004-0000-4000-8000-000000000004"
 	evidenceID := "pid_78000005-0000-4000-8000-000000000005"
 	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
-	stub := &securityAgentPublicAuthorityStub{decided: SecurityAgentApprovalResult{ID: approvalID, RunID: runID, StepID: stepID, State: "approved", ExpiresAt: now.Add(10 * time.Minute), Version: 2, ExpectedEffect: "Move finding to under review", Reversible: true, EvidenceSummary: []string{evidenceID}, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID}}
+	stub := &securityAgentPublicAuthorityStub{
+		approval: SecurityAgentApproval{ID: approvalID, RunID: runID, StepID: stepID, State: "pending", ExpiresAt: now.Add(10 * time.Minute), Version: 1, ExpectedEffect: "Move finding to under review", Reversible: true, EvidenceSummary: []string{evidenceID}},
+		decided:  SecurityAgentApprovalResult{ID: approvalID, RunID: runID, StepID: stepID, State: "approved", ExpiresAt: now.Add(10 * time.Minute), Version: 2, ExpectedEffect: "Move finding to under review", Reversible: true, EvidenceSummary: []string{evidenceID}, AuditID: auditID, CorrelationID: correlationID, ReceiptID: receiptID},
+	}
 	ids := []string{auditID, receiptID}
 	index := 0
 	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: func() time.Time { return now }, NewProductID: func() (string, error) { value := ids[index]; index++; return value, nil }, SigningKey: securityAgentTestSigningKey})
@@ -336,11 +339,38 @@ func TestSecurityAgentPublicHandlerApprovesWithFreshSeparateBrowserAuthority(t *
 	request.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"2"` || response.Header().Get("X-Mutation-Receipt-ID") != receiptID || stub.calls != 1 {
+	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"2"` || response.Header().Get("X-Mutation-Receipt-ID") != receiptID || stub.calls != 2 {
 		t.Fatalf("approval status=%d headers=%#v body=%s calls=%d", response.Code, response.Header(), response.Body.String(), stub.calls)
 	}
 	if stub.decision.ApprovalID != approvalID || stub.decision.ExpectedVersion != 1 || stub.decision.Decision != "approved" || stub.decision.FreshAuthAt != now || stub.decision.ReceiptID != receiptID {
 		t.Fatalf("approval input=%#v", stub.decision)
+	}
+}
+
+func TestSecurityAgentPublicHandlerRequiresIdentityAdministratorForIrreversibleApproval(t *testing.T) {
+	approvalID := "pid_78000010-0000-4000-8000-000000000010"
+	runID := "pid_78000006-0000-4000-8000-000000000006"
+	stepID := "pid_78000007-0000-4000-8000-000000000007"
+	evidenceID := "pid_78000005-0000-4000-8000-000000000005"
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	approval := SecurityAgentApproval{ID: approvalID, RunID: runID, StepID: stepID, State: "pending", ExpiresAt: now.Add(10 * time.Minute), Version: 1, ExpectedEffect: "Revoke integration connection", Reversible: false, EvidenceSummary: []string{evidenceID}}
+	stub := &securityAgentPublicAuthorityStub{approval: approval}
+	handler, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: func() time.Time { return now }, NewProductID: newWorkflowProductID, SigningKey: securityAgentTestSigningKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.Permissions = []string{"view", "manage_workflows"}
+	identity.FreshAuthenticated = true
+	identity.FreshAuthExpiresAt = now.Add(4 * time.Minute)
+	request := workflowRequest(t, identity, testCorrelationID, "decideSecurityAgentApproval", map[string]string{"id": approvalID}, http.MethodPost, "/api/v1/security-agent-approvals/"+approvalID+"/decision", `{"decision":"approved"}`)
+	request.Header.Set("Idempotency-Key", "approve-security-agent-0001")
+	request.Header.Set("If-Match", `"1"`)
+	request.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || stub.calls != 1 || stub.decision.ApprovalID != "" {
+		t.Fatalf("approval status=%d body=%s calls=%d decision=%#v", response.Code, response.Body.String(), stub.calls, stub.decision)
 	}
 }
 

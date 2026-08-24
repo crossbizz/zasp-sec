@@ -62,6 +62,10 @@ func (processor *securityAgentActionProcessor) RunOnce(ctx context.Context) erro
 		processor.mu.RUnlock()
 		return errWorkerExecution
 	}
+	var reconciliationErr error
+	if authority, ok := processor.config.Authority.(apiserver.SecurityAgentConnectorRevocationAuthority); ok {
+		_, reconciliationErr = authority.ReconcileConnectorRevocations(ctx, processor.config.WorkerID, processor.config.BatchSize)
+	}
 	leaseToken, err := processor.config.NewLeaseToken()
 	if err != nil || len(leaseToken) < 16 || len(leaseToken) > 128 {
 		processor.mu.RUnlock()
@@ -83,6 +87,9 @@ func (processor *securityAgentActionProcessor) RunOnce(ctx context.Context) erro
 		}
 	}
 	processor.mu.RUnlock()
+	if reconciliationErr != nil {
+		return errWorkerExecution
+	}
 	return nil
 }
 

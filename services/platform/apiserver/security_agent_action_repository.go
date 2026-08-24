@@ -11,7 +11,9 @@ import (
 )
 
 const (
+	postgresSecurityAgentActionReadyV23SQL  = `SELECT jsonb_build_object('release',zasp_security_agent_connector_revocation_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
 	postgresSecurityAgentActionReadySQL     = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
+	postgresSecurityAgentActionReconcileSQL = `SELECT zasp_security_agent_reconcile_connector_revocations($1,$2)`
 	postgresSecurityAgentActionClaimSQL     = `SELECT zasp_security_agent_claim_temporary_policy_effects($1,$2,$3,$4)`
 	postgresSecurityAgentActionHeartbeatSQL = `SELECT zasp_security_agent_heartbeat_temporary_policy_effect($1,$2,$3,$4,$5,$6,$7,$8)`
 	postgresSecurityAgentActionStoreSQL     = `SELECT zasp_security_agent_store_temporary_policy_target($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`
@@ -71,26 +73,42 @@ type SecurityAgentActionAuthority interface {
 	FinishTemporaryPolicyEffect(context.Context, TemporaryPolicyEffectClaim, string, string, string, string, string) (TemporaryPolicyFinishResult, error)
 }
 
-type SecurityAgentActionRepository struct{ database JSONDatabase }
+type SecurityAgentConnectorRevocationAuthority interface {
+	ReconcileConnectorRevocations(context.Context, string, int) (int, error)
+}
+
+type SecurityAgentActionRepository struct {
+	database                  JSONDatabase
+	readySQL, checksum        string
+	fingerprint, reconcileSQL string
+}
 
 func NewSecurityAgentActionRepository(database JSONDatabase) (*SecurityAgentActionRepository, error) {
 	if nilInterface(database) {
 		return nil, ErrRepositoryConfiguration
 	}
-	repository := &SecurityAgentActionRepository{database: database}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if repository.Ready(ctx) != nil {
-		return nil, ErrRepositoryConfiguration
+	configurations := []SecurityAgentActionRepository{
+		{database: database, readySQL: postgresSecurityAgentActionReadyV23SQL, checksum: migrations.ProductionSecurityAgentConnectorRevocation().Checksum(), fingerprint: migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint(), reconcileSQL: postgresSecurityAgentActionReconcileSQL},
+		{database: database, readySQL: postgresSecurityAgentActionReadySQL, checksum: migrations.ProductionSecurityAgentTemporaryPolicy().Checksum(), fingerprint: migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint()},
 	}
-	return repository, nil
+	for index := range configurations {
+		if configurations[index].Ready(ctx) == nil {
+			return &configurations[index], nil
+		}
+	}
+	return nil, ErrRepositoryConfiguration
 }
 
 func (repository *SecurityAgentActionRepository) Ready(ctx context.Context) error {
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresSecurityAgentActionReadySQL, migrations.ProductionSecurityAgentTemporaryPolicy().Checksum(), migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint())
+	if repository.readySQL == "" || repository.checksum == "" || repository.fingerprint == "" {
+		return ErrRepositoryUnavailable
+	}
+	payload, err := repository.database.QueryJSON(ctx, repository.readySQL, repository.checksum, repository.fingerprint)
 	if err != nil {
 		return ErrRepositoryUnavailable
 	}
@@ -102,6 +120,26 @@ func (repository *SecurityAgentActionRepository) Ready(ctx context.Context) erro
 		return ErrRepositoryUnavailable
 	}
 	return nil
+}
+
+func (repository *SecurityAgentActionRepository) ReconcileConnectorRevocations(ctx context.Context, workerID string, limit int) (int, error) {
+	if repository == nil || ctx == nil || ctx.Err() != nil || !validSecurityAgentText(workerID, 128) || limit < 1 || limit > 25 {
+		return 0, ErrRepositoryOperation
+	}
+	if repository.reconcileSQL == "" {
+		return 0, nil
+	}
+	payload, err := repository.database.QueryJSON(ctx, repository.reconcileSQL, workerID, limit)
+	if err != nil {
+		return 0, discoveryProviderError(err)
+	}
+	var result struct {
+		Reconciled int `json:"reconciled"`
+	}
+	if !exactJSONFields(payload, "reconciled") || decodeStrictDiscovery(payload, &result) != nil || result.Reconciled < 0 || result.Reconciled > limit {
+		return 0, ErrRepositoryUnavailable
+	}
+	return result.Reconciled, nil
 }
 
 func (repository *SecurityAgentActionRepository) ClaimTemporaryPolicyEffects(ctx context.Context, workerID, leaseToken string, leaseSeconds, limit int) ([]TemporaryPolicyEffectClaim, error) {

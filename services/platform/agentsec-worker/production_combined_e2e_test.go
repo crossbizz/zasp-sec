@@ -100,7 +100,7 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 		t.Skip("combined E2E helper")
 	}
 	phase := os.Getenv("ZASP_COMBINED_E2E_ACTION_PHASE")
-	if phase != "apply" && phase != "cleanup" {
+	if phase != "apply" && phase != "cleanup" && phase != "reconcile" {
 		t.Fatal("combined E2E action phase is invalid")
 	}
 	privateKeyBytes, err := base64.RawURLEncoding.DecodeString(os.Getenv("ZASP_COMBINED_E2E_ACTION_PRIVATE_KEY"))
@@ -145,6 +145,10 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	if err := dependencies.Processor.RunOnce(ctx); err != nil {
 		t.Fatalf("%v; database trace=%s; postgres trace=%s", err, tracedDatabase.Trace(), postgresTrace.String())
 	}
+	if phase == "reconcile" {
+		t.Log("connector revocation reconciled through the production action worker")
+		return
+	}
 
 	gatewayPool, err := pgxpool.New(ctx, os.Getenv("ZASP_COMBINED_E2E_GATEWAY_DSN"))
 	if err != nil {
@@ -184,6 +188,139 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	t.Logf("signed temporary gateway policy %s and verified through gateway authority; state=%s", phase, expectedRunState)
 }
 
+func TestProductionCombinedE2EConnectorRevocationWorker(t *testing.T) {
+	connectorDSN := os.Getenv("ZASP_COMBINED_E2E_CONNECTOR_DSN")
+	if connectorDSN == "" {
+		t.Skip("combined E2E helper")
+	}
+	integrationID := combinedE2EProductID(t, os.Getenv("ZASP_COMBINED_E2E_CONNECTOR_INTEGRATION_ID"))
+	expectedReference := os.Getenv("ZASP_COMBINED_E2E_CONNECTOR_REFERENCE")
+	if expectedReference == "" {
+		t.Fatal("combined E2E connector reference is missing")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	poolConfig, err := pgxpool.ParseConfig(connectorDSN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	poolConfig.MaxConns, poolConfig.MinConns = 4, 1
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	database, err := apiserver.NewPostgresJSONDatabase(&workerPostgresDriver{pool: pool})
+	if err != nil {
+		pool.Close()
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	connectorRepository, err := apiserver.NewConnectorRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reconciliationRepository := &combinedE2EConnectorRepository{ConnectorRepository: connectorRepository, expectedIntegrationID: integrationID.String(), completed: make(chan apiserver.ConnectorEffectTransition, 1)}
+	workflows, err := apiserver.NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := &combinedE2ERevocationProvider{revoked: make(chan string, 1)}
+	registry, err := apiserver.NewConnectorProviderRegistry(map[string]apiserver.ConnectorOAuthProviderDefinition{
+		"github": {Provider: provider, RequestedScopes: []string{"actions:read", "contents:read", "metadata:read"}, CredentialClass: "github_installation_reference"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reconciler, err := apiserver.NewConnectorReconciler(apiserver.ConnectorReconcilerConfig{Repository: reconciliationRepository, Workflows: workflows, Registry: registry, Secrets: combinedE2EConnectorSecrets{}, Owner: "production-e2e-connector-worker", LeaseSeconds: 60, Limit: 10, Interval: 25 * time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCtx, stop := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() { done <- reconciler.Run(runCtx) }()
+	select {
+	case reference := <-provider.revoked:
+		if reference != expectedReference {
+			stop()
+			t.Fatalf("provider reference=%q want %q", reference, expectedReference)
+		}
+	case <-ctx.Done():
+		stop()
+		t.Fatal("real connector reconciler did not invoke the provider")
+	}
+	var transition apiserver.ConnectorEffectTransition
+	select {
+	case transition = <-reconciliationRepository.completed:
+	case <-ctx.Done():
+		stop()
+		t.Fatal("real connector reconciler did not durably complete the revocation")
+	}
+	stop()
+	if runErr := <-done; runErr != nil && !errors.Is(runErr, context.Canceled) {
+		t.Fatal(runErr)
+	}
+	if transition.Status != "reconciled" {
+		t.Fatalf("connector effect status=%q", transition.Status)
+	}
+	t.Logf("real connector reconciler revoked exact reference %s", expectedReference)
+}
+
+type combinedE2EConnectorRepository struct {
+	*apiserver.ConnectorRepository
+	expectedIntegrationID string
+	completed             chan apiserver.ConnectorEffectTransition
+}
+
+func (repository *combinedE2EConnectorRepository) CompleteConnectorRevocation(ctx context.Context, lease apiserver.ConnectorEffectLease) (apiserver.ConnectorEffectTransition, error) {
+	if lease.IntegrationID != repository.expectedIntegrationID {
+		return apiserver.ConnectorEffectTransition{}, errors.New("unexpected connector revocation target")
+	}
+	transition, err := repository.ConnectorRepository.CompleteConnectorRevocation(ctx, lease)
+	if err == nil {
+		select {
+		case repository.completed <- transition:
+		default:
+		}
+	}
+	return transition, err
+}
+
+type combinedE2ERevocationProvider struct {
+	revoked chan string
+}
+
+func (*combinedE2ERevocationProvider) AuthorizationURL(string, string) (string, error) {
+	return "", errors.New("not used")
+}
+func (*combinedE2ERevocationProvider) Complete(context.Context, string, string, []byte) (apiserver.ConnectorOAuthGrant, error) {
+	return apiserver.ConnectorOAuthGrant{}, errors.New("not used")
+}
+func (*combinedE2ERevocationProvider) Recover(context.Context, string) (apiserver.ConnectorOAuthGrant, error) {
+	return apiserver.ConnectorOAuthGrant{}, errors.New("not used")
+}
+func (*combinedE2ERevocationProvider) Discard(context.Context, string, bool) error {
+	return errors.New("not used")
+}
+func (provider *combinedE2ERevocationProvider) Revoke(_ context.Context, reference string) error {
+	select {
+	case provider.revoked <- reference:
+	default:
+	}
+	return nil
+}
+
+type combinedE2EConnectorSecrets struct{}
+
+func (combinedE2EConnectorSecrets) Acquire(context.Context, string, apiserver.OAuthSecretMaterial, time.Time) (apiserver.OAuthSecretMaterial, error) {
+	return apiserver.OAuthSecretMaterial{}, errors.New("not used")
+}
+func (combinedE2EConnectorSecrets) Consume(context.Context, string) ([]byte, error) {
+	return nil, errors.New("not used")
+}
+func (combinedE2EConnectorSecrets) Delete(context.Context, string) error {
+	return errors.New("not used")
+}
+
 func TestProductionCombinedE2EProviderFixturesAreCanonical(t *testing.T) {
 	for _, fixture := range []struct {
 		provider  collection.Provider
@@ -193,7 +330,7 @@ func TestProductionCombinedE2EProviderFixturesAreCanonical(t *testing.T) {
 	}{
 		{collection.ProviderAWS, collection.SubjectBinding{Kind: "aws_account", ID: "123456789012"}, collection.CredentialAWSAssumeRole, "ref:aws/assume-role/e2e-account"},
 		{collection.ProviderKubernetes, collection.SubjectBinding{Kind: "kubernetes_cluster", ID: "prod.example/cluster-a"}, collection.CredentialKubernetesCluster, "ref:kubernetes/cluster/e2e-a"},
-		{collection.ProviderGitHub, collection.SubjectBinding{Kind: "github_installation", ID: "424242"}, collection.CredentialGitHubInstallation, "ref:github/installation/e2e-424242"},
+		{collection.ProviderGitHub, collection.SubjectBinding{Kind: "github_installation", ID: "424242"}, collection.CredentialGitHubInstallation, "ref:github/installation/424242"},
 		{collection.ProviderOkta, collection.SubjectBinding{Kind: "okta_tenant", ID: "e2e.okta.com"}, collection.CredentialOktaRefresh, "ref:okta/refresh/e2e-tenant"},
 	} {
 		t.Run(string(fixture.provider), func(t *testing.T) {

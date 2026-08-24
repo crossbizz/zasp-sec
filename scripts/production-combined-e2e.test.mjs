@@ -21,7 +21,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "startBrowserTab", "actual two-tab delayed out-of-order ABA stale-scope recovery proven", "X-Zasp-Expected-Scope",
     "delayedFirstTabBootstrap", "secondTabBootstrapWhileFirstDelayed", "firstTabScopeStaleResponses", "X-Zasp-E2E-Tab",
     "ZASP_DEPLOYMENT_MODE", "/administration/identity-access", "member-target-local", "Member role updated; active sessions revoked",
-    "ZASP_STYTCH_WEBHOOK_SECRET", "schema 19 identity_administration verified", "schema 20 security_agent_controls verified", "schema 21 security_agent_autonomous_response verified", "schema 22 security_agent_temporary_policy verified",
+    "ZASP_STYTCH_WEBHOOK_SECRET", "schema 19 identity_administration verified", "schema 20 security_agent_controls verified", "schema 21 security_agent_autonomous_response verified", "schema 23 security_agent_connector_revocation verified",
     "production SSO, SCIM, and group-mapping browser workflow proven",
     "signed Stytch webhook replay and tenant deprovision proven",
     "group-derived browser login scope and cross-tenant denial proven",
@@ -89,7 +89,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
 		"Create enrollment", "Copy this token now", "Save sensor", "Rotate enrollment token", "Delete sensor",
 		"Task6 authenticated heartbeat and healthy sensor coverage proven", "Task6 token rotation and version-pinned sensor update proven",
     "Task6 reload and deletion left no enrollment credential in persistent browser state", "zasp_runtime_sensor_heartbeat",
-		"exerciseSecurityAgentAutomaticLifecycle", "production-e2e-security-agent", "multi-tenant supervised approval, autonomous response, and signed temporary policy apply/cleanup proven", "TestProductionCombinedE2ETemporaryPolicyActionWorker", "Apply temporary containment policy", "TTL 600s", "zasp_e2e_security_agent_action",
+		"exerciseSecurityAgentAutomaticLifecycle", "production-e2e-security-agent", "multi-tenant supervised approval, autonomous response, signed temporary policy apply/cleanup, and irreversible connector revocation proven", "TestProductionCombinedE2ETemporaryPolicyActionWorker", "Apply temporary containment policy", "TTL 600s", "zasp_e2e_security_agent_action",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   const apiEnvironment = source.slice(source.indexOf("const apiEnvironment = {"), source.indexOf("api = startChild(apiBinary"));
   for (const value of ["HOSTNAME", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_FINDING_TICKET_EGRESS_CIDRS"]) assert.match(apiEnvironment, new RegExp(value));
@@ -109,7 +109,10 @@ test("combined production E2E owns every local boundary and fixed assertion", as
   assert.doesNotMatch(seedBoundary, /INSERT INTO zasp_inventory_/i);
   assert.doesNotMatch(seedBoundary, /'(?:home|agents|tools|identities|runtimes|(?:agent|tool|identity|runtime|asset):pid_[0-9a-f-]{36}|agent_(?:capabilities|relationships|sessions):pid_[0-9a-f-]{36})'/i);
 	const securityAgentBoundary = source.slice(source.indexOf("async function exerciseSecurityAgentAutomaticLifecycle"), source.indexOf("async function", source.indexOf("async function exerciseSecurityAgentAutomaticLifecycle") + 15));
-	for (const value of ["security-agent", "zasp_security_agent_worker", "30s", "Validate definition", "Enable supervised execution", "Approve", "autonomous", "pid_90000001-0000-4000-8000-000000000001", "Apply temporary containment policy", "TTL 600s", "create_temporary_policy", "runTemporaryPolicyActionWorker", "cleanup_pending", "remediated\\|cleaned\\|2\\|2"]) assert.match(securityAgentBoundary, new RegExp(value));
+	for (const value of ["security-agent", "zasp_security_agent_worker", "30s", "Validate definition", "Enable supervised execution", "Approve", "autonomous", "pid_90000001-0000-4000-8000-000000000001", "Apply temporary containment policy", "TTL 600s", "create_temporary_policy", "runTemporaryPolicyActionWorker", "cleanup_pending", "remediated\\|cleaned\\|2\\|2", "Revoke integration connection", "Identity administrator approval required", "revoke_integration_connection", "runConnectorRevocationProviderWorker", "INSERT INTO zasp_risk_finding_evidence", "remediated\\|verified\\|verified\\|revoked\\|revoked\\|pending\\|pending_authorization"]) assert.match(securityAgentBoundary, new RegExp(value));
+	const connectorWorkerBoundary = source.slice(source.indexOf("async function runConnectorRevocationProviderWorker"), source.indexOf("async function", source.indexOf("async function runConnectorRevocationProviderWorker") + 15));
+	for (const value of ["TestProductionCombinedE2EConnectorRevocationWorker", "real connector reconciler revoked exact reference", "ZASP_COMBINED_E2E_CONNECTOR_REFERENCE"]) assert.match(connectorWorkerBoundary, new RegExp(value));
+	assert.match(connectorWorkerBoundary, /ZASP_COMBINED_E2E_CONNECTOR_DSN: `postgres:\/\/zasp_e2e_api@/);
 	assert.match(source, /ZASP_COMBINED_E2E_GATEWAY_DSN: `postgres:\/\/zasp_e2e_gateway_control@/);
 	assert.doesNotMatch(source, /ZASP_COMBINED_E2E_GATEWAY_DSN: `postgres:\/\/zasp_e2e_gateway@/);
 	assert.doesNotMatch(securityAgentBoundary, /zasp_security_agent_(?:schedule_triggers|prepare_run|execute_run)(?:_v21)?\s*\(/i);
