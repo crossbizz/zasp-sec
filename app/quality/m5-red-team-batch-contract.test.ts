@@ -7,11 +7,13 @@ const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
 
 describe("M5 red-team and safe Attack Lab batch", () => {
-  it("keeps the eight red-team executor operations outside the strict contract", () => {
+  it("publishes all eight tenant-scoped Red Team operations through the strict contract", () => {
     const openapi = read("openapi/openapi.yaml");
     for (const operation of ["listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun"]) {
-      expect(openapi).not.toContain(`operationId: ${operation}`);
+      expect(openapi).toContain(`operationId: ${operation}`);
     }
+    const api = read("app/features/redteam/api.ts");
+    for (const path of ["/api/v1/tests", "/api/v1/tests/{id}", "/api/v1/tests/{id}/runs", "/api/v1/test-runs", "/api/v1/test-runs/{id}", "/api/v1/test-runs/{id}/cancel"]) expect(api).toContain(path);
   });
 
   it("implements normalized tests, safety, queue, artifacts, sandbox, canary, and evidence", () => {
@@ -21,9 +23,12 @@ describe("M5 red-team and safe Attack Lab batch", () => {
     }
   });
 
-  it("keeps the existing Red Team list, wizard, results, and safe verification affordance", () => {
-    const source = read("app/features/redteam/RedTeamViews.tsx");
-    for (const text of ["Red team scans", "Run new scan", "Test suites", "Execution limits", "Red team results", "/test/attack-lab"]) expect(source).toContain(text);
+  it("mounts the production Red Team list, wizard, runs, evidence, and bounded verification affordance", () => {
+    const app = read("app/components/ZaspProductionApp.tsx");
+    const source = read("app/features/redteam/ProductionRedTeamView.tsx");
+    for (const text of ["/red-team/results", "red-team.read", "red-team.write", "ProductionRedTeamView"]) expect(app).toContain(text);
+    for (const text of ["Create Red Team test", "Curated categories", "Immutable evidence", "Cancel run", "/test/attack-lab"]) expect(source).toContain(text);
+    for (const forbidden of ["custom_prompt", "target_url", "shell_command", "production_write"]) expect(source).not.toContain(forbidden);
   });
 
   it("records the nine-task foundation complete without claiming provider completion", () => {

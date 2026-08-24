@@ -25,6 +25,8 @@ func TestRedTeamExecutionRepositoryBindsOutboxAndRunLeases(t *testing.T) {
 	payloadDigest := sha256.Sum256(payload)
 	now := time.Now().UTC()
 	run := RedTeamRun{ID: runID, Version: 2, DefinitionID: definitionID, DefinitionVersion: 1, Status: "leased", Attempt: 1, QueuedAt: now, StartedAt: &now}
+	evidenceKey := "organizations/" + identity.Scope.OrganizationID().String() + "/workspaces/" + identity.Scope.WorkspaceID().String() + "/environments/" + identity.Scope.EnvironmentID().String() + "/artifacts/" + runID
+	evidenceReference := "s3://zasp-evidence/" + evidenceKey
 	definition := RedTeamDefinition{ID: definitionID, Version: 1, Name: "Bounded prompt injection", TargetID: "pid_99000004-0000-4000-8000-000000000004", TargetKind: "agent_endpoint", Categories: []string{"prompt_injection"}, Safety: RedTeamSafety{Environment: "test", CredentialClass: "read_only", ExpectedSideEffects: []string{"read-only evaluation"}}, Enabled: true, CreatedAt: now, UpdatedAt: now}
 	claimRun := mustRedTeamJSON(t, map[string]any{"disposition": "claimed", "run": run, "definition": definition, "input_digest": hex.EncodeToString(inputDigest[:]), "lease_expires_at": now.Add(60 * time.Second)})
 	claimedOutbox := mustRedTeamJSON(t, []map[string]any{{"organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "outbox_id": outboxID, "topic": RedTeamOutboxTopic, "payload": string(payload), "payload_digest": hex.EncodeToString(payloadDigest[:]), "attempt": 1, "lease_expires_at": now.Add(60 * time.Second)}})
@@ -32,7 +34,7 @@ func TestRedTeamExecutionRepositoryBindsOutboxAndRunLeases(t *testing.T) {
 		postgresRedTeamExecutionReadinessSQL: json.RawMessage(`true`), postgresRedTeamPrincipalReadySQL: json.RawMessage(`true`),
 		postgresRedTeamClaimOutboxSQL: claimedOutbox, postgresRedTeamHeartbeatOutboxSQL: json.RawMessage(`true`), postgresRedTeamAckOutboxSQL: json.RawMessage(`true`), postgresRedTeamRetryOutboxSQL: json.RawMessage(`true`),
 		postgresRedTeamClaimRunSQL: claimRun, postgresRedTeamHeartbeatRunSQL: json.RawMessage(`{"renewed":true,"cancel_requested":false}`),
-		postgresRedTeamFinishRunSQL: mustRedTeamJSON(t, completeRedTeamRun(run, now)), postgresRedTeamRetryRunSQL: mustRedTeamJSON(t, retryableRedTeamRun(run)), postgresRedTeamCancelClaimedRunSQL: mustRedTeamJSON(t, cancelledRedTeamRun(run, now)),
+		postgresRedTeamFinishRunSQL: mustRedTeamJSON(t, completeRedTeamRun(run, now, evidenceReference)), postgresRedTeamRetryRunSQL: mustRedTeamJSON(t, retryableRedTeamRun(run)), postgresRedTeamCancelClaimedRunSQL: mustRedTeamJSON(t, cancelledRedTeamRun(run, now)),
 	}}
 
 	outbox, err := NewRedTeamExecutionRepository(database, RedTeamExecutionAuthorityOutbox)
@@ -65,8 +67,7 @@ func TestRedTeamExecutionRepositoryBindsOutboxAndRunLeases(t *testing.T) {
 	if err != nil || !heartbeat.Renewed || heartbeat.CancelRequested {
 		t.Fatalf("heartbeat=%#v err=%v", heartbeat, err)
 	}
-	evidenceKey := "organizations/" + identity.Scope.OrganizationID().String() + "/workspaces/" + identity.Scope.WorkspaceID().String() + "/environments/" + identity.Scope.EnvironmentID().String() + "/artifacts/" + runID
-	completion := RedTeamRunCompletion{RunID: runID, Worker: worker, LeaseToken: token, InputDigest: inputDigest, Verdict: "pass", Objective: "Reject prompt injection", Behavior: "The target refused the unsafe instruction.", Evidence: []string{"target returned a bounded refusal"}, EvidenceReference: "s3://zasp-evidence/" + evidenceKey, EvidenceKey: evidenceKey, EvidenceVersionID: "version-1", EvidenceChecksum: bytes.Repeat([]byte{0xee}, 32), EvidenceSizeBytes: 128}
+	completion := RedTeamRunCompletion{RunID: runID, Worker: worker, LeaseToken: token, InputDigest: inputDigest, Verdict: "pass", Objective: "Reject prompt injection", Behavior: "The target refused the unsafe instruction.", Evidence: []string{"target returned a bounded refusal"}, EvidenceReference: evidenceReference, EvidenceKey: evidenceKey, EvidenceVersionID: "version-1", EvidenceChecksum: bytes.Repeat([]byte{0xee}, 32), EvidenceSizeBytes: 128}
 	if _, err := runner.FinishRedTeamRun(context.Background(), identity.Scope, completion); err != nil {
 		t.Fatal(err)
 	}
@@ -102,8 +103,8 @@ func TestRedTeamExecutionRepositoryRejectsWrongAuthorityAndHostileOutput(t *test
 	}
 }
 
-func completeRedTeamRun(run RedTeamRun, completedAt time.Time) RedTeamRun {
-	run.Version, run.Status, run.Verdict, run.CompletedAt = 3, "complete", "pass", &completedAt
+func completeRedTeamRun(run RedTeamRun, completedAt time.Time, evidenceReference string) RedTeamRun {
+	run.Version, run.Status, run.Verdict, run.CompletedAt, run.EvidenceReference = 3, "complete", "pass", &completedAt, evidenceReference
 	return run
 }
 

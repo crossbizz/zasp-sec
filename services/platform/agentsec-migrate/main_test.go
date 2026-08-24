@@ -1246,6 +1246,44 @@ func TestAgentsecMigrateCLIReachesV15FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatal("cross-tenant red team run was visible")
 	}
+	cancelClaimedRunID := "pid_7a000010-0000-4000-8000-000000000010"
+	var cancelClaimedQueuedJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_run_test($1,$2,$3,$4,'red-team-run-cancel-claimed-0001',$5,1,$6,$7)`, organizationID, workspaceID, environmentID, actorID, definitionID, cancelClaimedRunID, correlationID).Scan(&cancelClaimedQueuedJSON); err != nil || !bytes.Contains(cancelClaimedQueuedJSON, []byte(`"status": "queued"`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team claimed-cancel fixture=%s err=%v", cancelClaimedQueuedJSON, err)
+	}
+	redTeamWorker = connectAs(principalNames[19])
+	cancelClaimedToken := bytes.Repeat([]byte{0x28}, 32)
+	if err := redTeamWorker.QueryRow(ctx, `SELECT zasp_red_team_claim_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, cancelClaimedRunID, "red-team-worker-e2e", cancelClaimedToken).Scan(&claimedJSON); err != nil || !bytes.Contains(claimedJSON, []byte(`"disposition": "claimed"`)) {
+		redTeamWorker.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team claimed-cancel claim=%s err=%v", claimedJSON, err)
+	}
+	var cancelClaimedDigest []byte
+	if err := connection.QueryRow(ctx, `SELECT input_digest FROM zasp_red_team_runs WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND run_id=$4`, organizationID, workspaceID, environmentID, cancelClaimedRunID).Scan(&cancelClaimedDigest); err != nil {
+		redTeamWorker.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	var cancellationRequestedJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_cancel_run($1,$2,$3,$4,'red-team-cancel-claimed-0001',$5,2,$6)`, organizationID, workspaceID, environmentID, actorID, cancelClaimedRunID, correlationID).Scan(&cancellationRequestedJSON); err != nil || !bytes.Contains(cancellationRequestedJSON, []byte(`"status": "leased"`)) || !bytes.Contains(cancellationRequestedJSON, []byte(`"cancel_requested": true`)) {
+		redTeamWorker.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team claimed cancellation=%s err=%v", cancellationRequestedJSON, err)
+	}
+	cancelClaimedEvidenceKey := "organizations/" + organizationID + "/workspaces/" + workspaceID + "/environments/" + environmentID + "/artifacts/" + cancelClaimedRunID
+	if err := redTeamWorker.QueryRow(ctx, `SELECT zasp_red_team_finish_run($1,$2,$3,$4,$5,$6,$7,'pass','Reject direct prompt injection','The target preserved its system boundary',NULL,'[]'::jsonb,$8,$9,'s3-version-red-team-cancel',$10,128)`, organizationID, workspaceID, environmentID, cancelClaimedRunID, "red-team-worker-e2e", cancelClaimedToken, cancelClaimedDigest, "s3://zasp-red-team-evidence/"+cancelClaimedEvidenceKey, cancelClaimedEvidenceKey, bytes.Repeat([]byte{0x29}, 32)).Scan(&completedJSON); err == nil {
+		redTeamWorker.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatal("accepted red team completion after cancellation")
+	}
+	var cancelledClaimedJSON []byte
+	if err := redTeamWorker.QueryRow(ctx, `SELECT zasp_red_team_cancel_claimed_run($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, cancelClaimedRunID, "red-team-worker-e2e", cancelClaimedToken, cancelClaimedDigest).Scan(&cancelledClaimedJSON); err != nil || !bytes.Contains(cancelledClaimedJSON, []byte(`"status": "cancelled"`)) {
+		redTeamWorker.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team claimed cancellation finish=%s err=%v", cancelledClaimedJSON, err)
+	}
+	redTeamWorker.Close(context.Background())
 	cancelRunID := "pid_7a000011-0000-4000-8000-000000000011"
 	var cancelQueuedJSON []byte
 	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_run_test($1,$2,$3,$4,'red-team-run-cancel-0001',$5,1,$6,$7)`, organizationID, workspaceID, environmentID, actorID, definitionID, cancelRunID, correlationID).Scan(&cancelQueuedJSON); err != nil || !bytes.Contains(cancelQueuedJSON, []byte(`"version": 1`)) || !bytes.Contains(cancelQueuedJSON, []byte(`"audit_id"`)) || !bytes.Contains(cancelQueuedJSON, []byte(`"receipt_id"`)) {
@@ -1263,7 +1301,7 @@ func TestAgentsecMigrateCLIReachesV15FromEmptyAndV12(t *testing.T) {
 		t.Fatalf("red team cancel replay=%s err=%v", cancelReplayJSON, err)
 	}
 	var auditCount int
-	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_red_team_audit WHERE organization_id=$1`, organizationID).Scan(&auditCount); err != nil || auditCount != 4 {
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_red_team_audit WHERE organization_id=$1`, organizationID).Scan(&auditCount); err != nil || auditCount != 6 {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("red team audit count=%d err=%v", auditCount, err)
 	}

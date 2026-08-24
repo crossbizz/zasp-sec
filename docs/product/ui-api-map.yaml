@@ -293,28 +293,28 @@ screens:
     actions:
       - id: view_tests
         operation_id: listTests
-        availability: planned
+        availability: available
       - id: create_test
         operation_id: createTest
-        availability: planned
+        availability: available
       - id: view_test
         operation_id: getTest
-        availability: planned
+        availability: available
       - id: update_test
         operation_id: updateTest
-        availability: planned
+        availability: available
       - id: run_test
         operation_id: runTest
-        availability: planned
+        availability: available
       - id: view_test_runs
         operation_id: listTestRuns
-        availability: planned
+        availability: available
       - id: view_test_run
         operation_id: getTestRun
-        availability: planned
+        availability: available
       - id: cancel_test_run
         operation_id: cancelTestRun
-        availability: planned
+        availability: available
       - id: view_attack_lab_runs
         operation_id: listAttackLabRuns
         availability: planned

@@ -385,7 +385,7 @@ func capabilitiesForPermissions(permissions []string) []string {
 	for _, permission := range permissions {
 		switch permission {
 		case "view":
-			capabilities = append(capabilities, "inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "administration.read", "system.read")
+			capabilities = append(capabilities, "inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "administration.read", "system.read")
 		case "manage_workflows":
 			capabilities = append(capabilities, "inventory.write", "policies.write", "integrations.write", "sensors.write", "security-agents.write")
 		case "manage_findings":
@@ -404,6 +404,8 @@ func capabilitiesForPermissions(permissions []string) []string {
 			capabilities = append(capabilities, "compliance.read")
 		case "manage_data_controls":
 			capabilities = append(capabilities, "data-controls.manage")
+		case "run_tests":
+			capabilities = append(capabilities, "red-team.write")
 		}
 	}
 	return capabilities

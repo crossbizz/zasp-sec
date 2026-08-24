@@ -200,6 +200,30 @@ describe("Zasp application", () => {
 		expect(requests).not.toContain("/api/v1/policies/policy-production/decisions");
 	});
 
+	it("routes Red Team capabilities to the tenant-backed production surface", async () => {
+		window.history.replaceState({}, "", "/red-team/results");
+		const requests: string[] = [];
+		const client = createAPIClient({
+			generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+			fetch: async (request) => {
+				const path = new URL(request.url).pathname;
+				requests.push(path);
+				if (path === "/api/v1/session/bootstrap") return apiJSON({
+					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_engineer", active: true },
+					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
+					permissions: ["view", "run_tests"], capabilities: ["red-team.read", "red-team.write"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+				});
+				if (path === "/api/v1/workflow-mutation-receipts") return apiJSON({ items: [] });
+				if (path === "/api/v1/tests" || path === "/api/v1/test-runs") return apiJSON({ items: [] });
+				if (path === "/api/v1/agents" || path === "/api/v1/tools") return apiJSON({ items: [], page_info: { next_cursor: null, has_more: false } });
+				throw new Error(`unexpected Red Team fetch ${request.method} ${path}`);
+			},
+		});
+		render(<ZaspApp client={client} />);
+		expect(await screen.findByRole("button", { name: "Create test" })).toBeVisible();
+		expect(requests).toEqual(expect.arrayContaining(["/api/v1/session/bootstrap", "/api/v1/tests", "/api/v1/test-runs", "/api/v1/agents", "/api/v1/tools"]));
+	});
+
 	it("publishes only capability-backed production administration routes", async () => {
 		const client = createAPIClient({
 			generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",

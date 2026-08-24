@@ -268,10 +268,19 @@ func (repository *PostgresRepository) GetRedTeamRun(ctx context.Context, identit
 	if decodeStrictDiscovery(payload, &result) != nil || result.ID != runID || !validRedTeamRun(result.RedTeamRun) || len(result.Attempts) > 5 {
 		return RedTeamRunDetail{}, ErrRepositoryUnavailable
 	}
-	for index, attempt := range result.Attempts {
-		if attempt.Attempt != index+1 || !validRedTeamAttempt(attempt) {
+	priorAttempt := 0
+	for _, attempt := range result.Attempts {
+		if !validRedTeamAttempt(attempt) || attempt.Attempt <= priorAttempt || attempt.Attempt > result.Attempt || attempt.EvidenceReference != result.EvidenceReference {
 			return RedTeamRunDetail{}, ErrRepositoryUnavailable
 		}
+		priorAttempt = attempt.Attempt
+	}
+	if result.Status == "complete" {
+		if len(result.Attempts) != 1 || result.Attempts[0].Attempt != result.Attempt || result.Attempts[0].Verdict != result.Verdict || result.Attempts[0].ErrorCode != result.ErrorCode || result.CompletedAt == nil || !result.Attempts[0].CompletedAt.Equal(*result.CompletedAt) {
+			return RedTeamRunDetail{}, ErrRepositoryUnavailable
+		}
+	} else if len(result.Attempts) != 0 {
+		return RedTeamRunDetail{}, ErrRepositoryUnavailable
 	}
 	return result, nil
 }
@@ -359,19 +368,44 @@ func validRedTeamDefinition(value RedTeamDefinition) bool {
 }
 
 func validRedTeamRun(value RedTeamRun) bool {
-	return validProductID(value.ID) && value.Version >= 1 && value.Version <= 1000000 && validProductID(value.DefinitionID) && value.DefinitionVersion >= 1 && value.DefinitionVersion <= 1000000 && stringIn(value.Status, "queued", "leased", "retryable", "complete", "failed", "cancelled") && value.Attempt >= 0 && value.Attempt <= 5 && canonicalRedTeamTime(value.QueuedAt) && (value.StartedAt == nil || canonicalRedTeamTime(*value.StartedAt)) && (value.CompletedAt == nil || canonicalRedTeamTime(*value.CompletedAt)) && (value.Verdict == "" || stringIn(value.Verdict, "pass", "fail", "engine_error")) && (value.ErrorCode == "" || stringIn(value.ErrorCode, "retryable", "rate_limited", "denied", "malformed", "outcome_unknown", "cancelled", "exhausted")) && (value.EvidenceReference == "" || len(value.EvidenceReference) <= 1024)
+	if !validProductID(value.ID) || value.Version < 1 || value.Version > 1000000 || !validProductID(value.DefinitionID) || value.DefinitionVersion < 1 || value.DefinitionVersion > 1000000 || value.Attempt < 0 || value.Attempt > 5 || !canonicalRedTeamTime(value.QueuedAt) || value.StartedAt != nil && (!canonicalRedTeamTime(*value.StartedAt) || value.StartedAt.Before(value.QueuedAt)) || value.CompletedAt != nil && (!canonicalRedTeamTime(*value.CompletedAt) || value.CompletedAt.Before(value.QueuedAt) || value.StartedAt != nil && value.CompletedAt.Before(*value.StartedAt)) || value.EvidenceReference != "" && !canonicalInventoryText(value.EvidenceReference, 1, 1024) {
+		return false
+	}
+	hasStarted, hasCompleted, hasVerdict, hasError, hasEvidence := value.StartedAt != nil, value.CompletedAt != nil, value.Verdict != "", value.ErrorCode != "", value.EvidenceReference != ""
+	switch value.Status {
+	case "queued":
+		return value.Attempt == 0 && !value.CancelRequested && !hasStarted && !hasCompleted && !hasVerdict && !hasError && !hasEvidence
+	case "leased":
+		return value.Attempt >= 1 && hasStarted && !hasCompleted && !hasVerdict && !hasError && !hasEvidence
+	case "retryable":
+		return value.Attempt >= 1 && value.Attempt < 5 && !value.CancelRequested && hasStarted && !hasCompleted && !hasVerdict && stringIn(value.ErrorCode, "retryable", "rate_limited", "denied", "malformed", "outcome_unknown") && !hasEvidence
+	case "complete":
+		if value.Attempt < 1 || value.CancelRequested || !hasStarted || !hasCompleted || !hasVerdict || !hasEvidence {
+			return false
+		}
+		return value.Verdict == "engine_error" && stringIn(value.ErrorCode, "denied", "malformed", "outcome_unknown", "exhausted") || stringIn(value.Verdict, "pass", "fail") && !hasError
+	case "failed":
+		return value.Attempt == 5 && !value.CancelRequested && hasStarted && hasCompleted && !hasVerdict && value.ErrorCode == "exhausted" && !hasEvidence
+	case "cancelled":
+		return value.CancelRequested && hasCompleted && !hasVerdict && value.ErrorCode == "cancelled" && !hasEvidence && (value.Attempt == 0 && !hasStarted || value.Attempt >= 1 && hasStarted)
+	default:
+		return false
+	}
 }
 
 func validRedTeamAttempt(value RedTeamAttempt) bool {
-	if value.Attempt < 1 || value.Attempt > 5 || !stringIn(value.Verdict, "pass", "fail", "engine_error") || len(value.Objective) < 1 || len(value.Objective) > 512 || len(value.Behavior) < 1 || len(value.Behavior) > 2048 || len(value.ErrorCode) > 64 || len(value.Evidence) > 64 || len(value.EvidenceReference) < 1 || len(value.EvidenceReference) > 1024 || !canonicalRedTeamTime(value.CompletedAt) {
+	if value.Attempt < 1 || value.Attempt > 5 || !stringIn(value.Verdict, "pass", "fail", "engine_error") || !canonicalInventoryText(value.Objective, 1, 512) || !canonicalInventoryText(value.Behavior, 1, 2048) || len(value.Evidence) > 64 || !canonicalInventoryText(value.EvidenceReference, 1, 1024) || !canonicalRedTeamTime(value.CompletedAt) {
 		return false
 	}
 	for _, item := range value.Evidence {
-		if len(item) < 1 || len(item) > 512 {
+		if !canonicalInventoryText(item, 1, 512) {
 			return false
 		}
 	}
-	return true
+	if value.Verdict == "engine_error" {
+		return stringIn(value.ErrorCode, "denied", "malformed", "outcome_unknown", "exhausted") && len(value.Evidence) == 1
+	}
+	return value.ErrorCode == "" && len(value.Evidence) >= 1
 }
 
 func canonicalRedTeamTime(value time.Time) bool {

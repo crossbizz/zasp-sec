@@ -40,6 +40,9 @@ func TestProductionRedTeamExecutionMetadataPinsDurableTenantAuthority(t *testing
 			t.Fatalf("v25 migration admits forbidden authority %q", forbidden)
 		}
 	}
+	if !strings.Contains(metadata.UpSQL(), "IF run_row.cancel_requested THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='red team run cancellation wins';END IF;") {
+		t.Fatal("v25 completion does not preserve an accepted cancellation before writing evidence")
+	}
 	if !strings.Contains(metadata.DownSQL(), "red team execution rollback rejected") || !strings.Contains(metadata.DownSQL(), "zasp_red_team_execution_live_fingerprint") {
 		t.Fatal("v25 down migration is not guarded by exact live authority")
 	}

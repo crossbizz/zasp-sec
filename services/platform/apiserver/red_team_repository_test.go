@@ -56,3 +56,69 @@ func TestRedTeamRepositoryRejectsUnsafeOrCrossSchemaRequestsWithoutIO(t *testing
 		t.Fatalf("unexpected IO %#v", database.statements)
 	}
 }
+
+func TestRedTeamRepositoryAcceptsOnlyCanonicalRunStatesAndLaterSuccessfulAttempt(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	runID := "pid_79000011-0000-4000-8000-000000000011"
+	definitionID := "pid_79000012-0000-4000-8000-000000000012"
+	queuedAt := time.Now().UTC().Truncate(time.Second).Add(-3 * time.Minute)
+	startedAt := queuedAt.Add(time.Minute)
+	completedAt := startedAt.Add(time.Minute)
+	reference := "s3://zasp-red-team-evidence/organizations/pid_79000001-0000-4000-8000-000000000001/workspaces/pid_79000002-0000-4000-8000-000000000002/environments/pid_79000003-0000-4000-8000-000000000003/artifacts/" + runID
+	complete := RedTeamRun{
+		ID: runID, Version: 7, DefinitionID: definitionID, DefinitionVersion: 2,
+		Status: "complete", Attempt: 3, QueuedAt: queuedAt, StartedAt: &startedAt,
+		CompletedAt: &completedAt, Verdict: "pass", EvidenceReference: reference,
+	}
+	detail := RedTeamRunDetail{RedTeamRun: complete, Attempts: []RedTeamAttempt{{
+		Attempt: 3, Verdict: "pass", Objective: "Reject prompt injection",
+		Behavior: "The target preserved its system boundary.", Evidence: []string{"bounded refusal"},
+		EvidenceReference: reference, CompletedAt: completedAt,
+	}}}
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{postgresRedTeamGetRunSQL: mustRedTeamJSON(t, detail)}}
+	repository := &PostgresRepository{database: database, schema: RedTeamExecutionSchemaVersion}
+	if result, err := repository.GetRedTeamRun(context.Background(), identity, runID); err != nil || result.Attempt != 3 || len(result.Attempts) != 1 || result.Attempts[0].Attempt != 3 {
+		t.Fatalf("later attempt detail=%#v err=%v", result, err)
+	}
+
+	validQueued := RedTeamRun{ID: runID, Version: 1, DefinitionID: definitionID, DefinitionVersion: 1, Status: "queued", QueuedAt: queuedAt}
+	validLeased := RedTeamRun{ID: runID, Version: 2, DefinitionID: definitionID, DefinitionVersion: 1, Status: "leased", Attempt: 1, QueuedAt: queuedAt, StartedAt: &startedAt}
+	validRetryable := RedTeamRun{ID: runID, Version: 3, DefinitionID: definitionID, DefinitionVersion: 1, Status: "retryable", Attempt: 1, QueuedAt: queuedAt, StartedAt: &startedAt, ErrorCode: "retryable"}
+	validFailed := RedTeamRun{ID: runID, Version: 6, DefinitionID: definitionID, DefinitionVersion: 1, Status: "failed", Attempt: 5, QueuedAt: queuedAt, StartedAt: &startedAt, CompletedAt: &completedAt, ErrorCode: "exhausted"}
+	validCancelled := RedTeamRun{ID: runID, Version: 2, DefinitionID: definitionID, DefinitionVersion: 1, Status: "cancelled", CancelRequested: true, QueuedAt: queuedAt, CompletedAt: &completedAt, ErrorCode: "cancelled"}
+	for name, value := range map[string]RedTeamRun{"queued": validQueued, "leased": validLeased, "retryable": validRetryable, "complete": complete, "failed": validFailed, "cancelled": validCancelled} {
+		if !validRedTeamRun(value) {
+			t.Fatalf("valid %s state rejected: %#v", name, value)
+		}
+	}
+	for name, value := range map[string]RedTeamRun{
+		"queued attempt":       withRedTeamRunAttempt(validQueued, 1),
+		"leased without start": withRedTeamRunStart(validLeased, nil),
+		"retry without error":  withRedTeamRunError(validRetryable, ""),
+		"complete cancelled":   withRedTeamRunCancel(complete, true),
+		"failed too early":     withRedTeamRunAttempt(validFailed, 4),
+		"cancel flag missing":  withRedTeamRunCancel(validCancelled, false),
+	} {
+		if validRedTeamRun(value) {
+			t.Fatalf("hostile %s state accepted: %#v", name, value)
+		}
+	}
+}
+
+func withRedTeamRunAttempt(value RedTeamRun, attempt int) RedTeamRun {
+	value.Attempt = attempt
+	return value
+}
+func withRedTeamRunStart(value RedTeamRun, started *time.Time) RedTeamRun {
+	value.StartedAt = started
+	return value
+}
+func withRedTeamRunError(value RedTeamRun, code string) RedTeamRun {
+	value.ErrorCode = code
+	return value
+}
+func withRedTeamRunCancel(value RedTeamRun, requested bool) RedTeamRun {
+	value.CancelRequested = requested
+	return value
+}

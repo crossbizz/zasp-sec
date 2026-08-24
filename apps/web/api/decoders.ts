@@ -1,4 +1,4 @@
-import type { AgentMutation, AgentSessionPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
+import type { AgentMutation, AgentSessionPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -376,6 +376,64 @@ export function decodeSecurityAgentRunDetail(value: unknown): SecurityAgentRunDe
   if (record.authorization !== expectedAuthorization) fail();
   return value as SecurityAgentRunDetail;
 }
+
+const redTeamCategories = ["prompt_injection", "tool_abuse", "data_leakage", "authorization_bypass", "excessive_agency", "sensitive_information"] as const;
+const redTeamRetryErrors = ["retryable", "rate_limited", "denied", "malformed", "outcome_unknown"] as const;
+
+export function decodeTestDefinition(value: unknown): TestDefinition {
+  const record = exactRecord(value, ["id", "version", "name", "target_id", "target_kind", "categories", "safety", "enabled", "created_at", "updated_at"]);
+  productID(record.id); positiveInteger(record.version); if ((record.version as number) > 1_000_000) fail(); printableString(record.name, 1, 128); productID(record.target_id); enumValue(record.target_kind, ["agent_endpoint", "mcp_server", "coding_agent"]); if (typeof record.enabled !== "boolean") fail(); dateTime(record.created_at); dateTime(record.updated_at); if (Date.parse(record.updated_at as string) < Date.parse(record.created_at as string)) fail();
+  const categories = array(record.categories, 16); if (categories.length < 1) fail(); const uniqueCategories = new Set<string>(); for (const category of categories) { enumValue(category, redTeamCategories); if (uniqueCategories.has(category as string)) fail(); uniqueCategories.add(category as string); }
+  const safety = exactRecord(record.safety, ["environment", "credential_class", "expected_side_effects"]); enumValue(safety.environment, ["development", "test", "staging"]); enumValue(safety.credential_class, ["read_only", "test_write"]); const effects = array(safety.expected_side_effects, 16); if (effects.length < 1) fail(); const uniqueEffects = new Set<string>(); for (const effect of effects) { printableString(effect, 1, 256); if (uniqueEffects.has(effect as string)) fail(); uniqueEffects.add(effect as string); }
+  return value as TestDefinition;
+}
+
+export function decodeTestDefinitionPage(value: unknown): TestDefinitionPage {
+  const record = exactRecord(value, ["items"], ["next_cursor"]); const items = array(record.items, 100); let prior = "";
+  for (const item of items) { const definition = decodeTestDefinition(item); if (prior !== "" && definition.id <= prior) fail(); prior = definition.id; }
+  redTeamCursor(record.next_cursor, 512); if (record.next_cursor !== undefined && items.length === 0) fail();
+  return value as TestDefinitionPage;
+}
+
+export function decodeTestRun(value: unknown): TestRun {
+  const record = exactRecord(value, ["id", "version", "definition_id", "definition_version", "status", "attempt", "cancel_requested", "queued_at"], ["started_at", "completed_at", "verdict", "error_code", "evidence_reference"]);
+  productID(record.id); positiveInteger(record.version); if ((record.version as number) > 1_000_000) fail(); productID(record.definition_id); positiveInteger(record.definition_version); if ((record.definition_version as number) > 1_000_000) fail(); enumValue(record.status, ["queued", "leased", "retryable", "complete", "failed", "cancelled"]); boundedInteger(record.attempt, 0, 5); if (typeof record.cancel_requested !== "boolean") fail(); dateTime(record.queued_at);
+  if (record.started_at !== undefined) { dateTime(record.started_at); if (Date.parse(record.started_at) < Date.parse(record.queued_at as string)) fail(); }
+  if (record.completed_at !== undefined) { dateTime(record.completed_at); if (Date.parse(record.completed_at) < Date.parse((record.started_at ?? record.queued_at) as string)) fail(); }
+  if (record.verdict !== undefined) enumValue(record.verdict, ["pass", "fail", "engine_error"]); if (record.error_code !== undefined) enumValue(record.error_code, [...redTeamRetryErrors, "cancelled", "exhausted"]); if (record.evidence_reference !== undefined) printableString(record.evidence_reference, 1, 1024);
+  const attempt = record.attempt as number; const hasStarted = record.started_at !== undefined; const hasCompleted = record.completed_at !== undefined; const hasVerdict = record.verdict !== undefined; const hasError = record.error_code !== undefined; const hasEvidence = record.evidence_reference !== undefined;
+  const coherent = record.status === "queued" ? attempt === 0 && !record.cancel_requested && !hasStarted && !hasCompleted && !hasVerdict && !hasError && !hasEvidence
+    : record.status === "leased" ? attempt >= 1 && hasStarted && !hasCompleted && !hasVerdict && !hasError && !hasEvidence
+      : record.status === "retryable" ? attempt >= 1 && attempt < 5 && !record.cancel_requested && hasStarted && !hasCompleted && !hasVerdict && hasError && redTeamRetryErrors.includes(record.error_code as typeof redTeamRetryErrors[number]) && !hasEvidence
+        : record.status === "complete" ? attempt >= 1 && !record.cancel_requested && hasStarted && hasCompleted && hasVerdict && hasEvidence && (record.verdict === "engine_error" ? hasError && ["denied", "malformed", "outcome_unknown", "exhausted"].includes(record.error_code as string) : !hasError)
+          : record.status === "failed" ? attempt === 5 && !record.cancel_requested && hasStarted && hasCompleted && !hasVerdict && record.error_code === "exhausted" && !hasEvidence
+            : record.status === "cancelled" && record.cancel_requested && hasCompleted && !hasVerdict && record.error_code === "cancelled" && !hasEvidence && (attempt === 0 ? !hasStarted : hasStarted);
+  if (!coherent) fail();
+  return value as TestRun;
+}
+
+export function decodeTestAttempt(value: unknown): TestAttempt {
+  const record = exactRecord(value, ["attempt", "verdict", "objective", "behavior", "evidence", "evidence_reference", "completed_at"], ["error_code"]); boundedInteger(record.attempt, 1, 5); enumValue(record.verdict, ["pass", "fail", "engine_error"]); printableString(record.objective, 1, 512); printableString(record.behavior, 1, 2048); printableString(record.evidence_reference, 1, 1024); dateTime(record.completed_at); const evidence = array(record.evidence, 64); for (const item of evidence) printableString(item, 1, 512);
+  if (record.verdict === "engine_error") { enumValue(record.error_code, ["denied", "malformed", "outcome_unknown", "exhausted"]); if (evidence.length !== 1) fail(); } else if (record.error_code !== undefined || evidence.length < 1) fail();
+  return value as TestAttempt;
+}
+
+export function decodeTestRunDetail(value: unknown): TestRunDetail {
+  const record = exactRecord(value, ["id", "version", "definition_id", "definition_version", "status", "attempt", "cancel_requested", "queued_at", "attempts"], ["started_at", "completed_at", "verdict", "error_code", "evidence_reference"]); const { attempts: attemptValues, ...runValue } = record; const run = decodeTestRun(runValue); const attempts = array(attemptValues, 5); let prior = 0;
+  let finalAttempt: TestAttempt | undefined;
+  for (const item of attempts) { const attempt = decodeTestAttempt(item); if (attempt.attempt <= prior || attempt.attempt > run.attempt || attempt.evidence_reference !== run.evidence_reference) fail(); prior = attempt.attempt; finalAttempt = attempt; }
+  if (run.status === "complete" ? attempts.length !== 1 || finalAttempt?.attempt !== run.attempt || finalAttempt.verdict !== run.verdict || finalAttempt.completed_at !== run.completed_at : attempts.length !== 0) fail();
+  return value as TestRunDetail;
+}
+
+export function decodeTestRunPage(value: unknown): TestRunPage {
+  const record = exactRecord(value, ["items"], ["next_cursor"]); const items = array(record.items, 100); let prior: TestRun | undefined;
+  for (const item of items) { const run = decodeTestRun(item); if (prior && (run.queued_at > prior.queued_at || run.queued_at === prior.queued_at && run.id >= prior.id)) fail(); prior = run; }
+  redTeamCursor(record.next_cursor, 1024); if (record.next_cursor !== undefined && items.length === 0) fail();
+  return value as TestRunPage;
+}
+
+function redTeamCursor(value: unknown, maximum: number): void { if (value === undefined) return; boundedString(value, 2, maximum); if (!CURSOR.test(value)) fail(); }
 
 function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourceID: string, resourceVersion: number, idempotencyKey: string, intentValue: unknown, resultValue: unknown, expectedScopeKey?: string): void {
   if (operation === "syncIntegration") {
