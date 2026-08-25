@@ -86,9 +86,12 @@ type recoveryManifestLoaderFake struct {
 	calls    int
 }
 
-func (fake *recoveryManifestLoaderFake) Load(context.Context, recoveryOperationClaim) (recovery.Manifest, error) {
+func (fake *recoveryManifestLoaderFake) Load(context.Context, recoveryOperationClaim) (recoveryLoadedManifest, error) {
 	fake.calls++
-	return fake.manifest, fake.err
+	return recoveryLoadedManifest{
+		Manifest:             fake.manifest,
+		EvidenceSampleDigest: sha256.Sum256([]byte("recovery evidence sample")),
+	}, fake.err
 }
 
 type recoveryRestoreInfrastructureFake struct {

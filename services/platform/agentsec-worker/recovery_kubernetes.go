@@ -28,17 +28,18 @@ type recoveryKubernetesJob struct {
 }
 
 type recoveryKubernetesPlan struct {
-	Namespace         string
-	Labels            map[string]string
-	Scope             domain.Scope
-	RestoreID         string
-	TargetEnvironment string
-	BranchID          string
-	BranchHost        string
-	ExpectedCounts    apiserver.RecoveryCounts
-	ProjectionDigest  [sha256.Size]byte
-	NetworkPolicy     recoveryKubernetesNetworkPolicy
-	Jobs              []recoveryKubernetesJob
+	Namespace            string
+	Labels               map[string]string
+	Scope                domain.Scope
+	RestoreID            string
+	TargetEnvironment    string
+	BranchID             string
+	BranchHost           string
+	ExpectedCounts       apiserver.RecoveryCounts
+	ProjectionDigest     [sha256.Size]byte
+	EvidenceSampleDigest [sha256.Size]byte
+	NetworkPolicy        recoveryKubernetesNetworkPolicy
+	Jobs                 []recoveryKubernetesJob
 }
 
 type recoveryKubernetesAPI interface {
@@ -75,7 +76,7 @@ func (infrastructure *productionRecoveryRestoreInfrastructure) Ready(ctx context
 }
 
 func (infrastructure *productionRecoveryRestoreInfrastructure) Provision(ctx context.Context, input recoveryRestoreProvisionRequest) (recoveryRestoreTarget, error) {
-	if infrastructure == nil || ctx == nil || ctx.Err() != nil || !validRecoveryOperationClaim(input.Scope) || input.Scope.Kind != "restore" || input.TargetEnvironment != input.Scope.TargetEnvironment || !validLoadedRecoveryManifest(input.Manifest, input.Scope.Scope) || input.Manifest.NeonProjectID != infrastructure.config.ProjectID || input.Manifest.NeonBranchID != infrastructure.config.ParentBranchID {
+	if infrastructure == nil || ctx == nil || ctx.Err() != nil || !validRecoveryOperationClaim(input.Scope) || input.Scope.Kind != "restore" || input.TargetEnvironment != input.Scope.TargetEnvironment || !validLoadedRecoveryManifest(input.Manifest, input.Scope.Scope) || input.EvidenceSampleDigest == ([sha256.Size]byte{}) || input.Manifest.NeonProjectID != infrastructure.config.ProjectID || input.Manifest.NeonBranchID != infrastructure.config.ParentBranchID {
 		return recoveryRestoreTarget{}, errWorkerExecution
 	}
 	name, scopeDigest, err := recoveryRestoreNames(input.Scope)
@@ -142,7 +143,7 @@ func newRecoveryKubernetesPlan(input recoveryRestoreProvisionRequest, branch neo
 	}
 	return recoveryKubernetesPlan{
 		Namespace: name, Labels: labels, Scope: input.Scope.Scope, RestoreID: input.Scope.OperationID, TargetEnvironment: input.TargetEnvironment, BranchID: branch.ID, BranchHost: branch.Endpoints[0].Host,
-		ExpectedCounts: recoveryManifestCounts(input.Manifest), ProjectionDigest: input.Manifest.Projection.SHA256,
+		ExpectedCounts: recoveryManifestCounts(input.Manifest), ProjectionDigest: input.Manifest.Projection.SHA256, EvidenceSampleDigest: input.EvidenceSampleDigest,
 		NetworkPolicy: recoveryKubernetesNetworkPolicy{Name: "recovery-deny-by-default", Labels: cloneRecoveryLabels(labels)},
 		Jobs:          []recoveryKubernetesJob{job("postgres-validation"), job("graph-projection"), job("search-projection")},
 	}

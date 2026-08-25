@@ -26,6 +26,12 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	mode := workerMode(os.Getenv("ZASP_WORKER_MODE"))
+	if recoveryJobModeEnabled(mode) {
+		if runProductionRecoveryJob(ctx, os.Getenv, "/dev/termination-log") != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	if mode == workerModeProjectionSearchInit || mode == workerModeProjectionGraphInit {
 		config, err := loadProjectionInitConfig(os.Getenv)
 		if err != nil || runProductionProjectionInit(ctx, config) != nil {

@@ -417,7 +417,7 @@ func composeRecoveryOutboxWorkerRuntime(config workerRuntimeConfig, repository r
 }
 
 func composeRecoveryWorkerRuntime(config workerRuntimeConfig, repository recoveryOperationAuthority, recoveryDependencies *productionRecoveryDependencies) (workerRuntimeDependencies, error) {
-	if !validWorkerRuntimeConfig(config) || config.Mode != workerModeRecovery || repository == nil || recoveryDependencies == nil || recoveryDependencies.Publisher == nil || recoveryDependencies.ready == nil || recoveryDependencies.close == nil {
+	if !validWorkerRuntimeConfig(config) || config.Mode != workerModeRecovery || repository == nil || recoveryDependencies == nil || recoveryDependencies.ready == nil || recoveryDependencies.close == nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	check := func(ctx context.Context) error {
@@ -430,10 +430,20 @@ func composeRecoveryWorkerRuntime(config workerRuntimeConfig, repository recover
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	processor, err := newRecoveryBackupProcessor(recoveryBackupProcessorConfig{
-		Authority: repository, Publisher: recoveryDependencies.Publisher, WorkerID: config.WorkerID,
-		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3, PageSize: 100, NewLeaseToken: newWorkerLeaseToken,
-	})
+	var processor workerProcessor
+	if config.RecoveryOperationKind == "backup" && recoveryDependencies.Publisher != nil && recoveryDependencies.Loader == nil && recoveryDependencies.Infrastructure == nil {
+		processor, err = newRecoveryBackupProcessor(recoveryBackupProcessorConfig{
+			Authority: repository, Publisher: recoveryDependencies.Publisher, WorkerID: config.WorkerID,
+			LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3, PageSize: 100, NewLeaseToken: newWorkerLeaseToken,
+		})
+	} else if config.RecoveryOperationKind == "restore" && recoveryDependencies.Publisher == nil && recoveryDependencies.Loader != nil && recoveryDependencies.Infrastructure != nil {
+		processor, err = newRecoveryRestoreProcessor(recoveryRestoreProcessorConfig{
+			Authority: repository, Loader: recoveryDependencies.Loader, Infrastructure: recoveryDependencies.Infrastructure, WorkerID: config.WorkerID,
+			LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3, NewLeaseToken: newWorkerLeaseToken,
+		})
+	} else {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}

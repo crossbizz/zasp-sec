@@ -25,13 +25,19 @@ var (
 )
 
 type recoveryManifestLoader interface {
-	Load(context.Context, recoveryOperationClaim) (recovery.Manifest, error)
+	Load(context.Context, recoveryOperationClaim) (recoveryLoadedManifest, error)
+}
+
+type recoveryLoadedManifest struct {
+	Manifest             recovery.Manifest
+	EvidenceSampleDigest [sha256.Size]byte
 }
 
 type recoveryRestoreProvisionRequest struct {
-	Scope             recoveryOperationClaim
-	TargetEnvironment string
-	Manifest          recovery.Manifest
+	Scope                recoveryOperationClaim
+	TargetEnvironment    string
+	Manifest             recovery.Manifest
+	EvidenceSampleDigest [sha256.Size]byte
 }
 
 type recoveryRestoreTarget struct {
@@ -119,18 +125,19 @@ func (processor *recoveryRestoreProcessor) process(ctx context.Context, token st
 	heartbeatDone := make(chan struct{})
 	go processor.keepLease(workCtx, lease, cancelWork, &leaseLost, heartbeatDone)
 
-	manifest, err := processor.config.Loader.Load(workCtx, claim)
+	loaded, err := processor.config.Loader.Load(workCtx, claim)
 	if err != nil {
 		return processor.stopAndRecordFailure(ctx, cancelWork, heartbeatDone, &leaseLost, lease, recoveryManifestFailureCode(err), nil)
 	}
-	if !validLoadedRecoveryManifest(manifest, claim.Scope) {
+	manifest := loaded.Manifest
+	if !validLoadedRecoveryManifest(manifest, claim.Scope) || loaded.EvidenceSampleDigest == ([sha256.Size]byte{}) {
 		return processor.stopAndRecordFailure(ctx, cancelWork, heartbeatDone, &leaseLost, lease, "manifest_invalid", nil)
 	}
 	if processor.config.Authority.CheckpointRestore(workCtx, lease, "verifying", "provisioning", map[string]string{"state": "verified"}) != nil {
 		return processor.stopAndRecordFailure(ctx, cancelWork, heartbeatDone, &leaseLost, lease, "lease_lost", nil)
 	}
 
-	target, err := processor.config.Infrastructure.Provision(workCtx, recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest})
+	target, err := processor.config.Infrastructure.Provision(workCtx, recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: loaded.EvidenceSampleDigest})
 	if err != nil || !validRecoveryRestoreTarget(target, claim) {
 		if validStartedRecoveryRestoreTarget(target, claim) {
 			return processor.cleanupAndFail(ctx, cancelWork, heartbeatDone, &leaseLost, lease, target, "outcome_unknown")
