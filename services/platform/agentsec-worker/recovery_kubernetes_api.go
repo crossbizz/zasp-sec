@@ -152,6 +152,8 @@ type recoveryKubernetesResource struct {
 	Kind                         string                     `json:"kind"`
 	Metadata                     recoveryKubernetesMetadata `json:"metadata"`
 	AutomountServiceAccountToken *bool                      `json:"automountServiceAccountToken,omitempty"`
+	RoleRef                      map[string]string          `json:"roleRef,omitempty"`
+	Subjects                     []map[string]string        `json:"subjects,omitempty"`
 	Spec                         json.RawMessage            `json:"spec,omitempty"`
 	Data                         map[string]string          `json:"data,omitempty"`
 	Type                         string                     `json:"type,omitempty"`
@@ -205,6 +207,10 @@ func newRecoveryKubernetesAPI(config recoveryKubernetesAPIConfig) (*productionRe
 	return &productionRecoveryKubernetesAPI{config: config}, nil
 }
 
+type recoveryKubernetesAccessCheck struct {
+	Verb, Group, Resource, Namespace, Name string
+}
+
 func (api *productionRecoveryKubernetesAPI) Ready(ctx context.Context) error {
 	body, status, err := api.request(ctx, http.MethodGet, "/version", nil)
 	var version struct {
@@ -215,16 +221,28 @@ func (api *productionRecoveryKubernetesAPI) Ready(ctx context.Context) error {
 	if err != nil || status != http.StatusOK || json.Unmarshal(body, &version) != nil || version.Major != "1" || !regexp.MustCompile(`^[0-9]{1,3}[+]?$`).MatchString(version.Minor) {
 		return errRuntimeUnavailable
 	}
-	checks := [][4]string{
-		{"create", "", "namespaces", ""}, {"get", "", "namespaces", ""}, {"delete", "", "namespaces", ""},
-		{"create", "", "serviceaccounts", "zasp-recovery-authority-check"}, {"get", "", "serviceaccounts", "zasp-recovery-authority-check"},
-		{"create", "networking.k8s.io", "networkpolicies", "zasp-recovery-authority-check"}, {"get", "networking.k8s.io", "networkpolicies", "zasp-recovery-authority-check"},
-		{"create", "", "secrets", "zasp-recovery-authority-check"}, {"get", "", "secrets", "zasp-recovery-authority-check"},
-		{"create", "batch", "jobs", "zasp-recovery-authority-check"}, {"get", "batch", "jobs", "zasp-recovery-authority-check"},
-		{"list", "", "pods", "zasp-recovery-authority-check"},
+	checks := []recoveryKubernetesAccessCheck{
+		{Verb: "create", Resource: "namespaces"}, {Verb: "get", Resource: "namespaces"}, {Verb: "delete", Resource: "namespaces"},
+		{Verb: "create", Group: "rbac.authorization.k8s.io", Resource: "rolebindings", Namespace: "zasp-recovery-authority-check"}, {Verb: "get", Group: "rbac.authorization.k8s.io", Resource: "rolebindings", Namespace: "zasp-recovery-authority-check"},
+		{Verb: "bind", Group: "rbac.authorization.k8s.io", Resource: "clusterroles", Name: "agentsec-recovery-namespace-operator"},
 	}
+	return api.readyAccess(ctx, checks)
+}
+
+func (api *productionRecoveryKubernetesAPI) readyNamespace(ctx context.Context, namespace string) error {
+	checks := []recoveryKubernetesAccessCheck{
+		{Verb: "create", Resource: "serviceaccounts", Namespace: namespace}, {Verb: "get", Resource: "serviceaccounts", Namespace: namespace},
+		{Verb: "create", Group: "networking.k8s.io", Resource: "networkpolicies", Namespace: namespace}, {Verb: "get", Group: "networking.k8s.io", Resource: "networkpolicies", Namespace: namespace},
+		{Verb: "create", Resource: "secrets", Namespace: namespace}, {Verb: "get", Resource: "secrets", Namespace: namespace},
+		{Verb: "create", Group: "batch", Resource: "jobs", Namespace: namespace}, {Verb: "get", Group: "batch", Resource: "jobs", Namespace: namespace},
+		{Verb: "list", Resource: "pods", Namespace: namespace},
+	}
+	return api.readyAccess(ctx, checks)
+}
+
+func (api *productionRecoveryKubernetesAPI) readyAccess(ctx context.Context, checks []recoveryKubernetesAccessCheck) error {
 	for _, check := range checks {
-		request := map[string]any{"apiVersion": "authorization.k8s.io/v1", "kind": "SelfSubjectAccessReview", "spec": map[string]any{"resourceAttributes": map[string]string{"group": check[1], "namespace": check[3], "resource": check[2], "verb": check[0]}}}
+		request := map[string]any{"apiVersion": "authorization.k8s.io/v1", "kind": "SelfSubjectAccessReview", "spec": map[string]any{"resourceAttributes": map[string]string{"group": check.Group, "namespace": check.Namespace, "name": check.Name, "resource": check.Resource, "verb": check.Verb}}}
 		encoded, _ := json.Marshal(request)
 		response, reviewStatus, reviewErr := api.request(ctx, http.MethodPost, "/apis/authorization.k8s.io/v1/selfsubjectaccessreviews", encoded)
 		var review struct {
@@ -248,6 +266,14 @@ func (api *productionRecoveryKubernetesAPI) Provision(ctx context.Context, plan 
 	created, err := api.createOrReconcile(ctx, "/api/v1/namespaces", "/api/v1/namespaces/"+plan.Namespace, namespace, "v1", "Namespace", plan.Namespace, "", plan.Labels)
 	if err != nil || !recoveryKubernetesUIDPattern.MatchString(created.Metadata.UID) {
 		return "", errWorkerExecution
+	}
+	binding := map[string]any{
+		"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "RoleBinding", "metadata": map[string]any{"name": "agentsec-recovery-controller", "namespace": plan.Namespace, "labels": plan.Labels},
+		"roleRef":  map[string]string{"apiGroup": "rbac.authorization.k8s.io", "kind": "ClusterRole", "name": "agentsec-recovery-namespace-operator"},
+		"subjects": []map[string]string{{"apiGroup": "rbac.authorization.k8s.io", "kind": "User", "name": "system:serviceaccount:agentsec:zasp-recovery-restore"}},
+	}
+	if _, err := api.createOrReconcile(ctx, "/apis/rbac.authorization.k8s.io/v1/namespaces/"+plan.Namespace+"/rolebindings", "/apis/rbac.authorization.k8s.io/v1/namespaces/"+plan.Namespace+"/rolebindings/agentsec-recovery-controller", binding, "rbac.authorization.k8s.io/v1", "RoleBinding", "agentsec-recovery-controller", plan.Namespace, plan.Labels); err != nil || api.readyNamespace(ctx, plan.Namespace) != nil {
+		return created.Metadata.UID, errWorkerExecution
 	}
 	automount := false
 	runner := map[string]any{"apiVersion": "v1", "kind": "ServiceAccount", "metadata": map[string]any{"name": api.config.ServiceAccount, "namespace": plan.Namespace, "labels": plan.Labels}, "automountServiceAccountToken": automount}
@@ -465,10 +491,12 @@ func exactRecoveryKubernetesResource(value recoveryKubernetesResource, apiVersio
 
 func exactRecoveryKubernetesCreatedBody(actual recoveryKubernetesResource, requested []byte) bool {
 	var expected struct {
-		AutomountServiceAccountToken *bool             `json:"automountServiceAccountToken"`
-		Spec                         json.RawMessage   `json:"spec"`
-		StringData                   map[string]string `json:"stringData"`
-		Type                         string            `json:"type"`
+		AutomountServiceAccountToken *bool               `json:"automountServiceAccountToken"`
+		RoleRef                      map[string]string   `json:"roleRef"`
+		Subjects                     []map[string]string `json:"subjects"`
+		Spec                         json.RawMessage     `json:"spec"`
+		StringData                   map[string]string   `json:"stringData"`
+		Type                         string              `json:"type"`
 	}
 	if json.Unmarshal(requested, &expected) != nil {
 		return false
@@ -483,6 +511,9 @@ func exactRecoveryKubernetesCreatedBody(actual recoveryKubernetesResource, reque
 		return false
 	}
 	if expected.AutomountServiceAccountToken != nil && (actual.AutomountServiceAccountToken == nil || *actual.AutomountServiceAccountToken != *expected.AutomountServiceAccountToken) {
+		return false
+	}
+	if expected.RoleRef != nil && (!reflect.DeepEqual(actual.RoleRef, expected.RoleRef) || !reflect.DeepEqual(actual.Subjects, expected.Subjects)) {
 		return false
 	}
 	if expected.StringData != nil {

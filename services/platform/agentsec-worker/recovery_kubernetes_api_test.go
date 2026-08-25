@@ -57,6 +57,8 @@ func (fake *recoveryKubernetesTransportFake) Request(_ context.Context, method, 
 		return []byte(`{"apiVersion":"authorization.k8s.io/v1","kind":"SelfSubjectAccessReview","status":{"allowed":true,"denied":false}}`), http.StatusCreated, nil
 	case method == http.MethodPost && path == "/api/v1/namespaces":
 		return []byte(`{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"` + namespace + `","uid":"11111111-2222-4333-8444-555555555555","labels":{` + labels + `}},"status":{"phase":"Active"}}`), http.StatusCreated, nil
+	case method == http.MethodPost && path == "/apis/rbac.authorization.k8s.io/v1/namespaces/"+namespace+"/rolebindings":
+		return recoveryKubernetesCreatedResponse(body, "18111111-2222-4333-8444-555555555555"), http.StatusCreated, nil
 	case method == http.MethodPost && path == "/api/v1/namespaces/"+namespace+"/serviceaccounts":
 		return recoveryKubernetesCreatedResponse(body, "19111111-2222-4333-8444-555555555555"), http.StatusCreated, nil
 	case method == http.MethodPost && path == "/apis/networking.k8s.io/v1/namespaces/"+namespace+"/networkpolicies":
@@ -142,6 +144,9 @@ func TestRecoveryKubernetesAPIProvisionsValidatesRebuildsAndUIDCleans(t *testing
 	if !recoveryKubernetesCallsContainNamespaceRunner(t, transport.calls, plan.Namespace, "agentsec-recovery-runner", plan.Labels) {
 		t.Fatalf("namespace runner missing: %#v", transport.calls)
 	}
+	if !recoveryKubernetesCallsContainNamespaceAuthorityBinding(t, transport.calls, plan.Namespace, plan.Labels) {
+		t.Fatalf("namespace authority binding missing: %#v", transport.calls)
+	}
 }
 
 func TestRecoveryKubernetesAPIRejectsEveryBranchAddressOutsidePinnedNetworksBeforeSecretWrite(t *testing.T) {
@@ -168,6 +173,54 @@ func TestRecoveryKubernetesAPIRejectsEveryBranchAddressOutsidePinnedNetworksBefo
 	for _, call := range transport.calls {
 		if call.Method == http.MethodPost && strings.HasSuffix(call.Path, "/secrets") {
 			t.Fatalf("secret write after rejected resolution: %#v", call)
+		}
+	}
+}
+
+func TestRecoveryKubernetesAPIStopsBeforeNamespaceResourcesWhenDelegatedAuthorityIsDenied(t *testing.T) {
+	scope := recoveryWorkerScope(t)
+	manifest := recoveryRestoreManifest(t, scope)
+	claim := recoveryRestoreClaim(scope)
+	base := &recoveryKubernetesTransportFake{}
+	namespace := "zasp-recovery-71000004000040008000000000000004"
+	transport := recoveryKubernetesTransportFunc(func(ctx context.Context, method, path string, body []byte) ([]byte, int, error) {
+		if method == http.MethodPost && path == "/apis/authorization.k8s.io/v1/selfsubjectaccessreviews" {
+			var review struct {
+				Spec struct {
+					ResourceAttributes struct {
+						Namespace string `json:"namespace"`
+						Resource  string `json:"resource"`
+					} `json:"resourceAttributes"`
+				} `json:"spec"`
+			}
+			if json.Unmarshal(body, &review) == nil && review.Spec.ResourceAttributes.Namespace == namespace && review.Spec.ResourceAttributes.Resource == "serviceaccounts" {
+				base.mu.Lock()
+				base.calls = append(base.calls, recoveryKubernetesTransportCall{Method: method, Path: path, Body: append([]byte(nil), body...)})
+				base.mu.Unlock()
+				return []byte(`{"apiVersion":"authorization.k8s.io/v1","kind":"SelfSubjectAccessReview","status":{"allowed":false,"denied":true}}`), http.StatusCreated, nil
+			}
+		}
+		return base.Request(ctx, method, path, body)
+	})
+	api, err := newRecoveryKubernetesAPI(recoveryKubernetesAPIConfig{
+		Transport: transport, Store: &recoveryArtifactStoreFake{}, RunnerImage: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/agentsec-worker@sha256:" + strings.Repeat("a", 64), ServiceAccount: "agentsec-recovery-runner",
+		SourcePostgresDSN: "postgres://recovery:secret@ep-main.us-west-2.aws.neon.tech/zasp?sslmode=verify-full", NeonCIDRs: []string{"10.24.8.0/24"}, PollInterval: time.Millisecond, Resolve: func(context.Context, string) ([]net.IP, error) {
+			return []net.IP{net.ParseIP("10.24.8.8")}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	branch := recoveryNeonBranch("ep-recovery.us-west-2.aws.neon.tech", manifest)
+	evidenceDigest := sha256.Sum256([]byte("[]"))
+	plan := newRecoveryKubernetesPlan(recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: evidenceDigest}, branch, namespace, "aaaaaaaaaaaaaaaa")
+	uid, err := api.Provision(context.Background(), plan)
+	if !errors.Is(err, errWorkerExecution) || uid != "11111111-2222-4333-8444-555555555555" {
+		t.Fatalf("uid=%q err=%v", uid, err)
+	}
+	for _, call := range base.calls {
+		if call.Method == http.MethodPost && (strings.HasSuffix(call.Path, "/serviceaccounts") || strings.HasSuffix(call.Path, "/networkpolicies") || strings.HasSuffix(call.Path, "/secrets") || strings.HasSuffix(call.Path, "/jobs")) {
+			t.Fatalf("namespace child mutation after denied delegated authority: %#v", call)
 		}
 	}
 }
@@ -244,13 +297,16 @@ func recoveryKubernetesCallsContainSecretDSN(t *testing.T, calls []recoveryKuber
 
 func recoveryKubernetesCallsContainExactReviews(t *testing.T, calls []recoveryKubernetesTransportCall) bool {
 	t.Helper()
+	namespace := "zasp-recovery-71000004000040008000000000000004"
 	want := map[string]bool{
-		"create\x1fnamespaces\x1f": false, "get\x1fnamespaces\x1f": false, "delete\x1fnamespaces\x1f": false,
-		"create\x1fserviceaccounts\x1fzasp-recovery-authority-check": false, "get\x1fserviceaccounts\x1fzasp-recovery-authority-check": false,
-		"create\x1fnetworkpolicies\x1fzasp-recovery-authority-check": false, "get\x1fnetworkpolicies\x1fzasp-recovery-authority-check": false,
-		"create\x1fsecrets\x1fzasp-recovery-authority-check": false, "get\x1fsecrets\x1fzasp-recovery-authority-check": false,
-		"create\x1fjobs\x1fzasp-recovery-authority-check": false, "get\x1fjobs\x1fzasp-recovery-authority-check": false,
-		"list\x1fpods\x1fzasp-recovery-authority-check": false,
+		"create\x1fnamespaces\x1f\x1f": false, "get\x1fnamespaces\x1f\x1f": false, "delete\x1fnamespaces\x1f\x1f": false,
+		"create\x1frolebindings\x1fzasp-recovery-authority-check\x1f": false, "get\x1frolebindings\x1fzasp-recovery-authority-check\x1f": false,
+		"bind\x1fclusterroles\x1f\x1fagentsec-recovery-namespace-operator": false,
+		"create\x1fserviceaccounts\x1f" + namespace + "\x1f":               false, "get\x1fserviceaccounts\x1f" + namespace + "\x1f": false,
+		"create\x1fnetworkpolicies\x1f" + namespace + "\x1f": false, "get\x1fnetworkpolicies\x1f" + namespace + "\x1f": false,
+		"create\x1fsecrets\x1f" + namespace + "\x1f": false, "get\x1fsecrets\x1f" + namespace + "\x1f": false,
+		"create\x1fjobs\x1f" + namespace + "\x1f": false, "get\x1fjobs\x1f" + namespace + "\x1f": false,
+		"list\x1fpods\x1f" + namespace + "\x1f": false,
 	}
 	for _, call := range calls {
 		if call.Path != "/apis/authorization.k8s.io/v1/selfsubjectaccessreviews" {
@@ -260,6 +316,7 @@ func recoveryKubernetesCallsContainExactReviews(t *testing.T, calls []recoveryKu
 			Spec struct {
 				ResourceAttributes struct {
 					Namespace string `json:"namespace"`
+					Name      string `json:"name"`
 					Resource  string `json:"resource"`
 					Verb      string `json:"verb"`
 				} `json:"resourceAttributes"`
@@ -268,7 +325,7 @@ func recoveryKubernetesCallsContainExactReviews(t *testing.T, calls []recoveryKu
 		if json.Unmarshal(call.Body, &value) != nil {
 			return false
 		}
-		key := strings.Join([]string{value.Spec.ResourceAttributes.Verb, value.Spec.ResourceAttributes.Resource, value.Spec.ResourceAttributes.Namespace}, "\x1f")
+		key := strings.Join([]string{value.Spec.ResourceAttributes.Verb, value.Spec.ResourceAttributes.Resource, value.Spec.ResourceAttributes.Namespace, value.Spec.ResourceAttributes.Name}, "\x1f")
 		if _, exists := want[key]; !exists || want[key] {
 			return false
 		}
@@ -295,6 +352,24 @@ func recoveryKubernetesCallsContainNamespaceRunner(t *testing.T, calls []recover
 			Automount  *bool                      `json:"automountServiceAccountToken"`
 		}
 		return json.Unmarshal(call.Body, &value) == nil && value.APIVersion == "v1" && value.Kind == "ServiceAccount" && value.Metadata.Name == name && value.Metadata.Namespace == namespace && reflect.DeepEqual(value.Metadata.Labels, labels) && value.Automount != nil && !*value.Automount
+	}
+	return false
+}
+
+func recoveryKubernetesCallsContainNamespaceAuthorityBinding(t *testing.T, calls []recoveryKubernetesTransportCall, namespace string, labels map[string]string) bool {
+	t.Helper()
+	for _, call := range calls {
+		if call.Method != http.MethodPost || call.Path != "/apis/rbac.authorization.k8s.io/v1/namespaces/"+namespace+"/rolebindings" {
+			continue
+		}
+		var value struct {
+			APIVersion string                     `json:"apiVersion"`
+			Kind       string                     `json:"kind"`
+			Metadata   recoveryKubernetesMetadata `json:"metadata"`
+			RoleRef    map[string]string          `json:"roleRef"`
+			Subjects   []map[string]string        `json:"subjects"`
+		}
+		return json.Unmarshal(call.Body, &value) == nil && value.APIVersion == "rbac.authorization.k8s.io/v1" && value.Kind == "RoleBinding" && value.Metadata.Name == "agentsec-recovery-controller" && value.Metadata.Namespace == namespace && reflect.DeepEqual(value.Metadata.Labels, labels) && reflect.DeepEqual(value.RoleRef, map[string]string{"apiGroup": "rbac.authorization.k8s.io", "kind": "ClusterRole", "name": "agentsec-recovery-namespace-operator"}) && reflect.DeepEqual(value.Subjects, []map[string]string{{"apiGroup": "rbac.authorization.k8s.io", "kind": "User", "name": "system:serviceaccount:agentsec:zasp-recovery-restore"}})
 	}
 	return false
 }
