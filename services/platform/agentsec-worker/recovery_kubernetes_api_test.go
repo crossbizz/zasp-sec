@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -58,6 +59,8 @@ func (fake *recoveryKubernetesTransportFake) Request(_ context.Context, method, 
 		return []byte(`{"apiVersion":"authorization.k8s.io/v1","kind":"SelfSubjectAccessReview","status":{"allowed":true,"denied":false}}`), http.StatusCreated, nil
 	case method == http.MethodPost && path == "/api/v1/namespaces":
 		return []byte(`{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"` + namespace + `","uid":"11111111-2222-4333-8444-555555555555","labels":{` + labels + `}},"status":{"phase":"Active"}}`), http.StatusCreated, nil
+	case method == http.MethodPost && path == "/api/v1/namespaces/"+namespace+"/serviceaccounts":
+		return recoveryKubernetesCreatedResponse(body, "19111111-2222-4333-8444-555555555555"), http.StatusCreated, nil
 	case method == http.MethodPost && path == "/apis/networking.k8s.io/v1/namespaces/"+namespace+"/networkpolicies":
 		return recoveryKubernetesCreatedResponse(body, "21111111-2222-4333-8444-555555555555"), http.StatusCreated, nil
 	case method == http.MethodPost && path == "/api/v1/namespaces/"+namespace+"/secrets":
@@ -137,6 +140,9 @@ func TestRecoveryKubernetesAPIProvisionsValidatesRebuildsAndUIDCleans(t *testing
 	}
 	if !recoveryKubernetesCallsContainDisposableTargets(t, transport.calls) {
 		t.Fatalf("disposable targets missing: %#v", transport.calls)
+	}
+	if !recoveryKubernetesCallsContainNamespaceRunner(t, transport.calls, plan.Namespace, "agentsec-recovery-runner", plan.Labels) {
+		t.Fatalf("namespace runner missing: %#v", transport.calls)
 	}
 }
 
@@ -242,6 +248,7 @@ func recoveryKubernetesCallsContainExactReviews(t *testing.T, calls []recoveryKu
 	t.Helper()
 	want := map[string]bool{
 		"create\x1fnamespaces\x1f": false, "get\x1fnamespaces\x1f": false, "delete\x1fnamespaces\x1f": false,
+		"create\x1fserviceaccounts\x1fzasp-recovery-authority-check": false, "get\x1fserviceaccounts\x1fzasp-recovery-authority-check": false,
 		"create\x1fnetworkpolicies\x1fzasp-recovery-authority-check": false, "get\x1fnetworkpolicies\x1fzasp-recovery-authority-check": false,
 		"create\x1fsecrets\x1fzasp-recovery-authority-check": false, "get\x1fsecrets\x1fzasp-recovery-authority-check": false,
 		"create\x1fjobs\x1fzasp-recovery-authority-check": false, "get\x1fjobs\x1fzasp-recovery-authority-check": false,
@@ -275,6 +282,23 @@ func recoveryKubernetesCallsContainExactReviews(t *testing.T, calls []recoveryKu
 		}
 	}
 	return true
+}
+
+func recoveryKubernetesCallsContainNamespaceRunner(t *testing.T, calls []recoveryKubernetesTransportCall, namespace, name string, labels map[string]string) bool {
+	t.Helper()
+	for _, call := range calls {
+		if call.Method != http.MethodPost || call.Path != "/api/v1/namespaces/"+namespace+"/serviceaccounts" {
+			continue
+		}
+		var value struct {
+			APIVersion string                     `json:"apiVersion"`
+			Kind       string                     `json:"kind"`
+			Metadata   recoveryKubernetesMetadata `json:"metadata"`
+			Automount  *bool                      `json:"automountServiceAccountToken"`
+		}
+		return json.Unmarshal(call.Body, &value) == nil && value.APIVersion == "v1" && value.Kind == "ServiceAccount" && value.Metadata.Name == name && value.Metadata.Namespace == namespace && reflect.DeepEqual(value.Metadata.Labels, labels) && value.Automount != nil && !*value.Automount
+	}
+	return false
 }
 
 func recoveryKubernetesCallsContainDisposableTargets(t *testing.T, calls []recoveryKubernetesTransportCall) bool {

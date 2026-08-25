@@ -148,13 +148,14 @@ type recoveryKubernetesMetadata struct {
 }
 
 type recoveryKubernetesResource struct {
-	APIVersion string                     `json:"apiVersion"`
-	Kind       string                     `json:"kind"`
-	Metadata   recoveryKubernetesMetadata `json:"metadata"`
-	Spec       json.RawMessage            `json:"spec,omitempty"`
-	Data       map[string]string          `json:"data,omitempty"`
-	Type       string                     `json:"type,omitempty"`
-	Status     json.RawMessage            `json:"status,omitempty"`
+	APIVersion                   string                     `json:"apiVersion"`
+	Kind                         string                     `json:"kind"`
+	Metadata                     recoveryKubernetesMetadata `json:"metadata"`
+	AutomountServiceAccountToken *bool                      `json:"automountServiceAccountToken,omitempty"`
+	Spec                         json.RawMessage            `json:"spec,omitempty"`
+	Data                         map[string]string          `json:"data,omitempty"`
+	Type                         string                     `json:"type,omitempty"`
+	Status                       json.RawMessage            `json:"status,omitempty"`
 }
 
 type recoveryKubernetesJobStatus struct {
@@ -216,6 +217,7 @@ func (api *productionRecoveryKubernetesAPI) Ready(ctx context.Context) error {
 	}
 	checks := [][4]string{
 		{"create", "", "namespaces", ""}, {"get", "", "namespaces", ""}, {"delete", "", "namespaces", ""},
+		{"create", "", "serviceaccounts", "zasp-recovery-authority-check"}, {"get", "", "serviceaccounts", "zasp-recovery-authority-check"},
 		{"create", "networking.k8s.io", "networkpolicies", "zasp-recovery-authority-check"}, {"get", "networking.k8s.io", "networkpolicies", "zasp-recovery-authority-check"},
 		{"create", "", "secrets", "zasp-recovery-authority-check"}, {"get", "", "secrets", "zasp-recovery-authority-check"},
 		{"create", "batch", "jobs", "zasp-recovery-authority-check"}, {"get", "batch", "jobs", "zasp-recovery-authority-check"},
@@ -246,6 +248,11 @@ func (api *productionRecoveryKubernetesAPI) Provision(ctx context.Context, plan 
 	created, err := api.createOrReconcile(ctx, "/api/v1/namespaces", "/api/v1/namespaces/"+plan.Namespace, namespace, "v1", "Namespace", plan.Namespace, "", plan.Labels)
 	if err != nil || !recoveryKubernetesUIDPattern.MatchString(created.Metadata.UID) {
 		return "", errWorkerExecution
+	}
+	automount := false
+	runner := map[string]any{"apiVersion": "v1", "kind": "ServiceAccount", "metadata": map[string]any{"name": api.config.ServiceAccount, "namespace": plan.Namespace, "labels": plan.Labels}, "automountServiceAccountToken": automount}
+	if _, err := api.createOrReconcile(ctx, "/api/v1/namespaces/"+plan.Namespace+"/serviceaccounts", "/api/v1/namespaces/"+plan.Namespace+"/serviceaccounts/"+api.config.ServiceAccount, runner, "v1", "ServiceAccount", api.config.ServiceAccount, plan.Namespace, plan.Labels); err != nil {
+		return created.Metadata.UID, errWorkerExecution
 	}
 	policy := recoveryKubernetesNetworkPolicyManifest(plan, api.config.NeonCIDRs)
 	if _, err := api.createOrReconcile(ctx, "/apis/networking.k8s.io/v1/namespaces/"+plan.Namespace+"/networkpolicies", "/apis/networking.k8s.io/v1/namespaces/"+plan.Namespace+"/networkpolicies/"+plan.NetworkPolicy.Name, policy, "networking.k8s.io/v1", "NetworkPolicy", plan.NetworkPolicy.Name, plan.Namespace, plan.Labels); err != nil {
@@ -458,9 +465,10 @@ func exactRecoveryKubernetesResource(value recoveryKubernetesResource, apiVersio
 
 func exactRecoveryKubernetesCreatedBody(actual recoveryKubernetesResource, requested []byte) bool {
 	var expected struct {
-		Spec       json.RawMessage   `json:"spec"`
-		StringData map[string]string `json:"stringData"`
-		Type       string            `json:"type"`
+		AutomountServiceAccountToken *bool             `json:"automountServiceAccountToken"`
+		Spec                         json.RawMessage   `json:"spec"`
+		StringData                   map[string]string `json:"stringData"`
+		Type                         string            `json:"type"`
 	}
 	if json.Unmarshal(requested, &expected) != nil {
 		return false
@@ -472,6 +480,9 @@ func exactRecoveryKubernetesCreatedBody(actual recoveryKubernetesResource, reque
 		}
 	}
 	if expected.Type != "" && actual.Type != expected.Type {
+		return false
+	}
+	if expected.AutomountServiceAccountToken != nil && (actual.AutomountServiceAccountToken == nil || *actual.AutomountServiceAccountToken != *expected.AutomountServiceAccountToken) {
 		return false
 	}
 	if expected.StringData != nil {
