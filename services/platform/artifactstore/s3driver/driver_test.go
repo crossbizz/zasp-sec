@@ -20,6 +20,22 @@ import (
 
 const providerSecret = "s3-provider-secret-must-not-escape"
 
+func TestDriverAcceptsOnlyTheOwnedRecoveryMediaTypes(t *testing.T) {
+	for _, mediaType := range []string{
+		"application/vnd.zasp.recovery-configuration+json",
+		"application/vnd.zasp.recovery-projection+json",
+		"application/vnd.zasp.recovery-evidence+json",
+		"application/vnd.zasp.recovery-manifest+json",
+	} {
+		if !validMediaType(mediaType) {
+			t.Fatalf("recovery media type rejected: %q", mediaType)
+		}
+	}
+	if validMediaType("application/vnd.zasp.recovery-secret+json") {
+		t.Fatal("unowned recovery media type accepted")
+	}
+}
+
 func TestDriverPutIsCreateOnlyAndReconcilesLostAcknowledgement(t *testing.T) {
 	client := &fakeS3{loseFirstPutResponse: true}
 	driver := mustDriver(t, client)

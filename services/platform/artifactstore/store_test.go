@@ -163,6 +163,23 @@ func TestNewRejectsInvalidConfigurationAndDriver(t *testing.T) {
 	}
 }
 
+func TestStoreAcceptsOnlyTheOwnedRecoveryMediaTypes(t *testing.T) {
+	t.Parallel()
+	for _, mediaType := range []string{
+		"application/vnd.zasp.recovery-configuration+json",
+		"application/vnd.zasp.recovery-projection+json",
+		"application/vnd.zasp.recovery-evidence+json",
+		"application/vnd.zasp.recovery-manifest+json",
+	} {
+		if !validMediaType(mediaType) {
+			t.Fatalf("recovery media type rejected: %q", mediaType)
+		}
+	}
+	if validMediaType("application/vnd.zasp.recovery-secret+json") {
+		t.Fatal("unowned recovery media type accepted")
+	}
+}
+
 func TestOperationsRejectInvalidProductRequestsBeforeDriver(t *testing.T) {
 	t.Parallel()
 
