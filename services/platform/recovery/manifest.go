@@ -32,6 +32,7 @@ const (
 var (
 	ErrManifest  = errors.New("invalid recovery manifest")
 	ErrSignature = errors.New("invalid recovery manifest signature")
+	ErrExpired   = fmt.Errorf("recovery manifest expired: %w", ErrManifest)
 
 	neonProjectPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{1,62}$`)
 	neonBranchPattern  = regexp.MustCompile(`^br-[a-z0-9][a-z0-9-]{1,62}$`)
@@ -197,8 +198,11 @@ func DecodeSignedManifest(ctx context.Context, reader io.Reader, verifier Manife
 		return Manifest{}, err
 	}
 	manifest, canonical, err := BuildManifest(input)
-	if err != nil || !bytes.Equal(canonical, payload) || now.Before(manifest.CapturedAt) || now.After(manifest.ExpiresAt) {
+	if err != nil || !bytes.Equal(canonical, payload) || now.Before(manifest.CapturedAt) {
 		return Manifest{}, ErrManifest
+	}
+	if now.After(manifest.ExpiresAt) {
+		return Manifest{}, ErrExpired
 	}
 	return manifest, nil
 }

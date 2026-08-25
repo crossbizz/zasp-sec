@@ -129,6 +129,18 @@ func TestRecoveryRepositoryRejectsNonV27AndHostileInputs(t *testing.T) {
 	}
 }
 
+func TestRecoveryRestoreRejectsExpectedAndObservedCountDrift(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	evidence := RecoveryArtifactLocator{
+		Reference: "s3://zasp-recovery/organizations/" + identity.Scope.OrganizationID().String() + "/workspaces/" + identity.Scope.WorkspaceID().String() + "/environments/" + identity.Scope.EnvironmentID().String() + "/artifacts/pid_71000008-0000-4000-8000-000000000008",
+		VersionID: "version-validation-1", SHA256: strings.Repeat("b", 64), SizeBytes: 128, MediaType: "application/json", Schema: "recovery_validation_v1",
+	}
+	validation := RecoveryValidationEvidence{State: "validated", ExpectedCounts: RecoveryCounts{Assets: 3, Findings: 2, Policies: 1}, ObservedCounts: RecoveryCounts{Assets: 4, Findings: 2, Policies: 1}, Evidence: evidence}
+	if validRecoveryValidationEvidence(validation, identity.Scope) {
+		t.Fatal("count drift accepted")
+	}
+}
+
 func digestBytes(t *testing.T, value string) []byte {
 	t.Helper()
 	decoded, err := hex.DecodeString(value)

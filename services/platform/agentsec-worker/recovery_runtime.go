@@ -17,11 +17,13 @@ const (
 )
 
 type recoveryOperationClaim struct {
-	Kind          string
-	Scope         domain.Scope
-	OperationID   string
-	Attempt       int
-	RetentionDays int
+	Kind              string
+	Scope             domain.Scope
+	OperationID       string
+	Attempt           int
+	RetentionDays     int
+	TargetEnvironment string
+	Manifest          *apiserver.RecoveryManifestLocator
 }
 
 type recoveryOperationLease struct {
@@ -49,7 +51,9 @@ type recoveryOperationAuthority interface {
 	ReleaseHold(context.Context, recoveryOperationLease) error
 	CapturePage(context.Context, recoveryOperationLease, string, *string, int) (recoveryCapturePage, error)
 	FinishBackup(context.Context, recoveryOperationLease, apiserver.RecoveryManifestLocator) error
-	Fail(context.Context, recoveryOperationLease, string, time.Duration) error
+	CheckpointRestore(context.Context, recoveryOperationLease, string, string, any) error
+	FinishRestore(context.Context, recoveryOperationLease, apiserver.RecoveryCounts, apiserver.RecoveryValidationEvidence, apiserver.RecoveryCleanupEvidence) error
+	Fail(context.Context, recoveryOperationLease, string, time.Duration, *apiserver.RecoveryCleanupEvidence) error
 }
 
 type recoveryBackupPublisher interface {
@@ -220,7 +224,7 @@ func (processor *recoveryBackupProcessor) stopReleaseAndFail(ctx context.Context
 	}
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), minDuration(time.Duration(processor.config.LeaseSeconds)*time.Second/3, 30*time.Second))
 	defer cancel()
-	if processor.config.Authority.ReleaseHold(cleanupCtx, lease) != nil || processor.config.Authority.Fail(cleanupCtx, lease, code, 30*time.Second) != nil {
+	if processor.config.Authority.ReleaseHold(cleanupCtx, lease) != nil || processor.config.Authority.Fail(cleanupCtx, lease, code, 30*time.Second, nil) != nil {
 		return errWorkerExecution
 	}
 	return errWorkerExecution
@@ -234,7 +238,7 @@ func (processor *recoveryBackupProcessor) stopAndFail(ctx context.Context, cance
 	}
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), minDuration(time.Duration(processor.config.LeaseSeconds)*time.Second/3, 30*time.Second))
 	defer cancel()
-	if processor.config.Authority.Fail(cleanupCtx, lease, code, 30*time.Second) != nil {
+	if processor.config.Authority.Fail(cleanupCtx, lease, code, 30*time.Second, nil) != nil {
 		return errWorkerExecution
 	}
 	return errWorkerExecution
@@ -251,7 +255,26 @@ func callRecoveryPublisher(publisher recoveryBackupPublisher, ctx context.Contex
 
 func validRecoveryOperationClaim(claim recoveryOperationClaim) bool {
 	operationID, err := domain.ParseProductID(claim.OperationID)
-	return claim.Scope.Validate() == nil && err == nil && !operationID.IsZero() && claim.Attempt >= 1 && claim.Attempt <= 100 && (claim.Kind != "backup" || claim.RetentionDays >= 7 && claim.RetentionDays <= 90)
+	if claim.Scope.Validate() != nil || err != nil || operationID.IsZero() || claim.Attempt < 1 || claim.Attempt > 100 {
+		return false
+	}
+	if claim.Kind == "backup" {
+		return claim.RetentionDays >= 7 && claim.RetentionDays <= 90 && claim.TargetEnvironment == "" && claim.Manifest == nil
+	}
+	return claim.Kind == "restore" && claim.RetentionDays == 0 && validRecoveryTargetEnvironment(claim.TargetEnvironment, claim.Scope) && claim.Manifest != nil && validPublishedRecoveryManifest(*claim.Manifest, claim.Scope)
+}
+
+func validRecoveryTargetEnvironment(value string, scope domain.Scope) bool {
+	if len(value) < 1 || len(value) > 63 || value == "production" || value == scope.EnvironmentID().String() {
+		return false
+	}
+	for index, character := range value {
+		if character >= 'a' && character <= 'z' || character >= '0' && character <= '9' || character == '-' && index > 0 && index < len(value)-1 {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func validPublishedRecoveryManifest(manifest apiserver.RecoveryManifestLocator, scope domain.Scope) bool {
