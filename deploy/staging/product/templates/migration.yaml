@@ -75,6 +75,8 @@ spec:
             - { name: ZASP_RUNTIME_INGEST_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeIngest is required" .Values.databasePrincipals.runtimeIngest | quote }} }
             - { name: ZASP_RUNTIME_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeWorker is required" .Values.databasePrincipals.runtimeWorker | quote }} }
             - { name: ZASP_OUTBOX_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.outboxWorker is required" .Values.databasePrincipals.outboxWorker | quote }} }
+            - { name: ZASP_RECOVERY_OUTBOX_DB_PRINCIPAL, value: {{ required "databasePrincipals.recoveryOutboxWorker is required" .Values.databasePrincipals.recoveryOutboxWorker | quote }} }
+            - { name: ZASP_RECOVERY_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.recoveryWorker is required" .Values.databasePrincipals.recoveryWorker | quote }} }
             - { name: ZASP_RED_TEAM_OUTBOX_DB_PRINCIPAL, value: {{ required "databasePrincipals.redTeamOutboxWorker is required" .Values.databasePrincipals.redTeamOutboxWorker | quote }} }
             - { name: ZASP_RED_TEAM_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.redTeamWorker is required" .Values.databasePrincipals.redTeamWorker | quote }} }
             - { name: ZASP_RED_TEAM_ADAPTER_DB_PRINCIPAL, value: {{ required "databasePrincipals.redTeamAdapter is required" .Values.databasePrincipals.redTeamAdapter | quote }} }

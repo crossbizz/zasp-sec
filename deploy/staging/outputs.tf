@@ -131,6 +131,25 @@ output "outbox_runtime_config" {
     ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
   }
 }
+output "recovery_release_authority" {
+  description = "Non-secret recovery queue, signing, evidence, and isolated workload authority."
+  value = {
+    backup_queue_url        = aws_sqs_queue.work["recovery-backup-jobs"].id
+    restore_queue_url       = aws_sqs_queue.work["recovery-restore-jobs"].id
+    signing_kms_key_arn     = aws_kms_key.recovery_signing.arn
+    evidence_bucket         = aws_s3_bucket.evidence.bucket
+    evidence_bucket_owner   = var.account_id
+    evidence_kms_key_arn    = aws_kms_key.staging.arn
+    backup_outbox_role_arn  = aws_iam_role.recovery["recovery_backup_outbox"].arn
+    restore_outbox_role_arn = aws_iam_role.recovery["recovery_restore_outbox"].arn
+    backup_worker_role_arn  = aws_iam_role.recovery["recovery_backup"].arn
+    restore_worker_role_arn = aws_iam_role.recovery["recovery_restore"].arn
+    neon_secret_reference   = "ref:neon/project-api-key"
+    neon_secret_arn         = aws_secretsmanager_secret.recovery_neon_api.arn
+    web_identity_token_file = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
+    runner_service_account  = "agentsec-recovery-runner"
+  }
+}
 output "red_team_release_authority" {
   description = "Non-secret, isolated Red Team queue, evidence, target adapter, and workload identities."
   value = {

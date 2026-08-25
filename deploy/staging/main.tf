@@ -27,6 +27,8 @@ locals {
     runtime_ingest               = var.database_principals.runtime_ingest
     runtime_worker               = var.database_principals.runtime_worker
     outbox_worker                = var.database_principals.outbox_worker
+    recovery_outbox_worker       = var.database_principals.recovery_outbox_worker
+    recovery_worker              = var.database_principals.recovery_worker
     red_team_outbox_worker       = var.database_principals.red_team_outbox_worker
     red_team_worker              = var.database_principals.red_team_worker
     red_team_adapter             = var.database_principals.red_team_adapter
@@ -55,6 +57,8 @@ locals {
     postgres-runtime-ingest-dsn               = local.database_principals.runtime_ingest
     postgres-runtime-worker-dsn               = local.database_principals.runtime_worker
     postgres-outbox-worker-dsn                = local.database_principals.outbox_worker
+    postgres-recovery-outbox-worker-dsn       = local.database_principals.recovery_outbox_worker
+    postgres-recovery-worker-dsn              = local.database_principals.recovery_worker
     postgres-red-team-outbox-dsn              = local.database_principals.red_team_outbox_worker
     postgres-red-team-worker-dsn              = local.database_principals.red_team_worker
     postgres-red-team-adapter-dsn             = local.database_principals.red_team_adapter
@@ -85,11 +89,13 @@ locals {
     "token-reveal-key",
   ])
   queue_contract = {
-    background        = { visibility = 300, schema = "agentsec.background.v1" }
-    "discovery-jobs"  = { visibility = 30, schema = "agentsec.discovery-jobs.v1" }
-    runtime-events    = { visibility = 120, schema = "agentsec.runtime-events.v1" }
-    "red-team-tests"  = { visibility = 900, schema = "agentsec.red-team-tests.v1" }
-    "attack-lab-jobs" = { visibility = 60, schema = "agentsec.attack-lab-jobs.v1" }
+    background              = { visibility = 300, max_receive = 5, schema = "agentsec.background.v1" }
+    "discovery-jobs"        = { visibility = 30, max_receive = 5, schema = "agentsec.discovery-jobs.v1" }
+    runtime-events          = { visibility = 120, max_receive = 5, schema = "agentsec.runtime-events.v1" }
+    "red-team-tests"        = { visibility = 900, max_receive = 5, schema = "agentsec.red-team-tests.v1" }
+    "attack-lab-jobs"       = { visibility = 60, max_receive = 5, schema = "agentsec.attack-lab-jobs.v1" }
+    "recovery-backup-jobs"  = { visibility = 30, max_receive = 100, schema = "agentsec.recovery-backup-jobs.v1" }
+    "recovery-restore-jobs" = { visibility = 30, max_receive = 100, schema = "agentsec.recovery-restore-jobs.v1" }
   }
   runtime_irsa_contract = {
     ingest          = { role_name = "runtime-ingest", principal = "system:serviceaccount:agentsec:zasp-runtime-ingest", database_secret = "postgres-runtime-ingest-dsn" }
@@ -121,6 +127,12 @@ locals {
     controller = ["postgres-attack-lab-controller-dsn", "attack-lab-egress-signing-key"]
     outbox     = ["postgres-attack-lab-outbox-dsn"]
     proxy      = ["postgres-attack-lab-proxy-dsn", "attack-lab-egress-signing-key", "attack-lab-proxy-tls-certificate", "attack-lab-proxy-tls-private-key"]
+  }
+  recovery_irsa_contract = {
+    recovery_backup_outbox  = { role_name = "recovery-backup-outbox", principal = "system:serviceaccount:agentsec:zasp-recovery-backup-outbox", database_secret = "postgres-recovery-outbox-worker-dsn", queue = "recovery-backup-jobs", operation = "outbox" }
+    recovery_restore_outbox = { role_name = "recovery-restore-outbox", principal = "system:serviceaccount:agentsec:zasp-recovery-restore-outbox", database_secret = "postgres-recovery-outbox-worker-dsn", queue = "recovery-restore-jobs", operation = "outbox" }
+    recovery_backup         = { role_name = "recovery-backup", principal = "system:serviceaccount:agentsec:zasp-recovery-backup", database_secret = "postgres-recovery-worker-dsn", queue = "recovery-backup-jobs", operation = "backup" }
+    recovery_restore        = { role_name = "recovery-restore", principal = "system:serviceaccount:agentsec:zasp-recovery-restore", database_secret = "postgres-recovery-worker-dsn", queue = "recovery-restore-jobs", operation = "restore" }
   }
   connector_secret_root   = "${var.cluster_name}/connectors"
   connector_secret_prefix = "${local.connector_secret_root}/oauth"
@@ -334,6 +346,18 @@ resource "aws_kms_key" "attack_lab" {
 resource "aws_kms_alias" "attack_lab" {
   name          = "alias/${var.cluster_name}-attack-lab"
   target_key_id = aws_kms_key.attack_lab.key_id
+}
+
+resource "aws_kms_key" "recovery_signing" {
+  description              = "ZASP recovery manifest signing and verification"
+  deletion_window_in_days  = 30
+  key_usage                = "SIGN_VERIFY"
+  customer_master_key_spec = "ECC_NIST_P256"
+}
+
+resource "aws_kms_alias" "recovery_signing" {
+  name          = "alias/${var.cluster_name}-recovery-signing"
+  target_key_id = aws_kms_key.recovery_signing.key_id
 }
 
 resource "aws_s3_bucket" "evidence" {
@@ -569,6 +593,8 @@ resource "aws_secretsmanager_secret" "product" {
     "postgres-runtime-ingest-dsn",
     "postgres-runtime-worker-dsn",
     "postgres-outbox-worker-dsn",
+    "postgres-recovery-outbox-worker-dsn",
+    "postgres-recovery-worker-dsn",
     "postgres-red-team-outbox-dsn",
     "postgres-red-team-worker-dsn",
     "postgres-red-team-adapter-dsn",
@@ -616,6 +642,13 @@ resource "aws_secretsmanager_secret" "red_team_readiness_target" {
   kms_key_id              = aws_kms_key.red_team.arn
   recovery_window_in_days = 30
   tags                    = { CredentialClass = "red_team_target", Authority = "red-team-adapter" }
+}
+
+resource "aws_secretsmanager_secret" "recovery_neon_api" {
+  name                    = "zasp-recovery/neon/project-api-key"
+  kms_key_id              = aws_kms_key.staging.arn
+  recovery_window_in_days = 30
+  tags                    = { CredentialClass = "neon_project_api_key", Authority = "recovery-restore" }
 }
 
 resource "aws_secretsmanager_secret" "connector_provider" {
@@ -673,7 +706,7 @@ resource "aws_sqs_queue" "work" {
   sqs_managed_sse_enabled    = false
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.dead_letter[each.key].arn
-    maxReceiveCount     = 5
+    maxReceiveCount     = each.value.max_receive
   })
   tags = { Schema = each.value.schema }
 }
@@ -1174,6 +1207,75 @@ resource "aws_iam_role_policy" "outbox" {
       } }
     },
   ] })
+}
+
+resource "aws_iam_role" "recovery" {
+  for_each = local.recovery_irsa_contract
+  name     = "${var.cluster_name}-${each.value.role_name}"
+  assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{
+    Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+    Condition = { StringEquals = {
+      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = each.value.principal
+    } }
+  }] })
+}
+
+resource "aws_iam_role_policy" "recovery" {
+  for_each = local.recovery_irsa_contract
+  name     = "${var.cluster_name}-${each.value.role_name}-exact"
+  role     = aws_iam_role.recovery[each.key].id
+  policy = jsonencode({ Version = "2012-10-17", Statement = concat([
+    {
+      Effect   = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"]
+      Resource = aws_secretsmanager_secret.product[each.value.database_secret].arn
+    },
+    {
+      Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product[each.value.database_secret].arn
+      } }
+    },
+    { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },
+    ], jsondecode(each.value.operation == "outbox" ? jsonencode([
+      { Effect = "Allow", Action = ["sqs:SendMessage", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.work[each.value.queue].arn },
+      {
+        Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = aws_kms_key.staging.arn
+        Condition = { StringEquals = {
+          "kms:ViaService"                    = "sqs.${var.region}.amazonaws.com"
+          "kms:EncryptionContext:aws:sqs:arn" = aws_sqs_queue.work[each.value.queue].arn
+        } }
+      },
+      ]) : jsonencode([
+      { Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility", "sqs:GetQueueAttributes"], Resource = aws_sqs_queue.work[each.value.queue].arn },
+      {
+        Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
+        Condition = { StringEquals = {
+          "kms:ViaService"                    = "sqs.${var.region}.amazonaws.com"
+          "kms:EncryptionContext:aws:sqs:arn" = aws_sqs_queue.work[each.value.queue].arn
+        } }
+      },
+      { Effect = "Allow", Action = ["s3:ListBucket", "s3:GetBucketVersioning", "s3:GetEncryptionConfiguration"], Resource = aws_s3_bucket.evidence.arn },
+      { Effect = "Allow", Action = concat(["s3:GetObject"], each.value.operation == "backup" ? ["s3:PutObject"] : []), Resource = "${aws_s3_bucket.evidence.arn}/organizations/*" },
+      {
+        Effect = "Allow", Action = concat(["kms:Decrypt"], each.value.operation == "backup" ? ["kms:GenerateDataKey"] : []), Resource = aws_kms_key.staging.arn
+        Condition = {
+          StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" }
+          StringLike   = { "kms:EncryptionContext:aws:s3:arn" = "${aws_s3_bucket.evidence.arn}/*" }
+        }
+      },
+      { Effect = "Allow", Action = ["kms:DescribeKey", each.value.operation == "backup" ? "kms:Sign" : "kms:Verify"], Resource = aws_kms_key.recovery_signing.arn },
+      ])), jsondecode(each.value.operation == "restore" ? jsonencode([
+      { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.recovery_neon_api.arn },
+      {
+        Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
+        Condition = { StringEquals = {
+          "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
+          "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.recovery_neon_api.arn
+        } }
+      },
+  ]) : "[]")) })
 }
 
 resource "aws_iam_role" "red_team" {
