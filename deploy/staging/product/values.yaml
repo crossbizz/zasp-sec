@@ -32,6 +32,10 @@ replicas:
   projectionGraph: 2
   projectionSearch: 2
   outboxPublisher: 2
+  recoveryBackupOutbox: 2
+  recoveryRestoreOutbox: 2
+  recoveryBackup: 2
+  recoveryRestore: 2
   redTeamOutbox: 2
   redTeamWorker: 2
   redTeamAdapter: 2
@@ -63,6 +67,10 @@ secrets:
   projectionGraphProviderClassName: zasp-production-projection-graph-secrets
   projectionSearchProviderClassName: zasp-production-projection-search-secrets
   outboxProviderClassName: zasp-production-outbox-secrets
+  recoveryBackupOutboxProviderClassName: zasp-production-recovery-backup-outbox-secrets
+  recoveryRestoreOutboxProviderClassName: zasp-production-recovery-restore-outbox-secrets
+  recoveryBackupProviderClassName: zasp-production-recovery-backup-secrets
+  recoveryRestoreProviderClassName: zasp-production-recovery-restore-secrets
   redTeamOutboxProviderClassName: zasp-production-red-team-outbox-secrets
   redTeamWorkerProviderClassName: zasp-production-red-team-worker-secrets
   redTeamAdapterProviderClassName: zasp-production-red-team-adapter-secrets
@@ -90,6 +98,10 @@ secrets:
   projectionGraphPostgresDSNObjectName: ""
   projectionSearchPostgresDSNObjectName: ""
   outboxPostgresDSNObjectName: ""
+  recoveryBackupOutboxPostgresDSNObjectName: ""
+  recoveryRestoreOutboxPostgresDSNObjectName: ""
+  recoveryBackupPostgresDSNObjectName: ""
+  recoveryRestorePostgresDSNObjectName: ""
   redTeamOutboxPostgresDSNObjectName: ""
   redTeamWorkerPostgresDSNObjectName: ""
   redTeamAdapterPostgresDSNObjectName: ""
@@ -190,6 +202,27 @@ outbox:
   queueURL: ""
   roleArn: ""
   webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+recovery:
+  canaryEnabled: false
+  awsRegion: ""
+  backupQueueURL: ""
+  restoreQueueURL: ""
+  evidenceBucket: ""
+  evidenceBucketOwner: ""
+  evidenceKMSKeyArn: ""
+  signingKMSKeyArn: ""
+  backupOutboxRoleArn: ""
+  restoreOutboxRoleArn: ""
+  backupRoleArn: ""
+  restoreRoleArn: ""
+  webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+  neonProjectID: ""
+  neonBranchID: ""
+  neonSecretReference: ""
+  kubernetesEndpoint: ""
+  runnerImage: ""
+  runnerServiceAccount: agentsec-recovery-runner
+  neonEgressCIDRs: []
 redTeam:
   awsRegion: ""
   queueURL: ""
@@ -242,7 +275,7 @@ runtime:
   projectionRoleArn: ""
   completeRoleArn: ""
 schema:
-  expectedVersion: 26
+  expectedVersion: 27
   migrationTimeout: 10m
 databasePrincipals:
   migration: ""
@@ -254,6 +287,8 @@ databasePrincipals:
   runtimeIngest: ""
   runtimeWorker: ""
   outboxWorker: ""
+  recoveryOutboxWorker: ""
+  recoveryWorker: ""
   redTeamOutboxWorker: ""
   redTeamWorker: ""
   redTeamAdapter: ""
@@ -309,6 +344,19 @@ serviceAccounts:
   outbox:
     name: zasp-outbox-publisher
     roleArn: ""
+  recoveryBackupOutbox:
+    name: zasp-recovery-backup-outbox
+    roleArn: ""
+  recoveryRestoreOutbox:
+    name: zasp-recovery-restore-outbox
+    roleArn: ""
+  recoveryBackup:
+    name: zasp-recovery-backup
+    roleArn: ""
+  recoveryRestore:
+    name: zasp-recovery-restore
+    roleArn: ""
+  recoveryRunner: agentsec-recovery-runner
   redTeamOutbox:
     name: zasp-red-team-outbox
     roleArn: ""
@@ -369,6 +417,8 @@ network:
   opensearchCIDR: ""
   neo4jCIDR: ""
   outboxEgressCIDRs: []
+  recoveryEgressCIDRs: []
+  recoveryKubernetesAPICIDRs: []
   redTeamEgressCIDRs: []
   s3CIDRs: []
   attackLabEgressCIDRs: []

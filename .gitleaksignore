@@ -146,3 +146,10 @@ b69107ece17090ba344576f52da05cee9724ae1c:services/platform/apiserver/runtime_dat
 27a2a1444f2edb324c70e50c70463cee15ee2ad4:services/platform/agentsec-api/runtime_test.go:generic-api-key:316
 3fd6fbf71b7a59c69d0ac8e79dd5edc91321be3e:services/platform/agentsec-api/runtime_test.go:generic-api-key:29
 3fd6fbf71b7a59c69d0ac8e79dd5edc91321be3e:services/platform/agentsec-api/runtime_test.go:generic-api-key:316
+
+# The production recovery authority uses fixed, impossible lease tokens only in
+# hermetic repository tests. Ignore only their exact introduction findings;
+# changed or relocated values remain detectable by the full-history gate.
+566592bddb86a3e780e23e07dc8afe1e4afb2931:services/platform/agentsec-worker/recovery_database_test.go:generic-api-key:49
+e5b0274c8f87b266ef6832a859bbb71e5788bc62:services/platform/agentsec-worker/recovery_outbox_database_test.go:generic-api-key:49
+e81c321e37509aebbd1db46410b85b045543e89d:services/platform/agentsec-worker/recovery_database_test.go:generic-api-key:115

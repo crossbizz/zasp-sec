@@ -16,4 +16,4 @@ The production web surface is authenticated, capability-gated and API-backed. It
 
 Attack Lab, reports, guardrail prototype controls, AI explanations, exports and deletion jobs are not supported production workflows through the web application. Attack Lab runtime and deployment authority are present, but the route remains capability-hidden until the API-backed product UI and complete provider/queue/artifact/recovery journey have production evidence. Red Team never accepts arbitrary prompts, arbitrary destinations, production environments, production-write credentials, or shell access.
 
-PostgreSQL schema v26 is the durable product authority. OpenSearch and Neo4j are projections only and cannot authorize or override a PostgreSQL result. The deployment does not fall back to demo fixtures, browser-local product state or in-memory stores.
+PostgreSQL schema v27 is the durable product authority. OpenSearch and Neo4j are projections only and cannot authorize or override a PostgreSQL result. The deployment does not fall back to demo fixtures, browser-local product state or in-memory stores.

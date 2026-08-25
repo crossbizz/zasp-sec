@@ -25,6 +25,7 @@ const projectionSearchKeys = Object.freeze(["awsRegion", "endpoint", "index", "r
 const projectionRiskKeys = Object.freeze(["roleArn"]);
 const projectionGraphKeys = Object.freeze(["awsRegion", "endpoint", "endpointCIDR", "credentialReference", "schemaCredentialReference", "secretPrefix", "roleArn", "webIdentityTokenFile", "initRoleArn", "expectedPrincipal", "expectedRole"]);
 const outboxKeys = Object.freeze(["awsRegion", "queueURL", "roleArn", "webIdentityTokenFile", "egressCIDRs"]);
+const recoveryKeys = Object.freeze(["canaryEnabled", "awsRegion", "backupQueueURL", "restoreQueueURL", "evidenceBucket", "evidenceBucketOwner", "evidenceKMSKeyArn", "signingKMSKeyArn", "backupOutboxRoleArn", "restoreOutboxRoleArn", "backupRoleArn", "restoreRoleArn", "webIdentityTokenFile", "neonProjectID", "neonBranchID", "neonSecretReference", "kubernetesEndpoint", "runnerImage", "runnerServiceAccount", "egressCIDRs", "neonEgressCIDRs", "kubernetesAPICIDRs"]);
 const redTeamKeys = Object.freeze(["awsRegion", "queueURL", "evidenceBucket", "evidenceBucketOwner", "evidenceKMSKeyArn", "outboxRoleArn", "workerRoleArn", "adapterRoleArn", "webIdentityTokenFile", "runnerTimeout", "targetEndpoint", "targetAllowedCIDRs", "readinessCredentialReference", "egressCIDRs"]);
 const attackLabKeys = Object.freeze(["awsRegion", "queueURL", "evidenceBucket", "evidenceBucketOwner", "evidenceKMSKeyArn", "controllerRoleArn", "outboxRoleArn", "proxyRoleArn", "webIdentityTokenFile", "securityGroupID", "proxySecurityGroupID", "targetAllowedCIDRs", "egressCIDRs", "kubernetesAPICIDRs", "readinessCredentialReference", "operationTimeout", "proxyRequestTimeout", "proxyShutdownTimeout", "proxyCABundleBase64"]);
 const runtimeKeys = Object.freeze([
@@ -83,6 +84,10 @@ export async function renderRelease(value) {
     ["serviceAccounts.projectionSearch.roleArn", value.projectionSearch.roleArn],
     ["serviceAccounts.projectionSearchInit.roleArn", value.projectionSearch.initRoleArn],
     ["serviceAccounts.outbox.roleArn", value.outbox.roleArn],
+    ["serviceAccounts.recoveryBackupOutbox.roleArn", value.recovery.backupOutboxRoleArn],
+    ["serviceAccounts.recoveryRestoreOutbox.roleArn", value.recovery.restoreOutboxRoleArn],
+    ["serviceAccounts.recoveryBackup.roleArn", value.recovery.backupRoleArn],
+    ["serviceAccounts.recoveryRestore.roleArn", value.recovery.restoreRoleArn],
     ["serviceAccounts.redTeamOutbox.roleArn", value.redTeam.outboxRoleArn],
     ["serviceAccounts.redTeamWorker.roleArn", value.redTeam.workerRoleArn],
     ["serviceAccounts.redTeamAdapter.roleArn", value.redTeam.adapterRoleArn],
@@ -112,6 +117,10 @@ export async function renderRelease(value) {
     ["secrets.projectionGraphPostgresDSNObjectName", "zasp/production/postgres-projection-graph-dsn"],
     ["secrets.projectionSearchPostgresDSNObjectName", "zasp/production/postgres-projection-search-dsn"],
     ["secrets.outboxPostgresDSNObjectName", "zasp/production/postgres-outbox-worker-dsn"],
+    ["secrets.recoveryBackupOutboxPostgresDSNObjectName", "zasp/production/postgres-recovery-outbox-worker-dsn"],
+    ["secrets.recoveryRestoreOutboxPostgresDSNObjectName", "zasp/production/postgres-recovery-outbox-worker-dsn"],
+    ["secrets.recoveryBackupPostgresDSNObjectName", "zasp/production/postgres-recovery-worker-dsn"],
+    ["secrets.recoveryRestorePostgresDSNObjectName", "zasp/production/postgres-recovery-worker-dsn"],
     ["secrets.redTeamOutboxPostgresDSNObjectName", "zasp/production/postgres-red-team-outbox-dsn"],
     ["secrets.redTeamWorkerPostgresDSNObjectName", "zasp/production/postgres-red-team-worker-dsn"],
     ["secrets.redTeamAdapterPostgresDSNObjectName", "zasp/production/postgres-red-team-adapter-dsn"],
@@ -149,6 +158,8 @@ export async function renderRelease(value) {
     ["databasePrincipals.runtimeIngest", "zasp_ingest_runtime"],
     ["databasePrincipals.runtimeWorker", "zasp_runtime_worker_runtime"],
     ["databasePrincipals.outboxWorker", "zasp_outbox_runtime"],
+    ["databasePrincipals.recoveryOutboxWorker", "zasp_recovery_outbox_runtime"],
+    ["databasePrincipals.recoveryWorker", "zasp_recovery_runtime"],
     ["databasePrincipals.redTeamOutboxWorker", "zasp_red_team_outbox_runtime"],
     ["databasePrincipals.redTeamWorker", "zasp_red_team_worker_runtime"],
     ["databasePrincipals.redTeamAdapter", "zasp_red_team_adapter_runtime"],
@@ -209,6 +220,28 @@ export async function renderRelease(value) {
     ["outbox.roleArn", value.outbox.roleArn],
     ["outbox.webIdentityTokenFile", value.outbox.webIdentityTokenFile],
     ...value.outbox.egressCIDRs.map((cidr, index) => [`network.outboxEgressCIDRs[${index}]`, cidr]),
+    ["recovery.canaryEnabled", String(value.recovery.canaryEnabled)],
+    ["recovery.awsRegion", value.recovery.awsRegion],
+    ["recovery.backupQueueURL", value.recovery.backupQueueURL],
+    ["recovery.restoreQueueURL", value.recovery.restoreQueueURL],
+    ["recovery.evidenceBucket", value.recovery.evidenceBucket],
+    ["recovery.evidenceBucketOwner", value.recovery.evidenceBucketOwner],
+    ["recovery.evidenceKMSKeyArn", value.recovery.evidenceKMSKeyArn],
+    ["recovery.signingKMSKeyArn", value.recovery.signingKMSKeyArn],
+    ["recovery.backupOutboxRoleArn", value.recovery.backupOutboxRoleArn],
+    ["recovery.restoreOutboxRoleArn", value.recovery.restoreOutboxRoleArn],
+    ["recovery.backupRoleArn", value.recovery.backupRoleArn],
+    ["recovery.restoreRoleArn", value.recovery.restoreRoleArn],
+    ["recovery.webIdentityTokenFile", value.recovery.webIdentityTokenFile],
+    ["recovery.neonProjectID", value.recovery.neonProjectID],
+    ["recovery.neonBranchID", value.recovery.neonBranchID],
+    ["recovery.neonSecretReference", value.recovery.neonSecretReference],
+    ["recovery.kubernetesEndpoint", value.recovery.kubernetesEndpoint],
+    ["recovery.runnerImage", value.recovery.runnerImage],
+    ["recovery.runnerServiceAccount", value.recovery.runnerServiceAccount],
+    ...value.recovery.egressCIDRs.map((cidr, index) => [`network.recoveryEgressCIDRs[${index}]`, cidr]),
+    ...value.recovery.neonEgressCIDRs.map((cidr, index) => [`recovery.neonEgressCIDRs[${index}]`, cidr]),
+    ...value.recovery.kubernetesAPICIDRs.map((cidr, index) => [`network.recoveryKubernetesAPICIDRs[${index}]`, cidr]),
     ["redTeam.awsRegion", value.redTeam.awsRegion],
     ["redTeam.queueURL", value.redTeam.queueURL],
     ["redTeam.evidenceBucket", value.redTeam.evidenceBucket],
@@ -372,7 +405,7 @@ function validCustomerEdgeRelease(value) {
 }
 
 function validRelease(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["attackLab", "awsS3CIDRs", "connectorEgressCIDRs", "connectors", "discovery", "findingTicketEgressCIDRs", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "redTeam", "runtime", "nango", "telemetry", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["attackLab", "awsS3CIDRs", "connectorEgressCIDRs", "connectors", "discovery", "findingTicketEgressCIDRs", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "recovery", "redTeam", "runtime", "nango", "telemetry", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
   if (!hostPattern.test(value.host) || !namePattern.test(value.tlsSecretName) || !namePattern.test(value.secretProviderClass)) return false;
   if (!validS3CIDRList(value.awsS3CIDRs)) return false;
   if (!value.images || typeof value.images !== "object" || Array.isArray(value.images) || Object.keys(value.images).sort().join("\0") !== [...imageNames].sort().join("\0")) return false;
@@ -404,6 +437,17 @@ function validRelease(value) {
   const outboxRole = /^arn:aws:iam::([0-9]{12}):role\/zasp-production-outbox$/.exec(value.outbox.roleArn);
   const outboxQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-discovery-jobs$/.exec(value.outbox.queueURL);
   if (!outboxRole || !outboxQueue || value.outbox.awsRegion !== outboxQueue[1] || outboxRole[1] !== outboxQueue[2] || outboxRole[1] !== discoveryRole[1] || value.outbox.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validCIDRList(value.outbox.egressCIDRs)) return false;
+  if (!value.recovery || typeof value.recovery !== "object" || Array.isArray(value.recovery) || Object.keys(value.recovery).sort().join("\0") !== [...recoveryKeys].sort().join("\0") || value.recovery.canaryEnabled !== true) return false;
+  const recoveryBackupQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-recovery-backup-jobs$/.exec(value.recovery.backupQueueURL);
+  const recoveryRestoreQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-recovery-restore-jobs$/.exec(value.recovery.restoreQueueURL);
+  const recoveryEncryption = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f-]{36}$/.exec(value.recovery.evidenceKMSKeyArn);
+  const recoverySigning = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f-]{36}$/.exec(value.recovery.signingKMSKeyArn);
+  const recoveryRoles = ["backupOutbox", "restoreOutbox", "backup", "restore"].map((name) => new RegExp(`^arn:aws:iam::([0-9]{12}):role/zasp-production-recovery-${name.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`)}$`).exec(value.recovery[`${name}RoleArn`]));
+  const recoveryRunner = /^([0-9]{12})\.dkr\.ecr\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/zasp\/agentsec-worker@sha256:[0-9a-f]{64}$/.exec(value.recovery.runnerImage);
+  if (!recoveryBackupQueue || !recoveryRestoreQueue || !recoveryEncryption || !recoverySigning || !recoveryRunner || recoveryRoles.some((role) => !role) || recoveryRoles.some((role) => role[1] !== discoveryRole[1])) return false;
+  if (value.recovery.awsRegion !== recoveryBackupQueue[1] || value.recovery.awsRegion !== recoveryRestoreQueue[1] || value.recovery.awsRegion !== recoveryEncryption[1] || value.recovery.awsRegion !== recoverySigning[1] || value.recovery.awsRegion !== recoveryRunner[2] || recoveryBackupQueue[2] !== discoveryRole[1] || recoveryRestoreQueue[2] !== discoveryRole[1] || recoveryEncryption[2] !== discoveryRole[1] || recoverySigning[2] !== discoveryRole[1] || recoveryRunner[1] !== discoveryRole[1] || value.recovery.evidenceBucketOwner !== discoveryRole[1]) return false;
+  if (value.recovery.evidenceBucket !== value.discovery.evidenceBucket || value.recovery.evidenceKMSKeyArn !== value.discovery.evidenceKMSKeyArn || value.recovery.signingKMSKeyArn === value.recovery.evidenceKMSKeyArn || value.recovery.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || value.recovery.neonSecretReference !== "ref:neon/project-api-key" || value.recovery.kubernetesEndpoint !== "https://kubernetes.default.svc" || value.recovery.runnerServiceAccount !== "agentsec-recovery-runner") return false;
+  if (!/^[a-z][a-z0-9-]{2,62}$/.test(value.recovery.neonProjectID) || !/^br-[a-z0-9][a-z0-9-]{1,62}$/.test(value.recovery.neonBranchID) || !validPrivateCIDRList(value.recovery.egressCIDRs) || !validProviderCIDRList(value.recovery.neonEgressCIDRs) || !validPrivateCIDRList(value.recovery.kubernetesAPICIDRs) || hasCIDROverlap([...value.recovery.egressCIDRs, ...value.recovery.neonEgressCIDRs, ...value.recovery.kubernetesAPICIDRs])) return false;
   if (!value.redTeam || typeof value.redTeam !== "object" || Array.isArray(value.redTeam) || Object.keys(value.redTeam).sort().join("\0") !== [...redTeamKeys].sort().join("\0")) return false;
   const redTeamQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-red-team-tests$/.exec(value.redTeam.queueURL);
   const redTeamKMS = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.redTeam.evidenceKMSKeyArn);
@@ -464,6 +508,10 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["agentsec-security-agent", "zasp-security-agent"],
     ["agentsec-security-agent-action", "zasp-security-agent-action"],
     ["agentsec-outbox-publisher", "zasp-outbox-publisher"],
+    ["agentsec-recovery-backup-outbox", "zasp-recovery-backup-outbox"],
+    ["agentsec-recovery-restore-outbox", "zasp-recovery-restore-outbox"],
+    ["agentsec-recovery-backup", "zasp-recovery-backup"],
+    ["agentsec-recovery-restore", "zasp-recovery-restore"],
     ["agentsec-red-team-outbox", "zasp-red-team-outbox"],
     ["agentsec-red-team-worker", "zasp-red-team-worker"],
     ["agentsec-red-team-adapter", "zasp-red-team-adapter"],
@@ -494,6 +542,10 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["zasp-security-agent", "security-agent-worker"],
     ["zasp-security-agent-action", "security-agent-action-worker"],
     ["zasp-outbox-publisher", "outbox"],
+    ["zasp-recovery-backup-outbox", "recovery-backup-outbox"],
+    ["zasp-recovery-restore-outbox", "recovery-restore-outbox"],
+    ["zasp-recovery-backup", "recovery-backup"],
+    ["zasp-recovery-restore", "recovery-restore"],
     ["zasp-red-team-outbox", "red-team-outbox"],
     ["zasp-red-team-worker", "red-team-worker"],
     ["zasp-red-team-adapter", "red-team-adapter"],
@@ -530,7 +582,7 @@ export function validateRenderedRelease(resources, platformAccountID) {
     if (!rendered || (role === null ? roleArn !== undefined : roleArn !== `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`)) throw new Error("release rejected");
   }
   const jobIdentities = new Map([
-    ["agentsec-schema-v26", "agentsec-migration"],
+    ["agentsec-schema-v27", "agentsec-migration"],
     ["agentsec-projection-graph-init-v1", "agentsec-projection-graph-init"],
     ["agentsec-projection-search-init-v1", "agentsec-projection-search-init"],
     ["nango-migrate", "nango-migrate"],

@@ -23,6 +23,21 @@ spec:
   endpoints:
     - { port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }
 {{- end }}
+{{- if .Values.recovery.canaryEnabled }}
+{{- range $name := list "agentsec-recovery-backup-outbox" "agentsec-recovery-restore-outbox" "agentsec-recovery-backup" "agentsec-recovery-restore" }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $name }}
+  labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+  namespaceSelector: { matchNames: [{{ $.Release.Namespace | quote }}] }
+  endpoints:
+    - { port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }
+{{- end }}
+{{- end }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -200,4 +215,41 @@ spec:
           for: 15m
           labels: { severity: ticket }
           annotations: { summary: "A discovery or projection worker is at its replica ceiling" }
+{{- if .Values.recovery.canaryEnabled }}
+        - alert: ZaspRecoveryUnavailable
+          expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service=~"agentsec-recovery-(backup|restore)(-outbox)?"} == 0 or count(count by (service) (agentsec_ready{namespace="{{ .Release.Namespace }}",service=~"agentsec-recovery-(backup|restore)(-outbox)?"})) < 4
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "A recovery worker is unavailable" }
+        - alert: ZaspRecoveryDriverNotReady
+          expr: zasp_recovery_driver_ready{namespace="{{ .Release.Namespace }}",service=~"agentsec-recovery-(backup|restore)"} == 0 or count(count by (service) (zasp_recovery_driver_ready{namespace="{{ .Release.Namespace }}",service=~"agentsec-recovery-(backup|restore)"})) < 2
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "Recovery cloud or database authority is not ready" }
+        - alert: ZaspRecoveryQueueAge
+          expr: max(zasp_recovery_queue_age_seconds{namespace="{{ .Release.Namespace }}",service=~"agentsec-recovery-(backup|restore)"}) > 300
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "Recovery work has remained queued for more than five minutes" }
+        - alert: ZaspRecoveryHoldTooOld
+          expr: max(zasp_recovery_hold_age_seconds{namespace="{{ .Release.Namespace }}",service="agentsec-recovery-backup"}) > 900
+          for: 1m
+          labels: { severity: page }
+          annotations: { summary: "A tenant recovery hold exceeded the fifteen-minute bound" }
+        - alert: ZaspRecoveryExhaustion
+          expr: sum(increase(zasp_recovery_exhaustion_total{namespace="{{ .Release.Namespace }}",service=~"agentsec-recovery-(backup|restore)"}[15m])) > 0
+          for: 1m
+          labels: { severity: page }
+          annotations: { summary: "Recovery work exhausted bounded retry attempts" }
+        - alert: ZaspRecoveryLeaseLoss
+          expr: sum(increase(zasp_recovery_lease_loss_total{namespace="{{ .Release.Namespace }}",service=~"agentsec-recovery-(backup|restore)"}[10m])) > 0
+          for: 1m
+          labels: { severity: ticket }
+          annotations: { summary: "A recovery worker lost durable lease ownership" }
+        - alert: ZaspRecoveryCleanupFailure
+          expr: sum(increase(zasp_recovery_cleanup_failure_total{namespace="{{ .Release.Namespace }}",service="agentsec-recovery-restore"}[10m])) > 0
+          for: 1m
+          labels: { severity: page }
+          annotations: { summary: "A recovery rehearsal failed to prove cleanup" }
+{{- end }}
 {{- end }}

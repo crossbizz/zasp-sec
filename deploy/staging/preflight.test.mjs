@@ -35,6 +35,10 @@ const input = {
     projectionGraph: { serviceAccount: "zasp-projection-graph", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-graph" },
     projectionSearch: { serviceAccount: "zasp-projection-search", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search" },
     outboxPublisher: { serviceAccount: "zasp-outbox-publisher", roleArn: "arn:aws:iam::123456789012:role/zasp-production-outbox" },
+    recoveryBackupOutbox: { serviceAccount: "zasp-recovery-backup-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-recovery-backup-outbox" },
+    recoveryRestoreOutbox: { serviceAccount: "zasp-recovery-restore-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-recovery-restore-outbox" },
+    recoveryBackup: { serviceAccount: "zasp-recovery-backup", roleArn: "arn:aws:iam::123456789012:role/zasp-production-recovery-backup" },
+    recoveryRestore: { serviceAccount: "zasp-recovery-restore", roleArn: "arn:aws:iam::123456789012:role/zasp-production-recovery-restore" },
     redTeamOutbox: { serviceAccount: "zasp-red-team-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-outbox" },
     redTeamWorker: { serviceAccount: "zasp-red-team-worker", roleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-worker" },
     redTeamAdapter: { serviceAccount: "zasp-red-team-adapter", roleArn: "arn:aws:iam::123456789012:role/zasp-production-red-team-adapter" },
@@ -65,7 +69,7 @@ const input = {
 test("release preflight validates all eleven images and least-privilege identities", () => {
   const calls = [];
   const value = runPreflight(["--input", "release.json"], { read: () => JSON.stringify(input), spawn: (tool, args, options) => { calls.push({ tool, args, options }); return { status: 0 }; } });
-  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 11, deployments: 27, cloudIdentities: 28 });
+  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 11, deployments: 31, cloudIdentities: 32 });
   assert.deepEqual(calls.map(({ tool, args }) => ({ tool, args })), [
     { tool: "terraform", args: ["version", "-json"] },
     { tool: "helm", args: ["version", "--short"] },

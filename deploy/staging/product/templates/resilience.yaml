@@ -333,4 +333,86 @@ spec:
     - to: [{ ipBlock: { cidr: {{ required "network.canaryCIDR is required" .Values.network.canaryCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 443 }]
 {{- end }}
+{{- if .Values.recovery.canaryEnabled }}
+{{- range $name := list "agentsec-recovery-backup-outbox" "agentsec-recovery-restore-outbox" "agentsec-recovery-backup" "agentsec-recovery-restore" }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $name }} }
+  minReplicas: 2
+  maxReplicas: 10
+  behavior:
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Percent, value: 25, periodSeconds: 60 }] }
+    scaleUp: { stabilizationWindowSeconds: 30, policies: [{ type: Pods, value: 2, periodSeconds: 60 }] }
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 65 } }
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: recovery-database, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: [agentsec-recovery-backup-outbox, agentsec-recovery-restore-outbox, agentsec-recovery-backup, agentsec-recovery-restore] }] }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: {{ required "network.postgresCIDR is required" .Values.network.postgresCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: recovery-aws
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations: { zasp.io/endpoint-groups: aws-sts-sqs-s3-kms-secrets }
+spec:
+  podSelector: { matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: [agentsec-recovery-backup-outbox, agentsec-recovery-restore-outbox, agentsec-recovery-backup, agentsec-recovery-restore] }] }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := required "network.recoveryEgressCIDRs is required" .Values.network.recoveryEgressCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: recovery-artifact-store, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: [agentsec-recovery-backup, agentsec-recovery-restore] }] }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := required "network.s3CIDRs is required" .Values.network.s3CIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: recovery-restore-dependencies, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-recovery-restore } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := required "recovery.neonEgressCIDRs is required" .Values.recovery.neonEgressCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }, { protocol: TCP, port: 5432 }]
+    - to:
+      {{- range $cidr := required "network.recoveryKubernetesAPICIDRs is required" .Values.network.recoveryKubernetesAPICIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+{{- end }}
 {{- end }}
