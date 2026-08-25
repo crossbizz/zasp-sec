@@ -8,7 +8,7 @@ const labels = [
   "Overview", "Agents", "Tools & MCP", "Identities", "Runtimes", "Findings",
   "Attack Paths", "Red Team", "Attack Lab", "Policies", "Security Agents",
   "Approvals", "Sessions", "Evidence", "Connections", "Sensors",
-  "Identity & Access", "Audit Log", "Data & Retention", "External Data Flows",
+  "Identity & Access", "Audit Log", "Data & Retention", "Recovery", "External Data Flows",
   "System Health", "API Access",
 ] as const;
 
@@ -18,7 +18,7 @@ const paths = [
   "/policies", "/protect/security-agents", "/protect/approvals", "/investigate/sessions",
   "/compliance/evidence", "/connectors", "/integrations/sensors",
   "/administration/identity-access", "/administration/audit-log",
-  "/administration/data-retention", "/administration/external-data-flows",
+  "/administration/data-retention", "/administration/recovery", "/administration/external-data-flows",
   "/administration/system-health", "/administration/api-access",
 ] as const;
 
@@ -27,7 +27,7 @@ describe("LeftNav", () => {
     render(<LeftNav route={resolveRoute("/violations")} openFindingCount={12} onNavigate={vi.fn()} onClose={vi.fn()} />);
     const navigation = screen.getByRole("navigation", { name: "Main navigation" });
     const links = within(navigation).getAllByRole("link");
-    expect(links).toHaveLength(22);
+    expect(links).toHaveLength(23);
     expect(links.map((link) => link.getAttribute("aria-label"))).toEqual(labels);
     expect(links.map((link) => link.getAttribute("href"))).toEqual(paths);
     for (const group of ["Home", "Inventory", "Exposure", "Test", "Protect", "Investigate", "Compliance", "Integrations", "Administration"]) {

@@ -72,9 +72,9 @@ describe("M1-26 UI API coverage CI", () => {
 
   it("records the deliberately hidden provider and job forward references", async () => {
     const map = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8");
-    expect(map.match(/availability: planned/g) ?? []).toHaveLength(13);
-    expect(map.match(/availability: available/g)).toHaveLength(125);
-    expect(map.match(/availability: api_available/g)).toHaveLength(6);
+    expect(map.match(/availability: planned/g) ?? []).toHaveLength(8);
+    expect(map.match(/availability: available/g)).toHaveLength(129);
+    expect(map.match(/availability: api_available/g)).toHaveLength(11);
     expect(map).not.toMatch(/^\s*(?:route|path|method|server):/m);
   });
 
@@ -85,7 +85,7 @@ describe("M1-26 UI API coverage CI", () => {
 
     expect(section).toContain("npm run ui-api:test");
     expect(section).toContain("npm run ui-api:check");
-    expect(section).toContain("UI/API coverage passed: planned=13 api_available=6 available=125 public=131 internal=0.");
+    expect(section).toContain("UI/API coverage passed: planned=8 api_available=11 available=129 public=140 internal=0.");
     expect(section).toContain("UI/API coverage rejected.");
     expect(prose).toContain("`planned` operation must remain absent");
     expect(prose).toContain("`available` operation must exist exactly once under `/api/v1`");

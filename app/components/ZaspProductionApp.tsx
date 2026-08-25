@@ -13,6 +13,7 @@ import { IdentityAccessView } from "../features/identity/IdentityAccessView";
 import { ScopeOnboardingView } from "../features/identity/ScopeOnboardingView";
 import { ProductionRiskView } from "../features/risk/ProductionRiskView";
 import { ProductionRedTeamView } from "../features/redteam/ProductionRedTeamView";
+import { RecoveryOperationsView } from "../features/recovery/RecoveryOperationsView";
 import { ProductionSecurityAgentsView } from "../features/securityagents/SecurityAgentsView";
 import { SessionsComplianceView } from "../features/sessions/SessionsComplianceView";
 import { ProductionSensorSurface } from "../features/sensors/ProductionSensorView";
@@ -41,6 +42,7 @@ const productionRoutes = [
   { path: "/administration/audit-log", label: "Audit Log", capability: "audit.read" },
   { path: "/compliance/evidence", label: "Compliance", capability: "compliance.read" },
   { path: "/administration/data-retention", label: "Data & Retention", capability: "compliance.read" },
+  { path: "/administration/recovery", label: "Recovery", capability: "recovery.read" },
   { path: "/administration/external-data-flows", label: "External Data Flows", capability: "system.read" },
   { path: "/administration/system-health", label: "System Health", capability: "system.read" },
 ] as const;
@@ -61,6 +63,7 @@ function ProductionRouteSurface({ path, navigate }: { path: string; navigate(pat
   if (path === "/investigate/sessions") return <SessionsComplianceView surface="sessions" client={client} canMutate={session.hasCapability("sessions.revoke")} />;
   if (path === "/compliance/evidence") return <SessionsComplianceView surface="compliance" client={client} />;
   if (path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" client={client} canMutate={session.hasCapability("data-controls.manage")} />;
+  if (path === "/administration/recovery") return <RecoveryOperationsView client={client} expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("recovery.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/administration/system-health") return <AdminOperationsView surface="health" client={client} />;
   if (path === "/administration/external-data-flows") return <AdminOperationsView surface="external" client={client} />;
   if (path === "/administration/audit-log") return <AdminOperationsView surface="audit" client={client} />;

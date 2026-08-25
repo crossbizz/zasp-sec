@@ -232,7 +232,7 @@ describe("Zasp application", () => {
 				if (path === "/api/v1/session/bootstrap") return apiJSON({
 					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
 					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
-					permissions: ["view"], capabilities: ["inventory.read", "identity.manage", "api-access.manage", "sessions.read", "sessions.revoke", "audit.read", "compliance.read", "data-controls.manage", "system.read"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+					permissions: ["view"], capabilities: ["inventory.read", "identity.manage", "api-access.manage", "sessions.read", "sessions.revoke", "audit.read", "compliance.read", "data-controls.manage", "recovery.read", "system.read"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 				});
 				if (path === "/api/v1/home/summary") return apiJSON({ agent_count: 0, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false });
 				throw new Error(`unexpected product fetch ${path}`);
@@ -240,7 +240,7 @@ describe("Zasp application", () => {
 		});
 		render(<ZaspApp client={client} />);
 		expect(await screen.findByRole("heading", { name: "Security overview" })).toBeVisible();
-		for (const route of ["Identity & Access", "API Access", "Sessions", "Audit Log", "Compliance", "Data & Retention", "External Data Flows", "System Health"]) {
+		for (const route of ["Identity & Access", "API Access", "Sessions", "Audit Log", "Compliance", "Data & Retention", "Recovery", "External Data Flows", "System Health"]) {
 			expect(screen.getByRole("link", { name: route })).toBeVisible();
 		}
 		expect(screen.queryByRole("link", { name: /SSO|SCIM|Export/ })).not.toBeInTheDocument();

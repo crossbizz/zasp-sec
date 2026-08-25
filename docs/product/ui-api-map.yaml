@@ -30,6 +30,21 @@ screens:
       - id: acknowledge_workflow_mutation_receipt
         operation_id: acknowledgeWorkflowMutationReceipt
         availability: available
+  - id: recovery_operations
+    label: Recovery Operations
+    actions:
+      - id: start_recovery_backup
+        operation_id: startRecoveryBackup
+        availability: available
+      - id: view_recovery_backup
+        operation_id: getRecoveryBackup
+        availability: available
+      - id: start_recovery_restore
+        operation_id: startRecoveryRestore
+        availability: available
+      - id: view_recovery_restore
+        operation_id: getRecoveryRestore
+        availability: available
   - id: identity_foundation
     label: Identity Foundation
     actions:
@@ -317,19 +332,19 @@ screens:
         availability: available
       - id: view_attack_lab_runs
         operation_id: listAttackLabRuns
-        availability: planned
+        availability: api_available
       - id: create_attack_lab_run
         operation_id: createAttackLabRun
-        availability: planned
+        availability: api_available
       - id: view_attack_lab_run
         operation_id: getAttackLabRun
-        availability: planned
+        availability: api_available
       - id: cancel_attack_lab_run
         operation_id: cancelAttackLabRun
-        availability: planned
+        availability: api_available
       - id: rerun_attack_lab_run
         operation_id: rerunAttackLabRun
-        availability: planned
+        availability: api_available
   - id: policies
     label: Policies
     actions:

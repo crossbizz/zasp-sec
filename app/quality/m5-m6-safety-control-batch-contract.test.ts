@@ -5,10 +5,11 @@ import { describe, expect, it } from "vitest";
 const read = (file: string) => fs.readFileSync(path.join(process.cwd(), file), "utf8");
 
 describe("M5 completion slice and M6 policy foundation", () => {
-  it("publishes mounted policy operations and hides Attack Lab projections", () => {
+  it("publishes mounted policy and Attack Lab operations while keeping policy projections hidden", () => {
     const source = read("openapi/openapi.yaml");
     for (const id of ["listPolicies", "createPolicy", "getPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy"]) expect(source).toContain(`operationId: ${id}`);
-    for (const id of ["listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun", "simulatePolicy", "listPolicyDecisions"]) expect(source).not.toContain(`operationId: ${id}`);
+    for (const id of ["listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun"]) expect(source).toContain(`operationId: ${id}`);
+    for (const id of ["simulatePolicy", "listPolicyDecisions"]) expect(source).not.toContain(`operationId: ${id}`);
   });
   it("implements the policy and Attack Lab boundaries without provider completion claims", () => {
     const redteam = read("services/platform/redteam/redteam.go");

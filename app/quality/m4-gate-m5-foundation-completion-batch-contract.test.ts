@@ -11,14 +11,14 @@ const selected = [
 ];
 
 describe("M4 gate and M5 foundation completion batch", () => {
-  it("keeps the M5 executor operations outside the generated product contract", async () => {
+  it("publishes the M5 definition operations in the generated product contract", async () => {
     const [openapi, generated] = await Promise.all([
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
     ]);
     for (const operation of ["listTests", "createTest", "getTest", "updateTest", "runTest"]) {
-      expect(openapi).not.toContain(`operationId: ${operation}`);
-      expect(generated).not.toContain(` ${operation}:`);
+      expect(openapi).toContain(`operationId: ${operation}`);
+      expect(generated).toContain(` ${operation}:`);
     }
   });
 

@@ -1,4 +1,4 @@
-import type { AgentMutation, AgentSessionPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
+import type { AgentMutation, AgentSessionPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -335,6 +335,95 @@ function decodeIntegrationProjectionStatus(value: unknown): void {
     fail();
   }
 }
+
+const RECOVERY_ERROR_CODES = ["dependency_unavailable", "outcome_unknown", "signature_invalid", "manifest_invalid", "manifest_expired", "validation_failed", "projection_mismatch", "cleanup_failed", "exhausted", "lease_lost", "cancelled"] as const;
+const RECOVERY_OPTIONAL_FIELDS = ["manifest", "error_code", "started_at", "completed_at"] as const;
+
+export function decodeRecoveryBackup(value: unknown, expectedScope: string): RecoveryBackup {
+  const record = exactRecord(value, ["id", "version", "state", "retention_days", "attempt", "created_at"], RECOVERY_OPTIONAL_FIELDS);
+  productID(record.id); boundedInteger(record.version, 1, 1_000_000); enumValue(record.state, ["queued", "draining", "capturing", "publishing", "succeeded", "retryable", "failed"]); boundedInteger(record.retention_days, 7, 90); boundedInteger(record.attempt, 0, 100); dateTime(record.created_at);
+  const started = optionalRecoveryTime(record.started_at); const completed = optionalRecoveryTime(record.completed_at); recoveryTimeOrder(record.created_at as string, started, completed);
+  if (record.manifest !== undefined) decodeRecoveryManifestLocator(record.manifest, expectedScope);
+  if (record.error_code !== undefined) enumValue(record.error_code, RECOVERY_ERROR_CODES);
+  if (record.state === "queued") {
+    if (record.attempt !== 0 || started !== undefined || completed !== undefined || record.manifest !== undefined || record.error_code !== undefined) fail();
+  } else if (record.state === "draining" || record.state === "capturing" || record.state === "publishing") {
+    if ((record.attempt as number) < 1 || started === undefined || completed !== undefined || record.manifest !== undefined || record.error_code !== undefined) fail();
+  } else if (record.state === "retryable") {
+    if ((record.attempt as number) < 1 || started === undefined || completed !== undefined || record.manifest !== undefined || record.error_code === undefined) fail();
+  } else if (record.state === "succeeded") {
+    if ((record.attempt as number) < 1 || started === undefined || completed === undefined || record.manifest === undefined || record.error_code !== undefined) fail();
+  } else if ((record.attempt as number) < 1 || started === undefined || completed === undefined || record.manifest !== undefined || record.error_code === undefined) {
+    fail();
+  }
+  return value as RecoveryBackup;
+}
+
+export function decodeRecoveryRestore(value: unknown, expectedScope: string): RecoveryRestore {
+  const optional = ["observed_counts", "validation_evidence", "cleanup_evidence", "error_code", "started_at", "completed_at"] as const;
+  const record = exactRecord(value, ["id", "version", "state", "target_environment", "attempt", "manifest", "created_at"], optional);
+  productID(record.id); boundedInteger(record.version, 1, 1_000_000); enumValue(record.state, ["queued", "verifying", "provisioning", "validating", "rebuilding", "cleanup_required", "cleaning", "succeeded", "retryable", "failed", "failed_cleanup"]); recoveryTarget(record.target_environment, expectedScope); boundedInteger(record.attempt, 0, 100); decodeRecoveryManifestLocator(record.manifest, expectedScope); dateTime(record.created_at);
+  const started = optionalRecoveryTime(record.started_at); const completed = optionalRecoveryTime(record.completed_at); recoveryTimeOrder(record.created_at as string, started, completed);
+  const observed = record.observed_counts === undefined ? undefined : decodeRecoveryCounts(record.observed_counts);
+  const validation = record.validation_evidence === undefined ? undefined : decodeRecoveryValidationEvidence(record.validation_evidence, expectedScope);
+  const cleanup = record.cleanup_evidence === undefined ? undefined : decodeRecoveryCleanupEvidence(record.cleanup_evidence, expectedScope);
+  if (record.error_code !== undefined) enumValue(record.error_code, RECOVERY_ERROR_CODES);
+  if (record.state === "queued") {
+    if (record.attempt !== 0 || started !== undefined || completed !== undefined || observed !== undefined || validation !== undefined || cleanup !== undefined || record.error_code !== undefined) fail();
+  } else if (["verifying", "provisioning", "validating", "rebuilding"].includes(record.state as string)) {
+    if ((record.attempt as number) < 1 || started === undefined || completed !== undefined || observed !== undefined || cleanup !== undefined || record.error_code !== undefined) fail();
+  } else if (record.state === "cleanup_required" || record.state === "cleaning") {
+    if ((record.attempt as number) < 1 || started === undefined || completed !== undefined) fail();
+  } else if (record.state === "retryable") {
+    if ((record.attempt as number) < 1 || started === undefined || completed !== undefined || record.error_code === undefined) fail();
+  } else if (record.state === "succeeded") {
+    if ((record.attempt as number) < 1 || started === undefined || completed === undefined || record.error_code !== undefined || observed === undefined || validation === undefined || cleanup?.state !== "deleted" || !sameRecoveryCounts(observed, validation.observed_counts)) fail();
+  } else if (record.state === "failed_cleanup") {
+    if ((record.attempt as number) < 1 || started === undefined || completed === undefined || record.error_code === undefined || cleanup?.state !== "failed") fail();
+  } else if ((record.attempt as number) < 1 || started === undefined || completed === undefined || record.error_code === undefined) {
+    fail();
+  }
+  return value as RecoveryRestore;
+}
+
+function decodeRecoveryManifestLocator(value: unknown, expectedScope: string): void {
+  const record = exactRecord(value, ["reference", "version_id", "sha256", "size_bytes", "media_type", "schema", "signing_key_id", "signature"]);
+  decodeRecoveryArtifactFields(record, expectedScope);
+  if (record.media_type !== "application/vnd.zasp.recovery-manifest+json" || record.schema !== "recovery_signed_manifest_v1" || typeof record.signing_key_id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(record.signing_key_id) || typeof record.signature !== "string" || record.signature.length < 43 || record.signature.length > 684 || record.signature.length % 4 === 1 || !/^[A-Za-z0-9+/]+$/.test(record.signature)) fail();
+}
+
+function decodeRecoveryArtifactLocator(value: unknown, expectedScope: string): void {
+  decodeRecoveryArtifactFields(exactRecord(value, ["reference", "version_id", "sha256", "size_bytes", "media_type", "schema"]), expectedScope);
+}
+
+function decodeRecoveryArtifactFields(record: Record<string, unknown>, expectedScope: string): void {
+  const [organizationID, workspaceID, environmentID, ...rest] = expectedScope.split("/");
+  if (rest.length !== 0) fail(); productID(organizationID); productID(workspaceID); productID(environmentID);
+  const prefix = `organizations/${organizationID}/workspaces/${workspaceID}/environments/${environmentID}/artifacts/`;
+  if (typeof record.reference !== "string") fail();
+  const match = /^s3:\/\/([a-z0-9][a-z0-9.-]{1,61}[a-z0-9])\/(.+)$/.exec(record.reference);
+  if (!match || !match[2].startsWith(prefix) || match[2].slice(prefix.length).includes("/")) fail(); productID(match[2]?.slice(prefix.length));
+  printableString(record.version_id, 1, 1024); if (!/^[A-Za-z0-9._~+/=-]+$/.test(record.version_id)) fail();
+  if (typeof record.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(record.sha256) || /^0{64}$/.test(record.sha256)) fail();
+  boundedInteger(record.size_bytes, 1, 64 << 20); if (typeof record.media_type !== "string" || !/^[a-z0-9][a-z0-9.+-]{0,63}\/[a-z0-9][a-z0-9.+-]{0,127}$/.test(record.media_type)) fail(); if (typeof record.schema !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(record.schema)) fail();
+}
+
+function decodeRecoveryCounts(value: unknown): RecoveryCounts {
+  const record = exactRecord(value, ["assets", "findings", "policies"]); for (const key of ["assets", "findings", "policies"] as const) boundedInteger(record[key], 0, 1_000_000_000); return value as RecoveryCounts;
+}
+
+function decodeRecoveryValidationEvidence(value: unknown, expectedScope: string): { state: "validated"; expected_counts: RecoveryCounts; observed_counts: RecoveryCounts } {
+  const record = exactRecord(value, ["state", "expected_counts", "observed_counts", "evidence"]); if (record.state !== "validated") fail(); const expected = decodeRecoveryCounts(record.expected_counts); const observed = decodeRecoveryCounts(record.observed_counts); if (!sameRecoveryCounts(expected, observed)) fail(); decodeRecoveryArtifactLocator(record.evidence, expectedScope); return { state: "validated", expected_counts: expected, observed_counts: observed };
+}
+
+function decodeRecoveryCleanupEvidence(value: unknown, expectedScope: string): { state: "deleted" | "failed" } {
+  const record = exactRecord(value, ["state", "evidence"]); enumValue(record.state, ["deleted", "failed"]); decodeRecoveryArtifactLocator(record.evidence, expectedScope); return { state: record.state as "deleted" | "failed" };
+}
+
+function sameRecoveryCounts(left: RecoveryCounts, right: RecoveryCounts): boolean { return left.assets === right.assets && left.findings === right.findings && left.policies === right.policies; }
+function optionalRecoveryTime(value: unknown): string | undefined { if (value === undefined) return undefined; dateTime(value); return value; }
+function recoveryTimeOrder(created: string, started?: string, completed?: string): void { if (started !== undefined && Date.parse(started) < Date.parse(created) || completed !== undefined && (Date.parse(completed) < Date.parse(created) || started !== undefined && Date.parse(completed) < Date.parse(started))) fail(); }
+function recoveryTarget(value: unknown, expectedScope: string): void { printableString(value, 1, 63); if (!/^[a-z][a-z0-9-]{0,62}$/.test(value) || value === "production" || value === expectedScope.split("/")[2]) fail(); }
 
 export function decodeSecurityAgentDefinition(value: unknown): SecurityAgentDefinition { const record = exactRecord(value, ["id", "name", "trigger_kind", "trigger_source", "environment_ids", "autonomy", "max_steps", "max_duration_seconds", "temporary_policy_seconds", "ai_token_budget", "concurrency_limit", "allowed_actions", "verification_kind", "definition_version", "enabled"]); productID(record.id); boundedString(record.name, 1, 256); enumValue(record.trigger_kind, ["finding", "attack_path", "runtime_decision"]); boundedString(record.trigger_source, 1, 64); productIDArray(record.environment_ids, 100); enumValue(record.autonomy, ["supervised", "autonomous"]); boundedInteger(record.max_steps, 1, 100); boundedInteger(record.max_duration_seconds, 1, 86400); boundedInteger(record.temporary_policy_seconds, 1, 86400); boundedInteger(record.ai_token_budget, 1, 12000); boundedInteger(record.concurrency_limit, 1, 10); positiveInteger(record.definition_version); stringArray(record.allowed_actions, 32, 128, 1); boundedString(record.verification_kind, 1, 64); if (typeof record.enabled !== "boolean") fail(); return value as SecurityAgentDefinition; }
 export function decodeSecurityAgentPage(value: unknown): SecurityAgentPage { const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) decodeSecurityAgentDefinition(item); decodePageInfo(record.page_info); return value as SecurityAgentPage; }

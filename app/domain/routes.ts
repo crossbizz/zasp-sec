@@ -45,6 +45,7 @@ export const NAV_GROUPS: readonly NavGroup[] = Object.freeze([
     route({ path: "/administration/identity-access", label: "Identity & Access", title: "Identity and access", icon: "UsersRound" }),
     route({ path: "/administration/audit-log", label: "Audit Log", title: "Audit log", icon: "ScrollText" }),
     route({ path: "/administration/data-retention", label: "Data & Retention", title: "Data and retention", icon: "Database" }),
+    route({ path: "/administration/recovery", label: "Recovery", title: "Recovery operations", icon: "DatabaseBackup" }),
     route({ path: "/administration/external-data-flows", label: "External Data Flows", title: "External data flows", icon: "Network" }),
     route({ path: "/administration/system-health", label: "System Health", title: "System health", icon: "HeartPulse" }),
     route({ path: "/administration/api-access", label: "API Access", title: "API access", icon: "Braces" }),
