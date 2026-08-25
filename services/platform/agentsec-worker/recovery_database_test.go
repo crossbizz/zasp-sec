@@ -28,6 +28,8 @@ func (fake *recoveryDatabaseFake) QueryJSON(_ context.Context, statement string,
 			return json.Marshal(map[string]any{"items": []map[string]any{{"attempt": 1, "environment_id": "pid_71000003-0000-4000-8000-000000000003", "lease_expires_at": time.Now().UTC().Add(30 * time.Second), "manifest": manifest, "manifest_digest": "\\x" + manifest.SHA256, "organization_id": "pid_71000001-0000-4000-8000-000000000001", "request_digest": "\\x2727272727272727272727272727272727272727272727272727272727272727", "restore_id": "pid_71000004-0000-4000-8000-000000000004", "target_environment": "recovery-test", "workspace_id": "pid_71000002-0000-4000-8000-000000000002"}}})
 		}
 		return json.Marshal(map[string]any{"items": []map[string]any{{"attempt": 1, "backup_id": "pid_71000001-0000-4000-8000-000000000001", "environment_id": "pid_71000003-0000-4000-8000-000000000003", "lease_expires_at": time.Now().UTC().Add(30 * time.Second), "organization_id": "pid_71000001-0000-4000-8000-000000000001", "request_digest": "\\x2727272727272727272727272727272727272727272727272727272727272727", "retention_days": 30, "workspace_id": "pid_71000002-0000-4000-8000-000000000002"}}})
+	case recoveryClaimDeliverySQL:
+		return json.Marshal(map[string]any{"disposition": "claimed", "operation": map[string]any{"attempt": 1, "backup_id": "pid_71000001-0000-4000-8000-000000000001", "created_at": time.Now().UTC().Add(-time.Minute), "environment_id": "pid_71000003-0000-4000-8000-000000000003", "lease_expires_at": time.Now().UTC().Add(30 * time.Second), "organization_id": "pid_71000001-0000-4000-8000-000000000001", "request_digest": "\\x2727272727272727272727272727272727272727272727272727272727272727", "retention_days": 30, "workspace_id": "pid_71000002-0000-4000-8000-000000000002"}})
 	case recoveryHeartbeatOperationSQL:
 		return json.Marshal(map[string]any{"lease_expires_at": time.Now().UTC().Add(30 * time.Second)})
 	case recoveryBeginHoldSQL:
@@ -48,6 +50,22 @@ func (fake *recoveryDatabaseFake) QueryJSON(_ context.Context, statement string,
 		return json.RawMessage(`"0/27"`), nil
 	default:
 		return nil, fmt.Errorf("unknown statement")
+	}
+}
+
+func TestPostgresRecoveryOperationAuthorityClaimsExactQueueDelivery(t *testing.T) {
+	database := &recoveryDatabaseFake{}
+	authority, err := newPostgresRecoveryOperationAuthority(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope := recoveryWorkerScopeFromConstants()
+	claim, err := authority.ClaimDelivery(context.Background(), "backup", scope, "pid_71000001-0000-4000-8000-000000000001", "recovery-worker-1", "0123456789abcdef0123456789abcdef", 30)
+	if err != nil || claim.Disposition != "claimed" || claim.Operation.OperationID != "pid_71000001-0000-4000-8000-000000000001" || claim.Operation.CreatedAt.IsZero() {
+		t.Fatalf("claim=%#v err=%v", claim, err)
+	}
+	if got := database.arguments[1]; len(got) != 8 || got[0] != "backup" || got[1] != scope.OrganizationID().String() || got[4] != claim.Operation.OperationID || string(got[6].([]byte)) != "0123456789abcdef0123456789abcdef" {
+		t.Fatalf("arguments=%#v", got)
 	}
 }
 

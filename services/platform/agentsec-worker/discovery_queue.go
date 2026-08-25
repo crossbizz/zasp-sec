@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,12 +24,13 @@ type discoveryQueueAPI interface {
 }
 
 type productionDiscoveryQueueConfig struct {
-	Region            string
-	QueueURL          string
-	OperationTimeout  time.Duration
-	Visibility        time.Duration
-	ShutdownTimeout   time.Duration
-	ExpectedQueueName string
+	Region              string
+	QueueURL            string
+	OperationTimeout    time.Duration
+	Visibility          time.Duration
+	ShutdownTimeout     time.Duration
+	ExpectedQueueName   string
+	MaximumReceiveCount int
 }
 
 type productionDiscoveryQueue struct {
@@ -41,11 +43,14 @@ func newProductionDiscoveryQueue(api discoveryQueueAPI, config productionDiscove
 	if config.ExpectedQueueName == "" {
 		config.ExpectedQueueName = "agentsec-discovery-jobs"
 	}
+	if config.MaximumReceiveCount == 0 {
+		config.MaximumReceiveCount = 5
+	}
 	parsed, parseErr := url.Parse(config.QueueURL)
 	if nilWorkerDependency(api) || parseErr != nil || parsed == nil || !validSQSURL(config.QueueURL) || parsed.Hostname() != "sqs."+config.Region+".amazonaws.com" ||
-		!stringInWorker(config.ExpectedQueueName, "agentsec-discovery-jobs", "agentsec-red-team-tests", "agentsec-attack-lab-jobs") ||
+		!stringInWorker(config.ExpectedQueueName, "agentsec-discovery-jobs", "agentsec-red-team-tests", "agentsec-attack-lab-jobs", "agentsec-recovery-backup-jobs", "agentsec-recovery-restore-jobs") ||
 		config.OperationTimeout < time.Second || config.OperationTimeout > 30*time.Second || config.Visibility < 5*time.Second || config.Visibility > 15*time.Minute || config.Visibility%time.Second != 0 ||
-		config.ShutdownTimeout < time.Second || config.ShutdownTimeout > time.Minute || config.ShutdownTimeout >= config.Visibility {
+		config.ShutdownTimeout < time.Second || config.ShutdownTimeout > time.Minute || config.ShutdownTimeout >= config.Visibility || config.MaximumReceiveCount < 1 || config.MaximumReceiveCount > 1000 {
 		return productionDiscoveryQueue{}, errRuntimeUnavailable
 	}
 	receiveWait := int32(config.OperationTimeout/time.Second) - 1
@@ -55,7 +60,7 @@ func newProductionDiscoveryQueue(api discoveryQueueAPI, config productionDiscove
 	if receiveWait > 20 {
 		receiveWait = 20
 	}
-	driver, err := sqsdriver.New(api, sqsdriver.Config{QueueURL: config.QueueURL, ReceiveWaitSeconds: receiveWait, VisibilityTimeoutSeconds: int32(config.Visibility / time.Second), MaximumReceiveCount: 5})
+	driver, err := sqsdriver.New(api, sqsdriver.Config{QueueURL: config.QueueURL, ReceiveWaitSeconds: receiveWait, VisibilityTimeoutSeconds: int32(config.Visibility / time.Second), MaximumReceiveCount: config.MaximumReceiveCount})
 	if err != nil {
 		return productionDiscoveryQueue{}, errRuntimeUnavailable
 	}
@@ -97,6 +102,9 @@ func readyProductionDiscoveryQueue(ctx context.Context, api discoveryQueueAPI, c
 	if config.ExpectedQueueName == "" {
 		config.ExpectedQueueName = "agentsec-discovery-jobs"
 	}
+	if config.MaximumReceiveCount == 0 {
+		config.MaximumReceiveCount = 5
+	}
 	if ctx == nil || ctx.Err() != nil || nilWorkerDependency(api) {
 		return errRuntimeUnavailable
 	}
@@ -126,7 +134,7 @@ func readyProductionDiscoveryQueue(ctx context.Context, api discoveryQueueAPI, c
 	raw := []byte(output.Attributes[string(types.QueueAttributeNameRedrivePolicy)])
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&redrive) != nil || decoder.Decode(&struct{}{}) != io.EOF || redrive.DeadLetterTargetARN != queueARN+"-dlq" || redrive.MaximumReceiveCount != "5" {
+	if decoder.Decode(&redrive) != nil || decoder.Decode(&struct{}{}) != io.EOF || redrive.DeadLetterTargetARN != queueARN+"-dlq" || redrive.MaximumReceiveCount != strconv.Itoa(config.MaximumReceiveCount) {
 		return errRuntimeUnavailable
 	}
 	return nil

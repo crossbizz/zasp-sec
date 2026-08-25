@@ -13,7 +13,7 @@ func TestProductionRecoveryPinsTenantScopedExecutionAuthority(t *testing.T) {
 	for _, required := range []string{
 		"zasp_recovery_backups", "zasp_recovery_restores", "zasp_recovery_holds", "zasp_recovery_outbox", "zasp_recovery_fairness", "zasp_recovery_principal_bindings",
 		"organization_id,workspace_id,environment_id", "recovery-backup-jobs", "recovery-restore-jobs", "cleanup_required", "failed_cleanup",
-		"zasp_recovery_register_principals", "zasp_recovery_create_backup", "zasp_recovery_create_restore", "zasp_recovery_claim_outbox", "zasp_recovery_claim_operation",
+		"zasp_recovery_register_principals", "zasp_recovery_create_backup", "zasp_recovery_create_restore", "zasp_recovery_claim_outbox", "zasp_recovery_claim_operation", "zasp_recovery_claim_delivery",
 		"zasp_recovery_heartbeat_operation", "zasp_recovery_begin_hold", "zasp_recovery_release_hold", "zasp_recovery_capture_page", "zasp_recovery_finish_backup", "zasp_recovery_finish_restore",
 		"zasp_recovery_validate_scope",
 		"zasp_recovery_scope_mutable", "zasp_recovery_execution_readiness", "zasp_recovery_execution_live_fingerprint", "zasp_recovery_execution_security_ready",
@@ -43,7 +43,7 @@ func TestProductionRecoveryFunctionsFenceScopeLeaseAndDigest(t *testing.T) {
 	up := ProductionRecovery().UpSQL()
 	for _, required := range []string{
 		"octet_length(request_digest)=32", "octet_length(lease_token)=32", "attempt BETWEEN 0 AND 100", "retention_days BETWEEN 7 AND 90",
-		"FOR UPDATE", "lease_expires_at>transaction_timestamp()", "request_digest<>request_digest_value", "manifest_digest", "payload_digest",
+		"FOR UPDATE", "lease_expires_at>transaction_timestamp()", "request_digest<>request_digest_value", "manifest_digest", "payload_digest", "'ack_terminal'", "'retry_later'", "'exhausted'",
 		"ENABLE ROW LEVEL SECURITY", "FORCE ROW LEVEL SECURITY", "SECURITY DEFINER SET search_path TO pg_catalog, public",
 		"zasp_recovery_worker", "zasp_recovery_outbox_worker", "NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS",
 	} {

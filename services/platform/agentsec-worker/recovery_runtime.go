@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"strings"
 	"sync/atomic"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 )
 
 const (
@@ -24,6 +26,12 @@ type recoveryOperationClaim struct {
 	RetentionDays     int
 	TargetEnvironment string
 	Manifest          *apiserver.RecoveryManifestLocator
+	CreatedAt         time.Time
+}
+
+type recoveryDeliveryClaim struct {
+	Disposition string
+	Operation   recoveryOperationClaim
 }
 
 type recoveryOperationLease struct {
@@ -56,19 +64,26 @@ type recoveryOperationAuthority interface {
 	Fail(context.Context, recoveryOperationLease, string, time.Duration, *apiserver.RecoveryCleanupEvidence) error
 }
 
+type recoveryDeliveryAuthority interface {
+	ClaimDelivery(context.Context, string, domain.Scope, string, string, string, int) (recoveryDeliveryClaim, error)
+}
+
 type recoveryBackupPublisher interface {
 	Publish(context.Context, recoveryBackupPublication) (apiserver.RecoveryManifestLocator, error)
 }
 
 type recoveryBackupProcessorConfig struct {
 	Authority         recoveryOperationAuthority
+	Queue             discoveryQueue
 	Publisher         recoveryBackupPublisher
+	Metrics           *recoveryMetrics
 	WorkerID          string
 	LeaseSeconds      int
 	BatchSize         int
 	HeartbeatInterval time.Duration
 	PageSize          int
 	NewLeaseToken     func() (string, error)
+	Now               func() time.Time
 }
 
 type recoveryBackupProcessor struct{ config recoveryBackupProcessorConfig }
@@ -77,7 +92,12 @@ func newRecoveryBackupProcessor(config recoveryBackupProcessorConfig) (*recovery
 	if config.HeartbeatInterval == 0 {
 		config.HeartbeatInterval = time.Duration(config.LeaseSeconds) * time.Second / 3
 	}
-	if config.Authority == nil || config.Publisher == nil || config.NewLeaseToken == nil || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 5 || config.LeaseSeconds > 900 || config.BatchSize < 1 || config.BatchSize > 25 || config.PageSize < 1 || config.PageSize > 100 || config.HeartbeatInterval < time.Millisecond || config.HeartbeatInterval > time.Duration(config.LeaseSeconds)*time.Second/2 {
+	if config.Now == nil {
+		config.Now = func() time.Time { return time.Now().UTC() }
+	}
+	_, extendsVisibility := config.Queue.(jobqueue.VisibilityExtender)
+	_, claimsDeliveries := config.Authority.(recoveryDeliveryAuthority)
+	if config.Authority == nil || config.Publisher == nil || config.NewLeaseToken == nil || config.Queue != nil && (!extendsVisibility || !claimsDeliveries) || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 5 || config.LeaseSeconds > 900 || config.BatchSize < 1 || config.BatchSize > 25 || config.PageSize < 1 || config.PageSize > 100 || config.HeartbeatInterval < time.Millisecond || config.HeartbeatInterval > time.Duration(config.LeaseSeconds)*time.Second/2 {
 		return nil, errWorkerExecution
 	}
 	return &recoveryBackupProcessor{config: config}, nil
@@ -86,6 +106,9 @@ func newRecoveryBackupProcessor(config recoveryBackupProcessorConfig) (*recovery
 func (processor *recoveryBackupProcessor) RunOnce(ctx context.Context) error {
 	if processor == nil || ctx == nil || ctx.Err() != nil || processor.config.Authority.Ready(ctx) != nil {
 		return errWorkerExecution
+	}
+	if processor.config.Queue != nil {
+		return processor.runDeliveries(ctx)
 	}
 	token, err := processor.config.NewLeaseToken()
 	if err != nil || len(token) != 32 {
@@ -98,7 +121,7 @@ func (processor *recoveryBackupProcessor) RunOnce(ctx context.Context) error {
 	results := make(chan error, len(claims))
 	for _, claim := range claims {
 		claim := claim
-		go func() { results <- processor.process(ctx, token, claim) }()
+		go func() { results <- processor.process(ctx, token, claim, nil) }()
 	}
 	failed := false
 	for range claims {
@@ -112,7 +135,76 @@ func (processor *recoveryBackupProcessor) RunOnce(ctx context.Context) error {
 	return nil
 }
 
-func (processor *recoveryBackupProcessor) process(ctx context.Context, token string, claim recoveryOperationClaim) error {
+func (processor *recoveryBackupProcessor) runDeliveries(ctx context.Context) error {
+	deliveries, err := processor.config.Queue.ConsumeBatch(ctx, processor.config.BatchSize)
+	if err != nil {
+		return errWorkerExecution
+	}
+	if len(deliveries) == 0 {
+		processor.config.Metrics.observeEmptyClaim()
+		return nil
+	}
+	results := make(chan error, len(deliveries))
+	for _, delivery := range deliveries {
+		delivery := delivery
+		go func() { results <- processor.runDelivery(ctx, delivery) }()
+	}
+	failed := false
+	for range deliveries {
+		if <-results != nil {
+			failed = true
+		}
+	}
+	if failed {
+		return errWorkerExecution
+	}
+	return nil
+}
+
+func (processor *recoveryBackupProcessor) runDelivery(ctx context.Context, delivery jobqueue.Delivery) error {
+	if !validRecoveryDelivery(delivery, "backup") {
+		return errWorkerExecution
+	}
+	token, err := processor.config.NewLeaseToken()
+	if err != nil || len(token) != 32 {
+		return errWorkerExecution
+	}
+	claim, err := processor.config.Authority.(recoveryDeliveryAuthority).ClaimDelivery(ctx, "backup", delivery.Job.Scope, delivery.Job.JobID.String(), processor.config.WorkerID, token, processor.config.LeaseSeconds)
+	if err != nil {
+		return errWorkerExecution
+	}
+	switch claim.Disposition {
+	case "retry_later":
+		return nil
+	case "ack_terminal":
+		return processor.acknowledge(ctx, delivery.Receipt)
+	case "exhausted":
+		processor.config.Metrics.observeExhaustion()
+		return processor.acknowledge(ctx, delivery.Receipt)
+	case "claimed":
+		if claim.Operation.Kind != "backup" || claim.Operation.Scope != delivery.Job.Scope || claim.Operation.OperationID != delivery.Job.JobID.String() {
+			return errWorkerExecution
+		}
+		processor.config.Metrics.observeClaim(claim.Operation, processor.config.Now().UTC())
+		if processor.process(ctx, token, claim.Operation, &delivery.Receipt) != nil {
+			return errWorkerExecution
+		}
+		return processor.acknowledge(ctx, delivery.Receipt)
+	default:
+		return errWorkerExecution
+	}
+}
+
+func (processor *recoveryBackupProcessor) acknowledge(ctx context.Context, receipt jobqueue.Receipt) error {
+	ackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), minDuration(time.Duration(processor.config.LeaseSeconds)*time.Second/3, 30*time.Second))
+	defer cancel()
+	if processor.config.Queue.AcknowledgeBatch(ackCtx, []jobqueue.Receipt{receipt}) != nil {
+		return errWorkerExecution
+	}
+	return nil
+}
+
+func (processor *recoveryBackupProcessor) process(ctx context.Context, token string, claim recoveryOperationClaim, receipt *jobqueue.Receipt) error {
 	if !validRecoveryOperationClaim(claim) || claim.Kind != "backup" {
 		return errWorkerExecution
 	}
@@ -124,10 +216,11 @@ func (processor *recoveryBackupProcessor) process(ctx context.Context, token str
 	defer cancelWork()
 	var leaseLost atomic.Bool
 	heartbeatDone := make(chan struct{})
-	go processor.keepLease(workCtx, lease, cancelWork, &leaseLost, heartbeatDone)
+	go processor.keepLease(workCtx, lease, receipt, cancelWork, &leaseLost, heartbeatDone)
 	if processor.config.Authority.BeginHold(workCtx, lease) != nil {
 		return processor.stopAndFail(ctx, cancelWork, heartbeatDone, &leaseLost, lease, "outcome_unknown")
 	}
+	processor.config.Metrics.beginHold(processor.config.Now().UTC())
 	sections := make(map[string][]json.RawMessage, 4)
 	totalBytes := 0
 	for _, section := range []string{"configuration", "projection", "evidence", "counts"} {
@@ -154,6 +247,7 @@ func (processor *recoveryBackupProcessor) process(ctx context.Context, token str
 		<-heartbeatDone
 		return errWorkerExecution
 	}
+	processor.config.Metrics.endHold()
 	cancelWork()
 	<-heartbeatDone
 	return nil
@@ -195,7 +289,7 @@ func (processor *recoveryBackupProcessor) captureSection(ctx context.Context, le
 	return nil, errWorkerExecution
 }
 
-func (processor *recoveryBackupProcessor) keepLease(ctx context.Context, lease recoveryOperationLease, cancelWork context.CancelFunc, leaseLost *atomic.Bool, done chan<- struct{}) {
+func (processor *recoveryBackupProcessor) keepLease(ctx context.Context, lease recoveryOperationLease, receipt *jobqueue.Receipt, cancelWork context.CancelFunc, leaseLost *atomic.Bool, done chan<- struct{}) {
 	defer close(done)
 	ticker := time.NewTicker(processor.config.HeartbeatInterval)
 	defer ticker.Stop()
@@ -206,8 +300,12 @@ func (processor *recoveryBackupProcessor) keepLease(ctx context.Context, lease r
 		case <-ticker.C:
 			renewCtx, cancel := context.WithTimeout(ctx, minDuration(processor.config.HeartbeatInterval, 5*time.Second))
 			err := processor.config.Authority.Heartbeat(renewCtx, lease, processor.config.LeaseSeconds)
+			if err == nil && receipt != nil {
+				err = processor.config.Queue.(jobqueue.VisibilityExtender).ExtendVisibility(renewCtx, []jobqueue.Receipt{*receipt}, time.Duration(processor.config.LeaseSeconds)*time.Second)
+			}
 			cancel()
 			if err != nil {
+				processor.config.Metrics.observeLeaseLoss()
 				leaseLost.Store(true)
 				cancelWork()
 				return
@@ -227,6 +325,7 @@ func (processor *recoveryBackupProcessor) stopReleaseAndFail(ctx context.Context
 	if processor.config.Authority.ReleaseHold(cleanupCtx, lease) != nil || processor.config.Authority.Fail(cleanupCtx, lease, code, 30*time.Second, nil) != nil {
 		return errWorkerExecution
 	}
+	processor.config.Metrics.endHold()
 	return errWorkerExecution
 }
 
@@ -262,6 +361,18 @@ func validRecoveryOperationClaim(claim recoveryOperationClaim) bool {
 		return claim.RetentionDays >= 7 && claim.RetentionDays <= 90 && claim.TargetEnvironment == "" && claim.Manifest == nil
 	}
 	return claim.Kind == "restore" && claim.RetentionDays == 0 && validRecoveryTargetEnvironment(claim.TargetEnvironment, claim.Scope) && claim.Manifest != nil && validPublishedRecoveryManifest(*claim.Manifest, claim.Scope)
+}
+
+func validRecoveryDelivery(delivery jobqueue.Delivery, kind string) bool {
+	if delivery.Job.Scope.Validate() != nil || delivery.Job.JobID.IsZero() || !stringInWorker(kind, "backup", "restore") || delivery.Job.Kind != "recovery-"+kind || len(delivery.Job.Payload) < 2 || len(delivery.Job.Payload) > 65536 || sha256.Sum256(delivery.Job.Payload) != delivery.Job.AuthorityDigest {
+		return false
+	}
+	if kind == "backup" {
+		var payload recoveryBackupOutboxPayload
+		return decodeExactRecoveryOutboxPayload(delivery.Job.Payload, &payload) == nil && payload.BackupID == delivery.Job.JobID.String() && payload.OrganizationID == delivery.Job.Scope.OrganizationID().String() && payload.WorkspaceID == delivery.Job.Scope.WorkspaceID().String() && payload.EnvironmentID == delivery.Job.Scope.EnvironmentID().String()
+	}
+	var payload recoveryRestoreOutboxPayload
+	return decodeExactRecoveryOutboxPayload(delivery.Job.Payload, &payload) == nil && payload.RestoreID == delivery.Job.JobID.String() && payload.OrganizationID == delivery.Job.Scope.OrganizationID().String() && payload.WorkspaceID == delivery.Job.Scope.WorkspaceID().String() && payload.EnvironmentID == delivery.Job.Scope.EnvironmentID().String() && validRecoveryTargetEnvironment(payload.TargetEnvironment, delivery.Job.Scope)
 }
 
 func validRecoveryTargetEnvironment(value string, scope domain.Scope) bool {

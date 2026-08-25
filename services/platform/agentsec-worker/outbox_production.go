@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -170,7 +171,8 @@ func newProductionOutboxPublisher(ctx context.Context, config workerRuntimeConfi
 		transport.CloseIdleConnections()
 		return productionOutboxPublisher{}, errRuntimeUnavailable
 	}
-	driver, err := sqsdriver.New(sqsClient, sqsdriver.Config{QueueURL: queueURL, ReceiveWaitSeconds: 0, VisibilityTimeoutSeconds: int32(config.LeaseDuration / time.Second), MaximumReceiveCount: 5})
+	maximumReceiveCount := outboxMaximumReceiveCount(config)
+	driver, err := sqsdriver.New(sqsClient, sqsdriver.Config{QueueURL: queueURL, ReceiveWaitSeconds: 0, VisibilityTimeoutSeconds: int32(config.LeaseDuration / time.Second), MaximumReceiveCount: maximumReceiveCount})
 	if err != nil {
 		transport.CloseIdleConnections()
 		return productionOutboxPublisher{}, errRuntimeUnavailable
@@ -221,10 +223,17 @@ func outboxQueueReady(ctx context.Context, api outboxQueueReadinessAPI, config w
 	raw := []byte(output.Attributes[string(sqstypes.QueueAttributeNameRedrivePolicy)])
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&redrive) != nil || decoder.Decode(&struct{}{}) != io.EOF || redrive.DeadLetterTargetARN != queueARN+"-dlq" || redrive.MaximumReceiveCount != "5" {
+	if decoder.Decode(&redrive) != nil || decoder.Decode(&struct{}{}) != io.EOF || redrive.DeadLetterTargetARN != queueARN+"-dlq" || redrive.MaximumReceiveCount != strconv.Itoa(outboxMaximumReceiveCount(config)) {
 		return errRuntimeUnavailable
 	}
 	return nil
+}
+
+func outboxMaximumReceiveCount(config workerRuntimeConfig) int {
+	if config.Mode == workerModeRecoveryOutbox {
+		return 100
+	}
+	return 5
 }
 
 var _ aws.CredentialsProvider = (*outboxWebIdentityProvider)(nil)

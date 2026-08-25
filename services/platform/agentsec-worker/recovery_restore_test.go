@@ -11,6 +11,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 	"github.com/zasp-ai/zasp-sec/services/platform/recovery"
 )
 
@@ -33,6 +34,15 @@ func (fake *recoveryRestoreAuthorityFake) Claim(_ context.Context, kind, _, _ st
 	defer fake.mu.Unlock()
 	fake.steps = append(fake.steps, "claim:"+kind)
 	return []recoveryOperationClaim{fake.claim}, nil
+}
+func (fake *recoveryRestoreAuthorityFake) ClaimDelivery(_ context.Context, kind string, scope domain.Scope, operationID, _, _ string, _ int) (recoveryDeliveryClaim, error) {
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	fake.steps = append(fake.steps, "claim-delivery:"+kind+":"+operationID)
+	claim := fake.claim
+	claim.Scope = scope
+	claim.OperationID = operationID
+	return recoveryDeliveryClaim{Disposition: "claimed", Operation: claim}, nil
 }
 func (fake *recoveryRestoreAuthorityFake) Heartbeat(context.Context, recoveryOperationLease, int) error {
 	fake.mu.Lock()
@@ -84,14 +94,57 @@ type recoveryManifestLoaderFake struct {
 	manifest recovery.Manifest
 	err      error
 	calls    int
+	delay    time.Duration
 }
 
-func (fake *recoveryManifestLoaderFake) Load(context.Context, recoveryOperationClaim) (recoveryLoadedManifest, error) {
+func (fake *recoveryManifestLoaderFake) Load(ctx context.Context, _ recoveryOperationClaim) (recoveryLoadedManifest, error) {
 	fake.calls++
+	if fake.delay > 0 {
+		select {
+		case <-ctx.Done():
+			return recoveryLoadedManifest{}, ctx.Err()
+		case <-time.After(fake.delay):
+		}
+	}
 	return recoveryLoadedManifest{
 		Manifest:             fake.manifest,
 		EvidenceSampleDigest: sha256.Sum256([]byte("recovery evidence sample")),
 	}, fake.err
+}
+
+func TestRecoveryRestoreProcessorConsumesExactDeliveryRenewsVisibilityAndAcknowledgesLast(t *testing.T) {
+	scope := recoveryWorkerScope(t)
+	operationID, _ := domain.ParseProductID("pid_71000004-0000-4000-8000-000000000004")
+	payload := []byte(`{"environment_id":"pid_71000003-0000-4000-8000-000000000003","organization_id":"pid_71000001-0000-4000-8000-000000000001","restore_id":"pid_71000004-0000-4000-8000-000000000004","target_environment":"recovery-test","workspace_id":"pid_71000002-0000-4000-8000-000000000002"}`)
+	digest := sha256.Sum256(payload)
+	steps := []string{}
+	visibility := make(chan struct{}, 1)
+	queue := &recordingDiscoveryQueue{deliveries: []jobqueue.Delivery{{Job: jobqueue.Job{Scope: scope, JobID: operationID, Kind: "recovery-restore", Payload: payload, AuthorityDigest: digest}}}, steps: &steps, visibilitySeen: visibility}
+	manifest := recoveryRestoreManifest(t, scope)
+	authority := &recoveryRestoreAuthorityFake{claim: recoveryRestoreClaim(scope)}
+	infrastructure := &recoveryRestoreInfrastructureFake{
+		provisioned: recoveryRestoreTarget{BranchID: "br-recovery-123456", Namespace: "zasp-recovery-71000004000040008000000000000004", NamespaceUID: "11111111-2222-4333-8444-555555555555", ScopeDigest: "aaaaaaaaaaaaaaaa"},
+		observed:    apiserver.RecoveryCounts{Assets: 3, Findings: 2, Policies: 1}, validation: recoveryEvidenceLocator(scope, "pid_71000008-0000-4000-8000-000000000008", "recovery_validation_v1"), rebuildDigest: manifest.Projection.SHA256,
+		cleanup: apiserver.RecoveryCleanupEvidence{State: "deleted", Evidence: recoveryEvidenceLocator(scope, "pid_71000009-0000-4000-8000-000000000009", "recovery_cleanup_v1")},
+	}
+	processor, err := newRecoveryRestoreProcessor(recoveryRestoreProcessorConfig{
+		Authority: authority, Queue: queue, Loader: &recoveryManifestLoaderFake{manifest: manifest, delay: 20 * time.Millisecond}, Infrastructure: infrastructure, Metrics: newRecoveryMetrics(), WorkerID: "recovery-worker-1", LeaseSeconds: 5, BatchSize: 1,
+		HeartbeatInterval: 5 * time.Millisecond, NewLeaseToken: func() (string, error) { return "0123456789abcdef0123456789abcdef", nil }, Now: func() time.Time { return time.Now().UTC() },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := processor.RunOnce(context.Background()); err != nil {
+		t.Fatalf("RunOnce error=%v steps=%v", err, steps)
+	}
+	select {
+	case <-visibility:
+	default:
+		t.Fatal("queue visibility was not renewed")
+	}
+	if len(steps) != 2 || steps[0] != "consume" || steps[1] != "ack" || !authority.finished || len(authority.steps) == 0 || !strings.HasPrefix(authority.steps[0], "claim-delivery:restore:") {
+		t.Fatalf("queue steps=%v authority steps=%v finished=%v", steps, authority.steps, authority.finished)
+	}
 }
 
 type recoveryRestoreInfrastructureFake struct {
