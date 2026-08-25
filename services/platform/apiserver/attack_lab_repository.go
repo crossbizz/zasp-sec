@@ -219,7 +219,7 @@ func decodeAttackLabMutation(payload json.RawMessage, runID, sourceRedTeamRunID 
 }
 
 func validAttackLabRepositoryRequest(repository *PostgresRepository, ctx context.Context, identity RequestIdentity) bool {
-	return repository != nil && repository.schema == AttackLabExecutionSchemaVersion && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil && validRedTeamCredential(identity)
+	return repository != nil && stringIn(repository.schema, AttackLabExecutionSchemaVersion, ProductionRecoverySchemaVersion) && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil && validRedTeamCredential(identity)
 }
 
 func validAttackLabRun(value AttackLabRun) bool {

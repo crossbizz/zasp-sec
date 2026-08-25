@@ -2288,6 +2288,114 @@ paths:
         '200': { description: Product service version., content: { application/json: { schema: { $ref: '#/components/schemas/SystemVersion' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/recovery/backups:
+    post:
+      operationId: startRecoveryBackup
+      summary: Start a tenant-scoped signed backup
+      description: Requires fresh human authentication or a scoped ProductAPIToken. The accepted job drains only the authenticated organization, workspace, and environment before publishing a signed, version-pinned manifest.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ControlVersion'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryBackupInput' } } } }
+      responses:
+        '202':
+          description: Durable queued recovery backup.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryBackup' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/recovery/backups/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getRecoveryBackup
+      summary: Get one tenant-scoped recovery backup
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      responses:
+        '200':
+          description: Redacted recovery backup state.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryBackup' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/recovery/restores:
+    post:
+      operationId: startRecoveryRestore
+      summary: Start a tenant-scoped isolated restore rehearsal
+      description: Requires fresh human authentication or a scoped ProductAPIToken. Restore is accepted only into a distinct, non-production target and from the exact signed manifest locator returned by the authenticated tenant's backup authority.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ControlVersion'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryRestoreInput' } } } }
+      responses:
+        '202':
+          description: Durable queued restore rehearsal.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryRestore' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/recovery/restores/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getRecoveryRestore
+      summary: Get one tenant-scoped isolated restore rehearsal
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      responses:
+        '200':
+          description: Redacted restore, validation, and cleanup state.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/RecoveryRestore' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/tests:
     get:
       operationId: listTests
@@ -2644,6 +2752,111 @@ components:
       description: Quoted current schedule version, or quoted zero when creating the singleton schedule.
       schema: { type: string, pattern: '^"(?:0|[1-9][0-9]*)"$' }
   schemas:
+    RecoveryBackupInput:
+      type: object
+      additionalProperties: false
+      required: [backup_id, retention_days]
+      properties:
+        backup_id: { $ref: '#/components/schemas/ProductID' }
+        retention_days: { type: integer, minimum: 7, maximum: 90 }
+    RecoveryRestoreInput:
+      type: object
+      additionalProperties: false
+      required: [restore_id, target_environment, manifest]
+      properties:
+        restore_id: { $ref: '#/components/schemas/ProductID' }
+        target_environment: { $ref: '#/components/schemas/RecoveryTargetEnvironment' }
+        manifest: { $ref: '#/components/schemas/RecoveryManifestLocator' }
+    RecoveryTargetEnvironment:
+      type: string
+      minLength: 1
+      maxLength: 63
+      pattern: '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$'
+      not: { const: production }
+    RecoveryArtifactLocator:
+      type: object
+      additionalProperties: false
+      required: [reference, version_id, sha256, size_bytes, media_type, schema]
+      properties:
+        reference: { type: string, minLength: 32, maxLength: 2048, pattern: '^s3://[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]/organizations/pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/workspaces/pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/environments/pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/artifacts/pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
+        version_id: { type: string, minLength: 1, maxLength: 1024, pattern: '^[A-Za-z0-9._~+/=-]+$' }
+        sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        size_bytes: { type: integer, minimum: 1, maximum: 67108864 }
+        media_type: { type: string, minLength: 3, maxLength: 193, pattern: '^[a-z0-9][a-z0-9.+-]{0,63}/[a-z0-9][a-z0-9.+-]{0,127}$' }
+        schema: { type: string, minLength: 1, maxLength: 64, pattern: '^[a-z][a-z0-9_]{0,63}$' }
+    RecoveryManifestLocator:
+      type: object
+      additionalProperties: false
+      required: [reference, version_id, sha256, size_bytes, media_type, schema, signing_key_id, signature]
+      properties:
+        reference: { type: string, minLength: 32, maxLength: 2048, pattern: '^s3://[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]/organizations/pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/workspaces/pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/environments/pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/artifacts/pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
+        version_id: { type: string, minLength: 1, maxLength: 1024, pattern: '^[A-Za-z0-9._~+/=-]+$' }
+        sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        size_bytes: { type: integer, minimum: 1, maximum: 67108864 }
+        media_type: { type: string, const: application/vnd.zasp.recovery-manifest+json }
+        schema: { type: string, const: recovery_signed_manifest_v1 }
+        signing_key_id: { type: string, format: uuid, pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
+        signature: { type: string, minLength: 43, maxLength: 684, pattern: '^[A-Za-z0-9+/]+$' }
+    RecoveryCounts:
+      type: object
+      additionalProperties: false
+      required: [assets, findings, policies]
+      properties:
+        assets: { type: integer, minimum: 0, maximum: 1000000000 }
+        findings: { type: integer, minimum: 0, maximum: 1000000000 }
+        policies: { type: integer, minimum: 0, maximum: 1000000000 }
+    RecoveryValidationEvidence:
+      type: object
+      additionalProperties: false
+      required: [state, expected_counts, observed_counts, evidence]
+      properties:
+        state: { type: string, const: validated }
+        expected_counts: { $ref: '#/components/schemas/RecoveryCounts' }
+        observed_counts: { $ref: '#/components/schemas/RecoveryCounts' }
+        evidence: { $ref: '#/components/schemas/RecoveryArtifactLocator' }
+    RecoveryCleanupEvidence:
+      type: object
+      additionalProperties: false
+      required: [state, evidence]
+      properties:
+        state: { type: string, enum: [deleted, failed] }
+        evidence: { $ref: '#/components/schemas/RecoveryArtifactLocator' }
+    RecoveryErrorCode:
+      type: string
+      enum: [dependency_unavailable, outcome_unknown, signature_invalid, manifest_invalid, manifest_expired, validation_failed, projection_mismatch, cleanup_failed, exhausted, lease_lost, cancelled]
+    RecoveryBackup:
+      type: object
+      additionalProperties: false
+      required: [id, version, state, retention_days, attempt, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 1, maximum: 1000000 }
+        state: { type: string, enum: [queued, draining, capturing, publishing, succeeded, retryable, failed] }
+        retention_days: { type: integer, minimum: 7, maximum: 90 }
+        attempt: { type: integer, minimum: 0, maximum: 100 }
+        manifest: { $ref: '#/components/schemas/RecoveryManifestLocator' }
+        error_code: { $ref: '#/components/schemas/RecoveryErrorCode' }
+        created_at: { type: string, format: date-time }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+    RecoveryRestore:
+      type: object
+      additionalProperties: false
+      required: [id, version, state, target_environment, attempt, manifest, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        version: { type: integer, minimum: 1, maximum: 1000000 }
+        state: { type: string, enum: [queued, verifying, provisioning, validating, rebuilding, cleanup_required, cleaning, succeeded, retryable, failed, failed_cleanup] }
+        target_environment: { $ref: '#/components/schemas/RecoveryTargetEnvironment' }
+        attempt: { type: integer, minimum: 0, maximum: 100 }
+        manifest: { $ref: '#/components/schemas/RecoveryManifestLocator' }
+        observed_counts: { $ref: '#/components/schemas/RecoveryCounts' }
+        validation_evidence: { $ref: '#/components/schemas/RecoveryValidationEvidence' }
+        cleanup_evidence: { $ref: '#/components/schemas/RecoveryCleanupEvidence' }
+        error_code: { $ref: '#/components/schemas/RecoveryErrorCode' }
+        created_at: { type: string, format: date-time }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
     WorkflowMutationReceipt:
       oneOf:
         - { $ref: '#/components/schemas/StandardWorkflowMutationReceipt' }

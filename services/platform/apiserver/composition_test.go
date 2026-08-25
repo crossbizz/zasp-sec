@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 136 || len(public) != 136 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 136/136", len(seen), len(public))
+	if len(seen) != 140 || len(public) != 140 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 140/140", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -117,6 +117,18 @@ func TestCoreCompositionHasExactProductionSecuritySurfaceWithoutUnimplementedOve
 		definition, ok := definitions[operationID]
 		if !ok || definition.Permission != "view" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
 			t.Errorf("discovery read %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
+		}
+	}
+	for _, operationID := range []string{"startRecoveryBackup", "startRecoveryRestore"} {
+		definition, ok := definitions[operationID]
+		if !ok || definition.Permission != "manage_identity" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || !requiresFreshAuthentication(operationID) {
+			t.Errorf("recovery mutation %q definition=%#v exists=%v", operationID, definition, ok)
+		}
+	}
+	for _, operationID := range []string{"getRecoveryBackup", "getRecoveryRestore"} {
+		definition, ok := definitions[operationID]
+		if !ok || definition.Permission != "view" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) || requiresFreshAuthentication(operationID) {
+			t.Errorf("recovery read %q definition=%#v exists=%v", operationID, definition, ok)
 		}
 	}
 	if definition, ok := definitions["updateAgent"]; !ok || definition.Permission != "manage_workflows" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {

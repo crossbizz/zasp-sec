@@ -301,7 +301,7 @@ func (repository *PostgresRepository) CancelRedTeamRun(ctx context.Context, iden
 }
 
 func validRedTeamRepositoryRequest(repository *PostgresRepository, ctx context.Context, identity RequestIdentity) bool {
-	return repository != nil && stringIn(repository.schema, RedTeamExecutionSchemaVersion, AttackLabExecutionSchemaVersion) && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil && validRequestIdentity(identity, false) && stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken))
+	return repository != nil && stringIn(repository.schema, RedTeamExecutionSchemaVersion, AttackLabExecutionSchemaVersion, ProductionRecoverySchemaVersion) && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil && validRequestIdentity(identity, false) && stringIn(string(identity.CredentialKind), string(CredentialBrowserSession), string(CredentialBearerToken))
 }
 
 func redTeamScopeArguments(identity RequestIdentity, trailing ...any) []any {

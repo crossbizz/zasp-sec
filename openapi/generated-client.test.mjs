@@ -95,7 +95,7 @@ test("reproduces the committed bytes and rejects changed or missing output witho
 
 test("exports the mounted Security Agent, red team, and Attack Lab APIs", async () => {
   const generated = await readFile(generatedPath, "utf8");
-  for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval", "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun", "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun"]) {
+  for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval", "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun", "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun", "startRecoveryBackup", "getRecoveryBackup", "startRecoveryRestore", "getRecoveryRestore"]) {
     assert.match(generated, new RegExp(`\\b${operationId}:`), operationId);
   }
   for (const operationId of [
@@ -161,6 +161,27 @@ test("exports the mounted Security Agent, red team, and Attack Lab APIs", async 
   const putSchedule = generated.slice(putScheduleStart, putScheduleEnd);
   assert.match(putSchedule, /readonly "If-Match": components\["parameters"\]\["ScheduleVersion"\]/);
   assert.match(putSchedule, /readonly "application\/json": components\["schemas"\]\["IntegrationScheduleInput"\]/);
+
+  const recoveryBackupStart = generated.indexOf("readonly startRecoveryBackup:");
+  const recoveryBackupEnd = generated.indexOf("readonly responses:", recoveryBackupStart);
+  assert.notEqual(recoveryBackupStart, -1);
+  const recoveryBackup = generated.slice(recoveryBackupStart, recoveryBackupEnd);
+  assert.match(recoveryBackup, /readonly "X-Zasp-Fresh-Auth": components\["parameters"\]\["FreshAuth"\]/);
+  assert.match(recoveryBackup, /readonly "If-Match": components\["parameters"\]\["ControlVersion"\]/);
+  assert.match(recoveryBackup, /readonly "application\/json": components\["schemas"\]\["RecoveryBackupInput"\]/);
+  const recoveryRestoreStart = generated.indexOf("readonly startRecoveryRestore:");
+  const recoveryRestoreEnd = generated.indexOf("readonly responses:", recoveryRestoreStart);
+  assert.notEqual(recoveryRestoreStart, -1);
+  const recoveryRestore = generated.slice(recoveryRestoreStart, recoveryRestoreEnd);
+  assert.match(recoveryRestore, /readonly "application\/json": components\["schemas"\]\["RecoveryRestoreInput"\]/);
+  const recoveryManifestStart = generated.indexOf("readonly RecoveryManifestLocator:");
+  const recoveryManifestEnd = generated.indexOf("readonly RecoveryRestore:", recoveryManifestStart);
+  assert.notEqual(recoveryManifestStart, -1);
+  assert.notEqual(recoveryManifestEnd, -1);
+  const recoveryManifest = generated.slice(recoveryManifestStart, recoveryManifestEnd);
+  assert.match(recoveryManifest, /readonly signing_key_id: string;/);
+  assert.match(recoveryManifest, /readonly signature: string;/);
+  assert.doesNotMatch(recoveryManifest, /kms_key_arn|neon_api_key|lease_token|worker_id/);
 
   const activationStart = generated.indexOf("readonly activateSecurityAgent:");
   const activationEnd = generated.indexOf("readonly responses:", activationStart);

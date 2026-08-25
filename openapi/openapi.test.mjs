@@ -681,11 +681,14 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 136);
+    assert.equal(operations.size, 140);
     for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of ["listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun"]) {
+      assert.ok(operations.has(operationId), operationId);
+    }
+    for (const operationId of ["startRecoveryBackup", "getRecoveryBackup", "startRecoveryRestore", "getRecoveryRestore"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of [
@@ -716,6 +719,26 @@ describe("production workflow concurrency contract", () => {
     assert.equal(document.components.schemas.AttackLabRunInput.additionalProperties, false);
     assert.ok(document.components.schemas.AttackLabRun.required.includes("cleanup_state"));
     assert.ok(document.components.schemas.AttackLabRunDetail.required.includes("attempts"));
+    const backupStart = operations.get("startRecoveryBackup").operation;
+    const restoreStart = operations.get("startRecoveryRestore").operation;
+    assert.deepEqual(backupStart.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/RecoveryBackupInput" });
+    assert.deepEqual(restoreStart.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/RecoveryRestoreInput" });
+    for (const operation of [backupStart, restoreStart]) {
+      assert.ok(operation.parameters.some((parameter) => parameter.$ref === "#/components/parameters/FreshAuth"));
+      assert.ok(operation.parameters.some((parameter) => parameter.$ref === "#/components/parameters/ControlVersion"));
+      assert.deepEqual(operation.responses["202"].headers["X-Audit-ID"], { $ref: "#/components/headers/WorkflowAuditID" });
+      assert.deepEqual(operation.responses["202"].headers["X-Mutation-Receipt-ID"], { $ref: "#/components/headers/WorkflowMutationReceiptID" });
+    }
+    assert.equal(document.components.schemas.RecoveryBackupInput.additionalProperties, false);
+    assert.equal(document.components.schemas.RecoveryRestoreInput.additionalProperties, false);
+    assert.deepEqual(document.components.schemas.RecoveryManifestLocator.required, ["reference", "version_id", "sha256", "size_bytes", "media_type", "schema", "signing_key_id", "signature"]);
+    assert.equal(document.components.schemas.RecoveryManifestLocator.additionalProperties, false);
+    assert.deepEqual(document.components.schemas.RecoveryTargetEnvironment.not, { const: "production" });
+    assert.equal(document.components.schemas.RecoveryRestore.required.includes("manifest"), true);
+    const recoveryContract = JSON.stringify({ backupStart, restoreStart, schemas: Object.fromEntries(Object.entries(document.components.schemas).filter(([name]) => name.startsWith("Recovery"))) });
+    for (const forbidden of ["kms_key_arn", "database_password", "neon_api_key", "worker_id", "lease_token", "request_digest"]) {
+      assert.equal(recoveryContract.includes(forbidden), false, forbidden);
+    }
 
     const actions = operations.get("listSecurityActions");
     assert.equal(actions.path, "/api/v1/security-actions");

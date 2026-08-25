@@ -1116,6 +1116,84 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/recovery/backups": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Start a tenant-scoped signed backup
+         * @description Requires fresh human authentication or a scoped ProductAPIToken. The accepted job drains only the authenticated organization, workspace, and environment before publishing a signed, version-pinned manifest.
+         */
+        readonly post: operations["startRecoveryBackup"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/recovery/backups/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one tenant-scoped recovery backup */
+        readonly get: operations["getRecoveryBackup"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/recovery/restores": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Start a tenant-scoped isolated restore rehearsal
+         * @description Requires fresh human authentication or a scoped ProductAPIToken. Restore is accepted only into a distinct, non-production target and from the exact signed manifest locator returned by the authenticated tenant's backup authority.
+         */
+        readonly post: operations["startRecoveryRestore"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/recovery/restores/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /** Get one tenant-scoped isolated restore rehearsal */
+        readonly get: operations["getRecoveryRestore"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/runtimes": {
         readonly parameters: {
             readonly query?: never;
@@ -2866,6 +2944,91 @@ export type components = {
             readonly resource_version: number;
             readonly result: components["schemas"]["IntegrationSchedule"];
         };
+        readonly RecoveryArtifactLocator: {
+            readonly media_type: string;
+            readonly reference: string;
+            readonly schema: string;
+            readonly sha256: string;
+            readonly size_bytes: number;
+            readonly version_id: string;
+        };
+        readonly RecoveryBackup: {
+            readonly attempt: number;
+            /** Format: date-time */
+            readonly completed_at?: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly error_code?: components["schemas"]["RecoveryErrorCode"];
+            readonly id: components["schemas"]["ProductID"];
+            readonly manifest?: components["schemas"]["RecoveryManifestLocator"];
+            readonly retention_days: number;
+            /** Format: date-time */
+            readonly started_at?: string;
+            /** @enum {string} */
+            readonly state: "queued" | "draining" | "capturing" | "publishing" | "succeeded" | "retryable" | "failed";
+            readonly version: number;
+        };
+        readonly RecoveryBackupInput: {
+            readonly backup_id: components["schemas"]["ProductID"];
+            readonly retention_days: number;
+        };
+        readonly RecoveryCleanupEvidence: {
+            readonly evidence: components["schemas"]["RecoveryArtifactLocator"];
+            /** @enum {string} */
+            readonly state: "deleted" | "failed";
+        };
+        readonly RecoveryCounts: {
+            readonly assets: number;
+            readonly findings: number;
+            readonly policies: number;
+        };
+        /** @enum {string} */
+        readonly RecoveryErrorCode: "dependency_unavailable" | "outcome_unknown" | "signature_invalid" | "manifest_invalid" | "manifest_expired" | "validation_failed" | "projection_mismatch" | "cleanup_failed" | "exhausted" | "lease_lost" | "cancelled";
+        readonly RecoveryManifestLocator: {
+            /** @constant */
+            readonly media_type: "application/vnd.zasp.recovery-manifest+json";
+            readonly reference: string;
+            /** @constant */
+            readonly schema: "recovery_signed_manifest_v1";
+            readonly sha256: string;
+            readonly signature: string;
+            /** Format: uuid */
+            readonly signing_key_id: string;
+            readonly size_bytes: number;
+            readonly version_id: string;
+        };
+        readonly RecoveryRestore: {
+            readonly attempt: number;
+            readonly cleanup_evidence?: components["schemas"]["RecoveryCleanupEvidence"];
+            /** Format: date-time */
+            readonly completed_at?: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly error_code?: components["schemas"]["RecoveryErrorCode"];
+            readonly id: components["schemas"]["ProductID"];
+            readonly manifest: components["schemas"]["RecoveryManifestLocator"];
+            readonly observed_counts?: components["schemas"]["RecoveryCounts"];
+            /** Format: date-time */
+            readonly started_at?: string;
+            /** @enum {string} */
+            readonly state: "queued" | "verifying" | "provisioning" | "validating" | "rebuilding" | "cleanup_required" | "cleaning" | "succeeded" | "retryable" | "failed" | "failed_cleanup";
+            readonly target_environment: components["schemas"]["RecoveryTargetEnvironment"];
+            readonly validation_evidence?: components["schemas"]["RecoveryValidationEvidence"];
+            readonly version: number;
+        };
+        readonly RecoveryRestoreInput: {
+            readonly manifest: components["schemas"]["RecoveryManifestLocator"];
+            readonly restore_id: components["schemas"]["ProductID"];
+            readonly target_environment: components["schemas"]["RecoveryTargetEnvironment"];
+        };
+        readonly RecoveryTargetEnvironment: string;
+        readonly RecoveryValidationEvidence: {
+            readonly evidence: components["schemas"]["RecoveryArtifactLocator"];
+            readonly expected_counts: components["schemas"]["RecoveryCounts"];
+            readonly observed_counts: components["schemas"]["RecoveryCounts"];
+            /** @constant */
+            readonly state: "validated";
+        };
         readonly ReferenceAuthorizationReceiptIntent: components["schemas"]["AWSReferenceAuthorizationReceiptIntent"] | components["schemas"]["KubernetesReferenceAuthorizationReceiptIntent"];
         readonly ReferenceAuthorizationReceiptScope: {
             readonly environment_id: components["schemas"]["ProductID"];
@@ -3714,6 +3877,17 @@ export type ProductError = components['schemas']['ProductError'];
 export type ProductId = components['schemas']['ProductID'];
 export type PutIntegrationScheduleReceiptIntent = components['schemas']['PutIntegrationScheduleReceiptIntent'];
 export type PutIntegrationScheduleWorkflowMutationReceipt = components['schemas']['PutIntegrationScheduleWorkflowMutationReceipt'];
+export type RecoveryArtifactLocator = components['schemas']['RecoveryArtifactLocator'];
+export type RecoveryBackup = components['schemas']['RecoveryBackup'];
+export type RecoveryBackupInput = components['schemas']['RecoveryBackupInput'];
+export type RecoveryCleanupEvidence = components['schemas']['RecoveryCleanupEvidence'];
+export type RecoveryCounts = components['schemas']['RecoveryCounts'];
+export type RecoveryErrorCode = components['schemas']['RecoveryErrorCode'];
+export type RecoveryManifestLocator = components['schemas']['RecoveryManifestLocator'];
+export type RecoveryRestore = components['schemas']['RecoveryRestore'];
+export type RecoveryRestoreInput = components['schemas']['RecoveryRestoreInput'];
+export type RecoveryTargetEnvironment = components['schemas']['RecoveryTargetEnvironment'];
+export type RecoveryValidationEvidence = components['schemas']['RecoveryValidationEvidence'];
 export type ReferenceAuthorizationReceiptIntent = components['schemas']['ReferenceAuthorizationReceiptIntent'];
 export type ReferenceAuthorizationReceiptScope = components['schemas']['ReferenceAuthorizationReceiptScope'];
 export type ReferenceAuthorizationWorkflowMutationReceipt = components['schemas']['ReferenceAuthorizationWorkflowMutationReceipt'];
@@ -6182,6 +6356,156 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly startRecoveryBackup: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current execution-control version, including quoted zero before the first tenant override. */
+                readonly "If-Match": components["parameters"]["ControlVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["RecoveryBackupInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable queued recovery backup. */
+            readonly 202: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RecoveryBackup"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getRecoveryBackup: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Redacted recovery backup state. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RecoveryBackup"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly startRecoveryRestore: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current execution-control version, including quoted zero before the first tenant override. */
+                readonly "If-Match": components["parameters"]["ControlVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+                /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
+                readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["RecoveryRestoreInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Durable queued restore rehearsal. */
+            readonly 202: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly "X-Mutation-Receipt-ID": components["headers"]["WorkflowMutationReceiptID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RecoveryRestore"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getRecoveryRestore: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Redacted restore, validation, and cleanup state. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly ETag: components["headers"]["WorkflowETag"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RecoveryRestore"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
