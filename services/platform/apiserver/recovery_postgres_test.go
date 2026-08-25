@@ -201,7 +201,7 @@ func TestProductionRecoveryPostgresInstallsExactAuthority(t *testing.T) {
 	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_capture_page($1,$2,$3,$4,$5,$6,'configuration',NULL,100)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID, workerID, operationToken).Scan(&page); err != nil || !bytes.Contains(page, []byte(integrationIDs[0])) {
 		t.Fatalf("capture page=%s err=%v", page, err)
 	}
-	manifest := []byte(`{"schema_version":"recovery_signed_manifest_v1","signing_key_arn":"arn:aws:kms:us-west-2:123456789012:key/123e4567-e89b-42d3-a456-426614174000","payload":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","signature":"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"}`)
+	manifest := []byte(`{"reference":"s3://zasp-evidence/organizations/pid_7b000001-0000-4000-8000-000000000001/workspaces/pid_7b000002-0000-4000-8000-000000000002/environments/pid_7b000003-0000-4000-8000-000000000003/artifacts/pid_7b000020-0000-4000-8000-000000000020","version_id":"version-27","sha256":"2727272727272727272727272727272727272727272727272727272727272727","size_bytes":2048,"media_type":"application/vnd.zasp.recovery-manifest+json","schema":"recovery_signed_manifest_v1","signing_key_id":"123e4567-e89b-42d3-a456-426614174000","signature":"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"}`)
 	var finished []byte
 	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_finish_backup($1,$2,$3,$4,$5,$6,$7::jsonb)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID, workerID, operationToken, manifest).Scan(&finished); err != nil || !bytes.Contains(finished, []byte(`"state": "succeeded"`)) {
 		t.Fatalf("finish backup=%s err=%v", finished, err)
