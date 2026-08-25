@@ -18,7 +18,7 @@ func TestProductionRecoveryPinsTenantScopedExecutionAuthority(t *testing.T) {
 		"zasp_recovery_scope_mutable", "zasp_recovery_execution_readiness", "zasp_recovery_execution_live_fingerprint", "zasp_recovery_execution_security_ready",
 		"class.relname NOT LIKE 'zasp_recovery_%'", "TG_OP IN('UPDATE','DELETE')", "TG_OP IN('INSERT','UPDATE')",
 		"'security_agent:'||definition.definition_id", "'snapshot_inputs'", "'projection_cursors'", "'counts'",
-		"manifest_value->>'schema_version'<>'recovery_signed_manifest_v1'", "jsonb_object_keys(manifest_value)",
+		"manifest_value->>'schema'<>'recovery_signed_manifest_v1'", "manifest_value->>'signing_key_id'", "jsonb_object_keys(manifest_value)",
 	} {
 		if !strings.Contains(metadata.UpSQL(), required) {
 			t.Fatalf("v27 up migration missing %q", required)
