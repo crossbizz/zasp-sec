@@ -8,17 +8,21 @@ import (
 	"time"
 )
 
-type recoveryDatabaseFake struct{ statements []string }
+type recoveryDatabaseFake struct {
+	statements []string
+	arguments  [][]any
+}
 
-func (fake *recoveryDatabaseFake) QueryJSON(_ context.Context, statement string, _ ...any) (json.RawMessage, error) {
+func (fake *recoveryDatabaseFake) QueryJSON(_ context.Context, statement string, arguments ...any) (json.RawMessage, error) {
 	fake.statements = append(fake.statements, statement)
+	fake.arguments = append(fake.arguments, append([]any(nil), arguments...))
 	switch statement {
 	case recoveryWorkerReadySQL:
 		return json.RawMessage(`true`), nil
 	case recoveryClaimOperationSQL:
-		return json.RawMessage(`{"items":[{"attempt":1,"backup_id":"pid_71000001-0000-4000-8000-000000000001","environment_id":"pid_71000003-0000-4000-8000-000000000003","lease_expires_at":"2026-08-25T12:01:00Z","organization_id":"pid_71000001-0000-4000-8000-000000000001","request_digest":"\\x2727272727272727272727272727272727272727272727272727272727272727","retention_days":30,"workspace_id":"pid_71000002-0000-4000-8000-000000000002"}]}`), nil
+		return json.Marshal(map[string]any{"items": []map[string]any{{"attempt": 1, "backup_id": "pid_71000001-0000-4000-8000-000000000001", "environment_id": "pid_71000003-0000-4000-8000-000000000003", "lease_expires_at": time.Now().UTC().Add(30 * time.Second), "organization_id": "pid_71000001-0000-4000-8000-000000000001", "request_digest": "\\x2727272727272727272727272727272727272727272727272727272727272727", "retention_days": 30, "workspace_id": "pid_71000002-0000-4000-8000-000000000002"}}})
 	case recoveryHeartbeatOperationSQL:
-		return json.RawMessage(`{"lease_expires_at":"2026-08-25T12:01:00Z"}`), nil
+		return json.Marshal(map[string]any{"lease_expires_at": time.Now().UTC().Add(30 * time.Second)})
 	case recoveryBeginHoldSQL:
 		return json.RawMessage(`{"epoch":1,"state":"held"}`), nil
 	case recoveryReleaseHoldSQL:
@@ -62,5 +66,19 @@ func TestPostgresRecoveryOperationAuthorityBindsEveryLeaseTransition(t *testing.
 	}
 	if len(database.statements) != 9 {
 		t.Fatalf("statements=%v", database.statements)
+	}
+	for index, arguments := range database.arguments {
+		if index == 0 || index == 8 {
+			continue
+		}
+		found := false
+		for _, argument := range arguments {
+			if token, ok := argument.([]byte); ok && string(token) == lease.LeaseToken {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("statement %s omitted bytea lease token: %#v", database.statements[index], arguments)
+		}
 	}
 }

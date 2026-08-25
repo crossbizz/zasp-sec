@@ -74,7 +74,7 @@ func (provider *outboxWebIdentityProvider) Retrieve(ctx context.Context) (aws.Cr
 
 func validOutboxSession(value string) bool {
 	switch value {
-	case "", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-red-team-outbox-worker", "zasp-attack-lab-outbox-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker", "zasp-runtime-complete-worker":
+	case "", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-red-team-outbox-worker", "zasp-attack-lab-outbox-worker", "zasp-recovery-outbox-worker", "zasp-recovery-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker", "zasp-runtime-complete-worker":
 		return true
 	default:
 		return false
@@ -135,8 +135,11 @@ func newProductionOutboxPublisher(ctx context.Context, config workerRuntimeConfi
 		session = "zasp-red-team-outbox-worker"
 	} else if config.Mode == workerModeAttackLabOutbox {
 		session = "zasp-attack-lab-outbox-worker"
+	} else if config.Mode == workerModeRecoveryOutbox {
+		session = "zasp-recovery-outbox-worker"
 	}
-	provider := &outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.OutboxRoleARN, tokenFile: config.OutboxTokenFile, timeout: minDuration(config.LeaseDuration/3, 30*time.Second), session: session}
+	roleARN, tokenFile := outboxRoleAuthority(config)
+	provider := &outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: roleARN, tokenFile: tokenFile, timeout: minDuration(config.LeaseDuration/3, 30*time.Second), session: session}
 	credentials := aws.NewCredentialsCache(provider)
 	if _, err := credentials.Retrieve(ctx); err != nil {
 		transport.CloseIdleConnections()

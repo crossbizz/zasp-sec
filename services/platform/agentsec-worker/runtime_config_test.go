@@ -351,6 +351,63 @@ func TestOutboxRuntimeRejectsAmbientOrDriftedQueueAuthority(t *testing.T) {
 	}
 }
 
+func TestRecoveryModesRequireSeparateExactQueueArtifactAndSigningAuthority(t *testing.T) {
+	t.Parallel()
+	base := map[string]string{
+		"ZASP_POSTGRES_DSN": "postgres://recovery@postgres.internal/zasp?sslmode=verify-full", "ZASP_WORKER_ID": "recovery-worker-01",
+		"ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "30s", "ZASP_BATCH_SIZE": "10", "ZASP_SHUTDOWN_TIMEOUT": "20s",
+		"ZASP_AWS_REGION": "us-west-2", "ZASP_RECOVERY_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-recovery",
+		"ZASP_RECOVERY_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+		"ZASP_RECOVERY_QUEUE_URL":               "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-recovery-backup-jobs",
+		"ZASP_RECOVERY_OUTBOX_TOPIC":            "recovery-backup-jobs", "ZASP_RECOVERY_OPERATION_KIND": "backup",
+		"ZASP_EVIDENCE_BUCKET": "zasp-production-recovery", "ZASP_EVIDENCE_BUCKET_OWNER": "123456789012",
+		"ZASP_EVIDENCE_KMS_KEY_ARN":         "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
+		"ZASP_RECOVERY_SIGNING_KMS_KEY_ARN": "arn:aws:kms:us-west-2:123456789012:key/22222222-2222-4222-8222-222222222222",
+		"ZASP_RECOVERY_NEON_PROJECT_ID":     "silent-moon-12345678", "ZASP_RECOVERY_NEON_BRANCH_ID": "br-production-main",
+	}
+	for mode, authority := range map[string]string{"recovery-outbox": "zasp_recovery_outbox_worker", "recovery": "zasp_recovery_worker"} {
+		values := cloneStringMap(base)
+		values["ZASP_WORKER_MODE"], values["ZASP_DATABASE_AUTHORITY"] = mode, authority
+		if mode == "recovery-outbox" {
+			delete(values, "ZASP_RECOVERY_OPERATION_KIND")
+			delete(values, "ZASP_EVIDENCE_BUCKET")
+			delete(values, "ZASP_EVIDENCE_BUCKET_OWNER")
+			delete(values, "ZASP_EVIDENCE_KMS_KEY_ARN")
+			delete(values, "ZASP_RECOVERY_SIGNING_KMS_KEY_ARN")
+			delete(values, "ZASP_RECOVERY_NEON_PROJECT_ID")
+			delete(values, "ZASP_RECOVERY_NEON_BRANCH_ID")
+		} else {
+			delete(values, "ZASP_RECOVERY_QUEUE_URL")
+			delete(values, "ZASP_RECOVERY_OUTBOX_TOPIC")
+		}
+		config, err := loadWorkerRuntimeConfig(mapLookup(values))
+		if err != nil || config.Mode != workerMode(mode) || config.DatabaseAuthority != authority {
+			t.Fatalf("mode=%s config=%#v error=%v", mode, config, err)
+		}
+	}
+	for name, mutate := range map[string]func(map[string]string){
+		"same kms key": func(values map[string]string) {
+			values["ZASP_RECOVERY_SIGNING_KMS_KEY_ARN"] = values["ZASP_EVIDENCE_KMS_KEY_ARN"]
+		},
+		"foreign role": func(values map[string]string) {
+			values["ZASP_RECOVERY_ROLE_ARN"] = "arn:aws:iam::210987654321:role/zasp-production-recovery"
+		},
+		"source branch omitted": func(values map[string]string) { delete(values, "ZASP_RECOVERY_NEON_BRANCH_ID") },
+		"queue leaked into worker": func(values map[string]string) {
+			values["ZASP_RECOVERY_QUEUE_URL"] = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-recovery-backup-jobs"
+		},
+	} {
+		values := cloneStringMap(base)
+		values["ZASP_WORKER_MODE"], values["ZASP_DATABASE_AUTHORITY"] = "recovery", "zasp_recovery_worker"
+		delete(values, "ZASP_RECOVERY_QUEUE_URL")
+		delete(values, "ZASP_RECOVERY_OUTBOX_TOPIC")
+		mutate(values)
+		if _, err := loadWorkerRuntimeConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
+			t.Fatalf("%s error=%v", name, err)
+		}
+	}
+}
+
 func TestRuntimeOutboxRequiresDistinctExactQueueAuthority(t *testing.T) {
 	t.Parallel()
 	base := map[string]string{
