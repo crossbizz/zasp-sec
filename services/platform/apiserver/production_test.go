@@ -147,7 +147,7 @@ func TestProductionBootstrapAdvertisesOnlyMountedDurableCapabilities(t *testing.
 	if err := json.NewDecoder(response.Body).Decode(&bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "administration.read", "system.read", "findings.write"}
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "recovery.read", "administration.read", "system.read", "findings.write"}
 	if response.StatusCode != http.StatusOK || !reflect.DeepEqual(bootstrap.Capabilities, want) {
 		t.Fatalf("bootstrap = (%d, %#v)", response.StatusCode, bootstrap.Capabilities)
 	}
@@ -194,7 +194,7 @@ func TestBootstrapPayloadSourceContainsOnlyMountedDurableCapabilities(t *testing
 	if !reflect.DeepEqual(bootstrap["permissions"], identity.Permissions) {
 		t.Fatalf("permissions = %#v", bootstrap["permissions"])
 	}
-	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "administration.read", "system.read", "findings.write"}) {
+	if !reflect.DeepEqual(bootstrap["capabilities"], []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "recovery.read", "administration.read", "system.read", "findings.write"}) {
 		t.Fatalf("capabilities = %#v", bootstrap["capabilities"])
 	}
 }
@@ -212,7 +212,7 @@ func TestBootstrapMapsWorkflowManagementWithoutProviderOnlyCapabilities(t *testi
 	if json.Unmarshal(payload, &bootstrap) != nil {
 		t.Fatal("bootstrap did not decode")
 	}
-	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "administration.read", "system.read", "inventory.write", "policies.write", "integrations.write", "sensors.write", "security-agents.write"}
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "recovery.read", "administration.read", "system.read", "inventory.write", "policies.write", "integrations.write", "sensors.write", "security-agents.write"}
 	if !reflect.DeepEqual(bootstrap.Capabilities, want) || strings.Contains(string(payload), "authorize") || strings.Contains(string(payload), "sync") {
 		t.Fatalf("workflow capabilities = %#v payload=%s", bootstrap.Capabilities, payload)
 	}
@@ -231,7 +231,7 @@ func TestBootstrapMapsRedTeamExecutionWithoutWorkflowMutationAuthority(t *testin
 	if json.Unmarshal(payload, &bootstrap) != nil {
 		t.Fatal("bootstrap did not decode")
 	}
-	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "administration.read", "system.read", "red-team.write"}
+	want := []string{"inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "recovery.read", "administration.read", "system.read", "red-team.write"}
 	if !reflect.DeepEqual(bootstrap.Capabilities, want) || strings.Contains(string(payload), "integrations.write") {
 		t.Fatalf("red team capabilities = %#v payload=%s", bootstrap.Capabilities, payload)
 	}
@@ -441,7 +441,7 @@ func TestProductionHandlersRequireAndRouteCurrentSecurityAgentAuthority(t *testi
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Contain compromised runtime") {
 		t.Fatalf("security-agent list status=%d body=%s", response.Code, response.Body.String())
 	}
-	if len(securityDatabase.statements) != 10 || securityDatabase.statements[0] != postgresAttackLabExecutionSecurityAgentReadySQL || securityDatabase.statements[1] != postgresRedTeamExecutionSecurityAgentReadySQL || securityDatabase.statements[9] != postgresSecurityAgentDefinitionPageSQL {
+	if len(securityDatabase.statements) != 11 || securityDatabase.statements[0] != postgresRecoverySecurityAgentReadySQL || securityDatabase.statements[1] != postgresAttackLabExecutionSecurityAgentReadySQL || securityDatabase.statements[2] != postgresRedTeamExecutionSecurityAgentReadySQL || securityDatabase.statements[10] != postgresSecurityAgentDefinitionPageSQL {
 		t.Fatalf("security-agent statements=%#v", securityDatabase.statements)
 	}
 	for _, statement := range mainDatabase.queries {
@@ -474,8 +474,54 @@ func TestProductionHandlersMountMatchingV26AttackLabAuthority(t *testing.T) {
 	if _, _, err := NewProductionHandlersWithSecurityAgent(mainRepository, securityRepository, provider, http.NotFoundHandler(), fixtureCookiePolicy()); err != nil {
 		t.Fatalf("v26 production handler error=%v", err)
 	}
-	if len(securityDatabase.statements) != 1 || securityDatabase.statements[0] != postgresAttackLabExecutionSecurityAgentReadySQL {
+	if len(securityDatabase.statements) != 2 || securityDatabase.statements[0] != postgresRecoverySecurityAgentReadySQL || securityDatabase.statements[1] != postgresAttackLabExecutionSecurityAgentReadySQL {
 		t.Fatalf("v26 readiness statements=%#v", securityDatabase.statements)
+	}
+}
+
+func TestProductionHandlersMountRecoveryOnlyAtExactV27Authority(t *testing.T) {
+	mainDatabase := &discoveryCallDatabase{schema: ProductionRecoverySchemaVersion, responses: map[string]json.RawMessage{
+		postgresProductionRecoveryReadinessSQL: json.RawMessage(`true`),
+		postgresDiscoveryPrincipalReadySQL:     json.RawMessage(`true`),
+		postgresRecoveryGetBackupSQL:           json.RawMessage(`{"id":"` + testRecoveryBackupID + `","version":1,"state":"queued","retention_days":30,"attempt":0,"created_at":"2026-08-25T12:00:00Z"}`),
+	}}
+	mainRepository, err := NewPostgresRepository(mainDatabase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	securityDatabase := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresRecoverySecurityAgentReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+	}}
+	securityRepository, err := NewSecurityAgentPostgresRepository(securityDatabase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, err := NewRepositoryIdentityProvider(fixedExternalAuthenticator{}, &fixedGrantResolver{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handlers, _, err := NewProductionHandlersWithSecurityAgent(mainRepository, securityRepository, provider, http.NotFoundHandler(), fixtureCookiePolicy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := handlers.Workflow.(*recoveryWorkflowSurface); !ok {
+		t.Fatalf("workflow surface=%T", handlers.Workflow)
+	}
+	composition, err := NewComposition(handlers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/recovery/backups/"+testRecoveryBackupID, nil)
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request.Header.Set(expectedScopeHeader, expectedScopeValue(identity.Scope))
+	response := httptest.NewRecorder()
+	composition.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), testRecoveryBackupID) {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	if got := capabilitiesForPermissions([]string{"view", "manage_identity"}); !containsString(got, "recovery.read") || !containsString(got, "recovery.write") {
+		t.Fatalf("capabilities=%v", got)
 	}
 }
 

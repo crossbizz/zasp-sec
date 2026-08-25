@@ -152,13 +152,27 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
 	}
-	if stringIn(repository.schema, RedTeamExecutionSchemaVersion, AttackLabExecutionSchemaVersion) {
+	if stringIn(repository.schema, RedTeamExecutionSchemaVersion, AttackLabExecutionSchemaVersion, ProductionRecoverySchemaVersion) {
 		redTeamHandler, redTeamErr := NewRedTeamPublicHTTPHandler(repository, cookie.WorkflowSigningKey)
 		if redTeamErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
 		workflowSurface, redTeamErr = NewRedTeamWorkflowSurface(workflowSurface, redTeamHandler)
 		if redTeamErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+	}
+	if repository.schema == ProductionRecoverySchemaVersion {
+		recoveryRepository, recoveryErr := NewRecoveryPublicRepository(repository.database)
+		if recoveryErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		recoveryHandler, recoveryErr := NewRecoveryPublicHTTPHandler(recoveryRepository)
+		if recoveryErr != nil {
+			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		workflowSurface, recoveryErr = NewRecoveryWorkflowSurface(workflowSurface, recoveryHandler)
+		if recoveryErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
 	}
@@ -385,13 +399,13 @@ func capabilitiesForPermissions(permissions []string) []string {
 	for _, permission := range permissions {
 		switch permission {
 		case "view":
-			capabilities = append(capabilities, "inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "administration.read", "system.read")
+			capabilities = append(capabilities, "inventory.read", "scope.switch", "policies.read", "integrations.read", "sensors.read", "security-agents.read", "findings.read", "attack-paths.read", "red-team.read", "recovery.read", "administration.read", "system.read")
 		case "manage_workflows":
 			capabilities = append(capabilities, "inventory.write", "policies.write", "integrations.write", "sensors.write", "security-agents.write")
 		case "manage_findings":
 			capabilities = append(capabilities, "findings.write")
 		case "manage_identity":
-			capabilities = append(capabilities, "identity.manage")
+			capabilities = append(capabilities, "identity.manage", "recovery.write")
 		case "manage_api_tokens":
 			capabilities = append(capabilities, "api-access.manage")
 		case "view_audit":

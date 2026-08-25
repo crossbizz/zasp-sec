@@ -90,6 +90,10 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/system/status", "getSystemStatus", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/system/components", "listSystemComponents", "view", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/system/version", "getSystemVersion", "view", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"POST", "/api/v1/recovery/backups", "startRecoveryBackup", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/recovery/backups/{id}", "getRecoveryBackup", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/recovery/restores", "startRecoveryRestore", "manage_identity", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/recovery/restores/{id}", "getRecoveryRestore", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/home/summary", "getHomeSummary", "view", []string{"BrowserSession", "ProductAPIToken"}}, inventoryDependency},
 	{OperationDefinition{"GET", "/api/v1/findings", "listFindings", "view", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
 	{OperationDefinition{"GET", "/api/v1/findings/{id}", "getFinding", "view", []string{"BrowserSession", "ProductAPIToken"}}, riskDependency},
@@ -253,7 +257,7 @@ func requiresFreshAuthentication(operationID string) bool {
 		"createSSOConnection", "deleteSSOConnection", "testSSOConnection", "createSCIMConnection", "deleteSCIMConnection",
 		"revokeSession", "updateDataControls", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "createSensorEnrollment", "rotateSensorToken":
 		return true
-	case "activateSecurityAgent", "decideSecurityAgentApproval", "setSecurityAgentExecutionControl":
+	case "activateSecurityAgent", "decideSecurityAgentApproval", "setSecurityAgentExecutionControl", "startRecoveryBackup", "startRecoveryRestore":
 		return true
 	default:
 		return false

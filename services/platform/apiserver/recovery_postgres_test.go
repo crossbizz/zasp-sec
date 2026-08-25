@@ -210,6 +210,24 @@ func TestProductionRecoveryPostgresInstallsExactAuthority(t *testing.T) {
 		t.Fatalf("released tenant mutation: %v", err)
 	}
 
+	restoreID := "pid_7b000022-0000-4000-8000-000000000022"
+	restoreDigest := bytes.Repeat([]byte{0x34}, 32)
+	var createdRestore []byte
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_create_restore($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13)`, scopes[0][0], scopes[0][1], scopes[0][2], "pid_7b000010-0000-4000-8000-000000000010", "recovery-restore-key-0001", restoreID, "recovery-e2e-01", "pid_7b000034-0000-4000-8000-000000000034", "pid_7b000035-0000-4000-8000-000000000035", "pid_7b000036-0000-4000-8000-000000000036", restoreDigest, manifest, bytes.Repeat([]byte{0x27}, 32)).Scan(&createdRestore); err != nil || !bytes.Contains(createdRestore, []byte(`"target_environment": "recovery-e2e-01"`)) || !bytes.Contains(createdRestore, []byte(`"manifest"`)) {
+		t.Fatalf("create restore=%s err=%v", createdRestore, err)
+	}
+	var readRestore []byte
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_get_restore($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], restoreID).Scan(&readRestore); err != nil || !bytes.Contains(readRestore, []byte(`"target_environment": "recovery-e2e-01"`)) || !bytes.Contains(readRestore, []byte(`"manifest"`)) {
+		t.Fatalf("read restore=%s err=%v", readRestore, err)
+	}
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_create_restore($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13)`, scopes[0][0], scopes[0][1], scopes[0][2], "pid_7b000010-0000-4000-8000-000000000010", "recovery-restore-key-0002", "pid_7b000023-0000-4000-8000-000000000023", "production", "pid_7b000037-0000-4000-8000-000000000037", "pid_7b000038-0000-4000-8000-000000000038", "pid_7b000039-0000-4000-8000-000000000039", bytes.Repeat([]byte{0x35}, 32), manifest, bytes.Repeat([]byte{0x27}, 32)).Scan(&rejected); err == nil {
+		t.Fatal("production restore target accepted")
+	}
+	foreignManifest := bytes.Replace(manifest, []byte(scopes[0][0]), []byte(scopes[1][0]), 1)
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_create_restore($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13)`, scopes[0][0], scopes[0][1], scopes[0][2], "pid_7b000010-0000-4000-8000-000000000010", "recovery-restore-key-0003", "pid_7b000024-0000-4000-8000-000000000024", "recovery-e2e-02", "pid_7b00003a-0000-4000-8000-00000000003a", "pid_7b00003b-0000-4000-8000-00000000003b", "pid_7b00003c-0000-4000-8000-00000000003c", bytes.Repeat([]byte{0x36}, 32), foreignManifest, bytes.Repeat([]byte{0x27}, 32)).Scan(&rejected); err == nil {
+		t.Fatal("foreign manifest authority accepted")
+	}
+
 	createBackup(scopes[0], "pid_7b000021-0000-4000-8000-000000000021", "recovery-backup-key-0002", 0x29)
 	createBackup(scopes[1], "pid_7c000021-0000-4000-8000-000000000021", "recovery-backup-key-0003", 0x30)
 	operationToken = bytes.Repeat([]byte{0x33}, 32)

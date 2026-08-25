@@ -1,8 +1,8 @@
 DO $rollback_guard$
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='production-recovery-v1') OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>27)
-  OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_recovery_fingerprint' AND value='a96223374b417a3e09f46f9dc1ef20066b4929ffd4c6cb553f8ea96950d64e5c')
-  OR NOT public.zasp_recovery_execution_security_ready() OR public.zasp_recovery_execution_live_fingerprint()<>'a96223374b417a3e09f46f9dc1ef20066b4929ffd4c6cb553f8ea96950d64e5c'
+  OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_recovery_fingerprint' AND value='f81534cc2db5aad86d0a31f7100dcd23a2b6b67ec4ac132e7ee2f4a0bbcab0c6')
+  OR NOT public.zasp_recovery_execution_security_ready() OR public.zasp_recovery_execution_live_fingerprint()<>'f81534cc2db5aad86d0a31f7100dcd23a2b6b67ec4ac132e7ee2f4a0bbcab0c6'
   OR EXISTS(SELECT 1 FROM public.zasp_recovery_backups) OR EXISTS(SELECT 1 FROM public.zasp_recovery_restores) OR EXISTS(SELECT 1 FROM public.zasp_recovery_holds WHERE state<>'released') OR EXISTS(SELECT 1 FROM public.zasp_recovery_outbox WHERE state<>'published') OR EXISTS(SELECT 1 FROM public.zasp_recovery_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_recovery_audit) THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='production recovery rollback rejected';
  END IF;
@@ -11,7 +11,7 @@ $rollback_guard$;
 
 DROP FUNCTION public.zasp_recovery_execution_readiness(text,text);DROP FUNCTION public.zasp_recovery_execution_live_fingerprint();DROP FUNCTION public.zasp_recovery_execution_security_ready();
 DROP FUNCTION public.zasp_recovery_fail_operation(text,text,text,text,text,text,bytea,text,integer,jsonb);DROP FUNCTION public.zasp_recovery_finish_restore(text,text,text,text,text,bytea,jsonb,jsonb,jsonb);DROP FUNCTION public.zasp_recovery_checkpoint_restore(text,text,text,text,text,bytea,text,text,jsonb);DROP FUNCTION public.zasp_recovery_finish_backup(text,text,text,text,text,bytea,jsonb);DROP FUNCTION public.zasp_recovery_capture_page(text,text,text,text,text,bytea,text,text,integer);DROP FUNCTION public.zasp_recovery_release_hold(text,text,text,text,text,bytea);DROP FUNCTION public.zasp_recovery_begin_hold(text,text,text,text,text,bytea);DROP FUNCTION public.zasp_recovery_heartbeat_operation(text,text,text,text,text,text,bytea,integer);DROP FUNCTION public.zasp_recovery_claim_operation(text,text,bytea,integer,integer);
-DROP FUNCTION public.zasp_recovery_retry_outbox(text,text,text,text,text,bytea,integer,text);DROP FUNCTION public.zasp_recovery_ack_outbox(text,text,text,text,text,bytea,text);DROP FUNCTION public.zasp_recovery_heartbeat_outbox(text,text,bytea,integer,integer);DROP FUNCTION public.zasp_recovery_claim_outbox(text,text,bytea,integer,integer);DROP FUNCTION public.zasp_recovery_get_restore(text,text,text,text);DROP FUNCTION public.zasp_recovery_get_backup(text,text,text,text);DROP FUNCTION public.zasp_recovery_create_restore(text,text,text,text,text,text,text,text,text,bytea,jsonb,bytea);DROP FUNCTION public.zasp_recovery_create_backup(text,text,text,text,text,text,text,integer,text,text,bytea);
+DROP FUNCTION public.zasp_recovery_retry_outbox(text,text,text,text,text,bytea,integer,text);DROP FUNCTION public.zasp_recovery_ack_outbox(text,text,text,text,text,bytea,text);DROP FUNCTION public.zasp_recovery_heartbeat_outbox(text,text,bytea,integer,integer);DROP FUNCTION public.zasp_recovery_claim_outbox(text,text,bytea,integer,integer);DROP FUNCTION public.zasp_recovery_get_restore(text,text,text,text);DROP FUNCTION public.zasp_recovery_get_backup(text,text,text,text);DROP FUNCTION public.zasp_recovery_create_restore(text,text,text,text,text,text,text,text,text,text,bytea,jsonb,bytea);DROP FUNCTION public.zasp_recovery_create_backup(text,text,text,text,text,text,text,integer,text,text,bytea);
 DO $drop_guards$
 DECLARE trigger_value record;
 BEGIN
