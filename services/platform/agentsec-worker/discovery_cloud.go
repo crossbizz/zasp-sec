@@ -201,7 +201,7 @@ func (authority *productionDiscoveryCloudAuthority) Close() error {
 }
 
 func validProductionDiscoveryCloudConfig(config productionDiscoveryCloudConfig) bool {
-	if !discoveryRegionPattern.MatchString(config.Region) || !discoveryCloudRolePattern.MatchString(config.RoleARN) || config.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validDiscoverySecretRoot(config.SecretRoot) || config.Timeout < time.Second || config.Timeout > 30*time.Second || config.Clock == nil || config.Session != "" && config.Session != "zasp-red-team-worker" && config.Session != "zasp-attack-lab-controller" {
+	if !discoveryRegionPattern.MatchString(config.Region) || !discoveryCloudRolePattern.MatchString(config.RoleARN) || config.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validDiscoverySecretRoot(config.SecretRoot) || config.Timeout < time.Second || config.Timeout > 30*time.Second || config.Clock == nil || config.Session != "" && config.Session != "zasp-red-team-worker" && config.Session != "zasp-attack-lab-controller" && config.Session != "zasp-recovery-worker" {
 		return false
 	}
 	now := config.Clock()

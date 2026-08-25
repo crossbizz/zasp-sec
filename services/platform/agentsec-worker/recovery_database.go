@@ -3,12 +3,16 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
+
+var recoveryRequestDigestPattern = regexp.MustCompile(`^\\x[0-9a-f]{64}$`)
 
 const (
 	recoveryWorkerReadySQL        = `SELECT zasp_recovery_execution_readiness($1,$2) AND zasp_recovery_principal_ready('zasp_recovery_worker')`
@@ -61,7 +65,7 @@ func (authority *postgresRecoveryOperationAuthority) Claim(ctx context.Context, 
 	if authority == nil || ctx == nil || ctx.Err() != nil || kind != "backup" || !workerIdentityPattern.MatchString(worker) || len(token) != 32 || leaseSeconds < 5 || leaseSeconds > 900 || limit < 1 || limit > 25 {
 		return nil, errWorkerExecution
 	}
-	payload, err := authority.database.QueryJSON(ctx, recoveryClaimOperationSQL, kind, worker, token, leaseSeconds, limit)
+	payload, err := authority.database.QueryJSON(ctx, recoveryClaimOperationSQL, kind, worker, []byte(token), leaseSeconds, limit)
 	var wire struct {
 		Items []struct {
 			Attempt        int       `json:"attempt"`
@@ -81,7 +85,7 @@ func (authority *postgresRecoveryOperationAuthority) Claim(ctx context.Context, 
 	for index, item := range wire.Items {
 		scope, ok := recoveryScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID)
 		claim := recoveryOperationClaim{Kind: kind, Scope: scope, OperationID: item.BackupID, Attempt: item.Attempt, RetentionDays: item.RetentionDays}
-		if !ok || !validRecoveryOperationClaim(claim) || item.LeaseExpiresAt.IsZero() || item.LeaseExpiresAt.Location() != time.UTC || item.RequestDigest == "" {
+		if !ok || !validRecoveryOperationClaim(claim) || !validRecoveryLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) || !recoveryRequestDigestPattern.MatchString(item.RequestDigest) || item.RequestDigest == `\x`+strings.Repeat("0", 64) {
 			return nil, errWorkerExecution
 		}
 		claims[index] = claim
@@ -140,7 +144,7 @@ func (authority *postgresRecoveryOperationAuthority) FinishBackup(ctx context.Co
 	if err != nil || len(encoded) > 8192 {
 		return errWorkerExecution
 	}
-	payload, err := authority.database.QueryJSON(ctx, recoveryFinishBackupSQL, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, lease.LeaseToken, json.RawMessage(encoded))
+	payload, err := authority.database.QueryJSON(ctx, recoveryFinishBackupSQL, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, []byte(lease.LeaseToken), json.RawMessage(encoded))
 	var result struct {
 		State          string `json:"state"`
 		Replayed       bool   `json:"replayed"`
@@ -156,7 +160,7 @@ func (authority *postgresRecoveryOperationAuthority) Fail(ctx context.Context, l
 	if retry < 0 || retry > 24*time.Hour || retry%time.Second != 0 {
 		return errWorkerExecution
 	}
-	payload, err := authority.database.QueryJSON(ctx, recoveryFailOperationSQL, lease.Kind, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, lease.LeaseToken, code, int(retry/time.Second))
+	payload, err := authority.database.QueryJSON(ctx, recoveryFailOperationSQL, lease.Kind, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, []byte(lease.LeaseToken), code, int(retry/time.Second))
 	var result struct {
 		State string `json:"state"`
 	}
@@ -182,7 +186,7 @@ func (authority *postgresRecoveryOperationAuthority) queryLease(ctx context.Cont
 	if authority == nil || !validRecoveryLease(lease) || ctx == nil || ctx.Err() != nil {
 		return nil, errWorkerExecution
 	}
-	arguments := []any{lease.Kind, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, lease.LeaseToken}
+	arguments := []any{lease.Kind, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, []byte(lease.LeaseToken)}
 	if statement != recoveryHeartbeatOperationSQL {
 		arguments = arguments[1:]
 	}
@@ -191,7 +195,7 @@ func (authority *postgresRecoveryOperationAuthority) queryLease(ctx context.Cont
 }
 
 func recoveryLeaseArguments(lease recoveryOperationLease, trailing ...any) []any {
-	return append([]any{lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, lease.LeaseToken}, trailing...)
+	return append([]any{lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, []byte(lease.LeaseToken)}, trailing...)
 }
 
 func validRecoveryLease(lease recoveryOperationLease) bool {

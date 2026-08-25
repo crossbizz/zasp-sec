@@ -70,7 +70,7 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	switch config.Mode {
-	case workerModeOutbox, workerModeRuntimeOutbox, workerModeRedTeamOutbox, workerModeAttackLabOutbox:
+	case workerModeOutbox, workerModeRuntimeOutbox, workerModeRedTeamOutbox, workerModeAttackLabOutbox, workerModeRecoveryOutbox:
 		publisher, err := newProductionOutboxPublisher(ctx, config)
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
@@ -80,6 +80,13 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 			dependencies, err = composeRedTeamOutboxWorkerRuntime(config, database, publisher.publisher, publisher.ready)
 		} else if config.Mode == workerModeAttackLabOutbox {
 			dependencies, err = composeAttackLabOutboxWorkerRuntime(config, database, publisher.publisher, publisher.ready)
+		} else if config.Mode == workerModeRecoveryOutbox {
+			authority, authorityErr := newPostgresRecoveryOutboxAuthority(database)
+			if authorityErr != nil {
+				_ = publisher.close()
+				return workerRuntimeDependencies{}, errRuntimeUnavailable
+			}
+			dependencies, err = composeRecoveryOutboxWorkerRuntime(config, authority, publisher.publisher, publisher.ready)
 		} else {
 			dependencies, err = composeOutboxWorkerRuntime(config, database, publisher.publisher, publisher.ready)
 		}
@@ -88,6 +95,21 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		dependencies.Close = publisher.close
+		return dependencies, nil
+	case workerModeRecovery:
+		authority, err := newPostgresRecoveryOperationAuthority(database)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		recoveryDependencies, err := newProductionRecoveryDependencies(ctx, config, authority.PostgresLSN)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		dependencies, err := composeRecoveryWorkerRuntime(config, authority, recoveryDependencies)
+		if err != nil {
+			_ = recoveryDependencies.Close()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
 		return dependencies, nil
 	case workerModeRedTeam:
 		redTeam, err := newProductionRedTeamDependencies(config)
@@ -368,6 +390,54 @@ func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.J
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	return workerRuntimeDependencies{Processor: processor, Ready: ready, Close: func() error { return nil }}, nil
+}
+
+func composeRecoveryOutboxWorkerRuntime(config workerRuntimeConfig, repository recoveryOutboxAuthority, publisher outboxPublisher, publisherReady func(context.Context) error) (workerRuntimeDependencies, error) {
+	if !validWorkerRuntimeConfig(config) || config.Mode != workerModeRecoveryOutbox || repository == nil || publisher == nil || publisherReady == nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	check := func(ctx context.Context) error {
+		if repository.Ready(ctx) != nil || publisherReady(ctx) != nil {
+			return errRuntimeUnavailable
+		}
+		return nil
+	}
+	ready, err := newBoundedCachedWorkerReadiness(check, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	processor, err := newRecoveryOutboxProcessor(recoveryOutboxProcessorConfig{
+		Authority: repository, Publisher: publisher, Topic: config.RecoveryOutboxTopic, WorkerID: config.WorkerID,
+		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, RetrySeconds: int(config.LeaseDuration / time.Second), NewLeaseToken: newWorkerLeaseToken,
+	})
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: func() error { return nil }}, nil
+}
+
+func composeRecoveryWorkerRuntime(config workerRuntimeConfig, repository recoveryOperationAuthority, recoveryDependencies *productionRecoveryDependencies) (workerRuntimeDependencies, error) {
+	if !validWorkerRuntimeConfig(config) || config.Mode != workerModeRecovery || repository == nil || recoveryDependencies == nil || recoveryDependencies.Publisher == nil || recoveryDependencies.ready == nil || recoveryDependencies.close == nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	check := func(ctx context.Context) error {
+		if repository.Ready(ctx) != nil || recoveryDependencies.Ready(ctx) != nil {
+			return errRuntimeUnavailable
+		}
+		return nil
+	}
+	ready, err := newBoundedCachedWorkerReadiness(check, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	processor, err := newRecoveryBackupProcessor(recoveryBackupProcessorConfig{
+		Authority: repository, Publisher: recoveryDependencies.Publisher, WorkerID: config.WorkerID,
+		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3, PageSize: 100, NewLeaseToken: newWorkerLeaseToken,
+	})
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: recoveryDependencies.Close}, nil
 }
 
 type productionOutboxAuthority interface {

@@ -103,6 +103,34 @@ func TestComposeAttackLabOutboxBindsV26AuthorityAndPublisher(t *testing.T) {
 	}
 }
 
+func TestComposeRecoveryRuntimesBindSeparateV27Authorities(t *testing.T) {
+	scope := recoveryWorkerScope(t)
+	authority := &recoveryAuthorityFake{claim: recoveryOperationClaim{Kind: "backup", Scope: scope, OperationID: "pid_71000001-0000-4000-8000-000000000001", Attempt: 1, RetentionDays: 30}}
+	closed := false
+	dependencies, err := composeRecoveryWorkerRuntime(validRecoveryRuntimeConfig(), authority, &productionRecoveryDependencies{
+		Publisher: &recoveryPublisherFake{manifest: recoveryWorkerManifest(scope)}, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil },
+	})
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("recovery dependencies=%#v error=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Close(); err != nil || !closed {
+		t.Fatalf("close=%v closed=%v", err, closed)
+	}
+	outboxConfig := validRecoveryOutboxRuntimeConfig()
+	outbox, err := composeRecoveryOutboxWorkerRuntime(outboxConfig, &recoveryOutboxAuthorityFake{}, &recordingOutboxPublisher{}, readyOutboxDependency)
+	if err != nil || outbox.Processor == nil || outbox.Ready == nil || outbox.Close == nil {
+		t.Fatalf("recovery outbox dependencies=%#v error=%v", outbox, err)
+	}
+	foreign := outboxConfig
+	foreign.DatabaseAuthority = "zasp_recovery_worker"
+	if _, err := composeRecoveryOutboxWorkerRuntime(foreign, &recoveryOutboxAuthorityFake{}, &recordingOutboxPublisher{}, readyOutboxDependency); !errors.Is(err, errRuntimeUnavailable) {
+		t.Fatalf("foreign authority error=%v", err)
+	}
+}
+
 func TestComposeAttackLabControllerBindsV26QueueSandboxEvidenceAndCleanup(t *testing.T) {
 	config, err := loadWorkerRuntimeConfig(mapLookup(validAttackLabControllerRuntimeEnvironment()))
 	if err != nil {
@@ -603,6 +631,25 @@ func validAttackLabOutboxRuntimeConfig() workerRuntimeConfig {
 		Mode: workerModeAttackLabOutbox, PostgresDSN: "postgres://attack_lab_outbox@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_attack_lab_outbox_worker", WorkerID: "attack-lab-outbox-01",
 		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
 		AttackLabQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-attack-lab-jobs", AWSRegion: "us-west-2", OutboxRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-outbox", OutboxTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+	}
+}
+
+func validRecoveryOutboxRuntimeConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeRecoveryOutbox, PostgresDSN: "postgres://recovery_outbox@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_recovery_outbox_worker", WorkerID: "recovery-outbox-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
+		RecoveryQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-recovery-backup-jobs", RecoveryOutboxTopic: recoveryBackupOutboxTopic, AWSRegion: "us-west-2",
+		RecoveryRoleARN: "arn:aws:iam::123456789012:role/zasp-production-recovery-outbox", RecoveryTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+	}
+}
+
+func validRecoveryRuntimeConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModeRecovery, PostgresDSN: "postgres://recovery@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_recovery_worker", WorkerID: "recovery-worker-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
+		AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-recovery", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
+		RecoveryRoleARN: "arn:aws:iam::123456789012:role/zasp-production-recovery", RecoveryTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RecoveryOperationKind: "backup",
+		RecoverySigningKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/22222222-2222-4222-8222-222222222222", RecoveryNeonProjectID: "silent-moon-12345678", RecoveryNeonBranchID: "br-production-main",
 	}
 }
 
