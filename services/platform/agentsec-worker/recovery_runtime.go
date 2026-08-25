@@ -31,9 +31,9 @@ type recoveryOperationLease struct {
 }
 
 type recoveryCapturePage struct {
-	Section    string
-	Items      []json.RawMessage
-	NextCursor *string
+	Section    string            `json:"section"`
+	Items      []json.RawMessage `json:"items"`
+	NextCursor *string           `json:"next_cursor"`
 }
 
 type recoveryBackupPublication struct {
