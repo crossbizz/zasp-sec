@@ -430,18 +430,15 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 		}
 		return encodeJSON(output, report)
 	case "backup":
-		if len(arguments) != 1 {
+		if len(arguments) < 2 {
 			return errInvalidArguments
 		}
-		var value BackupInput
-		if err := decodeCommandInput(input, &value); err != nil {
-			return errManifestRejected
+		return runRecoveryCommand(output, arguments)
+	case "restore":
+		if len(arguments) < 2 {
+			return errInvalidArguments
 		}
-		manifest, err := BuildBackupManifest(value)
-		if err != nil {
-			return err
-		}
-		return encodeJSON(output, manifest)
+		return runRecoveryCommand(output, arguments)
 	case "restore-validate":
 		if len(arguments) != 3 || arguments[1] == arguments[2] || arguments[2] == "production" || !validEnvironmentName(arguments[1]) || !validEnvironmentName(arguments[2]) {
 			return errRestoreRejected

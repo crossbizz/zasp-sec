@@ -217,7 +217,6 @@ func TestReleaseCommandsExposePreflightBackupRestoreAndUpgradeBoundaries(t *test
 		input     []byte
 	}{
 		"preflight":         {arguments: []string{"preflight"}, input: preflight},
-		"backup":            {arguments: []string{"backup"}, input: manifest},
 		"restore":           {arguments: []string{"restore-validate", "production", "rehearsal-a"}, input: manifest},
 		"upgrade-preflight": {arguments: []string{"upgrade-preflight"}, input: upgrade},
 	} {
@@ -230,14 +229,14 @@ func TestReleaseCommandsExposePreflightBackupRestoreAndUpgradeBoundaries(t *test
 	}
 }
 
-func TestReleaseCommandsRejectPayloadBeyondBound(t *testing.T) {
+func TestLegacyBareBackupRejectsWithoutReadingPayload(t *testing.T) {
 	encoded, err := jsonBytes(validManifest())
 	if err != nil {
 		t.Fatal(err)
 	}
 	oversized := append(encoded, bytes.Repeat([]byte(" "), maximumRecoveryManifestBytes+1)...)
-	if err := runCommand(io.Discard, bytes.NewReader(oversized), []string{"backup"}, "dev"); !errors.Is(err, errManifestRejected) {
-		t.Fatalf("oversized backup input error = %v", err)
+	if err := runCommand(io.Discard, bytes.NewReader(oversized), []string{"backup"}, "dev"); !errors.Is(err, errInvalidArguments) {
+		t.Fatalf("legacy backup input error = %v", err)
 	}
 }
 
