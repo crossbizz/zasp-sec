@@ -32,6 +32,16 @@ const expectedMap: MapDocument = {
       ],
     },
     {
+      id: "recovery_operations",
+      label: "Recovery Operations",
+      actions: [
+        { id: "start_recovery_backup", operation_id: "startRecoveryBackup", availability: "available" },
+        { id: "view_recovery_backup", operation_id: "getRecoveryBackup", availability: "available" },
+        { id: "start_recovery_restore", operation_id: "startRecoveryRestore", availability: "available" },
+        { id: "view_recovery_restore", operation_id: "getRecoveryRestore", availability: "available" },
+      ],
+    },
+    {
       id: "identity_foundation",
       label: "Identity Foundation",
       actions: [
@@ -159,11 +169,11 @@ const expectedMap: MapDocument = {
         { id: "view_test_runs", operation_id: "listTestRuns", availability: "available" },
         { id: "view_test_run", operation_id: "getTestRun", availability: "available" },
         { id: "cancel_test_run", operation_id: "cancelTestRun", availability: "available" },
-        { id: "view_attack_lab_runs", operation_id: "listAttackLabRuns", availability: "planned" },
-        { id: "create_attack_lab_run", operation_id: "createAttackLabRun", availability: "planned" },
-        { id: "view_attack_lab_run", operation_id: "getAttackLabRun", availability: "planned" },
-        { id: "cancel_attack_lab_run", operation_id: "cancelAttackLabRun", availability: "planned" },
-        { id: "rerun_attack_lab_run", operation_id: "rerunAttackLabRun", availability: "planned" },
+        { id: "view_attack_lab_runs", operation_id: "listAttackLabRuns", availability: "api_available" },
+        { id: "create_attack_lab_run", operation_id: "createAttackLabRun", availability: "api_available" },
+        { id: "view_attack_lab_run", operation_id: "getAttackLabRun", availability: "api_available" },
+        { id: "cancel_attack_lab_run", operation_id: "cancelAttackLabRun", availability: "api_available" },
+        { id: "rerun_attack_lab_run", operation_id: "rerunAttackLabRun", availability: "api_available" },
       ],
     },
     {
@@ -296,7 +306,7 @@ function validateMap(value: unknown) {
 }
 
 function parseStrictMap(source: string) {
-  expect(Buffer.byteLength(source, "utf8")).toBeLessThanOrEqual(16 * 1024);
+  expect(Buffer.byteLength(source, "utf8")).toBeLessThanOrEqual(20 * 1024);
   expect(source).not.toMatch(/[&*][A-Za-z0-9_-]+/);
   expect(source).not.toMatch(/^\s*<<\s*:/m);
   const parsed = load(source, { schema: JSON_SCHEMA, json: false });
@@ -379,7 +389,7 @@ describe("M1-25 UI API map seed", () => {
     expect(blocked.map(([task]) => task)).toEqual(["M1A-10", "M1A-09", "M1A-08", "M1A-07", "M3-52", "M3-14", "M8-54", "M8-63", "M8-63e", "M8-63d", "M8-63c", "M8-63b", "M8-63a", "M8-62", "M8-62e", "M8-62d", "M8-62c", "M8-62b", "M8-62a", "M8-61", "M8-61a", "M8-60", "M8-60b", "M8-59", "M8-59b", "M8-58", "M8-58b", "M8-53", "M8-52", "M8-52d", "M8-52c", "M8-52b", "M8-52a", "M8-51", "M8-51e", "M8-51d", "M8-51c", "M8-51b", "M8-51a", "M8-46", "M8-45", "M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
   });
 
-  it("accepts only the exact sixteen-screen, 141-action mixed-lifecycle map", async () => {
+  it("accepts only the exact seventeen-screen, 148-action mixed-lifecycle map", async () => {
     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
 
     expect(parseStrictMap(source)).toEqual(expectedMap);
@@ -397,7 +407,7 @@ describe("M1-25 UI API map seed", () => {
       (value: typeof expectedMap) => value.screens[0].actions.pop(),
       (value: typeof expectedMap) => Object.assign(value.screens[0], { route: "/invented" }),
       (value: typeof expectedMap) => Object.assign(value.screens[0].actions[0], { availability: "active" }),
-			(value: typeof expectedMap) => Object.assign(value.screens[4].actions[0], { operation_id: "getHomeSummary" }),
+			(value: typeof expectedMap) => Object.assign(value.screens[5].actions[0], { operation_id: "getHomeSummary" }),
     ]) {
       const value = structuredClone(expectedMap);
       mutate(value);
@@ -419,6 +429,10 @@ describe("M1-25 UI API map seed", () => {
 			"switchSessionScope",
       "listWorkflowMutationReceipts",
       "acknowledgeWorkflowMutationReceipt",
+      "startRecoveryBackup",
+      "getRecoveryBackup",
+      "startRecoveryRestore",
+      "getRecoveryRestore",
       "getOrganization",
       "listWorkspaces",
       "createWorkspace",

@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { JSON_SCHEMA, load } from "js-yaml";
 
-export const MAP_MAX_BYTES = 16 * 1024;
+export const MAP_MAX_BYTES = 20 * 1024;
 export const OPENAPI_MAX_BYTES = 2 * 1024 * 1024;
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");

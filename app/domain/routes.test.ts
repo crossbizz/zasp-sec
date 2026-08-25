@@ -10,7 +10,7 @@ const expectedNavigation = [
   ["Investigate", [["Sessions", "/investigate/sessions"]]],
   ["Compliance", [["Evidence", "/compliance/evidence"]]],
   ["Integrations", [["Connections", "/connectors"], ["Sensors", "/integrations/sensors"]]],
-  ["Administration", [["Identity & Access", "/administration/identity-access"], ["Audit Log", "/administration/audit-log"], ["Data & Retention", "/administration/data-retention"], ["External Data Flows", "/administration/external-data-flows"], ["System Health", "/administration/system-health"], ["API Access", "/administration/api-access"]]],
+  ["Administration", [["Identity & Access", "/administration/identity-access"], ["Audit Log", "/administration/audit-log"], ["Data & Retention", "/administration/data-retention"], ["Recovery", "/administration/recovery"], ["External Data Flows", "/administration/external-data-flows"], ["System Health", "/administration/system-health"], ["API Access", "/administration/api-access"]]],
 ] as const;
 
 const forbiddenLabels = ["Cartography", "Prowler", "Nango", "Promptfoo", "Neo4j", "Tetragon", "OpenTelemetry", "LocalStack", "Stytch"] as const;
@@ -22,7 +22,7 @@ describe("base shell route registry", () => {
       group.items.map((route) => [route.label, route.path]),
     ])).toEqual(expectedNavigation);
     expect(NAV_GROUPS).toHaveLength(9);
-    expect(allRoutes).toHaveLength(22);
+    expect(allRoutes).toHaveLength(23);
     expect(Object.isFrozen(NAV_GROUPS)).toBe(true);
     expect(Object.isFrozen(allRoutes)).toBe(true);
     for (const group of NAV_GROUPS) {
