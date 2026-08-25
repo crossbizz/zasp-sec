@@ -1,8 +1,8 @@
 DO $rollback_guard$
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='production-recovery-v1') OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>27)
-  OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_recovery_fingerprint' AND value='f81534cc2db5aad86d0a31f7100dcd23a2b6b67ec4ac132e7ee2f4a0bbcab0c6')
-  OR NOT public.zasp_recovery_execution_security_ready() OR public.zasp_recovery_execution_live_fingerprint()<>'f81534cc2db5aad86d0a31f7100dcd23a2b6b67ec4ac132e7ee2f4a0bbcab0c6'
+  OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_recovery_fingerprint' AND value='3a2920ee808fcc33514547fc18771d2f3d54be7ad112ead7874f03230740810b')
+  OR NOT public.zasp_recovery_execution_security_ready() OR public.zasp_recovery_execution_live_fingerprint()<>'3a2920ee808fcc33514547fc18771d2f3d54be7ad112ead7874f03230740810b'
   OR EXISTS(SELECT 1 FROM public.zasp_recovery_backups) OR EXISTS(SELECT 1 FROM public.zasp_recovery_restores) OR EXISTS(SELECT 1 FROM public.zasp_recovery_holds WHERE state<>'released') OR EXISTS(SELECT 1 FROM public.zasp_recovery_outbox WHERE state<>'published') OR EXISTS(SELECT 1 FROM public.zasp_recovery_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_recovery_audit) THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='production recovery rollback rejected';
  END IF;

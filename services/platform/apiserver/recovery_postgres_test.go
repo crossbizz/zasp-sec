@@ -228,6 +228,40 @@ func TestProductionRecoveryPostgresInstallsExactAuthority(t *testing.T) {
 		t.Fatal("foreign manifest authority accepted")
 	}
 
+	restoreToken := bytes.Repeat([]byte{0x37}, 32)
+	var claimedRestore []byte
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_claim_operation('restore',$1,$2,30,1)`, workerID, restoreToken).Scan(&claimedRestore); err != nil || !bytes.Contains(claimedRestore, []byte(restoreID)) || !bytes.Contains(claimedRestore, []byte(`"target_environment": "recovery-e2e-01"`)) {
+		t.Fatalf("restore claim=%s err=%v", claimedRestore, err)
+	}
+	checkpoint := func(from, to string, evidence []byte) {
+		t.Helper()
+		var result []byte
+		if err := worker.QueryRow(ctx, `SELECT zasp_recovery_checkpoint_restore($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`, scopes[0][0], scopes[0][1], scopes[0][2], restoreID, workerID, restoreToken, from, to, evidence).Scan(&result); err != nil || !bytes.Contains(result, []byte(`"state": "`+to+`"`)) {
+			t.Fatalf("checkpoint %s->%s=%s err=%v", from, to, result, err)
+		}
+	}
+	validationArtifact := []byte(`{"reference":"s3://zasp-evidence/organizations/pid_7b000001-0000-4000-8000-000000000001/workspaces/pid_7b000002-0000-4000-8000-000000000002/environments/pid_7b000003-0000-4000-8000-000000000003/artifacts/pid_7b000025-0000-4000-8000-000000000025","version_id":"version-validation-27","sha256":"3737373737373737373737373737373737373737373737373737373737373737","size_bytes":128,"media_type":"application/json","schema":"recovery_validation_v1"}`)
+	cleanupArtifact := []byte(`{"reference":"s3://zasp-evidence/organizations/pid_7b000001-0000-4000-8000-000000000001/workspaces/pid_7b000002-0000-4000-8000-000000000002/environments/pid_7b000003-0000-4000-8000-000000000003/artifacts/pid_7b000026-0000-4000-8000-000000000026","version_id":"version-cleanup-27","sha256":"3838383838383838383838383838383838383838383838383838383838383838","size_bytes":128,"media_type":"application/json","schema":"recovery_cleanup_v1"}`)
+	observed := []byte(`{"assets":3,"findings":2,"policies":1}`)
+	validation := []byte(`{"state":"validated","expected_counts":{"assets":3,"findings":2,"policies":1},"observed_counts":{"assets":3,"findings":2,"policies":1},"evidence":` + string(validationArtifact) + `}`)
+	cleanup := []byte(`{"state":"deleted","evidence":` + string(cleanupArtifact) + `}`)
+	checkpoint("verifying", "provisioning", []byte(`{"state":"verified"}`))
+	checkpoint("provisioning", "validating", []byte(`{"state":"provisioned"}`))
+	checkpoint("validating", "rebuilding", validation)
+	checkpoint("rebuilding", "cleanup_required", []byte(`{"state":"rebuilt"}`))
+	checkpoint("cleanup_required", "cleaning", []byte(`{"state":"cleanup_started"}`))
+	badValidation := bytes.Replace(validation, []byte(`"assets":3`), []byte(`"assets":4`), 1)
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_finish_restore($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb)`, scopes[0][0], scopes[0][1], scopes[0][2], restoreID, workerID, restoreToken, observed, badValidation, cleanup).Scan(&rejected); err == nil {
+		t.Fatal("restore expected/observed count drift accepted")
+	}
+	var finishedRestore []byte
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_finish_restore($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb)`, scopes[0][0], scopes[0][1], scopes[0][2], restoreID, workerID, restoreToken, observed, validation, cleanup).Scan(&finishedRestore); err != nil || !bytes.Contains(finishedRestore, []byte(`"state": "succeeded"`)) {
+		t.Fatalf("finish restore=%s err=%v", finishedRestore, err)
+	}
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_get_restore($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], restoreID).Scan(&readRestore); err != nil || !bytes.Contains(readRestore, []byte(`"observed_counts"`)) || !bytes.Contains(readRestore, []byte(`"cleanup_evidence"`)) {
+		t.Fatalf("completed restore=%s err=%v", readRestore, err)
+	}
+
 	createBackup(scopes[0], "pid_7b000021-0000-4000-8000-000000000021", "recovery-backup-key-0002", 0x29)
 	createBackup(scopes[1], "pid_7c000021-0000-4000-8000-000000000021", "recovery-backup-key-0003", 0x30)
 	operationToken = bytes.Repeat([]byte{0x33}, 32)
@@ -241,5 +275,26 @@ func TestProductionRecoveryPostgresInstallsExactAuthority(t *testing.T) {
 	}
 	if err := json.Unmarshal(claimedOperation, &operationEnvelope); err != nil || len(operationEnvelope.Items) != 2 || operationEnvelope.Items[0].OrganizationID == operationEnvelope.Items[1].OrganizationID {
 		t.Fatalf("fair operation envelope=%s err=%v", claimedOperation, err)
+	}
+	exhaustedBackupID := "pid_7b000021-0000-4000-8000-000000000021"
+	if _, err := connection.Exec(ctx, `UPDATE zasp_recovery_backups SET state='retryable',attempt=100,available_at=transaction_timestamp(),worker_id=NULL,lease_token=NULL,lease_expires_at=NULL WHERE (organization_id,workspace_id,environment_id,backup_id)=($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], exhaustedBackupID); err != nil {
+		t.Fatal(err)
+	}
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_claim_operation('backup',$1,$2,30,1)`, workerID, bytes.Repeat([]byte{0x39}, 32)).Scan(&claimedOperation); err != nil {
+		t.Fatal(err)
+	}
+	var exhaustedState, exhaustedCode string
+	if err := connection.QueryRow(ctx, `SELECT state,error_code FROM zasp_recovery_backups WHERE (organization_id,workspace_id,environment_id,backup_id)=($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], exhaustedBackupID).Scan(&exhaustedState, &exhaustedCode); err != nil || exhaustedState != "failed" || exhaustedCode != "exhausted" || bytes.Contains(claimedOperation, []byte(exhaustedBackupID)) {
+		t.Fatalf("exhausted backup state=%q code=%q claim=%s err=%v", exhaustedState, exhaustedCode, claimedOperation, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_recovery_outbox SET state='retryable',attempt=100,available_at=transaction_timestamp(),worker_id=NULL,lease_token=NULL,lease_expires_at=NULL WHERE organization_id=$1 AND topic='recovery-backup-jobs' AND state='pending'`, scopes[0][0]); err != nil {
+		t.Fatal(err)
+	}
+	if err := outbox.QueryRow(ctx, `SELECT zasp_recovery_claim_outbox('recovery-backup-jobs','recovery-outbox-worker',$1,30,1)`, bytes.Repeat([]byte{0x3a}, 32)).Scan(&claimedOutbox); err != nil {
+		t.Fatal(err)
+	}
+	var exhaustedOutbox int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_recovery_outbox WHERE organization_id=$1 AND topic='recovery-backup-jobs' AND attempt=100 AND state='exhausted'`, scopes[0][0]).Scan(&exhaustedOutbox); err != nil || exhaustedOutbox != 1 {
+		t.Fatalf("exhausted outbox=%d claim=%s err=%v", exhaustedOutbox, claimedOutbox, err)
 	}
 }

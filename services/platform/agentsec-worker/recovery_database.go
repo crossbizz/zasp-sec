@@ -22,7 +22,9 @@ const (
 	recoveryReleaseHoldSQL        = `SELECT zasp_recovery_release_hold($1,$2,$3,$4,$5,$6)`
 	recoveryCapturePageSQL        = `SELECT zasp_recovery_capture_page($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 	recoveryFinishBackupSQL       = `SELECT zasp_recovery_finish_backup($1,$2,$3,$4,$5,$6,$7::jsonb)`
-	recoveryFailOperationSQL      = `SELECT zasp_recovery_fail_operation($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL)`
+	recoveryCheckpointRestoreSQL  = `SELECT zasp_recovery_checkpoint_restore($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`
+	recoveryFinishRestoreSQL      = `SELECT zasp_recovery_finish_restore($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb)`
+	recoveryFailOperationSQL      = `SELECT zasp_recovery_fail_operation($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`
 	recoveryCurrentLSNSQL         = `SELECT to_jsonb(pg_current_wal_lsn()::text)`
 )
 
@@ -62,20 +64,24 @@ func (authority *postgresRecoveryOperationAuthority) Ready(ctx context.Context) 
 }
 
 func (authority *postgresRecoveryOperationAuthority) Claim(ctx context.Context, kind, worker, token string, leaseSeconds, limit int) ([]recoveryOperationClaim, error) {
-	if authority == nil || ctx == nil || ctx.Err() != nil || kind != "backup" || !workerIdentityPattern.MatchString(worker) || len(token) != 32 || leaseSeconds < 5 || leaseSeconds > 900 || limit < 1 || limit > 25 {
+	if authority == nil || ctx == nil || ctx.Err() != nil || !stringInWorker(kind, "backup", "restore") || !workerIdentityPattern.MatchString(worker) || len(token) != 32 || leaseSeconds < 5 || leaseSeconds > 900 || limit < 1 || limit > 25 {
 		return nil, errWorkerExecution
 	}
 	payload, err := authority.database.QueryJSON(ctx, recoveryClaimOperationSQL, kind, worker, []byte(token), leaseSeconds, limit)
 	var wire struct {
 		Items []struct {
-			Attempt        int       `json:"attempt"`
-			BackupID       string    `json:"backup_id"`
-			EnvironmentID  string    `json:"environment_id"`
-			OrganizationID string    `json:"organization_id"`
-			RequestDigest  string    `json:"request_digest"`
-			WorkspaceID    string    `json:"workspace_id"`
-			LeaseExpiresAt time.Time `json:"lease_expires_at"`
-			RetentionDays  int       `json:"retention_days"`
+			Attempt           int                                `json:"attempt"`
+			BackupID          string                             `json:"backup_id"`
+			RestoreID         string                             `json:"restore_id"`
+			EnvironmentID     string                             `json:"environment_id"`
+			OrganizationID    string                             `json:"organization_id"`
+			RequestDigest     string                             `json:"request_digest"`
+			WorkspaceID       string                             `json:"workspace_id"`
+			LeaseExpiresAt    time.Time                          `json:"lease_expires_at"`
+			RetentionDays     int                                `json:"retention_days"`
+			TargetEnvironment string                             `json:"target_environment"`
+			Manifest          *apiserver.RecoveryManifestLocator `json:"manifest"`
+			ManifestDigest    string                             `json:"manifest_digest"`
 		} `json:"items"`
 	}
 	if err != nil || decodeStrictWorkerJSON(payload, &wire) != nil || len(wire.Items) > limit {
@@ -84,13 +90,56 @@ func (authority *postgresRecoveryOperationAuthority) Claim(ctx context.Context, 
 	claims := make([]recoveryOperationClaim, len(wire.Items))
 	for index, item := range wire.Items {
 		scope, ok := recoveryScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID)
-		claim := recoveryOperationClaim{Kind: kind, Scope: scope, OperationID: item.BackupID, Attempt: item.Attempt, RetentionDays: item.RetentionDays}
-		if !ok || !validRecoveryOperationClaim(claim) || !validRecoveryLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) || !recoveryRequestDigestPattern.MatchString(item.RequestDigest) || item.RequestDigest == `\x`+strings.Repeat("0", 64) {
+		operationID := item.BackupID
+		if kind == "restore" {
+			operationID = item.RestoreID
+		}
+		claim := recoveryOperationClaim{Kind: kind, Scope: scope, OperationID: operationID, Attempt: item.Attempt, RetentionDays: item.RetentionDays, TargetEnvironment: item.TargetEnvironment, Manifest: item.Manifest}
+		if !ok || !validRecoveryOperationClaim(claim) || !validRecoveryLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) || !recoveryRequestDigestPattern.MatchString(item.RequestDigest) || item.RequestDigest == `\x`+strings.Repeat("0", 64) || kind == "restore" && (!recoveryRequestDigestPattern.MatchString(item.ManifestDigest) || item.Manifest == nil || strings.TrimPrefix(item.ManifestDigest, `\x`) != item.Manifest.SHA256) {
 			return nil, errWorkerExecution
 		}
 		claims[index] = claim
 	}
 	return claims, nil
+}
+
+func (authority *postgresRecoveryOperationAuthority) CheckpointRestore(ctx context.Context, lease recoveryOperationLease, from, to string, evidence any) error {
+	if !validRecoveryLease(lease) || lease.Kind != "restore" || evidence == nil || !stringInWorker(from+":"+to, "verifying:provisioning", "provisioning:validating", "validating:rebuilding", "rebuilding:cleanup_required", "cleanup_required:cleaning") {
+		return errWorkerExecution
+	}
+	encoded, err := json.Marshal(evidence)
+	if err != nil || len(encoded) < 2 || len(encoded) > 8192 {
+		return errWorkerExecution
+	}
+	payload, err := authority.database.QueryJSON(ctx, recoveryCheckpointRestoreSQL, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, []byte(lease.LeaseToken), from, to, json.RawMessage(encoded))
+	var result struct {
+		State string `json:"state"`
+	}
+	if err != nil || decodeStrictWorkerJSON(payload, &result) != nil || result.State != to {
+		return errWorkerExecution
+	}
+	return nil
+}
+
+func (authority *postgresRecoveryOperationAuthority) FinishRestore(ctx context.Context, lease recoveryOperationLease, observed apiserver.RecoveryCounts, validation apiserver.RecoveryValidationEvidence, cleanup apiserver.RecoveryCleanupEvidence) error {
+	if !validRecoveryLease(lease) || lease.Kind != "restore" {
+		return errWorkerExecution
+	}
+	observedJSON, observedErr := json.Marshal(observed)
+	validationJSON, validationErr := json.Marshal(validation)
+	cleanupJSON, cleanupErr := json.Marshal(cleanup)
+	if observedErr != nil || validationErr != nil || cleanupErr != nil || len(observedJSON) > 1024 || len(validationJSON) > 8192 || len(cleanupJSON) > 8192 {
+		return errWorkerExecution
+	}
+	payload, err := authority.database.QueryJSON(ctx, recoveryFinishRestoreSQL, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, []byte(lease.LeaseToken), json.RawMessage(observedJSON), json.RawMessage(validationJSON), json.RawMessage(cleanupJSON))
+	var result struct {
+		State    string `json:"state"`
+		Replayed bool   `json:"replayed"`
+	}
+	if err != nil || decodeStrictWorkerJSON(payload, &result) != nil || result.State != "succeeded" {
+		return errWorkerExecution
+	}
+	return nil
 }
 
 func (authority *postgresRecoveryOperationAuthority) Heartbeat(ctx context.Context, lease recoveryOperationLease, leaseSeconds int) error {
@@ -156,11 +205,19 @@ func (authority *postgresRecoveryOperationAuthority) FinishBackup(ctx context.Co
 	return nil
 }
 
-func (authority *postgresRecoveryOperationAuthority) Fail(ctx context.Context, lease recoveryOperationLease, code string, retry time.Duration) error {
+func (authority *postgresRecoveryOperationAuthority) Fail(ctx context.Context, lease recoveryOperationLease, code string, retry time.Duration, cleanup *apiserver.RecoveryCleanupEvidence) error {
 	if retry < 0 || retry > 24*time.Hour || retry%time.Second != 0 {
 		return errWorkerExecution
 	}
-	payload, err := authority.database.QueryJSON(ctx, recoveryFailOperationSQL, lease.Kind, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, []byte(lease.LeaseToken), code, int(retry/time.Second))
+	var cleanupJSON any
+	if cleanup != nil {
+		encoded, err := json.Marshal(cleanup)
+		if err != nil || len(encoded) > 8192 {
+			return errWorkerExecution
+		}
+		cleanupJSON = json.RawMessage(encoded)
+	}
+	payload, err := authority.database.QueryJSON(ctx, recoveryFailOperationSQL, lease.Kind, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.OperationID, lease.WorkerID, []byte(lease.LeaseToken), code, int(retry/time.Second), cleanupJSON)
 	var result struct {
 		State string `json:"state"`
 	}

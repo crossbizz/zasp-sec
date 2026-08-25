@@ -84,7 +84,15 @@ func (fake *recoveryAuthorityFake) FinishBackup(_ context.Context, _ recoveryOpe
 	return fake.finishErr
 }
 
-func (fake *recoveryAuthorityFake) Fail(_ context.Context, _ recoveryOperationLease, code string, _ time.Duration) error {
+func (fake *recoveryAuthorityFake) CheckpointRestore(context.Context, recoveryOperationLease, string, string, any) error {
+	return nil
+}
+
+func (fake *recoveryAuthorityFake) FinishRestore(context.Context, recoveryOperationLease, apiserver.RecoveryCounts, apiserver.RecoveryValidationEvidence, apiserver.RecoveryCleanupEvidence) error {
+	return nil
+}
+
+func (fake *recoveryAuthorityFake) Fail(_ context.Context, _ recoveryOperationLease, code string, _ time.Duration, _ *apiserver.RecoveryCleanupEvidence) error {
 	fake.mu.Lock()
 	defer fake.mu.Unlock()
 	fake.steps = append(fake.steps, "fail:"+code)

@@ -339,7 +339,7 @@ func validRecoveryRestore(value RecoveryRestore, scope domain.Scope) bool {
 }
 
 func validRecoveryValidationEvidence(value RecoveryValidationEvidence, scope domain.Scope) bool {
-	return value.State == "validated" && validRecoveryArtifactLocator(value.Evidence, scope)
+	return value.State == "validated" && value.ExpectedCounts == value.ObservedCounts && validRecoveryArtifactLocator(value.Evidence, scope)
 }
 
 func validRecoveryCleanupEvidence(value RecoveryCleanupEvidence, scope domain.Scope) bool {
