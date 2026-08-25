@@ -17,6 +17,7 @@ var recoveryRequestDigestPattern = regexp.MustCompile(`^\\x[0-9a-f]{64}$`)
 const (
 	recoveryWorkerReadySQL        = `SELECT zasp_recovery_execution_readiness($1,$2) AND zasp_recovery_principal_ready('zasp_recovery_worker')`
 	recoveryClaimOperationSQL     = `SELECT zasp_recovery_claim_operation($1,$2,$3,$4,$5)`
+	recoveryClaimDeliverySQL      = `SELECT zasp_recovery_claim_delivery($1,$2,$3,$4,$5,$6,$7,$8)`
 	recoveryHeartbeatOperationSQL = `SELECT zasp_recovery_heartbeat_operation($1,$2,$3,$4,$5,$6,$7,$8)`
 	recoveryBeginHoldSQL          = `SELECT zasp_recovery_begin_hold($1,$2,$3,$4,$5,$6)`
 	recoveryReleaseHoldSQL        = `SELECT zasp_recovery_release_hold($1,$2,$3,$4,$5,$6)`
@@ -30,6 +31,55 @@ const (
 
 type recoveryJSONDatabase interface {
 	QueryJSON(context.Context, string, ...any) (json.RawMessage, error)
+}
+
+func (authority *postgresRecoveryOperationAuthority) ClaimDelivery(ctx context.Context, kind string, scope domain.Scope, operationID, worker, token string, leaseSeconds int) (recoveryDeliveryClaim, error) {
+	parsedID, idErr := domain.ParseProductID(operationID)
+	if authority == nil || authority.database == nil || ctx == nil || ctx.Err() != nil || !stringInWorker(kind, "backup", "restore") || scope.Validate() != nil || idErr != nil || parsedID.IsZero() || !workerIdentityPattern.MatchString(worker) || len(token) != 32 || leaseSeconds < 5 || leaseSeconds > 900 {
+		return recoveryDeliveryClaim{}, errWorkerExecution
+	}
+	payload, err := authority.database.QueryJSON(ctx, recoveryClaimDeliverySQL, kind, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), operationID, worker, []byte(token), leaseSeconds)
+	var wire struct {
+		Disposition string `json:"disposition"`
+		Operation   *struct {
+			Attempt           int                                `json:"attempt"`
+			BackupID          string                             `json:"backup_id"`
+			RestoreID         string                             `json:"restore_id"`
+			EnvironmentID     string                             `json:"environment_id"`
+			OrganizationID    string                             `json:"organization_id"`
+			RequestDigest     string                             `json:"request_digest"`
+			WorkspaceID       string                             `json:"workspace_id"`
+			LeaseExpiresAt    time.Time                          `json:"lease_expires_at"`
+			CreatedAt         time.Time                          `json:"created_at"`
+			RetentionDays     int                                `json:"retention_days"`
+			TargetEnvironment string                             `json:"target_environment"`
+			Manifest          *apiserver.RecoveryManifestLocator `json:"manifest"`
+			ManifestDigest    string                             `json:"manifest_digest"`
+		} `json:"operation"`
+	}
+	if err != nil || decodeStrictWorkerJSON(payload, &wire) != nil || !stringInWorker(wire.Disposition, "claimed", "retry_later", "ack_terminal", "exhausted") {
+		return recoveryDeliveryClaim{}, errWorkerExecution
+	}
+	if wire.Disposition != "claimed" {
+		if wire.Operation != nil {
+			return recoveryDeliveryClaim{}, errWorkerExecution
+		}
+		return recoveryDeliveryClaim{Disposition: wire.Disposition}, nil
+	}
+	if wire.Operation == nil {
+		return recoveryDeliveryClaim{}, errWorkerExecution
+	}
+	item := wire.Operation
+	decodedScope, ok := recoveryScope(item.OrganizationID, item.WorkspaceID, item.EnvironmentID)
+	decodedID := item.BackupID
+	if kind == "restore" {
+		decodedID = item.RestoreID
+	}
+	claim := recoveryOperationClaim{Kind: kind, Scope: decodedScope, OperationID: decodedID, Attempt: item.Attempt, RetentionDays: item.RetentionDays, TargetEnvironment: item.TargetEnvironment, Manifest: item.Manifest, CreatedAt: item.CreatedAt.UTC()}
+	if !ok || decodedScope != scope || decodedID != operationID || !validRecoveryOperationClaim(claim) || item.CreatedAt.IsZero() || item.CreatedAt.Location() != time.UTC || !validRecoveryLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) || !recoveryRequestDigestPattern.MatchString(item.RequestDigest) || item.RequestDigest == `\x`+strings.Repeat("0", 64) || kind == "restore" && (!recoveryRequestDigestPattern.MatchString(item.ManifestDigest) || item.Manifest == nil || strings.TrimPrefix(item.ManifestDigest, `\x`) != item.Manifest.SHA256) {
+		return recoveryDeliveryClaim{}, errWorkerExecution
+	}
+	return recoveryDeliveryClaim{Disposition: "claimed", Operation: claim}, nil
 }
 
 type postgresRecoveryOperationAuthority struct {

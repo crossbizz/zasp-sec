@@ -107,14 +107,19 @@ func TestComposeRecoveryRuntimesBindSeparateV27Authorities(t *testing.T) {
 	scope := recoveryWorkerScope(t)
 	authority := &recoveryAuthorityFake{claim: recoveryOperationClaim{Kind: "backup", Scope: scope, OperationID: "pid_71000001-0000-4000-8000-000000000001", Attempt: 1, RetentionDays: 30}}
 	closed := false
+	queueSteps := []string{}
+	queue := &recordingDiscoveryQueue{steps: &queueSteps}
 	dependencies, err := composeRecoveryWorkerRuntime(validRecoveryRuntimeConfig(), authority, &productionRecoveryDependencies{
-		Publisher: &recoveryPublisherFake{manifest: recoveryWorkerManifest(scope)}, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil },
+		Queue: queue, Publisher: &recoveryPublisherFake{manifest: recoveryWorkerManifest(scope)}, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil },
 	})
-	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil || dependencies.Metrics == nil {
 		t.Fatalf("recovery dependencies=%#v error=%v", dependencies, err)
 	}
 	if err := dependencies.Ready(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+	if metrics := dependencies.Metrics(); !strings.Contains(metrics, "zasp_recovery_driver_ready 1\n") {
+		t.Fatalf("recovery metrics=%q", metrics)
 	}
 	if err := dependencies.Close(); err != nil || !closed {
 		t.Fatalf("close=%v closed=%v", err, closed)
@@ -122,6 +127,7 @@ func TestComposeRecoveryRuntimesBindSeparateV27Authorities(t *testing.T) {
 	restoreConfig := validRecoveryRuntimeConfig()
 	restoreConfig.PostgresDSN = "postgres://recovery@ep-main.us-west-2.aws.neon.tech/zasp?sslmode=verify-full"
 	restoreConfig.RecoveryOperationKind = "restore"
+	restoreConfig.RecoveryQueueURL = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-recovery-restore-jobs"
 	restoreConfig.RecoveryNeonSecretReference = "ref:neon/project-api-key"
 	restoreConfig.RecoveryKubernetesURL = "https://kubernetes.default.svc"
 	restoreConfig.RecoveryKubernetesToken = "/var/run/secrets/kubernetes.io/serviceaccount/token"
@@ -132,7 +138,7 @@ func TestComposeRecoveryRuntimesBindSeparateV27Authorities(t *testing.T) {
 	restoreAuthority := &recoveryRestoreAuthorityFake{claim: recoveryRestoreClaim(scope)}
 	restoreInfrastructure := &recoveryRestoreInfrastructureFake{}
 	restoreDependencies, err := composeRecoveryWorkerRuntime(restoreConfig, restoreAuthority, &productionRecoveryDependencies{
-		Loader: &recoveryManifestLoaderFake{manifest: recoveryRestoreManifest(t, scope)}, Infrastructure: restoreInfrastructure,
+		Queue: queue, Loader: &recoveryManifestLoaderFake{manifest: recoveryRestoreManifest(t, scope)}, Infrastructure: restoreInfrastructure,
 		ready: func(context.Context) error { return nil }, close: func() error { return nil },
 	})
 	if err != nil || restoreDependencies.Processor == nil || restoreDependencies.Ready == nil || restoreDependencies.Close == nil {
@@ -666,7 +672,7 @@ func validRecoveryRuntimeConfig() workerRuntimeConfig {
 	return workerRuntimeConfig{
 		Mode: workerModeRecovery, PostgresDSN: "postgres://recovery@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_recovery_worker", WorkerID: "recovery-worker-01",
 		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
-		AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-recovery", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
+		RecoveryQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-recovery-backup-jobs", AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-recovery", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
 		RecoveryRoleARN: "arn:aws:iam::123456789012:role/zasp-production-recovery", RecoveryTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RecoveryOperationKind: "backup",
 		RecoverySigningKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/22222222-2222-4222-8222-222222222222", RecoveryNeonProjectID: "silent-moon-12345678", RecoveryNeonBranchID: "br-production-main",
 	}

@@ -96,4 +96,15 @@ func TestProductionQueueBindsExactRedTeamQueueAuthority(t *testing.T) {
 	}
 }
 
+func TestProductionRecoveryQueueBindsHundredAttemptRedriveAuthority(t *testing.T) {
+	queueARN := "arn:aws:sqs:us-west-2:123456789012:agentsec-recovery-backup-jobs"
+	stub := &discoveryQueueAPIStub{output: &sqs.GetQueueAttributesOutput{Attributes: map[string]string{
+		string(types.QueueAttributeNameQueueArn): queueARN, string(types.QueueAttributeNameRedrivePolicy): `{"deadLetterTargetArn":"` + queueARN + `-dlq","maxReceiveCount":"100"}`,
+	}}}
+	queue, err := newProductionDiscoveryQueue(stub, productionDiscoveryQueueConfig{Region: "us-west-2", QueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-recovery-backup-jobs", ExpectedQueueName: "agentsec-recovery-backup-jobs", OperationTimeout: 10 * time.Second, Visibility: 60 * time.Second, ShutdownTimeout: 20 * time.Second, MaximumReceiveCount: 100})
+	if err != nil || queue.Ready(context.Background()) != nil {
+		t.Fatalf("recovery queue=%#v err=%v", queue, err)
+	}
+}
+
 var _ discoveryQueueAPI = (*discoveryQueueAPIStub)(nil)

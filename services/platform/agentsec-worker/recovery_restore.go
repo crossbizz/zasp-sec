@@ -13,6 +13,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 	"github.com/zasp-ai/zasp-sec/services/platform/recovery"
 )
 
@@ -59,13 +60,16 @@ type recoveryRestoreInfrastructure interface {
 
 type recoveryRestoreProcessorConfig struct {
 	Authority         recoveryOperationAuthority
+	Queue             discoveryQueue
 	Loader            recoveryManifestLoader
 	Infrastructure    recoveryRestoreInfrastructure
+	Metrics           *recoveryMetrics
 	WorkerID          string
 	LeaseSeconds      int
 	BatchSize         int
 	HeartbeatInterval time.Duration
 	NewLeaseToken     func() (string, error)
+	Now               func() time.Time
 }
 
 type recoveryRestoreProcessor struct {
@@ -76,7 +80,12 @@ func newRecoveryRestoreProcessor(config recoveryRestoreProcessorConfig) (*recove
 	if config.HeartbeatInterval == 0 {
 		config.HeartbeatInterval = time.Duration(config.LeaseSeconds) * time.Second / 3
 	}
-	if config.Authority == nil || config.Loader == nil || config.Infrastructure == nil || config.NewLeaseToken == nil || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 5 || config.LeaseSeconds > 900 || config.BatchSize < 1 || config.BatchSize > 25 || config.HeartbeatInterval < time.Millisecond || config.HeartbeatInterval > time.Duration(config.LeaseSeconds)*time.Second/2 {
+	if config.Now == nil {
+		config.Now = func() time.Time { return time.Now().UTC() }
+	}
+	_, extendsVisibility := config.Queue.(jobqueue.VisibilityExtender)
+	_, claimsDeliveries := config.Authority.(recoveryDeliveryAuthority)
+	if config.Authority == nil || config.Loader == nil || config.Infrastructure == nil || config.NewLeaseToken == nil || config.Queue != nil && (!extendsVisibility || !claimsDeliveries) || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 5 || config.LeaseSeconds > 900 || config.BatchSize < 1 || config.BatchSize > 25 || config.HeartbeatInterval < time.Millisecond || config.HeartbeatInterval > time.Duration(config.LeaseSeconds)*time.Second/2 {
 		return nil, errWorkerExecution
 	}
 	return &recoveryRestoreProcessor{config: config}, nil
@@ -85,6 +94,9 @@ func newRecoveryRestoreProcessor(config recoveryRestoreProcessorConfig) (*recove
 func (processor *recoveryRestoreProcessor) RunOnce(ctx context.Context) error {
 	if processor == nil || ctx == nil || ctx.Err() != nil || processor.config.Authority.Ready(ctx) != nil {
 		return errWorkerExecution
+	}
+	if processor.config.Queue != nil {
+		return processor.runDeliveries(ctx)
 	}
 	token, err := processor.config.NewLeaseToken()
 	if err != nil || len(token) != 32 {
@@ -97,7 +109,7 @@ func (processor *recoveryRestoreProcessor) RunOnce(ctx context.Context) error {
 	results := make(chan error, len(claims))
 	for _, claim := range claims {
 		claim := claim
-		go func() { results <- processor.process(ctx, token, claim) }()
+		go func() { results <- processor.process(ctx, token, claim, nil) }()
 	}
 	failed := false
 	for range claims {
@@ -111,7 +123,76 @@ func (processor *recoveryRestoreProcessor) RunOnce(ctx context.Context) error {
 	return nil
 }
 
-func (processor *recoveryRestoreProcessor) process(ctx context.Context, token string, claim recoveryOperationClaim) error {
+func (processor *recoveryRestoreProcessor) runDeliveries(ctx context.Context) error {
+	deliveries, err := processor.config.Queue.ConsumeBatch(ctx, processor.config.BatchSize)
+	if err != nil {
+		return errWorkerExecution
+	}
+	if len(deliveries) == 0 {
+		processor.config.Metrics.observeEmptyClaim()
+		return nil
+	}
+	results := make(chan error, len(deliveries))
+	for _, delivery := range deliveries {
+		delivery := delivery
+		go func() { results <- processor.runDelivery(ctx, delivery) }()
+	}
+	failed := false
+	for range deliveries {
+		if <-results != nil {
+			failed = true
+		}
+	}
+	if failed {
+		return errWorkerExecution
+	}
+	return nil
+}
+
+func (processor *recoveryRestoreProcessor) runDelivery(ctx context.Context, delivery jobqueue.Delivery) error {
+	if !validRecoveryDelivery(delivery, "restore") {
+		return errWorkerExecution
+	}
+	token, err := processor.config.NewLeaseToken()
+	if err != nil || len(token) != 32 {
+		return errWorkerExecution
+	}
+	claim, err := processor.config.Authority.(recoveryDeliveryAuthority).ClaimDelivery(ctx, "restore", delivery.Job.Scope, delivery.Job.JobID.String(), processor.config.WorkerID, token, processor.config.LeaseSeconds)
+	if err != nil {
+		return errWorkerExecution
+	}
+	switch claim.Disposition {
+	case "retry_later":
+		return nil
+	case "ack_terminal":
+		return processor.acknowledge(ctx, delivery.Receipt)
+	case "exhausted":
+		processor.config.Metrics.observeExhaustion()
+		return processor.acknowledge(ctx, delivery.Receipt)
+	case "claimed":
+		if claim.Operation.Kind != "restore" || claim.Operation.Scope != delivery.Job.Scope || claim.Operation.OperationID != delivery.Job.JobID.String() {
+			return errWorkerExecution
+		}
+		processor.config.Metrics.observeClaim(claim.Operation, processor.config.Now().UTC())
+		if processor.process(ctx, token, claim.Operation, &delivery.Receipt) != nil {
+			return errWorkerExecution
+		}
+		return processor.acknowledge(ctx, delivery.Receipt)
+	default:
+		return errWorkerExecution
+	}
+}
+
+func (processor *recoveryRestoreProcessor) acknowledge(ctx context.Context, receipt jobqueue.Receipt) error {
+	ackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), minDuration(time.Duration(processor.config.LeaseSeconds)*time.Second/3, 30*time.Second))
+	defer cancel()
+	if processor.config.Queue.AcknowledgeBatch(ackCtx, []jobqueue.Receipt{receipt}) != nil {
+		return errWorkerExecution
+	}
+	return nil
+}
+
+func (processor *recoveryRestoreProcessor) process(ctx context.Context, token string, claim recoveryOperationClaim, receipt *jobqueue.Receipt) error {
 	if !validRecoveryOperationClaim(claim) || claim.Kind != "restore" {
 		return errWorkerExecution
 	}
@@ -123,7 +204,7 @@ func (processor *recoveryRestoreProcessor) process(ctx context.Context, token st
 	defer cancelWork()
 	var leaseLost atomic.Bool
 	heartbeatDone := make(chan struct{})
-	go processor.keepLease(workCtx, lease, cancelWork, &leaseLost, heartbeatDone)
+	go processor.keepLease(workCtx, lease, receipt, cancelWork, &leaseLost, heartbeatDone)
 
 	loaded, err := processor.config.Loader.Load(workCtx, claim)
 	if err != nil {
@@ -168,6 +249,7 @@ func (processor *recoveryRestoreProcessor) process(ctx context.Context, token st
 
 	cleanup, cleanupErr := processor.cleanup(ctx, target, claim)
 	if cleanupErr != nil || cleanup.State != "deleted" {
+		processor.config.Metrics.observeCleanupFailure()
 		return processor.stopAndRecordFailure(ctx, cancelWork, heartbeatDone, &leaseLost, lease, "cleanup_failed", &cleanup)
 	}
 	finalizeCtx, cancelFinalize := context.WithTimeout(workCtx, minDuration(time.Duration(processor.config.LeaseSeconds)*time.Second/3, 30*time.Second))
@@ -185,6 +267,7 @@ func (processor *recoveryRestoreProcessor) process(ctx context.Context, token st
 func (processor *recoveryRestoreProcessor) cleanupAndFail(ctx context.Context, cancelWork context.CancelFunc, heartbeatDone <-chan struct{}, leaseLost *atomic.Bool, lease recoveryOperationLease, target recoveryRestoreTarget, code string) error {
 	cleanup, err := processor.cleanup(ctx, target, lease.recoveryOperationClaim)
 	if err != nil || cleanup.State != "deleted" {
+		processor.config.Metrics.observeCleanupFailure()
 		code = "cleanup_failed"
 	}
 	return processor.stopAndRecordFailure(ctx, cancelWork, heartbeatDone, leaseLost, lease, code, &cleanup)
@@ -214,7 +297,7 @@ func (processor *recoveryRestoreProcessor) stopAndRecordFailure(ctx context.Cont
 	return errWorkerExecution
 }
 
-func (processor *recoveryRestoreProcessor) keepLease(ctx context.Context, lease recoveryOperationLease, cancelWork context.CancelFunc, leaseLost *atomic.Bool, done chan<- struct{}) {
+func (processor *recoveryRestoreProcessor) keepLease(ctx context.Context, lease recoveryOperationLease, receipt *jobqueue.Receipt, cancelWork context.CancelFunc, leaseLost *atomic.Bool, done chan<- struct{}) {
 	defer close(done)
 	ticker := time.NewTicker(processor.config.HeartbeatInterval)
 	defer ticker.Stop()
@@ -225,8 +308,12 @@ func (processor *recoveryRestoreProcessor) keepLease(ctx context.Context, lease 
 		case <-ticker.C:
 			renewCtx, cancel := context.WithTimeout(ctx, minDuration(processor.config.HeartbeatInterval, 5*time.Second))
 			err := processor.config.Authority.Heartbeat(renewCtx, lease, processor.config.LeaseSeconds)
+			if err == nil && receipt != nil {
+				err = processor.config.Queue.(jobqueue.VisibilityExtender).ExtendVisibility(renewCtx, []jobqueue.Receipt{*receipt}, time.Duration(processor.config.LeaseSeconds)*time.Second)
+			}
 			cancel()
 			if err != nil {
+				processor.config.Metrics.observeLeaseLoss()
 				leaseLost.Store(true)
 				cancelWork()
 				return

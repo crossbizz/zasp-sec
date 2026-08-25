@@ -2,26 +2,30 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 )
 
 type recoveryAuthorityFake struct {
-	mu         sync.Mutex
-	claim      recoveryOperationClaim
-	steps      []string
-	heartbeats int
-	finished   apiserver.RecoveryManifestLocator
-	failedCode string
-	releaseErr error
-	captureErr error
-	finishErr  error
+	mu          sync.Mutex
+	claim       recoveryOperationClaim
+	steps       []string
+	heartbeats  int
+	finished    apiserver.RecoveryManifestLocator
+	failedCode  string
+	releaseErr  error
+	captureErr  error
+	finishErr   error
+	disposition string
 }
 
 func (fake *recoveryAuthorityFake) Ready(context.Context) error { return nil }
@@ -31,6 +35,20 @@ func (fake *recoveryAuthorityFake) Claim(_ context.Context, kind, worker, token 
 	defer fake.mu.Unlock()
 	fake.steps = append(fake.steps, "claim:"+kind+":"+worker+":"+token)
 	return []recoveryOperationClaim{fake.claim}, nil
+}
+
+func (fake *recoveryAuthorityFake) ClaimDelivery(_ context.Context, kind string, scope domain.Scope, operationID, worker, token string, _ int) (recoveryDeliveryClaim, error) {
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	fake.steps = append(fake.steps, "claim-delivery:"+kind+":"+operationID+":"+worker+":"+token)
+	disposition := fake.disposition
+	if disposition == "" {
+		disposition = "claimed"
+	}
+	claim := fake.claim
+	claim.Scope = scope
+	claim.OperationID = operationID
+	return recoveryDeliveryClaim{Disposition: disposition, Operation: claim}, nil
 }
 
 func (fake *recoveryAuthorityFake) Heartbeat(context.Context, recoveryOperationLease, int) error {
@@ -146,6 +164,53 @@ func TestRecoveryBackupProcessorHoldsCapturesPublishesAndFinishesUnderOneLease(t
 	}
 	if len(publisher.input.Sections["configuration"]) != 1 || len(publisher.input.Sections["projection"]) != 1 || len(publisher.input.Sections["evidence"]) != 1 || len(publisher.input.Sections["counts"]) != 1 {
 		t.Fatalf("publication=%#v", publisher.input)
+	}
+}
+
+func TestRecoveryBackupProcessorConsumesExactDeliveryRenewsVisibilityAndAcknowledgesLast(t *testing.T) {
+	scope := recoveryWorkerScope(t)
+	operationID, _ := domain.ParseProductID("pid_71000001-0000-4000-8000-000000000001")
+	payload := json.RawMessage(`{"backup_id":"pid_71000001-0000-4000-8000-000000000001","environment_id":"pid_71000003-0000-4000-8000-000000000003","organization_id":"pid_71000001-0000-4000-8000-000000000001","workspace_id":"pid_71000002-0000-4000-8000-000000000002"}`)
+	digest := sha256.Sum256(payload)
+	steps := []string{}
+	visibility := make(chan struct{}, 1)
+	queue := &recordingDiscoveryQueue{deliveries: []jobqueue.Delivery{{Job: jobqueue.Job{Scope: scope, JobID: operationID, Kind: "recovery-backup", Payload: payload, AuthorityDigest: digest}}}, steps: &steps, visibilitySeen: visibility}
+	authority := &recoveryAuthorityFake{steps: steps, claim: recoveryOperationClaim{Kind: "backup", Scope: scope, OperationID: operationID.String(), Attempt: 1, RetentionDays: 30, CreatedAt: time.Now().UTC().Add(-2 * time.Minute)}}
+	manifest := recoveryWorkerManifest(scope)
+	processor, err := newRecoveryBackupProcessor(recoveryBackupProcessorConfig{
+		Authority: authority, Queue: queue, Publisher: &recoveryPublisherFake{manifest: manifest, delay: 20 * time.Millisecond}, Metrics: newRecoveryMetrics(), WorkerID: "recovery-worker-1", LeaseSeconds: 5, BatchSize: 1,
+		HeartbeatInterval: 5 * time.Millisecond, PageSize: 100, NewLeaseToken: func() (string, error) { return "0123456789abcdef0123456789abcdef", nil }, Now: func() time.Time { return time.Now().UTC() },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := processor.RunOnce(context.Background()); err != nil {
+		t.Fatalf("RunOnce error=%v steps=%v", err, steps)
+	}
+	select {
+	case <-visibility:
+	default:
+		t.Fatal("queue visibility was not renewed")
+	}
+	if len(steps) != 2 || steps[0] != "consume" || steps[1] != "ack" || len(authority.steps) < 2 || !strings.HasPrefix(authority.steps[0], "claim-delivery:backup:") {
+		t.Fatalf("steps=%v", steps)
+	}
+}
+
+func TestRecoveryBackupProcessorAcknowledgesTerminalDeliveryWithoutSideEffects(t *testing.T) {
+	scope := recoveryWorkerScope(t)
+	operationID, _ := domain.ParseProductID("pid_71000001-0000-4000-8000-000000000001")
+	payload := json.RawMessage(`{"backup_id":"pid_71000001-0000-4000-8000-000000000001","environment_id":"pid_71000003-0000-4000-8000-000000000003","organization_id":"pid_71000001-0000-4000-8000-000000000001","workspace_id":"pid_71000002-0000-4000-8000-000000000002"}`)
+	digest := sha256.Sum256(payload)
+	steps := []string{}
+	queue := &recordingDiscoveryQueue{deliveries: []jobqueue.Delivery{{Job: jobqueue.Job{Scope: scope, JobID: operationID, Kind: "recovery-backup", Payload: payload, AuthorityDigest: digest}}}, steps: &steps}
+	authority := &recoveryAuthorityFake{steps: steps, disposition: "ack_terminal", claim: recoveryOperationClaim{Kind: "backup", Scope: scope, OperationID: operationID.String(), Attempt: 1, RetentionDays: 30}}
+	processor, err := newRecoveryBackupProcessor(recoveryBackupProcessorConfig{Authority: authority, Queue: queue, Publisher: &recoveryPublisherFake{}, WorkerID: "recovery-worker-1", LeaseSeconds: 5, BatchSize: 1, HeartbeatInterval: time.Second, PageSize: 100, NewLeaseToken: func() (string, error) { return "0123456789abcdef0123456789abcdef", nil }, Now: func() time.Time { return time.Now().UTC() }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := processor.RunOnce(context.Background()); err != nil || len(steps) != 2 || steps[0] != "consume" || steps[1] != "ack" || len(authority.steps) != 1 || !strings.HasPrefix(authority.steps[0], "claim-delivery:backup:") {
+		t.Fatalf("err=%v steps=%v", err, steps)
 	}
 }
 

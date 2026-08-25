@@ -63,6 +63,18 @@ func TestAttackLabOutboxQueueReadinessBindsExactARNAndDLQ(t *testing.T) {
 	}
 }
 
+func TestRecoveryOutboxQueueReadinessBindsHundredAttemptRedrivePolicy(t *testing.T) {
+	t.Parallel()
+	config := validRecoveryOutboxRuntimeConfig()
+	api := &outboxQueueReadinessStub{output: &sqs.GetQueueAttributesOutput{Attributes: map[string]string{
+		string(sqstypes.QueueAttributeNameQueueArn):      "arn:aws:sqs:us-west-2:123456789012:agentsec-recovery-backup-jobs",
+		string(sqstypes.QueueAttributeNameRedrivePolicy): `{"deadLetterTargetArn":"arn:aws:sqs:us-west-2:123456789012:agentsec-recovery-backup-jobs-dlq","maxReceiveCount":"100"}`,
+	}}}
+	if err := outboxQueueReady(context.Background(), api, config); err != nil {
+		t.Fatalf("recovery outbox readiness=%v", err)
+	}
+}
+
 func TestOutboxQueueReadinessBindsExactARNAndRedrivePolicy(t *testing.T) {
 	t.Parallel()
 	config := validSchedulerRuntimeConfig()

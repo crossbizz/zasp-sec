@@ -377,7 +377,6 @@ func TestRecoveryModesRequireSeparateExactQueueArtifactAndSigningAuthority(t *te
 			delete(values, "ZASP_RECOVERY_NEON_PROJECT_ID")
 			delete(values, "ZASP_RECOVERY_NEON_BRANCH_ID")
 		} else {
-			delete(values, "ZASP_RECOVERY_QUEUE_URL")
 			delete(values, "ZASP_RECOVERY_OUTBOX_TOPIC")
 		}
 		config, err := loadWorkerRuntimeConfig(mapLookup(values))
@@ -387,8 +386,8 @@ func TestRecoveryModesRequireSeparateExactQueueArtifactAndSigningAuthority(t *te
 	}
 	restore := cloneStringMap(base)
 	restore["ZASP_WORKER_MODE"], restore["ZASP_DATABASE_AUTHORITY"], restore["ZASP_RECOVERY_OPERATION_KIND"] = "recovery", "zasp_recovery_worker", "restore"
+	restore["ZASP_RECOVERY_QUEUE_URL"] = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-recovery-restore-jobs"
 	restore["ZASP_POSTGRES_DSN"] = "postgres://recovery@ep-main.us-west-2.aws.neon.tech/zasp?sslmode=verify-full"
-	delete(restore, "ZASP_RECOVERY_QUEUE_URL")
 	delete(restore, "ZASP_RECOVERY_OUTBOX_TOPIC")
 	restore["ZASP_RECOVERY_NEON_SECRET_REFERENCE"] = "ref:neon/project-api-key"
 	restore["ZASP_RECOVERY_KUBERNETES_ENDPOINT"] = "https://kubernetes.default.svc"
@@ -419,14 +418,11 @@ func TestRecoveryModesRequireSeparateExactQueueArtifactAndSigningAuthority(t *te
 		"foreign role": func(values map[string]string) {
 			values["ZASP_RECOVERY_ROLE_ARN"] = "arn:aws:iam::210987654321:role/zasp-production-recovery"
 		},
-		"source branch omitted": func(values map[string]string) { delete(values, "ZASP_RECOVERY_NEON_BRANCH_ID") },
-		"queue leaked into worker": func(values map[string]string) {
-			values["ZASP_RECOVERY_QUEUE_URL"] = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-recovery-backup-jobs"
-		},
+		"source branch omitted":     func(values map[string]string) { delete(values, "ZASP_RECOVERY_NEON_BRANCH_ID") },
+		"queue omitted from worker": func(values map[string]string) { delete(values, "ZASP_RECOVERY_QUEUE_URL") },
 	} {
 		values := cloneStringMap(base)
 		values["ZASP_WORKER_MODE"], values["ZASP_DATABASE_AUTHORITY"] = "recovery", "zasp_recovery_worker"
-		delete(values, "ZASP_RECOVERY_QUEUE_URL")
 		delete(values, "ZASP_RECOVERY_OUTBOX_TOPIC")
 		mutate(values)
 		if _, err := loadWorkerRuntimeConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
