@@ -35,6 +35,9 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 	if !strings.Contains(postgresTypedInventorySchemaVersionSQL, "release.version = 14") || !strings.Contains(postgresTypedInventorySchemaVersionSQL, "release.name = 'typed_inventory_cutover'") || !strings.Contains(postgresTypedInventorySchemaVersionSQL, "zasp_inventory_readiness($1, $2)") {
 		t.Fatalf("v14 schema readiness query does not require typed inventory readiness: %s", postgresTypedInventorySchemaVersionSQL)
 	}
+	if !strings.Contains(postgresProductionRecoverySchemaVersionSQL, "release.version = 27") || !strings.Contains(postgresProductionRecoverySchemaVersionSQL, "release.name = 'production_recovery'") || !strings.Contains(postgresProductionRecoverySchemaVersionSQL, "zasp_recovery_execution_readiness($1, $2)") {
+		t.Fatalf("v27 schema readiness query does not require production recovery readiness: %s", postgresProductionRecoverySchemaVersionSQL)
+	}
 	for _, release := range []struct{ statement, version, name, readiness string }{
 		{postgresRuntimeDataPlaneSchemaVersionSQL, "15", "runtime_data_plane", "zasp_runtime_data_plane_readiness($1, $2)"},
 		{postgresRuntimeGatewayReconciliationSchemaVersionSQL, "16", "runtime_gateway_reconciliation", "zasp_runtime_gateway_reconciliation_readiness($1, $2)"},
@@ -137,6 +140,24 @@ func TestPostgresJSONDatabaseUsesV14ReadinessOnlyForV14Marker(t *testing.T) {
 	}
 	if !reflect.DeepEqual(driver.queryArguments, []any{expectedTypedInventorySchemaChecksum(), expectedTypedInventorySchemaFingerprint()}) {
 		t.Fatalf("v14 schema checksum arguments = %#v", driver.queryArguments)
+	}
+}
+
+func TestPostgresJSONDatabaseUsesV27ReadinessOnlyForV27Marker(t *testing.T) {
+	driver := &databaseDriver{responses: map[string][]byte{
+		postgresSchemaMarkerSQL:                    []byte(ProductionRecoverySchemaVersion),
+		postgresProductionRecoverySchemaVersionSQL: []byte(ProductionRecoverySchemaVersion),
+	}}
+	database, err := NewPostgresJSONDatabase(driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	version, err := database.SchemaVersion(context.Background())
+	if err != nil || version != ProductionRecoverySchemaVersion {
+		t.Fatalf("version = (%q, %v)", version, err)
+	}
+	if !reflect.DeepEqual(driver.queryArguments, []any{expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint()}) {
+		t.Fatalf("v27 schema checksum arguments = %#v", driver.queryArguments)
 	}
 }
 
