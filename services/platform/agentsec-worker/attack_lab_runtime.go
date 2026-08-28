@@ -15,11 +15,17 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 )
 
+const (
+	attackLabReconcileAttempts = 10
+	attackLabReconcileInterval = 100 * time.Millisecond
+)
+
 type attackLabExecutionAuthority interface {
 	Ready(context.Context) error
 	ClaimAttackLabRun(context.Context, domain.Scope, string, string, string, int) (apiserver.AttackLabRunClaim, error)
 	HeartbeatAttackLabRun(context.Context, domain.Scope, string, string, string, int) (apiserver.AttackLabRunHeartbeat, error)
 	RetryAttackLabRun(context.Context, domain.Scope, string, string, string, [sha256.Size]byte, string, time.Time) (apiserver.AttackLabRunTransition, error)
+	BeginAttackLabProvisioning(context.Context, domain.Scope, apiserver.AttackLabProvisioningInput) (apiserver.AttackLabRunTransition, error)
 	MarkAttackLabRunning(context.Context, domain.Scope, apiserver.AttackLabRunningInput) (apiserver.AttackLabRunTransition, error)
 	BeginAttackLabCleanup(context.Context, domain.Scope, apiserver.AttackLabCleanupInput) (apiserver.AttackLabRunTransition, error)
 	FinishAttackLabCleanup(context.Context, domain.Scope, string, string, string, [sha256.Size]byte) (apiserver.AttackLabRunTransition, error)
@@ -28,6 +34,7 @@ type attackLabExecutionAuthority interface {
 type attackLabSandboxProvider interface {
 	Ready(context.Context) error
 	Create(context.Context, attackLabSandboxRequest) (attackLabSandbox, error)
+	Reconcile(context.Context, attackLabSandboxRequest) (attackLabSandbox, bool, error)
 	Collect(context.Context, attackLabSandboxRequest, attackLabSandbox) (attackLabSandboxResult, error)
 	Destroy(context.Context, attackLabSandbox) error
 }
@@ -147,7 +154,7 @@ func (processor *attackLabProcessor) process(ctx context.Context, delivery jobqu
 		return nil
 	case "ack_terminal":
 		return processor.acknowledge(ctx, delivery.Receipt)
-	case "claimed", "running", "cleanup":
+	case "claimed", "provisioning", "running", "cleanup":
 	default:
 		return errWorkerExecution
 	}
@@ -178,16 +185,37 @@ func (processor *attackLabProcessor) runClaim(ctx context.Context, delivery jobq
 		if claim.Run.CancelRequested {
 			return processor.finishWithoutSandbox(ctx, delivery, claim, token, "retryable", stopHeartbeat)
 		}
+		finalizeCtx, cancelFinalize := processor.finalizeContext(ctx)
+		provisioning, provisionErr := processor.config.Authority.BeginAttackLabProvisioning(finalizeCtx, delivery.Job.Scope, apiserver.AttackLabProvisioningInput{RunID: claim.Run.ID, Controller: processor.config.WorkerID, LeaseToken: token, InputDigest: claim.InputDigest})
+		cancelFinalize()
+		if provisionErr != nil || provisioning.Run.Status != "leased" {
+			stopHeartbeat()
+			return errWorkerExecution
+		}
+		request.Run = provisioning.Run
 		created, createErr := callAttackLabCreate(processor.config.Provider, workCtx, request)
 		if createErr != nil {
 			if leaseLost.Load() {
 				stopHeartbeat()
 				return errWorkerExecution
 			}
-			return processor.handleCreateFailure(ctx, delivery, claim, token, createErr, cancelRequested.Load(), stopHeartbeat)
+			if unambiguousAttackLabCreateFailure(createErr) {
+				return processor.handleCreateFailure(ctx, delivery, claim, token, createErr, cancelRequested.Load(), stopHeartbeat)
+			}
+			finalizeCtx, cancelFinalize = processor.finalizeContext(ctx)
+			reconciled, found, reconcileErr := settleAttackLabReconcile(processor.config.Provider, finalizeCtx, request)
+			cancelFinalize()
+			if reconcileErr != nil {
+				stopHeartbeat()
+				return errWorkerExecution
+			}
+			if !found {
+				return processor.handleCreateFailure(ctx, delivery, claim, token, createErr, cancelRequested.Load(), stopHeartbeat)
+			}
+			created = reconciled
 		}
 		sandbox = created
-		finalizeCtx, cancelFinalize := processor.finalizeContext(ctx)
+		finalizeCtx, cancelFinalize = processor.finalizeContext(ctx)
 		running, markErr := processor.config.Authority.MarkAttackLabRunning(finalizeCtx, delivery.Job.Scope, apiserver.AttackLabRunningInput{RunID: claim.Run.ID, Controller: processor.config.WorkerID, LeaseToken: token, InputDigest: claim.InputDigest, SandboxReference: sandbox.Reference})
 		cancelFinalize()
 		if markErr != nil || running.Run.Status != "running" {
@@ -196,7 +224,31 @@ func (processor *attackLabProcessor) runClaim(ctx context.Context, delivery jobq
 		}
 		request.Run = running.Run
 	}
-	result, collectErr := callAttackLabCollect(processor.config.Provider, workCtx, request, sandbox)
+	if claim.Disposition == "provisioning" {
+		finalizeCtx, cancelFinalize := processor.finalizeContext(ctx)
+		reconciled, found, reconcileErr := settleAttackLabReconcile(processor.config.Provider, finalizeCtx, request)
+		cancelFinalize()
+		if reconcileErr != nil {
+			stopHeartbeat()
+			return errWorkerExecution
+		}
+		if !found {
+			return processor.handleCreateFailure(ctx, delivery, claim, token, &attackLabProviderFailure{code: "retryable", retryAfter: 30 * time.Second}, cancelRequested.Load() || request.Run.CancelRequested, stopHeartbeat)
+		}
+		sandbox = reconciled
+		finalizeCtx, cancelFinalize = processor.finalizeContext(ctx)
+		running, markErr := processor.config.Authority.MarkAttackLabRunning(finalizeCtx, delivery.Job.Scope, apiserver.AttackLabRunningInput{RunID: claim.Run.ID, Controller: processor.config.WorkerID, LeaseToken: token, InputDigest: claim.InputDigest, SandboxReference: sandbox.Reference})
+		cancelFinalize()
+		if markErr != nil || running.Run.Status != "running" {
+			stopHeartbeat()
+			return errWorkerExecution
+		}
+		request.Run = running.Run
+	}
+	result, collectErr := cancelledAttackLabResult(), error(nil)
+	if !cancelRequested.Load() && !request.Run.CancelRequested {
+		result, collectErr = callAttackLabCollect(processor.config.Provider, workCtx, request, sandbox)
+	}
 	if leaseLost.Load() {
 		stopHeartbeat()
 		return errWorkerExecution
@@ -398,6 +450,11 @@ func failedAttackLabResult(err error) attackLabSandboxResult {
 	return attackLabSandboxResult{Verdict: "inconclusive", ErrorCode: code, Evidence: []string{"semantic:criterion unavailable", "gateway:execution unavailable", "egress:no undeclared egress observed", "kubernetes:execution incomplete", "cloud:canary outcome unavailable"}}
 }
 
+func unambiguousAttackLabCreateFailure(err error) bool {
+	var failure *attackLabProviderFailure
+	return errors.As(err, &failure) && stringInWorker(failure.code, "denied", "malformed")
+}
+
 func callAttackLabCreate(provider attackLabSandboxProvider, ctx context.Context, request attackLabSandboxRequest) (sandbox attackLabSandbox, resultErr error) {
 	defer func() {
 		if recover() != nil {
@@ -405,6 +462,48 @@ func callAttackLabCreate(provider attackLabSandboxProvider, ctx context.Context,
 		}
 	}()
 	return provider.Create(ctx, request)
+}
+
+func callAttackLabReconcile(provider attackLabSandboxProvider, ctx context.Context, request attackLabSandboxRequest) (sandbox attackLabSandbox, found bool, resultErr error) {
+	defer func() {
+		if recover() != nil {
+			sandbox, found, resultErr = attackLabSandbox{}, false, errWorkerExecution
+		}
+	}()
+	return provider.Reconcile(ctx, request)
+}
+
+func settleAttackLabReconcile(provider attackLabSandboxProvider, ctx context.Context, request attackLabSandboxRequest) (attackLabSandbox, bool, error) {
+	var lastErr error
+	for attempt := 0; attempt < attackLabReconcileAttempts; attempt++ {
+		sandbox, found, err := callAttackLabReconcile(provider, ctx, request)
+		if err == nil && found {
+			return sandbox, found, err
+		}
+		if err != nil {
+			var failure *attackLabProviderFailure
+			if !errors.As(err, &failure) || !stringInWorker(failure.code, "retryable", "outcome_unknown") {
+				return attackLabSandbox{}, false, err
+			}
+			lastErr = err
+		}
+		if attempt == attackLabReconcileAttempts-1 {
+			return attackLabSandbox{}, false, lastErr
+		}
+		timer := time.NewTimer(attackLabReconcileInterval)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			return attackLabSandbox{}, false, errWorkerExecution
+		case <-timer.C:
+		}
+	}
+	return attackLabSandbox{}, false, errWorkerExecution
 }
 
 func callAttackLabCollect(provider attackLabSandboxProvider, ctx context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (result attackLabSandboxResult, resultErr error) {

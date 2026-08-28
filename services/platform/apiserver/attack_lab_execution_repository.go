@@ -30,6 +30,7 @@ const (
 	postgresAttackLabClaimRunSQL        = `SELECT zasp_attack_lab_claim_run($1,$2,$3,$4,$5,$6,$7)`
 	postgresAttackLabHeartbeatRunSQL    = `SELECT zasp_attack_lab_heartbeat_run($1,$2,$3,$4,$5,$6,$7)`
 	postgresAttackLabRetryRunSQL        = `SELECT zasp_attack_lab_retry_run($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	postgresAttackLabBeginProvisionSQL  = `SELECT zasp_attack_lab_begin_provisioning($1,$2,$3,$4,$5,$6,$7)`
 	postgresAttackLabMarkRunningSQL     = `SELECT zasp_attack_lab_mark_running($1,$2,$3,$4,$5,$6,$7,$8)`
 	postgresAttackLabBeginCleanupSQL    = `SELECT zasp_attack_lab_begin_cleanup($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18)`
 	postgresAttackLabFinishCleanupSQL   = `SELECT zasp_attack_lab_finish_cleanup($1,$2,$3,$4,$5,$6,$7)`
@@ -40,6 +41,7 @@ var (
 	attackLabExecutionWorkerPattern     = regexp.MustCompile(`^[a-z][a-z0-9.-]{2,127}$`)
 	attackLabExecutionTokenPattern      = regexp.MustCompile(`^[a-f0-9]{32}$`)
 	attackLabCredentialReferencePattern = regexp.MustCompile(`^ref:red-team/[a-z][a-z0-9_-]{7,127}$`)
+	attackLabSandboxNamePattern         = regexp.MustCompile(`^zasp-attack-lab-[a-f0-9]{32}$`)
 	attackLabSandboxReferencePattern    = regexp.MustCompile(
 		`^k8s://attack-lab/jobs/zasp-attack-lab-[a-z0-9-]{8,64}@[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`,
 	)
@@ -106,6 +108,7 @@ type AttackLabRunClaim struct {
 	Preflight        AttackLabPreflightSnapshot
 	Checkpoint       AttackLabCleanupCheckpoint
 	SandboxReference string
+	SandboxName      string
 	InputDigest      [sha256.Size]byte
 	LeaseExpiresAt   time.Time
 }
@@ -119,6 +122,11 @@ type AttackLabRunHeartbeat struct {
 type AttackLabRunningInput struct {
 	RunID, Controller, LeaseToken, SandboxReference string
 	InputDigest                                     [sha256.Size]byte
+}
+
+type AttackLabProvisioningInput struct {
+	RunID, Controller, LeaseToken string
+	InputDigest                   [sha256.Size]byte
 }
 
 type AttackLabCleanupInput struct {
@@ -289,15 +297,16 @@ func (repository *AttackLabExecutionRepository) ClaimAttackLabRun(ctx context.Co
 		Preflight        AttackLabPreflightSnapshot `json:"preflight"`
 		Checkpoint       AttackLabCleanupCheckpoint `json:"checkpoint"`
 		SandboxReference string                     `json:"sandbox_reference"`
+		SandboxName      string                     `json:"sandbox_name"`
 		InputDigest      string                     `json:"input_digest"`
 		LeaseExpiresAt   time.Time                  `json:"lease_expires_at"`
 	}
-	if decodeStrictDiscovery(payload, &wire) != nil || !stringIn(wire.Disposition, "claimed", "running", "cleanup", "retry_later", "ack_terminal") {
+	if decodeStrictDiscovery(payload, &wire) != nil || !stringIn(wire.Disposition, "claimed", "provisioning", "running", "cleanup", "retry_later", "ack_terminal") {
 		return AttackLabRunClaim{}, ErrRepositoryUnavailable
 	}
 	result := AttackLabRunClaim{Disposition: wire.Disposition}
 	if wire.Disposition == "retry_later" || wire.Disposition == "ack_terminal" {
-		if wire.Run.ID != "" || wire.InputDigest != "" || !wire.LeaseExpiresAt.IsZero() || wire.Preflight.SuccessCriterion != "" || wire.Checkpoint.SandboxReference != "" || wire.SandboxReference != "" {
+		if wire.Run.ID != "" || wire.InputDigest != "" || !wire.LeaseExpiresAt.IsZero() || wire.Preflight.SuccessCriterion != "" || wire.Checkpoint.SandboxReference != "" || wire.SandboxReference != "" || wire.SandboxName != "" {
 			return AttackLabRunClaim{}, ErrRepositoryUnavailable
 		}
 		return result, nil
@@ -306,12 +315,20 @@ func (repository *AttackLabExecutionRepository) ClaimAttackLabRun(ctx context.Co
 	if digestErr != nil || len(digest) != sha256.Size || bytes.Equal(digest, make([]byte, sha256.Size)) || wire.Run.ID != runID || !validAttackLabRun(wire.Run) || !validLeaseExpiration(wire.LeaseExpiresAt, leaseSeconds) {
 		return AttackLabRunClaim{}, ErrRepositoryUnavailable
 	}
-	if wire.Disposition == "claimed" && (wire.Run.Status != "leased" || !validAttackLabPreflight(wire.Preflight, wire.Run) || wire.Checkpoint.SandboxReference != "" || wire.SandboxReference != "") || wire.Disposition == "running" && (wire.Run.Status != "running" || wire.Preflight.SuccessCriterion != "" || wire.Checkpoint.SandboxReference != "" || !attackLabSandboxReferencePattern.MatchString(wire.SandboxReference)) || wire.Disposition == "cleanup" && (wire.Run.Status != "cleanup" || wire.Preflight.SuccessCriterion != "" || wire.SandboxReference != "" || !validAttackLabCleanupCheckpoint(scope, runID, wire.Run, wire.Checkpoint)) {
+	if wire.Disposition == "claimed" && (wire.Run.Status != "leased" || !validAttackLabPreflight(wire.Preflight, wire.Run) || wire.Checkpoint.SandboxReference != "" || wire.SandboxReference != "" || wire.SandboxName != "") || wire.Disposition == "provisioning" && (wire.Run.Status != "leased" || !validAttackLabPreflight(wire.Preflight, wire.Run) || wire.Checkpoint.SandboxReference != "" || wire.SandboxReference != "" || !attackLabSandboxNamePattern.MatchString(wire.SandboxName)) || wire.Disposition == "running" && (wire.Run.Status != "running" || !validAttackLabPreflight(wire.Preflight, wire.Run) || wire.Checkpoint.SandboxReference != "" || wire.SandboxName != "" || !attackLabSandboxReferencePattern.MatchString(wire.SandboxReference)) || wire.Disposition == "cleanup" && (wire.Run.Status != "cleanup" || wire.Preflight.SuccessCriterion != "" || wire.SandboxReference != "" || wire.SandboxName != "" || !validAttackLabCleanupCheckpoint(scope, runID, wire.Run, wire.Checkpoint)) {
 		return AttackLabRunClaim{}, ErrRepositoryUnavailable
 	}
 	copy(result.InputDigest[:], digest)
-	result.Run, result.Preflight, result.Checkpoint, result.SandboxReference, result.LeaseExpiresAt = wire.Run, wire.Preflight, wire.Checkpoint, wire.SandboxReference, wire.LeaseExpiresAt.UTC()
+	result.Run, result.Preflight, result.Checkpoint, result.SandboxReference, result.SandboxName, result.LeaseExpiresAt = wire.Run, wire.Preflight, wire.Checkpoint, wire.SandboxReference, wire.SandboxName, wire.LeaseExpiresAt.UTC()
 	return result, nil
+}
+
+func (repository *AttackLabExecutionRepository) BeginAttackLabProvisioning(ctx context.Context, scope domain.Scope, input AttackLabProvisioningInput) (AttackLabRunTransition, error) {
+	if !validAttackLabRunTransition(repository, ctx, scope, input.RunID, input.Controller, input.LeaseToken) || input.InputDigest == [sha256.Size]byte{} {
+		return AttackLabRunTransition{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresAttackLabBeginProvisionSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.RunID, input.Controller, input.LeaseToken, input.InputDigest[:])
+	return decodeAttackLabRunTransition(payload, err, input.RunID, "leased")
 }
 
 func (repository *AttackLabExecutionRepository) HeartbeatAttackLabRun(ctx context.Context, scope domain.Scope, runID, controller, leaseToken string, leaseSeconds int) (AttackLabRunHeartbeat, error) {

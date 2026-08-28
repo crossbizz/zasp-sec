@@ -40,6 +40,7 @@ type AttackLabRun struct {
 	Limits            AttackLabSandboxLimits `json:"limits"`
 	QueuedAt          time.Time              `json:"queued_at"`
 	StartedAt         *time.Time             `json:"started_at,omitempty"`
+	AttemptStartedAt  *time.Time             `json:"attempt_started_at,omitempty"`
 	CompletedAt       *time.Time             `json:"completed_at,omitempty"`
 	Verdict           string                 `json:"verdict,omitempty"`
 	ErrorCode         string                 `json:"error_code,omitempty"`
@@ -167,6 +168,10 @@ func (repository *PostgresRepository) GetAttackLabRun(ctx context.Context, ident
 		if len(result.Attempts) != 1 || result.Attempts[0].Attempt != result.Attempt || result.Attempts[0].Verdict != result.Verdict || result.CompletedAt == nil || !result.Attempts[0].CompletedAt.Equal(*result.CompletedAt) {
 			return AttackLabRunDetail{}, ErrRepositoryUnavailable
 		}
+	} else if result.Status == "cancelled" && result.Attempt >= 1 {
+		if len(result.Attempts) != 1 || result.Attempts[0].Attempt != result.Attempt || result.Attempts[0].Verdict != "" || result.Attempts[0].ErrorCode != "cancelled" || result.CompletedAt == nil || !result.Attempts[0].CompletedAt.Equal(*result.CompletedAt) {
+			return AttackLabRunDetail{}, ErrRepositoryUnavailable
+		}
 	} else if len(result.Attempts) != 0 {
 		return AttackLabRunDetail{}, ErrRepositoryUnavailable
 	}
@@ -223,7 +228,7 @@ func validAttackLabRepositoryRequest(repository *PostgresRepository, ctx context
 }
 
 func validAttackLabRun(value AttackLabRun) bool {
-	if !validProductID(value.ID) || value.Version < 1 || value.Version > 1000000 || !validProductID(value.SourceRunID) || !validProductID(value.DefinitionID) || value.DefinitionVersion < 1 || value.DefinitionVersion > 1000000 || !validProductID(value.TargetID) || !stringIn(value.TargetKind, "agent_endpoint", "mcp_server", "coding_agent") || !stringIn(value.Environment, "development", "test", "staging") || !stringIn(value.CredentialClass, "read_only", "test_write") || !validAttackLabDestination(value.Destination) || value.Attempt < 0 || value.Attempt > 5 || value.Limits != (AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}) || !canonicalRedTeamTime(value.QueuedAt) || value.StartedAt != nil && (!canonicalRedTeamTime(*value.StartedAt) || value.StartedAt.Before(value.QueuedAt)) || value.CompletedAt != nil && (!canonicalRedTeamTime(*value.CompletedAt) || value.CompletedAt.Before(value.QueuedAt) || value.StartedAt != nil && value.CompletedAt.Before(*value.StartedAt)) || value.EvidenceReference != "" && !canonicalInventoryText(value.EvidenceReference, 1, 1024) {
+	if !validProductID(value.ID) || value.Version < 1 || value.Version > 1000000 || !validProductID(value.SourceRunID) || !validProductID(value.DefinitionID) || value.DefinitionVersion < 1 || value.DefinitionVersion > 1000000 || !validProductID(value.TargetID) || !stringIn(value.TargetKind, "agent_endpoint", "mcp_server", "coding_agent") || !stringIn(value.Environment, "development", "test", "staging") || !stringIn(value.CredentialClass, "read_only", "test_write") || !validAttackLabDestination(value.Destination) || value.Attempt < 0 || value.Attempt > 5 || value.Limits != (AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}) || !canonicalRedTeamTime(value.QueuedAt) || value.StartedAt != nil && (!canonicalRedTeamTime(*value.StartedAt) || value.StartedAt.Before(value.QueuedAt)) || value.AttemptStartedAt != nil && (!canonicalRedTeamTime(*value.AttemptStartedAt) || value.StartedAt == nil || value.AttemptStartedAt.Before(*value.StartedAt)) || (value.Attempt == 0) != (value.AttemptStartedAt == nil) || value.CompletedAt != nil && (!canonicalRedTeamTime(*value.CompletedAt) || value.CompletedAt.Before(value.QueuedAt) || value.StartedAt != nil && value.CompletedAt.Before(*value.StartedAt) || value.AttemptStartedAt != nil && value.CompletedAt.Before(*value.AttemptStartedAt)) || value.EvidenceReference != "" && !canonicalInventoryText(value.EvidenceReference, 1, 1024) {
 		return false
 	}
 	started, completed, verdict, failure, evidence := value.StartedAt != nil, value.CompletedAt != nil, value.Verdict != "", value.ErrorCode != "", value.EvidenceReference != ""

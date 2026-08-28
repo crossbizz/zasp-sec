@@ -21,6 +21,11 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
+func migrationAttackLabSandboxName(organizationID, workspaceID, environmentID, runID string) string {
+	digest := sha256.Sum256([]byte(strings.Join([]string{organizationID, workspaceID, environmentID, runID}, "\x1f")))
+	return "zasp-attack-lab-" + fmt.Sprintf("%x", digest[:16])
+}
+
 func TestLoadMigrationTimeoutRequiresFiniteBound(t *testing.T) {
 	if got, err := loadMigrationTimeout(func(string) string { return "2m" }); err != nil || got != 2*time.Minute {
 		t.Fatalf("timeout = (%v, %v)", got, err)
@@ -794,6 +799,47 @@ func TestAgentsecMigrateV26LiveFingerprintMatchesPinnedAuthority(t *testing.T) {
 	}
 }
 
+func TestAgentsecMigrateV27LiveFingerprintMatchesPinnedAuthority(t *testing.T) {
+	dsn := startMigrationPostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	connection := connectMigrationPostgres(t, ctx, dsn)
+	defer func() { _ = connection.Close(context.Background()) }()
+	runner, err := migrations.NewRunner(&migrationDatabase{connection: connection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steps := []func(context.Context) error{
+		runner.Up, runner.UpCore, runner.UpWorkflows, runner.UpWorkflowReceipts, runner.UpWorkflowReceiptSafety, runner.UpWorkflowReceiptProvenance,
+		runner.UpProductionAdministration, runner.UpAPITokenRevealGrants, runner.UpProductionRiskProjection, runner.UpProductionDiscovery,
+		runner.UpConnectorAuthorization, runner.UpReferenceAuthorization, runner.UpProductionDiscoveryExecution, runner.UpProductionTypedInventoryCutover,
+		runner.UpProductionRuntimeDataPlane, runner.UpProductionRuntimeGatewayReconciliation, runner.UpProductionRuntimeIngestReconciliation,
+		runner.UpProductionSecurityAgentExecution, runner.UpProductionIdentityAdministration, runner.UpProductionSecurityAgentControls,
+		runner.UpProductionSecurityAgentAutonomousResponse, runner.UpProductionSecurityAgentTemporaryPolicy, runner.UpProductionSecurityAgentConnectorRevocation,
+		runner.UpProductionSecurityAgentSessionIsolation, runner.UpProductionRedTeamExecution, runner.UpProductionAttackLabExecution,
+	}
+	for index, step := range steps {
+		if err := step(ctx); err != nil {
+			t.Fatalf("step %d: %v", index+1, err)
+		}
+	}
+	transaction, err := connection.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = transaction.Rollback(context.Background()) }()
+	if _, err := transaction.Exec(ctx, migrations.ProductionRecovery().UpSQL()); err != nil {
+		t.Fatalf("v27 candidate SQL: %v", err)
+	}
+	var live string
+	if err := transaction.QueryRow(ctx, `SELECT zasp_recovery_execution_live_fingerprint()`).Scan(&live); err != nil {
+		t.Fatal(err)
+	}
+	if live != migrations.ProductionRecoverySemanticFingerprint() {
+		t.Fatalf("v27 candidate live fingerprint=%s pinned=%s", live, migrations.ProductionRecoverySemanticFingerprint())
+	}
+}
+
 func TestAgentsecMigrateV17LiveFingerprintMatchesPinnedAuthority(t *testing.T) {
 	dsn := startMigrationPostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -1402,9 +1448,33 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatal("attack lab accepted a target without an active credential binding")
 	}
-	if _, err := connection.Exec(ctx, `INSERT INTO zasp_attack_lab_credential_bindings(organization_id,workspace_id,environment_id,binding_id,target_id,credential_reference,credential_class,version,reference_digest,state,valid_until) VALUES($1,$2,$3,$4,$5,'ref:red-team/target-0001','read_only',1,$6,'active',transaction_timestamp()+interval '1 hour')`, organizationID, workspaceID, environmentID, "pid_7a000016-0000-4000-8000-000000000016", targetID, bytes.Repeat([]byte{0x2a}, 32)); err != nil {
+	bindingID := "pid_7a000016-0000-4000-8000-000000000016"
+	bindingDigest := bytes.Repeat([]byte{0x2a}, 32)
+	bindingValidUntil := time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)
+	var bindingJSON []byte
+	if err := connection.QueryRow(ctx, `SELECT zasp_attack_lab_register_credential_binding($1,$2,$3,$4,$5,'ref:red-team/target-0001','read_only',1,$6,$7)`, organizationID, workspaceID, environmentID, bindingID, targetID, bindingDigest, bindingValidUntil).Scan(&bindingJSON); err != nil || !bytes.Contains(bindingJSON, []byte(`"state": "active"`)) {
 		redTeamAPI.Close(context.Background())
-		t.Fatalf("attack lab credential binding seed: %v", err)
+		t.Fatalf("attack lab credential binding registration=%s err=%v", bindingJSON, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_attack_lab_register_credential_binding($1,$2,$3,$4,$5,'ref:red-team/target-0001','read_only',1,$6,$7)`, organizationID, workspaceID, environmentID, bindingID, targetID, bindingDigest, bindingValidUntil).Scan(&bindingJSON); err != nil || !bytes.Contains(bindingJSON, []byte(`"replayed": true`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab credential binding replay=%s err=%v", bindingJSON, err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_register_credential_binding($1,$2,$3,$4,$5,'ref:red-team/target-0001','read_only',1,$6,$7)`, organizationID, workspaceID, environmentID, bindingID, targetID, bindingDigest, bindingValidUntil).Scan(&bindingJSON); err == nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal("runtime API gained attack lab credential registration authority")
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_attack_lab_revoke_credential_binding($1,$2,$3,$4,1)`, organizationID, workspaceID, environmentID, bindingID).Scan(&bindingJSON); err != nil || !bytes.Contains(bindingJSON, []byte(`"state": "revoked"`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab credential binding revocation=%s err=%v", bindingJSON, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_attack_lab_register_credential_binding($1,$2,$3,$4,$5,'ref:red-team/target-0001','read_only',1,$6,$7)`, organizationID, workspaceID, environmentID, bindingID, targetID, bindingDigest, bindingValidUntil).Scan(&bindingJSON); err == nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal("stale attack lab credential registration reactivated a revoked version")
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_attack_lab_register_credential_binding($1,$2,$3,$4,$5,'ref:red-team/target-0001','read_only',2,$6,$7)`, organizationID, workspaceID, environmentID, bindingID, targetID, bindingDigest, bindingValidUntil).Scan(&bindingJSON); err != nil || !bytes.Contains(bindingJSON, []byte(`"state": "active"`)) || !bytes.Contains(bindingJSON, []byte(`"version": 2`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab credential binding rotation=%s err=%v", bindingJSON, err)
 	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_attack_lab_credential_bindings SET credential_class='test_write' WHERE (organization_id,workspace_id,environment_id,target_id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, targetID); err != nil {
 		redTeamAPI.Close(context.Background())
@@ -1672,7 +1742,10 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab retry second claim=%s err=%v", attackLabRetryRunJSON, err)
 	}
-	retrySandboxReference := "k8s://attack-lab/jobs/zasp-attack-lab-7a000016@123e4567-e89b-12d3-a456-426614174001"
+	retrySandboxReference := "k8s://attack-lab/jobs/" + migrationAttackLabSandboxName(organizationID, workspaceID, environmentID, attackLabRetryRunID) + "@123e4567-e89b-12d3-a456-426614174001"
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_begin_provisioning($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, attackLabRetryRunID, "attack-lab-controller-retry-e2e", attackLabRetrySecondToken, attackLabRetryInputDigest).Scan(&attackLabRetryRunJSON); err != nil {
+		t.Fatalf("attack lab retry provisioning=%s err=%v", attackLabRetryRunJSON, err)
+	}
 	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_mark_running($1,$2,$3,$4,$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, attackLabRetryRunID, "attack-lab-controller-retry-e2e", attackLabRetrySecondToken, attackLabRetryInputDigest, retrySandboxReference).Scan(&attackLabRetryRunJSON); err != nil || !bytes.Contains(attackLabRetryRunJSON, []byte(`"status": "running"`)) {
 		attackLabController.Close(context.Background())
 		redTeamAPI.Close(context.Background())
@@ -1737,6 +1810,11 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab active cancel finish=%s err=%v", attackLabCancelActiveJSON, err)
 	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_get_run($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabCancelActiveRunID).Scan(&attackLabCancelActiveJSON); err != nil || !bytes.Contains(attackLabCancelActiveJSON, []byte(`"attempts": [{`)) || !bytes.Contains(attackLabCancelActiveJSON, []byte(`"error_code": "cancelled"`)) {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab pre-provision cancellation detail=%s err=%v", attackLabCancelActiveJSON, err)
+	}
 	attackLabControllerToken := bytes.Repeat([]byte{0x44}, 32)
 	var attackLabClaimJSON []byte
 	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_claim_run($1,$2,$3,$4,$5,$6,60)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken).Scan(&attackLabClaimJSON); err != nil || !bytes.Contains(attackLabClaimJSON, []byte(`"disposition": "claimed"`)) || !bytes.Contains(attackLabClaimJSON, []byte(`"status": "leased"`)) || !bytes.Contains(attackLabClaimJSON, []byte(`"success_criterion": "Reject direct prompt injection"`)) || !bytes.Contains(attackLabClaimJSON, []byte(`"allowed_destinations": ["adapter-rerun.customer.example"]`)) || !bytes.Contains(attackLabClaimJSON, []byte(`"expected_side_effects": ["audit event"]`)) {
@@ -1756,8 +1834,17 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab run heartbeat=%s err=%v", attackLabRunHeartbeatJSON, err)
 	}
-	sandboxReference := "k8s://attack-lab/jobs/zasp-attack-lab-7a000015@123e4567-e89b-12d3-a456-426614174000"
+	sandboxReference := "k8s://attack-lab/jobs/" + migrationAttackLabSandboxName(organizationID, workspaceID, environmentID, attackLabRerunID) + "@123e4567-e89b-12d3-a456-426614174000"
 	var attackLabRunningJSON []byte
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_begin_provisioning($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken, attackLabInputDigest).Scan(&attackLabRunningJSON); err != nil {
+		t.Fatalf("attack lab provisioning=%s err=%v", attackLabRunningJSON, err)
+	}
+	if !bytes.Contains(attackLabRunningJSON, []byte(`"replayed": false`)) {
+		t.Fatalf("initial attack lab provisioning=%s", attackLabRunningJSON)
+	}
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_begin_provisioning($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken, attackLabInputDigest).Scan(&attackLabRunningJSON); err != nil || !bytes.Contains(attackLabRunningJSON, []byte(`"replayed": true`)) {
+		t.Fatalf("replay attack lab provisioning=%s err=%v", attackLabRunningJSON, err)
+	}
 	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_mark_running($1,$2,$3,$4,$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, attackLabRerunID, "attack-lab-controller-e2e", attackLabControllerToken, attackLabInputDigest, sandboxReference).Scan(&attackLabRunningJSON); err != nil || !bytes.Contains(attackLabRunningJSON, []byte(`"status": "running"`)) || !bytes.Contains(attackLabRunningJSON, []byte(`"replayed": false`)) {
 		attackLabController.Close(context.Background())
 		redTeamAPI.Close(context.Background())
@@ -1897,7 +1984,10 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatal(err)
 	}
-	attackLabCancelledSandboxReference := "k8s://attack-lab/jobs/zasp-attack-lab-7a000018@123e4567-e89b-12d3-a456-426614174002"
+	attackLabCancelledSandboxReference := "k8s://attack-lab/jobs/" + migrationAttackLabSandboxName(organizationID, workspaceID, environmentID, attackLabCancelledSandboxRunID) + "@123e4567-e89b-12d3-a456-426614174002"
+	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_begin_provisioning($1,$2,$3,$4,$5,$6,$7)`, organizationID, workspaceID, environmentID, attackLabCancelledSandboxRunID, "attack-lab-controller-cancel-sandbox-e2e", attackLabCancelledSandboxToken, attackLabCancelledSandboxDigest).Scan(&attackLabCancelledSandboxJSON); err != nil {
+		t.Fatalf("attack lab sandbox cancellation provisioning=%s err=%v", attackLabCancelledSandboxJSON, err)
+	}
 	if err := attackLabController.QueryRow(ctx, `SELECT zasp_attack_lab_mark_running($1,$2,$3,$4,$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, attackLabCancelledSandboxRunID, "attack-lab-controller-cancel-sandbox-e2e", attackLabCancelledSandboxToken, attackLabCancelledSandboxDigest, attackLabCancelledSandboxReference).Scan(&attackLabCancelledSandboxJSON); err != nil || !bytes.Contains(attackLabCancelledSandboxJSON, []byte(`"version": 3`)) || !bytes.Contains(attackLabCancelledSandboxJSON, []byte(`"status": "running"`)) {
 		attackLabController.Close(context.Background())
 		redTeamAPI.Close(context.Background())

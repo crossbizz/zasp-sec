@@ -29,13 +29,17 @@ func TestAttackLabExecutionRepositoryBindsOutboxControllerAndProxyAuthority(t *t
 	inputDigest := sha256.Sum256([]byte("attack-lab-input"))
 	payload := json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","run_id":"` + runID + `","source_run_id":"` + sourceRunID + `","definition_id":"` + definitionID + `","definition_version":2,"target_id":"` + targetID + `","target_kind":"agent_endpoint","input_digest":"` + hex.EncodeToString(inputDigest[:]) + `"}`)
 	payloadDigest := sha256.Sum256(payload)
-	baseRun := AttackLabRun{ID: runID, Version: 2, SourceRunID: sourceRunID, DefinitionID: definitionID, DefinitionVersion: 2, TargetID: targetID, TargetKind: "agent_endpoint", Environment: "staging", CredentialClass: "read_only", Destination: "adapter.customer.example", Status: "leased", Attempt: 1, CleanupState: "pending", Limits: AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, QueuedAt: now, StartedAt: &now}
+	baseRun := AttackLabRun{ID: runID, Version: 2, SourceRunID: sourceRunID, DefinitionID: definitionID, DefinitionVersion: 2, TargetID: targetID, TargetKind: "agent_endpoint", Environment: "staging", CredentialClass: "read_only", Destination: "adapter.customer.example", Status: "leased", Attempt: 1, CleanupState: "pending", Limits: AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, QueuedAt: now, StartedAt: &now, AttemptStartedAt: &now}
 	preflight := AttackLabPreflightSnapshot{Environment: "staging", CredentialClass: "read_only", Destination: "adapter.customer.example", AllowedDestinations: []string{"adapter.customer.example"}, SuccessCriterion: "Reject direct prompt injection", ExpectedSideEffects: []string{"audit event"}}
 	claimRun := mustRedTeamJSON(t, map[string]any{"disposition": "claimed", "run": baseRun, "preflight": preflight, "input_digest": hex.EncodeToString(inputDigest[:]), "lease_expires_at": now.Add(60 * time.Second)})
 	claimedOutbox := mustRedTeamJSON(t, map[string]any{"items": []map[string]any{{"organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "outbox_id": outboxID, "topic": AttackLabOutboxTopic, "payload": string(payload), "payload_digest": hex.EncodeToString(payloadDigest[:]), "attempt": 1, "lease_expires_at": now.Add(60 * time.Second)}}})
-	sandboxReference := "k8s://attack-lab/jobs/zasp-attack-lab-7b000001@123e4567-e89b-12d3-a456-426614174000"
+	sandboxNameDigest := sha256.Sum256([]byte(strings.Join([]string{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), runID}, "\x1f")))
+	sandboxName := "zasp-attack-lab-" + hex.EncodeToString(sandboxNameDigest[:16])
+	sandboxReference := "k8s://attack-lab/jobs/" + sandboxName + "@123e4567-e89b-12d3-a456-426614174000"
 	running := baseRun
 	running.Version, running.Status = 3, "running"
+	provisioning := baseRun
+	provisioning.Version = 3
 	retryable := baseRun
 	retryable.Version, retryable.Status, retryable.ErrorCode = 3, "retryable", "retryable"
 	cleanup := running
@@ -50,7 +54,7 @@ func TestAttackLabExecutionRepositoryBindsOutboxControllerAndProxyAuthority(t *t
 		postgresAttackLabAckOutboxSQL:   mustRedTeamJSON(t, map[string]any{"outbox_id": outboxID, "state": "published", "provider_ack": "sha256:" + strings.Repeat("b", 64), "published_at": now, "remaining_count": 0, "replayed": false}),
 		postgresAttackLabRetryOutboxSQL: mustRedTeamJSON(t, map[string]any{"outbox_id": outboxID, "state": "pending", "available_at": now.Add(30 * time.Second), "error_code": "queue_publish_unknown", "remaining_count": 0, "replayed": false}),
 		postgresAttackLabClaimRunSQL:    claimRun, postgresAttackLabHeartbeatRunSQL: mustRedTeamJSON(t, map[string]any{"renewed": true, "cancel_requested": false, "lease_expires_at": now.Add(60 * time.Second)}), postgresAttackLabRetryRunSQL: mustRedTeamJSON(t, mergeAttackLabRun(retryable, nil)),
-		postgresAttackLabMarkRunningSQL: mustRedTeamJSON(t, mergeAttackLabRun(running, map[string]any{"replayed": false})), postgresAttackLabBeginCleanupSQL: mustRedTeamJSON(t, mergeAttackLabRun(cleanup, map[string]any{"replayed": false})), postgresAttackLabFinishCleanupSQL: mustRedTeamJSON(t, mergeAttackLabRun(complete, map[string]any{"replayed": false})),
+		postgresAttackLabBeginProvisionSQL: mustRedTeamJSON(t, mergeAttackLabRun(provisioning, map[string]any{"replayed": false})), postgresAttackLabMarkRunningSQL: mustRedTeamJSON(t, mergeAttackLabRun(running, map[string]any{"replayed": false})), postgresAttackLabBeginCleanupSQL: mustRedTeamJSON(t, mergeAttackLabRun(cleanup, map[string]any{"replayed": false})), postgresAttackLabFinishCleanupSQL: mustRedTeamJSON(t, mergeAttackLabRun(complete, map[string]any{"replayed": false})),
 		postgresAttackLabResolveEgressSQL: mustRedTeamJSON(t, map[string]any{"organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "run_id": runID, "destination": "adapter.customer.example", "credential_reference": "ref:red-team/target-0001", "methods": []string{"POST"}, "expires_at": now.Add(60 * time.Second)}),
 	}}
 
@@ -86,10 +90,18 @@ func TestAttackLabExecutionRepositoryBindsOutboxControllerAndProxyAuthority(t *t
 	if result, err := controller.RetryAttackLabRun(context.Background(), identity.Scope, runID, worker, token, inputDigest, "retryable", now.Add(30*time.Second)); err != nil || result.Run.Status != "retryable" {
 		t.Fatalf("retry run=%#v err=%v", result, err)
 	}
+	if result, err := controller.BeginAttackLabProvisioning(context.Background(), identity.Scope, AttackLabProvisioningInput{RunID: runID, Controller: worker, LeaseToken: token, InputDigest: inputDigest}); err != nil || result.Run.Status != "leased" || result.Replayed {
+		t.Fatalf("provisioning=%#v err=%v", result, err)
+	}
+	database.responses[postgresAttackLabClaimRunSQL] = mustRedTeamJSON(t, map[string]any{"disposition": "provisioning", "run": provisioning, "preflight": preflight, "sandbox_name": sandboxName, "input_digest": hex.EncodeToString(inputDigest[:]), "lease_expires_at": now.Add(60 * time.Second)})
+	resumedProvisioning, err := controller.ClaimAttackLabRun(context.Background(), identity.Scope, runID, worker, token, 60)
+	if err != nil || resumedProvisioning.Disposition != "provisioning" || resumedProvisioning.Run.Status != "leased" || resumedProvisioning.SandboxName != sandboxName || resumedProvisioning.InputDigest != inputDigest {
+		t.Fatalf("provisioning resume=%#v err=%v", resumedProvisioning, err)
+	}
 	if result, err := controller.MarkAttackLabRunning(context.Background(), identity.Scope, AttackLabRunningInput{RunID: runID, Controller: worker, LeaseToken: token, InputDigest: inputDigest, SandboxReference: sandboxReference}); err != nil || result.Run.Status != "running" || result.Replayed {
 		t.Fatalf("running=%#v err=%v", result, err)
 	}
-	database.responses[postgresAttackLabClaimRunSQL] = mustRedTeamJSON(t, map[string]any{"disposition": "running", "run": running, "sandbox_reference": sandboxReference, "input_digest": hex.EncodeToString(inputDigest[:]), "lease_expires_at": now.Add(60 * time.Second)})
+	database.responses[postgresAttackLabClaimRunSQL] = mustRedTeamJSON(t, map[string]any{"disposition": "running", "run": running, "preflight": preflight, "sandbox_reference": sandboxReference, "input_digest": hex.EncodeToString(inputDigest[:]), "lease_expires_at": now.Add(60 * time.Second)})
 	resumed, err := controller.ClaimAttackLabRun(context.Background(), identity.Scope, runID, worker, token, 60)
 	if err != nil || resumed.Disposition != "running" || resumed.Run.Status != "running" || resumed.SandboxReference != sandboxReference || resumed.InputDigest != inputDigest {
 		t.Fatalf("running resume=%#v err=%v", resumed, err)
@@ -110,7 +122,7 @@ func TestAttackLabExecutionRepositoryBindsOutboxControllerAndProxyAuthority(t *t
 		t.Fatalf("egress=%#v err=%v", authority, err)
 	}
 	wantClaim := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), runID, worker, token, 60}
-	if calls := database.callsFor(postgresAttackLabClaimRunSQL); len(calls) != 2 || !reflect.DeepEqual(calls[0], wantClaim) || !reflect.DeepEqual(calls[1], wantClaim) {
+	if calls := database.callsFor(postgresAttackLabClaimRunSQL); len(calls) != 3 || !reflect.DeepEqual(calls[0], wantClaim) || !reflect.DeepEqual(calls[1], wantClaim) || !reflect.DeepEqual(calls[2], wantClaim) {
 		t.Fatalf("claim calls=%#v", calls)
 	}
 }
@@ -185,7 +197,7 @@ func TestAttackLabExecutionRepositoryAllowsUnavailableAndCancelledEvidenceCleanu
 	now := time.Now().UTC()
 	runID := "pid_7c100001-0000-4000-8000-000000000001"
 	digest := sha256.Sum256([]byte("attack-lab-cleanup-authority"))
-	run := AttackLabRun{ID: runID, Version: 4, SourceRunID: "pid_7c100002-0000-4000-8000-000000000002", DefinitionID: "pid_7c100003-0000-4000-8000-000000000003", DefinitionVersion: 1, TargetID: "pid_7c100004-0000-4000-8000-000000000004", TargetKind: "agent_endpoint", Environment: "staging", CredentialClass: "read_only", Destination: "adapter.customer.example", Status: "cleanup", Attempt: 1, CleanupState: "in_progress", Limits: AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, QueuedAt: now, StartedAt: &now}
+	run := AttackLabRun{ID: runID, Version: 4, SourceRunID: "pid_7c100002-0000-4000-8000-000000000002", DefinitionID: "pid_7c100003-0000-4000-8000-000000000003", DefinitionVersion: 1, TargetID: "pid_7c100004-0000-4000-8000-000000000004", TargetKind: "agent_endpoint", Environment: "staging", CredentialClass: "read_only", Destination: "adapter.customer.example", Status: "cleanup", Attempt: 1, CleanupState: "in_progress", Limits: AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, QueuedAt: now, StartedAt: &now, AttemptStartedAt: &now}
 	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresAttackLabExecutionReadinessSQL: json.RawMessage(`true`), postgresAttackLabPrincipalReadySQL: json.RawMessage(`true`), postgresAttackLabBeginCleanupSQL: mustRedTeamJSON(t, mergeAttackLabRun(run, map[string]any{"replayed": false}))}}
 	repository, err := NewAttackLabExecutionRepository(database, AttackLabExecutionAuthorityController)
 	if err != nil {
