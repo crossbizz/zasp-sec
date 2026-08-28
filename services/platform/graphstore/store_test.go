@@ -308,7 +308,7 @@ func TestNewRejectsInvalidConfiguration(t *testing.T) {
 			return value
 		}()},
 		"zero nodes":     {driver: driver, config: func() Config { value := validConfig(); value.MaximumNodes = 0; return value }()},
-		"too many nodes": {driver: driver, config: func() Config { value := validConfig(); value.MaximumNodes = 1001; return value }()},
+		"too many nodes": {driver: driver, config: func() Config { value := validConfig(); value.MaximumNodes = maximumNodeCount + 1; return value }()},
 		"zero edges":     {driver: driver, config: func() Config { value := validConfig(); value.MaximumEdges = 0; return value }()},
 		"too many edges": {driver: driver, config: func() Config { value := validConfig(); value.MaximumEdges = 2001; return value }()},
 		"zero depth":     {driver: driver, config: func() Config { value := validConfig(); value.MaximumDepth = 0; return value }()},

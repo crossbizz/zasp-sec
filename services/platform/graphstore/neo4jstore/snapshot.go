@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	maximumSnapshotNodes = 1_000
+	maximumSnapshotNodes = 3_000
 	maximumSnapshotEdges = 2_000
 	snapshotQueryTimeout = 30 * time.Second
 	snapshotNodeLabel    = "ZaspInventoryGraphNode"

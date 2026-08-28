@@ -4,18 +4,29 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
 	"net/url"
+	"slices"
+	"sort"
 	"strings"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/graphstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimecorrelation"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
+type runtimeCorrelationGraphStore interface {
+	ApplySnapshot(context.Context, graphstore.CompleteSnapshot) (graphstore.SnapshotApplyResult, error)
+}
+
 type runtimeCorrelationExecutorConfig struct {
 	Reader                runtimeArchivedBatchReader
 	Receipts              artifactstore.ObjectReferencingArtifactStore
+	Graph                 runtimeCorrelationGraphStore
 	ImplementationVersion string
 }
 
@@ -24,7 +35,7 @@ type runtimeCorrelationExecutor struct {
 }
 
 func newRuntimeCorrelationExecutor(config runtimeCorrelationExecutorConfig) (*runtimeCorrelationExecutor, error) {
-	if nilWorkerDependency(config.Reader) || nilWorkerDependency(config.Receipts) || config.ImplementationVersion != "runtime-correlation-v1" {
+	if nilWorkerDependency(config.Reader) || nilWorkerDependency(config.Receipts) || nilWorkerDependency(config.Graph) || config.ImplementationVersion != "runtime-correlation-v1" {
 		return nil, errRuntimeUnavailable
 	}
 	return &runtimeCorrelationExecutor{config: config}, nil
@@ -85,6 +96,17 @@ func (executor *runtimeCorrelationExecutor) Execute(ctx context.Context, lease r
 	if err != nil {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
+	snapshot, nodeIDs, edgeIDs, ok := runtimeCorrelationGraphSnapshot(lease, correlated)
+	if !ok {
+		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	applied, err := executor.config.Graph.ApplySnapshot(ctx, snapshot)
+	if err != nil {
+		return runtimeStageEffect{}, runtimeCorrelationGraphError(ctx, err)
+	}
+	if applied.SnapshotID != snapshot.SnapshotID || applied.Source != snapshot.Source || applied.Generation != snapshot.Generation || applied.InputDigest != snapshot.InputDigest || applied.ContentDigest == ([sha256.Size]byte{}) || !slices.Equal(applied.NodeIDs, nodeIDs) || !slices.Equal(applied.EdgeIDs, edgeIDs) || applied.RemovedNodes < 0 || applied.RemovedEdges < 0 {
+		return runtimeStageEffect{}, errWorkerExecution
+	}
 	receiptBody, receiptDigest, reference, err := runtimecorrelation.EncodeReceipt(runtimecorrelation.Receipt{ImplementationVersion: lease.ImplementationVersion, Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, InputReference: lease.InputReference, InputVersionID: lease.InputVersionID, InputDigest: lease.InputDigest, ArchiveReference: indexReceipt.ArchiveReference, ArchiveVersionID: indexReceipt.ArchiveVersionID, ArchiveDigest: indexReceipt.ArchiveDigest, EffectDigest: correlated.ContentDigest, Results: correlated.Results})
 	if err != nil {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
@@ -98,6 +120,98 @@ func (executor *runtimeCorrelationExecutor) Execute(ctx context.Context, lease r
 		return runtimeStageEffect{}, errWorkerExecution
 	}
 	return runtimeStageEffect{EffectDigest: correlated.ContentDigest, ResultReference: resultReference, ResultVersionID: stored.VersionID, ResultDigest: receiptDigest}, nil
+}
+
+func runtimeCorrelationGraphSnapshot(lease runtimeevent.StageLease, correlated runtimecorrelation.CorrelatedBatch) (graphstore.CompleteSnapshot, []string, []string, bool) {
+	if !exactRuntimeStageLease(lease, runtimeevent.RuntimeStageCorrelate) || correlated.BatchID != lease.BatchID || correlated.Generation != lease.Generation || correlated.ContentDigest == ([sha256.Size]byte{}) || len(correlated.Results) < 1 || len(correlated.Results) > 1000 {
+		return graphstore.CompleteSnapshot{}, nil, nil, false
+	}
+	nodeKinds := make(map[domain.ProductID]string, len(correlated.Results)*3)
+	edges := make(map[string]graphstore.Edge, len(correlated.Results)*2)
+	addNode := func(identifier domain.ProductID, kind string) bool {
+		if identifier.IsZero() {
+			return false
+		}
+		if existing, present := nodeKinds[identifier]; present && existing != kind {
+			return false
+		}
+		nodeKinds[identifier] = kind
+		return true
+	}
+	addEdge := func(kind string, source, target domain.ProductID) bool {
+		semantic := kind + "\x00" + source.String() + "\x00" + target.String()
+		if _, present := edges[semantic]; present {
+			return true
+		}
+		identifier, err := runtimeCorrelationGraphEdgeID(lease.Scope, lease.BatchID, kind, source, target)
+		if err != nil {
+			return false
+		}
+		edges[semantic] = graphstore.Edge{Scope: lease.Scope, EdgeID: identifier, Kind: kind, SourceID: source, TargetID: target}
+		return true
+	}
+	for _, result := range correlated.Results {
+		if !addNode(result.EventID, "runtime_event") {
+			return graphstore.CompleteSnapshot{}, nil, nil, false
+		}
+		switch result.Confidence {
+		case domain.EvidenceConfidenceExact, domain.EvidenceConfidenceStrong:
+			if result.AgentID == result.SessionID || !addNode(result.SessionID, "runtime_session") || !addNode(result.AgentID, "runtime_agent") || !addEdge("observed_in", result.EventID, result.SessionID) || !addEdge("owned_by", result.SessionID, result.AgentID) {
+				return graphstore.CompleteSnapshot{}, nil, nil, false
+			}
+		case domain.EvidenceConfidenceProbable, domain.EvidenceConfidenceUnattributed:
+			if !result.AgentID.IsZero() || !result.SessionID.IsZero() {
+				return graphstore.CompleteSnapshot{}, nil, nil, false
+			}
+		default:
+			return graphstore.CompleteSnapshot{}, nil, nil, false
+		}
+	}
+	nodes := make([]graphstore.Node, 0, len(nodeKinds))
+	for identifier, kind := range nodeKinds {
+		nodes = append(nodes, graphstore.Node{Scope: lease.Scope, NodeID: identifier, Kind: kind})
+	}
+	sort.Slice(nodes, func(left, right int) bool { return nodes[left].NodeID.String() < nodes[right].NodeID.String() })
+	edgeValues := make([]graphstore.Edge, 0, len(edges))
+	for _, edge := range edges {
+		edgeValues = append(edgeValues, edge)
+	}
+	sort.Slice(edgeValues, func(left, right int) bool {
+		return edgeValues[left].EdgeID.String() < edgeValues[right].EdgeID.String()
+	})
+	nodeIDs := make([]string, len(nodes))
+	for index, node := range nodes {
+		nodeIDs[index] = node.NodeID.String()
+	}
+	edgeIDs := make([]string, len(edgeValues))
+	for index, edge := range edgeValues {
+		edgeIDs[index] = edge.EdgeID.String()
+	}
+	return graphstore.CompleteSnapshot{Scope: lease.Scope, IntegrationID: lease.BatchID, Source: "runtime_correlation", SnapshotID: lease.BatchID, Generation: lease.Generation, InputDigest: correlated.ContentDigest, Projection: graphstore.Projection{Nodes: nodes, Edges: edgeValues}}, nodeIDs, edgeIDs, true
+}
+
+func runtimeCorrelationGraphEdgeID(scope domain.Scope, batchID domain.ProductID, kind string, source, target domain.ProductID) (domain.ProductID, error) {
+	digest := sha256.Sum256([]byte("zasp.runtime-correlation.graph-edge.v1\x00" + scope.OrganizationID().String() + "\x00" + scope.WorkspaceID().String() + "\x00" + scope.EnvironmentID().String() + "\x00" + batchID.String() + "\x00" + kind + "\x00" + source.String() + "\x00" + target.String()))
+	digest[6] = digest[6]&0x0f | 0x40
+	digest[8] = digest[8]&0x3f | 0x80
+	encoded := hex.EncodeToString(digest[:16])
+	return domain.ParseProductID(fmt.Sprintf("pid_%s-%s-%s-%s-%s", encoded[:8], encoded[8:12], encoded[12:16], encoded[16:20], encoded[20:32]))
+}
+
+func runtimeCorrelationGraphError(ctx context.Context, err error) error {
+	if ctx != nil && ctx.Err() != nil {
+		return errRuntimeStageRetryable
+	}
+	switch {
+	case errors.Is(err, graphstore.ErrSnapshotDenied):
+		return errRuntimeStageDenied
+	case errors.Is(err, graphstore.ErrSnapshotInput), errors.Is(err, graphstore.ErrSnapshotStale), errors.Is(err, graphstore.ErrSnapshotDrift):
+		return errRuntimeStageMalformed
+	case errors.Is(err, graphstore.ErrSnapshotCanceled), errors.Is(err, graphstore.ErrSnapshotRetryable), errors.Is(err, graphstore.ErrSnapshotUnknownOutcome), errors.Is(err, graphstore.ErrSnapshotUnavailable):
+		return errRuntimeStageRetryable
+	default:
+		return errWorkerExecution
+	}
 }
 
 func trustedRuntimeCandidates(batch runtimeevent.ArchivedBatch) []runtimeevent.Candidate {

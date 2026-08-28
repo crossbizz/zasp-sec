@@ -14,7 +14,7 @@ import (
 
 const (
 	maximumOperationTimeout = 30 * time.Second
-	maximumNodeCount        = 1_000
+	maximumNodeCount        = 3_000
 	maximumEdgeCount        = 2_000
 	maximumTraversalDepth   = 8
 )

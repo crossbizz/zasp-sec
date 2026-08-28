@@ -155,3 +155,12 @@ e5b0274c8f87b266ef6832a859bbb71e5788bc62:services/platform/agentsec-worker/recov
 e81c321e37509aebbd1db46410b85b045543e89d:services/platform/agentsec-worker/recovery_database_test.go:generic-api-key:115
 90de3f53c19f1257c07e77132850eda0c1a661b3:services/platform/agentsec-worker/recovery_database_test.go:generic-api-key:157
 90de3f53c19f1257c07e77132850eda0c1a661b3:services/platform/agentsec-worker/recovery_database_test.go:generic-api-key:178
+
+# The integrated main branch rebased the same impossible recovery lease-token
+# fixtures. Ignore only these five exact historical fingerprints; any new,
+# changed, or relocated value remains detectable by the full-history gate.
+be81cc7e904cde8916d07d18ef7a51e25f6b4d74:services/platform/agentsec-worker/recovery_database_test.go:generic-api-key:157
+be81cc7e904cde8916d07d18ef7a51e25f6b4d74:services/platform/agentsec-worker/recovery_database_test.go:generic-api-key:178
+531bbe0b748eb125383b423f7b9c88efe6122b00:services/platform/agentsec-worker/recovery_database_test.go:generic-api-key:115
+9f70b6c69d41f562c2e10763cbbda454892a4f90:services/platform/agentsec-worker/recovery_outbox_database_test.go:generic-api-key:49
+f03217f980b7c9001238960eb21919027daddb48:services/platform/agentsec-worker/recovery_database_test.go:generic-api-key:49

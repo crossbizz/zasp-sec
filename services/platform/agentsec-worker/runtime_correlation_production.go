@@ -10,7 +10,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/zasp-ai/zasp-sec/services/platform/graphstore"
+	"github.com/zasp-ai/zasp-sec/services/platform/graphstore/neo4jstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
@@ -32,18 +35,41 @@ func newProductionRuntimeCorrelation(ctx context.Context, config workerRuntimeCo
 	s3API := s3.NewFromConfig(base)
 	kmsAPI := kms.NewFromConfig(base)
 	identityAPI := sts.NewFromConfig(base)
+	resolver := &projectionNeo4jAuthenticationResolver{client: secretsmanager.NewFromConfig(base), prefix: config.ProjectionSecretPrefix}
+	adapter, err := neo4jstore.NewProduction(ctx, neo4jstore.ProductionConfig{
+		Endpoint: config.Neo4jURI, AuthenticationReference: config.Neo4jCredential, ReadinessTimeout: requestTimeout,
+		ExpectedPrincipal: config.Neo4jExpectedPrincipal, ExpectedRole: config.Neo4jExpectedRole,
+	}, resolver)
+	if err != nil {
+		transport.CloseIdleConnections()
+		return nil, errRuntimeUnavailable
+	}
+	closeGraph := func() error {
+		closeCtx, cancel := context.WithTimeout(context.Background(), minDuration(config.ShutdownTimeout, config.LeaseDuration/3))
+		defer cancel()
+		return adapter.Close(closeCtx)
+	}
+	graph, err := graphstore.New(adapter, graphstore.Config{OperationTimeout: minDuration(config.LeaseDuration/2, 30*time.Second), MaximumNodes: 3_000, MaximumEdges: 2_000, MaximumDepth: 8})
+	if err != nil {
+		_ = closeGraph()
+		transport.CloseIdleConnections()
+		return nil, errRuntimeUnavailable
+	}
 	reader, err := newRuntimeArchiveExecutor(runtimeArchiveExecutorConfig{API: s3API, Bucket: config.EvidenceBucket, ExpectedOwner: config.EvidenceOwner, KMSKeyARN: config.EvidenceKMSKeyARN, MaximumBytes: 64 << 20})
 	if err != nil {
+		_ = closeGraph()
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
 	receipts, err := newProductionDiscoveryArtifactAuthority(s3API, productionDiscoveryArtifactConfig{Bucket: config.EvidenceBucket, ExpectedBucketOwner: config.EvidenceOwner, KMSKeyARN: config.EvidenceKMSKeyARN, OperationTimeout: requestTimeout, MaximumBytes: 64 << 20})
 	if err != nil {
+		_ = closeGraph()
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	executor, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: reader, Receipts: receipts, ImplementationVersion: config.RuntimeStageVersion})
+	executor, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: reader, Receipts: receipts, Graph: graph, ImplementationVersion: config.RuntimeStageVersion})
 	if err != nil {
+		_ = closeGraph()
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
@@ -53,14 +79,15 @@ func newProductionRuntimeCorrelation(ctx context.Context, config workerRuntimeCo
 		if readyCtx == nil || readyCtx.Err() != nil {
 			return errRuntimeUnavailable
 		}
-		if _, err := credentials.Retrieve(readyCtx); err != nil || readyProductionDiscoveryRole(readyCtx, identityAPI, cloud, artifacts) != nil || readyProductionDiscoveryArtifactAuthority(readyCtx, s3API, kmsAPI, cloud, artifacts) != nil {
+		if _, err := credentials.Retrieve(readyCtx); err != nil || readyProductionDiscoveryRole(readyCtx, identityAPI, cloud, artifacts) != nil || readyProductionDiscoveryArtifactAuthority(readyCtx, s3API, kmsAPI, cloud, artifacts) != nil || adapter.Ready(readyCtx) != nil {
 			return errRuntimeUnavailable
 		}
 		return nil
 	}
 	if err := ready(ctx); err != nil {
+		_ = closeGraph()
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	return &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageCorrelate, Executor: executor, ready: ready, close: func() error { transport.CloseIdleConnections(); return nil }}, nil
+	return &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageCorrelate, Executor: executor, ready: ready, close: func() error { closeErr := closeGraph(); transport.CloseIdleConnections(); return closeErr }}, nil
 }

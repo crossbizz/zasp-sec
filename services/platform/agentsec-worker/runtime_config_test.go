@@ -602,13 +602,14 @@ func TestRuntimeIndexRequiresSeparateEvidenceAndSearchAuthority(t *testing.T) {
 	}
 }
 
-func TestRuntimeCorrelationRequiresEvidenceOnlyAuthority(t *testing.T) {
+func TestRuntimeCorrelationRequiresEvidenceAndGraphAuthority(t *testing.T) {
 	t.Parallel()
 	base := map[string]string{
 		"ZASP_WORKER_MODE": "runtime-correlation", "ZASP_POSTGRES_DSN": "postgres://runtime_correlation@postgres.internal/zasp?sslmode=verify-full",
 		"ZASP_DATABASE_AUTHORITY": "zasp_runtime_correlation_worker", "ZASP_WORKER_ID": "runtime-correlation-01", "ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "30s", "ZASP_BATCH_SIZE": "10", "ZASP_SHUTDOWN_TIMEOUT": "20s",
 		"ZASP_AWS_REGION": "us-west-2", "ZASP_EVIDENCE_BUCKET": "zasp-production-evidence", "ZASP_EVIDENCE_BUCKET_OWNER": "123456789012", "ZASP_EVIDENCE_KMS_KEY_ARN": "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
 		"ZASP_RUNTIME_STAGE_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-runtime-correlation", "ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", "ZASP_RUNTIME_STAGE_VERSION": "runtime-correlation-v1",
+		"ZASP_PROJECTION_SECRET_PREFIX": "zasp-production/projection", "ZASP_NEO4J_URI": "neo4j+s://graph.example.com:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/auth/runtime", "ZASP_NEO4J_EXPECTED_PRINCIPAL": "zasp_projection_runtime", "ZASP_NEO4J_EXPECTED_ROLE": "publisher",
 	}
 	config, err := loadWorkerRuntimeConfig(mapLookup(base))
 	if err != nil || config.Mode != workerModeRuntimeCorrelation || config.RuntimeStageVersion != "runtime-correlation-v1" {
@@ -621,6 +622,10 @@ func TestRuntimeCorrelationRequiresEvidenceOnlyAuthority(t *testing.T) {
 		},
 		"projection role": func(values map[string]string) {
 			values["ZASP_PROJECTION_ROLE_ARN"] = values["ZASP_RUNTIME_STAGE_ROLE_ARN"]
+		},
+		"missing graph": func(values map[string]string) { delete(values, "ZASP_NEO4J_URI") },
+		"admin graph role": func(values map[string]string) {
+			values["ZASP_NEO4J_EXPECTED_ROLE"] = "Admin"
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
