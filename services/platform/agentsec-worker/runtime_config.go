@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"net"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -43,84 +44,91 @@ var (
 )
 
 type workerRuntimeConfig struct {
-	Mode                       workerMode
-	ProjectionKind             string
-	PostgresDSN                string
-	DatabaseAuthority          string
-	WorkerID                   string
-	PollInterval               time.Duration
-	LeaseDuration              time.Duration
-	BatchSize                  int
-	ShutdownTimeout            time.Duration
-	DiscoveryQueueURL          string
-	RuntimeQueueURL            string
-	RedTeamQueueURL            string
-	AttackLabQueueURL          string
-	RecoveryQueueURL           string
-	RecoveryOutboxTopic        string
-	RecoveryOperationKind      string
-	RecoveryRoleARN            string
-	RecoveryTokenFile          string
-	RecoverySigningKMSKeyARN   string
-	RecoveryNeonProjectID      string
-	RecoveryNeonBranchID       string
-	RuntimeRoleARN             string
-	RuntimeTokenFile           string
-	RuntimeStageRoleARN        string
-	RuntimeStageTokenFile      string
-	RuntimeStageVersion        string
-	AWSRegion                  string
-	EvidenceBucket             string
-	EvidenceOwner              string
-	EvidenceKMSKeyARN          string
-	ParserVersion              string
-	ToolVersion                string
-	DiscoveryRoleARN           string
-	DiscoveryTokenFile         string
-	DiscoverySecretPrefix      string
-	AWSCollectorVersion        string
-	KubernetesCollectorVersion string
-	GitHubCollectorVersion     string
-	OktaCollectorVersion       string
-	KubernetesEgressCIDRs      []string
-	GitHubAppID                string
-	GitHubPrivateKeyReference  string
-	OktaClientID               string
-	OktaClientSecretReference  string
-	ProviderTimeout            time.Duration
-	DiscoveryReadinessTimeout  time.Duration
-	OpenSearchURL              string
-	OpenSearchIndex            string
-	Neo4jURI                   string
-	Neo4jCredential            string
-	Neo4jExpectedPrincipal     string
-	Neo4jExpectedRole          string
-	ProjectionRoleARN          string
-	ProjectionTokenFile        string
-	ProjectionSecretPrefix     string
-	OutboxRoleARN              string
-	OutboxTokenFile            string
-	RedTeamRoleARN             string
-	RedTeamTokenFile           string
-	RedTeamTargetEndpoint      string
-	RedTeamTargetTokenFile     string
-	RedTeamTargetCAFile        string
-	RedTeamRunnerTimeout       time.Duration
-	AttackLabRoleARN           string
-	AttackLabTokenFile         string
-	AttackLabNamespace         string
-	AttackLabRunnerService     string
-	AttackLabRunnerImage       string
-	AttackLabSecurityGroup     string
-	AttackLabKubernetesURL     string
-	AttackLabKubernetesToken   string
-	AttackLabKubernetesCA      string
-	AttackLabProxyEndpoint     string
-	AttackLabProxyCAFile       string
-	AttackLabSigningKeyFile    string
-	AttackLabOperationTimeout  time.Duration
-	GatewaySigningKeyID        string
-	GatewaySigningPrivateFile  string
+	Mode                         workerMode
+	ProjectionKind               string
+	PostgresDSN                  string
+	DatabaseAuthority            string
+	WorkerID                     string
+	PollInterval                 time.Duration
+	LeaseDuration                time.Duration
+	BatchSize                    int
+	ShutdownTimeout              time.Duration
+	DiscoveryQueueURL            string
+	RuntimeQueueURL              string
+	RedTeamQueueURL              string
+	AttackLabQueueURL            string
+	RecoveryQueueURL             string
+	RecoveryOutboxTopic          string
+	RecoveryOperationKind        string
+	RecoveryRoleARN              string
+	RecoveryTokenFile            string
+	RecoverySigningKMSKeyARN     string
+	RecoveryNeonProjectID        string
+	RecoveryNeonBranchID         string
+	RecoveryNeonSecretReference  string
+	RecoveryKubernetesURL        string
+	RecoveryKubernetesToken      string
+	RecoveryKubernetesCA         string
+	RecoveryRunnerImage          string
+	RecoveryRunnerServiceAccount string
+	RecoveryNeonEgressCIDRs      []string
+	RuntimeRoleARN               string
+	RuntimeTokenFile             string
+	RuntimeStageRoleARN          string
+	RuntimeStageTokenFile        string
+	RuntimeStageVersion          string
+	AWSRegion                    string
+	EvidenceBucket               string
+	EvidenceOwner                string
+	EvidenceKMSKeyARN            string
+	ParserVersion                string
+	ToolVersion                  string
+	DiscoveryRoleARN             string
+	DiscoveryTokenFile           string
+	DiscoverySecretPrefix        string
+	AWSCollectorVersion          string
+	KubernetesCollectorVersion   string
+	GitHubCollectorVersion       string
+	OktaCollectorVersion         string
+	KubernetesEgressCIDRs        []string
+	GitHubAppID                  string
+	GitHubPrivateKeyReference    string
+	OktaClientID                 string
+	OktaClientSecretReference    string
+	ProviderTimeout              time.Duration
+	DiscoveryReadinessTimeout    time.Duration
+	OpenSearchURL                string
+	OpenSearchIndex              string
+	Neo4jURI                     string
+	Neo4jCredential              string
+	Neo4jExpectedPrincipal       string
+	Neo4jExpectedRole            string
+	ProjectionRoleARN            string
+	ProjectionTokenFile          string
+	ProjectionSecretPrefix       string
+	OutboxRoleARN                string
+	OutboxTokenFile              string
+	RedTeamRoleARN               string
+	RedTeamTokenFile             string
+	RedTeamTargetEndpoint        string
+	RedTeamTargetTokenFile       string
+	RedTeamTargetCAFile          string
+	RedTeamRunnerTimeout         time.Duration
+	AttackLabRoleARN             string
+	AttackLabTokenFile           string
+	AttackLabNamespace           string
+	AttackLabRunnerService       string
+	AttackLabRunnerImage         string
+	AttackLabSecurityGroup       string
+	AttackLabKubernetesURL       string
+	AttackLabKubernetesToken     string
+	AttackLabKubernetesCA        string
+	AttackLabProxyEndpoint       string
+	AttackLabProxyCAFile         string
+	AttackLabSigningKeyFile      string
+	AttackLabOperationTimeout    time.Duration
+	GatewaySigningKeyID          string
+	GatewaySigningPrivateFile    string
 }
 
 func loadProjectionInitConfig(getenv func(string) string) (workerRuntimeConfig, error) {
@@ -170,6 +178,7 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		DiscoveryQueueURL: getenv("ZASP_DISCOVERY_QUEUE_URL"), RuntimeQueueURL: getenv("ZASP_RUNTIME_QUEUE_URL"), RedTeamQueueURL: getenv("ZASP_RED_TEAM_QUEUE_URL"), AttackLabQueueURL: getenv("ZASP_ATTACK_LAB_QUEUE_URL"), RecoveryQueueURL: getenv("ZASP_RECOVERY_QUEUE_URL"), RecoveryOutboxTopic: getenv("ZASP_RECOVERY_OUTBOX_TOPIC"), RecoveryOperationKind: getenv("ZASP_RECOVERY_OPERATION_KIND"), AWSRegion: getenv("ZASP_AWS_REGION"), EvidenceBucket: getenv("ZASP_EVIDENCE_BUCKET"), EvidenceOwner: getenv("ZASP_EVIDENCE_BUCKET_OWNER"),
 		EvidenceKMSKeyARN: getenv("ZASP_EVIDENCE_KMS_KEY_ARN"), ParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), ToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
 		RecoveryRoleARN: getenv("ZASP_RECOVERY_ROLE_ARN"), RecoveryTokenFile: getenv("ZASP_RECOVERY_WEB_IDENTITY_TOKEN_FILE"), RecoverySigningKMSKeyARN: getenv("ZASP_RECOVERY_SIGNING_KMS_KEY_ARN"), RecoveryNeonProjectID: getenv("ZASP_RECOVERY_NEON_PROJECT_ID"), RecoveryNeonBranchID: getenv("ZASP_RECOVERY_NEON_BRANCH_ID"),
+		RecoveryNeonSecretReference: getenv("ZASP_RECOVERY_NEON_SECRET_REFERENCE"), RecoveryKubernetesURL: getenv("ZASP_RECOVERY_KUBERNETES_ENDPOINT"), RecoveryKubernetesToken: getenv("ZASP_RECOVERY_KUBERNETES_TOKEN_FILE"), RecoveryKubernetesCA: getenv("ZASP_RECOVERY_KUBERNETES_CA_FILE"), RecoveryRunnerImage: getenv("ZASP_RECOVERY_RUNNER_IMAGE"), RecoveryRunnerServiceAccount: getenv("ZASP_RECOVERY_RUNNER_SERVICE_ACCOUNT"), RecoveryNeonEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_RECOVERY_NEON_EGRESS_CIDRS")),
 		DiscoveryRoleARN: getenv("ZASP_DISCOVERY_ROLE_ARN"), DiscoveryTokenFile: getenv("ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE"), DiscoverySecretPrefix: getenv("ZASP_DISCOVERY_SECRET_PREFIX"),
 		AWSCollectorVersion: getenv("ZASP_DISCOVERY_AWS_COLLECTOR_VERSION"), KubernetesCollectorVersion: getenv("ZASP_DISCOVERY_KUBERNETES_COLLECTOR_VERSION"), GitHubCollectorVersion: getenv("ZASP_DISCOVERY_GITHUB_COLLECTOR_VERSION"), OktaCollectorVersion: getenv("ZASP_DISCOVERY_OKTA_COLLECTOR_VERSION"),
 		KubernetesEgressCIDRs: parseWorkerCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"),
@@ -392,7 +401,37 @@ func validRecoveryRuntimeAuthority(config workerRuntimeConfig) bool {
 	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RecoveryRoleARN)
 	encryption := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
 	signing := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.RecoverySigningKMSKeyARN)
-	return config.RecoveryOperationKind == "backup" && len(role) == 2 && len(encryption) == 3 && len(signing) == 3 && config.EvidenceKMSKeyARN != config.RecoverySigningKMSKeyARN && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && encryption[1] == config.AWSRegion && encryption[2] == config.EvidenceOwner && signing[1] == config.AWSRegion && signing[2] == config.EvidenceOwner && config.RecoveryTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && recoveryNeonProjectPattern.MatchString(config.RecoveryNeonProjectID) && recoveryNeonBranchPattern.MatchString(config.RecoveryNeonBranchID) && config.RecoveryQueueURL == "" && config.RecoveryOutboxTopic == "" && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.RedTeamQueueURL == "" && config.AttackLabQueueURL == "" && config.OutboxRoleARN == "" && config.OutboxTokenFile == "" && config.DiscoveryRoleARN == "" && config.DiscoveryTokenFile == "" && config.ProjectionRoleARN == "" && config.ProjectionTokenFile == "" && config.RuntimeRoleARN == "" && config.RuntimeTokenFile == "" && config.RuntimeStageRoleARN == "" && config.RuntimeStageTokenFile == "" && config.RedTeamRoleARN == "" && config.RedTeamTokenFile == "" && config.AttackLabRoleARN == "" && config.AttackLabTokenFile == ""
+	if !stringInWorker(config.RecoveryOperationKind, "backup", "restore") || len(role) != 2 || len(encryption) != 3 || len(signing) != 3 || config.EvidenceKMSKeyARN == config.RecoverySigningKMSKeyARN || !workerRegionPattern.MatchString(config.AWSRegion) || !workerBucketPattern.MatchString(config.EvidenceBucket) || !workerAccountPattern.MatchString(config.EvidenceOwner) || role[1] != config.EvidenceOwner || encryption[1] != config.AWSRegion || encryption[2] != config.EvidenceOwner || signing[1] != config.AWSRegion || signing[2] != config.EvidenceOwner || config.RecoveryTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !recoveryNeonProjectPattern.MatchString(config.RecoveryNeonProjectID) || !recoveryNeonBranchPattern.MatchString(config.RecoveryNeonBranchID) || config.RecoveryQueueURL != "" || config.RecoveryOutboxTopic != "" || config.DiscoveryQueueURL != "" || config.RuntimeQueueURL != "" || config.RedTeamQueueURL != "" || config.AttackLabQueueURL != "" || config.OutboxRoleARN != "" || config.OutboxTokenFile != "" || config.DiscoveryRoleARN != "" || config.DiscoveryTokenFile != "" || config.ProjectionRoleARN != "" || config.ProjectionTokenFile != "" || config.RuntimeRoleARN != "" || config.RuntimeTokenFile != "" || config.RuntimeStageRoleARN != "" || config.RuntimeStageTokenFile != "" || config.RedTeamRoleARN != "" || config.RedTeamTokenFile != "" || config.AttackLabRoleARN != "" || config.AttackLabTokenFile != "" {
+		return false
+	}
+	if config.RecoveryOperationKind == "backup" {
+		return config.RecoveryNeonSecretReference == "" && config.RecoveryKubernetesURL == "" && config.RecoveryKubernetesToken == "" && config.RecoveryKubernetesCA == "" && config.RecoveryRunnerImage == "" && config.RecoveryRunnerServiceAccount == "" && len(config.RecoveryNeonEgressCIDRs) == 0
+	}
+	image := regexp.MustCompile(`^([0-9]{12})\.dkr\.ecr\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com/zasp/agentsec-worker@sha256:[a-f0-9]{64}$`).FindStringSubmatch(config.RecoveryRunnerImage)
+	parsedPostgres, postgresErr := url.Parse(config.PostgresDSN)
+	return postgresErr == nil && regexp.MustCompile(`^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?\.neon\.tech$`).MatchString(parsedPostgres.Hostname()) && config.RecoveryNeonSecretReference == "ref:neon/project-api-key" && config.RecoveryKubernetesURL == "https://kubernetes.default.svc" && config.RecoveryKubernetesToken == "/var/run/secrets/kubernetes.io/serviceaccount/token" && config.RecoveryKubernetesCA == "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt" && config.RecoveryRunnerServiceAccount == "agentsec-recovery-runner" && len(image) == 3 && image[1] == config.EvidenceOwner && image[2] == config.AWSRegion && validRecoveryNeonCIDRs(config.RecoveryNeonEgressCIDRs)
+}
+
+func validRecoveryNeonCIDRs(values []string) bool {
+	if len(values) < 1 || len(values) > 16 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		_, network, err := net.ParseCIDR(value)
+		if err != nil || network.String() != value || network.IP.IsUnspecified() || network.IP.IsLoopback() || network.IP.IsMulticast() || network.IP.IsLinkLocalUnicast() {
+			return false
+		}
+		ones, bits := network.Mask.Size()
+		if bits != 32 && bits != 128 || bits == 32 && ones < 24 || bits == 128 && ones < 64 {
+			return false
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return false
+		}
+		seen[value] = struct{}{}
+	}
+	return true
 }
 
 func validRedTeamRuntimeAuthority(config workerRuntimeConfig) bool {

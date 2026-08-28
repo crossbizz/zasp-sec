@@ -79,7 +79,8 @@ func TestRecoveryKubernetesPlansOneOwnedNamespaceNetworkPolicyAndThreeJobs(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	target, err := infrastructure.Provision(context.Background(), recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest})
+	evidenceDigest := sha256.Sum256([]byte("[]"))
+	target, err := infrastructure.Provision(context.Background(), recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: evidenceDigest})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +122,8 @@ func TestRecoveryKubernetesRejectsManifestAuthorityBeforeProviders(t *testing.T)
 		t.Fatal(err)
 	}
 	manifest.NeonBranchID = "br-foreign-parent-123456"
-	if _, err := infrastructure.Provision(context.Background(), recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest}); err == nil || len(neon.calls) != 0 || len(kubernetes.calls) != 0 {
+	evidenceDigest := sha256.Sum256([]byte("[]"))
+	if _, err := infrastructure.Provision(context.Background(), recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: evidenceDigest}); err == nil || len(neon.calls) != 0 || len(kubernetes.calls) != 0 {
 		t.Fatalf("neon=%v kubernetes=%v err=%v", neon.calls, kubernetes.calls, err)
 	}
 }
@@ -133,7 +135,8 @@ func TestRecoveryKubernetesReturnsPartialTargetForCleanupAfterNamespaceFailure(t
 	neon := &recoveryNeonFake{}
 	kubernetes := &recoveryKubernetesFake{provisionErr: errors.New("create response unknown"), cleanup: apiserver.RecoveryCleanupEvidence{State: "deleted", Evidence: recoveryEvidenceLocator(scope, "pid_71000009-0000-4000-8000-000000000009", "recovery_cleanup_v1")}}
 	infrastructure, _ := newProductionRecoveryRestoreInfrastructure(productionRecoveryRestoreInfrastructureConfig{Neon: neon, Kubernetes: kubernetes, ProjectID: manifest.NeonProjectID, ParentBranchID: manifest.NeonBranchID})
-	target, err := infrastructure.Provision(context.Background(), recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest})
+	evidenceDigest := sha256.Sum256([]byte("[]"))
+	target, err := infrastructure.Provision(context.Background(), recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: evidenceDigest})
 	if err == nil || target.BranchID == "" || target.Namespace == "" {
 		t.Fatalf("target=%#v err=%v", target, err)
 	}

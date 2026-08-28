@@ -3,6 +3,7 @@ package apiserver
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -137,7 +138,38 @@ func TestProductionRecoveryPostgresInstallsExactAuthority(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-
+	projectionSyncID := "pid_7b000040-0000-4000-8000-000000000040"
+	projectionSnapshotID := "pid_7b000041-0000-4000-8000-000000000041"
+	projectionEntityID := "pid_7b000042-0000-4000-8000-000000000042"
+	projectionDigest := bytes.Repeat([]byte{0x40}, 32)
+	if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_discovery_syncs(organization_id,workspace_id,environment_id,id,integration_id,idempotency_key,request_digest,trigger_kind,principal_id,state,parser_version,tool_version,started_at)
+VALUES($1,$2,$3,$4,$5,'recovery-projection-sync-0001',$6,'manual','pid_7b000043-0000-4000-8000-000000000043','running','parser-v1','tool-v1',transaction_timestamp());
+INSERT INTO zasp_discovery_snapshots(organization_id,workspace_id,environment_id,id,integration_id,sync_id,generation,source,manifest_reference,manifest_checksum,state,candidate_digest,apply_result,complete,is_last_good,collected_at,committed_at)
+VALUES($1,$2,$3,$7,$5,$4,7,'aws','s3://zasp-evidence/organizations/recovery-projection-manifest.json',$6,'complete',$6,'{}'::jsonb,true,true,transaction_timestamp(),transaction_timestamp());
+UPDATE zasp_discovery_syncs SET state='succeeded',snapshot_id=$7,completed_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4);
+INSERT INTO zasp_discovery_snapshot_inputs(organization_id,workspace_id,environment_id,snapshot_id,integration_id,source,generation,candidate_digest,manifest_reference,manifest_key,manifest_version_id,manifest_checksum,manifest_size_bytes,manifest_media_type,manifest_schema_version,parser_version,tool_version,entities,relationships,evidence)
+VALUES($1,$2,$3,$7,$5,'aws',7,$6,'s3://zasp-evidence/organizations/recovery-projection-manifest.json','organizations/recovery-projection-manifest.json','version-recovery-1',$6,4096,'application/json','manifest-v1','parser-v1','tool-v1',jsonb_build_array(jsonb_build_object('id',$8,'kind','database','source_native_id','db-recovery','display_name','Recovery database','stable_fields',jsonb_build_object('engine','postgres'),'attributes','{}'::jsonb)),'[]'::jsonb,'[]'::jsonb);
+INSERT INTO zasp_discovery_snapshot_projection_items(organization_id,workspace_id,environment_id,snapshot_id,integration_id,source,section,item_id,payload)
+SELECT $1,$2,$3,$7,$5,'aws','entities',item->>'id',item FROM jsonb_array_elements((SELECT entities FROM zasp_discovery_snapshot_inputs WHERE (organization_id,workspace_id,environment_id,snapshot_id)=($1,$2,$3,$7))) item;
+INSERT INTO zasp_projection_work(organization_id,workspace_id,environment_id,snapshot_id,kind,version,input_digest,state,completed_at)
+VALUES($1,$2,$3,$7,'graph','v1',$6,'succeeded',transaction_timestamp()),($1,$2,$3,$7,'search','v1',$6,'succeeded',transaction_timestamp());
+INSERT INTO zasp_discovery_projection_cursors(organization_id,workspace_id,environment_id,integration_id,source,kind,generation,snapshot_id,input_digest)
+VALUES($1,$2,$3,$5,'aws','graph',7,$7,$6),($1,$2,$3,$5,'aws','search',7,$7,$6);
+INSERT INTO zasp_discovery_projection_receipts(organization_id,workspace_id,environment_id,snapshot_id,kind,version,integration_id,source,generation,input_digest,driver_receipt,driver_digest)
+VALUES($1,$2,$3,$7,'graph','v1',$5,'aws',7,$6,'neo4j:snapshot:recovery',decode(repeat('41',32),'hex')),($1,$2,$3,$7,'search','v1',$5,'aws',7,$6,'opensearch:snapshot:recovery',decode(repeat('42',32),'hex'))`, pgx.QueryExecModeSimpleProtocol, scopes[0][0], scopes[0][1], scopes[0][2], projectionSyncID, integrationIDs[0], projectionDigest, projectionSnapshotID, projectionEntityID); err != nil {
+		t.Fatalf("seed recovery projection: %v", err)
+	}
+	if _, err := connection.Exec(ctx, `DELETE FROM zasp_discovery_projection_receipts WHERE (organization_id,workspace_id,environment_id,snapshot_id,kind,version)=($1,$2,$3,$4,'search','v1')`, scopes[0][0], scopes[0][1], scopes[0][2], projectionSnapshotID); err != nil {
+		t.Fatal(err)
+	}
+	var rejectedProjection []byte
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_validate_scope($1,$2,$3)`, scopes[0][0], scopes[0][1], scopes[0][2]).Scan(&rejectedProjection); err == nil {
+		t.Fatal("recovery scope accepted a projection cursor without a durable receipt")
+	}
+	if _, err := connection.Exec(ctx, `INSERT INTO zasp_discovery_projection_receipts(organization_id,workspace_id,environment_id,snapshot_id,kind,version,integration_id,source,generation,input_digest,driver_receipt,driver_digest) VALUES($1,$2,$3,$4,'search','v1',$5,'aws',7,$6,'opensearch:snapshot:recovery',decode(repeat('42',32),'hex'))`, scopes[0][0], scopes[0][1], scopes[0][2], projectionSnapshotID, integrationIDs[0], projectionDigest); err != nil {
+		t.Fatal(err)
+	}
 	createBackup := func(scope [3]string, backupID, idempotency string, digestByte byte) []byte {
 		t.Helper()
 		var result []byte
@@ -200,6 +232,19 @@ func TestProductionRecoveryPostgresInstallsExactAuthority(t *testing.T) {
 	var page []byte
 	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_capture_page($1,$2,$3,$4,$5,$6,'configuration',NULL,100)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID, workerID, operationToken).Scan(&page); err != nil || !bytes.Contains(page, []byte(integrationIDs[0])) {
 		t.Fatalf("capture page=%s err=%v", page, err)
+	}
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_capture_page($1,$2,$3,$4,$5,$6,'projection',NULL,100)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID, workerID, operationToken).Scan(&page); err != nil || !bytes.Contains(page, []byte(projectionSnapshotID)) || !bytes.Contains(page, []byte(`"driver_digest": "4141414141414141414141414141414141414141414141414141414141414141"`)) {
+		t.Fatalf("projection capture=%s err=%v", page, err)
+	}
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_projection_page($1,$2,$3,$4,'entities',NULL,500)`, scopes[0][0], scopes[0][1], scopes[0][2], projectionSnapshotID).Scan(&page); err != nil || !bytes.Contains(page, []byte(projectionEntityID)) || !bytes.Contains(page, []byte(hex.EncodeToString(projectionDigest))) {
+		t.Fatalf("projection page=%s err=%v", page, err)
+	}
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_projection_page($1,$2,$3,$4,'entities',NULL,500)`, scopes[0][0], scopes[0][1], scopes[0][2], projectionSnapshotID).Scan(&page); err == nil {
+		t.Fatal("API executed recovery projection page")
+	}
+	var restoredScope []byte
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_validate_scope($1,$2,$3)`, scopes[0][0], scopes[0][1], scopes[0][2]).Scan(&restoredScope); err != nil || !bytes.Contains(restoredScope, []byte(`"counts"`)) || !bytes.Contains(restoredScope, []byte(`"evidence_samples": []`)) || !bytes.Contains(restoredScope, []byte(`"projection"`)) || bytes.Contains(restoredScope, []byte(integrationIDs[1])) {
+		t.Fatalf("restored scope=%s err=%v", restoredScope, err)
 	}
 	manifest := []byte(`{"reference":"s3://zasp-evidence/organizations/pid_7b000001-0000-4000-8000-000000000001/workspaces/pid_7b000002-0000-4000-8000-000000000002/environments/pid_7b000003-0000-4000-8000-000000000003/artifacts/pid_7b000020-0000-4000-8000-000000000020","version_id":"version-27","sha256":"2727272727272727272727272727272727272727272727272727272727272727","size_bytes":2048,"media_type":"application/vnd.zasp.recovery-manifest+json","schema":"recovery_signed_manifest_v1","signing_key_id":"123e4567-e89b-42d3-a456-426614174000","signature":"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"}`)
 	var finished []byte

@@ -15,6 +15,7 @@ func TestProductionRecoveryPinsTenantScopedExecutionAuthority(t *testing.T) {
 		"organization_id,workspace_id,environment_id", "recovery-backup-jobs", "recovery-restore-jobs", "cleanup_required", "failed_cleanup",
 		"zasp_recovery_register_principals", "zasp_recovery_create_backup", "zasp_recovery_create_restore", "zasp_recovery_claim_outbox", "zasp_recovery_claim_operation",
 		"zasp_recovery_heartbeat_operation", "zasp_recovery_begin_hold", "zasp_recovery_release_hold", "zasp_recovery_capture_page", "zasp_recovery_finish_backup", "zasp_recovery_finish_restore",
+		"zasp_recovery_validate_scope",
 		"zasp_recovery_scope_mutable", "zasp_recovery_execution_readiness", "zasp_recovery_execution_live_fingerprint", "zasp_recovery_execution_security_ready",
 		"class.relname NOT LIKE 'zasp_recovery_%'", "TG_OP IN('UPDATE','DELETE')", "TG_OP IN('INSERT','UPDATE')",
 		"'security_agent:'||definition.definition_id", "'snapshot_inputs'", "'projection_cursors'", "'counts'",

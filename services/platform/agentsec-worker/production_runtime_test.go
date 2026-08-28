@@ -119,6 +119,25 @@ func TestComposeRecoveryRuntimesBindSeparateV27Authorities(t *testing.T) {
 	if err := dependencies.Close(); err != nil || !closed {
 		t.Fatalf("close=%v closed=%v", err, closed)
 	}
+	restoreConfig := validRecoveryRuntimeConfig()
+	restoreConfig.PostgresDSN = "postgres://recovery@ep-main.us-west-2.aws.neon.tech/zasp?sslmode=verify-full"
+	restoreConfig.RecoveryOperationKind = "restore"
+	restoreConfig.RecoveryNeonSecretReference = "ref:neon/project-api-key"
+	restoreConfig.RecoveryKubernetesURL = "https://kubernetes.default.svc"
+	restoreConfig.RecoveryKubernetesToken = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	restoreConfig.RecoveryKubernetesCA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	restoreConfig.RecoveryRunnerImage = "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/agentsec-worker@sha256:" + strings.Repeat("a", 64)
+	restoreConfig.RecoveryRunnerServiceAccount = "agentsec-recovery-runner"
+	restoreConfig.RecoveryNeonEgressCIDRs = []string{"10.24.8.0/24"}
+	restoreAuthority := &recoveryRestoreAuthorityFake{claim: recoveryRestoreClaim(scope)}
+	restoreInfrastructure := &recoveryRestoreInfrastructureFake{}
+	restoreDependencies, err := composeRecoveryWorkerRuntime(restoreConfig, restoreAuthority, &productionRecoveryDependencies{
+		Loader: &recoveryManifestLoaderFake{manifest: recoveryRestoreManifest(t, scope)}, Infrastructure: restoreInfrastructure,
+		ready: func(context.Context) error { return nil }, close: func() error { return nil },
+	})
+	if err != nil || restoreDependencies.Processor == nil || restoreDependencies.Ready == nil || restoreDependencies.Close == nil {
+		t.Fatalf("restore dependencies=%#v error=%v", restoreDependencies, err)
+	}
 	outboxConfig := validRecoveryOutboxRuntimeConfig()
 	outbox, err := composeRecoveryOutboxWorkerRuntime(outboxConfig, &recoveryOutboxAuthorityFake{}, &recordingOutboxPublisher{}, readyOutboxDependency)
 	if err != nil || outbox.Processor == nil || outbox.Ready == nil || outbox.Close == nil {

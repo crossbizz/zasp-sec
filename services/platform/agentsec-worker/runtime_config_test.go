@@ -385,6 +385,33 @@ func TestRecoveryModesRequireSeparateExactQueueArtifactAndSigningAuthority(t *te
 			t.Fatalf("mode=%s config=%#v error=%v", mode, config, err)
 		}
 	}
+	restore := cloneStringMap(base)
+	restore["ZASP_WORKER_MODE"], restore["ZASP_DATABASE_AUTHORITY"], restore["ZASP_RECOVERY_OPERATION_KIND"] = "recovery", "zasp_recovery_worker", "restore"
+	restore["ZASP_POSTGRES_DSN"] = "postgres://recovery@ep-main.us-west-2.aws.neon.tech/zasp?sslmode=verify-full"
+	delete(restore, "ZASP_RECOVERY_QUEUE_URL")
+	delete(restore, "ZASP_RECOVERY_OUTBOX_TOPIC")
+	restore["ZASP_RECOVERY_NEON_SECRET_REFERENCE"] = "ref:neon/project-api-key"
+	restore["ZASP_RECOVERY_KUBERNETES_ENDPOINT"] = "https://kubernetes.default.svc"
+	restore["ZASP_RECOVERY_KUBERNETES_TOKEN_FILE"] = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	restore["ZASP_RECOVERY_KUBERNETES_CA_FILE"] = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	restore["ZASP_RECOVERY_RUNNER_IMAGE"] = "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/agentsec-worker@sha256:" + strings.Repeat("a", 64)
+	restore["ZASP_RECOVERY_RUNNER_SERVICE_ACCOUNT"] = "agentsec-recovery-runner"
+	restore["ZASP_RECOVERY_NEON_EGRESS_CIDRS"] = "10.24.8.0/24"
+	if config, err := loadWorkerRuntimeConfig(mapLookup(restore)); err != nil || config.RecoveryOperationKind != "restore" || len(config.RecoveryNeonEgressCIDRs) != 1 {
+		t.Fatalf("restore config=%#v err=%v", config, err)
+	}
+	for name, mutate := range map[string]func(map[string]string){
+		"non neon database": func(values map[string]string) {
+			values["ZASP_POSTGRES_DSN"] = "postgres://recovery@postgres.internal/zasp?sslmode=verify-full"
+		},
+		"loopback network": func(values map[string]string) { values["ZASP_RECOVERY_NEON_EGRESS_CIDRS"] = "127.0.0.0/24" },
+	} {
+		values := cloneStringMap(restore)
+		mutate(values)
+		if _, err := loadWorkerRuntimeConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
+			t.Fatalf("%s error=%v", name, err)
+		}
+	}
 	for name, mutate := range map[string]func(map[string]string){
 		"same kms key": func(values map[string]string) {
 			values["ZASP_RECOVERY_SIGNING_KMS_KEY_ARN"] = values["ZASP_EVIDENCE_KMS_KEY_ARN"]
