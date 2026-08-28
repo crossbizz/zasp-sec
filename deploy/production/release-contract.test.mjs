@@ -709,12 +709,14 @@ test("release ships the complete v15 runtime data plane behind exact workload au
     assert.equal(env.AWS_SECRET_ACCESS_KEY, undefined);
     assert.equal(env.AWS_SESSION_TOKEN, undefined);
   }
-  const correlationEnv = envOf(one(resources, "Deployment", "agentsec-runtime-correlation"));
-  assert.equal(correlationEnv.ZASP_PROJECTION_SECRET_PREFIX, release.projectionGraph.secretPrefix);
-  assert.equal(correlationEnv.ZASP_NEO4J_URI, release.projectionGraph.endpoint);
-  assert.equal(correlationEnv.ZASP_NEO4J_CREDENTIAL_REFERENCE, release.projectionGraph.credentialReference);
-  assert.equal(correlationEnv.ZASP_NEO4J_EXPECTED_PRINCIPAL, release.projectionGraph.expectedPrincipal);
-  assert.equal(correlationEnv.ZASP_NEO4J_EXPECTED_ROLE, release.projectionGraph.expectedRole);
+  for (const workload of ["agentsec-runtime-correlation", "agentsec-runtime-projection"]) {
+    const graphEnv = envOf(one(resources, "Deployment", workload));
+    assert.equal(graphEnv.ZASP_PROJECTION_SECRET_PREFIX, release.projectionGraph.secretPrefix);
+    assert.equal(graphEnv.ZASP_NEO4J_URI, release.projectionGraph.endpoint);
+    assert.equal(graphEnv.ZASP_NEO4J_CREDENTIAL_REFERENCE, release.projectionGraph.credentialReference);
+    assert.equal(graphEnv.ZASP_NEO4J_EXPECTED_PRINCIPAL, release.projectionGraph.expectedPrincipal);
+    assert.equal(graphEnv.ZASP_NEO4J_EXPECTED_ROLE, release.projectionGraph.expectedRole);
+  }
   assert.deepEqual(envOf(one(resources, "Deployment", "agentsec-gateway-control")), {
     ZASP_GATEWAY_CONTROL_MAX_BODY_BYTES: "65536", ZASP_GATEWAY_CONTROL_OPERATION_TIMEOUT: "5s",
     ZASP_GATEWAY_CONTROL_READINESS_TTL: "30s", ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT: "15s",
@@ -754,6 +756,9 @@ test("release gives the runtime data plane bounded ingress and dependency egress
   const correlationGraph = one(resources, "NetworkPolicy", "runtime-correlation-graph");
   assert.deepEqual(correlationGraph.spec.podSelector.matchLabels, { "app.kubernetes.io/name": "agentsec-runtime-correlation" });
   assert.deepEqual(correlationGraph.spec.egress, [{ to: [{ ipBlock: { cidr: release.projectionGraph.endpointCIDR } }], ports: [{ protocol: "TCP", port: 7687 }] }]);
+  const riskGraph = one(resources, "NetworkPolicy", "runtime-projection-graph");
+  assert.deepEqual(riskGraph.spec.podSelector.matchLabels, { "app.kubernetes.io/name": "agentsec-runtime-projection" });
+  assert.deepEqual(riskGraph.spec.egress, [{ to: [{ ipBlock: { cidr: release.projectionGraph.endpointCIDR } }], ports: [{ protocol: "TCP", port: 7687 }] }]);
 });
 
 test("release monitors, scales, and independently alerts every runtime workload", async () => {
@@ -1549,7 +1554,7 @@ test("terraform provisions the exact encrypted v15 runtime plane and isolated id
   assert.match(runtimePolicy, /aws_sqs_queue\.work\["runtime-events"\]\.arn/);
   assert.match(runtimePolicy, /aws_s3_bucket\.runtime_raw\.arn/);
   assert.match(runtimePolicy, /aws_opensearch_domain\.events\.arn/);
-  assert.match(runtimePolicy, /each\.key == "correlation"[\s\S]*?aws_secretsmanager_secret\.neo4j_projection_runtime\.arn/);
+  assert.match(runtimePolicy, /contains\(\["correlation", "projection"\], each\.key\)[\s\S]*?aws_secretsmanager_secret\.neo4j_projection_runtime\.arn/);
   assert.doesNotMatch(runtimePolicy, /"(?:s3|sqs|es):\*"/);
   for (const principal of ["runtime_coordinator", "runtime_archive", "runtime_index", "runtime_correlation", "runtime_projection", "gateway_control"]) {
     assert.match(variables, new RegExp(`${principal}\\s*=\\s*string`));

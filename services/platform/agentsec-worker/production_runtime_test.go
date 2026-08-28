@@ -722,6 +722,7 @@ func validRuntimeProjectionConfig() workerRuntimeConfig {
 		PollInterval: 50 * time.Millisecond, LeaseDuration: 30 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
 		AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-evidence", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
 		RuntimeStageRoleARN: "arn:aws:iam::123456789012:role/zasp-production-runtime-projection", RuntimeStageTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RuntimeStageVersion: "runtime-projection-v1",
+		ProjectionSecretPrefix: "zasp-production/projection", Neo4jURI: "neo4j+s://graph.example.com:7687", Neo4jCredential: "ref:neo4j/auth/runtime", Neo4jExpectedPrincipal: "zasp_projection_runtime", Neo4jExpectedRole: "publisher",
 	}
 }
 

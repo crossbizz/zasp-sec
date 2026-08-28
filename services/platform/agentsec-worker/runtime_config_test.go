@@ -638,13 +638,14 @@ func TestRuntimeCorrelationRequiresEvidenceAndGraphAuthority(t *testing.T) {
 	}
 }
 
-func TestRuntimeProjectionRequiresSeparateEvidenceOnlyAuthority(t *testing.T) {
+func TestRuntimeProjectionRequiresSeparateEvidenceAndRiskGraphAuthority(t *testing.T) {
 	t.Parallel()
 	base := map[string]string{
 		"ZASP_WORKER_MODE": "runtime-projection", "ZASP_POSTGRES_DSN": "postgres://runtime_projection@postgres.internal/zasp?sslmode=verify-full",
 		"ZASP_DATABASE_AUTHORITY": "zasp_runtime_projection_worker", "ZASP_WORKER_ID": "runtime-projection-01", "ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "30s", "ZASP_BATCH_SIZE": "10", "ZASP_SHUTDOWN_TIMEOUT": "20s",
 		"ZASP_AWS_REGION": "us-west-2", "ZASP_EVIDENCE_BUCKET": "zasp-production-evidence", "ZASP_EVIDENCE_BUCKET_OWNER": "123456789012", "ZASP_EVIDENCE_KMS_KEY_ARN": "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
 		"ZASP_RUNTIME_STAGE_ROLE_ARN": "arn:aws:iam::123456789012:role/zasp-production-runtime-projection", "ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", "ZASP_RUNTIME_STAGE_VERSION": "runtime-projection-v1",
+		"ZASP_PROJECTION_SECRET_PREFIX": "zasp-production/projection", "ZASP_NEO4J_URI": "neo4j+s://graph.example.com:7687", "ZASP_NEO4J_CREDENTIAL_REFERENCE": "ref:neo4j/auth/runtime", "ZASP_NEO4J_EXPECTED_PRINCIPAL": "zasp_projection_runtime", "ZASP_NEO4J_EXPECTED_ROLE": "publisher",
 	}
 	config, err := loadWorkerRuntimeConfig(mapLookup(base))
 	if err != nil || config.Mode != workerModeRuntimeProjection || config.RuntimeStageVersion != "runtime-projection-v1" {
@@ -658,7 +659,9 @@ func TestRuntimeProjectionRequiresSeparateEvidenceOnlyAuthority(t *testing.T) {
 		"projection union": func(values map[string]string) {
 			values["ZASP_PROJECTION_ROLE_ARN"] = values["ZASP_RUNTIME_STAGE_ROLE_ARN"]
 		},
-		"foreign account": func(values map[string]string) { values["ZASP_EVIDENCE_BUCKET_OWNER"] = "210987654321" },
+		"missing graph":     func(values map[string]string) { delete(values, "ZASP_NEO4J_URI") },
+		"foreign graph ref": func(values map[string]string) { values["ZASP_NEO4J_CREDENTIAL_REFERENCE"] = "ref:neo4j/schema/runtime" },
+		"foreign account":   func(values map[string]string) { values["ZASP_EVIDENCE_BUCKET_OWNER"] = "210987654321" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			values := cloneStringMap(base)

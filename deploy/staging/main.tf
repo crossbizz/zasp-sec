@@ -873,12 +873,12 @@ resource "aws_iam_role_policy" "runtime" {
         Action   = ["es:ESHttpGet", "es:ESHttpPost", "es:ESHttpPut"]
         Resource = "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/*"
       }) : null,
-      each.key == "correlation" ? jsonencode({
+      contains(["correlation", "projection"], each.key) ? jsonencode({
         Effect   = "Allow"
         Action   = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"]
         Resource = aws_secretsmanager_secret.neo4j_projection_runtime.arn
       }) : null,
-      each.key == "correlation" ? jsonencode({
+      contains(["correlation", "projection"], each.key) ? jsonencode({
         Effect   = "Allow"
         Action   = ["kms:Decrypt"]
         Resource = aws_kms_key.staging.arn
