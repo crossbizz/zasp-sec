@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 388; expected 389/,
+        /production-available count is 390; expected 391/,
       );
     },
   );
@@ -199,8 +199,8 @@ test("rejects a same-owner same-milestone audited class swap", async () => {
         "M3\tM3-41\tComplete\tcomponent-only\tT06-runtime-data-plane",
       )
       .replace(
-        "M3\tM3-43d\tComplete\tcomponent-only\tT06-runtime-data-plane",
-        "M3\tM3-43d\tComplete\tproduction-available\tT06-runtime-data-plane",
+        "M3\tM3-52c\tComplete\tcomponent-only\tT06-runtime-data-plane",
+        "M3\tM3-52c\tComplete\tproduction-available\tT06-runtime-data-plane",
       ),
     async (ledgerPath) => {
       await assert.rejects(

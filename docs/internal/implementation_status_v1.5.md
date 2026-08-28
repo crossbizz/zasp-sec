@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 389 |
-| Component-only | 278 |
+| Production-available | 391 |
+| Component-only | 276 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -99,8 +99,8 @@ production composition, not merely a component proof or external evidence.
 - Public sensor management, hashed audience-bound sensor credentials, private
   heartbeat/ingest, signed gateway policy, and durable event-stage receipts are
   mounted behind distinct v15 database and cloud identities. Task 6 promotes
-  35 reviewed rows; upload reconciliation, durable
-  correlation/risk state, ingest rate authority, and public policy operations remain
+  37 reviewed rows; upload reconciliation, durable runtime-risk state, ingest
+  rate authority, and public policy operations remain
   incomplete.
 - `app/components/ZaspProductionApp.tsx` exposes capability-gated typed
   inventory routes backed by the mounted production API. The installed-Chrome
@@ -150,14 +150,14 @@ production composition, not merely a component proof or external evidence.
 | M1 | 68 | 58 | 10 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
-| M3 | 75 | 58 | 15 | 2 | 0 |
+| M3 | 75 | 60 | 13 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 20 | 22 | 0 | 0 |
 | M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 34 | 55 | 52 | 0 |
-| **Total** | **728** | **389** | **278** | **61** | **0** |
+| **Total** | **728** | **391** | **276** | **61** | **0** |
 
 ## Prerequisite work
 

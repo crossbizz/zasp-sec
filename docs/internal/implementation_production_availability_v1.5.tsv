@@ -225,8 +225,8 @@ M3	M3-42	Complete	production-available	T06-runtime-data-plane	production private
 M3	M3-43a	Complete	production-available	T06-runtime-data-plane	production evidence: runtime batch consume; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-43b	Complete	production-available	T06-runtime-data-plane	production evidence: runtime event S3 archive; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-43c	Complete	production-available	T06-runtime-data-plane	production evidence: runtime event indexing; verified by Task 6 source/deploy review and focused race/release gates
-M3	M3-43d	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime correlation update
-M3	M3-43	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime-event worker
+M3	M3-43d	Complete	production-available	T06-runtime-data-plane	production correlation graph: exact scope/batch/generation snapshot is durable before receipt; S3-loss replay mutates Neo4j once at 3497c084
+M3	M3-43	Complete	production-available	T06-runtime-data-plane	production runtime worker: archive and index precede durable correlation graph; stage receipt and queue acknowledgement remain ACK-last at 3497c084
 M3	M3-44	Complete	production-available	T06-runtime-data-plane	production evidence: OpenSearch event indexer; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-45	Complete	production-available	T04-discovery-worker	production evidence: correlation exact path; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-46	Complete	production-available	T04-discovery-worker	production evidence: correlation runtime path; verified by Task 4 source/deploy review and focused race/release gates
