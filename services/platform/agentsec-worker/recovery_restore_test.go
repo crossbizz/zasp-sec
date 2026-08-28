@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -123,7 +124,7 @@ func TestRecoveryRestoreProcessorConsumesExactDeliveryRenewsVisibilityAndAcknowl
 	manifest := recoveryRestoreManifest(t, scope)
 	authority := &recoveryRestoreAuthorityFake{claim: recoveryRestoreClaim(scope)}
 	infrastructure := &recoveryRestoreInfrastructureFake{
-		provisioned: recoveryRestoreTarget{BranchID: "br-recovery-123456", Namespace: "zasp-recovery-71000004000040008000000000000004", NamespaceUID: "11111111-2222-4333-8444-555555555555", ScopeDigest: "aaaaaaaaaaaaaaaa"},
+		provisioned: recoveryRestoreTarget{BranchID: "br-recovery-123456", BranchName: "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", Namespace: "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", NamespaceUID: "11111111-2222-4333-8444-555555555555", ScopeDigest: "2ab417588f8aeb63"},
 		observed:    apiserver.RecoveryCounts{Assets: 3, Findings: 2, Policies: 1}, validation: recoveryEvidenceLocator(scope, "pid_71000008-0000-4000-8000-000000000008", "recovery_validation_v1"), rebuildDigest: manifest.Projection.SHA256,
 		cleanup: apiserver.RecoveryCleanupEvidence{State: "deleted", Evidence: recoveryEvidenceLocator(scope, "pid_71000009-0000-4000-8000-000000000009", "recovery_cleanup_v1")},
 	}
@@ -155,10 +156,12 @@ type recoveryRestoreInfrastructureFake struct {
 	validation    apiserver.RecoveryArtifactLocator
 	rebuildDigest [sha256.Size]byte
 	cleanup       apiserver.RecoveryCleanupEvidence
+	reconciled    apiserver.RecoveryCleanupEvidence
 	provisionErr  error
 	validateErr   error
 	rebuildErr    error
 	cleanupErr    error
+	reconcileErr  error
 }
 
 func (*recoveryRestoreInfrastructureFake) Ready(context.Context) error { return nil }
@@ -187,6 +190,47 @@ func (fake *recoveryRestoreInfrastructureFake) Cleanup(_ context.Context, target
 	return fake.cleanup, fake.cleanupErr
 }
 
+func (fake *recoveryRestoreInfrastructureFake) ReconcileCleanup(_ context.Context, claim recoveryOperationClaim) (apiserver.RecoveryCleanupEvidence, error) {
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	fake.steps = append(fake.steps, "reconcile-cleanup:"+claim.OperationID)
+	return fake.reconciled, fake.reconcileErr
+}
+
+func TestRecoveryRestoreAttempt100UsesOnlyDeterministicCleanupAndTerminalizesDurableEvidence(t *testing.T) {
+	scope := recoveryWorkerScope(t)
+	claim := recoveryRestoreClaim(scope)
+	claim.Attempt = 100
+	claim.CleanupOnly = true
+	loader := &recoveryManifestLoaderFake{err: errRecoveryManifestExpired}
+	authority := &recoveryRestoreAuthorityFake{claim: claim}
+	infrastructure := &recoveryRestoreInfrastructureFake{reconciled: apiserver.RecoveryCleanupEvidence{State: "deleted", Evidence: recoveryEvidenceLocator(scope, "pid_71000009-0000-4000-8000-000000000009", "recovery_cleanup_v1")}}
+	processor := mustRecoveryRestoreProcessor(t, authority, loader, infrastructure)
+	if err := processor.RunOnce(context.Background()); err != nil {
+		t.Fatalf("cleanup-only RunOnce=%v", err)
+	}
+	if loader.calls != 0 || authority.finished || authority.failedCode != "exhausted" || authority.cleanup.State != "deleted" || !reflect.DeepEqual(infrastructure.steps, []string{"reconcile-cleanup:" + claim.OperationID}) {
+		t.Fatalf("loader=%d finished=%t failed=%q cleanup=%#v steps=%v", loader.calls, authority.finished, authority.failedCode, authority.cleanup, infrastructure.steps)
+	}
+}
+
+func TestRecoveryRestoreAttempt100KeepsCleanupReclaimableWithoutDurableEvidence(t *testing.T) {
+	scope := recoveryWorkerScope(t)
+	claim := recoveryRestoreClaim(scope)
+	claim.Attempt = 100
+	claim.CleanupOnly = true
+	loader := &recoveryManifestLoaderFake{err: errRecoveryManifestExpired}
+	authority := &recoveryRestoreAuthorityFake{claim: claim}
+	infrastructure := &recoveryRestoreInfrastructureFake{reconcileErr: errors.New("cleanup evidence unavailable")}
+	processor := mustRecoveryRestoreProcessor(t, authority, loader, infrastructure)
+	if err := processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) {
+		t.Fatalf("cleanup-only RunOnce=%v", err)
+	}
+	if loader.calls != 0 || authority.finished || authority.failedCode != "cleanup_failed" || authority.cleanup != (apiserver.RecoveryCleanupEvidence{}) || !reflect.DeepEqual(infrastructure.steps, []string{"reconcile-cleanup:" + claim.OperationID}) {
+		t.Fatalf("loader=%d finished=%t failed=%q cleanup=%#v steps=%v", loader.calls, authority.finished, authority.failedCode, authority.cleanup, infrastructure.steps)
+	}
+}
+
 func TestRecoveryRestoreVerifiesBeforeProvisionAndFinishesOnlyAfterExactCleanup(t *testing.T) {
 	scope := recoveryWorkerScope(t)
 	manifest := recoveryRestoreManifest(t, scope)
@@ -194,7 +238,7 @@ func TestRecoveryRestoreVerifiesBeforeProvisionAndFinishesOnlyAfterExactCleanup(
 	authority := &recoveryRestoreAuthorityFake{claim: claim}
 	loader := &recoveryManifestLoaderFake{manifest: manifest}
 	infrastructure := recoveryRestoreInfrastructureFake{
-		provisioned:   recoveryRestoreTarget{BranchID: "br-recovery-123456", Namespace: "zasp-recovery-71000004000040008000000000000004", NamespaceUID: "11111111-2222-4333-8444-555555555555", ScopeDigest: "aaaaaaaaaaaaaaaa"},
+		provisioned:   recoveryRestoreTarget{BranchID: "br-recovery-123456", BranchName: "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", Namespace: "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", NamespaceUID: "11111111-2222-4333-8444-555555555555", ScopeDigest: "2ab417588f8aeb63"},
 		observed:      apiserver.RecoveryCounts{Assets: 3, Findings: 2, Policies: 1},
 		validation:    recoveryEvidenceLocator(scope, "pid_71000008-0000-4000-8000-000000000008", "recovery_validation_v1"),
 		rebuildDigest: manifest.Projection.SHA256,
@@ -219,7 +263,7 @@ func TestRecoveryRestoreVerifiesBeforeProvisionAndFinishesOnlyAfterExactCleanup(
 	if !containsOrderedRecoverySteps(authority.steps, wantSteps) {
 		t.Fatalf("steps=%v", authority.steps)
 	}
-	if got := infrastructure.steps; len(got) != 4 || got[0] != "provision:recovery-test" || got[1] != "validate:zasp-recovery-71000004000040008000000000000004" || got[2] != "rebuild:zasp-recovery-71000004000040008000000000000004" || got[3] != "cleanup:zasp-recovery-71000004000040008000000000000004" {
+	if got := infrastructure.steps; len(got) != 4 || got[0] != "provision:recovery-test" || got[1] != "validate:zasp-recovery-2ab417588f8aeb633da32b8fe349c25a" || got[2] != "rebuild:zasp-recovery-2ab417588f8aeb633da32b8fe349c25a" || got[3] != "cleanup:zasp-recovery-2ab417588f8aeb633da32b8fe349c25a" {
 		t.Fatalf("infrastructure steps=%v", got)
 	}
 }
@@ -258,7 +302,7 @@ func TestRecoveryRestoreCleansEveryStartedPathAndPersistsFailedCleanup(t *testin
 		t.Run(test.name, func(t *testing.T) {
 			authority := &recoveryRestoreAuthorityFake{claim: recoveryRestoreClaim(scope)}
 			infrastructure := &recoveryRestoreInfrastructureFake{
-				provisioned: recoveryRestoreTarget{BranchID: "br-recovery-123456", Namespace: "zasp-recovery-71000004000040008000000000000004", NamespaceUID: "11111111-2222-4333-8444-555555555555", ScopeDigest: "aaaaaaaaaaaaaaaa"},
+				provisioned: recoveryRestoreTarget{BranchID: "br-recovery-123456", BranchName: "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", Namespace: "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", NamespaceUID: "11111111-2222-4333-8444-555555555555", ScopeDigest: "2ab417588f8aeb63"},
 				observed:    apiserver.RecoveryCounts{Assets: 3, Findings: 2, Policies: 1}, validation: recoveryEvidenceLocator(scope, "pid_71000008-0000-4000-8000-000000000008", "recovery_validation_v1"), rebuildDigest: manifest.Projection.SHA256,
 				cleanup: apiserver.RecoveryCleanupEvidence{State: "deleted", Evidence: recoveryEvidenceLocator(scope, "pid_71000009-0000-4000-8000-000000000009", "recovery_cleanup_v1")},
 			}
@@ -267,7 +311,7 @@ func TestRecoveryRestoreCleansEveryStartedPathAndPersistsFailedCleanup(t *testin
 			if err := processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) {
 				t.Fatalf("err=%v", err)
 			}
-			if authority.finished || authority.failedCode != test.wantCode || authority.cleanup.State != test.wantCleanup || len(infrastructure.steps) == 0 || infrastructure.steps[len(infrastructure.steps)-1] != "cleanup:zasp-recovery-71000004000040008000000000000004" {
+			if authority.finished || authority.failedCode != test.wantCode || authority.cleanup.State != test.wantCleanup || len(infrastructure.steps) == 0 || infrastructure.steps[len(infrastructure.steps)-1] != "cleanup:zasp-recovery-2ab417588f8aeb633da32b8fe349c25a" {
 				t.Fatalf("finished=%v failed=%q cleanup=%#v steps=%v", authority.finished, authority.failedCode, authority.cleanup, infrastructure.steps)
 			}
 		})

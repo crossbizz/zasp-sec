@@ -1,6 +1,6 @@
 DO $rollback_guard$
 BEGIN
- IF NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='red-team-execution-v1') OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>25) OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='red_team_execution_fingerprint' AND value='5f3a61dcc185dd6667a6e02551338549632338bfc7e21602fdd521e75fd90c48') OR NOT public.zasp_red_team_execution_security_ready() OR public.zasp_red_team_execution_live_fingerprint()<>'5f3a61dcc185dd6667a6e02551338549632338bfc7e21602fdd521e75fd90c48' OR EXISTS(SELECT 1 FROM public.zasp_red_team_definitions) OR EXISTS(SELECT 1 FROM public.zasp_red_team_runs) OR EXISTS(SELECT 1 FROM public.zasp_red_team_outbox) OR EXISTS(SELECT 1 FROM public.zasp_red_team_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_red_team_audit) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='red team execution rollback rejected';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='red-team-execution-v1') OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>25) OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='red_team_execution_fingerprint' AND value='bb848d5c9936143cc9251dd44410de037a382b1190e1d04069df18b0a38f669a') OR NOT public.zasp_red_team_execution_security_ready() OR public.zasp_red_team_execution_live_fingerprint()<>'bb848d5c9936143cc9251dd44410de037a382b1190e1d04069df18b0a38f669a' OR EXISTS(SELECT 1 FROM public.zasp_red_team_definitions) OR EXISTS(SELECT 1 FROM public.zasp_red_team_runs) OR EXISTS(SELECT 1 FROM public.zasp_red_team_outbox) OR EXISTS(SELECT 1 FROM public.zasp_red_team_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_red_team_audit) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='red team execution rollback rejected';END IF;
 END
 $rollback_guard$;
 
@@ -64,6 +64,22 @@ CREATE OR REPLACE FUNCTION public.zasp_effective_scope_permissions(requested_per
   WHEN 'read_only_viewer' THEN '["view"]'::jsonb
   ELSE '[]'::jsonb END
 $permissions$;
+
+DO $prior_permissions_owner_restore$
+DECLARE prior_owner text;
+BEGIN
+ SELECT marker.value INTO prior_owner
+ FROM public.zasp_schema_metadata marker
+ JOIN pg_roles role_value ON role_value.rolname=marker.value
+ WHERE marker.key='red_team_execution_prior_permissions_owner' AND role_value.rolcanlogin
+   AND (marker.value=session_user OR EXISTS(SELECT 1 FROM zasp_discovery_principal_bindings binding WHERE binding.principal_name=marker.value AND binding.authority_role='zasp_discovery_authority'));
+ IF prior_owner IS NULL THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='inherited permissions owner unavailable';END IF;
+ EXECUTE format('ALTER FUNCTION public.zasp_effective_scope_permissions(jsonb,text) OWNER TO %I',prior_owner);
+ REVOKE ALL ON FUNCTION public.zasp_effective_scope_permissions(jsonb,text) FROM PUBLIC,zasp_discovery_api,zasp_discovery_authority;
+ GRANT EXECUTE ON FUNCTION public.zasp_effective_scope_permissions(jsonb,text) TO PUBLIC,zasp_discovery_api;
+END
+$prior_permissions_owner_restore$;
+DELETE FROM public.zasp_schema_metadata WHERE key='red_team_execution_prior_permissions_owner';
 
 CREATE OR REPLACE FUNCTION public.zasp_security_agent_session_isolation_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $readiness$
  SELECT length(expected_checksum)=64 AND expected_checksum~'^[a-f0-9]{64}$' AND length(expected_fingerprint)=64 AND expected_fingerprint~'^[a-f0-9]{64}$' AND EXISTS(SELECT 1 FROM zasp_schema_versions WHERE version=24 AND name='security_agent_session_isolation' AND checksum=expected_checksum) AND EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_core_schema' AND value='security-agent-session-isolation-v1') AND NOT EXISTS(SELECT 1 FROM zasp_schema_versions WHERE version>24) AND zasp_security_agent_session_isolation_security_ready() AND zasp_security_agent_session_isolation_live_fingerprint()=expected_fingerprint

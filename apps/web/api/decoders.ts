@@ -353,7 +353,7 @@ export function decodeRecoveryBackup(value: unknown, expectedScope: string): Rec
     if ((record.attempt as number) < 1 || started === undefined || completed !== undefined || record.manifest !== undefined || record.error_code === undefined) fail();
   } else if (record.state === "succeeded") {
     if ((record.attempt as number) < 1 || started === undefined || completed === undefined || record.manifest === undefined || record.error_code !== undefined) fail();
-  } else if ((record.attempt as number) < 1 || started === undefined || completed === undefined || record.manifest !== undefined || record.error_code === undefined) {
+  } else if (completed === undefined || record.manifest !== undefined || record.error_code === undefined || !((record.attempt as number) >= 1 && started !== undefined || record.attempt === 0 && started === undefined && record.error_code === "exhausted")) {
     fail();
   }
   return value as RecoveryBackup;
@@ -380,7 +380,7 @@ export function decodeRecoveryRestore(value: unknown, expectedScope: string): Re
     if ((record.attempt as number) < 1 || started === undefined || completed === undefined || record.error_code !== undefined || observed === undefined || validation === undefined || cleanup?.state !== "deleted" || !sameRecoveryCounts(observed, validation.observed_counts)) fail();
   } else if (record.state === "failed_cleanup") {
     if ((record.attempt as number) < 1 || started === undefined || completed === undefined || record.error_code === undefined || cleanup?.state !== "failed") fail();
-  } else if ((record.attempt as number) < 1 || started === undefined || completed === undefined || record.error_code === undefined) {
+  } else if (completed === undefined || record.error_code === undefined || !((record.attempt as number) >= 1 && started !== undefined || record.attempt === 0 && started === undefined && record.error_code === "exhausted" && observed === undefined && validation === undefined && cleanup === undefined)) {
     fail();
   }
   return value as RecoveryRestore;

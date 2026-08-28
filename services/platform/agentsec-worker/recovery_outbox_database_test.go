@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -26,9 +28,11 @@ func (fake *recoveryOutboxDatabaseFake) QueryJSON(_ context.Context, statement s
 			return json.RawMessage(`{"items":[{"secret":"must-not-leak"}]}`), nil
 		}
 		event := recoveryBackupOutboxFixture()
-		return json.Marshal(struct {
-			Items []recoveryOutboxEvent `json:"items"`
-		}{Items: []recoveryOutboxEvent{event}})
+		return json.Marshal(map[string]any{"items": []map[string]any{{
+			"organization_id": event.OrganizationID, "workspace_id": event.WorkspaceID, "environment_id": event.EnvironmentID,
+			"outbox_id": event.ID, "topic": event.Topic, "payload": event.Payload, "payload_digest": event.PayloadDigest,
+			"attempt": event.Attempt, "lease_expires_at": event.LeaseExpiresAt,
+		}}})
 	case recoveryOutboxHeartbeatSQL:
 		return json.Marshal(map[string]any{"lease_expires_at": time.Now().UTC().Add(30 * time.Second), "renewed": 1})
 	case recoveryOutboxAckSQL:
@@ -41,6 +45,9 @@ func (fake *recoveryOutboxDatabaseFake) QueryJSON(_ context.Context, statement s
 }
 
 func TestPostgresRecoveryOutboxAuthorityBindsExactV27Calls(t *testing.T) {
+	if !strings.HasPrefix(recoveryOutboxReadySQL, "SELECT to_jsonb(") {
+		t.Fatalf("readiness query is not JSON-scannable: %s", recoveryOutboxReadySQL)
+	}
 	database := &recoveryOutboxDatabaseFake{}
 	authority, err := newPostgresRecoveryOutboxAuthority(database)
 	if err != nil {
@@ -88,7 +95,7 @@ func TestPostgresRecoveryOutboxAuthorityRejectsMalformedRows(t *testing.T) {
 func TestRecoveryOutboxDigestUsesCanonicalPayloadBytes(t *testing.T) {
 	event := recoveryBackupOutboxEvent(t)
 	digest := sha256.Sum256(event.Payload)
-	if !reflect.DeepEqual(event.PayloadDigest, digest[:]) {
-		t.Fatalf("digest=%x want=%x", event.PayloadDigest, digest)
+	if event.PayloadDigest != `\x`+fmt.Sprintf("%x", digest) {
+		t.Fatalf("digest=%s want=%x", event.PayloadDigest, digest)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,22 +27,25 @@ func TestProductionRecoveryPostgresInstallsExactAuthority(t *testing.T) {
 	defer connection.Close(context.Background())
 
 	runner := migrateToTypedInventoryCutover(t, ctx, connection)
-	for _, apply := range []func(context.Context) error{
-		runner.UpProductionRuntimeDataPlane,
-		runner.UpProductionRuntimeGatewayReconciliation,
-		runner.UpProductionRuntimeIngestReconciliation,
-		runner.UpProductionSecurityAgentExecution,
-		runner.UpProductionIdentityAdministration,
-		runner.UpProductionSecurityAgentControls,
-		runner.UpProductionSecurityAgentAutonomousResponse,
-		runner.UpProductionSecurityAgentTemporaryPolicy,
-		runner.UpProductionSecurityAgentConnectorRevocation,
-		runner.UpProductionSecurityAgentSessionIsolation,
-		runner.UpProductionRedTeamExecution,
-		runner.UpProductionAttackLabExecution,
+	for _, migration := range []struct {
+		name  string
+		apply func(context.Context) error
+	}{
+		{"runtime data plane", runner.UpProductionRuntimeDataPlane},
+		{"runtime gateway reconciliation", runner.UpProductionRuntimeGatewayReconciliation},
+		{"runtime ingest reconciliation", runner.UpProductionRuntimeIngestReconciliation},
+		{"security agent execution", runner.UpProductionSecurityAgentExecution},
+		{"identity administration", runner.UpProductionIdentityAdministration},
+		{"security agent controls", runner.UpProductionSecurityAgentControls},
+		{"security agent autonomous response", runner.UpProductionSecurityAgentAutonomousResponse},
+		{"security agent temporary policy", runner.UpProductionSecurityAgentTemporaryPolicy},
+		{"security agent connector revocation", runner.UpProductionSecurityAgentConnectorRevocation},
+		{"security agent session isolation", runner.UpProductionSecurityAgentSessionIsolation},
+		{"red team execution", runner.UpProductionRedTeamExecution},
+		{"attack lab execution", runner.UpProductionAttackLabExecution},
 	} {
-		if err := apply(ctx); err != nil {
-			t.Fatal(err)
+		if err := migration.apply(ctx); err != nil {
+			t.Fatalf("%s: %v", migration.name, err)
 		}
 	}
 
@@ -147,6 +151,8 @@ INSERT INTO zasp_discovery_syncs(organization_id,workspace_id,environment_id,id,
 VALUES($1,$2,$3,$4,$5,'recovery-projection-sync-0001',$6,'manual','pid_7b000043-0000-4000-8000-000000000043','running','parser-v1','tool-v1',transaction_timestamp());
 INSERT INTO zasp_discovery_snapshots(organization_id,workspace_id,environment_id,id,integration_id,sync_id,generation,source,manifest_reference,manifest_checksum,state,candidate_digest,apply_result,complete,is_last_good,collected_at,committed_at)
 VALUES($1,$2,$3,$7,$5,$4,7,'aws','s3://zasp-evidence/organizations/recovery-projection-manifest.json',$6,'complete',$6,'{}'::jsonb,true,true,transaction_timestamp(),transaction_timestamp());
+INSERT INTO zasp_discovery_cursors(organization_id,workspace_id,environment_id,integration_id,provider,cursor_value,snapshot_id,committed_at)
+VALUES($1,$2,$3,$5,'aws','recovery-cursor-v1',$7,transaction_timestamp());
 UPDATE zasp_discovery_syncs SET state='succeeded',snapshot_id=$7,completed_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4);
 INSERT INTO zasp_discovery_snapshot_inputs(organization_id,workspace_id,environment_id,snapshot_id,integration_id,source,generation,candidate_digest,manifest_reference,manifest_key,manifest_version_id,manifest_checksum,manifest_size_bytes,manifest_media_type,manifest_schema_version,parser_version,tool_version,entities,relationships,evidence)
 VALUES($1,$2,$3,$7,$5,'aws',7,$6,'s3://zasp-evidence/organizations/recovery-projection-manifest.json','organizations/recovery-projection-manifest.json','version-recovery-1',$6,4096,'application/json','manifest-v1','parser-v1','tool-v1',jsonb_build_array(jsonb_build_object('id',$8,'kind','database','source_native_id','db-recovery','display_name','Recovery database','stable_fields',jsonb_build_object('engine','postgres'),'attributes','{}'::jsonb)),'[]'::jsonb,'[]'::jsonb);
@@ -186,9 +192,24 @@ VALUES($1,$2,$3,$7,'graph','v1',$5,'aws',7,$6,'neo4j:snapshot:recovery',decode(r
 	if !bytes.Contains(created, []byte(`"replayed": false`)) || !bytes.Contains(replayed, []byte(`"replayed": true`)) {
 		t.Fatalf("backup replay created=%s replayed=%s", created, replayed)
 	}
+	var createdWire struct {
+		Body struct {
+			CreatedAt time.Time `json:"created_at"`
+		} `json:"body"`
+	}
+	if err := json.Unmarshal(created, &createdWire); err != nil || createdWire.Body.CreatedAt.Location() != time.UTC {
+		t.Fatalf("backup timestamp is not canonical UTC: %s err=%v", created, err)
+	}
 	var rejected []byte
 	if err := api.QueryRow(ctx, `SELECT zasp_recovery_create_backup($1,$2,$3,$4,$5,$6,$7,30,$8,$9,$10)`, scopes[0][0], scopes[0][1], scopes[0][2], "pid_7b000010-0000-4000-8000-000000000010", "recovery-backup-key-0001", backupID, "pid_7b000011-0000-4000-8000-000000000011", "pid_7b000012-0000-4000-8000-000000000012", "pid_7b000013-0000-4000-8000-000000000013", bytes.Repeat([]byte{0x28}, 32)).Scan(&rejected); err == nil {
 		t.Fatal("request digest drift accepted")
+	}
+	manifest := []byte(`{"reference":"s3://zasp-evidence/organizations/pid_7b000001-0000-4000-8000-000000000001/workspaces/pid_7b000002-0000-4000-8000-000000000002/environments/pid_7b000003-0000-4000-8000-000000000003/artifacts/pid_7b000020-0000-4000-8000-000000000020","version_id":"version-27","sha256":"2727272727272727272727272727272727272727272727272727272727272727","size_bytes":2048,"media_type":"application/vnd.zasp.recovery-manifest+json","schema":"recovery_signed_manifest_v1","signing_key_id":"123e4567-e89b-42d3-a456-426614174000","signature":"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"}`)
+	restoreID := "pid_7b000022-0000-4000-8000-000000000022"
+	restoreDigest := bytes.Repeat([]byte{0x34}, 32)
+	var createdRestore []byte
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_create_restore($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13)`, scopes[0][0], scopes[0][1], scopes[0][2], "pid_7b000010-0000-4000-8000-000000000010", "recovery-restore-key-0001", restoreID, "recovery-e2e-01", "pid_7b000034-0000-4000-8000-000000000034", "pid_7b000035-0000-4000-8000-000000000035", "pid_7b000036-0000-4000-8000-000000000036", restoreDigest, manifest, bytes.Repeat([]byte{0x27}, 32)).Scan(&createdRestore); err != nil || !bytes.Contains(createdRestore, []byte(`"target_environment": "recovery-e2e-01"`)) || !bytes.Contains(createdRestore, []byte(`"manifest"`)) {
+		t.Fatalf("create restore=%s err=%v", createdRestore, err)
 	}
 
 	outboxToken := bytes.Repeat([]byte{0x31}, 32)
@@ -219,6 +240,20 @@ VALUES($1,$2,$3,$7,'graph','v1',$5,'aws',7,$6,'neo4j:snapshot:recovery',decode(r
 	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_claim_delivery('backup',$1,$2,$3,$4,$5,$6,30)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID, workerID, operationToken).Scan(&claimedOperation); err != nil || !bytes.Contains(claimedOperation, []byte(backupID)) || !bytes.Contains(claimedOperation, []byte(`"disposition": "claimed"`)) || !bytes.Contains(claimedOperation, []byte(`"created_at"`)) {
 		t.Fatalf("operation claim=%s err=%v", claimedOperation, err)
 	}
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_fail_operation('backup',$1,$2,$3,$4,$5,$6,'outcome_unknown',1,NULL)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID, workerID, operationToken).Scan(&rejected); err != nil || !bytes.Contains(rejected, []byte(`"state": "retryable"`)) {
+		t.Fatalf("backup retry failure=%s err=%v", rejected, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_recovery_backups SET available_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,backup_id)=($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID); err != nil {
+		t.Fatal(err)
+	}
+	operationToken = bytes.Repeat([]byte{0x3b}, 32)
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_claim_delivery('backup',$1,$2,$3,$4,$5,$6,30)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID, workerID, operationToken).Scan(&claimedOperation); err != nil || !bytes.Contains(claimedOperation, []byte(`"attempt": 2`)) {
+		t.Fatalf("backup retry reclaim=%s err=%v", claimedOperation, err)
+	}
+	var runningBackup []byte
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_get_backup($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID).Scan(&runningBackup); err != nil || !bytes.Contains(runningBackup, []byte(`"state": "draining"`)) || bytes.Contains(runningBackup, []byte(`"error_code"`)) || bytes.Contains(runningBackup, []byte(`"completed_at"`)) {
+		t.Fatalf("backup retry retained stale terminal fields=%s err=%v", runningBackup, err)
+	}
 	if err := api.QueryRow(ctx, `SELECT zasp_recovery_claim_delivery('backup',$1,$2,$3,$4,$5,$6,30)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID, workerID, operationToken).Scan(&rejected); err == nil {
 		t.Fatal("API executed recovery delivery claim")
 	}
@@ -241,6 +276,14 @@ VALUES($1,$2,$3,$7,'graph','v1',$5,'aws',7,$6,'neo4j:snapshot:recovery',decode(r
 	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_begin_hold($1,$2,$3,$4,$5,$6)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID, workerID, operationToken).Scan(&held); err != nil || !bytes.Contains(held, []byte(`"state": "held"`)) {
 		t.Fatalf("begin hold=%s err=%v", held, err)
 	}
+	heldBackupReplay := createBackup(scopes[0], backupID, "recovery-backup-key-0001", 0x27)
+	if !bytes.Contains(heldBackupReplay, []byte(`"replayed": true`)) {
+		t.Fatalf("backup did not replay under its active hold: %s", heldBackupReplay)
+	}
+	var heldRestoreReplay []byte
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_create_restore($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13)`, scopes[0][0], scopes[0][1], scopes[0][2], "pid_7b000010-0000-4000-8000-000000000010", "recovery-restore-key-0001", restoreID, "recovery-e2e-01", "pid_7b000034-0000-4000-8000-000000000034", "pid_7b000035-0000-4000-8000-000000000035", "pid_7b000036-0000-4000-8000-000000000036", restoreDigest, manifest, bytes.Repeat([]byte{0x27}, 32)).Scan(&heldRestoreReplay); err != nil || !bytes.Contains(heldRestoreReplay, []byte(`"replayed": true`)) {
+		t.Fatalf("restore did not replay while the source scope was held: %s err=%v", heldRestoreReplay, err)
+	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_integrations SET display_name='blocked' WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], integrationIDs[0]); err == nil {
 		t.Fatal("held tenant mutation succeeded")
 	}
@@ -260,11 +303,19 @@ VALUES($1,$2,$3,$7,'graph','v1',$5,'aws',7,$6,'neo4j:snapshot:recovery',decode(r
 	if err := api.QueryRow(ctx, `SELECT zasp_recovery_projection_page($1,$2,$3,$4,'entities',NULL,500)`, scopes[0][0], scopes[0][1], scopes[0][2], projectionSnapshotID).Scan(&page); err == nil {
 		t.Fatal("API executed recovery projection page")
 	}
+	if _, err := worker.Exec(ctx, `SET TIME ZONE 'America/Los_Angeles'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_capture_page($1,$2,$3,$4,$5,$6,'projection',NULL,100)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID, workerID, operationToken).Scan(&page); err != nil || bytes.Contains(page, []byte(`-07:00`)) || !bytes.Contains(page, []byte(`Z"`)) {
+		t.Fatalf("non-UTC projection capture=%s err=%v", page, err)
+	}
 	var restoredScope []byte
 	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_validate_scope($1,$2,$3)`, scopes[0][0], scopes[0][1], scopes[0][2]).Scan(&restoredScope); err != nil || !bytes.Contains(restoredScope, []byte(`"counts"`)) || !bytes.Contains(restoredScope, []byte(`"evidence_samples": []`)) || !bytes.Contains(restoredScope, []byte(`"projection"`)) || bytes.Contains(restoredScope, []byte(integrationIDs[1])) {
 		t.Fatalf("restored scope=%s err=%v", restoredScope, err)
 	}
-	manifest := []byte(`{"reference":"s3://zasp-evidence/organizations/pid_7b000001-0000-4000-8000-000000000001/workspaces/pid_7b000002-0000-4000-8000-000000000002/environments/pid_7b000003-0000-4000-8000-000000000003/artifacts/pid_7b000020-0000-4000-8000-000000000020","version_id":"version-27","sha256":"2727272727272727272727272727272727272727272727272727272727272727","size_bytes":2048,"media_type":"application/vnd.zasp.recovery-manifest+json","schema":"recovery_signed_manifest_v1","signing_key_id":"123e4567-e89b-42d3-a456-426614174000","signature":"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"}`)
+	if bytes.Contains(restoredScope, []byte(`-07:00`)) || !bytes.Contains(restoredScope, []byte(`Z"`)) {
+		t.Fatalf("non-UTC projection validation=%s", restoredScope)
+	}
 	var finished []byte
 	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_finish_backup($1,$2,$3,$4,$5,$6,$7::jsonb)`, scopes[0][0], scopes[0][1], scopes[0][2], backupID, workerID, operationToken, manifest).Scan(&finished); err != nil || !bytes.Contains(finished, []byte(`"state": "succeeded"`)) {
 		t.Fatalf("finish backup=%s err=%v", finished, err)
@@ -273,12 +324,6 @@ VALUES($1,$2,$3,$7,'graph','v1',$5,'aws',7,$6,'neo4j:snapshot:recovery',decode(r
 		t.Fatalf("released tenant mutation: %v", err)
 	}
 
-	restoreID := "pid_7b000022-0000-4000-8000-000000000022"
-	restoreDigest := bytes.Repeat([]byte{0x34}, 32)
-	var createdRestore []byte
-	if err := api.QueryRow(ctx, `SELECT zasp_recovery_create_restore($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13)`, scopes[0][0], scopes[0][1], scopes[0][2], "pid_7b000010-0000-4000-8000-000000000010", "recovery-restore-key-0001", restoreID, "recovery-e2e-01", "pid_7b000034-0000-4000-8000-000000000034", "pid_7b000035-0000-4000-8000-000000000035", "pid_7b000036-0000-4000-8000-000000000036", restoreDigest, manifest, bytes.Repeat([]byte{0x27}, 32)).Scan(&createdRestore); err != nil || !bytes.Contains(createdRestore, []byte(`"target_environment": "recovery-e2e-01"`)) || !bytes.Contains(createdRestore, []byte(`"manifest"`)) {
-		t.Fatalf("create restore=%s err=%v", createdRestore, err)
-	}
 	var readRestore []byte
 	if err := api.QueryRow(ctx, `SELECT zasp_recovery_get_restore($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], restoreID).Scan(&readRestore); err != nil || !bytes.Contains(readRestore, []byte(`"target_environment": "recovery-e2e-01"`)) || !bytes.Contains(readRestore, []byte(`"manifest"`)) {
 		t.Fatalf("read restore=%s err=%v", readRestore, err)
@@ -295,6 +340,20 @@ VALUES($1,$2,$3,$7,'graph','v1',$5,'aws',7,$6,'neo4j:snapshot:recovery',decode(r
 	var claimedRestore []byte
 	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_claim_delivery('restore',$1,$2,$3,$4,$5,$6,30)`, scopes[0][0], scopes[0][1], scopes[0][2], restoreID, workerID, restoreToken).Scan(&claimedRestore); err != nil || !bytes.Contains(claimedRestore, []byte(restoreID)) || !bytes.Contains(claimedRestore, []byte(`"target_environment": "recovery-e2e-01"`)) || !bytes.Contains(claimedRestore, []byte(`"disposition": "claimed"`)) {
 		t.Fatalf("restore claim=%s err=%v", claimedRestore, err)
+	}
+	retryCleanup := []byte(`{"state":"deleted","evidence":{"reference":"s3://zasp-evidence/organizations/pid_7b000001-0000-4000-8000-000000000001/workspaces/pid_7b000002-0000-4000-8000-000000000002/environments/pid_7b000003-0000-4000-8000-000000000003/artifacts/pid_7b000026-0000-4000-8000-000000000026","version_id":"version-cleanup-retry-27","sha256":"3838383838383838383838383838383838383838383838383838383838383838","size_bytes":128,"media_type":"application/json","schema":"recovery_cleanup_v1"}}`)
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_fail_operation('restore',$1,$2,$3,$4,$5,$6,'outcome_unknown',1,$7::jsonb)`, scopes[0][0], scopes[0][1], scopes[0][2], restoreID, workerID, restoreToken, retryCleanup).Scan(&rejected); err != nil || !bytes.Contains(rejected, []byte(`"state": "retryable"`)) {
+		t.Fatalf("restore retry failure=%s err=%v", rejected, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_recovery_restores SET available_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,restore_id)=($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], restoreID); err != nil {
+		t.Fatal(err)
+	}
+	restoreToken = bytes.Repeat([]byte{0x3c}, 32)
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_claim_delivery('restore',$1,$2,$3,$4,$5,$6,30)`, scopes[0][0], scopes[0][1], scopes[0][2], restoreID, workerID, restoreToken).Scan(&claimedRestore); err != nil || !bytes.Contains(claimedRestore, []byte(`"attempt": 2`)) || bytes.Contains(claimedRestore, []byte(`"cleanup_only": true`)) {
+		t.Fatalf("restore retry reclaim=%s err=%v", claimedRestore, err)
+	}
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_get_restore($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], restoreID).Scan(&readRestore); err != nil || !bytes.Contains(readRestore, []byte(`"state": "verifying"`)) || bytes.Contains(readRestore, []byte(`"error_code"`)) || bytes.Contains(readRestore, []byte(`"cleanup_evidence"`)) || bytes.Contains(readRestore, []byte(`"completed_at"`)) {
+		t.Fatalf("restore retry retained stale terminal fields=%s err=%v", readRestore, err)
 	}
 	checkpoint := func(from, to string, evidence []byte) {
 		t.Helper()
@@ -362,5 +421,155 @@ VALUES($1,$2,$3,$7,'graph','v1',$5,'aws',7,$6,'neo4j:snapshot:recovery',decode(r
 	var exhaustedOutbox int
 	if err := connection.QueryRow(ctx, `SELECT count(*) FROM zasp_recovery_outbox WHERE organization_id=$1 AND topic='recovery-backup-jobs' AND attempt=100 AND state='exhausted' AND payload->>'backup_id'=$2`, scopes[0][0], exhaustedBackupID).Scan(&exhaustedOutbox); err != nil || exhaustedOutbox != 1 {
 		t.Fatalf("exhausted outbox=%d claim=%s err=%v", exhaustedOutbox, claimedOutbox, err)
+	}
+
+	for index, cleanupState := range []string{"provisioning", "validating", "rebuilding", "cleanup_required", "cleaning"} {
+		cleanupRestoreID := fmt.Sprintf("pid_7b00006%d-0000-4000-8000-%012d", index, 60+index)
+		cleanupToken := bytes.Repeat([]byte{byte(0x50 + index)}, 32)
+		var priorValidation any
+		if index >= 2 {
+			priorValidation = json.RawMessage(validation)
+		}
+		if _, err := connection.Exec(ctx, `INSERT INTO zasp_recovery_restores(organization_id,workspace_id,environment_id,restore_id,state,actor_id,idempotency_key,request_digest,target_environment,manifest,manifest_digest,attempt,worker_id,lease_token,lease_expires_at,available_at,validation_evidence,started_at) VALUES($1,$2,$3,$4,$5,'pid_7b000010-0000-4000-8000-000000000010',$6,$7,'cleanup-only',$8::jsonb,$9,100,'expired-recovery-worker',$10,transaction_timestamp()-interval '1 second',transaction_timestamp(),$11::jsonb,transaction_timestamp()-interval '1 minute')`, scopes[0][0], scopes[0][1], scopes[0][2], cleanupRestoreID, cleanupState, fmt.Sprintf("cleanup-only-%02d-key", index), bytes.Repeat([]byte{byte(0x60 + index)}, 32), manifest, bytes.Repeat([]byte{0x27}, 32), bytes.Repeat([]byte{byte(0x70 + index)}, 32), priorValidation); err != nil {
+			t.Fatalf("seed %s cleanup-only restore: %v", cleanupState, err)
+		}
+		if index == 0 {
+			if err := worker.QueryRow(ctx, `SELECT zasp_recovery_claim_operation('restore',$1,$2,30,1)`, workerID, cleanupToken).Scan(&claimedRestore); err != nil || !bytes.Contains(claimedRestore, []byte(cleanupRestoreID)) || !bytes.Contains(claimedRestore, []byte(`"cleanup_only": true`)) {
+				t.Fatalf("polling cleanup-only claim state=%s response=%s err=%v", cleanupState, claimedRestore, err)
+			}
+		} else if err := worker.QueryRow(ctx, `SELECT zasp_recovery_claim_delivery('restore',$1,$2,$3,$4,$5,$6,30)`, scopes[0][0], scopes[0][1], scopes[0][2], cleanupRestoreID, workerID, cleanupToken).Scan(&claimedRestore); err != nil || !bytes.Contains(claimedRestore, []byte(`"disposition": "claimed"`)) || !bytes.Contains(claimedRestore, []byte(`"cleanup_only": true`)) {
+			t.Fatalf("delivery cleanup-only claim state=%s response=%s err=%v", cleanupState, claimedRestore, err)
+		}
+		if index == 0 {
+			if err := worker.QueryRow(ctx, `SELECT zasp_recovery_fail_operation('restore',$1,$2,$3,$4,$5,$6,'cleanup_failed',0,'{"state":"failed","evidence":{}}'::jsonb)`, scopes[0][0], scopes[0][1], scopes[0][2], cleanupRestoreID, workerID, cleanupToken).Scan(&rejected); err == nil {
+				t.Fatal("invalid cleanup evidence terminalized an attempt-100 restore")
+			}
+		}
+		if err := worker.QueryRow(ctx, `SELECT zasp_recovery_fail_operation('restore',$1,$2,$3,$4,$5,$6,'cleanup_failed',1,NULL)`, scopes[0][0], scopes[0][1], scopes[0][2], cleanupRestoreID, workerID, cleanupToken).Scan(&rejected); err != nil || !bytes.Contains(rejected, []byte(`"state": "cleanup_pending"`)) {
+			t.Fatalf("cleanup-only pending state=%s response=%s err=%v", cleanupState, rejected, err)
+		}
+		var retainedState string
+		var retainedAttempt int
+		var retainedClean bool
+		if err := connection.QueryRow(ctx, `SELECT state,attempt,error_code IS NULL AND completed_at IS NULL AND cleanup_evidence IS NULL AND lease_expires_at<=transaction_timestamp() FROM zasp_recovery_restores WHERE (organization_id,workspace_id,environment_id,restore_id)=($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], cleanupRestoreID).Scan(&retainedState, &retainedAttempt, &retainedClean); err != nil || retainedState != cleanupState || retainedAttempt != 100 || !retainedClean {
+			t.Fatalf("cleanup-only pending tuple state=%q attempt=%d clean=%t err=%v", retainedState, retainedAttempt, retainedClean, err)
+		}
+		if _, err := connection.Exec(ctx, `UPDATE zasp_recovery_restores SET available_at=transaction_timestamp() WHERE (organization_id,workspace_id,environment_id,restore_id)=($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], cleanupRestoreID); err != nil {
+			t.Fatal(err)
+		}
+		cleanupToken = bytes.Repeat([]byte{byte(0x80 + index)}, 32)
+		if err := worker.QueryRow(ctx, `SELECT zasp_recovery_claim_delivery('restore',$1,$2,$3,$4,$5,$6,30)`, scopes[0][0], scopes[0][1], scopes[0][2], cleanupRestoreID, workerID, cleanupToken).Scan(&claimedRestore); err != nil || !bytes.Contains(claimedRestore, []byte(`"cleanup_only": true`)) {
+			t.Fatalf("cleanup-only reclaim state=%s response=%s err=%v", cleanupState, claimedRestore, err)
+		}
+		cleanupEvidence := []byte(fmt.Sprintf(`{"state":"deleted","evidence":{"reference":"s3://zasp-evidence/organizations/%s/workspaces/%s/environments/%s/artifacts/%s","version_id":"cleanup-only-%d","sha256":"%s","size_bytes":128,"media_type":"application/json","schema":"recovery_cleanup_v1"}}`, scopes[0][0], scopes[0][1], scopes[0][2], cleanupRestoreID, index, strings.Repeat(fmt.Sprintf("%x", index+1), 64)))
+		if err := worker.QueryRow(ctx, `SELECT zasp_recovery_fail_operation('restore',$1,$2,$3,$4,$5,$6,'exhausted',0,$7::jsonb)`, scopes[0][0], scopes[0][1], scopes[0][2], cleanupRestoreID, workerID, cleanupToken, cleanupEvidence).Scan(&rejected); err != nil || !bytes.Contains(rejected, []byte(`"state": "failed"`)) {
+			t.Fatalf("cleanup-only terminal state=%s response=%s err=%v", cleanupState, rejected, err)
+		}
+		if err := api.QueryRow(ctx, `SELECT zasp_recovery_get_restore($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], cleanupRestoreID).Scan(&readRestore); err != nil || !bytes.Contains(readRestore, []byte(`"state": "failed"`)) || !bytes.Contains(readRestore, []byte(`"cleanup_evidence"`)) || !bytes.Contains(readRestore, []byte(`"state": "deleted"`)) {
+			t.Fatalf("cleanup-only public terminal state=%s response=%s err=%v", cleanupState, readRestore, err)
+		}
+	}
+
+	dispatchBackupID := "pid_7b000070-0000-4000-8000-000000000070"
+	createBackup(scopes[0], dispatchBackupID, "recovery-backup-dispatch-exhausted", 0x71)
+	dispatchOutboxToken := bytes.Repeat([]byte{0x72}, 32)
+	var dispatchOutboxID string
+	if err := connection.QueryRow(ctx, `UPDATE zasp_recovery_outbox SET state='leased',attempt=100,worker_id='recovery-outbox-worker',lease_token=$3,lease_expires_at=transaction_timestamp()+interval '30 seconds' WHERE organization_id=$1 AND topic='recovery-backup-jobs' AND payload->>'backup_id'=$2 RETURNING outbox_id`, scopes[0][0], dispatchBackupID, dispatchOutboxToken).Scan(&dispatchOutboxID); err != nil {
+		t.Fatal(err)
+	}
+	if err := outbox.QueryRow(ctx, `SELECT zasp_recovery_retry_outbox($1,$2,$3,$4,'recovery-outbox-worker',$5,1,'queue_publish_unknown')`, scopes[0][0], scopes[0][1], scopes[0][2], dispatchOutboxID, dispatchOutboxToken).Scan(&rejected); err != nil || !bytes.Contains(rejected, []byte(`"state": "exhausted"`)) {
+		t.Fatalf("backup dispatch exhaustion=%s err=%v", rejected, err)
+	}
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_get_backup($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], dispatchBackupID).Scan(&runningBackup); err != nil || !bytes.Contains(runningBackup, []byte(`"state": "failed"`)) || !bytes.Contains(runningBackup, []byte(`"attempt": 0`)) || !bytes.Contains(runningBackup, []byte(`"error_code": "exhausted"`)) || bytes.Contains(runningBackup, []byte(`"started_at"`)) {
+		t.Fatalf("backup prestart exhaustion=%s err=%v", runningBackup, err)
+	}
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_claim_delivery('backup',$1,$2,$3,$4,$5,$6,30)`, scopes[0][0], scopes[0][1], scopes[0][2], dispatchBackupID, workerID, bytes.Repeat([]byte{0x73}, 32)).Scan(&deliveryDisposition); err != nil || !bytes.Contains(deliveryDisposition, []byte(`"disposition": "ack_terminal"`)) {
+		t.Fatalf("backup exhausted delivery=%s err=%v", deliveryDisposition, err)
+	}
+
+	dispatchRestoreID := "pid_7b000074-0000-4000-8000-000000000074"
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_create_restore($1,$2,$3,$4,$5,$6,'x',$7,$8,$9,$10,$11::jsonb,$12)`, scopes[0][0], scopes[0][1], scopes[0][2], "pid_7b000010-0000-4000-8000-000000000010", "recovery-restore-dispatch-exhausted", dispatchRestoreID, "pid_7b000075-0000-4000-8000-000000000075", "pid_7b000076-0000-4000-8000-000000000076", "pid_7b000077-0000-4000-8000-000000000077", bytes.Repeat([]byte{0x74}, 32), manifest, bytes.Repeat([]byte{0x27}, 32)).Scan(&createdRestore); err != nil {
+		t.Fatalf("create dispatch restore: %v", err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_recovery_outbox SET state='leased',attempt=100,available_at=transaction_timestamp(),worker_id='expired-outbox-worker',lease_token=$3,lease_expires_at=transaction_timestamp()-interval '1 second' WHERE organization_id=$1 AND topic='recovery-restore-jobs' AND payload->>'restore_id'=$2`, scopes[0][0], dispatchRestoreID, bytes.Repeat([]byte{0x78}, 32)); err != nil {
+		t.Fatal(err)
+	}
+	if err := outbox.QueryRow(ctx, `SELECT zasp_recovery_claim_outbox('recovery-restore-jobs','recovery-outbox-worker',$1,30,1)`, bytes.Repeat([]byte{0x79}, 32)).Scan(&claimedOutbox); err != nil {
+		t.Fatal(err)
+	}
+	if err := api.QueryRow(ctx, `SELECT zasp_recovery_get_restore($1,$2,$3,$4)`, scopes[0][0], scopes[0][1], scopes[0][2], dispatchRestoreID).Scan(&readRestore); err != nil || !bytes.Contains(readRestore, []byte(`"state": "failed"`)) || !bytes.Contains(readRestore, []byte(`"attempt": 0`)) || !bytes.Contains(readRestore, []byte(`"error_code": "exhausted"`)) || bytes.Contains(readRestore, []byte(`"started_at"`)) {
+		t.Fatalf("restore prestart exhaustion=%s err=%v", readRestore, err)
+	}
+	if err := worker.QueryRow(ctx, `SELECT zasp_recovery_claim_delivery('restore',$1,$2,$3,$4,$5,$6,30)`, scopes[0][0], scopes[0][1], scopes[0][2], dispatchRestoreID, workerID, bytes.Repeat([]byte{0x7a}, 32)).Scan(&deliveryDisposition); err != nil || !bytes.Contains(deliveryDisposition, []byte(`"disposition": "ack_terminal"`)) {
+		t.Fatalf("restore exhausted delivery=%s err=%v", deliveryDisposition, err)
+	}
+}
+
+func TestProductionRedTeamExecutionPostgresRejectsNoncanonicalInheritedPermissionsACLWithoutMutation(t *testing.T) {
+	dsn := startDisposablePostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close(context.Background())
+
+	runner := migrateToTypedInventoryCutover(t, ctx, connection)
+	for _, migration := range []struct {
+		name  string
+		apply func(context.Context) error
+	}{
+		{"runtime data plane", runner.UpProductionRuntimeDataPlane},
+		{"runtime gateway reconciliation", runner.UpProductionRuntimeGatewayReconciliation},
+		{"runtime ingest reconciliation", runner.UpProductionRuntimeIngestReconciliation},
+		{"security agent execution", runner.UpProductionSecurityAgentExecution},
+		{"identity administration", runner.UpProductionIdentityAdministration},
+		{"security agent controls", runner.UpProductionSecurityAgentControls},
+		{"security agent autonomous response", runner.UpProductionSecurityAgentAutonomousResponse},
+		{"security agent temporary policy", runner.UpProductionSecurityAgentTemporaryPolicy},
+		{"security agent connector revocation", runner.UpProductionSecurityAgentConnectorRevocation},
+		{"security agent session isolation", runner.UpProductionSecurityAgentSessionIsolation},
+	} {
+		if err := migration.apply(ctx); err != nil {
+			t.Fatalf("%s: %v", migration.name, err)
+		}
+	}
+	if _, err := connection.Exec(ctx, `CREATE ROLE recovery_acl_probe LOGIN; REVOKE EXECUTE ON FUNCTION public.zasp_effective_scope_permissions(jsonb,text) FROM PUBLIC`); err != nil {
+		t.Fatal(err)
+	}
+	var beforeACL string
+	if err := connection.QueryRow(ctx, `SELECT proacl::text FROM pg_proc WHERE oid='public.zasp_effective_scope_permissions(jsonb,text)'::regprocedure`).Scan(&beforeACL); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpProductionRedTeamExecution(ctx); err == nil {
+		t.Fatal("v25 accepted a noncanonical inherited permissions ACL")
+	}
+	var afterACL string
+	var maximumVersion int
+	var probeCanExecute bool
+	if err := connection.QueryRow(ctx, `SELECT proacl::text,(SELECT max(version) FROM zasp_schema_versions),has_function_privilege('recovery_acl_probe','public.zasp_effective_scope_permissions(jsonb,text)','EXECUTE') FROM pg_proc WHERE oid='public.zasp_effective_scope_permissions(jsonb,text)'::regprocedure`).Scan(&afterACL, &maximumVersion, &probeCanExecute); err != nil {
+		t.Fatal(err)
+	}
+	if afterACL != beforeACL || maximumVersion != 24 || probeCanExecute {
+		t.Fatalf("failed v25 mutated inherited authority before_acl=%q after_acl=%q version=%d probe_execute=%t", beforeACL, afterACL, maximumVersion, probeCanExecute)
+	}
+	if _, err := connection.Exec(ctx, `GRANT EXECUTE ON FUNCTION public.zasp_effective_scope_permissions(jsonb,text) TO PUBLIC`); err != nil {
+		t.Fatal(err)
+	}
+	var canonicalACL string
+	var canonicalACLRows []byte
+	if err := connection.QueryRow(ctx, `SELECT procedure.proacl::text,(SELECT jsonb_agg(to_jsonb(acl) ORDER BY acl.grantee) FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl) FROM pg_proc procedure WHERE procedure.oid='public.zasp_effective_scope_permissions(jsonb,text)'::regprocedure`).Scan(&canonicalACL, &canonicalACLRows); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpProductionRedTeamExecution(ctx); err != nil {
+		t.Fatalf("canonical v25 up: %v acl=%s rows=%s", err, canonicalACL, canonicalACLRows)
+	}
+	if err := runner.DownProductionRedTeamExecution(ctx); err != nil {
+		t.Fatalf("canonical v25 down: %v", err)
+	}
+	var restoredACLRows []byte
+	if err := connection.QueryRow(ctx, `SELECT has_function_privilege('recovery_acl_probe','public.zasp_effective_scope_permissions(jsonb,text)','EXECUTE'),(SELECT jsonb_agg(to_jsonb(acl) ORDER BY acl.grantee) FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl) FROM pg_proc procedure WHERE procedure.oid='public.zasp_effective_scope_permissions(jsonb,text)'::regprocedure`).Scan(&probeCanExecute, &restoredACLRows); err != nil || !probeCanExecute || !bytes.Equal(restoredACLRows, canonicalACLRows) {
+		t.Fatalf("canonical rollback did not restore exact ACL probe=%t before=%s after=%s err=%v", probeCanExecute, canonicalACLRows, restoredACLRows, err)
 	}
 }

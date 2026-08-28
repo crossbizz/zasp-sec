@@ -49,6 +49,22 @@ func TestRuntimeOutboxRepositoryBindsExactV15TopicLifecycle(t *testing.T) {
 	}
 }
 
+func TestRuntimeOutboxRepositoryUsesExactV27RecoveryReadinessWithoutSchemaTableAccess(t *testing.T) {
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{
+		postgresProductionRecoveryRuntimeOutboxReadySQL: json.RawMessage(`{"ready":true}`),
+	}}
+	repository, err := NewRuntimeOutboxRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(database.callsFor(postgresProductionRecoveryRuntimeOutboxReadySQL)) != 2 {
+		t.Fatalf("readiness=%#v", database.callsFor(postgresProductionRecoveryRuntimeOutboxReadySQL))
+	}
+}
+
 func TestRuntimeOutboxRepositoryRejectsForeignTopicAndHostileOutput(t *testing.T) {
 	if repository, err := NewRuntimeOutboxRepository(nil); repository != nil || !errors.Is(err, ErrRepositoryConfiguration) {
 		t.Fatalf("nil repository=%v err=%v", repository, err)

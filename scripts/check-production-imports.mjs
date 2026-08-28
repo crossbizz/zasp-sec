@@ -6,10 +6,13 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const productionEntries = ["app/page.tsx", "app/[...path]/page.tsx"];
 const sourceExtensions = ["", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
 const allowedExactSources = new Set([
+	"app/features/redteam/ProductionRedTeamView.tsx",
+	"app/features/redteam/api.ts",
   "app/features/sensors/ProductionSensorView.tsx",
   "app/features/sensors/api.ts",
 ]);
 const allowedBrowserStorageSources = new Set([
+	"app/features/recovery/RecoveryOperationsView.tsx",
   "app/features/risk/ProductionRiskView.tsx",
 ]);
 const forbiddenExactSources = new Set([
@@ -34,8 +37,6 @@ const forbiddenCompiledSentinels = [
   "zasp-demo-state",
   "fixtureAgentSecurityAPI",
   "Demo environment",
-  "Red Team",
-  "Attack Lab",
   "Guardrail dashboard",
   "Create guardrail",
   "Zasp security report",

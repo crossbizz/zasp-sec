@@ -39,7 +39,6 @@ func TestRecoveryClientUsesPinnedTLSAndExactPublicContracts(t *testing.T) {
 		response.Header().Set("ETag", `"1"`)
 		if request.Method == http.MethodPost {
 			response.Header().Set("X-Audit-ID", "pid_7d000003-0000-4000-8000-000000000003")
-			response.Header().Set("X-Mutation-Receipt-ID", "pid_7d000004-0000-4000-8000-000000000004")
 			response.WriteHeader(http.StatusAccepted)
 		}
 		switch request.URL.Path {
@@ -97,6 +96,28 @@ func TestRecoveryClientUsesPinnedTLSAndExactPublicContracts(t *testing.T) {
 	}
 	if decodeRecoveryJSON(bodies[1], &restoreBody) != nil || restoreBody.RestoreID != recoveryRestoreID || restoreBody.TargetEnvironment != "recovery-test" || !reflect.DeepEqual(restoreBody.Manifest, manifest) {
 		t.Fatalf("restore body=%s", bodies[1])
+	}
+}
+
+func TestRecoveryClientRejectsBrowserOnlyReceiptOnBearerMutation(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		response.Header().Set("Cache-Control", "no-store")
+		response.Header().Set("ETag", `"1"`)
+		response.Header().Set("X-Audit-ID", "pid_7d000003-0000-4000-8000-000000000003")
+		response.Header().Set("X-Mutation-Receipt-ID", "pid_7d000004-0000-4000-8000-000000000004")
+		response.WriteHeader(http.StatusAccepted)
+		_, _ = response.Write([]byte(recoveryBackupFixture()))
+	}))
+	defer server.Close()
+	configuration, dial := recoveryTLSFixture(t, server)
+	client, err := newRecoveryClientWithDial(configuration, dial)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	if _, err := client.StartBackup(context.Background(), recoveryBackupStart{BackupID: recoveryBackupID, RetentionDays: 30, IdempotencyKey: "recovery-backup-idempotency-0001", ControlVersion: 0}); !errors.Is(err, errRecoveryAPIUnavailable) {
+		t.Fatalf("receipt leak error=%v", err)
 	}
 }
 
@@ -239,6 +260,27 @@ func TestRecoveryResponseValidatorsRejectImpossibleStateTuples(t *testing.T) {
 	invalidSignature.Signature = strings.Repeat("A", 44) + "!"
 	if validRecoveryManifest(invalidSignature) {
 		t.Fatal("invalid signature accepted")
+	}
+}
+
+func TestRecoveryResponseValidatorsAcceptExactPrestartDispatchExhaustion(t *testing.T) {
+	backup := mustRecoveryBackupFixture()
+	backup.Version, backup.State, backup.ErrorCode, backup.CompletedAt = 2, "failed", "exhausted", "2026-08-25T16:00:02Z"
+	if !validRecoveryBackup(backup) {
+		t.Fatalf("backup=%#v", backup)
+	}
+	restore := mustRecoveryRestoreFixture()
+	restore.Version, restore.State, restore.ErrorCode, restore.CompletedAt = 2, "failed", "exhausted", "2026-08-25T16:00:02Z"
+	if !validRecoveryRestore(restore) {
+		t.Fatalf("restore=%#v", restore)
+	}
+	backup.CompletedAt = "2026-08-25T15:59:59Z"
+	if validRecoveryBackup(backup) {
+		t.Fatal("prestart-exhausted backup accepted completion before creation")
+	}
+	restore.CompletedAt = "2026-08-25T15:59:59Z"
+	if validRecoveryRestore(restore) {
+		t.Fatal("prestart-exhausted restore accepted completion before creation")
 	}
 }
 

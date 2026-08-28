@@ -332,7 +332,7 @@ func TestSecurityAgentPublicHandlerApprovesWithFreshSeparateBrowserAuthority(t *
 	identity := fixtureRequestIdentity(t)
 	identity.CredentialKind = CredentialBrowserSession
 	identity.FreshAuthenticated = true
-	identity.FreshAuthExpiresAt = now.Add(4 * time.Minute)
+	identity.FreshAuthExpiresAt = now.Add(5*time.Minute + 950*time.Millisecond)
 	request := workflowRequest(t, identity, correlationID, "decideSecurityAgentApproval", map[string]string{"id": approvalID}, http.MethodPost, "/api/v1/security-agent-approvals/"+approvalID+"/decision", `{"decision":"approved"}`)
 	request.Header.Set("Idempotency-Key", "approve-security-agent-0001")
 	request.Header.Set("If-Match", `"1"`)
@@ -342,8 +342,24 @@ func TestSecurityAgentPublicHandlerApprovesWithFreshSeparateBrowserAuthority(t *
 	if response.Code != http.StatusOK || response.Header().Get("ETag") != `"2"` || response.Header().Get("X-Mutation-Receipt-ID") != receiptID || stub.calls != 2 {
 		t.Fatalf("approval status=%d headers=%#v body=%s calls=%d", response.Code, response.Header(), response.Body.String(), stub.calls)
 	}
-	if stub.decision.ApprovalID != approvalID || stub.decision.ExpectedVersion != 1 || stub.decision.Decision != "approved" || stub.decision.FreshAuthAt != now || stub.decision.ReceiptID != receiptID {
+	if stub.decision.ApprovalID != approvalID || stub.decision.ExpectedVersion != 1 || stub.decision.Decision != "approved" || stub.decision.FreshAuthAt != identity.FreshAuthExpiresAt.Add(-5*time.Minute) || stub.decision.ReceiptID != receiptID {
 		t.Fatalf("approval input=%#v", stub.decision)
+	}
+}
+
+func TestSecurityAgentFreshAuthenticationAllowsDatabasePrecisionButRejectsFutureAuthority(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	if !validSecurityAgentFreshAuthentication(now, now.Add(5*time.Minute+950*time.Millisecond)) {
+		t.Fatal("database microsecond precision was rejected against a second-truncated application clock")
+	}
+	if !validSecurityAgentFreshAuthentication(now, now.Add(securityAgentFreshAuthenticationTTL+securityAgentFreshAuthenticationClockSkew)) {
+		t.Fatal("documented database clock-skew boundary was rejected")
+	}
+	if validSecurityAgentFreshAuthentication(now, now.Add(securityAgentFreshAuthenticationTTL+securityAgentFreshAuthenticationClockSkew+time.Nanosecond)) {
+		t.Fatal("future fresh-authentication authority was accepted")
+	}
+	if validSecurityAgentFreshAuthentication(now, now) {
+		t.Fatal("expired fresh-authentication authority was accepted")
 	}
 }
 

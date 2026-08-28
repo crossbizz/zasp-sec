@@ -56,6 +56,7 @@ type recoveryRestoreInfrastructure interface {
 	Validate(context.Context, recoveryRestoreTarget, recovery.Manifest) (apiserver.RecoveryCounts, apiserver.RecoveryArtifactLocator, error)
 	Rebuild(context.Context, recoveryRestoreTarget, recovery.Manifest) ([sha256.Size]byte, error)
 	Cleanup(context.Context, recoveryRestoreTarget) (apiserver.RecoveryCleanupEvidence, error)
+	ReconcileCleanup(context.Context, recoveryOperationClaim) (apiserver.RecoveryCleanupEvidence, error)
 }
 
 type recoveryRestoreProcessorConfig struct {
@@ -205,6 +206,9 @@ func (processor *recoveryRestoreProcessor) process(ctx context.Context, token st
 	var leaseLost atomic.Bool
 	heartbeatDone := make(chan struct{})
 	go processor.keepLease(workCtx, lease, receipt, cancelWork, &leaseLost, heartbeatDone)
+	if claim.CleanupOnly {
+		return processor.processCleanupOnly(ctx, workCtx, cancelWork, heartbeatDone, &leaseLost, lease)
+	}
 
 	loaded, err := processor.config.Loader.Load(workCtx, claim)
 	if err != nil {
@@ -264,13 +268,53 @@ func (processor *recoveryRestoreProcessor) process(ctx context.Context, token st
 	return nil
 }
 
+func (processor *recoveryRestoreProcessor) processCleanupOnly(ctx, workCtx context.Context, cancelWork context.CancelFunc, heartbeatDone <-chan struct{}, leaseLost *atomic.Bool, lease recoveryOperationLease) error {
+	cleanup, cleanupErr := processor.config.Infrastructure.ReconcileCleanup(workCtx, lease.recoveryOperationClaim)
+	var durable *apiserver.RecoveryCleanupEvidence
+	code := "cleanup_failed"
+	if validRecoveryEvidenceLocator(cleanup.Evidence, lease.Scope, "recovery_cleanup_v1") {
+		switch {
+		case cleanupErr == nil && cleanup.State == "deleted":
+			code, durable = "exhausted", &cleanup
+		case cleanupErr != nil && cleanup.State == "failed":
+			durable = &cleanup
+		}
+	}
+	if durable == nil || durable.State == "failed" {
+		processor.config.Metrics.observeCleanupFailure()
+	}
+	cancelWork()
+	<-heartbeatDone
+	if leaseLost.Load() {
+		return errWorkerExecution
+	}
+	failureCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), minDuration(time.Duration(processor.config.LeaseSeconds)*time.Second/3, 30*time.Second))
+	defer cancel()
+	retry := 30 * time.Second
+	if durable != nil {
+		retry = 0
+	}
+	if processor.config.Authority.Fail(failureCtx, lease, code, retry, durable) != nil {
+		return errWorkerExecution
+	}
+	if durable == nil {
+		return errWorkerExecution
+	}
+	processor.config.Metrics.observeExhaustion()
+	return nil
+}
+
 func (processor *recoveryRestoreProcessor) cleanupAndFail(ctx context.Context, cancelWork context.CancelFunc, heartbeatDone <-chan struct{}, leaseLost *atomic.Bool, lease recoveryOperationLease, target recoveryRestoreTarget, code string) error {
 	cleanup, err := processor.cleanup(ctx, target, lease.recoveryOperationClaim)
+	var durable *apiserver.RecoveryCleanupEvidence
 	if err != nil || cleanup.State != "deleted" {
 		processor.config.Metrics.observeCleanupFailure()
 		code = "cleanup_failed"
 	}
-	return processor.stopAndRecordFailure(ctx, cancelWork, heartbeatDone, leaseLost, lease, code, &cleanup)
+	if validRecoveryEvidenceLocator(cleanup.Evidence, lease.Scope, "recovery_cleanup_v1") && stringInWorker(cleanup.State, "deleted", "failed") {
+		durable = &cleanup
+	}
+	return processor.stopAndRecordFailure(ctx, cancelWork, heartbeatDone, leaseLost, lease, code, durable)
 }
 
 func (processor *recoveryRestoreProcessor) cleanup(ctx context.Context, target recoveryRestoreTarget, claim recoveryOperationClaim) (apiserver.RecoveryCleanupEvidence, error) {
@@ -354,13 +398,11 @@ func validStartedRecoveryRestoreTarget(target recoveryRestoreTarget, claim recov
 }
 
 func validRecoveryRestoreTarget(target recoveryRestoreTarget, claim recoveryOperationClaim) bool {
-	suffix := strings.TrimPrefix(claim.OperationID, "pid_")
-	suffix = strings.ReplaceAll(suffix, "-", "")
-	if len(suffix) != 32 {
+	wantName, wantScopeDigest, err := recoveryRestoreIdentity(claim.Scope, claim.OperationID)
+	if err != nil {
 		return false
 	}
-	wantNamespace := "zasp-recovery-" + suffix
-	return strings.HasPrefix(target.BranchID, "br-") && target.Namespace == wantNamespace && len(target.NamespaceUID) >= 8 && len(target.NamespaceUID) <= 64 && len(target.ScopeDigest) == 16
+	return strings.HasPrefix(target.BranchID, "br-") && target.BranchName == wantName && target.Namespace == wantName && len(target.NamespaceUID) >= 8 && len(target.NamespaceUID) <= 64 && target.ScopeDigest == wantScopeDigest
 }
 
 func validRecoveryEvidenceLocator(value apiserver.RecoveryArtifactLocator, scope domain.Scope, schema string) bool {

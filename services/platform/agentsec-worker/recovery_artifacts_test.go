@@ -13,11 +13,15 @@ import (
 )
 
 type recoveryArtifactStoreFake struct {
-	puts []artifactstore.PutRequest
+	puts   []artifactstore.PutRequest
+	putErr error
 }
 
 func (fake *recoveryArtifactStoreFake) Put(_ context.Context, request artifactstore.PutRequest) (artifactstore.Artifact, error) {
 	fake.puts = append(fake.puts, request)
+	if fake.putErr != nil {
+		return artifactstore.Artifact{}, fake.putErr
+	}
 	digest := sha256.Sum256(request.Body)
 	return artifactstore.Artifact{Locator: artifactstore.Locator{Scope: request.Scope, Reference: request.Reference, VersionID: fmt.Sprintf("version-%d", len(fake.puts))}, MediaType: request.MediaType, Body: append([]byte(nil), request.Body...), Size: int64(len(request.Body)), SHA256: digest}, nil
 }

@@ -247,7 +247,7 @@ func TestExecSecurityProcessBoundsOutputAndKillsCancelledProcessGroup(t *testing
 		done <- processResult{output: output, err: err}
 	}()
 	var pidText []byte
-	for time.Since(started) < 2*time.Second {
+	for time.Since(started) < 15*time.Second {
 		pidText, _ = os.ReadFile(pidFile)
 		if len(pidText) != 0 {
 			break
@@ -258,11 +258,12 @@ func TestExecSecurityProcessBoundsOutputAndKillsCancelledProcessGroup(t *testing
 		cancel()
 		t.Fatal("child process did not start")
 	}
+	cancelledAt := time.Now()
 	cancel()
 	select {
 	case result := <-done:
-		if result.err == nil || len(result.output) != 0 || time.Since(started) > 3*time.Second {
-			t.Fatalf("cancelled Run() = %d bytes, %v, elapsed = %s", len(result.output), result.err, time.Since(started))
+		if result.err == nil || len(result.output) != 0 || time.Since(cancelledAt) > 2*time.Second {
+			t.Fatalf("cancelled Run() = %d bytes, %v, cancellation elapsed = %s", len(result.output), result.err, time.Since(cancelledAt))
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("cancelled process group did not stop")

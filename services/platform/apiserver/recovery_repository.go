@@ -182,7 +182,7 @@ func (repository *RecoveryPublicRepository) StartBackup(ctx context.Context, ide
 		return RecoveryBackupMutationResult{}, discoveryProviderError(err)
 	}
 	var result RecoveryBackupMutationResult
-	if !exactJSONFields(payload, "audit_id", "body", "correlation_id", "receipt_id", "replayed") || decodeStrictDiscovery(payload, &result) != nil || !validRecoveryMutationResultIdentity(identity, result.AuditID, result.CorrelationID, result.ReceiptID) || result.CorrelationID != input.CorrelationID || !result.Replayed && (result.AuditID != input.AuditID || result.ReceiptID != input.ReceiptID) || !validRecoveryBackup(result.Body, identity.Scope) || result.Body.ID != input.BackupID || result.Body.Version != 1 || result.Body.State != "queued" || result.Body.RetentionDays != input.RetentionDays {
+	if !exactJSONFields(payload, "audit_id", "body", "correlation_id", "receipt_id", "replayed") || decodeStrictDiscovery(payload, &result) != nil || !validRecoveryMutationResultIdentity(identity, result.AuditID, result.CorrelationID, result.ReceiptID) || !result.Replayed && (result.AuditID != input.AuditID || result.CorrelationID != input.CorrelationID || result.ReceiptID != input.ReceiptID) || !validRecoveryBackup(result.Body, identity.Scope) || result.Body.ID != input.BackupID || result.Body.Version != 1 || result.Body.State != "queued" || result.Body.RetentionDays != input.RetentionDays {
 		return RecoveryBackupMutationResult{}, ErrRepositoryUnavailable
 	}
 	canonicalizeRecoveryBackup(&result.Body)
@@ -223,7 +223,7 @@ func (repository *RecoveryPublicRepository) StartRestore(ctx context.Context, id
 		return RecoveryRestoreMutationResult{}, discoveryProviderError(err)
 	}
 	var result RecoveryRestoreMutationResult
-	if !exactJSONFields(payload, "audit_id", "body", "correlation_id", "receipt_id", "replayed") || decodeStrictDiscovery(payload, &result) != nil || !validRecoveryMutationResultIdentity(identity, result.AuditID, result.CorrelationID, result.ReceiptID) || result.CorrelationID != input.CorrelationID || !result.Replayed && (result.AuditID != input.AuditID || result.ReceiptID != input.ReceiptID) || !validRecoveryRestore(result.Body, identity.Scope) || result.Body.ID != input.RestoreID || result.Body.Version != 1 || result.Body.State != "queued" || result.Body.TargetEnvironment != input.TargetEnvironment || result.Body.Manifest == nil || *result.Body.Manifest != input.Manifest {
+	if !exactJSONFields(payload, "audit_id", "body", "correlation_id", "receipt_id", "replayed") || decodeStrictDiscovery(payload, &result) != nil || !validRecoveryMutationResultIdentity(identity, result.AuditID, result.CorrelationID, result.ReceiptID) || !result.Replayed && (result.AuditID != input.AuditID || result.CorrelationID != input.CorrelationID || result.ReceiptID != input.ReceiptID) || !validRecoveryRestore(result.Body, identity.Scope) || result.Body.ID != input.RestoreID || result.Body.Version != 1 || result.Body.State != "queued" || result.Body.TargetEnvironment != input.TargetEnvironment || result.Body.Manifest == nil || *result.Body.Manifest != input.Manifest {
 		return RecoveryRestoreMutationResult{}, ErrRepositoryUnavailable
 	}
 	canonicalizeRecoveryRestore(&result.Body)
@@ -308,7 +308,7 @@ func validRecoveryBackup(value RecoveryBackup, scope domain.Scope) bool {
 	case "succeeded":
 		return value.Attempt >= 1 && value.StartedAt != nil && value.CompletedAt != nil && value.Manifest != nil && value.ErrorCode == nil
 	case "failed":
-		return value.Attempt >= 1 && value.StartedAt != nil && value.CompletedAt != nil && value.Manifest == nil && value.ErrorCode != nil
+		return value.CompletedAt != nil && value.Manifest == nil && value.ErrorCode != nil && (value.Attempt >= 1 && value.StartedAt != nil || value.Attempt == 0 && value.StartedAt == nil && *value.ErrorCode == "exhausted")
 	default:
 		return false
 	}
@@ -330,7 +330,7 @@ func validRecoveryRestore(value RecoveryRestore, scope domain.Scope) bool {
 	case "succeeded":
 		return value.Attempt >= 1 && value.StartedAt != nil && value.CompletedAt != nil && value.ErrorCode == nil && value.ObservedCounts != nil && value.ValidationEvidence != nil && value.CleanupEvidence != nil && value.ValidationEvidence.State == "validated" && value.CleanupEvidence.State == "deleted" && *value.ObservedCounts == value.ValidationEvidence.ObservedCounts
 	case "failed":
-		return value.Attempt >= 1 && value.StartedAt != nil && value.CompletedAt != nil && value.ErrorCode != nil
+		return value.CompletedAt != nil && value.ErrorCode != nil && (value.Attempt >= 1 && value.StartedAt != nil || value.Attempt == 0 && value.StartedAt == nil && *value.ErrorCode == "exhausted" && value.ObservedCounts == nil && value.ValidationEvidence == nil && value.CleanupEvidence == nil)
 	case "failed_cleanup":
 		return value.Attempt >= 1 && value.StartedAt != nil && value.CompletedAt != nil && value.ErrorCode != nil && value.CleanupEvidence != nil && value.CleanupEvidence.State == "failed"
 	default:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"strings"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
@@ -42,12 +43,20 @@ type recoveryKubernetesPlan struct {
 	Jobs                 []recoveryKubernetesJob
 }
 
+type recoveryKubernetesCleanupPlan struct {
+	Namespace string
+	Labels    map[string]string
+	Scope     domain.Scope
+	RestoreID string
+}
+
 type recoveryKubernetesAPI interface {
 	Ready(context.Context) error
 	Provision(context.Context, recoveryKubernetesPlan) (string, error)
 	Validate(context.Context, recoveryKubernetesPlan, string) (apiserver.RecoveryCounts, apiserver.RecoveryArtifactLocator, error)
 	Rebuild(context.Context, recoveryKubernetesPlan, string) ([sha256.Size]byte, error)
-	Cleanup(context.Context, recoveryKubernetesPlan, string) (apiserver.RecoveryCleanupEvidence, error)
+	CleanupNamespace(context.Context, recoveryKubernetesCleanupPlan, string) (string, error)
+	RecordCleanup(context.Context, recoveryKubernetesCleanupPlan, string, string) (apiserver.RecoveryCleanupEvidence, error)
 }
 
 type productionRecoveryRestoreInfrastructureConfig struct {
@@ -121,12 +130,48 @@ func (infrastructure *productionRecoveryRestoreInfrastructure) Cleanup(ctx conte
 	if infrastructure == nil || ctx == nil || ctx.Err() != nil || target.BranchID == "" || target.BranchName == "" || target.Namespace == "" || len(target.ScopeDigest) != 16 || target.plan.Namespace != target.Namespace || target.plan.BranchID != target.BranchID {
 		return apiserver.RecoveryCleanupEvidence{}, errWorkerExecution
 	}
-	evidence, kubernetesErr := infrastructure.config.Kubernetes.Cleanup(ctx, target.plan, target.NamespaceUID)
-	neonErr := infrastructure.config.Neon.DeleteBranch(ctx, infrastructure.config.ProjectID, target.BranchID)
-	if kubernetesErr != nil || neonErr != nil || evidence.State != "deleted" {
-		if evidence.State == "deleted" {
-			evidence.State = "failed"
+	plan := recoveryCleanupPlan(target.plan.Scope, target.plan.RestoreID, target.Namespace, target.ScopeDigest)
+	return infrastructure.cleanupResources(ctx, plan, target.NamespaceUID, target.BranchID, nil)
+}
+
+func (infrastructure *productionRecoveryRestoreInfrastructure) ReconcileCleanup(ctx context.Context, claim recoveryOperationClaim) (apiserver.RecoveryCleanupEvidence, error) {
+	if infrastructure == nil || ctx == nil || ctx.Err() != nil || !validRecoveryOperationClaim(claim) || claim.Kind != "restore" || !claim.CleanupOnly {
+		return apiserver.RecoveryCleanupEvidence{}, errWorkerExecution
+	}
+	name, scopeDigest, err := recoveryRestoreNames(claim)
+	if err != nil {
+		return apiserver.RecoveryCleanupEvidence{}, errWorkerExecution
+	}
+	plan := recoveryCleanupPlan(claim.Scope, claim.OperationID, name, scopeDigest)
+	branch, branchErr := infrastructure.config.Neon.GetBranchByName(ctx, infrastructure.config.ProjectID, name)
+	branchID := ""
+	if errors.Is(branchErr, neondriver.ErrNotFound) {
+		branchErr = nil
+	} else if branchErr == nil {
+		if branch.ProjectID != infrastructure.config.ProjectID || branch.ParentID != infrastructure.config.ParentBranchID || branch.Name != name || branch.ID == "" {
+			branchErr = errWorkerExecution
+		} else {
+			branchID = branch.ID
 		}
+	}
+	return infrastructure.cleanupResources(ctx, plan, "", branchID, branchErr)
+}
+
+func (infrastructure *productionRecoveryRestoreInfrastructure) cleanupResources(ctx context.Context, plan recoveryKubernetesCleanupPlan, namespaceUID, branchID string, priorNeonErr error) (apiserver.RecoveryCleanupEvidence, error) {
+	resolvedUID, kubernetesErr := infrastructure.config.Kubernetes.CleanupNamespace(ctx, plan, namespaceUID)
+	neonErr := priorNeonErr
+	if neonErr == nil && branchID != "" {
+		neonErr = infrastructure.config.Neon.DeleteBranch(ctx, infrastructure.config.ProjectID, branchID)
+	}
+	state := "deleted"
+	if kubernetesErr != nil || neonErr != nil {
+		state = "failed"
+	}
+	evidence, evidenceErr := infrastructure.config.Kubernetes.RecordCleanup(ctx, plan, resolvedUID, state)
+	if evidenceErr != nil || evidence.State != state {
+		return apiserver.RecoveryCleanupEvidence{}, errWorkerExecution
+	}
+	if state == "failed" {
 		return evidence, errWorkerExecution
 	}
 	return evidence, nil
@@ -153,12 +198,25 @@ func recoveryRestoreNames(claim recoveryOperationClaim) (string, string, error) 
 	if !validRecoveryOperationClaim(claim) || claim.Kind != "restore" {
 		return "", "", errWorkerExecution
 	}
-	suffix := strings.ReplaceAll(strings.TrimPrefix(claim.OperationID, "pid_"), "-", "")
-	if len(suffix) != 32 {
+	return recoveryRestoreIdentity(claim.Scope, claim.OperationID)
+}
+
+func recoveryRestoreIdentity(scope domain.Scope, restoreID string) (string, string, error) {
+	parsed, err := domain.ParseProductID(restoreID)
+	if scope.Validate() != nil || err != nil || parsed.IsZero() {
 		return "", "", errWorkerExecution
 	}
-	digest := sha256.Sum256([]byte(strings.Join([]string{claim.Scope.OrganizationID().String(), claim.Scope.WorkspaceID().String(), claim.Scope.EnvironmentID().String(), claim.OperationID}, "\x1f")))
-	return "zasp-recovery-" + suffix, hex.EncodeToString(digest[:8]), nil
+	digest := sha256.Sum256([]byte(strings.Join([]string{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), restoreID}, "\x1f")))
+	scopeDigest := hex.EncodeToString(digest[:8])
+	name := "zasp-recovery-" + hex.EncodeToString(digest[:16])
+	if !neondriver.ValidRecoveryBranchName(name) {
+		return "", "", errWorkerExecution
+	}
+	return name, scopeDigest, nil
+}
+
+func recoveryCleanupPlan(scope domain.Scope, restoreID, namespace, scopeDigest string) recoveryKubernetesCleanupPlan {
+	return recoveryKubernetesCleanupPlan{Namespace: namespace, Scope: scope, RestoreID: restoreID, Labels: map[string]string{"app.kubernetes.io/managed-by": "agentsec-recovery", "zasp.io/recovery-id": restoreID, "zasp.io/recovery-scope": scopeDigest}}
 }
 
 func cloneRecoveryLabels(value map[string]string) map[string]string {

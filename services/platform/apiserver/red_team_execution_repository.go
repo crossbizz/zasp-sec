@@ -94,9 +94,14 @@ func (repository *RedTeamExecutionRepository) Ready(ctx context.Context) error {
 	if !validRedTeamExecutionRepository(repository, ctx) {
 		return ErrRepositoryUnavailable
 	}
-	metadata := migrations.ProductionRedTeamExecution()
-	payload, err := repository.database.QueryJSON(ctx, postgresRedTeamExecutionReadinessSQL, metadata.Checksum(), migrations.ProductionRedTeamExecutionSemanticFingerprint())
 	var ready bool
+	metadata := migrations.ProductionRecovery()
+	payload, err := repository.database.QueryJSON(ctx, postgresProductionRecoveryReadinessSQL, metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint())
+	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
+		metadata := migrations.ProductionRedTeamExecution()
+		payload, err = repository.database.QueryJSON(ctx, postgresRedTeamExecutionReadinessSQL, metadata.Checksum(), migrations.ProductionRedTeamExecutionSemanticFingerprint())
+		ready = false
+	}
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return ErrRepositoryUnavailable
 	}

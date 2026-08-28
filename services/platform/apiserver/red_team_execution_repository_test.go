@@ -82,6 +82,19 @@ func TestRedTeamExecutionRepositoryBindsOutboxAndRunLeases(t *testing.T) {
 	}
 }
 
+func TestRedTeamExecutionRepositoryUsesExactV27RecoveryReadiness(t *testing.T) {
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{
+		postgresProductionRecoveryReadinessSQL: json.RawMessage(`true`),
+		postgresRedTeamPrincipalReadySQL:       json.RawMessage(`true`),
+	}}
+	if _, err := NewRedTeamExecutionRepository(database, RedTeamExecutionAuthorityWorker); err != nil {
+		t.Fatal(err)
+	}
+	if calls := database.callsFor(postgresProductionRecoveryReadinessSQL); len(calls) != 1 {
+		t.Fatalf("v27 readiness calls=%#v", calls)
+	}
+}
+
 func TestRedTeamExecutionRepositoryRejectsWrongAuthorityAndHostileOutput(t *testing.T) {
 	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresRedTeamExecutionReadinessSQL: json.RawMessage(`true`), postgresRedTeamPrincipalReadySQL: json.RawMessage(`true`), postgresRedTeamClaimOutboxSQL: json.RawMessage(`[{"secret":"must-not-leak"}]`)}}
 	if repository, err := NewRedTeamExecutionRepository(nil, RedTeamExecutionAuthorityWorker); repository != nil || !errors.Is(err, ErrRepositoryConfiguration) {

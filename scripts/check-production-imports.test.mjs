@@ -43,7 +43,7 @@ test("source graph rejects transitive demo, fixture, and browser storage imports
   }
 });
 
-test("source graph permits only the exact scoped ticket recovery storage boundary", async () => {
+test("source graph permits only the exact scoped retry-recovery storage boundaries", async () => {
   const approved = await fixture({
     "app/page.tsx": 'export { Risk } from "./features/risk/ProductionRiskView";',
     "app/[...path]/page.tsx": "export {};",
@@ -52,12 +52,25 @@ test("source graph permits only the exact scoped ticket recovery storage boundar
   const result = await checkSourceGraph({ root: approved });
   assert.ok(result.files.includes("app/features/risk/ProductionRiskView.tsx"));
 
-  const unapproved = await fixture({
-    "app/page.tsx": 'export { Risk } from "./features/risk/OtherRiskView";',
+  const recovery = await fixture({
+    "app/page.tsx": 'export { RecoveryOperationsView } from "./features/recovery/RecoveryOperationsView";',
     "app/[...path]/page.tsx": "export {};",
-    "app/features/risk/OtherRiskView.tsx": 'export const Risk = window.sessionStorage.getItem("state");',
+    "app/features/recovery/RecoveryOperationsView.tsx": 'export const RecoveryOperationsView = window.sessionStorage.getItem("zasp:recovery:v1:scope");',
   });
-  await assert.rejects(() => checkSourceGraph({ root: unapproved }), /browser storage/);
+  const recoveryResult = await checkSourceGraph({ root: recovery });
+  assert.ok(recoveryResult.files.includes("app/features/recovery/RecoveryOperationsView.tsx"));
+
+  for (const [entry, source] of [
+    ["app/features/risk/OtherRiskView.tsx", 'export const View = window.sessionStorage.getItem("state");'],
+    ["app/features/recovery/OtherRecoveryView.tsx", 'export const View = window.sessionStorage.getItem("state");'],
+  ]) {
+    const unapproved = await fixture({
+      "app/page.tsx": `export { View } from "./${entry.slice(4, -4)}";`,
+      "app/[...path]/page.tsx": "export {};",
+      [entry]: source,
+    });
+    await assert.rejects(() => checkSourceGraph({ root: unapproved }), /browser storage/);
+  }
 });
 
 test("source graph accepts the production sensor surface but rejects its demo sibling", async () => {
@@ -85,6 +98,27 @@ test("source graph accepts the production sensor surface but rejects its demo si
   }
 });
 
+test("source graph accepts only the exact production red-team surface", async () => {
+  const production = await fixture({
+    "app/page.tsx": 'export { ProductionRedTeamView } from "./features/redteam/ProductionRedTeamView";',
+    "app/[...path]/page.tsx": "export {};",
+    "app/features/redteam/ProductionRedTeamView.tsx": 'export { getRuns as ProductionRedTeamView } from "./api";',
+    "app/features/redteam/api.ts": "export const getRuns = 1;",
+  });
+  const result = await checkSourceGraph({ root: production });
+  assert.ok(result.files.includes("app/features/redteam/ProductionRedTeamView.tsx"));
+  assert.ok(result.files.includes("app/features/redteam/api.ts"));
+
+  for (const target of ["AttackLabView.tsx", "RedTeamViews.tsx", "fixture-api.ts"]) {
+    const unapproved = await fixture({
+      "app/page.tsx": `export { View } from "./features/redteam/${target.replace(/\.[^.]+$/, "")}";`,
+      "app/[...path]/page.tsx": "export {};",
+      [`app/features/redteam/${target}`]: "export const View = 1;",
+    });
+    await assert.rejects(() => checkSourceGraph({ root: unapproved }), /demo module/);
+  }
+});
+
 test("compiled closure accepts clean client and server chunks", async () => {
   const root = await fixture({
     "dist/client/.vite/manifest.json": JSON.stringify({
@@ -93,7 +127,7 @@ test("compiled closure accepts clean client and server chunks", async () => {
       "app/features/sensors/api.ts": { file: "sensor-api.js", src: "app/features/sensors/api.ts" },
     }),
     "dist/client/entry.js": "import('./production.js')",
-    "dist/client/production.js": "const title = 'Findings';",
+    "dist/client/production.js": "const title = 'Red Team'; const destination = '/test/attack-lab';",
     "dist/client/sensor-api.js": "export const listSensors = true;",
     "dist/server/.vite/manifest.json": JSON.stringify({
       "app/page.tsx": { file: "page.js", src: "app/page.tsx", isDynamicEntry: true, imports: ["_production.js"] },

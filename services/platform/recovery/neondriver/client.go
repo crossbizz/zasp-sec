@@ -53,6 +53,10 @@ type CreateBranchRequest struct {
 	ParentLSN string
 }
 
+func ValidRecoveryBranchName(value string) bool {
+	return branchNamePattern.MatchString(value)
+}
+
 type Endpoint struct {
 	ID       string
 	BranchID string
@@ -196,7 +200,7 @@ func (value *client) CreateBranch(ctx context.Context, request CreateBranchReque
 	if err := value.validContext(ctx); err != nil {
 		return Branch{}, err
 	}
-	if !branchNamePattern.MatchString(request.Name) || !lsnPattern.MatchString(request.ParentLSN) {
+	if !ValidRecoveryBranchName(request.Name) || !lsnPattern.MatchString(request.ParentLSN) {
 		return Branch{}, ErrInvalid
 	}
 	body, err := json.Marshal(createBranchWire{Branch: createBranchSpec{Name: request.Name, ParentID: value.parentBranchID, ParentLSN: request.ParentLSN}, Endpoints: []createEndpointSpec{{Type: "read_write"}}})
@@ -231,7 +235,7 @@ func (value *client) GetBranchByName(ctx context.Context, projectID, name string
 	if err := value.validContext(ctx); err != nil {
 		return Branch{}, err
 	}
-	if projectID != value.projectID || !branchNamePattern.MatchString(name) {
+	if projectID != value.projectID || !ValidRecoveryBranchName(name) {
 		return Branch{}, ErrInvalid
 	}
 	query := url.Values{"limit": {"2"}, "search": {name}}

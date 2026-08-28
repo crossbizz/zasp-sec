@@ -13,7 +13,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
-func TestPostgresRepositoryUsesExactV16ReadinessAndAuthority(t *testing.T) {
+func TestPostgresRepositoryUsesCurrentV27ReadinessAndAuthority(t *testing.T) {
 	authority := fixtureAuthority(make([]byte, 32))
 	database := &postgresDatabaseStub{responses: []any{
 		true,
@@ -27,8 +27,32 @@ func TestPostgresRepositoryUsesExactV16ReadinessAndAuthority(t *testing.T) {
 	if err != nil || actual.ReplayFloor != 7 || !sameAuthority(actual, authority) {
 		t.Fatalf("authority=%#v err=%v", actual, err)
 	}
+	metadata := migrations.ProductionRecovery()
+	if !reflect.DeepEqual(database.calls[0].arguments, []any{metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint()}) || database.calls[1].arguments[0] != authority.CredentialID {
+		t.Fatalf("calls=%#v", database.calls)
+	}
+}
+
+func TestPostgresRepositoryUsesExactV27RecoveryReadiness(t *testing.T) {
+	database := &postgresDatabaseStub{responses: []any{true}}
+	repository, err := NewPostgresRepository(database, time.Second)
+	if err != nil || repository.Ready(context.Background()) != nil {
+		t.Fatalf("repository=%#v err=%v", repository, err)
+	}
+	metadata := migrations.ProductionRecovery()
+	if database.calls[0].statement != postgresReadyV27SQL || !reflect.DeepEqual(database.calls[0].arguments, []any{metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint()}) {
+		t.Fatalf("calls=%#v", database.calls)
+	}
+}
+
+func TestPostgresRepositoryRetainsExactV16ReadinessFallback(t *testing.T) {
+	database := &postgresDatabaseStub{responses: []any{false, true}}
+	repository, err := NewPostgresRepository(database, time.Second)
+	if err != nil || repository.Ready(context.Background()) != nil {
+		t.Fatalf("repository=%#v err=%v", repository, err)
+	}
 	metadata := migrations.ProductionRuntimeIngestReconciliation()
-	if !reflect.DeepEqual(database.calls[0].arguments, []any{metadata.Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()}) || database.calls[1].arguments[0] != authority.CredentialID {
+	if len(database.calls) != 2 || database.calls[1].statement != postgresReadySQL || !reflect.DeepEqual(database.calls[1].arguments, []any{metadata.Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()}) {
 		t.Fatalf("calls=%#v", database.calls)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/recovery/neondriver"
 )
 
@@ -16,6 +17,8 @@ type recoveryNeonFake struct {
 	deletedProject string
 	deletedBranch  string
 	calls          []string
+	getBranch      neondriver.Branch
+	getErr         error
 }
 
 func (fake *recoveryNeonFake) CreateBranch(_ context.Context, request neondriver.CreateBranchRequest) (neondriver.Branch, error) {
@@ -23,8 +26,15 @@ func (fake *recoveryNeonFake) CreateBranch(_ context.Context, request neondriver
 	fake.createRequest = request
 	return neondriver.Branch{ID: "br-recovery-123456", ProjectID: "silent-river-123456", ParentID: "br-falling-sun-123456", ParentLSN: request.ParentLSN, Name: request.Name, Endpoints: []neondriver.Endpoint{{ID: "ep-recovery-123456", BranchID: "br-recovery-123456", Type: "read_write", Host: "ep-recovery.internal"}}}, nil
 }
-func (*recoveryNeonFake) GetBranchByName(context.Context, string, string) (neondriver.Branch, error) {
-	return neondriver.Branch{}, neondriver.ErrNotFound
+func (fake *recoveryNeonFake) GetBranchByName(_ context.Context, project, name string) (neondriver.Branch, error) {
+	fake.calls = append(fake.calls, "get:"+project+":"+name)
+	if fake.getErr != nil {
+		return neondriver.Branch{}, fake.getErr
+	}
+	if fake.getBranch.ID == "" {
+		return neondriver.Branch{}, neondriver.ErrNotFound
+	}
+	return fake.getBranch, nil
 }
 func (fake *recoveryNeonFake) DeleteBranch(_ context.Context, project, branch string) error {
 	fake.calls = append(fake.calls, "delete")
@@ -39,6 +49,7 @@ type recoveryKubernetesFake struct {
 	calls        []string
 	provisionErr error
 	cleanup      apiserver.RecoveryCleanupEvidence
+	cleanupPlan  recoveryKubernetesCleanupPlan
 }
 
 func (*recoveryKubernetesFake) Ready(context.Context) error { return nil }
@@ -69,6 +80,27 @@ func (fake *recoveryKubernetesFake) Cleanup(_ context.Context, plan recoveryKube
 	return fake.cleanup, nil
 }
 
+func (fake *recoveryKubernetesFake) CleanupNamespace(_ context.Context, plan recoveryKubernetesCleanupPlan, uid string) (string, error) {
+	fake.calls = append(fake.calls, "cleanup-namespace")
+	if fake.plan.RestoreID != "" && (plan.Scope != fake.plan.Scope || plan.RestoreID != fake.plan.RestoreID || plan.Namespace != fake.plan.Namespace || !reflect.DeepEqual(plan.Labels, fake.plan.Labels)) || uid != fake.uid {
+		return uid, errors.New("authority drift")
+	}
+	fake.cleanupPlan = plan
+	return uid, nil
+}
+
+func (fake *recoveryKubernetesFake) RecordCleanup(_ context.Context, plan recoveryKubernetesCleanupPlan, uid, state string) (apiserver.RecoveryCleanupEvidence, error) {
+	fake.calls = append(fake.calls, "record-cleanup")
+	wantPlan := fake.cleanupPlan
+	if fake.plan.RestoreID != "" {
+		wantPlan = recoveryCleanupPlan(fake.plan.Scope, fake.plan.RestoreID, fake.plan.Namespace, fake.plan.Labels["zasp.io/recovery-scope"])
+	}
+	if !reflect.DeepEqual(plan, wantPlan) || uid != fake.uid || fake.cleanup.State != state {
+		return apiserver.RecoveryCleanupEvidence{}, errors.New("authority drift")
+	}
+	return fake.cleanup, nil
+}
+
 func TestRecoveryKubernetesPlansOneOwnedNamespaceNetworkPolicyAndThreeJobs(t *testing.T) {
 	scope := recoveryWorkerScope(t)
 	manifest := recoveryRestoreManifest(t, scope)
@@ -84,7 +116,11 @@ func TestRecoveryKubernetesPlansOneOwnedNamespaceNetworkPolicyAndThreeJobs(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	if neon.createRequest.Name != "zasp-recovery-71000004000040008000000000000004" || neon.createRequest.ParentLSN != manifest.PostgresLSN || target.Namespace != neon.createRequest.Name || target.NamespaceUID != kubernetes.uid || target.BranchID != "br-recovery-123456" {
+	expectedName, _, err := recoveryRestoreNames(claim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if neon.createRequest.Name != expectedName || neon.createRequest.ParentLSN != manifest.PostgresLSN || target.Namespace != neon.createRequest.Name || target.NamespaceUID != kubernetes.uid || target.BranchID != "br-recovery-123456" {
 		t.Fatalf("request=%#v target=%#v", neon.createRequest, target)
 	}
 	plan := kubernetes.plan
@@ -106,7 +142,7 @@ func TestRecoveryKubernetesPlansOneOwnedNamespaceNetworkPolicyAndThreeJobs(t *te
 		t.Fatalf("digest=%x err=%v", digest, err)
 	}
 	cleanup, err := infrastructure.Cleanup(context.Background(), target)
-	if err != nil || cleanup.State != "deleted" || neon.deletedProject != manifest.NeonProjectID || neon.deletedBranch != target.BranchID || !reflect.DeepEqual(neon.calls, []string{"create", "delete"}) || !reflect.DeepEqual(kubernetes.calls, []string{"provision", "validate", "rebuild", "cleanup"}) {
+	if err != nil || cleanup.State != "deleted" || neon.deletedProject != manifest.NeonProjectID || neon.deletedBranch != target.BranchID || !reflect.DeepEqual(neon.calls, []string{"create", "delete"}) || !reflect.DeepEqual(kubernetes.calls, []string{"provision", "validate", "rebuild", "cleanup-namespace", "record-cleanup"}) {
 		t.Fatalf("cleanup=%#v neon=%v kubernetes=%v err=%v", cleanup, neon.calls, kubernetes.calls, err)
 	}
 }
@@ -144,5 +180,65 @@ func TestRecoveryKubernetesReturnsPartialTargetForCleanupAfterNamespaceFailure(t
 	kubernetes.uid = target.NamespaceUID
 	if _, err := infrastructure.Cleanup(context.Background(), target); err != nil || neon.deletedBranch != target.BranchID {
 		t.Fatalf("cleanup err=%v neon=%#v", err, neon)
+	}
+}
+
+func TestRecoveryKubernetesReconcilesAttempt100CleanupByDeterministicIdentityWithoutCreate(t *testing.T) {
+	scope := recoveryWorkerScope(t)
+	manifest := recoveryRestoreManifest(t, scope)
+	claim := recoveryRestoreClaim(scope)
+	claim.Attempt = 100
+	claim.CleanupOnly = true
+	name, scopeDigest, err := recoveryRestoreNames(claim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	neon := &recoveryNeonFake{getBranch: neondriver.Branch{ID: "br-recovery-123456", ProjectID: manifest.NeonProjectID, ParentID: manifest.NeonBranchID, Name: name}}
+	kubernetes := &recoveryKubernetesFake{cleanup: apiserver.RecoveryCleanupEvidence{State: "deleted", Evidence: recoveryEvidenceLocator(scope, "pid_71000009-0000-4000-8000-000000000009", "recovery_cleanup_v1")}}
+	infrastructure, err := newProductionRecoveryRestoreInfrastructure(productionRecoveryRestoreInfrastructureConfig{Neon: neon, Kubernetes: kubernetes, ProjectID: manifest.NeonProjectID, ParentBranchID: manifest.NeonBranchID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence, err := infrastructure.ReconcileCleanup(context.Background(), claim)
+	if err != nil || evidence.State != "deleted" || !reflect.DeepEqual(neon.calls, []string{"get:" + manifest.NeonProjectID + ":" + name, "delete"}) || !reflect.DeepEqual(kubernetes.calls, []string{"cleanup-namespace", "record-cleanup"}) || kubernetes.cleanupPlan.Namespace != name || kubernetes.cleanupPlan.Labels["zasp.io/recovery-scope"] != scopeDigest {
+		t.Fatalf("evidence=%#v neon=%v kubernetes=%v plan=%#v err=%v", evidence, neon.calls, kubernetes.calls, kubernetes.cleanupPlan, err)
+	}
+}
+
+func TestRecoveryKubernetesScopesDeterministicIdentityAndNeverDeletesForeignBranch(t *testing.T) {
+	scope := recoveryWorkerScope(t)
+	foreignOrganization, _ := domain.ParseProductID("pid_72000001-0000-4000-8000-000000000001")
+	foreignScope, err := domain.NewScope(foreignOrganization, scope.WorkspaceID(), scope.EnvironmentID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	restoreID := "pid_71000004-0000-4000-8000-000000000004"
+	name, _, err := recoveryRestoreIdentity(scope, restoreID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreignName, _, err := recoveryRestoreIdentity(foreignScope, restoreID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if name == foreignName || !neondriver.ValidRecoveryBranchName(name) || !neondriver.ValidRecoveryBranchName(foreignName) || len(name) > 63 || len(foreignName) > 63 {
+		t.Fatalf("scoped names=%q/%q", name, foreignName)
+	}
+	manifest := recoveryRestoreManifest(t, scope)
+	claim := recoveryRestoreClaim(scope)
+	claim.Attempt, claim.CleanupOnly = 100, true
+	neon := &recoveryNeonFake{getBranch: neondriver.Branch{ID: "br-foreign-123456", ProjectID: manifest.NeonProjectID, ParentID: manifest.NeonBranchID, Name: foreignName}}
+	kubernetes := &recoveryKubernetesFake{cleanup: apiserver.RecoveryCleanupEvidence{State: "failed", Evidence: recoveryEvidenceLocator(scope, "pid_71000009-0000-4000-8000-000000000009", "recovery_cleanup_v1")}}
+	infrastructure, err := newProductionRecoveryRestoreInfrastructure(productionRecoveryRestoreInfrastructureConfig{Neon: neon, Kubernetes: kubernetes, ProjectID: manifest.NeonProjectID, ParentBranchID: manifest.NeonBranchID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := infrastructure.ReconcileCleanup(context.Background(), claim); err == nil || reflect.DeepEqual(neon.calls, []string{"get:" + manifest.NeonProjectID + ":" + name, "delete"}) {
+		t.Fatalf("foreign branch calls=%v err=%v", neon.calls, err)
+	}
+	for _, call := range neon.calls {
+		if call == "delete" {
+			t.Fatalf("foreign branch was deleted: %v", neon.calls)
+		}
 	}
 }

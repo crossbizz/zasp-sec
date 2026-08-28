@@ -95,7 +95,7 @@ func (handler *recoveryPublicHTTPHandler) startBackup(writer http.ResponseWriter
 		writeProductionError(writer, request, err)
 		return
 	}
-	if !validRecoveryMutationResultIdentity(identity, result.AuditID, result.CorrelationID, result.ReceiptID) || result.CorrelationID != correlationID || !result.Replayed && (result.AuditID != auditID || result.ReceiptID != receiptID) || !validRecoveryBackup(result.Body, identity.Scope) || result.Body.ID != input.BackupID || result.Body.Version != 1 || result.Body.State != "queued" || result.Body.RetentionDays != input.RetentionDays {
+	if !validRecoveryMutationResultIdentity(identity, result.AuditID, result.CorrelationID, result.ReceiptID) || !result.Replayed && (result.AuditID != auditID || result.CorrelationID != correlationID || result.ReceiptID != receiptID) || !validRecoveryBackup(result.Body, identity.Scope) || result.Body.ID != input.BackupID || result.Body.Version != 1 || result.Body.State != "queued" || result.Body.RetentionDays != input.RetentionDays {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
@@ -144,7 +144,7 @@ func (handler *recoveryPublicHTTPHandler) startRestore(writer http.ResponseWrite
 		writeProductionError(writer, request, err)
 		return
 	}
-	if !validRecoveryMutationResultIdentity(identity, result.AuditID, result.CorrelationID, result.ReceiptID) || result.CorrelationID != correlationID || !result.Replayed && (result.AuditID != auditID || result.ReceiptID != receiptID) || !validRecoveryRestore(result.Body, identity.Scope) || result.Body.ID != input.RestoreID || result.Body.Version != 1 || result.Body.State != "queued" || result.Body.TargetEnvironment != input.TargetEnvironment || result.Body.Manifest == nil || *result.Body.Manifest != input.Manifest {
+	if !validRecoveryMutationResultIdentity(identity, result.AuditID, result.CorrelationID, result.ReceiptID) || !result.Replayed && (result.AuditID != auditID || result.CorrelationID != correlationID || result.ReceiptID != receiptID) || !validRecoveryRestore(result.Body, identity.Scope) || result.Body.ID != input.RestoreID || result.Body.Version != 1 || result.Body.State != "queued" || result.Body.TargetEnvironment != input.TargetEnvironment || result.Body.Manifest == nil || *result.Body.Manifest != input.Manifest {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}

@@ -18,6 +18,15 @@ import (
 
 var securityAgentPlanHashPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
+const (
+	securityAgentFreshAuthenticationTTL       = 5 * time.Minute
+	securityAgentFreshAuthenticationClockSkew = 5 * time.Second
+)
+
+func validSecurityAgentFreshAuthentication(now, expiresAt time.Time) bool {
+	return !expiresAt.IsZero() && expiresAt.After(now) && !expiresAt.Add(-securityAgentFreshAuthenticationTTL).After(now.Add(securityAgentFreshAuthenticationClockSkew))
+}
+
 type SecurityAgentExecutionControl struct {
 	Target    string `json:"target"`
 	ActionKey string `json:"action_key"`
@@ -392,7 +401,7 @@ func (handler *securityAgentPublicHTTPHandler) setExecutionControl(writer http.R
 	validTarget := func() bool {
 		return input.Target == "environment" && input.ActionKey == "*" || input.Target == "action" && stringIn(input.ActionKey, "create_temporary_policy", "isolate_session", "revoke_integration_connection", "update_finding_response")
 	}
-	if !ok || request.Method != http.MethodPut || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now) || identity.FreshAuthExpiresAt.After(now.Add(5*time.Minute)) || !exactHeaderValue(request.Header.Values("X-Zasp-Fresh-Auth"), "confirmed") || !headersOK || decodeProductionJSON(request, &input) != nil || !validTarget() {
+	if !ok || request.Method != http.MethodPut || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || !validSecurityAgentFreshAuthentication(now, identity.FreshAuthExpiresAt) || !exactHeaderValue(request.Header.Values("X-Zasp-Fresh-Auth"), "confirmed") || !headersOK || decodeProductionJSON(request, &input) != nil || !validTarget() {
 		if ok && (identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now)) {
 			writeProductionError(writer, request, ErrRepositoryAuthentication)
 			return
@@ -673,7 +682,7 @@ func (handler *securityAgentPublicHTTPHandler) decideApproval(writer http.Respon
 	var input struct {
 		Decision string `json:"decision"`
 	}
-	if !ok || request.Method != http.MethodPost || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now) || identity.FreshAuthExpiresAt.After(now.Add(5*time.Minute)) || !exactHeaderValue(request.Header.Values("X-Zasp-Fresh-Auth"), "confirmed") || !headersOK || !validProductID(approvalID) || decodeProductionJSON(request, &input) != nil || !stringIn(input.Decision, "approved", "rejected", "cancelled") {
+	if !ok || request.Method != http.MethodPost || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || !validSecurityAgentFreshAuthentication(now, identity.FreshAuthExpiresAt) || !exactHeaderValue(request.Header.Values("X-Zasp-Fresh-Auth"), "confirmed") || !headersOK || !validProductID(approvalID) || decodeProductionJSON(request, &input) != nil || !stringIn(input.Decision, "approved", "rejected", "cancelled") {
 		if ok && (identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now)) {
 			writeProductionError(writer, request, ErrRepositoryAuthentication)
 			return
@@ -701,7 +710,7 @@ func (handler *securityAgentPublicHTTPHandler) decideApproval(writer http.Respon
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
-	result, err := handler.repository.DecideSecurityAgentApproval(request.Context(), identity, SecurityAgentApprovalDecisionRequest{ApprovalID: approvalID, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, Decision: input.Decision, FreshAuthAt: now, AuditID: ids[0], CorrelationID: correlationIDFromContext(request.Context()), ReceiptID: ids[1]})
+	result, err := handler.repository.DecideSecurityAgentApproval(request.Context(), identity, SecurityAgentApprovalDecisionRequest{ApprovalID: approvalID, IdempotencyKey: idempotencyKey, ExpectedVersion: expectedVersion, Decision: input.Decision, FreshAuthAt: identity.FreshAuthExpiresAt.Add(-securityAgentFreshAuthenticationTTL).UTC(), AuditID: ids[0], CorrelationID: correlationIDFromContext(request.Context()), ReceiptID: ids[1]})
 	if err != nil {
 		writeProductionError(writer, request, err)
 		return
@@ -842,7 +851,7 @@ func (handler *securityAgentPublicHTTPHandler) activate(writer http.ResponseWrit
 		Activation string `json:"activation"`
 	}
 	now := handler.config.Clock().UTC()
-	if !ok || request.Method != http.MethodPost || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now) || identity.FreshAuthExpiresAt.After(now.Add(5*time.Minute)) || !exactHeaderValue(request.Header.Values("X-Zasp-Fresh-Auth"), "confirmed") || !headersOK || !validProductID(definitionID) || decodeProductionJSON(request, &input) != nil || !stringIn(input.Activation, "validated", "supervised", "autonomous") {
+	if !ok || request.Method != http.MethodPost || request.URL.RawQuery != "" || identity.CredentialKind != CredentialBrowserSession || !identity.FreshAuthenticated || !validSecurityAgentFreshAuthentication(now, identity.FreshAuthExpiresAt) || !exactHeaderValue(request.Header.Values("X-Zasp-Fresh-Auth"), "confirmed") || !headersOK || !validProductID(definitionID) || decodeProductionJSON(request, &input) != nil || !stringIn(input.Activation, "validated", "supervised", "autonomous") {
 		if ok && (!identity.FreshAuthenticated || identity.CredentialKind != CredentialBrowserSession || identity.FreshAuthExpiresAt.IsZero() || !identity.FreshAuthExpiresAt.After(now)) {
 			writeProductionError(writer, request, ErrRepositoryAuthentication)
 			return

@@ -15,6 +15,17 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
 )
 
+func TestPostgresProductionIngestRepositoryUsesExactV27RecoveryReadiness(t *testing.T) {
+	database := &productionIngestDatabaseStub{responses: []json.RawMessage{json.RawMessage(`{"ready":true}`)}}
+	repository, err := NewPostgresProductionIngestRepository(database)
+	if err != nil || repository.Ready(context.Background()) != nil {
+		t.Fatalf("repository=%v err=%v", repository, err)
+	}
+	if database.calls != 1 || database.statements[0] != productionIngestReadyV27SQL {
+		t.Fatalf("statements=%#v", database.statements)
+	}
+}
+
 func TestPostgresProductionIngestRepositoryBindsExactV15Authority(t *testing.T) {
 	scope := fixtureScope(t, 90)
 	database := &productionIngestDatabaseStub{responses: []json.RawMessage{

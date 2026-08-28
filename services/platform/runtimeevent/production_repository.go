@@ -21,6 +21,7 @@ import (
 )
 
 const (
+	productionIngestReadyV27SQL                 = `SELECT jsonb_build_object('ready',zasp_recovery_execution_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_runtime_ingest'))`
 	productionIngestReadySQL                    = `SELECT jsonb_build_object('ready',zasp_runtime_ingest_reconciliation_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_runtime_ingest'))`
 	productionIngestAuthenticateSQL             = `SELECT zasp_runtime_authenticate_sensor($1,$2,'event-ingest')`
 	productionIngestReserveSQL                  = `SELECT zasp_runtime_reserve_batch_v17($1,$2,'event-ingest',$3,$4,$5,$6,$7,$8,$9,$10)`
@@ -54,10 +55,17 @@ func (repository *PostgresProductionIngestRepository) Ready(ctx context.Context)
 	if !validProductionRepository(repository, ctx) {
 		return ErrProductionIngestUnavailable
 	}
-	payload, err := safeProductionQuery(repository.database, ctx, productionIngestReadySQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint())
 	var result struct {
 		Ready bool `json:"ready"`
 	}
+	metadata := migrations.ProductionRecovery()
+	payload, err := safeProductionQuery(repository.database, ctx, productionIngestReadyV27SQL, metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint())
+	if err == nil && strictProductionJSON(payload, &result) == nil && result.Ready {
+		return nil
+	}
+	result.Ready = false
+	metadata = migrations.ProductionRuntimeIngestReconciliation()
+	payload, err = safeProductionQuery(repository.database, ctx, productionIngestReadySQL, metadata.Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint())
 	if err != nil || strictProductionJSON(payload, &result) != nil || !result.Ready {
 		return ErrProductionIngestUnavailable
 	}

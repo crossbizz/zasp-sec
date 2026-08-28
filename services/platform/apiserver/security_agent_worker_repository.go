@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	postgresSecurityAgentWorkerReadyV27SQL   = `SELECT jsonb_build_object('release',zasp_recovery_execution_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
 	postgresSecurityAgentWorkerReadyV24SQL   = `SELECT jsonb_build_object('release',zasp_security_agent_session_isolation_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
 	postgresSecurityAgentWorkerReadyV23SQL   = `SELECT jsonb_build_object('release',zasp_security_agent_connector_revocation_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
 	postgresSecurityAgentWorkerReadySQL      = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
@@ -106,6 +107,7 @@ func NewSecurityAgentWorkerRepository(database JSONDatabase) (*SecurityAgentWork
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	configurations := []SecurityAgentWorkerRepository{
+		{database: database, readySQL: postgresSecurityAgentWorkerReadyV27SQL, checksum: migrations.ProductionRecovery().Checksum(), fingerprint: migrations.ProductionRecoverySemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleV24SQL, claimSQL: postgresSecurityAgentClaimRunsV24SQL, prepareSQL: postgresSecurityAgentPrepareRunV24SQL, executeSQL: postgresSecurityAgentExecuteRunV24SQL},
 		{database: database, readySQL: postgresSecurityAgentWorkerReadyV24SQL, checksum: migrations.ProductionSecurityAgentSessionIsolation().Checksum(), fingerprint: migrations.ProductionSecurityAgentSessionIsolationSemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleV24SQL, claimSQL: postgresSecurityAgentClaimRunsV24SQL, prepareSQL: postgresSecurityAgentPrepareRunV24SQL, executeSQL: postgresSecurityAgentExecuteRunV24SQL},
 		{database: database, readySQL: postgresSecurityAgentWorkerReadyV23SQL, checksum: migrations.ProductionSecurityAgentConnectorRevocation().Checksum(), fingerprint: migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleV23SQL, claimSQL: postgresSecurityAgentClaimRunsV23SQL, prepareSQL: postgresSecurityAgentPrepareRunV23SQL, executeSQL: postgresSecurityAgentExecuteRunV23SQL},
 		{database: database, readySQL: postgresSecurityAgentWorkerReadySQL, checksum: migrations.ProductionSecurityAgentTemporaryPolicy().Checksum(), fingerprint: migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleTriggersSQL, claimSQL: postgresSecurityAgentClaimRunsSQL, prepareSQL: postgresSecurityAgentPrepareRunSQL, executeSQL: postgresSecurityAgentExecuteRunSQL},
