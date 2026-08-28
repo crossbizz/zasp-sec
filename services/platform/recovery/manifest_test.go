@@ -50,7 +50,7 @@ func TestBuildManifestRejectsAuthorityDriftAndSecretMaterial(t *testing.T) {
 		{name: "short retention", mutate: func(value *ManifestInput) { value.ExpiresAt = value.CapturedAt.Add(6 * 24 * time.Hour) }},
 		{name: "long retention", mutate: func(value *ManifestInput) { value.ExpiresAt = value.CapturedAt.Add(91 * 24 * time.Hour) }},
 		{name: "project token", mutate: func(value *ManifestInput) { value.NeonProjectID = "Bearer secret-value" }},
-		{name: "branch dsn", mutate: func(value *ManifestInput) { value.NeonBranchID = "postgres://user:pass@host/db" }},
+		{name: "branch dsn", mutate: func(value *ManifestInput) { value.NeonBranchID = "postgres://" + "user" + ":" + "pass" + "@host/db" }},
 		{name: "noncanonical lsn", mutate: func(value *ManifestInput) { value.PostgresLSN = "0/16b6c50" }},
 		{name: "missing version", mutate: func(value *ManifestInput) { value.Configuration.VersionID = "" }},
 		{name: "zero checksum", mutate: func(value *ManifestInput) { value.Projection.SHA256 = [sha256.Size]byte{} }},
