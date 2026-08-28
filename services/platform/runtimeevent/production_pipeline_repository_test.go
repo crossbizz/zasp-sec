@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func TestPostgresProductionPipelineRepositoryUsesExactV27RecoveryReadiness(t *testing.T) {
@@ -19,6 +21,31 @@ func TestPostgresProductionPipelineRepositoryUsesExactV27RecoveryReadiness(t *te
 	}
 	if database.calls != 1 || database.statements[0] != productionPipelineReadyV27SQL {
 		t.Fatalf("statements=%#v", database.statements)
+	}
+}
+
+func TestPostgresProductionPipelineRepositoryFallsBackOnlyWhenV27IsAbsent(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		database  *productionIngestDatabaseStub
+		wantReady bool
+		wantCalls int
+	}{
+		{name: "undefined function", database: &productionIngestDatabaseStub{responses: []json.RawMessage{nil, json.RawMessage(`{"ready":true}`)}, errors: []error{&pgconn.PgError{Code: "42883", Message: "function unavailable"}, nil}}, wantReady: true, wantCalls: 2},
+		{name: "latest false", database: &productionIngestDatabaseStub{responses: []json.RawMessage{json.RawMessage(`{"ready":false}`), json.RawMessage(`{"ready":true}`)}}, wantCalls: 1},
+		{name: "latest malformed", database: &productionIngestDatabaseStub{responses: []json.RawMessage{json.RawMessage(`{"ready":true,"drift":true}`), json.RawMessage(`{"ready":true}`)}}, wantCalls: 1},
+		{name: "latest denied", database: &productionIngestDatabaseStub{responses: []json.RawMessage{nil, json.RawMessage(`{"ready":true}`)}, errors: []error{&pgconn.PgError{Code: "42501", Message: "permission denied"}, nil}}, wantCalls: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repository, err := NewPostgresProductionPipelineRepository(test.database, ProductionPipelineAuthorityCorrelation)
+			if err != nil {
+				t.Fatal(err)
+			}
+			readyErr := repository.Ready(context.Background())
+			if (readyErr == nil) != test.wantReady || test.database.calls != test.wantCalls {
+				t.Fatalf("ready=%t err=%v calls=%d", readyErr == nil, readyErr, test.database.calls)
+			}
+		})
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
@@ -193,8 +194,15 @@ func (repository *PostgresProductionPipelineRepository) Ready(ctx context.Contex
 	}
 	metadata := migrations.ProductionRecovery()
 	payload, err := safeProductionQuery(repository.database, ctx, productionPipelineReadyV27SQL, metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint(), string(repository.authority))
-	if err == nil && strictProductionJSON(payload, &result) == nil && result.Ready {
-		return nil
+	if err == nil {
+		if strictProductionJSON(payload, &result) == nil && result.Ready {
+			return nil
+		}
+		return ErrProductionPipelineUnavailable
+	}
+	var postgresError *pgconn.PgError
+	if !errors.As(err, &postgresError) || postgresError.Code != "42883" {
+		return ErrProductionPipelineUnavailable
 	}
 	result.Ready = false
 	metadata = migrations.ProductionRuntimeIngestReconciliation()
