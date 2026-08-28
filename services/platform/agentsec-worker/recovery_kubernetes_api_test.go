@@ -159,7 +159,7 @@ func TestRecoveryKubernetesAPIReturnsNoCleanupEvidenceWhenArtifactWriteFails(t *
 	transport := &recoveryKubernetesTransportFake{}
 	api, err := newRecoveryKubernetesAPI(recoveryKubernetesAPIConfig{
 		Transport: transport, Store: store, RunnerImage: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/agentsec-worker@sha256:" + strings.Repeat("a", 64), ServiceAccount: "agentsec-recovery-runner",
-		SourcePostgresDSN: "postgres://recovery:secret@ep-main.us-west-2.aws.neon.tech/zasp?sslmode=verify-full", NeonCIDRs: []string{"10.24.8.0/24"}, PollInterval: time.Millisecond, Resolve: func(context.Context, string) ([]net.IP, error) {
+		SourcePostgresDSN: recoveryKubernetesSourcePostgresDSN, NeonCIDRs: []string{"10.24.8.0/24"}, PollInterval: time.Millisecond, Resolve: func(context.Context, string) ([]net.IP, error) {
 			return []net.IP{net.ParseIP("10.24.8.8")}, nil
 		},
 	})
