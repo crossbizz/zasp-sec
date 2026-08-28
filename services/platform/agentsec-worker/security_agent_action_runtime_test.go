@@ -172,7 +172,7 @@ func TestSecurityAgentActionProcessorAcceptsPostgresJSONBPolicyKeyOrdering(t *te
 	}
 }
 
-func TestTemporaryPolicyResultDigestBindsRawInputAndSortedTargetDigests(t *testing.T) {
+func TestTemporaryPolicyResultDigestBindsRawInputAndDatabaseTargetOrder(t *testing.T) {
 	input := "sha256:" + strings.Repeat("11", sha256.Size)
 	first := "sha256:" + strings.Repeat("22", sha256.Size)
 	second := "sha256:" + strings.Repeat("33", sha256.Size)
@@ -185,11 +185,13 @@ func TestTemporaryPolicyResultDigestBindsRawInputAndSortedTargetDigests(t *testi
 		_, _ = wantHash.Write(digest)
 	}
 	want := "sha256:" + hex.EncodeToString(wantHash.Sum(nil))
-	for _, values := range [][]string{{first, second}, {second, first}} {
-		got, err := temporaryPolicyResultDigest(input, values)
-		if err != nil || got != want {
-			t.Fatalf("got=%q want=%q err=%v", got, want, err)
-		}
+	got, err := temporaryPolicyResultDigest(input, []string{first, second})
+	if err != nil || got != want {
+		t.Fatalf("got=%q want=%q err=%v", got, want, err)
+	}
+	reversed, err := temporaryPolicyResultDigest(input, []string{second, first})
+	if err != nil || reversed == want {
+		t.Fatalf("reversed=%q want_different_from=%q err=%v", reversed, want, err)
 	}
 	for _, invalid := range []struct {
 		input   string

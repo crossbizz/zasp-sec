@@ -31,6 +31,7 @@ const (
 var (
 	keyIDPattern          = regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`)
 	classificationPattern = regexp.MustCompile(`^[a-z][a-z0-9._:-]{0,63}$`)
+	policyIDPattern       = regexp.MustCompile(`^[a-z][a-z0-9._:-]{0,127}$`)
 )
 
 type Authority struct {
@@ -58,6 +59,7 @@ type DecisionEvent struct {
 	PolicyVersion  uint64            `json:"policy_version"`
 	Decision       string            `json:"decision"`
 	ActionKind     string            `json:"action_kind"`
+	PolicyIDs      []string          `json:"policy_ids"`
 	Classification map[string]string `json:"classification"`
 	OccurredAt     time.Time         `json:"occurred_at"`
 }
@@ -82,7 +84,7 @@ func validDecisionEvent(value DecisionEvent) bool {
 		value.NextFloor != value.ExpectedFloor+1 || value.PolicyVersion == 0 ||
 		value.Decision != "allow" && value.Decision != "monitor" && value.Decision != "block" ||
 		value.ActionKind != "http" && value.ActionKind != "mcp" || !validTime(value.OccurredAt) ||
-		len(value.Classification) != 4 && len(value.Classification) != 8 {
+		!validPolicyIDs(value.PolicyIDs) || len(value.Classification) != 4 && len(value.Classification) != 8 {
 		return false
 	}
 	for _, key := range []string{"category", "route_class", "resource_class", "outcome"} {
@@ -95,6 +97,18 @@ func validDecisionEvent(value DecisionEvent) bool {
 	}
 	return value.Decision == "block" && validProductID(value.Classification["agent_id"]) && validProductID(value.Classification["target_id"]) &&
 		validCapabilityPair(value.Classification["capability_category"], value.Classification["capability_outcome"])
+}
+
+func validPolicyIDs(values []string) bool {
+	if values == nil || len(values) > 512 {
+		return false
+	}
+	for index, value := range values {
+		if !policyIDPattern.MatchString(value) || index > 0 && values[index-1] >= value {
+			return false
+		}
+	}
+	return true
 }
 
 func validCapabilityPair(category, outcome string) bool {
@@ -140,6 +154,7 @@ func cloneAuthority(value Authority) Authority {
 }
 
 func cloneDecisionEvent(value DecisionEvent) DecisionEvent {
+	value.PolicyIDs = append([]string(nil), value.PolicyIDs...)
 	value.Classification = cloneStrings(value.Classification)
 	return value
 }

@@ -57,6 +57,8 @@ type RuntimeConfig struct {
 	ConnectorTokenFile          string
 	ConnectorKMSKeyARN          string
 	ConnectorSecretPrefix       string
+	PolicyHistoryEndpoint       string
+	PolicyHistoryIndex          string
 	AWSCustomerRolePrefixes     []string
 	AWSCustomerRoleARNs         []string
 	KubernetesEgressCIDRs       []string
@@ -107,6 +109,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		DiscoveryParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), DiscoveryToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
 		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), SecurityAgentPostgresDSN: getenv("ZASP_SECURITY_AGENT_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchWebhookSecret: getenv("ZASP_STYTCH_WEBHOOK_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
 		ConnectorAWSRegion: getenv("ZASP_CONNECTOR_AWS_REGION"), ConnectorRoleARN: getenv("ZASP_CONNECTOR_ROLE_ARN"), ConnectorTokenFile: getenv("ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE"), ConnectorKMSKeyARN: getenv("ZASP_CONNECTOR_KMS_KEY_ARN"), ConnectorSecretPrefix: getenv("ZASP_CONNECTOR_SECRET_PREFIX"),
+		PolicyHistoryEndpoint: getenv("ZASP_POLICY_HISTORY_ENDPOINT"), PolicyHistoryIndex: getenv("ZASP_POLICY_HISTORY_INDEX"),
 		AWSCustomerRolePrefixes: parseAWSCustomerRolePrefixes(getenv("ZASP_AWS_CUSTOMER_ROLE_PREFIXES")), AWSCustomerRoleARNs: parseAWSCustomerRoleARNs(getenv("ZASP_AWS_CUSTOMER_ROLE_ARNS")), KubernetesEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), FindingTicketEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_FINDING_TICKET_EGRESS_CIDRS")),
 		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
 		NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
@@ -149,7 +152,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	if len(config.TrustedProxyCIDRs) == 0 || config.RequestRatePerSecond < 1 || config.RequestRatePerSecond > 10000 || config.RequestBurst < 1 || config.RequestBurst > 10000 {
 		return false
 	}
-	if !connectorRegionPattern.MatchString(config.ConnectorAWSRegion) || !connectorRolePattern.MatchString(config.ConnectorRoleARN) || config.ConnectorTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !connectorKMSPattern.MatchString(config.ConnectorKMSKeyARN) || !connectorPrefixPattern.MatchString(config.ConnectorSecretPrefix) || !strings.HasSuffix(config.ConnectorSecretPrefix, "/oauth") || !validAWSCustomerRoleAuthority(config.AWSCustomerRolePrefixes, config.AWSCustomerRoleARNs) || !githubClientPattern.MatchString(config.GitHubClientID) || !connectorReferencePattern.MatchString(config.GitHubSecretReference) || !githubAppIDPattern.MatchString(config.GitHubAppID) || !connectorReferencePattern.MatchString(config.GitHubPrivateKeyReference) || !oktaClientPattern.MatchString(config.OktaClientID) || !connectorReferencePattern.MatchString(config.OktaSecretReference) {
+	if !connectorRegionPattern.MatchString(config.ConnectorAWSRegion) || !connectorRolePattern.MatchString(config.ConnectorRoleARN) || config.ConnectorTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !connectorKMSPattern.MatchString(config.ConnectorKMSKeyARN) || !connectorPrefixPattern.MatchString(config.ConnectorSecretPrefix) || !strings.HasSuffix(config.ConnectorSecretPrefix, "/oauth") || !validPolicyHistoryAuthority(config.PolicyHistoryEndpoint, config.PolicyHistoryIndex, config.ConnectorAWSRegion, config.Environment) || !validAWSCustomerRoleAuthority(config.AWSCustomerRolePrefixes, config.AWSCustomerRoleARNs) || !githubClientPattern.MatchString(config.GitHubClientID) || !connectorReferencePattern.MatchString(config.GitHubSecretReference) || !githubAppIDPattern.MatchString(config.GitHubAppID) || !connectorReferencePattern.MatchString(config.GitHubPrivateKeyReference) || !oktaClientPattern.MatchString(config.OktaClientID) || !connectorReferencePattern.MatchString(config.OktaSecretReference) {
 		return false
 	}
 	for _, value := range config.KubernetesEgressCIDRs {
@@ -183,6 +186,30 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 	}
 	return executionVersionPattern.MatchString(config.DiscoveryParserVersion) && executionVersionPattern.MatchString(config.DiscoveryToolVersion) &&
 		config.ProviderTimeout > 0 && config.ProviderTimeout <= 30*time.Second && config.RequestTimeout > 0 && config.RequestTimeout <= 30*time.Second && config.ShutdownTimeout > 0 && config.ShutdownTimeout <= 30*time.Second && config.ReadinessInterval >= 100*time.Millisecond && config.ReadinessMaxInterval >= config.ReadinessInterval && config.ReadinessMaxInterval <= 5*time.Minute
+}
+
+func validPolicyHistoryAuthority(endpointValue, index, region, environment string) bool {
+	if index != "zasp-runtime-events-v1" {
+		return false
+	}
+	endpoint, err := url.Parse(endpointValue)
+	if err != nil || endpoint.String() != endpointValue || endpoint.User != nil || endpoint.Path != "" || endpoint.RawPath != "" || endpoint.RawQuery != "" || endpoint.Fragment != "" || endpoint.Opaque != "" {
+		return false
+	}
+	if environment == "test" {
+		ip := net.ParseIP(endpoint.Hostname())
+		return endpoint.Scheme == "http" && endpoint.Port() != "" && ip != nil && ip.IsLoopback()
+	}
+	if endpoint.Scheme != "https" || endpoint.Port() != "" {
+		return false
+	}
+	host := strings.ToLower(endpoint.Hostname())
+	suffix := "." + region + ".es.amazonaws.com"
+	if strings.HasSuffix(host, ".amazonaws.com.cn") {
+		suffix += ".cn"
+	}
+	prefix := strings.TrimSuffix(host, suffix)
+	return strings.HasSuffix(host, suffix) && policyHistoryHostPattern.MatchString(prefix)
 }
 
 func validStytchWebhookSecret(value string) bool {
@@ -238,6 +265,7 @@ var connectorRegionPattern = regexp.MustCompile(`^[a-z]{2}(?:-gov)?-[a-z]+-[0-9]
 var connectorRolePattern = regexp.MustCompile(`^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,512}$`)
 var connectorKMSPattern = regexp.MustCompile(`^arn:aws:kms:[a-z]{2}(?:-gov)?-[a-z]+-[0-9]:[0-9]{12}:key/[0-9a-f-]{36}$`)
 var connectorPrefixPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9/_-]{2,127}$`)
+var policyHistoryHostPattern = regexp.MustCompile(`^(?:search|vpc)-[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
 var connectorReferencePattern = regexp.MustCompile(`^ref:(?:github|okta)/[a-z0-9][a-z0-9_./:-]{3,507}$`)
 var githubClientPattern = regexp.MustCompile(`^Iv1\.[A-Za-z0-9]{16}$`)
 var githubAppIDPattern = regexp.MustCompile(`^[1-9][0-9]{0,15}$`)

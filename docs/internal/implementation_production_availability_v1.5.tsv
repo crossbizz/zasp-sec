@@ -387,11 +387,11 @@ M6	M6-09	Complete	production-available	PROD-current-composition	audited shipped 
 M6	M6-10	Complete	production-available	PROD-current-composition	audited shipped composition: API getPolicy
 M6	M6-11	Complete	production-available	PROD-current-composition	audited shipped composition: API updatePolicy
 M6	M6-12	Complete	production-available	PROD-current-composition	audited shipped composition: API deletePolicy
-M6	M6-13	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API simulatePolicy
+M6	M6-13	Complete	production-available	T06-runtime-data-plane	production evidence: tenant-scoped simulatePolicy uses exact read-only OpenSearch history authority and returns bounded results; installed-Chrome schema-v27 E2E
 M6	M6-14	Complete	production-available	PROD-current-composition	audited shipped composition: API rolloutPolicy
 M6	M6-15	Complete	production-available	PROD-current-composition	audited shipped composition: API disablePolicy
-M6	M6-16	Complete	component-only	T06-runtime-data-plane	audited component-only proof: API listPolicyDecisions
-M6	M6-17	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy simulator query
+M6	M6-16	Complete	production-available	T06-runtime-data-plane	production evidence: tenant-scoped listPolicyDecisions persists and returns exact policy IDs with stable paging; installed-Chrome schema-v27 E2E
+M6	M6-17	Complete	production-available	T06-runtime-data-plane	production evidence: signed bounded OpenSearch query verifies exact index mapping and marker, tenant scope, limit, and one matching historical action; installed-Chrome E2E
 M6	M6-18	Complete	production-available	PROD-current-composition	audited shipped composition: rollout state machine
 M6	M6-19	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime HTTP proxy
 M6	M6-20	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime MCP parser

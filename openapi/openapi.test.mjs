@@ -681,7 +681,7 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 141);
+    assert.equal(operations.size, 143);
     for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) {
       assert.ok(operations.has(operationId), operationId);
     }
@@ -691,10 +691,21 @@ describe("production workflow concurrency contract", () => {
     for (const operationId of ["startRecoveryBackup", "getRecoveryBackup", "startRecoveryRestore", "getRecoveryRestore"]) {
       assert.ok(operations.has(operationId), operationId);
     }
-    for (const operationId of [
-      "simulatePolicy", "listPolicyDecisions",
-      "createAIExplanation",
-    ]) assert.equal(operations.has(operationId), false, operationId);
+    for (const operationId of ["simulatePolicy", "listPolicyDecisions"]) assert.ok(operations.has(operationId), operationId);
+    assert.equal(operations.has("createAIExplanation"), false, "createAIExplanation");
+
+    const simulatePolicy = operations.get("simulatePolicy").operation;
+    assert.equal(operations.get("simulatePolicy").method, "post");
+    assert.deepEqual(simulatePolicy.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/PolicySimulationInput" });
+    assert.ok(simulatePolicy.parameters.some((parameter) => parameter.$ref === "#/components/parameters/BrowserMutationCSRFToken"));
+    assert.ok(simulatePolicy.parameters.some((parameter) => parameter.$ref === "#/components/parameters/BrowserMutationOrigin"));
+    assert.deepEqual(simulatePolicy.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/PolicySimulation" });
+    const policyDecisions = operations.get("listPolicyDecisions").operation;
+    assert.equal(operations.get("listPolicyDecisions").method, "get");
+    assert.deepEqual(policyDecisions.parameters.find((parameter) => parameter.name === "limit")?.schema, { type: "integer", minimum: 1, maximum: 100, default: 100 });
+    assert.deepEqual(policyDecisions.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/RuntimeDecisionPage" });
+    assert.equal(document.components.schemas.PolicySimulationInput.additionalProperties, false);
+    assert.equal(document.components.schemas.PolicySimulationInput.maxProperties, 0);
 
     for (const operationId of ["listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun"]) {
       assert.ok(operations.has(operationId), operationId);

@@ -41,11 +41,12 @@ export async function runNangoImageProof() {
   }
 }
 
-async function createTLSProofDirectory() {
+export async function createTLSProofDirectory() {
   const directory = await mkdtemp(path.join(os.tmpdir(), "zasp-nango-tls-proof-"));
   const openssl = async (arguments_) => exec("openssl", arguments_, { ...commandOptions(), cwd: directory });
   await openssl(["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", "/CN=db.nango.test", "-addext", "subjectAltName=DNS:db.nango.test", "-keyout", "server.key", "-out", "server.crt"]);
   await openssl(["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", "/CN=db.nango.test", "-addext", "subjectAltName=DNS:db.nango.test", "-keyout", "untrusted.key", "-out", "untrusted.crt"]);
+  await chmod(directory, 0o755);
   await Promise.all(["server.key", "server.crt", "untrusted.key", "untrusted.crt"].map((name) => chmod(path.join(directory, name), 0o644)));
   return directory;
 }

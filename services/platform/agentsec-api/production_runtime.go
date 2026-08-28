@@ -254,6 +254,23 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
+	policyHistory, err := newProductionPolicyHistory(config)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	connectorResources = append(connectorResources, policyHistory)
+	policyDecisions, err := apiserver.NewPolicyDecisionRepository(tracedDatabase)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	policyHandler, err := apiserver.NewPolicyPublicHTTPHandler(apiserver.PolicyPublicHTTPConfig{Workflows: repository, History: policyHistory, Decisions: policyDecisions})
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	handlers.Workflow, err = apiserver.NewPolicyWorkflowSurface(handlers.Workflow, policyHandler)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
 	composition, err := apiserver.NewComposition(handlers)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
@@ -296,6 +313,9 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 		if err := referenceRepository.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
+		if err := policyHandler.Ready(ctx); err != nil {
+			return errRuntimeUnavailable
+		}
 		if err := tracedProvider.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
@@ -303,7 +323,7 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 			return errRuntimeUnavailable
 		}
 		return nil
-	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "postgres-security-agent", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}, {Name: "aws-secrets-manager-webhook", Durable: true}}, Closers: connectorResources}, nil
+	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "postgres-security-agent", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}, {Name: "aws-secrets-manager-webhook", Durable: true}, {Name: "opensearch-runtime-policy-history", Durable: true}}, Closers: connectorResources}, nil
 }
 
 func mountPublicSurface(product, stytchWebhook http.Handler) (http.Handler, error) {

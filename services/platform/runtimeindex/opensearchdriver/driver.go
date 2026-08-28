@@ -45,6 +45,7 @@ type Config struct {
 	RequestTimeout       time.Duration
 	MaximumRequestBytes  int
 	MaximumResponseBytes int
+	AllowTestLoopback    bool
 }
 
 type HTTPSigner interface {
@@ -90,7 +91,17 @@ func validateConfig(config Config, credentials aws.CredentialsProvider, signer H
 		return nil, runtimeindex.ErrConfiguration
 	}
 	endpoint, err := url.Parse(config.Endpoint)
-	if err != nil || endpoint.String() != config.Endpoint || endpoint.Scheme != "https" || endpoint.User != nil || endpoint.Port() != "" || endpoint.Path != "" || endpoint.RawPath != "" || endpoint.RawQuery != "" || endpoint.Fragment != "" || endpoint.Opaque != "" {
+	if err != nil || endpoint.String() != config.Endpoint || endpoint.User != nil || endpoint.Path != "" || endpoint.RawPath != "" || endpoint.RawQuery != "" || endpoint.Fragment != "" || endpoint.Opaque != "" {
+		return nil, runtimeindex.ErrConfiguration
+	}
+	if config.AllowTestLoopback {
+		ip := net.ParseIP(endpoint.Hostname())
+		if endpoint.Scheme != "http" || endpoint.Port() == "" || ip == nil || !ip.IsLoopback() {
+			return nil, runtimeindex.ErrConfiguration
+		}
+		return endpoint, nil
+	}
+	if endpoint.Scheme != "https" || endpoint.Port() != "" {
 		return nil, runtimeindex.ErrConfiguration
 	}
 	hostname := strings.ToLower(endpoint.Hostname())

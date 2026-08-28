@@ -21,7 +21,10 @@ var (
 	errGatewayRecordExpired = errors.New("gateway record expired")
 )
 
-var gatewayClassificationValuePattern = regexp.MustCompile(`^[a-z][a-z0-9._:-]{0,63}$`)
+var (
+	gatewayClassificationValuePattern = regexp.MustCompile(`^[a-z][a-z0-9._:-]{0,63}$`)
+	gatewayPolicyIDPattern            = regexp.MustCompile(`^[a-z][a-z0-9._:-]{0,127}$`)
+)
 
 const (
 	gatewayPolicyAudience       = "runtime-gateway-policy"
@@ -58,6 +61,7 @@ type gatewayDecisionEvent struct {
 	PolicyVersion  uint64
 	Decision       string
 	ActionKind     string
+	PolicyIDs      []string
 	Classification map[string]string
 	OccurredAt     time.Time
 }
@@ -389,6 +393,7 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 		PolicyVersion:  result.PolicyVersion,
 		Decision:       result.Decision,
 		ActionKind:     request.ActionKind,
+		PolicyIDs:      append([]string(nil), result.MatchedPolicyIDs...),
 		Classification: cloneGatewayStrings(request.Classification),
 		OccurredAt:     now,
 	}
@@ -952,6 +957,7 @@ func cloneGatewayEvaluationResult(value gatewayEvaluationResult) gatewayEvaluati
 }
 
 func cloneGatewayDecisionEvent(value gatewayDecisionEvent) gatewayDecisionEvent {
+	value.PolicyIDs = append([]string(nil), value.PolicyIDs...)
 	value.Classification = cloneGatewayStrings(value.Classification)
 	return value
 }

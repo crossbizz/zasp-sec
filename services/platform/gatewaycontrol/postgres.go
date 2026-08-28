@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
@@ -21,7 +22,17 @@ const (
 	postgresReadySQL     = `SELECT zasp_runtime_ingest_reconciliation_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_gateway_control')`
 	postgresAuthoritySQL = `SELECT zasp_runtime_gateway_credential_authority($1,'runtime-gateway')`
 	postgresPolicySQL    = `SELECT zasp_runtime_gateway_policy_bundle($1,$2)`
-	postgresRecordSQL    = `SELECT zasp_runtime_gateway_record_event(
+	postgresRecordV27SQL = `SELECT zasp_runtime_gateway_record_event_v27(
+ $1,$2,$3,$4,
+ digest(convert_to(jsonb_build_object(
+  'credential_id',$1::text,'device_id',$5::text,'event_id',$2::text,
+  'expected_floor',$3::bigint,'next_floor',$4::bigint,'policy_version',$6::bigint,
+  'decision',$7::text,'action_kind',$8::text,'classification',$9::jsonb,'policy_ids',$10::jsonb,
+  'occurred_at',to_char($11::timestamptz AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+ )::text,'UTF8'),'sha256'),
+ $6,$7,$8,$9::jsonb,$10::jsonb,$11
+)`
+	postgresRecordSQL = `SELECT zasp_runtime_gateway_record_event(
  $1,$2,$3,$4,
  digest(convert_to(jsonb_build_object(
   'credential_id',$1::text,'device_id',$5::text,'event_id',$2::text,
@@ -60,6 +71,10 @@ func (repository *PostgresRepository) Ready(ctx context.Context) error {
 	err := repository.database.QueryRow(operation, postgresReadyV27SQL, metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint()).Scan(&ready)
 	if err == nil && ready && operation.Err() == nil {
 		return nil
+	}
+	var postgresError *pgconn.PgError
+	if err == nil || !errors.As(err, &postgresError) || postgresError.Code != "42883" || operation.Err() != nil {
+		return errPostgresRepository
 	}
 	ready = false
 	metadata = migrations.ProductionRuntimeIngestReconciliation()
@@ -110,13 +125,28 @@ func (repository *PostgresRepository) Record(ctx context.Context, event Decision
 	if err != nil {
 		return errPostgresRepository
 	}
+	policyIDs, err := json.Marshal(event.PolicyIDs)
+	if err != nil {
+		return errPostgresRepository
+	}
 	operation, cancel := context.WithTimeout(ctx, repository.timeout)
 	defer cancel()
 	var raw json.RawMessage
-	if err := repository.database.QueryRow(operation, postgresRecordSQL,
+	err = repository.database.QueryRow(operation, postgresRecordV27SQL,
 		event.CredentialID, event.EventID, event.ExpectedFloor, event.NextFloor, event.DeviceID,
-		event.PolicyVersion, event.Decision, event.ActionKind, json.RawMessage(classification), event.OccurredAt,
-	).Scan(&raw); err != nil || operation.Err() != nil {
+		event.PolicyVersion, event.Decision, event.ActionKind, json.RawMessage(classification), json.RawMessage(policyIDs), event.OccurredAt,
+	).Scan(&raw)
+	if err != nil {
+		var postgresError *pgconn.PgError
+		if !errors.As(err, &postgresError) || postgresError.Code != "42883" || operation.Err() != nil {
+			return errPostgresRepository
+		}
+		err = repository.database.QueryRow(operation, postgresRecordSQL,
+			event.CredentialID, event.EventID, event.ExpectedFloor, event.NextFloor, event.DeviceID,
+			event.PolicyVersion, event.Decision, event.ActionKind, json.RawMessage(classification), event.OccurredAt,
+		).Scan(&raw)
+	}
+	if err != nil || operation.Err() != nil {
 		return errPostgresRepository
 	}
 	var receipt struct {

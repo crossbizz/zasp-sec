@@ -23,6 +23,9 @@ func TestProductionRecoveryPinsTenantScopedExecutionAuthority(t *testing.T) {
 		"target_environment text NOT NULL CHECK", "target_value='production'", "target_value=environment_value", "'target_environment',target_value", "'manifest',manifest_value",
 		"'target_environment',target_environment", "attempt<100", "attempt>=100", "validation_value->'expected_counts'<>observed_value", "next_state='rebuilding'",
 		"zasp_recovery_create_restore(text,text,text,text,text,text,text,text,text,text,bytea,jsonb,bytea)",
+		"ADD COLUMN policy_ids jsonb", "zasp_runtime_gateway_record_event_v27", "zasp_policy_list_runtime_decisions",
+		"zasp_runtime_gateway_events_policy_ids_v27_idx", "USING gin (policy_ids)", "CREATE INDEX zasp_runtime_gateway_events_policy_history_v27_idx ON public.zasp_runtime_gateway_events(organization_id,workspace_id,environment_id,occurred_at DESC,event_id ASC)",
+		"policy_ids_value", "jsonb_array_length(value)<=512", "policy_ids ? policy_value", "ORDER BY event.occurred_at DESC,event.event_id ASC",
 		"GRANT EXECUTE ON FUNCTION public.zasp_recovery_execution_readiness(text,text) TO zasp_discovery_api,zasp_security_agent_api,zasp_recovery_worker,zasp_recovery_outbox_worker",
 	} {
 		if !strings.Contains(metadata.UpSQL(), required) {
@@ -34,7 +37,7 @@ func TestProductionRecoveryPinsTenantScopedExecutionAuthority(t *testing.T) {
 			t.Fatalf("v27 migration admits caller cloud authority %q", forbidden)
 		}
 	}
-	if !strings.Contains(metadata.DownSQL(), "production recovery rollback rejected") || !strings.Contains(metadata.DownSQL(), "zasp_recovery_execution_live_fingerprint") {
+	if !strings.Contains(metadata.DownSQL(), "production recovery rollback rejected") || !strings.Contains(metadata.DownSQL(), "zasp_recovery_execution_live_fingerprint") || !strings.Contains(metadata.DownSQL(), "DROP FUNCTION public.zasp_policy_list_runtime_decisions") || !strings.Contains(metadata.DownSQL(), "DROP INDEX public.zasp_runtime_gateway_events_policy_ids_v27_idx") || !strings.Contains(metadata.DownSQL(), "DROP INDEX public.zasp_runtime_gateway_events_policy_history_v27_idx") || !strings.Contains(metadata.DownSQL(), "DROP COLUMN policy_ids") {
 		t.Fatal("v27 down is not live-authority guarded")
 	}
 }

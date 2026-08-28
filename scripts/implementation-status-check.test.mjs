@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 390; expected 391/,
+        /production-available count is 393; expected 394/,
       );
     },
   );
@@ -285,6 +285,23 @@ test("rejects demotion of audited durable gateway tasks", async () => {
   }
 });
 
+test("rejects demotion of production-composed policy history operations", async () => {
+  for (const id of ["M6-13", "M6-16", "M6-17"]) {
+    await withLedger(
+      (ledger) => ledger.replace(
+        new RegExp(`(M6\\t${id}\\tComplete\\t)production-available`),
+        "$1component-only",
+      ),
+      async (ledgerPath) => {
+        await assert.rejects(
+          () => validateLedger({ ledgerPath, sourcePlanPath }),
+          new RegExp(`production class component-only does not match audited production-available for ${id}`),
+        );
+      },
+    );
+  }
+});
+
 test("rejects a published milestone matrix that drifts from the audited map", async () => {
   await withLedgerAndStatus(
     (ledger) => ledger,
@@ -293,6 +310,22 @@ test("rejects a published milestone matrix that drifts from the audited map", as
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath, statusPath }),
         /documentation matrix does not match audited milestone counts/,
+      );
+    },
+  );
+});
+
+test("rejects a published availability summary that drifts from the audited ledger", async () => {
+  await withLedgerAndStatus(
+    (ledger) => ledger,
+    (status) => status.replace(
+      "| Production-available | 394 |",
+      "| Production-available | 393 |",
+    ),
+    async ({ ledgerPath, statusPath }) => {
+      await assert.rejects(
+        () => validateLedger({ ledgerPath, sourcePlanPath, statusPath }),
+        /documentation summary does not match audited class counts/,
       );
     },
   );

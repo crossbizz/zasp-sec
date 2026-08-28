@@ -61,6 +61,8 @@ output "connector_runtime_config" {
     ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
     ZASP_CONNECTOR_KMS_KEY_ARN             = aws_kms_key.connector_oauth.arn
     ZASP_CONNECTOR_SECRET_PREFIX           = local.connector_secret_prefix
+    ZASP_POLICY_HISTORY_ENDPOINT           = "https://${aws_opensearch_domain.events.endpoint}"
+    ZASP_POLICY_HISTORY_INDEX              = "zasp-runtime-events-v1"
     ZASP_AWS_CUSTOMER_ROLE_PREFIXES        = jsonencode(sort(tolist(var.aws_reference_role_prefixes)))
     ZASP_AWS_CUSTOMER_ROLE_ARNS            = jsonencode(sort(tolist(var.aws_reference_role_arns)))
     ZASP_KUBERNETES_EGRESS_CIDRS           = join(",", var.kubernetes_connector_egress_cidrs)

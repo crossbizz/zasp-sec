@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { createHmac, generateKeyPairSync } from "node:crypto";
+import { createHash, createHmac, generateKeyPairSync } from "node:crypto";
 import { once } from "node:events";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
@@ -42,6 +42,7 @@ const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-
 const children = [];
 let proxy;
 let identity;
+let policyHistory;
 let api;
 let postgres;
 let web;
@@ -59,6 +60,7 @@ const lostFindingResponseKeys = [];
 const findingTicketRequests = [];
 const connectorAuthorizationRequests = [];
 const productAPIRequests = [];
+const policyHistoryRequests = [];
 const browserConsoleErrors = [];
 const browserConsoleMessages = [];
 const administrationRequests = [];
@@ -100,8 +102,8 @@ let loseNextRecoveryBackupResponse = true;
 const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 
 try {
-  const ports = await Promise.all(Array.from({ length: 7 }, reservePort));
-  const [postgresPort, identityPort, apiPort, healthPort, webPort, proxyPort, chromePort] = ports;
+  const ports = await Promise.all(Array.from({ length: 8 }, reservePort));
+  const [postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort] = ports;
   const githubAppPrivateKey = path.join(temporaryRoot, "github-app-private-key.pem");
   await generateHarnessGitHubAppPrivateKey(githubAppPrivateKey);
   const actionSigningPair = generateKeyPairSync("ed25519");
@@ -176,6 +178,7 @@ try {
 
   const publicOrigin = `https://${productHostname}:${proxyPort}`;
   identity = await startIdentityServer(identityPort, publicOrigin);
+  policyHistory = await startPolicyHistoryServer(policyHistoryPort);
   const apiEnvironment = {
     ...process.env,
     HOSTNAME: "agentsec-api-production-e2e",
@@ -212,6 +215,8 @@ try {
     ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
     ZASP_CONNECTOR_KMS_KEY_ARN: "arn:aws:kms:us-east-1:000000000000:key/11111111-1111-1111-1111-111111111111",
     ZASP_CONNECTOR_SECRET_PREFIX: "zasp-production-e2e/connectors/oauth",
+    ZASP_POLICY_HISTORY_ENDPOINT: `http://127.0.0.1:${policyHistoryPort}`,
+    ZASP_POLICY_HISTORY_INDEX: "zasp-runtime-events-v1",
     ZASP_AWS_CUSTOMER_ROLE_PREFIXES: '["arn:aws:iam::123456789012:role/zasp-reference/"]',
     ZASP_AWS_CUSTOMER_ROLE_ARNS: '["arn:aws:iam::123456789012:role/zasp-reference/production-e2e"]',
     ZASP_KUBERNETES_EGRESS_CIDRS: "203.0.113.0/24",
@@ -542,9 +547,13 @@ try {
     (SELECT count(*) FROM zasp_workflow_audit WHERE operation='createPolicy'),
     (SELECT count(*) FROM zasp_workflow_receipts WHERE operation='createPolicy');`]);
   assert.equal(durableCounts.stdout.trim(), "1|2|2|1", "full reload recovery duplicated durable workflow state");
-  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate policy|Decision history)$/i), false);
   await clickBrowserAria(browser.cdp, "Open Production runtime policy");
   await waitForBrowserText(browser.cdp, /Policy detail · policy-production/);
+	await waitForBrowserText(browser.cdp, /Runtime decision history/);
+	await waitForBrowserText(browser.cdp, /pid_78000004-0000-4000-8000-000000000004/);
+	await clickBrowserText(browser.cdp, "Simulate against runtime history");
+	await waitForBrowserText(browser.cdp, /1 matched historical actions · 0 would block/);
+  assert.equal(policyHistoryRequests.filter((request) => request.method === "POST" && request.path === "/zasp-runtime-events-v1/_search").length, 1, "policy simulation did not perform exactly one bounded history query");
   injectLaterReceiptOnNextAcknowledgement = true;
   await clickBrowserText(browser.cdp, "Roll to monitor");
   await waitForBrowserText(browser.cdp, /Policy is monitor\. Audit pid_/);
@@ -1096,6 +1105,8 @@ async function cleanupOwnedResources() {
   if (proxy) await closeServer(proxy);
   console.log("combined E2E: cleanup identity");
   if (identity) await closeServer(identity);
+  console.log("combined E2E: cleanup policy history");
+  if (policyHistory) await closeServer(policyHistory);
   console.log("combined E2E: cleanup web");
   if (web) await stopChild(web);
   console.log("combined E2E: cleanup postgres");
@@ -1202,6 +1213,14 @@ INSERT INTO zasp_product_api_tokens (token_digest, principal_id, organization_id
 (digest('production-e2e-product-token-with-at-least-32-bytes', 'sha256'),'pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view","manage_workflows","manage_findings","manage_identity"]'::jsonb,transaction_timestamp() + interval '1 hour'),
 (digest('production-e2e-foreign-recovery-token-with-at-least-32-bytes', 'sha256'),'pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','["view","manage_identity"]'::jsonb,transaction_timestamp() + interval '1 hour'),
 (digest('webhook-member-product-token-with-at-least-32-bytes','sha256'),'pid_10000006-0000-4000-8000-000000000006','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view"]'::jsonb,transaction_timestamp()+interval '1 hour');
+INSERT INTO zasp_gateway_devices(organization_id,workspace_id,environment_id,id,name,state) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_78000001-0000-4000-8000-000000000001','Policy history E2E gateway','active');
+INSERT INTO zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,id,device_id,audience,salt,token_hash,expires_at) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_78000002-0000-4000-8000-000000000002','pid_78000001-0000-4000-8000-000000000001','runtime-gateway-enroll',decode(repeat('31',16),'hex'),decode(repeat('32',32),'hex'),transaction_timestamp()+interval '1 hour');
+INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id,id,device_id,enrollment_token_id,enrollment_digest,audience,key_reference,public_key,expires_at,format_version,credential_generation,key_id,algorithm,v15_issued_at) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_78000003-0000-4000-8000-000000000003','pid_78000001-0000-4000-8000-000000000001','pid_78000002-0000-4000-8000-000000000002',decode(repeat('33',32),'hex'),'runtime-gateway','ref:gateway/public/policy-history-e2e',decode(repeat('34',32),'hex'),transaction_timestamp()+interval '1 hour',1,1,'gateway-policy-history-key','Ed25519',transaction_timestamp());
+INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment_id,device_id,credential_id,event_id,sequence,request_digest,policy_version,decision,action_kind,classification,policy_ids,occurred_at) VALUES
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_78000001-0000-4000-8000-000000000001','pid_78000003-0000-4000-8000-000000000003','pid_78000004-0000-4000-8000-000000000004',1,decode(repeat('35',32),'hex'),1,'monitor','http',jsonb_build_object('category','policy'),'["policy-production"]'::jsonb,'2026-08-28T12:00:00Z');
 INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"cccccccccccccccccccccccccccccccc","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000022-0000-4000-8000-000000000022","environment_id":"pid_10000023-0000-4000-8000-000000000023","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"dddddddddddddddddddddddddddddddd","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb);
@@ -1761,12 +1780,12 @@ INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id
 INSERT INTO zasp_gateway_devices(organization_id,workspace_id,environment_id,id,name,state) VALUES('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignGatewayDevice}','Foreign E2E gateway','active');
 INSERT INTO zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,id,device_id,audience,salt,token_hash,expires_at) VALUES('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignGatewayEnrollment}','${foreignGatewayDevice}','runtime-gateway-enroll',decode(repeat('05',16),'hex'),decode(repeat('06',32),'hex'),transaction_timestamp()+interval '1 hour');
 INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id,id,device_id,enrollment_token_id,enrollment_digest,audience,key_reference,public_key,expires_at,format_version,credential_generation,key_id,algorithm,v15_issued_at) VALUES('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignGatewayCredential}','${foreignGatewayDevice}','${foreignGatewayEnrollment}',decode(repeat('07',32),'hex'),'runtime-gateway','ref:gateway/public/production-e2e-foreign',decode(repeat('08',32),'hex'),transaction_timestamp()+interval '1 hour',1,1,'gateway-device-key-foreign','Ed25519',transaction_timestamp());
-INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment_id,device_id,credential_id,event_id,sequence,request_digest,policy_version,decision,action_kind,classification,occurred_at) VALUES
-('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000020-0000-4000-8000-000000000020',1,decode(repeat('21',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),transaction_timestamp()-interval '3 seconds'),
-('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000021-0000-4000-8000-000000000021',2,decode(repeat('22',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),transaction_timestamp()-interval '2 seconds'),
-('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000022-0000-4000-8000-000000000022',3,decode(repeat('23',32),'hex'),1,'block','mcp',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),transaction_timestamp()-interval '1 second'),
-('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000023-0000-4000-8000-000000000023',4,decode(repeat('24',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${unrelatedSession}'),transaction_timestamp()),
-('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignGatewayDevice}','${foreignGatewayCredential}','pid_90000023-0000-4000-8000-000000000023',1,decode(repeat('25',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),transaction_timestamp());`;
+INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment_id,device_id,credential_id,event_id,sequence,request_digest,policy_version,decision,action_kind,classification,policy_ids,occurred_at) VALUES
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000020-0000-4000-8000-000000000020',1,decode(repeat('21',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),jsonb_build_array('policy-production'),transaction_timestamp()-interval '3 seconds'),
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000021-0000-4000-8000-000000000021',2,decode(repeat('22',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),'[]'::jsonb,transaction_timestamp()-interval '2 seconds'),
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000022-0000-4000-8000-000000000022',3,decode(repeat('23',32),'hex'),1,'block','mcp',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),'[]'::jsonb,transaction_timestamp()-interval '1 second'),
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','${gatewayCredential}','pid_79000023-0000-4000-8000-000000000023',4,decode(repeat('24',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${unrelatedSession}'),'[]'::jsonb,transaction_timestamp()),
+('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignGatewayDevice}','${foreignGatewayCredential}','pid_90000023-0000-4000-8000-000000000023',1,decode(repeat('25',32),'hex'),1,'block','http',jsonb_build_object('category','security','route_class','runtime','resource_class','session','outcome','gateway','session_id','${isolatedSession}'),jsonb_build_array('policy-production'),transaction_timestamp());`;
 	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: seed });
 	const connectorSeed = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-v", "ON_ERROR_STOP=1", "-c", `SELECT concat_ws('|',count(*),max(workflow.body->>'status'),max(connection.state),max(credential.status)) FROM zasp_inventory_evidence evidence JOIN zasp_workflow_records workflow ON (workflow.organization_id,workflow.workspace_id,workflow.environment_id,workflow.kind,workflow.id)=(evidence.organization_id,evidence.workspace_id,evidence.environment_id,'integration',evidence.integration_id) JOIN zasp_integration_connections connection ON (connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id)=(evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.integration_id) JOIN zasp_connector_credentials credential ON (credential.organization_id,credential.workspace_id,credential.environment_id,credential.integration_id,credential.provider,credential.credential_reference)=(connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id,connection.provider,connection.connection_reference) WHERE evidence.id='${connectorEvidence}';`])).stdout.trim();
 	assert.equal(connectorSeed, "1|active|verified|active", "connector response seed was not fully actionable");
@@ -1924,11 +1943,11 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 
 	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "apply");
 	const applied = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,count(target.*)) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_temporary_policy_targets target USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE run.run_id='${temporaryRunID}' GROUP BY run.state,effect.state;`])).stdout.trim();
-	assert.equal(applied, "contained|cleanup_pending|1", "temporary containment was not durably applied before gateway publication");
+	assert.equal(applied, "contained|cleanup_pending|2", "temporary containment was not durably applied to every active gateway before publication");
 	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_security_agent_effects SET updated_at=transaction_timestamp() WHERE run_id='${temporaryRunID}' AND action_key='create_temporary_policy' AND state='cleanup_pending';`]);
 	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "cleanup");
 	const cleaned = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,count(target.*),max(target.sequence)) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_temporary_policy_targets target USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE run.run_id='${temporaryRunID}' GROUP BY run.state,effect.state;`])).stdout.trim();
-	assert.equal(cleaned, "remediated|cleaned|2|2", "temporary containment cleanup did not durably restore the gateway policy");
+	assert.equal(cleaned, "remediated|cleaned|4|2", "temporary containment cleanup did not durably restore every active gateway policy");
 
 	let sessionApprovalID = "";
 	let sessionRunID = "";
@@ -2497,6 +2516,47 @@ async function startIdentityServer(port, publicOrigin) {
   server.listen(port, "127.0.0.1");
   await once(server, "listening");
   return server;
+}
+
+async function startPolicyHistoryServer(port) {
+	const schemaSource = await readFile(path.join(platform, "runtimeindex", "opensearchdriver", "schema.go"), "utf8");
+	const schemaMatch = schemaSource.match(/indexSchemaJSON = `([^`]+)`/);
+	assert.ok(schemaMatch, "runtime index schema fixture missing");
+	const schemaJSON = schemaMatch[1];
+	const mapping = JSON.parse(schemaJSON);
+	const mappingDigest = createHash("sha256").update(schemaJSON).digest("hex");
+	const documentID = `evt_${"a".repeat(64)}`;
+	const server = http.createServer(async (request, response) => {
+		const target = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
+		policyHistoryRequests.push({ method: request.method, path: target.pathname });
+		if (!String(request.headers.authorization ?? "").startsWith("AWS4-HMAC-SHA256 ")) {
+			response.writeHead(403, { "content-type": "application/json" });
+			response.end('{"message":"unsigned"}');
+			return;
+		}
+		if (request.method === "GET" && target.pathname === "/zasp-runtime-events-v1/_mapping") {
+			response.writeHead(200, { "content-type": "application/json" });
+			response.end(JSON.stringify({ "zasp-runtime-events-v1": mapping }));
+			return;
+		}
+		if (request.method === "GET" && target.pathname === "/zasp-runtime-events-v1/_doc/_zasp_schema_v1") {
+			response.writeHead(200, { "content-type": "application/json" });
+			response.end(JSON.stringify({ _index: "zasp-runtime-events-v1", _id: "_zasp_schema_v1", _version: 1, _seq_no: 0, _primary_term: 1, found: true, _source: { record_type: "schema_marker", schema_version: 1, mapping_digest: `sha256:${mappingDigest}` } }));
+			return;
+		}
+		if (request.method === "POST" && target.pathname === "/zasp-runtime-events-v1/_search") {
+			const body = await readBody(request);
+			for (const required of ["pid_10000001-0000-4000-8000-000000000001", "pid_10000002-0000-4000-8000-000000000002", "pid_10000003-0000-4000-8000-000000000003", '"event_class":"tool"', '"size":100']) assert.ok(body.includes(required), `policy history query missing ${required}`);
+			response.writeHead(200, { "content-type": "application/json" });
+			response.end(JSON.stringify({ timed_out: false, hits: { hits: [{ _id: documentID, sort: ["2026-08-28T12:00:00.000Z", documentID], _source: { organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003", record_type: "runtime_event", event_id: "pid_78000004-0000-4000-8000-000000000004", event_class: "tool", action: "write", agent_id: "pid_78000001-0000-4000-8000-000000000001", session_id: "pid_78000005-0000-4000-8000-000000000005", tool_id: "shell", source_event_id: "policy-history-source-1", event_time: "2026-08-28T12:00:00.000Z" } }] } }));
+			return;
+		}
+		response.writeHead(404, { "content-type": "application/json" });
+		response.end('{"message":"not found"}');
+	});
+	server.listen(port, "127.0.0.1");
+	await once(server, "listening");
+	return server;
 }
 
 async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn) {

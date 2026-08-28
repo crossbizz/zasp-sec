@@ -2,8 +2,8 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
-**Last updated:** August 25, 2026
-**Execution branch:** `codex/production-auto-discovery`
+**Last updated:** August 28, 2026
+**Execution branch:** `main`
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production
@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 391 |
-| Component-only | 276 |
+| Production-available | 394 |
+| Component-only | 273 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -99,9 +99,9 @@ production composition, not merely a component proof or external evidence.
 - Public sensor management, hashed audience-bound sensor credentials, private
   heartbeat/ingest, signed gateway policy, and durable event-stage receipts are
   mounted behind distinct v15 database and cloud identities. Task 6 promotes
-  37 reviewed rows; upload reconciliation, durable runtime-risk state, ingest
-  rate authority, and public policy operations remain
-  incomplete.
+  40 reviewed rows; upload reconciliation, durable runtime-risk state, ingest
+  rate authority, HTTP/MCP enforcement, and retest lifecycle gates remain
+  component-only.
 - `app/components/ZaspProductionApp.tsx` exposes capability-gated typed
   inventory routes backed by the mounted production API. The installed-Chrome
   journey proves list/detail/deep-link reload without generic inventory seeds.
@@ -153,11 +153,11 @@ production composition, not merely a component proof or external evidence.
 | M3 | 75 | 60 | 13 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 20 | 22 | 0 | 0 |
-| M6 | 36 | 22 | 14 | 0 | 0 |
+| M6 | 36 | 25 | 11 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 34 | 55 | 52 | 0 |
-| **Total** | **728** | **391** | **276** | **61** | **0** |
+| **Total** | **728** | **394** | **273** | **61** | **0** |
 
 ## Prerequisite work
 

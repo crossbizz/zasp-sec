@@ -1098,6 +1098,25 @@ export type paths = {
         readonly patch: operations["updatePolicy"];
         readonly trace?: never;
     };
+    readonly "/api/v1/policies/{id}/decisions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        /** List bounded tenant-scoped runtime decisions for one policy */
+        readonly get: operations["listPolicyDecisions"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/policies/{id}/disable": {
         readonly parameters: {
             readonly query?: never;
@@ -1130,6 +1149,25 @@ export type paths = {
         readonly put?: never;
         /** Advance one policy rollout state for a selected target */
         readonly post: operations["rolloutPolicy"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/policies/{id}/simulate": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Simulate one policy against bounded tenant-scoped runtime history */
+        readonly post: operations["simulatePolicy"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -2949,9 +2987,7 @@ export type components = {
             readonly matches: number;
             readonly would_block: number;
         };
-        readonly PolicySimulationInput: {
-            readonly events: readonly components["schemas"]["PolicyActionContext"][];
-        };
+        readonly PolicySimulationInput: Record<string, never>;
         readonly Principal: {
             readonly active: boolean;
             readonly id: components["schemas"]["ProductID"];
@@ -6369,6 +6405,36 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly listPolicyDecisions: {
+        readonly parameters: {
+            readonly query?: {
+                readonly limit?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Bounded durable runtime decision history. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RuntimeDecisionPage"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly disablePolicy: {
         readonly parameters: {
             readonly query?: never;
@@ -6438,6 +6504,43 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly simulatePolicy: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: {
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["PolicyID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["PolicySimulationInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Bounded simulation over exact tenant runtime history. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PolicySimulation"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

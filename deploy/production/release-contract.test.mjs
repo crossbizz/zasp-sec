@@ -1069,6 +1069,10 @@ test("release gives only API an explicit connector identity, reference-only conf
     ZASP_OKTA_CLIENT_ID: release.connectors.oktaClientID,
     ZASP_OKTA_CLIENT_SECRET_REFERENCE: release.connectors.oktaClientSecretReference,
   });
+	assert.deepEqual(Object.fromEntries(Object.entries(env).filter(([name]) => name.startsWith("ZASP_POLICY_HISTORY_"))), {
+		ZASP_POLICY_HISTORY_ENDPOINT: release.runtime.openSearchEndpoint,
+		ZASP_POLICY_HISTORY_INDEX: "zasp-runtime-events-v1",
+	});
   for (const ambient of ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_PROFILE", "AWS_ROLE_ARN", "AWS_WEB_IDENTITY_TOKEN_FILE", "AWS_REGION"]) assert.equal(Object.hasOwn(env, ambient), false, ambient);
   assert.equal(pod.automountServiceAccountToken, false);
   assert.deepEqual(container.volumeMounts.find(({ name }) => name === "connector-web-identity"), {
@@ -1104,6 +1108,8 @@ test("release gives only API an explicit connector identity, reference-only conf
   ].sort());
   assert.ok(connectorEgress.spec.egress.every(({ ports }) => JSON.stringify(ports) === JSON.stringify([{ protocol: "TCP", port: 443 }])));
   assert.doesNotMatch(JSON.stringify(connectorEgress), /0\.0\.0\.0\/0|::\/0/);
+	const apiDependencies = one(resources, "NetworkPolicy", "api-dependencies");
+	assert.ok(apiDependencies.spec.egress.some(({ to, ports }) => to?.[0]?.ipBlock?.cidr === "10.50.0.0/24" && ports?.[0]?.port === 443));
 
   const rendered = JSON.stringify(resources);
   for (const workload of resources.filter(({ kind, metadata }) => ["Deployment", "Job", "CronJob"].includes(kind) && !["nango", "nango-migrate"].includes(metadata.name))) assert.doesNotMatch(JSON.stringify(workload), /NANGO_/);
@@ -1371,7 +1377,10 @@ test("terraform isolates connector mutation and reference authorization behind o
   const policyStart = terraform.indexOf('resource "aws_iam_role_policy" "api_connectors"');
   const policy = terraform.slice(policyStart, terraform.indexOf("\nresource ", policyStart + 1));
   const actions = [...policy.matchAll(/Action\s*=\s*\[([\s\S]*?)\]/g)].flatMap(([, list]) => [...list.matchAll(/"([^"]+)"/g)].map(([, action]) => action)).sort();
-  assert.deepEqual(actions, ["kms:Decrypt", "kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "sts:AssumeRole"].sort());
+  assert.deepEqual(actions, ["es:ESHttpGet", "es:ESHttpPost", "kms:Decrypt", "kms:Decrypt", "kms:GenerateDataKey", "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret", "secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "secretsmanager:GetSecretValue", "sts:AssumeRole"].sort());
+	assert.match(policy, /Action\s*=\s*\["es:ESHttpGet"\][\s\S]*zasp-runtime-events-v1\/_mapping[\s\S]*zasp-runtime-events-v1\/_doc\/_zasp_schema_v1/);
+	assert.match(policy, /Action\s*=\s*\["es:ESHttpPost"\][\s\S]*zasp-runtime-events-v1\/_search/);
+	assert.doesNotMatch(policy, /es:ESHttp(?:Delete|Patch|Put)/);
   assert.match(policy, /Action\s*=\s*\["secretsmanager:GetSecretValue"\][\s\S]*?Resource\s*=\s*\[for secret in aws_secretsmanager_secret\.connector_provider : secret\.arn\]/);
   assert.doesNotMatch(policy, /secret:\$\{local\.connector_secret_root\}\/github\/\*/);
   assert.doesNotMatch(policy, /secret:\$\{local\.connector_secret_root\}\/okta\/\*/);
@@ -1406,7 +1415,7 @@ test("terraform isolates connector mutation and reference authorization behind o
   assert.match(outputs, /output "connector_kms_key_arn"/);
   assert.match(outputs, /output "connector_secret_prefix"/);
   assert.match(outputs, /output "connector_runtime_config"/);
-  for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_FINDING_TICKET_EGRESS_CIDRS", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
+  for (const name of ["ZASP_CONNECTOR_AWS_REGION", "ZASP_CONNECTOR_ROLE_ARN", "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE", "ZASP_CONNECTOR_KMS_KEY_ARN", "ZASP_CONNECTOR_SECRET_PREFIX", "ZASP_POLICY_HISTORY_ENDPOINT", "ZASP_POLICY_HISTORY_INDEX", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_FINDING_TICKET_EGRESS_CIDRS", "ZASP_GITHUB_CLIENT_ID", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE", "ZASP_GITHUB_APP_ID", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE", "ZASP_OKTA_CLIENT_ID", "ZASP_OKTA_CLIENT_SECRET_REFERENCE"]) assert.match(outputs, new RegExp(name));
   assert.doesNotMatch(terraform, /aws_secretsmanager_secret_version|secret_string|secret_binary/i);
 });
 

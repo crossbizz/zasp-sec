@@ -83,7 +83,8 @@ func TestProductionRecoveryPostgresInstallsExactAuthority(t *testing.T) {
 	}
 
 	principalNames := []string{"recovery_api_login", "recovery_discovery_login", "recovery_ingest_login", "recovery_runtime_login", "recovery_discovery_outbox_login", "recovery_gateway_login", "recovery_worker_login", "recovery_outbox_login"}
-	for _, principal := range principalNames {
+	runtimePrincipalNames := []string{"recovery_coordinator_login", "recovery_archive_login", "recovery_index_login", "recovery_correlation_login", "recovery_projection_login", "recovery_gateway_control_login"}
+	for _, principal := range append(append([]string(nil), principalNames...), runtimePrincipalNames...) {
 		if _, err := connection.Exec(ctx, fmt.Sprintf(`CREATE ROLE %s LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`, principal)); err != nil {
 			t.Fatal(err)
 		}
@@ -93,6 +94,9 @@ func TestProductionRecoveryPostgresInstallsExactAuthority(t *testing.T) {
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_recovery_register_principals(session_user,$1,$2)`, principalNames[6], principalNames[7]).Scan(&ready); err != nil || !ready {
 		t.Fatalf("recovery registration=%t err=%v", ready, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_runtime_register_principals(session_user,$1,$2,$3,$4,$5,$6)`, runtimePrincipalNames[0], runtimePrincipalNames[1], runtimePrincipalNames[2], runtimePrincipalNames[3], runtimePrincipalNames[4], runtimePrincipalNames[5]).Scan(&ready); err != nil || !ready {
+		t.Fatalf("runtime registration=%t err=%v", ready, err)
 	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_recovery_principals_ready()`).Scan(&ready); err != nil || !ready {
 		t.Fatalf("recovery principals=%t err=%v", ready, err)
@@ -120,6 +124,8 @@ func TestProductionRecoveryPostgresInstallsExactAuthority(t *testing.T) {
 	defer worker.Close(context.Background())
 	outbox := connectAs(principalNames[7])
 	defer outbox.Close(context.Background())
+	gateway := connectAs(runtimePrincipalNames[5])
+	defer gateway.Close(context.Background())
 
 	scopes := [][3]string{
 		{"pid_7b000001-0000-4000-8000-000000000001", "pid_7b000002-0000-4000-8000-000000000002", "pid_7b000003-0000-4000-8000-000000000003"},
@@ -135,6 +141,46 @@ func TestProductionRecoveryPostgresInstallsExactAuthority(t *testing.T) {
 		if _, err := connection.Exec(ctx, `INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES($1,$2,$3,'Production','production')`, scope[2], scope[0], scope[1]); err != nil {
 			t.Fatal(err)
 		}
+	}
+	for index, scope := range scopes {
+		deviceID := fmt.Sprintf("pid_7%c000050-0000-4000-8000-000000000050", 'b'+index)
+		enrollmentID := fmt.Sprintf("pid_7%c000051-0000-4000-8000-000000000051", 'b'+index)
+		credentialID := fmt.Sprintf("pid_7%c000052-0000-4000-8000-000000000052", 'b'+index)
+		eventID := fmt.Sprintf("pid_7%c000053-0000-4000-8000-000000000053", 'b'+index)
+		if _, err := connection.Exec(ctx, `
+INSERT INTO zasp_gateway_devices(organization_id,workspace_id,environment_id,id,name,state) VALUES($1,$2,$3,$4,'Recovery gateway','active');
+INSERT INTO zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,id,device_id,audience,salt,token_hash,expires_at,consumed_at,format_version,locator_digest,token_generation,device_version_at_issue,v15_issued_at)
+VALUES($1,$2,$3,$5,$4,'runtime-gateway-enroll',decode(repeat('51',16),'hex'),digest(convert_to($5,'UTF8'),'sha256'),transaction_timestamp()+interval '1 hour',transaction_timestamp(),1,digest(convert_to($5||':locator','UTF8'),'sha256'),1,1,transaction_timestamp());
+INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id,id,device_id,enrollment_token_id,enrollment_digest,audience,key_reference,public_key,expires_at,format_version,credential_generation,key_id,algorithm,v15_issued_at)
+VALUES($1,$2,$3,$6,$4,$5,digest(convert_to($5||':credential','UTF8'),'sha256'),'runtime-gateway','ref:gateway/public/gateway-key-1',decode(repeat('52',32),'hex'),transaction_timestamp()+interval '1 hour',1,1,'gateway-key-1','Ed25519',transaction_timestamp())`, pgx.QueryExecModeSimpleProtocol, scope[0], scope[1], scope[2], deviceID, enrollmentID, credentialID); err != nil {
+			t.Fatalf("seed gateway authority %d: %v", index, err)
+		}
+		classification := json.RawMessage(`{"category":"runtime","outcome":"blocked","resource_class":"tool","route_class":"local"}`)
+		policyIDs := json.RawMessage(`["policy-runtime-history"]`)
+		occurredAt := time.Now().UTC().Add(-time.Duration(index) * time.Minute).Truncate(time.Microsecond)
+		var digest []byte
+		if err := connection.QueryRow(ctx, `SELECT digest(convert_to(jsonb_build_object('credential_id',$1::text,'device_id',$2::text,'event_id',$3::text,'expected_floor',0::bigint,'next_floor',1::bigint,'policy_version',1::bigint,'decision','block','action_kind','mcp','classification',$4::jsonb,'policy_ids',$5::jsonb,'occurred_at',to_char($6::timestamptz AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))::text,'UTF8'),'sha256')`, credentialID, deviceID, eventID, classification, policyIDs, occurredAt).Scan(&digest); err != nil {
+			t.Fatal(err)
+		}
+		var recorded json.RawMessage
+		if err := gateway.QueryRow(ctx, `SELECT zasp_runtime_gateway_record_event_v27($1,$2,0,1,$3,1,'block','mcp',$4::jsonb,$5::jsonb,$6)`, credentialID, eventID, digest, classification, policyIDs, occurredAt).Scan(&recorded); err != nil || !bytes.Contains(recorded, []byte(`"replayed": false`)) && !bytes.Contains(recorded, []byte(`"replayed":false`)) {
+			t.Fatalf("record policy event %d=%s err=%v", index, recorded, err)
+		}
+		if index == 0 {
+			if err := gateway.QueryRow(ctx, `SELECT zasp_runtime_gateway_record_event_v27($1,$2,0,1,$3,1,'block','mcp',$4::jsonb,'["policy-z"]'::jsonb,$5)`, credentialID, eventID, digest, classification, occurredAt).Scan(&recorded); err == nil {
+				t.Fatal("gateway event replay accepted policy ID drift")
+			}
+		}
+	}
+	var policyHistory json.RawMessage
+	if err := api.QueryRow(ctx, `SELECT zasp_policy_list_runtime_decisions($1,$2,$3,'policy-runtime-history',100)`, scopes[0][0], scopes[0][1], scopes[0][2]).Scan(&policyHistory); err != nil || !bytes.Contains(policyHistory, []byte(`"policy_id": "policy-runtime-history"`)) && !bytes.Contains(policyHistory, []byte(`"policy_id":"policy-runtime-history"`)) || !bytes.Contains(policyHistory, []byte(`pid_7b000053-0000-4000-8000-000000000053`)) || bytes.Contains(policyHistory, []byte(`pid_7c000053-0000-4000-8000-000000000053`)) {
+		t.Fatalf("tenant policy history=%s err=%v", policyHistory, err)
+	}
+	if err := gateway.QueryRow(ctx, `SELECT zasp_policy_list_runtime_decisions($1,$2,$3,'policy-runtime-history',100)`, scopes[0][0], scopes[0][1], scopes[0][2]).Scan(&policyHistory); err == nil {
+		t.Fatal("gateway control listed public policy history")
+	}
+	if err := api.QueryRow(ctx, `SELECT zasp_runtime_gateway_record_event_v27('pid_7b000052-0000-4000-8000-000000000052','pid_7b000054-0000-4000-8000-000000000054',1,2,decode(repeat('00',32),'hex'),1,'block','mcp','{}'::jsonb,'[]'::jsonb,transaction_timestamp())`).Scan(&policyHistory); err == nil {
+		t.Fatal("API recorded gateway policy decision")
 	}
 	integrationIDs := []string{"pid_7b000004-0000-4000-8000-000000000004", "pid_7c000004-0000-4000-8000-000000000004"}
 	for index, scope := range scopes {

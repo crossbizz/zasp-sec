@@ -120,6 +120,24 @@ func TestSecurityAgentActionRepositoryRejectsCrossTenantAndDriftedEnvelopeBefore
 	}
 }
 
+func TestTemporaryPolicyEffectClaimRequiresDatabaseTargetOrder(t *testing.T) {
+	claim := TemporaryPolicyEffectClaim{
+		OrganizationID: "pid_70000001-0000-4000-8000-000000000001", WorkspaceID: "pid_70000002-0000-4000-8000-000000000002", EnvironmentID: "pid_70000003-0000-4000-8000-000000000003",
+		RunID: "pid_78000001-0000-4000-8000-000000000001", StepID: "pid_78000002-0000-4000-8000-000000000002", Phase: "apply", InputDigest: "sha256:" + strings.Repeat("a", 64), TTLSeconds: 600, LeaseExpiresAt: time.Now().UTC().Add(time.Minute),
+		Targets: []TemporaryPolicyTarget{
+			{DeviceID: "pid_78000003-0000-4000-8000-000000000003", CredentialID: "pid_78000005-0000-4000-8000-000000000005", Sequence: 1, PolicyVersion: 1},
+			{DeviceID: "pid_78000004-0000-4000-8000-000000000004", CredentialID: "pid_78000006-0000-4000-8000-000000000006", Sequence: 1, PolicyVersion: 1},
+		},
+	}
+	if !validTemporaryPolicyEffectClaim(claim) {
+		t.Fatal("rejected canonical database target order")
+	}
+	claim.Targets[0], claim.Targets[1] = claim.Targets[1], claim.Targets[0]
+	if validTemporaryPolicyEffectClaim(claim) {
+		t.Fatal("accepted target order that cannot match the database result digest")
+	}
+}
+
 func TestSecurityAgentActionRepositoryReconcilesConnectorRevocationsOnlyOnV23(t *testing.T) {
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
 		postgresSecurityAgentActionReadyV23SQL:  json.RawMessage(`{"release":true,"principal":true}`),

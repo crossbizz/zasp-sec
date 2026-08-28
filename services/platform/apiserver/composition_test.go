@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 141 || len(public) != 141 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 141/141", len(seen), len(public))
+	if len(seen) != 143 || len(public) != 143 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 143/143", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -170,8 +170,16 @@ func TestCoreCompositionHasExactProductionSecuritySurfaceWithoutUnimplementedOve
 			t.Errorf("Attack Lab mutation %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
 		}
 	}
+	for operationID, expected := range map[string]struct{ method, pattern, permission string }{
+		"simulatePolicy":      {http.MethodPost, "/api/v1/policies/{id}/simulate", "manage_workflows"},
+		"listPolicyDecisions": {http.MethodGet, "/api/v1/policies/{id}/decisions", "view"},
+	} {
+		definition, ok := definitions[operationID]
+		if !ok || definition.Method != expected.method || definition.Pattern != expected.pattern || definition.Permission != expected.permission || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
+			t.Errorf("policy provider operation %q definition=%#v exists=%v", operationID, definition, ok)
+		}
+	}
 	for _, operationID := range []string{
-		"simulatePolicy", "listPolicyDecisions",
 		"createAIExplanation",
 	} {
 		if _, mounted := definitions[operationID]; mounted {
@@ -261,11 +269,9 @@ func TestBatchTwoCompositionExposesOnlyCompleteDurableOperations(t *testing.T) {
 			t.Errorf("receipt recovery operation %q security/permission = %v/%q", operationID, definition.Security, definition.Permission)
 		}
 	}
-	for _, hidden := range []string{
-		"simulatePolicy", "listPolicyDecisions",
-	} {
-		if _, mounted := definitions[hidden]; mounted {
-			t.Errorf("provider-owned operation %q mounted without a provider adapter", hidden)
+	for _, available := range []string{"simulatePolicy", "listPolicyDecisions"} {
+		if _, mounted := definitions[available]; !mounted {
+			t.Errorf("provider-owned operation %q is not mounted", available)
 		}
 	}
 }

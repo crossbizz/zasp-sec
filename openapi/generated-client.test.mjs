@@ -93,15 +93,17 @@ test("reproduces the committed bytes and rejects changed or missing output witho
   }
 });
 
-test("exports the mounted Security Agent, red team, and Attack Lab APIs", async () => {
+test("exports the mounted Security Agent, red team, Attack Lab, and policy evidence APIs", async () => {
   const generated = await readFile(generatedPath, "utf8");
   for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval", "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun", "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun", "startRecoveryBackup", "getRecoveryBackup", "startRecoveryRestore", "getRecoveryRestore"]) {
     assert.match(generated, new RegExp(`\\b${operationId}:`), operationId);
   }
-  for (const operationId of [
-    "simulatePolicy", "listPolicyDecisions",
-    "createAIExplanation",
-  ]) assert.doesNotMatch(generated, new RegExp(`\\b${operationId}:`), operationId);
+  for (const operationId of ["simulatePolicy", "listPolicyDecisions"]) assert.match(generated, new RegExp(`\\b${operationId}:`), operationId);
+  assert.doesNotMatch(generated, /\bcreateAIExplanation:/, "createAIExplanation");
+  const simulatePolicyStart = generated.indexOf("readonly simulatePolicy:");
+  const simulatePolicyEnd = generated.indexOf("readonly responses:", simulatePolicyStart);
+  assert.notEqual(simulatePolicyStart, -1);
+  assert.match(generated.slice(simulatePolicyStart, simulatePolicyEnd), /readonly "X-CSRF-Token"\?: components\["parameters"\]\["BrowserMutationCSRFToken"\]/);
   for (const operationId of ["updateFinding", "acceptFindingRisk"]) {
     const start = generated.indexOf(`readonly ${operationId}:`);
     const end = generated.indexOf("readonly responses:", start);

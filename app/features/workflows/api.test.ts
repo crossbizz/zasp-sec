@@ -369,6 +369,19 @@ describe("production workflow API", () => {
 			expect(GET).toHaveBeenNthCalledWith(2, test.path, expect.objectContaining({ params: { query: { cursor: "b3JnLXBhZ2UtMg", limit: 100 } } }));
 		}
 	});
+
+	it("simulates one policy and loads its bounded durable decision history", async () => {
+		const simulation = { matches: 2, would_block: 1, example_session_ids: ["pid_70000001-0000-4000-8000-000000000001"] };
+		const decisions = { items: [{ id: "pid_70000002-0000-4000-8000-000000000002", policy_id: policy.id, environment_id: environmentID, result: "block", correlation_id: "pid_70000002-0000-4000-8000-000000000002", at: "2026-08-28T12:00:00Z" }] };
+		const POST = vi.fn(async () => ({ data: simulation, response: new Response(JSON.stringify(simulation), { status: 200, headers: { "Content-Type": "application/json" } }) }));
+		const GET = vi.fn(async () => ({ data: decisions, response: new Response(JSON.stringify(decisions), { status: 200, headers: { "Content-Type": "application/json" } }) }));
+		const api = createPoliciesAPI({ GET, POST } as unknown as APIClient);
+
+		await expect(api.simulatePolicy(policy.id)).resolves.toEqual(simulation);
+		await expect(api.listPolicyDecisions(policy.id, 25)).resolves.toEqual(decisions.items);
+		expect(POST).toHaveBeenCalledWith("/api/v1/policies/{id}/simulate", { params: { path: { id: policy.id } }, body: {} });
+		expect(GET).toHaveBeenCalledWith("/api/v1/policies/{id}/decisions", { params: { path: { id: policy.id }, query: { limit: 25 } }, signal: undefined });
+	});
   it("uses a caller key and quoted version from the generated contract", async () => {
     const GET = vi.fn(async () => ({ data: policy, response: new Response(JSON.stringify(policy), { status: 200, headers: { ETag: '"3"', "Content-Type": "application/json" } }) }));
     const POST = vi.fn(async () => ({ data: { policy_id: policy.id, state: "enforced", target_id: environmentID }, response: new Response("{}", { status: 200, headers: { ETag: '"4"', "X-Audit-ID": "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "X-Mutation-Receipt-ID": "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "Content-Type": "application/json" } }) }));
