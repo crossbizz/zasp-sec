@@ -28,7 +28,7 @@ M0	M0-22	Complete	component-only	T14-data-workflows	audited component-only proof
 M0	M0-23	Complete	production-available	T02-discovery-authority	Task 2 production gate: 44-package race, hostile PostgreSQL, migration/deploy contracts, clean patch, and independent 0/0/0 review at 48d9768
 M1	M1-01d	Complete	production-available	PROD-current-composition	audited shipped composition: platform API command
 M1	M1-01e	Complete	production-available	T04-discovery-worker	production evidence: platform worker command; verified by Task 4 source/deploy review and focused race/release gates
-M1	M1-01f	Complete	component-only	T06-runtime-data-plane	audited component-only proof: event ingest command
+M1	M1-01f	Complete	production-available	T06-runtime-data-plane	production event-ingest command: private authenticated listener, exact PostgreSQL/S3/KMS/IRSA readiness, reconciliation, bounded drain, rendered isolated workload, and real-PostgreSQL HTTP acceptance/replay proof
 M1	M1-01a	Complete	production-available	T06-runtime-data-plane	production runtime gateway command with signed disk cache, crash-durable bounded evidence queue, durable clock floor and evaluation replay receipts, exact authority replay, expired-event quarantine, customer-edge PVC, race/release gates
 M1	M1-01b	Complete	component-only	T04-discovery-worker	audited component-only proof: worker directories
 M1	M1-01c	Complete	component-only	T10-product-ui	audited component-only proof: web and CLI directories
@@ -221,7 +221,7 @@ M3	M3-38	Complete	production-available	T06-runtime-data-plane	production evidenc
 M3	M3-39	Complete	production-available	T06-runtime-data-plane	production evidence: event ingest auth; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-40	Complete	production-available	T06-runtime-data-plane	production evidence: event ingest filter; canonical metadata-only bytes bind reservation, digest, artifact, and downstream decode
 M3	M3-41	Complete	production-available	T06-runtime-data-plane	production evidence: event batcher; verified by Task 6 source/deploy review and focused race/release gates
-M3	M3-42	Complete	component-only	T06-runtime-data-plane	audited component-only proof: ingest internal API
+M3	M3-42	Complete	production-available	T06-runtime-data-plane	production private ingest API: token-derived scope and canonical versioned artifact precede one transactional runtime outbox; real-PostgreSQL HTTP replay proves ACK-last durable acceptance
 M3	M3-43a	Complete	production-available	T06-runtime-data-plane	production evidence: runtime batch consume; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-43b	Complete	production-available	T06-runtime-data-plane	production evidence: runtime event S3 archive; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-43c	Complete	production-available	T06-runtime-data-plane	production evidence: runtime event indexing; verified by Task 6 source/deploy review and focused race/release gates

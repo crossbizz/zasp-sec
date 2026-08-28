@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 387 |
-| Component-only | 280 |
+| Production-available | 389 |
+| Component-only | 278 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -147,17 +147,17 @@ production composition, not merely a component proof or external evidence.
 | Milestone | Total | Production-available | Component-only | Blocked/external | Missing |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 7 | 17 | 3 | 0 |
-| M1 | 68 | 57 | 11 | 0 | 0 |
+| M1 | 68 | 58 | 10 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
-| M3 | 75 | 57 | 16 | 2 | 0 |
+| M3 | 75 | 58 | 15 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 20 | 22 | 0 | 0 |
 | M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
 | M8 | 141 | 34 | 55 | 52 | 0 |
-| **Total** | **728** | **387** | **280** | **61** | **0** |
+| **Total** | **728** | **389** | **278** | **61** | **0** |
 
 ## Prerequisite work
 
@@ -851,7 +851,7 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 | M0-23 | August 15, 2026 | Recorded exactly fourteen evidence-backed M0 architecture decisions as 12 PASS / 2 BLOCKED / 0 FAIL / 0 unclassified, preserved R-03 and R-11 without provider substitution, verified every retained report and proof head, and passed hostile contract mutations, six focused runs, full pinned repository gates, audit, scans, and zero-finding evidence review. |
 | M1-01d | August 15, 2026 | Created the service-local `services/platform` Go module and minimal `agentsec-api` command; exact default and link-time build versions, bounded validation, writer failures, race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding runtime I/O. |
 | M1-01e | August 15, 2026 | Added the sibling service-local `agentsec-worker` command; exact default and link-time build versions, bounded validation, writer failures, both-command race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding a worker loop or runtime I/O. |
-| M1-01f | August 15, 2026 | Created the standalone service-local `services/event-ingest` Go module and minimal command; exact default and link-time build versions, bounded validation, writer failures, ingest/platform race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding a listener or ingest behavior. |
+| M1-01f | August 28, 2026 | The standalone `services/event-ingest` command now owns a private authenticated listener, exact PostgreSQL/S3/KMS/IRSA readiness, upload reconciliation, bounded drain, an isolated rendered workload, and real-PostgreSQL HTTP acceptance/replay proof. |
 | M1-01a | August 15, 2026 | Created the standalone service-local `services/runtime-gateway` Go module and minimal command; exact default and link-time build versions, bounded validation, writer failures, gateway/ingest/platform race/build/module/vet gates, full repository verification, audit, scans, and zero-finding review passed without adding proxy, listener, MCP, tool/API, OPA, configuration, provider, or network behavior. |
 | M1-01b | August 15, 2026 | Created independent dependency-free Python security-worker and Node redteam-worker packages with exact no-op health commands; success/rejection/writer-error tests, six focused runs, retained Go regressions, full repository verification, audit, scans, generated-artifact hardening, and zero-finding review passed without adding worker loops, adapters, providers, queues, graphs, prompts, findings, configuration, credentials, listeners, or network behavior. |
 | M1-01c | August 15, 2026 | Added the dependency-free `apps/web` build boundary around the existing locked runnable UI and the standalone `agentsecctl version` command; exact arguments/version/output, writer failures including short writes, six focused runs, web/CLI/service/worker regressions, full repository verification, audit, scans, and zero-finding review passed without adding preflight, recovery, diagnostics, provider, credential, listener, or network behavior. |

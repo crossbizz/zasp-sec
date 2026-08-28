@@ -26,6 +26,54 @@ func TestPostgresProductionIngestRepositoryUsesExactV27RecoveryReadiness(t *test
 	}
 }
 
+func TestPostgresProductionIngestRepositoryFallsBackOnlyWhenV27IsAbsent(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		database  *productionIngestDatabaseStub
+		wantReady bool
+		wantCalls int
+	}{
+		{
+			name: "undefined function permits v17 fallback",
+			database: &productionIngestDatabaseStub{
+				responses: []json.RawMessage{nil, json.RawMessage(`{"ready":true}`)},
+				errors:    []error{&pgconn.PgError{Code: "42883", Message: "function unavailable"}, nil},
+			},
+			wantReady: true,
+			wantCalls: 2,
+		},
+		{
+			name:      "v27 false never falls back",
+			database:  &productionIngestDatabaseStub{responses: []json.RawMessage{json.RawMessage(`{"ready":false}`), json.RawMessage(`{"ready":true}`)}},
+			wantReady: false,
+			wantCalls: 1,
+		},
+		{
+			name:      "v27 malformed never falls back",
+			database:  &productionIngestDatabaseStub{responses: []json.RawMessage{json.RawMessage(`{"ready":true,"drift":true}`), json.RawMessage(`{"ready":true}`)}},
+			wantReady: false,
+			wantCalls: 1,
+		},
+		{
+			name:      "v27 denial never falls back",
+			database:  &productionIngestDatabaseStub{responses: []json.RawMessage{nil, json.RawMessage(`{"ready":true}`)}, errors: []error{&pgconn.PgError{Code: "42501", Message: "permission denied"}, nil}},
+			wantReady: false,
+			wantCalls: 1,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repository, err := NewPostgresProductionIngestRepository(test.database)
+			if err != nil {
+				t.Fatal(err)
+			}
+			readyErr := repository.Ready(context.Background())
+			if (readyErr == nil) != test.wantReady || test.database.calls != test.wantCalls {
+				t.Fatalf("ready=%t err=%v calls=%d", readyErr == nil, readyErr, test.database.calls)
+			}
+		})
+	}
+}
+
 func TestPostgresProductionIngestRepositoryBindsExactV15Authority(t *testing.T) {
 	scope := fixtureScope(t, 90)
 	database := &productionIngestDatabaseStub{responses: []json.RawMessage{

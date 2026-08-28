@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 365; expected 366/,
+        /production-available count is 388; expected 389/,
       );
     },
   );
@@ -185,7 +185,7 @@ test("rejects a cross-milestone class swap that preserves global totals", async 
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /M1 production-available count is 58; expected 57/,
+        /M1 production-available count is 59; expected 58/,
       );
     },
   );
@@ -199,8 +199,8 @@ test("rejects a same-owner same-milestone audited class swap", async () => {
         "M3\tM3-41\tComplete\tcomponent-only\tT06-runtime-data-plane",
       )
       .replace(
-        "M3\tM3-42\tComplete\tcomponent-only\tT06-runtime-data-plane",
-        "M3\tM3-42\tComplete\tproduction-available\tT06-runtime-data-plane",
+        "M3\tM3-43d\tComplete\tcomponent-only\tT06-runtime-data-plane",
+        "M3\tM3-43d\tComplete\tproduction-available\tT06-runtime-data-plane",
       ),
     async (ledgerPath) => {
       await assert.rejects(
@@ -288,7 +288,7 @@ test("rejects demotion of audited durable gateway tasks", async () => {
 test("rejects a published milestone matrix that drifts from the audited map", async () => {
   await withLedgerAndStatus(
     (ledger) => ledger,
-    (status) => status.replace("| M1 | 68 | 57 | 11 | 0 | 0 |", "| M1 | 68 | 58 | 10 | 0 | 0 |"),
+    (status) => status.replace("| M1 | 68 | 58 | 10 | 0 | 0 |", "| M1 | 68 | 57 | 11 | 0 | 0 |"),
     async ({ ledgerPath, statusPath }) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath, statusPath }),
