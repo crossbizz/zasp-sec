@@ -4,18 +4,21 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
 
 type redTeamAuthorityStub struct {
-	definitionResult RedTeamDefinitionMutationResult
-	runResult        RedTeamRunMutationResult
-	cancelInput      RedTeamCancelRequest
-	attackLabResult  AttackLabMutationResult
-	attackLabCreate  AttackLabCreateRequest
-	attackLabRerun   AttackLabRerunRequest
-	calls            int
+	definitionResult   RedTeamDefinitionMutationResult
+	runResult          RedTeamRunMutationResult
+	cancelInput        RedTeamCancelRequest
+	attackLabResult    AttackLabMutationResult
+	attackLabPreflight AttackLabPreflight
+	attackLabCreate    AttackLabCreateRequest
+	attackLabSourceID  string
+	attackLabRerun     AttackLabRerunRequest
+	calls              int
 }
 
 func (stub *redTeamAuthorityStub) ListRedTeamDefinitions(context.Context, RequestIdentity, RedTeamDefinitionPageRequest) (RedTeamDefinitionPage, error) {
@@ -52,6 +55,11 @@ func (stub *redTeamAuthorityStub) ListAttackLabRuns(context.Context, RequestIden
 }
 func (stub *redTeamAuthorityStub) GetAttackLabRun(context.Context, RequestIdentity, string) (AttackLabRunDetail, error) {
 	return AttackLabRunDetail{AttackLabRun: stub.attackLabResult.Body, Attempts: []AttackLabAttempt{}}, nil
+}
+func (stub *redTeamAuthorityStub) PreflightAttackLabRun(_ context.Context, _ RequestIdentity, sourceRunID string) (AttackLabPreflight, error) {
+	stub.calls++
+	stub.attackLabSourceID = sourceRunID
+	return stub.attackLabPreflight, nil
 }
 func (stub *redTeamAuthorityStub) CreateAttackLabRun(_ context.Context, _ RequestIdentity, input AttackLabCreateRequest) (AttackLabMutationResult, error) {
 	stub.calls++
@@ -144,17 +152,19 @@ func TestRedTeamHandlerCreatesOnlyApprovedServerDerivedAttackLabRun(t *testing.T
 	}
 	identity := fixtureRequestIdentity(t)
 	identity.CredentialKind = CredentialBrowserSession
-	request := workflowRequest(t, identity, testCorrelationID, "createAttackLabRun", nil, http.MethodPost, "/api/v1/attack-lab/runs", `{"run_id":"`+runID+`","source_run_id":"`+sourceRunID+`","approved":true}`)
+	decisionDigest := strings.Repeat("a", 64)
+	request := workflowRequest(t, identity, testCorrelationID, "createAttackLabRun", nil, http.MethodPost, "/api/v1/attack-lab/runs", `{"run_id":"`+runID+`","source_run_id":"`+sourceRunID+`","decision_digest":"`+decisionDigest+`","approved":true}`)
 	request.Header.Set("Idempotency-Key", "attack-lab-create-0001")
 	request.Header.Set("If-Match", `"0"`)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusAccepted || response.Header().Get("ETag") != `"1"` || stub.calls != 1 || stub.attackLabCreate.RunID != runID || stub.attackLabCreate.SourceRunID != sourceRunID || !stub.attackLabCreate.Approved {
+	if response.Code != http.StatusAccepted || response.Header().Get("ETag") != `"1"` || stub.calls != 1 || stub.attackLabCreate.RunID != runID || stub.attackLabCreate.SourceRunID != sourceRunID || stub.attackLabCreate.DecisionDigest != decisionDigest || !stub.attackLabCreate.Approved {
 		t.Fatalf("response=%d headers=%v calls=%d input=%#v body=%s", response.Code, response.Header(), stub.calls, stub.attackLabCreate, response.Body.String())
 	}
 	for name, body := range map[string]string{
-		"not approved":     `{"run_id":"` + runID + `","source_run_id":"` + sourceRunID + `","approved":false}`,
-		"client authority": `{"run_id":"` + runID + `","source_run_id":"` + sourceRunID + `","approved":true,"destination":"evil.example"}`,
+		"not approved":     `{"run_id":"` + runID + `","source_run_id":"` + sourceRunID + `","decision_digest":"` + decisionDigest + `","approved":false}`,
+		"missing decision": `{"run_id":"` + runID + `","source_run_id":"` + sourceRunID + `","approved":true}`,
+		"client authority": `{"run_id":"` + runID + `","source_run_id":"` + sourceRunID + `","decision_digest":"` + decisionDigest + `","approved":true,"destination":"evil.example"}`,
 	} {
 		request := workflowRequest(t, identity, testCorrelationID, "createAttackLabRun", nil, http.MethodPost, "/api/v1/attack-lab/runs", body)
 		request.Header.Set("Idempotency-Key", "attack-lab-create-0002")
@@ -164,5 +174,30 @@ func TestRedTeamHandlerCreatesOnlyApprovedServerDerivedAttackLabRun(t *testing.T
 		if response.Code != http.StatusBadRequest || stub.calls != 1 {
 			t.Fatalf("%s response=%d calls=%d body=%s", name, response.Code, stub.calls, response.Body.String())
 		}
+	}
+}
+
+func TestRedTeamHandlerReturnsExactServerDerivedAttackLabPreflight(t *testing.T) {
+	sourceRunID := "pid_79000401-0000-4000-8000-000000000001"
+	definitionID := "pid_79000402-0000-4000-8000-000000000002"
+	targetID := "pid_79000403-0000-4000-8000-000000000003"
+	stub := &redTeamAuthorityStub{attackLabPreflight: AttackLabPreflight{SourceRunID: sourceRunID, DefinitionID: definitionID, DefinitionVersion: 3, TargetID: targetID, TargetKind: "agent_endpoint", Environment: "staging", CredentialClass: "read_only", Destination: "adapter.customer.example", AllowedDestinations: []string{"adapter.customer.example"}, SuccessCriterion: "Reject direct prompt injection", ExpectedSideEffects: []string{"bounded evaluation"}, DecisionDigest: strings.Repeat("a", 64), DecisionExpiresAt: time.Date(2026, 8, 28, 12, 5, 0, 0, time.UTC), Limits: AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}}}
+	handler, err := NewRedTeamPublicHTTPHandler(stub, []byte("0123456789abcdef0123456789abcdef"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	request := workflowRequest(t, identity, testCorrelationID, "preflightAttackLabRun", nil, http.MethodGet, "/api/v1/attack-lab/preflight?source_run_id="+sourceRunID, "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" || stub.calls != 1 || stub.attackLabSourceID != sourceRunID || response.Body.String() == "" {
+		t.Fatalf("response=%d headers=%v calls=%d source=%q body=%s", response.Code, response.Header(), stub.calls, stub.attackLabSourceID, response.Body.String())
+	}
+	request = workflowRequest(t, identity, testCorrelationID, "preflightAttackLabRun", nil, http.MethodGet, "/api/v1/attack-lab/preflight?source_run_id="+sourceRunID+"&destination=evil.example", "")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || stub.calls != 1 {
+		t.Fatalf("hostile query response=%d calls=%d body=%s", response.Code, stub.calls, response.Body.String())
 	}
 }

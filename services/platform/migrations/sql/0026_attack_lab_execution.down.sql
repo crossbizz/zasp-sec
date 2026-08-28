@@ -1,8 +1,8 @@
 DO $rollback_guard$
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='attack-lab-execution-v1') OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>26)
-	    OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='attack_lab_execution_fingerprint' AND value='fb752d90dd53bbfcee0e6bd75fa2a61c745fa7a37c66afa73d0c632840c3ee8f')
-	    OR NOT public.zasp_attack_lab_execution_security_ready() OR public.zasp_attack_lab_execution_live_fingerprint()<>'fb752d90dd53bbfcee0e6bd75fa2a61c745fa7a37c66afa73d0c632840c3ee8f'
+	    OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='attack_lab_execution_fingerprint' AND value='407970235b472572f8036aeb877754ea181b5ff51c0cd83ab2865156660c9ff4')
+	    OR NOT public.zasp_attack_lab_execution_security_ready() OR public.zasp_attack_lab_execution_live_fingerprint()<>'407970235b472572f8036aeb877754ea181b5ff51c0cd83ab2865156660c9ff4'
     OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_credential_bindings) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_runs) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_cleanup_checkpoints) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_outbox) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_audit) THEN
    RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab execution rollback rejected';
  END IF;
@@ -26,7 +26,8 @@ DROP FUNCTION public.zasp_attack_lab_heartbeat_outbox(text,bytea,integer,integer
 DROP FUNCTION public.zasp_attack_lab_claim_outbox(text,bytea,integer,integer);
 DROP FUNCTION public.zasp_attack_lab_rerun(text,text,text,text,text,text,bigint,text,text);
 DROP FUNCTION public.zasp_attack_lab_cancel_run(text,text,text,text,text,text,bigint,text);
-DROP FUNCTION public.zasp_attack_lab_create_run(text,text,text,text,text,text,text,text);
+DROP FUNCTION public.zasp_attack_lab_create_run(text,text,text,text,text,text,text,bytea,text);
+DROP FUNCTION public.zasp_attack_lab_preflight(text,text,text,text);
 DROP FUNCTION public.zasp_attack_lab_get_run(text,text,text,text);
 DROP FUNCTION public.zasp_attack_lab_list_runs(text,text,text,timestamptz,text,integer);
 DROP FUNCTION public.zasp_attack_lab_mutation_result(text,text,text,text,text,text,text,text,jsonb);

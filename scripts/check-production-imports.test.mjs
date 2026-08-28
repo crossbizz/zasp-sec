@@ -100,13 +100,15 @@ test("source graph accepts the production sensor surface but rejects its demo si
 
 test("source graph accepts only the exact production red-team surface", async () => {
   const production = await fixture({
-    "app/page.tsx": 'export { ProductionRedTeamView } from "./features/redteam/ProductionRedTeamView";',
+    "app/page.tsx": 'export { ProductionRedTeamView } from "./features/redteam/ProductionRedTeamView"; export { ProductionAttackLabView } from "./features/redteam/ProductionAttackLabView";',
     "app/[...path]/page.tsx": "export {};",
     "app/features/redteam/ProductionRedTeamView.tsx": 'export { getRuns as ProductionRedTeamView } from "./api";',
+		"app/features/redteam/ProductionAttackLabView.tsx": 'export { getRuns as ProductionAttackLabView } from "./api";',
     "app/features/redteam/api.ts": "export const getRuns = 1;",
   });
   const result = await checkSourceGraph({ root: production });
   assert.ok(result.files.includes("app/features/redteam/ProductionRedTeamView.tsx"));
+	assert.ok(result.files.includes("app/features/redteam/ProductionAttackLabView.tsx"));
   assert.ok(result.files.includes("app/features/redteam/api.ts"));
 
   for (const target of ["AttackLabView.tsx", "RedTeamViews.tsx", "fixture-api.ts"]) {
@@ -122,13 +124,17 @@ test("source graph accepts only the exact production red-team surface", async ()
 test("compiled closure accepts clean client and server chunks", async () => {
   const root = await fixture({
     "dist/client/.vite/manifest.json": JSON.stringify({
-      "virtual:vinext-app-browser-entry": { file: "entry.js", isEntry: true, dynamicImports: ["app/features/sensors/ProductionSensorView.tsx"] },
+      "virtual:vinext-app-browser-entry": { file: "entry.js", isEntry: true, dynamicImports: ["app/features/sensors/ProductionSensorView.tsx", "app/features/redteam/ProductionAttackLabView.tsx"] },
       "app/features/sensors/ProductionSensorView.tsx": { file: "production.js", src: "app/features/sensors/ProductionSensorView.tsx", imports: ["app/features/sensors/api.ts"] },
       "app/features/sensors/api.ts": { file: "sensor-api.js", src: "app/features/sensors/api.ts" },
+		"app/features/redteam/ProductionAttackLabView.tsx": { file: "attack-lab.js", src: "app/features/redteam/ProductionAttackLabView.tsx", imports: ["app/features/redteam/api.ts"] },
+		"app/features/redteam/api.ts": { file: "red-team-api.js", src: "app/features/redteam/api.ts" },
     }),
     "dist/client/entry.js": "import('./production.js')",
     "dist/client/production.js": "const title = 'Red Team'; const destination = '/test/attack-lab';",
     "dist/client/sensor-api.js": "export const listSensors = true;",
+		"dist/client/attack-lab.js": "export const AttackLab = true;",
+		"dist/client/red-team-api.js": "export const listAttackLabRuns = true;",
     "dist/server/.vite/manifest.json": JSON.stringify({
       "app/page.tsx": { file: "page.js", src: "app/page.tsx", isDynamicEntry: true, imports: ["_production.js"] },
       "app/[...path]/page.tsx": { file: "catch.js", src: "app/[...path]/page.tsx", isDynamicEntry: true, imports: ["_production.js"] },
@@ -139,7 +145,7 @@ test("compiled closure accepts clean client and server chunks", async () => {
     "dist/server/production.js": "const title = 'Attack Paths';",
   });
   const result = await checkCompiledBuild({ root });
-  assert.deepEqual(result, { clientChunks: 3, serverChunks: 3 });
+  assert.deepEqual(result, { clientChunks: 5, serverChunks: 3 });
 });
 
 test("compiled closure rejects forbidden sources and bundled demo sentinels", async () => {
@@ -190,4 +196,22 @@ test("compiled closure rejects forbidden sources and bundled demo sentinels", as
     });
     await assert.rejects(() => checkCompiledBuild({ root: forbiddenSensor }), /forbidden source/);
   }
+
+	for (const redTeamSource of ["app/features/redteam/AttackLabView.tsx", "app/features/redteam/api.test.ts"]) {
+		const forbiddenRedTeam = await fixture({
+			"dist/client/.vite/manifest.json": JSON.stringify({
+				"virtual:vinext-app-browser-entry": { file: "entry.js", isEntry: true, imports: [redTeamSource] },
+				[redTeamSource]: { file: "red-team.js", src: redTeamSource },
+			}),
+			"dist/client/entry.js": "production",
+			"dist/client/red-team.js": "red-team",
+			"dist/server/.vite/manifest.json": JSON.stringify({
+				"app/page.tsx": { file: "page.js", src: "app/page.tsx", isDynamicEntry: true },
+				"app/[...path]/page.tsx": { file: "catch.js", src: "app/[...path]/page.tsx", isDynamicEntry: true },
+			}),
+			"dist/server/page.js": "page",
+			"dist/server/catch.js": "page",
+		});
+		await assert.rejects(() => checkCompiledBuild({ root: forbiddenRedTeam }), /forbidden source/);
+	}
 });

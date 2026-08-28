@@ -31,6 +31,16 @@ describe("M5 red-team and safe Attack Lab batch", () => {
     for (const forbidden of ["custom_prompt", "target_url", "shell_command", "production_write"]) expect(source).not.toContain(forbidden);
   });
 
+  it("mounts tenant-scoped Attack Lab preflight, approval, lifecycle, evidence, and cleanup authority", () => {
+    const app = read("app/components/ZaspProductionApp.tsx");
+    const source = read("app/features/redteam/ProductionAttackLabView.tsx");
+    const api = read("app/features/redteam/api.ts");
+    for (const text of ["/test/attack-lab", "ProductionAttackLabView", "red-team.read", "red-team.write"]) expect(app).toContain(text);
+    for (const text of ["Review safety decision", "Approve exact safety decision", "decision_expires_at", "decision_digest", "Run Attack Lab", "mandatory cleanup", "Immutable evidence", "evidence_version_id", "evidence_checksum", "evidence_size", "Re-run safely", "Cancel run"]) expect(source).toContain(text);
+    for (const operation of ["preflightAttackLab", "listAttackLabRuns", "getAttackLabRun", "createAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun"]) expect(api).toContain(operation);
+    for (const forbidden of ["custom_prompt", "target_url", "shell_command", "production_write"]) expect(source).not.toContain(forbidden);
+  });
+
   it("records the nine-task foundation complete without claiming provider completion", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");
     expect(tracker).toContain("| Pending | 0 |");

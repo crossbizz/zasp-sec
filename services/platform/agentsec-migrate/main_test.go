@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1379,10 +1380,19 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		}
 	}
 	redTeamAPI := connectAs(principalNames[16])
+	if _, err := redTeamAPI.Exec(ctx, `SET TIME ZONE 'America/Los_Angeles'`); err != nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("set red team non-UTC session: %v", err)
+	}
 	var definitionJSON []byte
 	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_create_definition($1,$2,$3,$4,'red-team-create-0001',$5,'Staging prompt safety',$6,'agent_endpoint','["prompt_injection"]'::jsonb,'{"environment":"staging","credential_class":"read_only","expected_side_effects":["audit event"]}'::jsonb,$7)`, organizationID, workspaceID, environmentID, actorID, definitionID, targetID, correlationID).Scan(&definitionJSON); err != nil || !bytes.Contains(definitionJSON, []byte(`"version": 1`)) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("red team create=%s err=%v", definitionJSON, err)
+	}
+	duplicateEffectsDefinitionID := "pid_7a000009-0000-4000-8000-000000000009"
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_create_definition($1,$2,$3,$4,'red-team-create-duplicate-effects',$5,'Duplicate effects must fail',$6,'agent_endpoint','["prompt_injection"]'::jsonb,'{"environment":"staging","credential_class":"read_only","expected_side_effects":["audit event","audit event"]}'::jsonb,$7)`, organizationID, workspaceID, environmentID, actorID, duplicateEffectsDefinitionID, targetID, correlationID).Scan(&definitionJSON); err == nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal("red team accepted duplicate expected side effects")
 	}
 	var runJSON []byte
 	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_run_test($1,$2,$3,$4,'red-team-run-000001',$5,1,$6,$7)`, organizationID, workspaceID, environmentID, actorID, definitionID, runID, correlationID).Scan(&runJSON); err != nil || !bytes.Contains(runJSON, []byte(`"status": "queued"`)) {
@@ -1440,13 +1450,22 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("red team detail=%s err=%v", detailJSON, err)
 	}
+	var canonicalRedTeamTimes bool
+	if err := redTeamAPI.QueryRow(ctx, `SELECT (zasp_red_team_get_run($1,$2,$3,$4)->>'queued_at')~'Z$' AND (zasp_red_team_get_run($1,$2,$3,$4)->>'started_at')~'Z$' AND (zasp_red_team_get_run($1,$2,$3,$4)->>'completed_at')~'Z$' AND (zasp_red_team_get_run($1,$2,$3,$4)->'attempts'->0->>'completed_at')~'Z$'`, organizationID, workspaceID, environmentID, runID).Scan(&canonicalRedTeamTimes); err != nil || !canonicalRedTeamTimes {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("red team non-UTC session emitted noncanonical time: %t err=%v", canonicalRedTeamTimes, err)
+	}
 	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_get_run($1,$2,$3,$4)`, "pid_7affffff-0000-4000-8000-000000000001", workspaceID, environmentID, runID).Scan(&detailJSON); err == nil {
 		redTeamAPI.Close(context.Background())
 		t.Fatal("cross-tenant red team run was visible")
 	}
-	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-missing-binding',$5,$6,$7)`, organizationID, workspaceID, environmentID, actorID, "pid_7a000015-0000-4000-8000-000000000015", runID, correlationID).Scan(&detailJSON); err == nil {
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-missing-binding',$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, actorID, "pid_7a000015-0000-4000-8000-000000000015", runID, bytes.Repeat([]byte{0x99}, 32), correlationID).Scan(&detailJSON); err == nil {
 		redTeamAPI.Close(context.Background())
 		t.Fatal("attack lab accepted a target without an active credential binding")
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_preflight($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, runID).Scan(&detailJSON); err == nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal("attack lab preflight accepted a target without an active credential binding")
 	}
 	bindingID := "pid_7a000016-0000-4000-8000-000000000016"
 	bindingDigest := bytes.Repeat([]byte{0x2a}, 32)
@@ -1480,7 +1499,7 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatal(err)
 	}
-	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-class-deny',$5,$6,$7)`, organizationID, workspaceID, environmentID, actorID, "pid_7a000018-0000-4000-8000-000000000018", runID, correlationID).Scan(&detailJSON); err == nil {
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-class-deny',$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, actorID, "pid_7a000018-0000-4000-8000-000000000018", runID, bytes.Repeat([]byte{0x99}, 32), correlationID).Scan(&detailJSON); err == nil {
 		redTeamAPI.Close(context.Background())
 		t.Fatal("attack lab accepted a credential binding whose class differed from the approved definition")
 	}
@@ -1492,7 +1511,7 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatal(err)
 	}
-	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-production-deny',$5,$6,$7)`, organizationID, workspaceID, environmentID, actorID, "pid_7a000017-0000-4000-8000-000000000017", runID, correlationID).Scan(&detailJSON); err == nil {
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-production-deny',$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, actorID, "pid_7a000017-0000-4000-8000-000000000017", runID, bytes.Repeat([]byte{0x99}, 32), correlationID).Scan(&detailJSON); err == nil {
 		redTeamAPI.Close(context.Background())
 		t.Fatal("attack lab accepted a production environment")
 	}
@@ -1500,14 +1519,74 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatal(err)
 	}
+	var attackLabPreflightJSON []byte
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_preflight($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, runID).Scan(&attackLabPreflightJSON); err != nil || !bytes.Contains(attackLabPreflightJSON, []byte(`"source_run_id": "`+runID+`"`)) || !bytes.Contains(attackLabPreflightJSON, []byte(`"target_id": "`+targetID+`"`)) || !bytes.Contains(attackLabPreflightJSON, []byte(`"destination": "adapter.customer.example"`)) || !bytes.Contains(attackLabPreflightJSON, []byte(`"success_criterion": "Reject direct prompt injection"`)) || !bytes.Contains(attackLabPreflightJSON, []byte(`"allowed_destinations": ["adapter.customer.example"]`)) || bytes.Contains(attackLabPreflightJSON, []byte(`credential_reference`)) || bytes.Contains(attackLabPreflightJSON, []byte(`binding_id`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab preflight=%s err=%v", attackLabPreflightJSON, err)
+	}
+	var attackLabPreflight struct {
+		DecisionDigest    string `json:"decision_digest"`
+		DecisionExpiresAt string `json:"decision_expires_at"`
+	}
+	if err := json.Unmarshal(attackLabPreflightJSON, &attackLabPreflight); err != nil || len(attackLabPreflight.DecisionDigest) != 64 || !strings.HasSuffix(attackLabPreflight.DecisionExpiresAt, "Z") {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab decision=%#v err=%v", attackLabPreflight, err)
+	}
+	attackLabDecisionDigest, err := hex.DecodeString(attackLabPreflight.DecisionDigest)
+	if err != nil || len(attackLabDecisionDigest) != 32 {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab decision digest=%q err=%v", attackLabPreflight.DecisionDigest, err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_preflight($1,$2,$3,$4)`, "pid_7affffff-0000-4000-8000-000000000001", workspaceID, environmentID, runID).Scan(&attackLabPreflightJSON); err == nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal("cross-tenant attack lab preflight was visible")
+	}
 	attackLabRunID := "pid_7a000009-0000-4000-8000-000000000009"
 	var attackLabCreatedJSON []byte
-	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-create-0001',$5,$6,$7)`, organizationID, workspaceID, environmentID, actorID, attackLabRunID, runID, correlationID).Scan(&attackLabCreatedJSON); err != nil || !bytes.Contains(attackLabCreatedJSON, []byte(`"status": "queued"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"source_run_id": "`+runID+`"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"target_id": "`+targetID+`"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"environment": "staging"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"credential_class": "read_only"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"destination": "adapter.customer.example"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"timeout_seconds": 300`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"replayed": false`)) {
+	if err := connection.QueryRow(ctx, `SELECT zasp_attack_lab_register_credential_binding($1,$2,$3,$4,$5,'ref:red-team/target-0001','read_only',3,$6,$7)`, organizationID, workspaceID, environmentID, bindingID, targetID, bytes.Repeat([]byte{0x2b}, 32), bindingValidUntil).Scan(&bindingJSON); err != nil || !bytes.Contains(bindingJSON, []byte(`"version": 3`)) {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab credential binding drift=%s err=%v", bindingJSON, err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-drift-rejected-0001',$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, actorID, attackLabRunID, runID, attackLabDecisionDigest, correlationID).Scan(&attackLabCreatedJSON); err == nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal("attack lab accepted a credential binding that drifted after approval")
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_preflight($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, runID).Scan(&attackLabPreflightJSON); err != nil || json.Unmarshal(attackLabPreflightJSON, &attackLabPreflight) != nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab refreshed preflight=%s err=%v", attackLabPreflightJSON, err)
+	}
+	attackLabDecisionDigest, err = hex.DecodeString(attackLabPreflight.DecisionDigest)
+	if err != nil || len(attackLabDecisionDigest) != 32 {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab refreshed decision digest=%q err=%v", attackLabPreflight.DecisionDigest, err)
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_entities SET winning_attributes=jsonb_set(winning_attributes,'{red_team,endpoint}',to_jsonb('https://drift.customer.example/v1/evaluate'::text)) WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, targetID); err != nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-destination-drift-0001',$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, actorID, attackLabRunID, runID, attackLabDecisionDigest, correlationID).Scan(&attackLabCreatedJSON); err == nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal("attack lab accepted a destination that drifted after approval")
+	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_inventory_entities SET winning_attributes=jsonb_set(winning_attributes,'{red_team,endpoint}',to_jsonb('https://adapter.customer.example/v1/evaluate'::text)) WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, targetID); err != nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatal(err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_preflight($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, runID).Scan(&attackLabPreflightJSON); err != nil || json.Unmarshal(attackLabPreflightJSON, &attackLabPreflight) != nil {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab destination-restored preflight=%s err=%v", attackLabPreflightJSON, err)
+	}
+	attackLabDecisionDigest, err = hex.DecodeString(attackLabPreflight.DecisionDigest)
+	if err != nil || len(attackLabDecisionDigest) != 32 {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("attack lab destination-restored decision digest=%q err=%v", attackLabPreflight.DecisionDigest, err)
+	}
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-create-0001',$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, actorID, attackLabRunID, runID, attackLabDecisionDigest, correlationID).Scan(&attackLabCreatedJSON); err != nil || !bytes.Contains(attackLabCreatedJSON, []byte(`"status": "queued"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"source_run_id": "`+runID+`"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"target_id": "`+targetID+`"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"environment": "staging"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"credential_class": "read_only"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"destination": "adapter.customer.example"`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"timeout_seconds": 300`)) || !bytes.Contains(attackLabCreatedJSON, []byte(`"replayed": false`)) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab create=%s err=%v", attackLabCreatedJSON, err)
 	}
 	var attackLabReplayJSON []byte
-	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-create-0001',$5,$6,'pid_7a000014-0000-4000-8000-000000000014')`, organizationID, workspaceID, environmentID, actorID, attackLabRunID, runID).Scan(&attackLabReplayJSON); err != nil || !bytes.Contains(attackLabReplayJSON, []byte(`"replayed": true`)) || !bytes.Contains(attackLabReplayJSON, []byte(`"correlation_id": "`+correlationID+`"`)) {
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-create-0001',$5,$6,$7,'pid_7a000014-0000-4000-8000-000000000014')`, organizationID, workspaceID, environmentID, actorID, attackLabRunID, runID, attackLabDecisionDigest).Scan(&attackLabReplayJSON); err != nil || !bytes.Contains(attackLabReplayJSON, []byte(`"replayed": true`)) || !bytes.Contains(attackLabReplayJSON, []byte(`"correlation_id": "`+correlationID+`"`)) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab replay=%s err=%v", attackLabReplayJSON, err)
 	}
@@ -1515,6 +1594,11 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_get_run($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRunID).Scan(&attackLabDetailJSON); err != nil || !bytes.Contains(attackLabDetailJSON, []byte(`"attempts": []`)) || !bytes.Contains(attackLabDetailJSON, []byte(`"id": "`+attackLabRunID+`"`)) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab detail=%s err=%v", attackLabDetailJSON, err)
+	}
+	var canonicalAttackLabTime bool
+	if err := redTeamAPI.QueryRow(ctx, `SELECT (zasp_attack_lab_get_run($1,$2,$3,$4)->>'queued_at')~'Z$'`, organizationID, workspaceID, environmentID, attackLabRunID).Scan(&canonicalAttackLabTime); err != nil || !canonicalAttackLabTime {
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("Attack Lab non-UTC session emitted noncanonical time: %t err=%v", canonicalAttackLabTime, err)
 	}
 	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_list_runs($1,$2,$3,NULL,NULL,10)`, organizationID, workspaceID, environmentID).Scan(&attackLabListJSON); err != nil || !bytes.Contains(attackLabListJSON, []byte(`"id": "`+attackLabRunID+`"`)) {
 		redTeamAPI.Close(context.Background())
@@ -1545,6 +1629,11 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		t.Fatalf("attack lab rerun=%s err=%v", attackLabRerunJSON, err)
 	}
 	attackLabOutbox := connectAs(principalNames[23])
+	if _, err := attackLabOutbox.Exec(ctx, `SET TIME ZONE 'America/Los_Angeles'`); err != nil {
+		attackLabOutbox.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("set Attack Lab outbox non-UTC session: %v", err)
+	}
 	attackLabOutboxToken := bytes.Repeat([]byte{0x42}, 32)
 	var attackLabOutboxJSON []byte
 	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_claim_outbox($1,$2,60,10)`, "attack-lab-outbox-e2e", attackLabOutboxToken).Scan(&attackLabOutboxJSON); err != nil {
@@ -1586,14 +1675,14 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 	firstItem := attackLabClaim.Items[0]
 	firstRunID := validateAttackLabOutboxItem(firstItem)
 	var attackLabHeartbeatJSON []byte
-	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_heartbeat_outbox($1,$2,60,1)`, "attack-lab-outbox-e2e", attackLabOutboxToken).Scan(&attackLabHeartbeatJSON); err != nil || !bytes.Contains(attackLabHeartbeatJSON, []byte(`"remaining_count": 1`)) {
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_heartbeat_outbox($1,$2,60,1)`, "attack-lab-outbox-e2e", attackLabOutboxToken).Scan(&attackLabHeartbeatJSON); err != nil || !bytes.Contains(attackLabHeartbeatJSON, []byte(`"remaining_count": 1`)) || !bytes.Contains(attackLabHeartbeatJSON, []byte(`Z"`)) {
 		attackLabOutbox.Close(context.Background())
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab outbox heartbeat=%s err=%v", attackLabHeartbeatJSON, err)
 	}
 	providerAck := "sha256:" + strings.Repeat("a", 64)
 	var attackLabAckJSON []byte
-	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_ack_outbox($1,$2,$3,$4,$5,$6,$7)`, firstItem.OrganizationID, firstItem.WorkspaceID, firstItem.EnvironmentID, firstItem.OutboxID, "attack-lab-outbox-e2e", attackLabOutboxToken, providerAck).Scan(&attackLabAckJSON); err != nil || !bytes.Contains(attackLabAckJSON, []byte(`"provider_ack": "`+providerAck+`"`)) || !bytes.Contains(attackLabAckJSON, []byte(`"remaining_count": 0`)) || !bytes.Contains(attackLabAckJSON, []byte(`"replayed": false`)) {
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_ack_outbox($1,$2,$3,$4,$5,$6,$7)`, firstItem.OrganizationID, firstItem.WorkspaceID, firstItem.EnvironmentID, firstItem.OutboxID, "attack-lab-outbox-e2e", attackLabOutboxToken, providerAck).Scan(&attackLabAckJSON); err != nil || !bytes.Contains(attackLabAckJSON, []byte(`"provider_ack": "`+providerAck+`"`)) || !bytes.Contains(attackLabAckJSON, []byte(`"remaining_count": 0`)) || !bytes.Contains(attackLabAckJSON, []byte(`"replayed": false`)) || !bytes.Contains(attackLabAckJSON, []byte(`Z"`)) {
 		attackLabOutbox.Close(context.Background())
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab outbox ack=%s err=%v", attackLabAckJSON, err)
@@ -1624,7 +1713,7 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		t.Fatalf("attack lab outbox fair runs first=%s second=%s", firstRunID, secondRunID)
 	}
 	var attackLabRetryJSON []byte
-	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_retry_outbox($1,$2,$3,$4,$5,$6,10,'queue_publish_unknown')`, retryItem.OrganizationID, retryItem.WorkspaceID, retryItem.EnvironmentID, retryItem.OutboxID, "attack-lab-outbox-e2e", attackLabRetryToken).Scan(&attackLabRetryJSON); err != nil || !bytes.Contains(attackLabRetryJSON, []byte(`"remaining_count": 0`)) || !bytes.Contains(attackLabRetryJSON, []byte(`"state": "pending"`)) || !bytes.Contains(attackLabRetryJSON, []byte(`"replayed": false`)) {
+	if err := attackLabOutbox.QueryRow(ctx, `SELECT zasp_attack_lab_retry_outbox($1,$2,$3,$4,$5,$6,10,'queue_publish_unknown')`, retryItem.OrganizationID, retryItem.WorkspaceID, retryItem.EnvironmentID, retryItem.OutboxID, "attack-lab-outbox-e2e", attackLabRetryToken).Scan(&attackLabRetryJSON); err != nil || !bytes.Contains(attackLabRetryJSON, []byte(`"remaining_count": 0`)) || !bytes.Contains(attackLabRetryJSON, []byte(`"state": "pending"`)) || !bytes.Contains(attackLabRetryJSON, []byte(`"replayed": false`)) || !bytes.Contains(attackLabRetryJSON, []byte(`Z"`)) {
 		attackLabOutbox.Close(context.Background())
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab outbox retry=%s err=%v", attackLabRetryJSON, err)
@@ -1707,6 +1796,11 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 	}
 	attackLabOutbox.Close(context.Background())
 	attackLabController := connectAs(principalNames[22])
+	if _, err := attackLabController.Exec(ctx, `SET TIME ZONE 'America/Los_Angeles'`); err != nil {
+		attackLabController.Close(context.Background())
+		redTeamAPI.Close(context.Background())
+		t.Fatalf("set Attack Lab controller non-UTC session: %v", err)
+	}
 	attackLabRetryRunID := "pid_7a000016-0000-4000-8000-000000000016"
 	var attackLabRetryRunJSON []byte
 	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_rerun($1,$2,$3,$4,'attack-lab-rerun-retry-0001',$5,2,$6,$7)`, organizationID, workspaceID, environmentID, actorID, attackLabRunID, attackLabRetryRunID, correlationID).Scan(&attackLabRetryRunJSON); err != nil || !bytes.Contains(attackLabRetryRunJSON, []byte(`"status": "queued"`)) {
@@ -1952,7 +2046,7 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab finish cleanup replay=%s err=%v", attackLabFinishedJSON, err)
 	}
-	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_get_run($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabDetailJSON); err != nil || !bytes.Contains(attackLabDetailJSON, []byte(`"attempt": 1`)) || !bytes.Contains(attackLabDetailJSON, []byte(`"cleanup_completed": true`)) || !bytes.Contains(attackLabDetailJSON, []byte(`"evidence_reference": "`+attackLabEvidenceReference+`"`)) {
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_get_run($1,$2,$3,$4)`, organizationID, workspaceID, environmentID, attackLabRerunID).Scan(&attackLabDetailJSON); err != nil || !bytes.Contains(attackLabDetailJSON, []byte(`"attempt": 1`)) || !bytes.Contains(attackLabDetailJSON, []byte(`"cleanup_completed": true`)) || !bytes.Contains(attackLabDetailJSON, []byte(`"evidence_reference": "`+attackLabEvidenceReference+`"`)) || !bytes.Contains(attackLabDetailJSON, []byte(`"evidence_version_id": "s3-version-attack-lab-0001"`)) || !bytes.Contains(attackLabDetailJSON, []byte(`"evidence_checksum": "`+hex.EncodeToString(attackLabEvidenceChecksum)+`"`)) || !bytes.Contains(attackLabDetailJSON, []byte(`"evidence_size": 512`)) {
 		attackLabController.Close(context.Background())
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab completed detail=%s err=%v", attackLabDetailJSON, err)
@@ -2089,7 +2183,7 @@ func TestAgentsecMigrateCLIReachesV27FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("red team cancel replay=%s err=%v", cancelReplayJSON, err)
 	}
-	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-create-rejected-0001','pid_7a000013-0000-4000-8000-000000000013',$5,$6)`, organizationID, workspaceID, environmentID, actorID, cancelRunID, correlationID).Scan(&attackLabCreatedJSON); err == nil {
+	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-create-rejected-0001','pid_7a000013-0000-4000-8000-000000000013',$5,$6,$7)`, organizationID, workspaceID, environmentID, actorID, cancelRunID, attackLabDecisionDigest, correlationID).Scan(&attackLabCreatedJSON); err == nil {
 		redTeamAPI.Close(context.Background())
 		t.Fatal("attack lab accepted a cancelled red team source")
 	}

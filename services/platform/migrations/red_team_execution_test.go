@@ -32,6 +32,7 @@ func TestProductionRedTeamExecutionMetadataPinsDurableTenantAuthority(t *testing
 		"zasp_red_team_worker",
 		"zasp_red_team_adapter",
 		"organization_id,workspace_id,environment_id",
+		"count(DISTINCT item#>>'{}')",
 		"test-jobs",
 	} {
 		if !strings.Contains(metadata.UpSQL(), required) {

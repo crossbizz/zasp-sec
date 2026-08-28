@@ -1,4 +1,4 @@
-import type { AgentMutation, AgentSessionPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
+import type { AgentMutation, AgentSessionPage, AttackLabAttempt, AttackLabPreflight, AttackLabRun, AttackLabRunDetail, AttackLabRunPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -522,6 +522,82 @@ export function decodeTestRunPage(value: unknown): TestRunPage {
   return value as TestRunPage;
 }
 
+export function decodeAttackLabPreflight(value: unknown): AttackLabPreflight {
+  const record = exactRecord(value, ["source_run_id", "definition_id", "definition_version", "target_id", "target_kind", "environment", "credential_class", "destination", "allowed_destinations", "success_criterion", "expected_side_effects", "decision_digest", "decision_expires_at", "limits"]);
+  productID(record.source_run_id); productID(record.definition_id); boundedInteger(record.definition_version, 1, 1_000_000); productID(record.target_id);
+  enumValue(record.target_kind, ["agent_endpoint", "mcp_server", "coding_agent"]); enumValue(record.environment, ["development", "test", "staging"]); enumValue(record.credential_class, ["read_only", "test_write"]); attackLabDestination(record.destination);
+  const destinations = array(record.allowed_destinations, 1); if (destinations.length !== 1 || destinations[0] !== record.destination) fail(); attackLabDestination(destinations[0]);
+  printableString(record.success_criterion, 1, 512); const effects = array(record.expected_side_effects, 16); if (effects.length < 1) fail(); const seen = new Set<string>(); for (const effect of effects) { printableString(effect, 1, 256); if (seen.has(effect as string)) fail(); seen.add(effect as string); }
+  attackLabDigest(record.decision_digest); dateTime(record.decision_expires_at);
+  decodeAttackLabLimits(record.limits);
+  return value as AttackLabPreflight;
+}
+
+export function decodeAttackLabRun(value: unknown): AttackLabRun {
+  const record = exactRecord(value, ["id", "version", "source_run_id", "definition_id", "definition_version", "target_id", "target_kind", "environment", "credential_class", "destination", "status", "attempt", "cancel_requested", "cleanup_state", "limits", "queued_at"], ["started_at", "attempt_started_at", "completed_at", "verdict", "error_code", "evidence_reference", "evidence_version_id", "evidence_checksum", "evidence_size"]);
+  productID(record.id); boundedInteger(record.version, 1, 1_000_000); productID(record.source_run_id); productID(record.definition_id); boundedInteger(record.definition_version, 1, 1_000_000); productID(record.target_id);
+  enumValue(record.target_kind, ["agent_endpoint", "mcp_server", "coding_agent"]); enumValue(record.environment, ["development", "test", "staging"]); enumValue(record.credential_class, ["read_only", "test_write"]); attackLabDestination(record.destination); enumValue(record.status, ["queued", "leased", "running", "retryable", "cleanup", "complete", "failed", "cancelled"]); boundedInteger(record.attempt, 0, 5); if (typeof record.cancel_requested !== "boolean") fail(); enumValue(record.cleanup_state, ["pending", "in_progress", "complete", "failed"]); decodeAttackLabLimits(record.limits); dateTime(record.queued_at);
+  if (record.started_at !== undefined) { dateTime(record.started_at); if (Date.parse(record.started_at) < Date.parse(record.queued_at as string)) fail(); }
+  if (record.attempt_started_at !== undefined) { dateTime(record.attempt_started_at); if (record.started_at === undefined || Date.parse(record.attempt_started_at) < Date.parse(record.started_at)) fail(); }
+  if (((record.attempt as number) === 0) !== (record.attempt_started_at === undefined)) fail();
+  if (record.completed_at !== undefined) { dateTime(record.completed_at); if (Date.parse(record.completed_at) < Date.parse(record.queued_at as string) || record.started_at !== undefined && Date.parse(record.completed_at) < Date.parse(record.started_at) || record.attempt_started_at !== undefined && Date.parse(record.completed_at) < Date.parse(record.attempt_started_at)) fail(); }
+  if (record.verdict !== undefined) enumValue(record.verdict, ["verified", "not_reproduced", "inconclusive"]); if (record.error_code !== undefined) enumValue(record.error_code, ["retryable", "denied", "malformed", "outcome_unknown", "cleanup_failed", "cancelled", "exhausted"]); attackLabEvidenceLocator(record);
+  const attempt = record.attempt as number; const started = record.started_at !== undefined; const completed = record.completed_at !== undefined; const verdict = record.verdict !== undefined; const failure = record.error_code !== undefined; const evidence = record.evidence_reference !== undefined;
+  const coherent = record.status === "queued" ? attempt === 0 && !record.cancel_requested && record.cleanup_state === "pending" && !started && !completed && !verdict && !failure && !evidence
+    : record.status === "leased" || record.status === "running" ? attempt >= 1 && record.cleanup_state === "pending" && started && !completed && !verdict && !failure && !evidence
+      : record.status === "retryable" ? attempt >= 1 && attempt < 5 && !record.cancel_requested && record.cleanup_state === "pending" && started && !completed && !verdict && ["retryable", "outcome_unknown"].includes(record.error_code as string) && !evidence
+        : record.status === "cleanup" ? attempt >= 1 && record.cleanup_state === "in_progress" && started && !completed && !verdict && !failure && !evidence
+          : record.status === "complete" ? attempt >= 1 && !record.cancel_requested && record.cleanup_state === "complete" && started && completed && verdict && ["verified", "not_reproduced", "inconclusive"].includes(record.verdict as string) && (evidence && !failure || !evidence && record.verdict === "inconclusive" && record.error_code === "outcome_unknown")
+            : record.status === "failed" ? attempt >= 1 && started && completed && !verdict && ["denied", "malformed", "outcome_unknown", "cleanup_failed", "exhausted"].includes(record.error_code as string) && !evidence && (record.error_code === "cleanup_failed" ? record.cleanup_state === "failed" : record.cleanup_state === "complete")
+              : record.status === "cancelled" && record.cancel_requested && record.cleanup_state === "complete" && completed && !verdict && record.error_code === "cancelled" && (attempt === 0 ? !started && !evidence : started);
+  if (!coherent) fail();
+  return value as AttackLabRun;
+}
+
+export function decodeAttackLabAttempt(value: unknown): AttackLabAttempt {
+  const record = exactRecord(value, ["attempt", "evidence_state", "criterion_observed", "canary_touched", "cleanup_completed", "evidence", "completed_at"], ["verdict", "error_code", "evidence_reference", "evidence_version_id", "evidence_checksum", "evidence_size"]);
+  boundedInteger(record.attempt, 1, 5); enumValue(record.evidence_state, ["complete", "unavailable"]); if (typeof record.criterion_observed !== "boolean" || typeof record.canary_touched !== "boolean" || record.cleanup_completed !== true) fail(); dateTime(record.completed_at);
+  if (record.verdict !== undefined) enumValue(record.verdict, ["verified", "not_reproduced", "inconclusive"]); if (record.error_code !== undefined) enumValue(record.error_code, ["retryable", "denied", "malformed", "outcome_unknown", "cleanup_failed", "cancelled", "exhausted"]); attackLabEvidenceLocator(record);
+  if (record.verdict === "verified" && (!record.criterion_observed || !record.canary_touched) || record.verdict === "not_reproduced" && (record.criterion_observed || record.canary_touched)) fail();
+  const evidence = array(record.evidence, 5);
+  if (record.evidence_state === "unavailable") {
+    if (evidence.length !== 0 || record.evidence_reference !== undefined || record.evidence_version_id !== undefined || record.evidence_checksum !== undefined || record.evidence_size !== undefined || record.criterion_observed || record.canary_touched || !(record.verdict === "inconclusive" && record.error_code === "outcome_unknown" || record.verdict === undefined && record.error_code === "cancelled")) fail();
+    return value as AttackLabAttempt;
+  }
+  if (evidence.length !== 5 || record.evidence_reference === undefined || !(["verified", "not_reproduced", "inconclusive"].includes(record.verdict as string) || record.verdict === undefined && record.error_code === "cancelled")) fail();
+  const prefixes = ["semantic:", "gateway:", "egress:", "kubernetes:", "cloud:"] as const;
+  for (let index = 0; index < evidence.length; index += 1) { const item = evidence[index]; printableString(item, 1, 512); if (!(item as string).startsWith(prefixes[index]) || (item as string).length === prefixes[index].length) fail(); }
+  if (!(record.error_code === undefined || record.verdict === "inconclusive" && ["denied", "malformed", "outcome_unknown", "cleanup_failed", "exhausted", "cancelled"].includes(record.error_code as string) || record.verdict === undefined && record.error_code === "cancelled")) fail();
+  return value as AttackLabAttempt;
+}
+
+export function decodeAttackLabRunDetail(value: unknown): AttackLabRunDetail {
+  const record = exactRecord(value, ["id", "version", "source_run_id", "definition_id", "definition_version", "target_id", "target_kind", "environment", "credential_class", "destination", "status", "attempt", "cancel_requested", "cleanup_state", "limits", "queued_at", "attempts"], ["started_at", "attempt_started_at", "completed_at", "verdict", "error_code", "evidence_reference", "evidence_version_id", "evidence_checksum", "evidence_size"]);
+  const { attempts: attemptValues, ...runValue } = record; const run = decodeAttackLabRun(runValue); const attempts = array(attemptValues, 5); let prior = 0; let finalAttempt: AttackLabAttempt | undefined;
+  for (const item of attempts) { const attempt = decodeAttackLabAttempt(item); if (attempt.attempt <= prior || attempt.attempt > run.attempt || attempt.evidence_reference !== run.evidence_reference || attempt.evidence_version_id !== run.evidence_version_id || attempt.evidence_checksum !== run.evidence_checksum || attempt.evidence_size !== run.evidence_size) fail(); prior = attempt.attempt; finalAttempt = attempt; }
+  if (run.status === "complete") {
+    if (attempts.length !== 1 || finalAttempt?.attempt !== run.attempt || finalAttempt.verdict !== run.verdict || finalAttempt.completed_at !== run.completed_at) fail();
+  } else if (run.status === "cancelled" && run.attempt >= 1) {
+    if (attempts.length !== 1 || finalAttempt?.attempt !== run.attempt || finalAttempt.verdict !== undefined || finalAttempt.error_code !== "cancelled" || finalAttempt.completed_at !== run.completed_at) fail();
+  } else if (attempts.length !== 0) fail();
+  return value as AttackLabRunDetail;
+}
+
+export function decodeAttackLabRunPage(value: unknown): AttackLabRunPage {
+  const record = exactRecord(value, ["items"], ["next_cursor"]); const items = array(record.items, 100); let prior: AttackLabRun | undefined;
+  for (const item of items) { const run = decodeAttackLabRun(item); if (prior && (run.queued_at > prior.queued_at || run.queued_at === prior.queued_at && run.id >= prior.id)) fail(); prior = run; }
+  redTeamCursor(record.next_cursor, 1024); if (record.next_cursor !== undefined && items.length === 0) fail();
+  return value as AttackLabRunPage;
+}
+
+function decodeAttackLabLimits(value: unknown): void {
+  const record = exactRecord(value, ["cpu", "memory", "ephemeral_storage", "timeout_seconds"]); if (record.cpu !== "500m" || record.memory !== "1Gi" || record.ephemeral_storage !== "2Gi" || record.timeout_seconds !== 300) fail();
+}
+
+function attackLabDestination(value: unknown): asserts value is string {
+  boundedString(value, 1, 253); if (value !== value.toLowerCase() || value.startsWith(".") || value.endsWith(".")) fail(); const labels = value.split("."); if (labels.some((label) => label.length < 1 || label.length > 63 || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))) fail();
+}
+
 function redTeamCursor(value: unknown, maximum: number): void { if (value === undefined) return; boundedString(value, 2, maximum); if (!CURSOR.test(value)) fail(); }
 
 function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourceID: string, resourceVersion: number, idempotencyKey: string, intentValue: unknown, resultValue: unknown, expectedScopeKey?: string): void {
@@ -739,6 +815,20 @@ function containsReadableWorkflowSecret(value: unknown): boolean {
     const lower = key.toLowerCase(); const opaqueReference = lower.endsWith("_reference");
     return lower === "token" || lower.includes("password") || lower.includes("secret") && !opaqueReference || lower.includes("credential_value") || containsReadableWorkflowSecret(nested);
   });
+}
+
+function attackLabDigest(value: unknown): asserts value is string {
+  if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value) || /^0{64}$/.test(value)) fail();
+}
+
+function attackLabEvidenceLocator(record: Record<string, unknown>): void {
+  const present = [record.evidence_reference, record.evidence_version_id, record.evidence_checksum, record.evidence_size].map((value) => value !== undefined);
+  if (!present.some(Boolean)) return;
+  if (!present.every(Boolean)) fail();
+  printableString(record.evidence_reference, 1, 1024);
+  if (typeof record.evidence_version_id !== "string" || record.evidence_version_id.length < 1 || record.evidence_version_id.length > 512 || [...record.evidence_version_id].some((character) => { const code = character.codePointAt(0) ?? 0; return character.trim() === "" || code < 32 || code >= 127 && code <= 159; })) fail();
+  attackLabDigest(record.evidence_checksum);
+  boundedInteger(record.evidence_size, 1, 64 << 20);
 }
 
 function decodePrincipal(value: unknown): Principal { const record = exactRecord(value, ["id", "organization_id", "organization_reference", "member_reference", "role", "active"]); productID(record.id); productID(record.organization_id); boundedString(record.organization_reference, 2, 128); boundedString(record.member_reference, 2, 128); boundedString(record.role, 1, 64); if (typeof record.active !== "boolean") fail(); return value as Principal; }

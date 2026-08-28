@@ -37,6 +37,155 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/recovery/neondriver"
 )
 
+func TestProductionCombinedE2EAttackLabWorker(t *testing.T) {
+	controllerDSN := os.Getenv("ZASP_COMBINED_E2E_ATTACK_LAB_CONTROLLER_DSN")
+	outboxDSN := os.Getenv("ZASP_COMBINED_E2E_ATTACK_LAB_OUTBOX_DSN")
+	runID := os.Getenv("ZASP_COMBINED_E2E_ATTACK_LAB_RUN_ID")
+	expectCancelled := os.Getenv("ZASP_COMBINED_E2E_ATTACK_LAB_EXPECT_CANCELLED")
+	if controllerDSN == "" && outboxDSN == "" && runID == "" {
+		t.Skip("combined E2E helper")
+	}
+	if expectCancelled != "" && expectCancelled != "true" {
+		t.Fatal("combined E2E Attack Lab cancellation expectation is invalid")
+	}
+	if controllerDSN == "" || outboxDSN == "" {
+		t.Fatal("combined E2E Attack Lab authority is incomplete")
+	}
+	if _, err := domain.ParseProductID(runID); err != nil {
+		t.Fatal("combined E2E Attack Lab run is invalid")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	controllerDatabase := combinedE2ERecoveryDatabase(t, ctx, controllerDSN)
+	outboxDatabase := combinedE2ERecoveryDatabase(t, ctx, outboxDSN)
+	driver := &combinedE2ERecoveryQueueDriver{}
+	queue, err := jobqueue.New(driver, jobqueue.Config{OperationTimeout: time.Second, MaximumBatchMessages: 10, MaximumMessageBytes: 1 << 20, MaximumBatchBytes: 1 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outboxConfig := validAttackLabOutboxRuntimeConfig()
+	outboxConfig.PostgresDSN = outboxDSN
+	outboxConfig.WorkerID = "production-e2e-attack-lab-outbox"
+	outboxConfig.LeaseDuration = 30 * time.Second
+	outboxConfig.ShutdownTimeout = 3 * time.Second
+	outboxConfig.BatchSize = 1
+	outbox, err := composeAttackLabOutboxWorkerRuntime(outboxConfig, outboxDatabase, queue, func(context.Context) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := outbox.Processor.(*attackLabOutboxProcessor); !ok || outbox.Ready == nil || outbox.Close == nil {
+		t.Fatalf("Attack Lab outbox composition=%#v", outbox)
+	}
+	if err := outbox.Ready(ctx); err != nil {
+		t.Fatalf("Attack Lab outbox readiness: %v", err)
+	}
+	if err := outbox.Processor.RunOnce(ctx); err != nil {
+		t.Fatalf("Attack Lab outbox processor: %v", err)
+	}
+	if err := outbox.Close(); err != nil {
+		t.Fatalf("Attack Lab outbox close: %v", err)
+	}
+
+	artifactDriver := &combinedE2EArtifactDriver{objects: map[string]artifactstore.DriverObject{}}
+	artifacts, err := artifactstore.New(artifactDriver, artifactstore.Config{OperationTimeout: time.Second, MaximumBytes: 1 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence, err := newProductionAttackLabEvidenceWriter(artifacts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := &combinedE2EAttackLabProvider{runID: runID}
+	controllerConfig, err := loadWorkerRuntimeConfig(mapLookup(validAttackLabControllerRuntimeEnvironment()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	controllerConfig.PostgresDSN = controllerDSN
+	controllerConfig.WorkerID = "production-e2e-attack-lab-controller"
+	controllerConfig.LeaseDuration = 30 * time.Second
+	controllerConfig.ShutdownTimeout = 3 * time.Second
+	controllerConfig.BatchSize = 1
+	closed := false
+	dependencies, err := composeAttackLabWorkerRuntime(controllerConfig, controllerDatabase, &productionAttackLabDependencies{
+		Queue: queue, Provider: provider, Evidence: evidence,
+		ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if !closed {
+			_ = dependencies.Close()
+		}
+	})
+	if _, ok := dependencies.Processor.(readinessGatedWorkerProcessor); !ok || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("Attack Lab controller composition=%#v", dependencies)
+	}
+	if err := dependencies.Ready(ctx); err != nil {
+		t.Fatalf("Attack Lab controller readiness: %v", err)
+	}
+	if err := dependencies.Processor.RunOnce(ctx); err != nil {
+		t.Fatalf("Attack Lab controller processor: %v", err)
+	}
+	if expectCancelled == "true" {
+		if !driver.acknowledged || provider.created || provider.collected || provider.destroyed || len(artifactDriver.order) != 0 {
+			t.Fatalf("cancelled Attack Lab result ack=%t provider=%t/%t/%t artifacts=%v", driver.acknowledged, provider.created, provider.collected, provider.destroyed, artifactDriver.order)
+		}
+	} else if !driver.acknowledged || !provider.created || !provider.collected || !provider.destroyed || len(artifactDriver.order) != 1 || artifactDriver.order[0] != "application/json" {
+		t.Fatalf("Attack Lab result ack=%t provider=%t/%t/%t artifacts=%v", driver.acknowledged, provider.created, provider.collected, provider.destroyed, artifactDriver.order)
+	}
+	if err := dependencies.Close(); err != nil || !closed {
+		t.Fatalf("Attack Lab controller close=%v closed=%t", err, closed)
+	}
+	if expectCancelled == "true" {
+		t.Log("composed Attack Lab outbox and controller acknowledged cancelled run without sandbox side effects")
+	} else {
+		t.Log("composed Attack Lab outbox and controller completed deterministic isolated sandbox evidence")
+	}
+}
+
+type combinedE2EAttackLabProvider struct {
+	runID                         string
+	created, collected, destroyed bool
+}
+
+func (*combinedE2EAttackLabProvider) Ready(context.Context) error { return nil }
+
+func (provider *combinedE2EAttackLabProvider) Create(_ context.Context, request attackLabSandboxRequest) (attackLabSandbox, error) {
+	if request.Run.ID != provider.runID || request.Run.Status != "leased" || request.Run.Environment == "production" || request.Preflight.Destination != request.Run.Destination || request.Preflight.SuccessCriterion == "" {
+		return attackLabSandbox{}, errors.New("Attack Lab local provider authority drift")
+	}
+	name, ok := attackLabJobName(request.Scope, request.Run.ID)
+	if !ok {
+		return attackLabSandbox{}, errors.New("Attack Lab local sandbox identity rejected")
+	}
+	provider.created = true
+	return attackLabSandbox{Reference: "k8s://attack-lab/jobs/" + name + "@123e4567-e89b-12d3-a456-426614174000"}, nil
+}
+
+func (*combinedE2EAttackLabProvider) Reconcile(context.Context, attackLabSandboxRequest) (attackLabSandbox, bool, error) {
+	return attackLabSandbox{}, false, errors.New("Attack Lab local reconcile was not expected")
+}
+
+func (provider *combinedE2EAttackLabProvider) Collect(_ context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (attackLabSandboxResult, error) {
+	if !provider.created || request.Run.ID != provider.runID || request.Run.Status != "running" || !attackLabWorkerSandboxReferencePattern.MatchString(sandbox.Reference) {
+		return attackLabSandboxResult{}, errors.New("Attack Lab local collection authority drift")
+	}
+	provider.collected = true
+	return attackLabSandboxResult{Verdict: "verified", CriterionObserved: true, CanaryTouched: true, Evidence: []string{
+		"semantic:success criterion observed", "gateway:exact destination allowed", "egress:no undeclared egress", "kubernetes:isolated job completed", "cloud:bounded canary touched",
+	}}, nil
+}
+
+func (provider *combinedE2EAttackLabProvider) Destroy(_ context.Context, sandbox attackLabSandbox) error {
+	if !provider.collected || !attackLabWorkerSandboxReferencePattern.MatchString(sandbox.Reference) {
+		return errors.New("Attack Lab local cleanup authority drift")
+	}
+	provider.destroyed = true
+	return nil
+}
+
 func TestProductionCombinedE2ERecoveryWorker(t *testing.T) {
 	phase := os.Getenv("ZASP_COMBINED_E2E_RECOVERY_PHASE")
 	if phase == "" {
@@ -196,7 +345,7 @@ func TestProductionCombinedE2ERecoveryWorker(t *testing.T) {
 	t.Log("local TLS Neon fixture, exact projection counts, and temporary resource cleanup completed")
 }
 
-func combinedE2ERecoveryDatabase(t *testing.T, ctx context.Context, dsn string) recoveryJSONDatabase {
+func combinedE2ERecoveryDatabase(t *testing.T, ctx context.Context, dsn string) apiserver.JSONDatabase {
 	t.Helper()
 	poolConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {

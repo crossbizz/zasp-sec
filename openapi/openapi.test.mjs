@@ -681,11 +681,11 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 140);
+    assert.equal(operations.size, 141);
     for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) {
       assert.ok(operations.has(operationId), operationId);
     }
-    for (const operationId of ["listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun"]) {
+    for (const operationId of ["preflightAttackLabRun", "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun"]) {
       assert.ok(operations.has(operationId), operationId);
     }
     for (const operationId of ["startRecoveryBackup", "getRecoveryBackup", "startRecoveryRestore", "getRecoveryRestore"]) {
@@ -715,8 +715,17 @@ describe("production workflow concurrency contract", () => {
       assert.deepEqual(response.headers["X-Mutation-Receipt-ID"], { $ref: "#/components/headers/WorkflowMutationReceiptID" });
       assert.deepEqual(response.headers.ETag, { $ref: "#/components/headers/WorkflowETag" });
     }
-    assert.deepEqual(document.components.schemas.AttackLabRunInput.required, ["run_id", "source_run_id", "approved"]);
+    assert.deepEqual(document.components.schemas.AttackLabRunInput.required, ["run_id", "source_run_id", "decision_digest", "approved"]);
     assert.equal(document.components.schemas.AttackLabRunInput.additionalProperties, false);
+    const attackLabPreflight = operations.get("preflightAttackLabRun").operation;
+    assert.deepEqual(attackLabPreflight.parameters, [{ name: "source_run_id", in: "query", required: true, schema: { $ref: "#/components/schemas/ProductID" } }]);
+    assert.deepEqual(attackLabPreflight.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/AttackLabPreflight" });
+    assert.deepEqual(document.components.schemas.AttackLabPreflight.required, ["source_run_id", "definition_id", "definition_version", "target_id", "target_kind", "environment", "credential_class", "destination", "allowed_destinations", "success_criterion", "expected_side_effects", "decision_digest", "decision_expires_at", "limits"]);
+    assert.equal(document.components.schemas.AttackLabPreflight.additionalProperties, false);
+    assert.equal(document.components.schemas.AttackLabPreflight.properties.expected_side_effects.uniqueItems, true);
+    assert.equal(document.components.schemas.AttackLabAttempt.properties.evidence_version_id.maxLength, 512);
+    assert.deepEqual(document.components.schemas.AttackLabAttempt.properties.evidence_checksum, { type: "string", pattern: "^[0-9a-f]{64}$" });
+    assert.deepEqual(document.components.schemas.AttackLabAttempt.properties.evidence_size, { type: "integer", minimum: 1, maximum: 67108864 });
     assert.ok(document.components.schemas.AttackLabRun.required.includes("cleanup_state"));
     assert.ok(document.components.schemas.AttackLabRunDetail.required.includes("attempts"));
     assert.deepEqual(document.components.schemas.AttackLabRun.properties.attempt_started_at, { type: "string", format: "date-time" });

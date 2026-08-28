@@ -224,6 +224,30 @@ describe("Zasp application", () => {
 		expect(requests).toEqual(expect.arrayContaining(["/api/v1/session/bootstrap", "/api/v1/tests", "/api/v1/test-runs", "/api/v1/agents", "/api/v1/tools"]));
 	});
 
+	it("routes Attack Lab to the tenant-backed production approval surface", async () => {
+		window.history.replaceState({}, "", "/test/attack-lab");
+		const sourceRunID = "pid_93000001-0000-4000-8000-000000000001";
+		const client = createAPIClient({
+			generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+			fetch: async (request) => {
+				const path = new URL(request.url).pathname;
+				if (path === "/api/v1/session/bootstrap") return apiJSON({
+					principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_engineer", active: true },
+					organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
+					permissions: ["view", "run_tests"], capabilities: ["red-team.read", "red-team.write"], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+				});
+				if (path === "/api/v1/workflow-mutation-receipts") return apiJSON({ items: [] });
+				if (path === "/api/v1/test-runs") return apiJSON({ items: [{ id: sourceRunID, version: 3, definition_id: "pid_93000002-0000-4000-8000-000000000002", definition_version: 1, status: "complete", attempt: 1, cancel_requested: false, queued_at: "2026-08-28T09:00:00Z", started_at: "2026-08-28T09:00:01Z", completed_at: "2026-08-28T09:00:05Z", verdict: "fail", evidence_reference: "s3://zasp-red-team/source" }] });
+				if (path === "/api/v1/attack-lab/runs") return apiJSON({ items: [] });
+				throw new Error(`unexpected Attack Lab fetch ${request.method} ${path}`);
+			},
+		});
+		render(<ZaspApp client={client} />);
+		expect(await screen.findByRole("heading", { name: "Attack Lab" })).toBeVisible();
+		expect(await screen.findByRole("button", { name: "Review safety decision" })).toBeVisible();
+		expect(screen.getByRole("button", { name: "Run Attack Lab" })).toBeDisabled();
+	});
+
 	it("publishes only capability-backed production administration routes", async () => {
 		const client = createAPIClient({
 			generateCorrelationID: () => "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
