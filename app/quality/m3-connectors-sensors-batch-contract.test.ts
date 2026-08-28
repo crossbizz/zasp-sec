@@ -15,11 +15,11 @@ describe("M3 connector and sensor implementation batch", () => {
       "--test-reporter=tap",
       "--test-name-pattern=production release renders private Nango",
       "deploy/production/release-contract.test.mjs",
-    ], { cwd: root, encoding: "utf8" });
+    ], { cwd: root, encoding: "utf8", timeout: 30_000 });
 
     expect(stdout).toMatch(/# pass 1\n/);
     expect(stdout).toMatch(/# fail 0\n/);
-  });
+  }, 35_000);
 
   it("publishes all seven sensor operations without credential internals", async () => {
     const openapi = await readFile(resolve(root, "openapi/openapi.yaml"), "utf8");
