@@ -60,12 +60,13 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-ec"]
           args:
-            - cp /source/credential/credential.json /config/credential.json; cp /source/policy/policy-keys.json /config/policy-keys.json; chmod 600 /config/credential.json /config/policy-keys.json
+            - cp /source/credential/credential.json /config/credential.json; cp /source/policy/policy-keys.json /config/policy-keys.json; cp /source/proxy/token /config/proxy-token; chmod 600 /config/credential.json /config/policy-keys.json /config/proxy-token
           resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { cpu: 100m, memory: 32Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           volumeMounts:
             - { name: credential-source, mountPath: /source/credential, readOnly: true }
             - { name: policy-keys-source, mountPath: /source/policy, readOnly: true }
+            - { name: proxy-token-source, mountPath: /source/proxy, readOnly: true }
             - { name: config, mountPath: /config }
       containers:
         - name: runtime-gateway
@@ -90,6 +91,9 @@ spec:
             - { name: ZASP_GATEWAY_POLICY_CACHE_FILE, value: /var/lib/zasp/policy/cache.json }
             - { name: ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY, value: /var/lib/zasp/policy/evidence }
             - { name: ZASP_GATEWAY_EVIDENCE_MAX_BYTES, value: "8589934592" }
+            - { name: ZASP_GATEWAY_PROXY_UPSTREAM_URL, value: {{ required "runtimeGateway.proxyUpstreamURL is required" .Values.runtimeGateway.proxyUpstreamURL | quote }} }
+            - { name: ZASP_GATEWAY_PROXY_ALLOWED_CIDRS, value: {{ required "runtimeGateway.proxyAllowedCIDRs is required" (join "," .Values.runtimeGateway.proxyAllowedCIDRs) | quote }} }
+            - { name: ZASP_GATEWAY_PROXY_CLIENT_TOKEN_FILE, value: /var/run/secrets/zasp-config/proxy-token }
             - { name: ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE, value: closed }
             - { name: ZASP_GATEWAY_MAX_REQUEST_BYTES, value: "65536" }
             - { name: ZASP_GATEWAY_MAX_PENDING_EVENTS, value: "1024" }
@@ -104,6 +108,8 @@ spec:
           secret: { secretName: {{ required "runtimeGateway.credentialSecretName is required" .Values.runtimeGateway.credentialSecretName | quote }}, defaultMode: 288 }
         - name: policy-keys-source
           secret: { secretName: {{ required "runtimeGateway.policyKeysSecretName is required" .Values.runtimeGateway.policyKeysSecretName | quote }}, defaultMode: 288 }
+        - name: proxy-token-source
+          secret: { secretName: {{ required "runtimeGateway.proxyClientTokenSecretName is required" .Values.runtimeGateway.proxyClientTokenSecretName | quote }}, defaultMode: 288 }
         - name: config
           emptyDir: { sizeLimit: 1Mi }
         - name: policy-cache
@@ -246,6 +252,19 @@ spec:
   egress:
     - to:
       {{- range $cidr := required "network.controlPlaneCIDRs is required" .Values.network.controlPlaneCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: runtime-gateway-proxy-upstream, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: runtime-gateway } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := required "runtimeGateway.proxyAllowedCIDRs is required" .Values.runtimeGateway.proxyAllowedCIDRs }}
         - ipBlock: { cidr: {{ $cidr | quote }} }
       {{- end }}
       ports: [{ protocol: TCP, port: 443 }]

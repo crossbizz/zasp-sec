@@ -6,6 +6,10 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"errors"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,10 +40,15 @@ func TestBuildProductionGatewayDependenciesUsesExactHTTPSAuthorityAndClosesOnce(
 	if _, err := loadGatewayPolicyKeys(policyKeyPath); err != nil {
 		t.Fatalf("policy key fixture: %v", err)
 	}
+	proxyTokenPath := filepath.Join(directory, "proxy-token")
+	if err := os.WriteFile(proxyTokenPath, []byte("0123456789abcdef0123456789abcdef"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	config := productionGatewayConfig{
 		ControlPlaneURL: "https://gateway-control.zasp.example",
 		OrganizationID:  gatewayRuntimeID(1), WorkspaceID: gatewayRuntimeID(2), EnvironmentID: gatewayRuntimeID(3), DeviceID: gatewayRuntimeID(4), CredentialID: credentialID,
 		PrivateKeyFile: credentialPath, PolicyKeysFile: policyKeyPath, PolicyCacheFile: filepath.Join(directory, "policy-cache.json"), EvidenceStoreDirectory: filepath.Join(directory, "evidence"), EvidenceMaximumBytes: 8 << 30, BootstrapFailureMode: "closed",
+		ProxyUpstreamURL: "https://tools.customer.example/v1/actions", ProxyAllowedCIDRs: []string{"203.0.113.0/24"}, ProxyClientTokenFile: proxyTokenPath,
 		MaximumRequestBytes: 16 * 1024, MaximumPendingEvents: 16, OperationTimeout: time.Second, SyncInterval: time.Second, ShutdownTimeout: time.Second,
 	}
 	client := &gatewayHTTPClientStub{authority: gatewaycontrol.Authority{
@@ -66,6 +75,14 @@ func TestBuildProductionGatewayDependenciesUsesExactHTTPSAuthorityAndClosesOnce(
 	if !bytes.Equal(captured.PrivateKey, gatewayPrivateKeyFixture()) {
 		t.Fatal("factory did not receive an isolated private-key copy")
 	}
+	request := httptest.NewRequest(http.MethodPost, gatewayHTTPProxyPath, strings.NewReader(`{"operation":"read"}`))
+	setGatewayProxyHeaders(request, gatewayRuntimeID(9))
+	request.Header.Set("X-Zasp-Gateway-Token", "0123456789abcdef0123456789abcdef")
+	response := httptest.NewRecorder()
+	dependencies.Handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || !strings.Contains(response.Body.String(), `"code":"policy_blocked"`) {
+		t.Fatalf("proxy status=%d body=%s", response.Code, response.Body.String())
+	}
 	if dependencies.Close() != nil || dependencies.Close() != nil || client.closeCalls != 1 {
 		t.Fatalf("close calls=%d", client.closeCalls)
 	}
@@ -82,6 +99,87 @@ func TestGatewayHTTPControlPreservesOnlyExactExpiredRecordOutcome(t *testing.T) 
 	if err := control.Record(context.Background(), event); !errors.Is(err, errGatewayRuntime) || errors.Is(err, errGatewayRecordExpired) {
 		t.Fatalf("ambiguous record=%v", err)
 	}
+}
+
+func TestProductionGatewayProxyPinsEveryAllowedAnswerAndClearsLocalToken(t *testing.T) {
+	directory := t.TempDir()
+	token := []byte("0123456789abcdef0123456789abcdef")
+	tokenPath := filepath.Join(directory, "proxy-token")
+	if err := os.WriteFile(tokenPath, token, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	config := productionGatewayConfig{
+		ProxyUpstreamURL: "https://tools.customer.example/v1/actions", ProxyAllowedCIDRs: []string{"203.0.113.0/24"}, ProxyClientTokenFile: tokenPath,
+		MaximumRequestBytes: 16 * 1024, OperationTimeout: time.Second,
+	}
+	resolver := gatewayProxyResolverStub{addresses: []net.IPAddr{{IP: net.ParseIP("203.0.113.12")}, {IP: net.ParseIP("203.0.113.11")}}}
+	upstream := &gatewayProxyRoundTripper{response: &http.Response{StatusCode: http.StatusAccepted, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"accepted":true}`))}}
+	var pinnedHost, pinnedIP string
+	handler, err := newProductionGatewayProxy(gatewayProxyRuntime(t, "http_request", policy.ActionMonitor, policy.Condition{Field: "http.method", Operator: "equals", Value: http.MethodPost}), config, resolver, func(host, ip string, timeout time.Duration) http.RoundTripper {
+		pinnedHost, pinnedIP = host, ip
+		if timeout != time.Second {
+			t.Fatalf("timeout=%s", timeout)
+		}
+		return upstream
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, gatewayHTTPProxyPath, strings.NewReader(`{"operation":"read"}`))
+	setGatewayProxyHeaders(request, gatewayRuntimeID(9))
+	request.Header.Set("X-Zasp-Gateway-Token", string(token))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted || pinnedHost != "tools.customer.example" || pinnedIP != "203.0.113.11" || upstream.calls != 1 {
+		t.Fatalf("status=%d host=%q ip=%q calls=%d body=%s", response.Code, pinnedHost, pinnedIP, upstream.calls, response.Body.String())
+	}
+	if handler.Close() != nil || handler.Close() != nil || len(handler.clientToken) != 0 {
+		t.Fatalf("token retained: %q", handler.clientToken)
+	}
+}
+
+func TestProductionGatewayProxyRejectsForeignDNSAndMutableTokenBeforeNetwork(t *testing.T) {
+	directory := t.TempDir()
+	tokenPath := filepath.Join(directory, "proxy-token")
+	if err := os.WriteFile(tokenPath, []byte("0123456789abcdef0123456789abcdef"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	config := productionGatewayConfig{
+		ProxyUpstreamURL: "https://tools.customer.example/v1/actions", ProxyAllowedCIDRs: []string{"203.0.113.0/24"}, ProxyClientTokenFile: tokenPath,
+		MaximumRequestBytes: 16 * 1024, OperationTimeout: time.Second,
+	}
+	factoryCalls := 0
+	handler, err := newProductionGatewayProxy(gatewayProxyRuntime(t, "http_request", policy.ActionMonitor, policy.Condition{Field: "http.method", Operator: "equals", Value: http.MethodPost}), config, gatewayProxyResolverStub{addresses: []net.IPAddr{{IP: net.ParseIP("203.0.114.1")}}}, func(string, string, time.Duration) http.RoundTripper {
+		factoryCalls++
+		return &gatewayProxyRoundTripper{}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, gatewayHTTPProxyPath, strings.NewReader(`{"operation":"read"}`))
+	setGatewayProxyHeaders(request, gatewayRuntimeID(8))
+	request.Header.Set("X-Zasp-Gateway-Token", "0123456789abcdef0123456789abcdef")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusServiceUnavailable || factoryCalls != 0 {
+		t.Fatalf("status=%d factory_calls=%d body=%s", response.Code, factoryCalls, response.Body.String())
+	}
+	_ = handler.Close()
+	if err := os.Chmod(tokenPath, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if candidate, err := newProductionGatewayProxy(gatewayProxyRuntime(t, "http_request", policy.ActionMonitor, policy.Condition{Field: "http.method", Operator: "equals", Value: http.MethodPost}), config, gatewayProxyResolverStub{}, func(string, string, time.Duration) http.RoundTripper { return &gatewayProxyRoundTripper{} }); err == nil || candidate != nil {
+		t.Fatalf("candidate=%#v err=%v", candidate, err)
+	}
+}
+
+type gatewayProxyResolverStub struct {
+	addresses []net.IPAddr
+	err       error
+}
+
+func (resolver gatewayProxyResolverStub) LookupIPAddr(context.Context, string) ([]net.IPAddr, error) {
+	return append([]net.IPAddr(nil), resolver.addresses...), resolver.err
 }
 
 type gatewayHTTPClientStub struct {

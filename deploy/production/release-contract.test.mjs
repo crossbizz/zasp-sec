@@ -59,6 +59,9 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
     ZASP_GATEWAY_POLICY_CACHE_FILE: "/var/lib/zasp/policy/cache.json",
     ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY: "/var/lib/zasp/policy/evidence",
     ZASP_GATEWAY_EVIDENCE_MAX_BYTES: "8589934592",
+    ZASP_GATEWAY_PROXY_UPSTREAM_URL: edgeRelease.proxyUpstreamURL,
+    ZASP_GATEWAY_PROXY_ALLOWED_CIDRS: edgeRelease.proxyAllowedCIDRs.join(","),
+    ZASP_GATEWAY_PROXY_CLIENT_TOKEN_FILE: "/var/run/secrets/zasp-config/proxy-token",
     ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE: "closed", ZASP_GATEWAY_MAX_REQUEST_BYTES: "65536",
     ZASP_GATEWAY_MAX_PENDING_EVENTS: "1024", ZASP_GATEWAY_OPERATION_TIMEOUT: "10s",
     ZASP_GATEWAY_SYNC_INTERVAL: "30s", ZASP_GATEWAY_SHUTDOWN_TIMEOUT: "15s",
@@ -66,8 +69,10 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   assert.doesNotMatch(JSON.stringify(deployment), /ZASP_(?:POSTGRES|DATABASE)|postgres|DATABASE_URL/);
   assert.deepEqual(pod.volumes.find(({ name }) => name === "credential-source").secret, { defaultMode: 288, secretName: edgeRelease.credentialSecretName });
   assert.deepEqual(pod.volumes.find(({ name }) => name === "policy-keys-source").secret, { defaultMode: 288, secretName: edgeRelease.policyKeysSecretName });
+  assert.deepEqual(pod.volumes.find(({ name }) => name === "proxy-token-source").secret, { defaultMode: 288, secretName: edgeRelease.proxyClientTokenSecretName });
   assert.match(pod.initContainers[0].args[0], /cp \/source\/credential\/credential\.json \/config\/credential\.json/);
   assert.match(pod.initContainers[0].args[0], /chmod 600 \/config\/credential\.json \/config\/policy-keys\.json/);
+  assert.match(pod.initContainers[0].args[0], /cp \/source\/proxy\/token \/config\/proxy-token/);
   assert.equal(container.volumeMounts.some(({ name }) => name === "credential-source" || name === "policy-keys-source"), false);
   assert.equal(pod.volumes.find(({ name }) => name === "policy-cache").persistentVolumeClaim.claimName, "runtime-gateway-cache");
   const claim = one(resources, "PersistentVolumeClaim", "runtime-gateway-cache");
@@ -77,6 +82,8 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   assert.equal(resources.some(({ kind }) => kind === "PodDisruptionBudget"), false);
   const egress = one(resources, "NetworkPolicy", "runtime-gateway-control-plane");
   assert.deepEqual(egress.spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)), edgeRelease.controlPlaneCIDRs);
+  const proxyEgress = one(resources, "NetworkPolicy", "runtime-gateway-proxy-upstream");
+  assert.deepEqual(proxyEgress.spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)), edgeRelease.proxyAllowedCIDRs);
   const monitoring = one(resources, "NetworkPolicy", "runtime-gateway-monitoring");
   assert.deepEqual(monitoring.spec.ingress[0].ports, [{ protocol: "TCP", port: 8081 }]);
   assert.equal(one(resources, "ServiceMonitor", "runtime-gateway").spec.endpoints[0].path, "/metrics");

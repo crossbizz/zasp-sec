@@ -354,10 +354,13 @@ export async function renderCustomerEdgeRelease(value) {
     ["runtimeGateway.credentialID", value.credentialID],
     ["runtimeGateway.credentialSecretName", value.credentialSecretName],
     ["runtimeGateway.policyKeysSecretName", value.policyKeysSecretName],
+    ["runtimeGateway.proxyClientTokenSecretName", value.proxyClientTokenSecretName],
+    ["runtimeGateway.proxyUpstreamURL", value.proxyUpstreamURL],
     ["runtimeGateway.policyCache.storageClassName", value.storageClassName],
     ["sensorAgent.tokenSecretName", value.sensorTokenSecretName],
     ["sensorAgent.stateHostPath", value.stateHostPath],
     ...value.controlPlaneCIDRs.map((cidr, index) => [`network.controlPlaneCIDRs[${index}]`, cidr]),
+    ...value.proxyAllowedCIDRs.map((cidr, index) => [`runtimeGateway.proxyAllowedCIDRs[${index}]`, cidr]),
     ...value.kubernetesAPICIDRs.map((cidr, index) => [`network.kubernetesAPICIDRs[${index}]`, cidr]),
     ...value.nodeCIDRs.map((cidr, index) => [`network.nodeCIDRs[${index}]`, cidr]),
   ];
@@ -396,12 +399,15 @@ export async function renderCustomerEdgeRelease(value) {
 }
 
 function validCustomerEdgeRelease(value) {
-  const keys = ["controlPlaneURL", "image", "sensorImage", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "sensorTokenSecretName", "storageClassName", "controlPlaneCIDRs", "kubernetesAPICIDRs", "nodeCIDRs", "stateHostPath"];
+  const keys = ["controlPlaneURL", "image", "sensorImage", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "proxyClientTokenSecretName", "proxyUpstreamURL", "sensorTokenSecretName", "storageClassName", "controlPlaneCIDRs", "proxyAllowedCIDRs", "kubernetesAPICIDRs", "nodeCIDRs", "stateHostPath"];
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== keys.sort().join("\0") || !digestPattern.test(value.image) || !digestPattern.test(value.sensorImage) || value.image === value.sensorImage) return false;
   if (!/^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value.controlPlaneURL)) return false;
   if (![value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID].every((identifier) => productIDPattern.test(identifier)) || new Set([value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID]).size !== 5) return false;
-  const secretNames = [value.credentialSecretName, value.policyKeysSecretName, value.sensorTokenSecretName];
-  return secretNames.every((name) => namePattern.test(name)) && new Set(secretNames).size === secretNames.length && namePattern.test(value.storageClassName) && value.stateHostPath === "/var/lib/zasp-sensor" && validCIDRList(value.controlPlaneCIDRs) && validCIDRList(value.kubernetesAPICIDRs) && validCIDRList(value.nodeCIDRs);
+  let proxy;
+  try { proxy = new URL(value.proxyUpstreamURL); } catch { return false; }
+  if (proxy.href !== value.proxyUpstreamURL || proxy.protocol !== "https:" || !hostPattern.test(proxy.hostname) || proxy.username !== "" || proxy.password !== "" || proxy.port !== "" || proxy.pathname === "/" || proxy.search !== "" || proxy.hash !== "") return false;
+  const secretNames = [value.credentialSecretName, value.policyKeysSecretName, value.proxyClientTokenSecretName, value.sensorTokenSecretName];
+  return secretNames.every((name) => namePattern.test(name)) && new Set(secretNames).size === secretNames.length && namePattern.test(value.storageClassName) && value.stateHostPath === "/var/lib/zasp-sensor" && validCIDRList(value.controlPlaneCIDRs) && validGatewayProxyCIDRList(value.proxyAllowedCIDRs) && validCIDRList(value.kubernetesAPICIDRs) && validCIDRList(value.nodeCIDRs);
 }
 
 function validRelease(value) {
@@ -619,6 +625,14 @@ function validCABundle(value) {
 function validCIDRList(value) {
   if (!Array.isArray(value) || value.length < 1 || value.length > 16 || new Set(value).size !== value.length) return false;
   return value.every((cidr) => cidrRange(cidr) !== undefined);
+}
+
+function validGatewayProxyCIDRList(value) {
+  if (!validCIDRList(value) || hasCIDROverlap(value)) return false;
+  return value.every((cidr) => {
+    const { first, second, prefix } = cidrRange(cidr);
+    return prefix >= 16 && first !== 0 && first !== 127 && first < 224 && !(first === 169 && second === 254);
+  });
 }
 
 function validPrivateCIDRList(value) {

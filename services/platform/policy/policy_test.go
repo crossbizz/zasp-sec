@@ -213,7 +213,7 @@ func TestPolicyAdministrationRuntimeAndGate(t *testing.T) {
 	}
 
 	parsed, err := ParseMCPAction([]byte(`{"jsonrpc":"2.0","id":"request-1","method":"tools/call","params":{"name":"shell","arguments":{"resource":"repo"}}}`), "principal-1", "agent-1", "session-1", "environment-1")
-	if err != nil || parsed.Action != "tools/call" || parsed.Resource != "repo" {
+	if err != nil || parsed.Action != "shell" || parsed.Resource != "repo" {
 		t.Fatalf("parsed=%+v err=%v", parsed, err)
 	}
 	decisions := NewDecisionStore()
@@ -238,6 +238,59 @@ func TestPolicyAdministrationRuntimeAndGate(t *testing.T) {
 	report, err := EvaluateM6Gate(M6GateFixture{Created: true, Simulated: true, Monitored: true, Enforced: true, Retested: true, OutageEnforced: true})
 	if err != nil || report.Status != "PASS" || report.Checks != 6 {
 		t.Fatalf("report=%+v err=%v", report, err)
+	}
+}
+
+func TestCompileGatewayPolicyMapsOnlyRuntimeEnforcementVocabulary(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		value       Policy
+		wantActive  bool
+		wantTrigger string
+		wantAction  Action
+		wantError   bool
+	}{
+		{
+			name:       "tool monitor",
+			value:      Policy{ID: "policy-shell", Name: "Shell", Scope: "environment", Trigger: "tool", Conditions: []Condition{{Field: "action", Operator: "equals", Value: "shell"}}, Action: ActionBlock, Rollout: "monitor", FailureMode: "closed"},
+			wantActive: true, wantTrigger: "tool_call", wantAction: ActionMonitor,
+		},
+		{
+			name:       "runtime enforced",
+			value:      Policy{ID: "policy-write", Name: "Write", Scope: "environment", Trigger: "runtime", Conditions: []Condition{{Field: "resource", Operator: "equals", Value: "repository"}}, Action: ActionBlock, Rollout: "enforced", FailureMode: "closed"},
+			wantActive: true, wantTrigger: "http_request", wantAction: ActionBlock,
+		},
+		{
+			name:  "disabled",
+			value: Policy{ID: "policy-disabled", Name: "Disabled", Scope: "environment", Trigger: "tool", Conditions: []Condition{{Field: "action", Operator: "equals", Value: "shell"}}, Action: ActionBlock, Rollout: "disabled", FailureMode: "closed"},
+		},
+		{
+			name:  "unsupported enforcement plane",
+			value: Policy{ID: "policy-file", Name: "File", Scope: "environment", Trigger: "file", Conditions: []Condition{{Field: "resource", Operator: "equals", Value: "/tmp/test"}}, Action: ActionBlock, Rollout: "enforced", FailureMode: "closed"},
+		},
+		{
+			name:      "unsupported field",
+			value:     Policy{ID: "policy-field", Name: "Field", Scope: "environment", Trigger: "tool", Conditions: []Condition{{Field: "tool.name", Operator: "equals", Value: "shell"}}, Action: ActionBlock, Rollout: "enforced", FailureMode: "closed"},
+			wantError: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			compiled, active, err := CompileGatewayPolicy(test.value)
+			if test.wantError {
+				if !errors.Is(err, ErrRejected) || active || compiled.ID != "" || len(compiled.Conditions) != 0 {
+					t.Fatalf("compiled=%+v active=%t err=%v", compiled, active, err)
+				}
+				return
+			}
+			if err != nil || active != test.wantActive || compiled.Trigger != test.wantTrigger || compiled.Action != test.wantAction {
+				t.Fatalf("compiled=%+v active=%t err=%v", compiled, active, err)
+			}
+		})
 	}
 }
 

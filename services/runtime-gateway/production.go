@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
@@ -36,6 +37,9 @@ type productionGatewayConfig struct {
 	PolicyCacheFile        string
 	EvidenceStoreDirectory string
 	EvidenceMaximumBytes   uint64
+	ProxyUpstreamURL       string
+	ProxyAllowedCIDRs      []string
+	ProxyClientTokenFile   string
 	BootstrapFailureMode   string
 	MaximumRequestBytes    int64
 	MaximumPendingEvents   int
@@ -66,6 +70,9 @@ func loadProductionGatewayConfig(getenv func(string) string) (productionGatewayC
 		PolicyCacheFile:        getenv("ZASP_GATEWAY_POLICY_CACHE_FILE"),
 		EvidenceStoreDirectory: getenv("ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY"),
 		EvidenceMaximumBytes:   evidenceMaximumBytes,
+		ProxyUpstreamURL:       getenv("ZASP_GATEWAY_PROXY_UPSTREAM_URL"),
+		ProxyAllowedCIDRs:      strings.Split(getenv("ZASP_GATEWAY_PROXY_ALLOWED_CIDRS"), ","),
+		ProxyClientTokenFile:   getenv("ZASP_GATEWAY_PROXY_CLIENT_TOKEN_FILE"),
 		BootstrapFailureMode:   getenv("ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE"),
 		MaximumRequestBytes:    maximumRequestBytes,
 		MaximumPendingEvents:   maximumPendingEvents,
@@ -85,7 +92,7 @@ func validProductionGatewayConfig(config productionGatewayConfig) bool {
 		return false
 	}
 	return validGatewayProductID(config.OrganizationID) && validGatewayProductID(config.WorkspaceID) && validGatewayProductID(config.EnvironmentID) &&
-		validGatewayProductID(config.DeviceID) && validGatewayProductID(config.CredentialID) && validGatewayPath(config.PrivateKeyFile, false) && validGatewayPath(config.PolicyKeysFile, false) && validGatewayPath(config.PolicyCacheFile, true) && validGatewayDirectoryPath(config.EvidenceStoreDirectory) && config.EvidenceStoreDirectory != config.PolicyCacheFile && config.EvidenceMaximumBytes >= 1024*1024 && config.EvidenceMaximumBytes <= 64<<30 &&
+		validGatewayProductID(config.DeviceID) && validGatewayProductID(config.CredentialID) && validGatewayPath(config.PrivateKeyFile, false) && validGatewayPath(config.PolicyKeysFile, false) && validGatewayPath(config.PolicyCacheFile, true) && validGatewayDirectoryPath(config.EvidenceStoreDirectory) && config.EvidenceStoreDirectory != config.PolicyCacheFile && config.EvidenceMaximumBytes >= 1024*1024 && config.EvidenceMaximumBytes <= 64<<30 && validGatewayProxyAuthority(config.ProxyUpstreamURL, config.ProxyAllowedCIDRs) && validGatewayPath(config.ProxyClientTokenFile, false) &&
 		(config.BootstrapFailureMode == "open" || config.BootstrapFailureMode == "closed") &&
 		config.MaximumRequestBytes >= 1024 && config.MaximumRequestBytes <= 64*1024 && config.MaximumPendingEvents >= 1 && config.MaximumPendingEvents <= 1024 &&
 		config.OperationTimeout >= time.Second && config.OperationTimeout <= 30*time.Second && config.SyncInterval >= time.Second && config.SyncInterval <= 5*time.Minute &&

@@ -24,6 +24,9 @@ func TestLoadProductionGatewayConfigRequiresExactAuthority(t *testing.T) {
 		"ZASP_GATEWAY_POLICY_CACHE_FILE":        filepath.Join(directory, "cache.json"),
 		"ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY": filepath.Join(directory, "evidence"),
 		"ZASP_GATEWAY_EVIDENCE_MAX_BYTES":       "8589934592",
+		"ZASP_GATEWAY_PROXY_UPSTREAM_URL":       "https://tools.customer.example/v1/actions",
+		"ZASP_GATEWAY_PROXY_ALLOWED_CIDRS":      "203.0.113.0/24",
+		"ZASP_GATEWAY_PROXY_CLIENT_TOKEN_FILE":  filepath.Join(directory, "proxy-token"),
 		"ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE":   "closed",
 		"ZASP_GATEWAY_MAX_REQUEST_BYTES":        "16384",
 		"ZASP_GATEWAY_MAX_PENDING_EVENTS":       "256",
@@ -32,7 +35,7 @@ func TestLoadProductionGatewayConfigRequiresExactAuthority(t *testing.T) {
 		"ZASP_GATEWAY_SHUTDOWN_TIMEOUT":         "10s",
 	}
 	config, err := loadProductionGatewayConfig(func(key string) string { return values[key] })
-	if err != nil || config.ControlPlaneURL != "https://gateway-control.zasp.example" || config.MaximumRequestBytes != 16*1024 || config.MaximumPendingEvents != 256 || config.EvidenceMaximumBytes != 8<<30 || config.EvidenceStoreDirectory != filepath.Join(directory, "evidence") || config.SyncInterval != 30*time.Second {
+	if err != nil || config.ControlPlaneURL != "https://gateway-control.zasp.example" || config.ProxyUpstreamURL != "https://tools.customer.example/v1/actions" || len(config.ProxyAllowedCIDRs) != 1 || config.ProxyAllowedCIDRs[0] != "203.0.113.0/24" || config.ProxyClientTokenFile != filepath.Join(directory, "proxy-token") || config.MaximumRequestBytes != 16*1024 || config.MaximumPendingEvents != 256 || config.EvidenceMaximumBytes != 8<<30 || config.EvidenceStoreDirectory != filepath.Join(directory, "evidence") || config.SyncInterval != 30*time.Second {
 		t.Fatalf("config=%#v err=%v", config, err)
 	}
 	for key, replacement := range map[string]string{
@@ -43,6 +46,9 @@ func TestLoadProductionGatewayConfigRequiresExactAuthority(t *testing.T) {
 		"ZASP_GATEWAY_POLICY_CACHE_FILE":        directory,
 		"ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY": "evidence",
 		"ZASP_GATEWAY_EVIDENCE_MAX_BYTES":       "1048575",
+		"ZASP_GATEWAY_PROXY_UPSTREAM_URL":       "http://tools.customer.example/v1/actions",
+		"ZASP_GATEWAY_PROXY_ALLOWED_CIDRS":      "0.0.0.0/0",
+		"ZASP_GATEWAY_PROXY_CLIENT_TOKEN_FILE":  "proxy-token",
 		"ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE":   "fallback",
 		"ZASP_GATEWAY_MAX_REQUEST_BYTES":        "999999",
 		"ZASP_GATEWAY_MAX_PENDING_EVENTS":       "0",

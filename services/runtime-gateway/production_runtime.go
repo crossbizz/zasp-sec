@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -198,14 +199,25 @@ func buildProductionGatewayDependenciesWithFactory(ctx context.Context, config p
 	// A cold control plane must not prevent deterministic local failure-mode
 	// enforcement. A successful refresh is required only to emit durable events.
 	_ = runtime.SyncOnce(ctx)
-	handler, err := newGatewayHandler(runtime, config.MaximumRequestBytes)
+	proxy, err := newProductionGatewayProxy(runtime, config, net.DefaultResolver, productionGatewayProxyTransport)
 	if err != nil {
 		return failEvidence()
+	}
+	failProxy := func() (productionGatewayDependencies, error) {
+		_ = proxy.Close()
+		return failEvidence()
+	}
+	handler, err := newGatewayHandler(runtime, config.MaximumRequestBytes, proxy)
+	if err != nil {
+		return failProxy()
 	}
 	var closeOnce sync.Once
 	var closeErr error
 	closeDependencies := func() error {
 		closeOnce.Do(func() {
+			if err := proxy.Close(); err != nil {
+				closeErr = errRuntimeUnavailable
+			}
 			if err := evidence.Close(); err != nil {
 				closeErr = errRuntimeUnavailable
 			}
@@ -219,8 +231,13 @@ func buildProductionGatewayDependenciesWithFactory(ctx context.Context, config p
 		return closeErr
 	}
 	return productionGatewayDependencies{
-		Handler:               handler,
-		Ready:                 runtime.Ready,
+		Handler: handler,
+		Ready: func(readyCtx context.Context) error {
+			if runtime.Ready(readyCtx) != nil || proxy.Ready(readyCtx) != nil {
+				return errGatewayRuntime
+			}
+			return nil
+		},
 		Metrics:               runtime.Metrics,
 		AcknowledgeQuarantine: runtime.AcknowledgeQuarantine,
 		Run: func(runCtx context.Context) error {
