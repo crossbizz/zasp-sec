@@ -11,6 +11,17 @@ import (
 	"time"
 )
 
+func TestPostgresProductionPipelineRepositoryUsesExactV27RecoveryReadiness(t *testing.T) {
+	database := &productionIngestDatabaseStub{responses: []json.RawMessage{json.RawMessage(`{"ready":true}`)}}
+	repository, err := NewPostgresProductionPipelineRepository(database, ProductionPipelineAuthorityCoordinator)
+	if err != nil || repository.Ready(context.Background()) != nil {
+		t.Fatalf("repository=%v err=%v", repository, err)
+	}
+	if database.calls != 1 || database.statements[0] != productionPipelineReadyV27SQL {
+		t.Fatalf("statements=%#v", database.statements)
+	}
+}
+
 func TestPostgresProductionPipelineRepositoryBindsDeliveryLifecycle(t *testing.T) {
 	scope := fixtureScope(t, 120)
 	batchID := fixtureID(t, 123)

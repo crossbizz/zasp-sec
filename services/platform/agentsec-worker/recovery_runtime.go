@@ -27,6 +27,7 @@ type recoveryOperationClaim struct {
 	TargetEnvironment string
 	Manifest          *apiserver.RecoveryManifestLocator
 	CreatedAt         time.Time
+	CleanupOnly       bool
 }
 
 type recoveryDeliveryClaim struct {
@@ -258,9 +259,13 @@ func (processor *recoveryBackupProcessor) captureSection(ctx context.Context, le
 	items := make([]json.RawMessage, 0)
 	totalBytes := 0
 	seen := make(map[string]struct{})
+	limit := processor.config.PageSize
+	if section == "counts" {
+		limit = 1
+	}
 	for pageIndex := 0; pageIndex < recoveryMaximumCapturedPages; pageIndex++ {
-		page, err := processor.config.Authority.CapturePage(ctx, lease, section, after, processor.config.PageSize)
-		if err != nil || page.Section != section || len(page.Items) > processor.config.PageSize || section == "counts" && (pageIndex != 0 || page.NextCursor != nil || len(page.Items) != 1) {
+		page, err := processor.config.Authority.CapturePage(ctx, lease, section, after, limit)
+		if err != nil || page.Section != section || len(page.Items) > limit || section == "counts" && (pageIndex != 0 || page.NextCursor != nil || len(page.Items) != 1) {
 			return nil, errWorkerExecution
 		}
 		for _, item := range page.Items {
@@ -358,9 +363,9 @@ func validRecoveryOperationClaim(claim recoveryOperationClaim) bool {
 		return false
 	}
 	if claim.Kind == "backup" {
-		return claim.RetentionDays >= 7 && claim.RetentionDays <= 90 && claim.TargetEnvironment == "" && claim.Manifest == nil
+		return claim.RetentionDays >= 7 && claim.RetentionDays <= 90 && claim.TargetEnvironment == "" && claim.Manifest == nil && !claim.CleanupOnly
 	}
-	return claim.Kind == "restore" && claim.RetentionDays == 0 && validRecoveryTargetEnvironment(claim.TargetEnvironment, claim.Scope) && claim.Manifest != nil && validPublishedRecoveryManifest(*claim.Manifest, claim.Scope)
+	return claim.Kind == "restore" && claim.RetentionDays == 0 && validRecoveryTargetEnvironment(claim.TargetEnvironment, claim.Scope) && claim.Manifest != nil && validPublishedRecoveryManifest(*claim.Manifest, claim.Scope) && (!claim.CleanupOnly || claim.Attempt == 100)
 }
 
 func validRecoveryDelivery(delivery jobqueue.Delivery, kind string) bool {

@@ -115,6 +115,19 @@ func TestAttackLabExecutionRepositoryBindsOutboxControllerAndProxyAuthority(t *t
 	}
 }
 
+func TestAttackLabExecutionRepositoryUsesExactV27RecoveryReadiness(t *testing.T) {
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{
+		postgresProductionRecoveryReadinessSQL: json.RawMessage(`true`),
+		postgresAttackLabPrincipalReadySQL:     json.RawMessage(`true`),
+	}}
+	if _, err := NewAttackLabExecutionRepository(database, AttackLabExecutionAuthorityController); err != nil {
+		t.Fatal(err)
+	}
+	if calls := database.callsFor(postgresProductionRecoveryReadinessSQL); len(calls) != 1 {
+		t.Fatalf("v27 readiness calls=%#v", calls)
+	}
+}
+
 func TestAttackLabExecutionRepositoryRejectsIncompleteEvidenceBeforeDatabaseIO(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{postgresAttackLabExecutionReadinessSQL: json.RawMessage(`true`), postgresAttackLabPrincipalReadySQL: json.RawMessage(`true`)}}

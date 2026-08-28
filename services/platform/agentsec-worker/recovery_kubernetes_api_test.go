@@ -50,8 +50,8 @@ func (fake *recoveryKubernetesTransportFake) Request(_ context.Context, method, 
 	fake.mu.Lock()
 	defer fake.mu.Unlock()
 	fake.calls = append(fake.calls, recoveryKubernetesTransportCall{Method: method, Path: path, Body: append([]byte(nil), body...)})
-	namespace := "zasp-recovery-71000004000040008000000000000004"
-	labels := `"app.kubernetes.io/managed-by":"agentsec-recovery","zasp.io/recovery-id":"pid_71000004-0000-4000-8000-000000000004","zasp.io/recovery-scope":"aaaaaaaaaaaaaaaa"`
+	namespace := "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a"
+	labels := `"app.kubernetes.io/managed-by":"agentsec-recovery","zasp.io/recovery-id":"pid_71000004-0000-4000-8000-000000000004","zasp.io/recovery-scope":"2ab417588f8aeb63"`
 	switch {
 	case method == http.MethodGet && path == "/version":
 		return []byte(`{"major":"1","minor":"34","gitVersion":"v1.34.1"}`), http.StatusOK, nil
@@ -83,7 +83,7 @@ func (fake *recoveryKubernetesTransportFake) Request(_ context.Context, method, 
 		}
 		decodedQuery, _ := url.QueryUnescape(strings.SplitN(path, "?", 2)[1])
 		jobName := strings.TrimPrefix(decodedQuery, "labelSelector=job-name=")
-		return []byte(`{"apiVersion":"v1","kind":"PodList","metadata":{"continue":""},"items":[{"apiVersion":"v1","kind":"Pod","metadata":{"name":"result","namespace":"` + namespace + `","uid":"51111111-2222-4333-8444-555555555555","labels":{"app.kubernetes.io/managed-by":"agentsec-recovery","job-name":` + fmt.Sprintf("%q", jobName) + `,"zasp.io/recovery-id":"pid_71000004-0000-4000-8000-000000000004","zasp.io/recovery-scope":"aaaaaaaaaaaaaaaa"}},"status":{"phase":"Succeeded","containerStatuses":[{"name":"runner","ready":false,"restartCount":0,"state":{"terminated":{"exitCode":0,"reason":"Completed","message":` + fmt.Sprintf("%q", message) + `}}}]}}]}`), http.StatusOK, nil
+		return []byte(`{"apiVersion":"v1","kind":"PodList","metadata":{"continue":""},"items":[{"apiVersion":"v1","kind":"Pod","metadata":{"name":"result","namespace":"` + namespace + `","uid":"51111111-2222-4333-8444-555555555555","labels":{"app.kubernetes.io/managed-by":"agentsec-recovery","job-name":` + fmt.Sprintf("%q", jobName) + `,"zasp.io/recovery-id":"pid_71000004-0000-4000-8000-000000000004","zasp.io/recovery-scope":"2ab417588f8aeb63"}},"status":{"phase":"Succeeded","containerStatuses":[{"name":"runner","ready":false,"restartCount":0,"state":{"terminated":{"exitCode":0,"reason":"Completed","message":` + fmt.Sprintf("%q", message) + `}}}]}}]}`), http.StatusOK, nil
 	case method == http.MethodGet && path == "/api/v1/namespaces/"+namespace:
 		if fake.deleted {
 			return []byte(`{"kind":"Status","status":"Failure","reason":"NotFound"}`), http.StatusNotFound, nil
@@ -114,7 +114,7 @@ func TestRecoveryKubernetesAPIProvisionsValidatesRebuildsAndUIDCleans(t *testing
 	}
 	branch := recoveryNeonBranch("ep-recovery.us-west-2.aws.neon.tech", manifest)
 	evidenceDigest := sha256.Sum256([]byte("[]"))
-	plan := newRecoveryKubernetesPlan(recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: evidenceDigest}, branch, "zasp-recovery-71000004000040008000000000000004", "aaaaaaaaaaaaaaaa")
+	plan := newRecoveryKubernetesPlan(recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: evidenceDigest}, branch, "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", "2ab417588f8aeb63")
 	uid, err := api.Provision(context.Background(), plan)
 	if err != nil || uid != "11111111-2222-4333-8444-555555555555" {
 		t.Fatalf("uid=%q err=%v", uid, err)
@@ -151,6 +151,30 @@ func TestRecoveryKubernetesAPIProvisionsValidatesRebuildsAndUIDCleans(t *testing
 	}
 }
 
+func TestRecoveryKubernetesAPIReturnsNoCleanupEvidenceWhenArtifactWriteFails(t *testing.T) {
+	scope := recoveryWorkerScope(t)
+	manifest := recoveryRestoreManifest(t, scope)
+	claim := recoveryRestoreClaim(scope)
+	store := &recoveryArtifactStoreFake{putErr: errors.New("artifact unavailable")}
+	transport := &recoveryKubernetesTransportFake{}
+	api, err := newRecoveryKubernetesAPI(recoveryKubernetesAPIConfig{
+		Transport: transport, Store: store, RunnerImage: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/agentsec-worker@sha256:" + strings.Repeat("a", 64), ServiceAccount: "agentsec-recovery-runner",
+		SourcePostgresDSN: "postgres://recovery:secret@ep-main.us-west-2.aws.neon.tech/zasp?sslmode=verify-full", NeonCIDRs: []string{"10.24.8.0/24"}, PollInterval: time.Millisecond, Resolve: func(context.Context, string) ([]net.IP, error) {
+			return []net.IP{net.ParseIP("10.24.8.8")}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	branch := recoveryNeonBranch("ep-recovery.us-west-2.aws.neon.tech", manifest)
+	evidenceDigest := sha256.Sum256([]byte("[]"))
+	plan := newRecoveryKubernetesPlan(recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: evidenceDigest}, branch, "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", "2ab417588f8aeb63")
+	cleanup, err := api.Cleanup(context.Background(), plan, "11111111-2222-4333-8444-555555555555")
+	if !errors.Is(err, errWorkerExecution) || cleanup != (apiserver.RecoveryCleanupEvidence{}) || len(store.puts) != 1 || !transport.deleted {
+		t.Fatalf("cleanup=%#v puts=%d deleted=%t err=%v", cleanup, len(store.puts), transport.deleted, err)
+	}
+}
+
 func TestRecoveryKubernetesAPIRejectsEveryBranchAddressOutsidePinnedNetworksBeforeSecretWrite(t *testing.T) {
 	scope := recoveryWorkerScope(t)
 	manifest := recoveryRestoreManifest(t, scope)
@@ -167,7 +191,7 @@ func TestRecoveryKubernetesAPIRejectsEveryBranchAddressOutsidePinnedNetworksBefo
 	}
 	branch := recoveryNeonBranch("ep-recovery.us-west-2.aws.neon.tech", manifest)
 	evidenceDigest := sha256.Sum256([]byte("[]"))
-	plan := newRecoveryKubernetesPlan(recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: evidenceDigest}, branch, "zasp-recovery-71000004000040008000000000000004", "aaaaaaaaaaaaaaaa")
+	plan := newRecoveryKubernetesPlan(recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: evidenceDigest}, branch, "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", "2ab417588f8aeb63")
 	uid, err := api.Provision(context.Background(), plan)
 	if !errors.Is(err, errWorkerExecution) || uid != "11111111-2222-4333-8444-555555555555" {
 		t.Fatalf("uid=%q err=%v", uid, err)
@@ -184,7 +208,7 @@ func TestRecoveryKubernetesAPIStopsBeforeNamespaceResourcesWhenDelegatedAuthorit
 	manifest := recoveryRestoreManifest(t, scope)
 	claim := recoveryRestoreClaim(scope)
 	base := &recoveryKubernetesTransportFake{}
-	namespace := "zasp-recovery-71000004000040008000000000000004"
+	namespace := "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a"
 	transport := recoveryKubernetesTransportFunc(func(ctx context.Context, method, path string, body []byte) ([]byte, int, error) {
 		if method == http.MethodPost && path == "/apis/authorization.k8s.io/v1/selfsubjectaccessreviews" {
 			var review struct {
@@ -215,7 +239,7 @@ func TestRecoveryKubernetesAPIStopsBeforeNamespaceResourcesWhenDelegatedAuthorit
 	}
 	branch := recoveryNeonBranch("ep-recovery.us-west-2.aws.neon.tech", manifest)
 	evidenceDigest := sha256.Sum256([]byte("[]"))
-	plan := newRecoveryKubernetesPlan(recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: evidenceDigest}, branch, namespace, "aaaaaaaaaaaaaaaa")
+	plan := newRecoveryKubernetesPlan(recoveryRestoreProvisionRequest{Scope: claim, TargetEnvironment: claim.TargetEnvironment, Manifest: manifest, EvidenceSampleDigest: evidenceDigest}, branch, namespace, "2ab417588f8aeb63")
 	uid, err := api.Provision(context.Background(), plan)
 	if !errors.Is(err, errWorkerExecution) || uid != "11111111-2222-4333-8444-555555555555" {
 		t.Fatalf("uid=%q err=%v", uid, err)
@@ -259,15 +283,15 @@ func TestRecoveryKubernetesHTTPTransportPinsTLSBearerOriginAndRejectsRedirect(t 
 }
 
 func TestRecoveryKubernetesAPIReconcilesUncertainCreateBeforeRetryingMutation(t *testing.T) {
-	labels := map[string]string{"app.kubernetes.io/managed-by": "agentsec-recovery", "zasp.io/recovery-id": "pid_71000004-0000-4000-8000-000000000004", "zasp.io/recovery-scope": "aaaaaaaaaaaaaaaa"}
-	manifest := map[string]any{"apiVersion": "v1", "kind": "Namespace", "metadata": map[string]any{"name": "zasp-recovery-71000004000040008000000000000004", "labels": labels}}
+	labels := map[string]string{"app.kubernetes.io/managed-by": "agentsec-recovery", "zasp.io/recovery-id": "pid_71000004-0000-4000-8000-000000000004", "zasp.io/recovery-scope": "2ab417588f8aeb63"}
+	manifest := map[string]any{"apiVersion": "v1", "kind": "Namespace", "metadata": map[string]any{"name": "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", "labels": labels}}
 	posts, gets := 0, 0
 	transport := recoveryKubernetesTransportFunc(func(_ context.Context, method, path string, body []byte) ([]byte, int, error) {
 		switch {
 		case method == http.MethodPost && path == "/api/v1/namespaces":
 			posts++
 			return []byte(`{"kind":"Status","status":"Failure","reason":"ServiceUnavailable"}`), http.StatusServiceUnavailable, nil
-		case method == http.MethodGet && path == "/api/v1/namespaces/zasp-recovery-71000004000040008000000000000004":
+		case method == http.MethodGet && path == "/api/v1/namespaces/zasp-recovery-2ab417588f8aeb633da32b8fe349c25a":
 			gets++
 			return recoveryKubernetesCreatedResponse(mustRecoveryJSON(t, manifest), "11111111-2222-4333-8444-555555555555"), http.StatusOK, nil
 		default:
@@ -275,7 +299,7 @@ func TestRecoveryKubernetesAPIReconcilesUncertainCreateBeforeRetryingMutation(t 
 		}
 	})
 	api := &productionRecoveryKubernetesAPI{config: recoveryKubernetesAPIConfig{Transport: transport}}
-	resource, err := api.createOrReconcile(context.Background(), "/api/v1/namespaces", "/api/v1/namespaces/zasp-recovery-71000004000040008000000000000004", manifest, "v1", "Namespace", "zasp-recovery-71000004000040008000000000000004", "", labels)
+	resource, err := api.createOrReconcile(context.Background(), "/api/v1/namespaces", "/api/v1/namespaces/zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", manifest, "v1", "Namespace", "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", "", labels)
 	if err != nil || resource.Metadata.UID != "11111111-2222-4333-8444-555555555555" || posts != 1 || gets != 1 {
 		t.Fatalf("resource=%#v posts=%d gets=%d err=%v", resource, posts, gets, err)
 	}
@@ -299,7 +323,7 @@ func recoveryKubernetesCallsContainSecretDSN(t *testing.T, calls []recoveryKuber
 
 func recoveryKubernetesCallsContainExactReviews(t *testing.T, calls []recoveryKubernetesTransportCall) bool {
 	t.Helper()
-	namespace := "zasp-recovery-71000004000040008000000000000004"
+	namespace := "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a"
 	want := map[string]bool{
 		"create\x1fnamespaces\x1f\x1f": false, "get\x1fnamespaces\x1f\x1f": false, "delete\x1fnamespaces\x1f\x1f": false,
 		"create\x1frolebindings\x1fzasp-recovery-authority-check\x1f": false, "get\x1frolebindings\x1fzasp-recovery-authority-check\x1f": false,
@@ -454,7 +478,7 @@ func mustRecoveryJSON(t *testing.T, value any) []byte {
 }
 
 func recoveryNeonBranch(host string, manifest recovery.Manifest) neondriver.Branch {
-	return neondriver.Branch{ID: "br-recovery-123456", ProjectID: manifest.NeonProjectID, ParentID: manifest.NeonBranchID, ParentLSN: manifest.PostgresLSN, Name: "zasp-recovery-71000004000040008000000000000004", Endpoints: []neondriver.Endpoint{{ID: "ep-recovery-123456", BranchID: "br-recovery-123456", Type: "read_write", Host: host}}}
+	return neondriver.Branch{ID: "br-recovery-123456", ProjectID: manifest.NeonProjectID, ParentID: manifest.NeonBranchID, ParentLSN: manifest.PostgresLSN, Name: "zasp-recovery-2ab417588f8aeb633da32b8fe349c25a", Endpoints: []neondriver.Endpoint{{ID: "ep-recovery-123456", BranchID: "br-recovery-123456", Type: "read_write", Host: host}}}
 }
 
 var _ artifactstore.ObjectReferencingArtifactStore = (*recoveryArtifactStoreFake)(nil)

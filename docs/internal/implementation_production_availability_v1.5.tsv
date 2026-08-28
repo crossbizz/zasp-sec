@@ -619,16 +619,16 @@ M8	M8-17e	Complete	component-only	T16-recovery-ops	audited component-only proof:
 M8	M8-17	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight AWS
 M8	M8-18	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight Neon/Stytch
 M8	M8-19	Complete	component-only	T16-recovery-ops	audited component-only proof: preflight sensor
-M8	M8-20a	Complete	component-only	T16-recovery-ops	audited component-only proof: backup manifest schema
-M8	M8-20b	Complete	component-only	T16-recovery-ops	audited component-only proof: backup metadata collection
-M8	M8-20c	Complete	component-only	T16-recovery-ops	audited component-only proof: backup graph and evidence refs
-M8	M8-20	Complete	component-only	T16-recovery-ops	audited component-only proof: backup plan
-M8	M8-21a	Complete	component-only	T16-recovery-ops	audited component-only proof: Restore manifest reader
-M8	M8-21b	Complete	component-only	T16-recovery-ops	audited component-only proof: Start restore rehearsal
-M8	M8-21c	Complete	component-only	T16-recovery-ops	audited component-only proof: Inspect restore completion
-M8	M8-21d	Complete	component-only	T16-recovery-ops	audited component-only proof: Validate restored state
-M8	M8-21e	Complete	component-only	T16-recovery-ops	audited component-only proof: Clean restore target
-M8	M8-21	Complete	component-only	T16-recovery-ops	audited component-only proof: restore rehearsal
+M8	M8-20a	Complete	production-available	T16-recovery-ops	v27 signed manifest schema is production-composed; combined E2E verifies scoped version-pinned artifacts and manifest-last publication
+M8	M8-20b	Complete	production-available	T16-recovery-ops	recovery backup worker captures tenant configuration and exact PostgreSQL LSN under a fenced hold in combined E2E
+M8	M8-20c	Complete	production-available	T16-recovery-ops	recovery backup worker captures version-pinned projection and evidence references with canonical UTC samples in combined E2E
+M8	M8-20	Complete	production-available	T16-recovery-ops	public recovery API, agentsecctl, outbox, queue, backup worker, signed artifacts, and browser recovery are production-composed and pass combined E2E
+M8	M8-21a	Complete	production-available	T16-recovery-ops	restore worker verifies the exact signed manifest and every pinned child artifact before use in combined E2E
+M8	M8-21b	Complete	production-available	T16-recovery-ops	restore worker starts only an isolated non-source Neon branch and namespace through bounded injected production drivers in combined E2E
+M8	M8-21c	Complete	production-available	T16-recovery-ops	public API, agentsecctl, and browser poll one durable restore through terminal state and reload in combined E2E
+M8	M8-21d	Complete	production-available	T16-recovery-ops	restore validation proves exact asset, finding, policy, and projection rebuild digests in combined E2E
+M8	M8-21e	Complete	production-available	T16-recovery-ops	restore cleanup runs under independent authority and retains deleted cleanup evidence in combined E2E
+M8	M8-21	Complete	production-available	T16-recovery-ops	full tenant-scoped backup and restore rehearsal passes API, CLI, outbox, queue, workers, artifacts, browser reload, cross-tenant denial, and cleanup E2E
 M8	M8-22a	Complete	component-only	T16-recovery-ops	audited component-only proof: upgrade version check
 M8	M8-22b	Complete	component-only	T16-recovery-ops	audited component-only proof: upgrade migration check
 M8	M8-22c	Complete	component-only	T16-recovery-ops	audited component-only proof: upgrade bundle check

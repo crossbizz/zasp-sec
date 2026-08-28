@@ -491,6 +491,7 @@ func TestProductionHandlersMountRecoveryOnlyAtExactV27Authority(t *testing.T) {
 	}
 	securityDatabase := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
 		postgresRecoverySecurityAgentReadySQL: json.RawMessage(`{"release":true,"principal":true}`),
+		postgresRedTeamListDefinitionsSQL:     json.RawMessage(`{"items":[],"next_cursor":null}`),
 	}}
 	securityRepository, err := NewSecurityAgentPostgresRepository(securityDatabase)
 	if err != nil {
@@ -519,6 +520,22 @@ func TestProductionHandlersMountRecoveryOnlyAtExactV27Authority(t *testing.T) {
 	composition.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), testRecoveryBackupID) {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	redTeamRequest := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/tests?limit=10", nil)
+	redTeamRequest = redTeamRequest.WithContext(context.WithValue(redTeamRequest.Context(), identityContextKey{}, identity))
+	redTeamRequest.Header.Set(expectedScopeHeader, expectedScopeValue(identity.Scope))
+	redTeamResponse := httptest.NewRecorder()
+	composition.ServeHTTP(redTeamResponse, redTeamRequest)
+	if redTeamResponse.Code != http.StatusOK || strings.TrimSpace(redTeamResponse.Body.String()) != `{"items":[]}` {
+		t.Fatalf("red-team status=%d body=%s", redTeamResponse.Code, redTeamResponse.Body.String())
+	}
+	if securityDatabase.statements[len(securityDatabase.statements)-1] != postgresRedTeamListDefinitionsSQL {
+		t.Fatalf("red-team authority statements=%#v", securityDatabase.statements)
+	}
+	for _, statement := range mainDatabase.queries {
+		if statement == postgresRedTeamListDefinitionsSQL {
+			t.Fatal("general API database handled Red Team authority")
+		}
 	}
 	if got := capabilitiesForPermissions([]string{"view", "manage_identity"}); !containsString(got, "recovery.read") || !containsString(got, "recovery.write") {
 		t.Fatalf("capabilities=%v", got)

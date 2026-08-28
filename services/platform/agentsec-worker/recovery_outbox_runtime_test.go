@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -145,11 +148,36 @@ func recoveryBackupOutboxEvent(t *testing.T) recoveryOutboxEvent {
 	return recoveryBackupOutboxFixture()
 }
 
+func TestRecoveryJobCanonicalizesPayloadBeforeBindingQueueDigest(t *testing.T) {
+	event := recoveryBackupOutboxFixture()
+	event.Payload = json.RawMessage(`{ "workspace_id": "pid_71000002-0000-4000-8000-000000000002", "backup_id": "pid_71000004-0000-4000-8000-000000000004", "organization_id": "pid_71000001-0000-4000-8000-000000000001", "environment_id": "pid_71000003-0000-4000-8000-000000000003" }`)
+	eventDigest := sha256.Sum256(event.Payload)
+	event.PayloadDigest = `\x` + fmt.Sprintf("%x", eventDigest)
+	job, _, ok := recoveryJobForOutbox(event, recoveryBackupOutboxTopic)
+	if !ok || sha256.Sum256(job.Payload) != job.AuthorityDigest || bytes.Contains(job.Payload, []byte(" ")) {
+		t.Fatalf("ok=%t payload=%s digest=%x", ok, job.Payload, job.AuthorityDigest)
+	}
+}
+
+func TestRecoveryRestoreJobAcceptsExactTargetEnvironmentBounds(t *testing.T) {
+	for _, target := range []string{"x", strings.Repeat("a", 63)} {
+		payload := json.RawMessage(fmt.Sprintf(`{"environment_id":"pid_71000003-0000-4000-8000-000000000003","organization_id":"pid_71000001-0000-4000-8000-000000000001","restore_id":"pid_71000004-0000-4000-8000-000000000004","target_environment":%q,"workspace_id":"pid_71000002-0000-4000-8000-000000000002"}`, target))
+		digest := sha256.Sum256(payload)
+		event := recoveryOutboxEvent{
+			OrganizationID: "pid_71000001-0000-4000-8000-000000000001", WorkspaceID: "pid_71000002-0000-4000-8000-000000000002", EnvironmentID: "pid_71000003-0000-4000-8000-000000000003",
+			ID: "pid_71000005-0000-4000-8000-000000000005", Topic: recoveryRestoreOutboxTopic, Payload: payload, PayloadDigest: `\x` + fmt.Sprintf("%x", digest), Attempt: 1, LeaseExpiresAt: time.Now().UTC().Add(5 * time.Second),
+		}
+		if job, _, ok := recoveryJobForOutbox(event, recoveryRestoreOutboxTopic); !ok || job.Kind != "recovery-restore" {
+			t.Fatalf("target=%q ok=%t job=%#v", target, ok, job)
+		}
+	}
+}
+
 func recoveryBackupOutboxFixture() recoveryOutboxEvent {
 	payload := json.RawMessage(`{"backup_id":"pid_71000004-0000-4000-8000-000000000004","environment_id":"pid_71000003-0000-4000-8000-000000000003","organization_id":"pid_71000001-0000-4000-8000-000000000001","workspace_id":"pid_71000002-0000-4000-8000-000000000002"}`)
 	digest := sha256.Sum256(payload)
 	return recoveryOutboxEvent{
 		OrganizationID: "pid_71000001-0000-4000-8000-000000000001", WorkspaceID: "pid_71000002-0000-4000-8000-000000000002", EnvironmentID: "pid_71000003-0000-4000-8000-000000000003",
-		ID: "pid_71000005-0000-4000-8000-000000000005", Topic: recoveryBackupOutboxTopic, Payload: payload, PayloadDigest: digest[:], Attempt: 1, LeaseExpiresAt: time.Now().UTC().Add(5 * time.Second),
+		ID: "pid_71000005-0000-4000-8000-000000000005", Topic: recoveryBackupOutboxTopic, Payload: payload, PayloadDigest: `\x` + fmt.Sprintf("%x", digest), Attempt: 1, LeaseExpiresAt: time.Now().UTC().Add(5 * time.Second),
 	}
 }

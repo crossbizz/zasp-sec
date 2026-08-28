@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	productionPipelineReadyV27SQL          = `SELECT jsonb_build_object('ready',zasp_recovery_execution_readiness($1,$2) AND zasp_runtime_principal_ready($3))`
 	productionPipelineReadySQL             = `SELECT jsonb_build_object('ready',zasp_runtime_ingest_reconciliation_readiness($1,$2) AND zasp_runtime_principal_ready($3))`
 	productionPipelineClaimDeliverySQL     = `SELECT zasp_runtime_claim_delivery($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 	productionPipelineHeartbeatDeliverySQL = `SELECT zasp_runtime_heartbeat_delivery($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
@@ -187,10 +188,17 @@ func (repository *PostgresProductionPipelineRepository) Ready(ctx context.Contex
 	if !validProductionPipelineRepository(repository, ctx) {
 		return ErrProductionPipelineUnavailable
 	}
-	payload, err := safeProductionQuery(repository.database, ctx, productionPipelineReadySQL, migrations.ProductionRuntimeIngestReconciliation().Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint(), string(repository.authority))
 	var result struct {
 		Ready bool `json:"ready"`
 	}
+	metadata := migrations.ProductionRecovery()
+	payload, err := safeProductionQuery(repository.database, ctx, productionPipelineReadyV27SQL, metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint(), string(repository.authority))
+	if err == nil && strictProductionJSON(payload, &result) == nil && result.Ready {
+		return nil
+	}
+	result.Ready = false
+	metadata = migrations.ProductionRuntimeIngestReconciliation()
+	payload, err = safeProductionQuery(repository.database, ctx, productionPipelineReadySQL, metadata.Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint(), string(repository.authority))
 	if err != nil || strictProductionJSON(payload, &result) != nil || !result.Ready {
 		return ErrProductionPipelineUnavailable
 	}

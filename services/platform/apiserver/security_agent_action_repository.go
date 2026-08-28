@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	postgresSecurityAgentActionReadyV27SQL     = `SELECT jsonb_build_object('release',zasp_recovery_execution_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
 	postgresSecurityAgentActionReadyV24SQL     = `SELECT jsonb_build_object('release',zasp_security_agent_session_isolation_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
 	postgresSecurityAgentActionReadyV23SQL     = `SELECT jsonb_build_object('release',zasp_security_agent_connector_revocation_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
 	postgresSecurityAgentActionReadySQL        = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_action_principal_ready())`
@@ -99,6 +100,7 @@ func NewSecurityAgentActionRepository(database JSONDatabase) (*SecurityAgentActi
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	configurations := []SecurityAgentActionRepository{
+		{database: database, readySQL: postgresSecurityAgentActionReadyV27SQL, checksum: migrations.ProductionRecovery().Checksum(), fingerprint: migrations.ProductionRecoverySemanticFingerprint(), reconcileSQL: postgresSecurityAgentActionReconcileSQL, claimSQL: postgresSecurityAgentActionClaimV24SQL, heartbeatSQL: postgresSecurityAgentActionHeartbeatV24SQL, storeSQL: postgresSecurityAgentActionStoreV24SQL, readSQL: postgresSecurityAgentActionReadV24SQL, finishSQL: postgresSecurityAgentActionFinishV24SQL, sessionIsolation: true},
 		{database: database, readySQL: postgresSecurityAgentActionReadyV24SQL, checksum: migrations.ProductionSecurityAgentSessionIsolation().Checksum(), fingerprint: migrations.ProductionSecurityAgentSessionIsolationSemanticFingerprint(), reconcileSQL: postgresSecurityAgentActionReconcileSQL, claimSQL: postgresSecurityAgentActionClaimV24SQL, heartbeatSQL: postgresSecurityAgentActionHeartbeatV24SQL, storeSQL: postgresSecurityAgentActionStoreV24SQL, readSQL: postgresSecurityAgentActionReadV24SQL, finishSQL: postgresSecurityAgentActionFinishV24SQL, sessionIsolation: true},
 		{database: database, readySQL: postgresSecurityAgentActionReadyV23SQL, checksum: migrations.ProductionSecurityAgentConnectorRevocation().Checksum(), fingerprint: migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint(), reconcileSQL: postgresSecurityAgentActionReconcileSQL, claimSQL: postgresSecurityAgentActionClaimSQL, heartbeatSQL: postgresSecurityAgentActionHeartbeatSQL, storeSQL: postgresSecurityAgentActionStoreSQL, readSQL: postgresSecurityAgentActionReadSQL, finishSQL: postgresSecurityAgentActionFinishSQL},
 		{database: database, readySQL: postgresSecurityAgentActionReadySQL, checksum: migrations.ProductionSecurityAgentTemporaryPolicy().Checksum(), fingerprint: migrations.ProductionSecurityAgentTemporaryPolicySemanticFingerprint(), claimSQL: postgresSecurityAgentActionClaimSQL, heartbeatSQL: postgresSecurityAgentActionHeartbeatSQL, storeSQL: postgresSecurityAgentActionStoreSQL, readSQL: postgresSecurityAgentActionReadSQL, finishSQL: postgresSecurityAgentActionFinishSQL},

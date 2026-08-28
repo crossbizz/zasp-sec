@@ -90,6 +90,7 @@ type executionReadinessOnlyDatabase struct {
 	schemaCalls    int
 	temporaryCalls int
 	connectorCalls int
+	recoveryCalls  int
 	inventoryCalls int
 	executionCalls int
 	identityCalls  int
@@ -97,6 +98,7 @@ type executionReadinessOnlyDatabase struct {
 	identityReady  json.RawMessage
 	temporaryReady json.RawMessage
 	connectorReady json.RawMessage
+	recoveryReady  json.RawMessage
 	ready          json.RawMessage
 	principal      json.RawMessage
 }
@@ -108,6 +110,12 @@ func (database *executionReadinessOnlyDatabase) SchemaVersion(context.Context) (
 
 func (database *executionReadinessOnlyDatabase) QueryJSON(_ context.Context, query string, _ ...any) (json.RawMessage, error) {
 	switch query {
+	case postgresProductionRecoveryReadinessSQL:
+		database.recoveryCalls++
+		if database.recoveryReady == nil {
+			return nil, errors.New("production recovery authority unavailable")
+		}
+		return database.recoveryReady, nil
 	case postgresSecurityAgentConnectorRevocationReadinessSQL:
 		database.connectorCalls++
 		if database.connectorReady == nil {
@@ -136,6 +144,23 @@ func (database *executionReadinessOnlyDatabase) QueryJSON(_ context.Context, que
 		return database.principal, nil
 	default:
 		return nil, errors.New("unexpected query")
+	}
+}
+
+func TestDiscoveryExecutionConstructorsAcceptCurrentV27Readiness(t *testing.T) {
+	database := &executionReadinessOnlyDatabase{
+		recoveryReady: json.RawMessage(`true`),
+		principal:     json.RawMessage(`true`),
+	}
+	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+	if err != nil {
+		t.Fatalf("v27 constructor error=%v", err)
+	}
+	if err := repository.Ready(context.Background()); err != nil {
+		t.Fatalf("v27 Ready() error=%v", err)
+	}
+	if database.schemaCalls != 0 || database.recoveryCalls != 2 || database.connectorCalls != 0 || database.executionCalls != 0 {
+		t.Fatalf("readiness calls schema=%d recovery=%d connector=%d execution=%d", database.schemaCalls, database.recoveryCalls, database.connectorCalls, database.executionCalls)
 	}
 }
 

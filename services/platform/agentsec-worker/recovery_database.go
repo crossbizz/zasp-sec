@@ -15,7 +15,7 @@ import (
 var recoveryRequestDigestPattern = regexp.MustCompile(`^\\x[0-9a-f]{64}$`)
 
 const (
-	recoveryWorkerReadySQL        = `SELECT zasp_recovery_execution_readiness($1,$2) AND zasp_recovery_principal_ready('zasp_recovery_worker')`
+	recoveryWorkerReadySQL        = `SELECT to_jsonb(zasp_recovery_execution_readiness($1,$2) AND zasp_recovery_principal_ready('zasp_recovery_worker'))`
 	recoveryClaimOperationSQL     = `SELECT zasp_recovery_claim_operation($1,$2,$3,$4,$5)`
 	recoveryClaimDeliverySQL      = `SELECT zasp_recovery_claim_delivery($1,$2,$3,$4,$5,$6,$7,$8)`
 	recoveryHeartbeatOperationSQL = `SELECT zasp_recovery_heartbeat_operation($1,$2,$3,$4,$5,$6,$7,$8)`
@@ -55,6 +55,7 @@ func (authority *postgresRecoveryOperationAuthority) ClaimDelivery(ctx context.C
 			TargetEnvironment string                             `json:"target_environment"`
 			Manifest          *apiserver.RecoveryManifestLocator `json:"manifest"`
 			ManifestDigest    string                             `json:"manifest_digest"`
+			CleanupOnly       bool                               `json:"cleanup_only"`
 		} `json:"operation"`
 	}
 	if err != nil || decodeStrictWorkerJSON(payload, &wire) != nil || !stringInWorker(wire.Disposition, "claimed", "retry_later", "ack_terminal", "exhausted") {
@@ -75,7 +76,7 @@ func (authority *postgresRecoveryOperationAuthority) ClaimDelivery(ctx context.C
 	if kind == "restore" {
 		decodedID = item.RestoreID
 	}
-	claim := recoveryOperationClaim{Kind: kind, Scope: decodedScope, OperationID: decodedID, Attempt: item.Attempt, RetentionDays: item.RetentionDays, TargetEnvironment: item.TargetEnvironment, Manifest: item.Manifest, CreatedAt: item.CreatedAt.UTC()}
+	claim := recoveryOperationClaim{Kind: kind, Scope: decodedScope, OperationID: decodedID, Attempt: item.Attempt, RetentionDays: item.RetentionDays, TargetEnvironment: item.TargetEnvironment, Manifest: item.Manifest, CreatedAt: item.CreatedAt.UTC(), CleanupOnly: item.CleanupOnly}
 	if !ok || decodedScope != scope || decodedID != operationID || !validRecoveryOperationClaim(claim) || item.CreatedAt.IsZero() || item.CreatedAt.Location() != time.UTC || !validRecoveryLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) || !recoveryRequestDigestPattern.MatchString(item.RequestDigest) || item.RequestDigest == `\x`+strings.Repeat("0", 64) || kind == "restore" && (!recoveryRequestDigestPattern.MatchString(item.ManifestDigest) || item.Manifest == nil || strings.TrimPrefix(item.ManifestDigest, `\x`) != item.Manifest.SHA256) {
 		return recoveryDeliveryClaim{}, errWorkerExecution
 	}
@@ -132,6 +133,7 @@ func (authority *postgresRecoveryOperationAuthority) Claim(ctx context.Context, 
 			TargetEnvironment string                             `json:"target_environment"`
 			Manifest          *apiserver.RecoveryManifestLocator `json:"manifest"`
 			ManifestDigest    string                             `json:"manifest_digest"`
+			CleanupOnly       bool                               `json:"cleanup_only"`
 		} `json:"items"`
 	}
 	if err != nil || decodeStrictWorkerJSON(payload, &wire) != nil || len(wire.Items) > limit {
@@ -144,7 +146,7 @@ func (authority *postgresRecoveryOperationAuthority) Claim(ctx context.Context, 
 		if kind == "restore" {
 			operationID = item.RestoreID
 		}
-		claim := recoveryOperationClaim{Kind: kind, Scope: scope, OperationID: operationID, Attempt: item.Attempt, RetentionDays: item.RetentionDays, TargetEnvironment: item.TargetEnvironment, Manifest: item.Manifest}
+		claim := recoveryOperationClaim{Kind: kind, Scope: scope, OperationID: operationID, Attempt: item.Attempt, RetentionDays: item.RetentionDays, TargetEnvironment: item.TargetEnvironment, Manifest: item.Manifest, CleanupOnly: item.CleanupOnly}
 		if !ok || !validRecoveryOperationClaim(claim) || !validRecoveryLeaseExpiration(item.LeaseExpiresAt, leaseSeconds) || !recoveryRequestDigestPattern.MatchString(item.RequestDigest) || item.RequestDigest == `\x`+strings.Repeat("0", 64) || kind == "restore" && (!recoveryRequestDigestPattern.MatchString(item.ManifestDigest) || item.Manifest == nil || strings.TrimPrefix(item.ManifestDigest, `\x`) != item.Manifest.SHA256) {
 			return nil, errWorkerExecution
 		}
@@ -271,7 +273,12 @@ func (authority *postgresRecoveryOperationAuthority) Fail(ctx context.Context, l
 	var result struct {
 		State string `json:"state"`
 	}
-	if err != nil || decodeStrictWorkerJSON(payload, &result) != nil || !stringInWorker(result.State, "retryable", "failed") {
+	if err != nil || decodeStrictWorkerJSON(payload, &result) != nil {
+		return errWorkerExecution
+	}
+	failedCleanup := result.State == "failed_cleanup" && cleanup != nil && cleanup.State == "failed"
+	cleanupPending := result.State == "cleanup_pending" && cleanup == nil && lease.Kind == "restore" && lease.Attempt == 100 && lease.CleanupOnly
+	if !stringInWorker(result.State, "retryable", "failed") && !failedCleanup && !cleanupPending {
 		return errWorkerExecution
 	}
 	return nil

@@ -5,10 +5,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,10 +25,10 @@ const (
 	recoveryRestoreOutboxTopic = "recovery-restore-jobs"
 )
 
-var recoveryTargetEnvironmentPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])$`)
+var recoveryTargetEnvironmentPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
 
 const (
-	recoveryOutboxReadySQL     = `SELECT zasp_recovery_execution_readiness($1,$2) AND zasp_recovery_principal_ready('zasp_recovery_outbox_worker')`
+	recoveryOutboxReadySQL     = `SELECT to_jsonb(zasp_recovery_execution_readiness($1,$2) AND zasp_recovery_principal_ready('zasp_recovery_outbox_worker'))`
 	recoveryOutboxClaimSQL     = `SELECT zasp_recovery_claim_outbox($1,$2,$3,$4,$5)`
 	recoveryOutboxHeartbeatSQL = `SELECT zasp_recovery_heartbeat_outbox($1,$2,$3,$4,$5)`
 	recoveryOutboxAckSQL       = `SELECT zasp_recovery_ack_outbox($1,$2,$3,$4,$5,$6,$7)`
@@ -40,7 +42,7 @@ type recoveryOutboxEvent struct {
 	ID             string          `json:"outbox_id"`
 	Topic          string          `json:"topic"`
 	Payload        json.RawMessage `json:"payload"`
-	PayloadDigest  []byte          `json:"payload_digest"`
+	PayloadDigest  string          `json:"payload_digest"`
 	Attempt        int             `json:"attempt"`
 	LeaseExpiresAt time.Time       `json:"lease_expires_at"`
 }
@@ -324,14 +326,20 @@ func recoveryJobForOutbox(event recoveryOutboxEvent, expectedTopic string) (jobq
 	if err != nil || jobID.IsZero() {
 		return jobqueue.Job{}, domain.Scope{}, false
 	}
-	digest := sha256.Sum256(event.Payload)
-	return jobqueue.Job{Scope: scope, JobID: jobID, Kind: kind, Payload: bytes.Clone(event.Payload), AuthorityDigest: digest}, scope, true
+	var canonical bytes.Buffer
+	if json.Compact(&canonical, event.Payload) != nil || canonical.Len() == 0 {
+		return jobqueue.Job{}, domain.Scope{}, false
+	}
+	payload := canonical.Bytes()
+	digest := sha256.Sum256(payload)
+	return jobqueue.Job{Scope: scope, JobID: jobID, Kind: kind, Payload: bytes.Clone(payload), AuthorityDigest: digest}, scope, true
 }
 
 func validRecoveryOutboxEvent(event recoveryOutboxEvent, expectedTopic string, leaseSeconds int) bool {
 	digest := sha256.Sum256(event.Payload)
+	wantDigest := `\x` + hex.EncodeToString(digest[:])
 	_, scopeOK := recoveryScope(event.OrganizationID, event.WorkspaceID, event.EnvironmentID)
-	return scopeOK && validRecoveryProductID(event.ID) && event.Topic == expectedTopic && (expectedTopic == recoveryBackupOutboxTopic || expectedTopic == recoveryRestoreOutboxTopic) && len(event.Payload) >= 2 && len(event.Payload) <= 65536 && json.Valid(event.Payload) && len(event.PayloadDigest) == sha256.Size && subtle.ConstantTimeCompare(event.PayloadDigest, digest[:]) == 1 && event.Attempt >= 1 && event.Attempt <= 100 && validRecoveryLeaseExpiration(event.LeaseExpiresAt, leaseSeconds)
+	return scopeOK && validRecoveryProductID(event.ID) && event.Topic == expectedTopic && (expectedTopic == recoveryBackupOutboxTopic || expectedTopic == recoveryRestoreOutboxTopic) && len(event.Payload) >= 2 && len(event.Payload) <= 65536 && json.Valid(event.Payload) && recoveryRequestDigestPattern.MatchString(event.PayloadDigest) && event.PayloadDigest != `\x`+strings.Repeat("0", 64) && subtle.ConstantTimeCompare([]byte(event.PayloadDigest), []byte(wantDigest)) == 1 && event.Attempt >= 1 && event.Attempt <= 100 && validRecoveryLeaseExpiration(event.LeaseExpiresAt, leaseSeconds)
 }
 
 func validRecoveryLeaseExpiration(value time.Time, leaseSeconds int) bool {

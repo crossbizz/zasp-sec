@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 type recoveryDatabaseFake struct {
 	statements []string
 	arguments  [][]any
+	failState  string
 }
 
 func (fake *recoveryDatabaseFake) QueryJSON(_ context.Context, statement string, arguments ...any) (json.RawMessage, error) {
@@ -45,7 +47,11 @@ func (fake *recoveryDatabaseFake) QueryJSON(_ context.Context, statement string,
 	case recoveryFinishRestoreSQL:
 		return json.RawMessage(`{"replayed":false,"state":"succeeded"}`), nil
 	case recoveryFailOperationSQL:
-		return json.RawMessage(`{"state":"retryable"}`), nil
+		state := fake.failState
+		if state == "" {
+			state = "retryable"
+		}
+		return json.Marshal(map[string]string{"state": state})
 	case recoveryCurrentLSNSQL:
 		return json.RawMessage(`"0/27"`), nil
 	default:
@@ -54,6 +60,9 @@ func (fake *recoveryDatabaseFake) QueryJSON(_ context.Context, statement string,
 }
 
 func TestPostgresRecoveryOperationAuthorityClaimsExactQueueDelivery(t *testing.T) {
+	if !strings.HasPrefix(recoveryWorkerReadySQL, "SELECT to_jsonb(") {
+		t.Fatalf("readiness query is not JSON-scannable: %s", recoveryWorkerReadySQL)
+	}
 	database := &recoveryDatabaseFake{}
 	authority, err := newPostgresRecoveryOperationAuthority(database)
 	if err != nil {
@@ -135,5 +144,43 @@ func TestPostgresRecoveryOperationAuthorityDecodesAndFencesRestore(t *testing.T)
 	cleanup := apiserver.RecoveryCleanupEvidence{State: "deleted", Evidence: recoveryEvidenceLocator(claims[0].Scope, "pid_71000009-0000-4000-8000-000000000009", "recovery_cleanup_v1")}
 	if authority.CheckpointRestore(context.Background(), lease, "validating", "rebuilding", validation) != nil || authority.FinishRestore(context.Background(), lease, validation.ObservedCounts, validation, cleanup) != nil || authority.Fail(context.Background(), lease, "cleanup_failed", 30*time.Second, &cleanup) != nil {
 		t.Fatal("restore transition failed")
+	}
+}
+
+func TestPostgresRecoveryOperationAuthorityAcceptsFailedCleanupOnlyForFailedCleanupEvidence(t *testing.T) {
+	database := &recoveryDatabaseFake{failState: "failed_cleanup"}
+	authority, err := newPostgresRecoveryOperationAuthority(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim := recoveryRestoreClaim(recoveryWorkerScopeFromConstants())
+	lease := recoveryOperationLease{recoveryOperationClaim: claim, WorkerID: "recovery-worker-1", LeaseToken: "0123456789abcdef0123456789abcdef"}
+	failed := apiserver.RecoveryCleanupEvidence{State: "failed", Evidence: recoveryEvidenceLocator(claim.Scope, "pid_71000009-0000-4000-8000-000000000009", "recovery_cleanup_v1")}
+	if err := authority.Fail(context.Background(), lease, "cleanup_failed", 30*time.Second, &failed); err != nil {
+		t.Fatalf("failed cleanup terminal state was rejected: %v", err)
+	}
+	deleted := failed
+	deleted.State = "deleted"
+	if err := authority.Fail(context.Background(), lease, "cleanup_failed", 30*time.Second, &deleted); err == nil {
+		t.Fatal("failed_cleanup state accepted for deleted cleanup evidence")
+	}
+}
+
+func TestPostgresRecoveryOperationAuthorityAcceptsCleanupPendingOnlyForAttempt100CleanupLease(t *testing.T) {
+	database := &recoveryDatabaseFake{failState: "cleanup_pending"}
+	authority, err := newPostgresRecoveryOperationAuthority(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim := recoveryRestoreClaim(recoveryWorkerScopeFromConstants())
+	claim.Attempt = 100
+	claim.CleanupOnly = true
+	lease := recoveryOperationLease{recoveryOperationClaim: claim, WorkerID: "recovery-worker-1", LeaseToken: "0123456789abcdef0123456789abcdef"}
+	if err := authority.Fail(context.Background(), lease, "cleanup_failed", 30*time.Second, nil); err != nil {
+		t.Fatalf("cleanup pending was rejected: %v", err)
+	}
+	lease.CleanupOnly = false
+	if err := authority.Fail(context.Background(), lease, "cleanup_failed", 30*time.Second, nil); err == nil {
+		t.Fatal("cleanup pending was accepted for a normal lease")
 	}
 }

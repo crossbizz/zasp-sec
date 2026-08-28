@@ -167,9 +167,14 @@ func (repository *AttackLabExecutionRepository) Ready(ctx context.Context) error
 	if !validAttackLabExecutionRepository(repository, ctx) {
 		return ErrRepositoryUnavailable
 	}
-	metadata := migrations.ProductionAttackLabExecution()
-	payload, err := repository.database.QueryJSON(ctx, postgresAttackLabExecutionReadinessSQL, metadata.Checksum(), migrations.ProductionAttackLabExecutionSemanticFingerprint())
 	var ready bool
+	metadata := migrations.ProductionRecovery()
+	payload, err := repository.database.QueryJSON(ctx, postgresProductionRecoveryReadinessSQL, metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint())
+	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
+		metadata := migrations.ProductionAttackLabExecution()
+		payload, err = repository.database.QueryJSON(ctx, postgresAttackLabExecutionReadinessSQL, metadata.Checksum(), migrations.ProductionAttackLabExecutionSemanticFingerprint())
+		ready = false
+	}
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return ErrRepositoryUnavailable
 	}

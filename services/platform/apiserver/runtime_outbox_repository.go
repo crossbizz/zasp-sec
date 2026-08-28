@@ -11,17 +11,18 @@ import (
 const RuntimeOutboxTopic = "runtime-events"
 
 const (
-	postgresRuntimeDataPlaneOutboxReadySQL   = `SELECT jsonb_build_object('ready',zasp_runtime_data_plane_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
-	postgresRuntimeGatewayOutboxReadySQL     = `SELECT jsonb_build_object('ready',zasp_runtime_gateway_reconciliation_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
-	postgresRuntimeOutboxReadySQL            = `SELECT jsonb_build_object('ready',zasp_runtime_ingest_reconciliation_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
-	postgresSecurityAgentOutboxReadySQL      = `SELECT jsonb_build_object('ready',zasp_security_agent_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
-	postgresIdentityAdminOutboxReadySQL      = `SELECT jsonb_build_object('ready',zasp_identity_administration_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
-	postgresSecurityControlsOutboxReadySQL   = `SELECT jsonb_build_object('ready',zasp_security_agent_controls_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
-	postgresSecurityAutonomousOutboxReadySQL = `SELECT jsonb_build_object('ready',zasp_security_agent_autonomous_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
-	postgresRuntimeClaimOutboxSQL            = `SELECT zasp_runtime_claim_outbox($1,$2,$3,$4,$5)`
-	postgresRuntimeHeartbeatOutboxSQL        = `SELECT zasp_runtime_heartbeat_outbox($1,$2,$3,$4,$5)`
-	postgresRuntimeAckOutboxSQL              = `SELECT zasp_runtime_ack_outbox($1,$2,$3,$4,$5,$6,$7,$8)`
-	postgresRuntimeRetryOutboxSQL            = `SELECT zasp_runtime_retry_outbox($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	postgresProductionRecoveryRuntimeOutboxReadySQL = `SELECT jsonb_build_object('ready',zasp_recovery_execution_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresRuntimeDataPlaneOutboxReadySQL          = `SELECT jsonb_build_object('ready',zasp_runtime_data_plane_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresRuntimeGatewayOutboxReadySQL            = `SELECT jsonb_build_object('ready',zasp_runtime_gateway_reconciliation_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresRuntimeOutboxReadySQL                   = `SELECT jsonb_build_object('ready',zasp_runtime_ingest_reconciliation_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresSecurityAgentOutboxReadySQL             = `SELECT jsonb_build_object('ready',zasp_security_agent_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresIdentityAdminOutboxReadySQL             = `SELECT jsonb_build_object('ready',zasp_identity_administration_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresSecurityControlsOutboxReadySQL          = `SELECT jsonb_build_object('ready',zasp_security_agent_controls_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresSecurityAutonomousOutboxReadySQL        = `SELECT jsonb_build_object('ready',zasp_security_agent_autonomous_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+	postgresRuntimeClaimOutboxSQL                   = `SELECT zasp_runtime_claim_outbox($1,$2,$3,$4,$5)`
+	postgresRuntimeHeartbeatOutboxSQL               = `SELECT zasp_runtime_heartbeat_outbox($1,$2,$3,$4,$5)`
+	postgresRuntimeAckOutboxSQL                     = `SELECT zasp_runtime_ack_outbox($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresRuntimeRetryOutboxSQL                   = `SELECT zasp_runtime_retry_outbox($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 )
 
 type RuntimeOutboxRepository struct {
@@ -37,11 +38,15 @@ func NewRuntimeOutboxRepository(database JSONDatabase) (*RuntimeOutboxRepository
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	repository := &RuntimeOutboxRepository{database: database, readySQL: postgresProductionRecoveryRuntimeOutboxReadySQL, checksum: migrations.ProductionRecovery().Checksum(), fingerprint: migrations.ProductionRecoverySemanticFingerprint()}
+	if repository.Ready(ctx) == nil {
+		return repository, nil
+	}
 	version, err := database.SchemaVersion(ctx)
 	if err != nil {
 		return nil, ErrRepositoryConfiguration
 	}
-	repository := &RuntimeOutboxRepository{database: database}
+	repository = &RuntimeOutboxRepository{database: database}
 	switch version {
 	case RuntimeDataPlaneSchemaVersion:
 		repository.readySQL, repository.checksum, repository.fingerprint = postgresRuntimeDataPlaneOutboxReadySQL, migrations.ProductionRuntimeDataPlane().Checksum(), migrations.ProductionRuntimeDataPlaneSemanticFingerprint()

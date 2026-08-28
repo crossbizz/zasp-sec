@@ -2,7 +2,7 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
-**Last updated:** August 21, 2026
+**Last updated:** August 25, 2026
 **Execution branch:** `codex/production-auto-discovery`
 
 This file preserves the authoritative historical execution evidence for the
@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 356 |
-| Component-only | 311 |
+| Production-available | 366 |
+| Component-only | 301 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -118,6 +118,12 @@ production composition, not merely a component proof or external evidence.
 - The customer-edge chart and live disposable three-node Kubernetes proof run
   exact-pinned Tetragon plus the non-root sensor, preserve zero drops and full
   capability reports, forward real process events, and survive leader loss.
+- Recovery v27 composes tenant-scoped public API and CLI entrypoints, durable
+  outbox and queue authority, independent backup and restore workers, signed
+  manifest-last artifacts, isolated restore rehearsal, browser reload, and
+  cross-tenant denial. The combined disposable-PostgreSQL and installed-Chrome
+  journey passes; live managed Neon, AWS, S3, KMS, and Kubernetes execution
+  remains explicit external evidence.
 - Task 5 promotes canonical asset/Agent/Tool/Identity/Runtime and relationship
   inventory, ownership mutations, tenant-scoped observed/verified/blocked RBAC
   capabilities, all 12 evidence-backed posture rules, risk factors, bounded
@@ -143,8 +149,8 @@ production composition, not merely a component proof or external evidence.
 | M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
-| M8 | 141 | 23 | 66 | 52 | 0 |
-| **Total** | **728** | **356** | **311** | **61** | **0** |
+| M8 | 141 | 33 | 56 | 52 | 0 |
+| **Total** | **728** | **366** | **301** | **61** | **0** |
 
 ## Prerequisite work
 

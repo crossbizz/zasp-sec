@@ -4,7 +4,7 @@ BEGIN
      OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>25)
      OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='red-team-execution-v1')
      OR NOT public.zasp_red_team_execution_security_ready()
-     OR public.zasp_red_team_execution_live_fingerprint()<>'5f3a61dcc185dd6667a6e02551338549632338bfc7e21602fdd521e75fd90c48' THEN
+     OR public.zasp_red_team_execution_live_fingerprint()<>'bb848d5c9936143cc9251dd44410de037a382b1190e1d04069df18b0a38f669a' THEN
     RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab execution release drift';
   END IF;
 END
@@ -561,4 +561,4 @@ END
 $product_release_evolution$;
 
 UPDATE public.zasp_schema_metadata SET value='attack-lab-execution-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='red-team-execution-v1';
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('attack_lab_execution_fingerprint', 'd5268295167680640db3be3d86f1b88a3a8f19214014a1d057bed7a4e60b7938') ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('attack_lab_execution_fingerprint', '541c06b1a16f0f70d7d9ecc5cb490c710858a0593a18af1226c5c7958f599d72') ON CONFLICT(key) DO UPDATE SET value=excluded.value;

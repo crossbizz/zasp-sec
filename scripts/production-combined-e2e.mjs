@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHmac, generateKeyPairSync } from "node:crypto";
 import { once } from "node:events";
-import { chmod, mkdtemp, readFile, rm } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import net from "node:net";
@@ -18,6 +18,7 @@ const platform = path.join(root, "services", "platform");
 const postgresBin = "/opt/homebrew/bin";
 const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const productHostname = "zasp.production-e2e.test";
+const recoveryHostname = "zasp.production-e2e.localhost";
 const findingTicketOperation = "/api/v1/findings/{id}/ticket";
 const terminalRevocationIntegrationID = "pid_72000001-0000-4000-8000-000000000001";
 const reloadRevocationIntegrationID = "pid_72000002-0000-4000-8000-000000000002";
@@ -88,6 +89,10 @@ let loseNextConnectorAuthorizationResponse = true;
 let failNextRiskRecoveryRefetch = false;
 let delayRiskDetailResponses = false;
 let proxyFailure;
+const recoveryAPIResponses = [];
+const recoveryBackupRequestKeys = [];
+const securityAgentApprovalResponses = [];
+let loseNextRecoveryBackupResponse = true;
 const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 
 try {
@@ -108,11 +113,13 @@ try {
   const apiBinary = path.join(temporaryRoot, "agentsec-api");
   const workerBinary = path.join(temporaryRoot, "agentsec-worker");
   const workerE2EBinary = path.join(temporaryRoot, "agentsec-worker-e2e");
+	const agentsecctl = path.join(temporaryRoot, "agentsecctl");
   await command("go", ["build", "-o", migrate, "./agentsec-migrate"], { cwd: platform });
   await command("go", ["build", "-o", apiBinary, "./agentsec-api"], { cwd: platform });
   await command("go", ["build", "-o", workerBinary, "./agentsec-worker"], { cwd: platform });
   await command("go", ["test", "-c", "-o", workerE2EBinary, "./agentsec-worker"], { cwd: platform, timeout: 120_000 });
-  await command(migrate, ["up"], { env: {
+	await command("go", ["build", "-o", agentsecctl, "."], { cwd: path.join(root, "cmd", "agentsecctl") });
+  const migrationResult = await command(migrate, ["up"], { reject: false, env: {
     ...process.env,
     ZASP_POSTGRES_DSN: dsn,
     ZASP_MIGRATION_TIMEOUT: "20s",
@@ -136,9 +143,21 @@ try {
     ZASP_SECURITY_AGENT_API_DB_PRINCIPAL: "zasp_e2e_security_agent_api",
     ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL: "zasp_e2e_security_agent_worker",
     ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL: "zasp_e2e_security_agent_action",
+		ZASP_RED_TEAM_WORKER_DB_PRINCIPAL: "zasp_e2e_red_team_worker",
+		ZASP_RED_TEAM_OUTBOX_DB_PRINCIPAL: "zasp_e2e_red_team_outbox",
+		ZASP_RED_TEAM_ADAPTER_DB_PRINCIPAL: "zasp_e2e_red_team_adapter",
+		ZASP_ATTACK_LAB_CONTROLLER_DB_PRINCIPAL: "zasp_e2e_attack_lab_controller",
+		ZASP_ATTACK_LAB_OUTBOX_DB_PRINCIPAL: "zasp_e2e_attack_lab_outbox",
+		ZASP_ATTACK_LAB_PROXY_DB_PRINCIPAL: "zasp_e2e_attack_lab_proxy",
+		ZASP_RECOVERY_WORKER_DB_PRINCIPAL: "zasp_e2e_recovery",
+		ZASP_RECOVERY_OUTBOX_DB_PRINCIPAL: "zasp_e2e_recovery_outbox",
   } });
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, and session-isolation releases");
+	if (migrationResult.status !== 0) {
+		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
+		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
+	}
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, and production recovery releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -147,6 +166,7 @@ try {
   console.log("combined E2E: schema 20 security_agent_controls verified");
   console.log("combined E2E: schema 21 security_agent_autonomous_response verified");
   console.log("combined E2E: schema 24 security_agent_session_isolation verified");
+	console.log("combined E2E: schema 27 production_recovery verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -218,7 +238,10 @@ try {
 
   const key = path.join(temporaryRoot, "tls.key");
   const certificate = path.join(temporaryRoot, "tls.crt");
-  await command("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", `/CN=${productHostname}`, "-addext", `subjectAltName=DNS:${productHostname}`, "-keyout", key, "-out", certificate]);
+	await command("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", `/CN=${productHostname}`, "-addext", `subjectAltName=DNS:${productHostname},DNS:${recoveryHostname}`, "-keyout", key, "-out", certificate]);
+	const recoveryCredentialFile = path.join(temporaryRoot, "recovery-api-token");
+	await writeFile(recoveryCredentialFile, "production-e2e-product-token-with-at-least-32-bytes", { mode: 0o600 });
+	await chmod(recoveryCredentialFile, 0o600);
   proxy = await startProxy(proxyPort, apiPort, webPort, key, certificate, dsn);
   await waitForHTTP(`${publicOrigin}/sign-in`, 200, true);
 
@@ -469,8 +492,13 @@ try {
   await selectBrowserOption(browser.cdp, "Authorized scope", "Production");
   await waitForBrowserSelectedOption(browser.cdp, "Authorized scope", "Production");
 
-  const hiddenRequestStart = productAPIRequests.length;
-  for (const hiddenPath of ["/red-team/results", "/test/attack-lab", "/reports", "/guardrails/dashboard", "/prompt-hardening"]) {
+	await navigateBrowser(browser.cdp, `${publicOrigin}/red-team/results`);
+	const redTeamState = await waitForBrowserText(browser.cdp, /No Red Team tests in this scope/);
+	assert.match(redTeamState, /No Red Team runs in this scope/);
+	console.log("combined E2E: tenant-scoped Red Team route loaded through isolated Security Agent API authority");
+
+	const hiddenRequestStart = productAPIRequests.length;
+	for (const hiddenPath of ["/test/attack-lab", "/reports", "/guardrails/dashboard", "/prompt-hardening"]) {
     await navigateBrowser(browser.cdp, `${publicOrigin}${hiddenPath}`);
     await waitForBrowserText(browser.cdp, /Security overview/);
     assert.equal(new URL(await browserCurrentURL(browser.cdp)).pathname, "/", `hidden route was not canonicalized: ${hiddenPath}`);
@@ -673,6 +701,7 @@ try {
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate plan|Start supervised run|Approve|Reject|Cancel run)$/i), false);
 	await exerciseSecurityAgentAutomaticLifecycle(browser.cdp, workerBinary, workerE2EBinary, apiBinary, apiEnvironment, healthPort, postgresPort, dsn, publicOrigin, actionPrivateKey);
 	console.log("combined E2E: full-document receipt recovery, local integration, and automatic Security Agent authority proven");
+	await runProductionRecoveryLifecycle(browser.cdp, agentsecctl, workerE2EBinary, postgresPort, dsn, publicOrigin, certificate, recoveryCredentialFile, expectedProductionScope);
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/identity-access`);
   const identityAccess = await waitForBrowserText(browser.cdp, /member-target-local[\s\S]*E2E Organization/);
@@ -708,9 +737,10 @@ try {
     "POST /v1/b2b/scim/organization-test-local/connection",
     "POST /v1/b2b/sso/saml/organization-test-local",
   ]);
-  console.log("combined E2E: production SSO and SCIM browser workflow proven");
-  assert.doesNotMatch(identityAccess, /Unpermitted environment/, "scope selector exposed an environment without an authorized-scope row");
-  await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_product_sessions SET authenticated_at=transaction_timestamp()-interval '10 minutes' WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
+	console.log("combined E2E: production SSO and SCIM browser workflow proven");
+	assert.doesNotMatch(identityAccess, /Unpermitted environment/, "scope selector exposed an environment without an authorized-scope row");
+	const identityAccessReauthenticationStarts = identityOAuthStarts;
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_product_sessions SET authenticated_at=transaction_timestamp()-interval '10 minutes' WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
   await reloadBrowser(browser.cdp);
   const expiredFreshAuth = await waitForBrowserText(browser.cdp, /Fresh authentication expired/);
   assert.match(expiredFreshAuth, /Reauthenticate/);
@@ -720,7 +750,7 @@ try {
   await clickBrowserText(browser.cdp, "Continue to sign in");
   const reauthenticatedIdentity = await waitForBrowserText(browser.cdp, /member-target-local/);
   assert.doesNotMatch(reauthenticatedIdentity, /Fresh authentication expired/);
-  assert.equal(identityOAuthStarts, 2, "fresh reauthentication did not use the provider-faithful start/callback path exactly once");
+	assert.equal(identityOAuthStarts, identityAccessReauthenticationStarts + 1, "fresh reauthentication did not use the provider-faithful start/callback path exactly once");
   assert.match(await browserCurrentURL(browser.cdp), /\/administration\/identity-access$/);
   await selectBrowserOption(browser.cdp, "Role for member-target-local", "read only viewer");
   const reauthenticatedRoleControl = await browserRoleControlState(browser.cdp, "Role for member-target-local", "Update role");
@@ -772,9 +802,10 @@ try {
   assert.equal(await browserDialogIsolation(browser.cdp), true, "one-time token dialog did not isolate its background");
   await dispatchBrowserKey(browser.cdp, "Tab");
   await waitForBrowserActive(browser.cdp, "Copy token");
-  await clickBrowserText(browser.cdp, "Copy token");
-  assert.match(await waitForBrowserText(browser.cdp, /Token copied to clipboard|Copy failed/), /Token copied to clipboard|Copy failed/);
-  await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_product_sessions SET authenticated_at=transaction_timestamp()-interval '10 minutes' WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
+	await clickBrowserText(browser.cdp, "Copy token");
+	assert.match(await waitForBrowserText(browser.cdp, /Token copied to clipboard|Copy failed/), /Token copied to clipboard|Copy failed/);
+	const tokenDialogReauthenticationStarts = identityOAuthStarts;
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_product_sessions SET authenticated_at=transaction_timestamp()-interval '10 minutes' WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
   await clickBrowserText(browser.cdp, "I saved it — destroy recovery copy");
   await waitForBrowserText(browser.cdp, /revealed token was cleared/);
   assert.doesNotMatch(await browserBodyText(browser.cdp), /zasp_pat_[A-Za-z0-9_-]{43}/, "fresh-auth expiry left a raw token in the document");
@@ -783,7 +814,7 @@ try {
   await waitForBrowserText(browser.cdp, /Continue through the configured identity provider/);
   await clickBrowserText(browser.cdp, "Continue to sign in");
   await waitForBrowserText(browser.cdp, /Created token/);
-  assert.equal(identityOAuthStarts, 3, "token-dialog reauthentication did not use the provider-faithful flow");
+	assert.equal(identityOAuthStarts, tokenDialogReauthenticationStarts + 1, "token-dialog reauthentication did not use the provider-faithful flow exactly once");
   await clickBrowserText(browser.cdp, "Reveal token");
   await waitForBrowserText(browser.cdp, /Save API token/);
   await clickBrowserText(browser.cdp, "I saved it — destroy recovery copy");
@@ -1114,6 +1145,14 @@ CREATE ROLE zasp_e2e_gateway_control LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREA
 CREATE ROLE zasp_e2e_security_agent_api LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 CREATE ROLE zasp_e2e_security_agent_worker LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 CREATE ROLE zasp_e2e_security_agent_action LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_red_team_worker LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_red_team_outbox LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_red_team_adapter LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_attack_lab_controller LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_attack_lab_outbox LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_attack_lab_proxy LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_recovery LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE zasp_e2e_recovery_outbox LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 `;
   await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
 }
@@ -1124,24 +1163,29 @@ INSERT INTO zasp_authorized_scopes (principal_id, organization_id, workspace_id,
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Production','["view","manage_workflows","manage_findings"]'::jsonb,true),
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','Staging','["view","manage_workflows","manage_findings"]'::jsonb,false),
 ('pid_10000006-0000-4000-8000-000000000006','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Webhook member production','["view"]'::jsonb,true),
-('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','Foreign','["view"]'::jsonb,true);
+('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','Foreign','["view","manage_identity"]'::jsonb,true);
 INSERT INTO zasp_identity_memberships (principal_id, organization_id, organization_reference, member_reference, role) VALUES
 ('pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-test-local','security_admin'),
 ('pid_10000005-0000-4000-8000-000000000005','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-target-local','security_engineer'),
 ('pid_10000006-0000-4000-8000-000000000006','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-webhook-e2e','security_engineer'),
-('pid_10000007-0000-4000-8000-000000000007','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-group-e2e','read_only_viewer');
+('pid_10000007-0000-4000-8000-000000000007','pid_10000001-0000-4000-8000-000000000001','organization-test-local','member-group-e2e','read_only_viewer'),
+('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','organization-foreign-e2e','member-foreign-e2e','security_admin');
 INSERT INTO zasp_organizations(id,name,domain) VALUES
-('pid_10000001-0000-4000-8000-000000000001','E2E Organization','e2e.invalid');
+('pid_10000001-0000-4000-8000-000000000001','E2E Organization','e2e.invalid'),
+('pid_90000001-0000-4000-8000-000000000001','Foreign E2E Organization','foreign-e2e.invalid');
 INSERT INTO zasp_workspaces(id,organization_id,name) VALUES
 ('pid_10000002-0000-4000-8000-000000000002','pid_10000001-0000-4000-8000-000000000001','Production Workspace'),
-('pid_10000022-0000-4000-8000-000000000022','pid_10000001-0000-4000-8000-000000000001','Staging Workspace');
+('pid_10000022-0000-4000-8000-000000000022','pid_10000001-0000-4000-8000-000000000001','Staging Workspace'),
+('pid_90000002-0000-4000-8000-000000000002','pid_90000001-0000-4000-8000-000000000001','Foreign Workspace');
 INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES
 ('pid_10000003-0000-4000-8000-000000000003','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','Production','production'),
 ('pid_10000023-0000-4000-8000-000000000023','pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','Staging','staging'),
-('pid_10000033-0000-4000-8000-000000000033','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','Unpermitted environment','test');
+('pid_10000033-0000-4000-8000-000000000033','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','Unpermitted environment','test'),
+('pid_90000003-0000-4000-8000-000000000003','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','Foreign Production','production');
 INSERT INTO zasp_data_controls(organization_id,workspace_id,environment_id,environment_class,collection_mode,retention_days,deletion_enabled,migration_seeded) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','production','metadata_only',30,true,false),
-('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','staging','metadata_only',30,true,false);
+('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','staging','metadata_only',30,true,false),
+('pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','production','metadata_only',30,true,false);
 INSERT INTO zasp_compliance_controls(organization_id,id,framework,name,fresh_until) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','access-control','SOC 2','Logical access controls',transaction_timestamp()+interval '24 hours');
 INSERT INTO zasp_compliance_evidence(organization_id,control_id,id,asset_id,source,at) VALUES
@@ -1150,7 +1194,8 @@ INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_i
 (digest('target-role-session','sha256'),'target-role-csrf-with-at-least-32-bytes','session-role-change-e2e','pid_10000005-0000-4000-8000-000000000005','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view"]'::jsonb,transaction_timestamp()+interval '1 hour'),
 (digest('webhook-member-session-e2e','sha256'),'webhook-member-csrf-at-least-32-bytes','session-webhook-member-e2e','pid_10000006-0000-4000-8000-000000000006','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view"]'::jsonb,transaction_timestamp()+interval '1 hour');
 INSERT INTO zasp_product_api_tokens (token_digest, principal_id, organization_id, workspace_id, environment_id, permissions, expires_at) VALUES
-(digest('production-e2e-product-token-with-at-least-32-bytes', 'sha256'),'pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view","manage_workflows","manage_findings"]'::jsonb,transaction_timestamp() + interval '1 hour'),
+(digest('production-e2e-product-token-with-at-least-32-bytes', 'sha256'),'pid_10000004-0000-4000-8000-000000000004','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view","manage_workflows","manage_findings","manage_identity"]'::jsonb,transaction_timestamp() + interval '1 hour'),
+(digest('production-e2e-foreign-recovery-token-with-at-least-32-bytes', 'sha256'),'pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','["view","manage_identity"]'::jsonb,transaction_timestamp() + interval '1 hour'),
 (digest('webhook-member-product-token-with-at-least-32-bytes','sha256'),'pid_10000006-0000-4000-8000-000000000006','pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','["view"]'::jsonb,transaction_timestamp()+interval '1 hour');
 INSERT INTO zasp_core_payloads (organization_id, workspace_id, environment_id, operation, payload) VALUES
 ('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','session_bootstrap:pid_10000004-0000-4000-8000-000000000004','{"principal":{"id":"pid_10000004-0000-4000-8000-000000000004","organization_id":"pid_10000001-0000-4000-8000-000000000001","organization_reference":"organization-local","member_reference":"member-local","role":"security_admin","active":true},"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","permissions":["view"],"capabilities":["inventory.read","scope.switch"],"csrf_token":"cccccccccccccccccccccccccccccccc","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb),
@@ -1690,8 +1735,8 @@ INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,so
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorFinding}','posture','connector_revocation','Compromised GitHub integration','critical','open');
 INSERT INTO zasp_risk_finding_evidence(organization_id,workspace_id,environment_id,finding_id,position,evidence_id)
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorFinding}',1,'${connectorEvidence}');
-INSERT INTO zasp_inventory_evidence(organization_id,workspace_id,environment_id,id,integration_id,snapshot_id,finding_id,object_reference,checksum,media_type,schema_version,parser_version,collected_at)
-SELECT '${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorEvidence}','${task5GitHubIntegrationID}',snapshot.id,'${connectorFinding}','s3://zasp-production-e2e/security-agent/connector-revocation.json',decode(repeat('7a',32),'hex'),'application/json','1','parser_v1',transaction_timestamp()
+INSERT INTO zasp_inventory_evidence(organization_id,workspace_id,environment_id,id,integration_id,snapshot_id,finding_id,object_reference,checksum,media_type,schema_version,parser_version,collected_at,artifact_reference,artifact_key,artifact_version_id,size_bytes,tool_version)
+SELECT '${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorEvidence}','${task5GitHubIntegrationID}',snapshot.id,'${connectorFinding}','s3://zasp-production-e2e/security-agent/connector-revocation.json',decode(repeat('7a',32),'hex'),'application/json','1','parser_v1',transaction_timestamp(),'${connectorEvidence}','security-agent/connector-revocation.json','version-e2e-1',128,'tool_v1'
 FROM zasp_discovery_snapshots snapshot WHERE (snapshot.organization_id,snapshot.workspace_id,snapshot.environment_id,snapshot.integration_id,snapshot.state,snapshot.complete,snapshot.is_last_good)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${task5GitHubIntegrationID}','complete',true,true) ORDER BY snapshot.generation DESC LIMIT 1;
 INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorDefinition}','supervised',1,1,
@@ -1829,6 +1874,8 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	assert.match(temporaryApprovalID, /^pid_[0-9a-f-]{36}$/, `temporary policy approval was not prepared: ${worker.output()}`);
 	await stopChild(worker);
 	await runConnectorRevocationProviderWorker(workerE2EBinary, postgresPort, task5GitHubIntegrationID);
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_product_sessions SET authenticated_at=transaction_timestamp()-interval '10 minutes' WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
+	const approvalReauthenticationStarts = identityOAuthStarts;
 	api = startChild(apiBinary, [], { env: apiEnvironment });
 	await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
 	await navigateBrowser(cdp, `${publicOrigin}/protect/approvals`);
@@ -1836,17 +1883,36 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	await clickBrowserAria(cdp, `Open approval ${temporaryApprovalID}`);
 	await waitForBrowserText(cdp, /Apply temporary containment policy/);
 	await waitForBrowserText(cdp, /TTL 600s/);
+	assert.equal(await browserHasInteractiveText(cdp, /^Approve$/i), false, "expired fresh authentication exposed a containment approval action");
+	await clickBrowserText(cdp, "Reauthenticate to decide");
+	await waitForBrowserText(cdp, /Continue through the configured identity provider/);
+	const reauthenticationDocumentMarker = `zasp-reauth-${Date.now()}`;
+	const markedReauthenticationDocument = await cdp.send("Runtime.evaluate", { expression: `globalThis.__zaspE2EReauthenticationDocument = ${JSON.stringify(reauthenticationDocumentMarker)}; true`, returnByValue: true });
+	assert.equal(markedReauthenticationDocument.result?.value, true, "reauthentication document marker was not installed");
+	await clickBrowserText(cdp, "Continue to sign in");
+	await waitForBrowserAction(cdp, `globalThis.__zaspE2EReauthenticationDocument !== ${JSON.stringify(reauthenticationDocumentMarker)} && location.origin === ${JSON.stringify(publicOrigin)} && location.pathname === "/protect/approvals" && document.readyState !== "loading"`);
+	await waitForBrowserText(cdp, /Apply temporary containment policy/);
+	assert.equal(identityOAuthStarts, approvalReauthenticationStarts + 1, "containment approval did not use exactly one provider-faithful reauthentication flow");
+	await clickBrowserAria(cdp, `Open approval ${temporaryApprovalID}`);
+	await waitForBrowserText(cdp, /TTL 600s/);
+	const temporaryApprovalResponsesBefore = securityAgentApprovalResponses.length;
 	await clickBrowserText(cdp, "Approve");
-	await waitForBrowserText(cdp, /approved/);
+	await waitForScopeOverlap(() => securityAgentApprovalResponses.length > temporaryApprovalResponsesBefore, "temporary containment approval response was not observed");
+	const temporaryApprovalResponse = securityAgentApprovalResponses.at(-1);
+	if (temporaryApprovalResponse?.status !== 200) {
+		const authority = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',approval.state,approval.version,approval.expires_at>transaction_timestamp(),approval.requester_id='pid_10000004-0000-4000-8000-000000000004',run.state,run.plan_hash=approval.plan_hash,step.action_key,zasp_security_agent_principal_ready('zasp_security_agent_api'),to_char(transaction_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),to_char(approval.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) FROM zasp_security_agent_approvals approval JOIN zasp_security_agent_runs run USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_steps step USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE approval.approval_id='${temporaryApprovalID}';`])).stdout.trim();
+		assert.equal(temporaryApprovalResponse?.status, 200, `temporary containment approval rejected: response=${JSON.stringify(temporaryApprovalResponse)} authority=${authority}`);
+	}
+	await waitForBrowserText(cdp, /approved Version 2/);
 	worker = startTask4Worker(workerBinary, securityAgentWorkerEnvironment);
 	await assertReadyTask4Worker(worker, "security-agent");
 	let effectState = "";
 	for (let attempt = 0; attempt < 100; attempt += 1) {
-		effectState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,approval.state) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_approvals approval USING(organization_id,workspace_id,environment_id,run_id) WHERE run.run_id='${temporaryRunID}' AND effect.action_key='create_temporary_policy';`])).stdout.trim();
-		if (effectState === "running|pending|approved") break;
+		effectState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,COALESCE(effect.state,''),approval.state,step.authorization_result,COALESCE(run.last_error_code,'')) FROM zasp_security_agent_runs run JOIN zasp_security_agent_steps step USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_approvals approval USING(organization_id,workspace_id,environment_id,run_id) LEFT JOIN zasp_security_agent_effects effect ON (effect.organization_id,effect.workspace_id,effect.environment_id,effect.run_id,effect.step_id,effect.action_key)=(step.organization_id,step.workspace_id,step.environment_id,step.run_id,step.step_id,'create_temporary_policy') WHERE run.run_id='${temporaryRunID}' AND step.action_key='create_temporary_policy';`])).stdout.trim();
+		if (effectState === "running|pending|approved|approval_required|") break;
 		await delay(50);
 	}
-	assert.equal(effectState, "running|pending|approved", "approved temporary policy did not reach the isolated action queue");
+	assert.equal(effectState, "running|pending|approved|approval_required|", `approved temporary policy did not reach the isolated action queue: responses=${JSON.stringify(securityAgentApprovalResponses.slice(-4))}; browser=${JSON.stringify((await browserBodyText(cdp)).slice(-1000))}; worker=${worker.output()}`);
 	await stopChild(worker);
 	await stopChild(api);
 	api = undefined;
@@ -1916,6 +1982,96 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	assert.match(history, /approved/);
 	assert.doesNotMatch(history, /Foreign autonomous response/);
 	console.log("combined E2E: multi-tenant supervised approval, autonomous response, exact-session isolation with unrelated allowance and cleanup, signed temporary policy apply/cleanup, and irreversible connector revocation proven through real production workers");
+}
+
+async function runProductionRecoveryLifecycle(cdp, agentsecctl, workerE2EBinary, postgresPort, dsn, publicOrigin, certificate, credentialFile, expectedScope) {
+	const backupID = "pid_7e000001-0000-4000-8000-000000000001";
+	const backupIdempotencyKey = "recovery-backup-production-e2e-0001";
+	const artifactFile = path.join(temporaryRoot, "recovery-artifacts.json");
+	const manifestFile = path.join(temporaryRoot, "recovery-manifest.json");
+	const recoveryOrigin = new URL(publicOrigin);
+	recoveryOrigin.hostname = recoveryHostname;
+	const common = ["--endpoint", recoveryOrigin.origin, "--credential-file", credentialFile, "--ca-bundle-file", certificate, "--timeout", "10s"];
+	const backupStart = ["backup", "start", ...common, "--backup-id", backupID, "--retention-days", "30", "--idempotency-key", backupIdempotencyKey, "--if-match", '"0"'];
+	const backupStartResult = await command(agentsecctl, backupStart, { reject: false });
+	assert.notEqual(backupStartResult.status, 0, "committed recovery backup response was not lost");
+	assert.equal(backupStartResult.stdout.trim(), "", "lost recovery backup response exposed a result");
+	const replayResult = await command(agentsecctl, backupStart, { reject: false });
+	if (replayResult.status !== 0) throw new Error(`recovery CLI backup replay failed: ${JSON.stringify(recoveryAPIResponses.slice(-4))}`);
+	const created = JSON.parse(replayResult.stdout);
+	const stableReplayResult = await command(agentsecctl, backupStart, { reject: false });
+	if (stableReplayResult.status !== 0) throw new Error(`recovery CLI stable backup replay failed: ${JSON.stringify(recoveryAPIResponses.slice(-4))}`);
+	const replayed = JSON.parse(stableReplayResult.stdout);
+	assert.deepEqual(replayed, created, "same recovery idempotency key replayed a different backup result");
+	assert.equal(created.id, backupID);
+	assert.equal(created.state, "queued");
+	assert.equal(new Set(recoveryBackupRequestKeys).size, 1, "lost recovery response retry changed its idempotency key");
+	const replayCounts = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT
+    (SELECT count(*) FROM zasp_recovery_backups WHERE backup_id='${backupID}'),
+    (SELECT count(*) FROM zasp_recovery_outbox WHERE topic='recovery-backup-jobs' AND payload->>'backup_id'='${backupID}'),
+    (SELECT count(*) FROM zasp_recovery_audit WHERE event_kind='recovery_backup_requested' AND resource_id='${backupID}'),
+    (SELECT count(*) FROM zasp_recovery_request_receipts WHERE operation='startRecoveryBackup' AND idempotency_key='${backupIdempotencyKey}');`])).stdout.trim();
+	assert.equal(replayCounts, "1|1|1|1", "lost recovery response created duplicate durable authority");
+	console.log("combined E2E: committed recovery response loss replayed one backup, outbox, audit, and receipt");
+
+	const workerEnvironment = {
+		...process.env,
+		ZASP_COMBINED_E2E_RECOVERY_PHASE: "backup",
+		ZASP_COMBINED_E2E_RECOVERY_WORKER_DSN: `postgres://zasp_e2e_recovery@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
+		ZASP_COMBINED_E2E_RECOVERY_OUTBOX_DSN: `postgres://zasp_e2e_recovery_outbox@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
+		ZASP_COMBINED_E2E_RECOVERY_ARTIFACT_FILE: artifactFile,
+	};
+	const backupWorker = await command(workerE2EBinary, ["-test.run", "^TestProductionCombinedE2ERecoveryWorker$", "-test.v", "-test.count=1"], { env: workerEnvironment, timeout: 60_000 });
+	assert.match(backupWorker.stdout, /signed recovery manifest published last/);
+	const backup = JSON.parse((await command(agentsecctl, ["backup", "get", ...common, "--backup-id", backupID])).stdout);
+	assert.equal(backup.state, "succeeded");
+	assert.equal(backup.manifest.schema, "recovery_signed_manifest_v1");
+	await writeFile(manifestFile, JSON.stringify(backup.manifest), { mode: 0o600 });
+	await chmod(manifestFile, 0o600);
+	console.log("combined E2E: signed recovery manifest published last");
+
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_product_sessions SET authenticated_at=transaction_timestamp(),permissions='["view","manage_workflows","manage_findings","manage_identity"]'::jsonb WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL;`]);
+	await navigateBrowser(cdp, `${publicOrigin}/administration/recovery`);
+	await waitForBrowserAction(cdp, `location.origin === ${JSON.stringify(publicOrigin)} && location.pathname === "/administration/recovery" && document.readyState !== "loading"`);
+	const retainedRecoveryState = JSON.stringify({ version: 1, backup: { id: backupID, retention_days: 30, idempotency_key: backupIdempotencyKey }, restore: null });
+	const storedRecoveryState = await cdp.send("Runtime.evaluate", { expression: `(() => { const key = ${JSON.stringify(`zasp:recovery:v1:${expectedScope}`)}; const value = ${JSON.stringify(retainedRecoveryState)}; sessionStorage.setItem(key, value); return sessionStorage.getItem(key) === value; })()`, returnByValue: true });
+	assert.equal(storedRecoveryState.exceptionDetails, undefined, "recovery session state storage raised a browser exception");
+	assert.equal(storedRecoveryState.result?.value, true, "recovery session state was not retained in the loaded product document");
+	await reloadBrowser(cdp);
+	await waitForBrowserText(cdp, /Backup succeeded/);
+	await reloadBrowser(cdp);
+	await waitForBrowserText(cdp, /Backup succeeded/);
+	await cdp.send("Runtime.evaluate", { expression: "window.confirm = () => true", returnByValue: true });
+	await clickBrowserText(cdp, "Start restore rehearsal");
+	await waitForBrowserAction(cdp, `(() => { try { return JSON.parse(sessionStorage.getItem(${JSON.stringify(`zasp:recovery:v1:${expectedScope}`)})).restore?.id?.startsWith('pid_') === true; } catch { return false; } })()`);
+	const retained = await cdp.send("Runtime.evaluate", { expression: `JSON.parse(sessionStorage.getItem(${JSON.stringify(`zasp:recovery:v1:${expectedScope}`)}))`, returnByValue: true });
+	const restoreID = retained.result?.value?.restore?.id;
+	assert.match(restoreID, /^pid_[0-9a-f-]{36}$/);
+	await waitForBrowserText(cdp, /Restore queued/);
+
+	const restoreWorker = await command(workerE2EBinary, ["-test.run", "^TestProductionCombinedE2ERecoveryWorker$", "-test.v", "-test.count=1"], { env: { ...workerEnvironment, ZASP_COMBINED_E2E_RECOVERY_PHASE: "restore" }, timeout: 60_000 });
+	assert.match(restoreWorker.stdout, /local TLS Neon fixture, exact projection counts, and temporary resource cleanup completed/);
+	const restore = JSON.parse((await command(agentsecctl, ["restore", "get", ...common, "--restore-id", restoreID])).stdout);
+	assert.equal(restore.state, "succeeded");
+	assert.deepEqual(restore.observed_counts, restore.validation_evidence.expected_counts);
+	assert.equal(restore.cleanup_evidence.state, "deleted");
+	await waitForBrowserText(cdp, /Restore succeeded/);
+	await waitForBrowserText(cdp, /Temporary resources deleted/);
+	await reloadBrowser(cdp);
+	const recovered = await waitForBrowserText(cdp, /Restore succeeded/);
+	assert.match(recovered, /Temporary resources deleted/);
+
+	const foreignBackupID = "pid_9e000001-0000-4000-8000-000000000001";
+	const foreign = await requestHTTPSJSON(`${recoveryOrigin.origin}/api/v1/recovery/backups`, { method: "POST", headers: { authorization: "Bearer production-e2e-foreign-recovery-token-with-at-least-32-bytes", "content-type": "application/json", "idempotency-key": "foreign-recovery-backup-e2e-0001", "if-match": '"0"' } }, JSON.stringify({ backup_id: foreignBackupID, retention_days: 30 }));
+	assert.equal(foreign.status, 202, `foreign recovery fixture failed: ${JSON.stringify(foreign)}`);
+	const rejected = await requestHTTPSJSON(`${recoveryOrigin.origin}/api/v1/recovery/backups/${foreignBackupID}`, { method: "GET", headers: { authorization: "Bearer production-e2e-product-token-with-at-least-32-bytes" } });
+	assert.equal(rejected.status, 404, "cross-tenant recovery read rejected with a distinguishable response");
+	console.log("combined E2E: cross-tenant recovery read rejected");
+
+	const forensics = JSON.stringify(await browserStorageHistoryAndCaches(cdp));
+	assert.doesNotMatch(forensics, /s3:\/\/|arn:aws:kms|recovery-artifacts\.json|recovery-api-token|postgres:\/\//i, "recovery browser state retained private recovery authority");
+	console.log("combined E2E: Recovery rehearsal completed; Temporary resources deleted");
+	console.log("combined E2E: live Neon/AWS/S3/KMS/Kubernetes recovery remains NOT RUN");
 }
 
 async function runConnectorRevocationProviderWorker(workerE2EBinary, postgresPort, integrationID) {
@@ -2245,9 +2401,12 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const tokenAcknowledge = request.method === "DELETE" && /^\/api\/v1\/admin\/api-token-reveal-grants\/pid_[0-9a-f-]+$/.test(target.pathname);
 		const integrationDeleteID = request.method === "DELETE" && /^\/api\/v1\/integrations\/pid_[0-9a-f-]+$/.test(target.pathname) ? target.pathname.split("/").at(-1) : undefined;
     const findingTicketRequest = request.method === "POST" && /^\/api\/v1\/findings\/pid_[0-9a-f-]+\/ticket$/.test(target.pathname);
+		const recoveryBackupRequest = request.method === "POST" && target.pathname === "/api/v1/recovery/backups";
+		const securityAgentApprovalRequest = request.method === "POST" && /^\/api\/v1\/security-agent-approvals\/pid_[0-9a-f-]+\/decision$/.test(target.pathname);
     const connectorAuthorizationRequest = request.method === "POST" && target.pathname === `/api/v1/integrations/${terminalRevocationIntegrationID}/authorize` && String(request.headers.cookie ?? "").includes("__Host-zasp_session=");
     if (tokenCreate) tokenMutationKeys.create.push(String(request.headers["idempotency-key"] ?? ""));
     if (tokenRotate) tokenMutationKeys.rotate.push(String(request.headers["idempotency-key"] ?? ""));
+		if (recoveryBackupRequest) recoveryBackupRequestKeys.push(String(request.headers["idempotency-key"] ?? ""));
     if (request.method === "GET" && target.pathname === "/api/v1/policies") workflowPageRequests.policies.push(target.search);
     if (request.method === "GET" && target.pathname === "/api/v1/integrations") workflowPageRequests.integrations.push(target.search);
     if (request.method === "GET" && target.pathname === "/api/v1/findings") riskPageRequests.findings.push(target.search);
@@ -2313,17 +2472,28 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
         response.writeHead(502); response.end("receipt expiry injection failed"); return;
       }
     }
-    const upstreamPort = request.url?.startsWith("/api/v1/") ? apiPort : webPort;
-    const upstreamHeaders = {
-      ...request.headers,
-      host: request.headers.host,
-      "x-forwarded-for": "127.0.0.1",
-      "x-forwarded-host": request.headers.host,
+		const upstreamPort = request.url?.startsWith("/api/v1/") ? apiPort : webPort;
+		const inboundHost = String(request.headers.host ?? "");
+		const upstreamHost = inboundHost === `${recoveryHostname}:${port}` ? `${productHostname}:${port}` : inboundHost;
+		const upstreamHeaders = {
+			...request.headers,
+			host: upstreamHost,
+			"x-forwarded-for": "127.0.0.1",
+			"x-forwarded-host": upstreamHost,
       "x-forwarded-port": String(port),
       "x-forwarded-proto": "https",
     };
     delete upstreamHeaders["x-zasp-e2e-tab"];
-    const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
+		const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
+		if (target.pathname.startsWith("/api/v1/recovery/")) recoveryAPIResponses.push({ method: request.method, path: target.pathname, status: upstreamResponse.statusCode ?? 0, contentType: String(upstreamResponse.headers["content-type"] ?? ""), cacheControl: String(upstreamResponse.headers["cache-control"] ?? ""), etag: String(upstreamResponse.headers.etag ?? ""), audit: String(upstreamResponse.headers["x-audit-id"] ?? ""), receipt: String(upstreamResponse.headers["x-mutation-receipt-id"] ?? "") });
+		const securityAgentApprovalResponse = securityAgentApprovalRequest ? { path: target.pathname, status: upstreamResponse.statusCode ?? 0, idempotencyKey: String(request.headers["idempotency-key"] ?? ""), ifMatch: String(request.headers["if-match"] ?? ""), fresh: String(request.headers["x-zasp-fresh-auth"] ?? ""), audit: String(upstreamResponse.headers["x-audit-id"] ?? ""), receipt: String(upstreamResponse.headers["x-mutation-receipt-id"] ?? ""), errorBody: "" } : undefined;
+		if (securityAgentApprovalResponse) securityAgentApprovalResponses.push(securityAgentApprovalResponse);
+		if (recoveryBackupRequest && loseNextRecoveryBackupResponse && upstreamResponse.statusCode === 202) {
+			loseNextRecoveryBackupResponse = false;
+			upstreamResponse.resume();
+			upstreamResponse.once("end", () => response.destroy());
+			return;
+		}
       if (integrationDeleteID) {
         integrationDeleteRequests.push({
           id: integrationDeleteID,
@@ -2366,6 +2536,22 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
       if (target.pathname.startsWith("/api/v1/session/")) response.once("finish", () => { scopeOverlapProof.events.push(`${browserTab || "untagged"}:${request.socket.remotePort}:${request.method}:${target.pathname}:finished`); });
       if ((upstreamResponse.headers["set-cookie"] ?? []).some((value) => value.startsWith("__Host-zasp_session="))) observedSessionCookie = true;
       if (target.pathname.startsWith("/api/v1/session/") || upstreamResponse.statusCode === 409) scopeOverlapProof.events.push(`${browserTab || "untagged"}:${request.socket.remotePort}:${request.method}:${target.pathname}:${upstreamResponse.statusCode}`);
+		if (securityAgentApprovalResponse && (upstreamResponse.statusCode ?? 500) >= 400) {
+			const chunks = [];
+			let bytes = 0;
+			upstreamResponse.on("data", (chunk) => {
+				if (bytes >= 2_048) return;
+				const bounded = chunk.subarray(0, 2_048 - bytes);
+				chunks.push(bounded);
+				bytes += bounded.length;
+			});
+			upstreamResponse.once("end", () => {
+				securityAgentApprovalResponse.errorBody = Buffer.concat(chunks).toString("utf8");
+				response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
+				response.end(securityAgentApprovalResponse.errorBody);
+			});
+			return;
+		}
       if (browserTab === "first" && upstreamResponse.statusCode === 409) scopeOverlapProof.firstTabScopeStaleResponses += 1;
       if (browserTab === "second" && target.pathname === "/api/v1/session/bootstrap" && scopeOverlapProof.delayedFirstTabBootstrap && !scopeOverlapProof.delayedFirstTabBootstrap.released) {
         scopeOverlapProof.secondTabBootstrapWhileFirstDelayed = true;
@@ -2855,11 +3041,6 @@ async function browserTextControlDisabled(cdp, text) {
 async function browserHasAriaLabel(cdp, label) {
   const evaluated = await cdp.send("Runtime.evaluate", { expression: `document.querySelector(${JSON.stringify(`[aria-label="${label}"]`)}) !== null`, returnByValue: true });
   return evaluated.result?.value === true;
-}
-
-async function browserAriaControlDisabled(cdp, label) {
-  const evaluated = await cdp.send("Runtime.evaluate", { expression: `(() => { const element = document.querySelector(${JSON.stringify(`[aria-label="${label}"]`)}); return element instanceof HTMLButtonElement ? element.disabled : null; })()`, returnByValue: true });
-  return evaluated.result?.value;
 }
 
 async function browserLabeledControlDisabled(cdp, label) {

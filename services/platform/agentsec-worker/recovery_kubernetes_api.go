@@ -331,18 +331,38 @@ func (api *productionRecoveryKubernetesAPI) Rebuild(ctx context.Context, plan re
 }
 
 func (api *productionRecoveryKubernetesAPI) Cleanup(ctx context.Context, plan recoveryKubernetesPlan, namespaceUID string) (apiserver.RecoveryCleanupEvidence, error) {
-	if !validRecoveryKubernetesAPIPlan(plan, api.config.NeonCIDRs) || namespaceUID != "" && !recoveryKubernetesUIDPattern.MatchString(namespaceUID) {
+	if !validRecoveryKubernetesAPIPlan(plan, api.config.NeonCIDRs) {
 		return apiserver.RecoveryCleanupEvidence{}, errWorkerExecution
+	}
+	cleanupPlan := recoveryCleanupPlan(plan.Scope, plan.RestoreID, plan.Namespace, plan.Labels["zasp.io/recovery-scope"])
+	resolvedUID, cleanupErr := api.CleanupNamespace(ctx, cleanupPlan, namespaceUID)
+	state := "deleted"
+	if cleanupErr != nil {
+		state = "failed"
+	}
+	evidence, evidenceErr := api.RecordCleanup(ctx, cleanupPlan, resolvedUID, state)
+	if evidenceErr != nil {
+		return apiserver.RecoveryCleanupEvidence{}, errWorkerExecution
+	}
+	if cleanupErr != nil {
+		return evidence, errWorkerExecution
+	}
+	return evidence, nil
+}
+
+func (api *productionRecoveryKubernetesAPI) CleanupNamespace(ctx context.Context, plan recoveryKubernetesCleanupPlan, namespaceUID string) (string, error) {
+	if api == nil || !validRecoveryKubernetesCleanupPlan(plan) || namespaceUID != "" && !recoveryKubernetesUIDPattern.MatchString(namespaceUID) {
+		return namespaceUID, errWorkerExecution
 	}
 	path := "/api/v1/namespaces/" + plan.Namespace
 	body, status, err := api.request(ctx, http.MethodGet, path, nil)
 	if err != nil {
-		return api.failedCleanupEvidence(ctx, plan, namespaceUID)
+		return namespaceUID, errWorkerExecution
 	}
 	if status != http.StatusNotFound {
 		var namespace recoveryKubernetesResource
 		if status != http.StatusOK || json.Unmarshal(body, &namespace) != nil || !exactRecoveryKubernetesResource(namespace, "v1", "Namespace", plan.Namespace, "", namespaceUID, plan.Labels) {
-			return api.failedCleanupEvidence(ctx, plan, namespaceUID)
+			return namespaceUID, errWorkerExecution
 		}
 		if namespaceUID == "" {
 			namespaceUID = namespace.Metadata.UID
@@ -350,33 +370,32 @@ func (api *productionRecoveryKubernetesAPI) Cleanup(ctx context.Context, plan re
 		options := map[string]any{"apiVersion": "v1", "kind": "DeleteOptions", "gracePeriodSeconds": 0, "propagationPolicy": "Foreground", "preconditions": map[string]string{"uid": namespaceUID}}
 		encoded, _ := json.Marshal(options)
 		if _, status, err = api.request(ctx, http.MethodDelete, path, encoded); err != nil || status != http.StatusOK && status != http.StatusAccepted {
-			return api.failedCleanupEvidence(ctx, plan, namespaceUID)
+			return namespaceUID, errWorkerExecution
 		}
 	}
 	for {
-		_, status, err = api.request(ctx, http.MethodGet, path, nil)
+		body, status, err = api.request(ctx, http.MethodGet, path, nil)
 		if err == nil && status == http.StatusNotFound {
 			break
 		}
-		if err != nil || status != http.StatusOK || !waitRecoveryKubernetes(ctx, api.config.PollInterval) {
-			return api.failedCleanupEvidence(ctx, plan, namespaceUID)
+		var namespace recoveryKubernetesResource
+		if err != nil || status != http.StatusOK || json.Unmarshal(body, &namespace) != nil || !exactRecoveryKubernetesResource(namespace, "v1", "Namespace", plan.Namespace, "", namespaceUID, plan.Labels) || !waitRecoveryKubernetes(ctx, api.config.PollInterval) {
+			return namespaceUID, errWorkerExecution
 		}
 	}
-	evidenceBody, _ := json.Marshal(map[string]string{"namespace_uid": namespaceUID, "scope_digest": plan.Labels["zasp.io/recovery-scope"], "state": "deleted"})
-	evidence, err := api.putEvidence(ctx, plan, "cleanup", "recovery_cleanup_v1", evidenceBody)
-	if err != nil {
-		return apiserver.RecoveryCleanupEvidence{}, errWorkerExecution
-	}
-	return apiserver.RecoveryCleanupEvidence{State: "deleted", Evidence: evidence}, nil
+	return namespaceUID, nil
 }
 
-func (api *productionRecoveryKubernetesAPI) failedCleanupEvidence(ctx context.Context, plan recoveryKubernetesPlan, namespaceUID string) (apiserver.RecoveryCleanupEvidence, error) {
-	body, _ := json.Marshal(map[string]string{"namespace_uid": namespaceUID, "scope_digest": plan.Labels["zasp.io/recovery-scope"], "state": "failed"})
-	evidence, err := api.putEvidence(ctx, plan, "cleanup", "recovery_cleanup_v1", body)
+func (api *productionRecoveryKubernetesAPI) RecordCleanup(ctx context.Context, plan recoveryKubernetesCleanupPlan, namespaceUID, state string) (apiserver.RecoveryCleanupEvidence, error) {
+	if api == nil || !validRecoveryKubernetesCleanupPlan(plan) || namespaceUID != "" && !recoveryKubernetesUIDPattern.MatchString(namespaceUID) || !stringInWorker(state, "deleted", "failed") {
+		return apiserver.RecoveryCleanupEvidence{}, errWorkerExecution
+	}
+	body, _ := json.Marshal(map[string]string{"namespace_uid": namespaceUID, "scope_digest": plan.Labels["zasp.io/recovery-scope"], "state": state})
+	evidence, err := api.putEvidence(ctx, recoveryKubernetesPlan{Scope: plan.Scope, RestoreID: plan.RestoreID}, "cleanup", "recovery_cleanup_v1", body)
 	if err != nil {
 		return apiserver.RecoveryCleanupEvidence{}, errWorkerExecution
 	}
-	return apiserver.RecoveryCleanupEvidence{State: "failed", Evidence: evidence}, errWorkerExecution
+	return apiserver.RecoveryCleanupEvidence{State: state, Evidence: evidence}, nil
 }
 
 func (api *productionRecoveryKubernetesAPI) runJob(ctx context.Context, plan recoveryKubernetesPlan, namespaceUID string, job recoveryKubernetesJob) (string, error) {
@@ -483,6 +502,12 @@ func validRecoveryKubernetesAPIPlan(plan recoveryKubernetesPlan, cidrs []string)
 		}
 	}
 	return true
+}
+
+func validRecoveryKubernetesCleanupPlan(plan recoveryKubernetesCleanupPlan) bool {
+	name, scopeDigest, err := recoveryRestoreIdentity(plan.Scope, plan.RestoreID)
+	wantLabels := map[string]string{"app.kubernetes.io/managed-by": "agentsec-recovery", "zasp.io/recovery-id": plan.RestoreID, "zasp.io/recovery-scope": scopeDigest}
+	return err == nil && plan.Namespace == name && reflect.DeepEqual(plan.Labels, wantLabels)
 }
 
 func exactRecoveryKubernetesResource(value recoveryKubernetesResource, apiVersion, kind, name, namespace, uid string, labels map[string]string) bool {

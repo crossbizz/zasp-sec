@@ -51,4 +51,10 @@ func TestProductionRecoveryFunctionsFenceScopeLeaseAndDigest(t *testing.T) {
 			t.Fatalf("v27 authority missing %q", required)
 		}
 	}
+	if !strings.Contains(up, `to_char(collected_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`) || !strings.Contains(up, `to_char(evidence.collected_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`) {
+		t.Fatal("v27 recovery evidence timestamps are not canonical UTC at capture and validation boundaries")
+	}
+	if strings.Count(up, `'committed_at',to_char(cursor.committed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`) != 2 || strings.Count(up, `'updated_at',to_char(cursor.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`) != 2 {
+		t.Fatal("v27 recovery projection timestamps are not canonical UTC at capture and validation boundaries")
+	}
 }

@@ -397,6 +397,7 @@ CREATE FUNCTION public.zasp_red_team_execution_security_ready() RETURNS boolean 
  AND has_function_privilege('zasp_red_team_outbox_worker','public.zasp_red_team_claim_outbox(text,bytea,integer,integer)','EXECUTE')
  AND has_function_privilege('zasp_red_team_adapter','public.zasp_red_team_resolve_target(text,text,text,text,text)','EXECUTE')
  AND NOT has_table_privilege('zasp_security_agent_api','public.zasp_red_team_runs','SELECT') AND NOT has_table_privilege('zasp_security_agent_api','public.zasp_red_team_audit','SELECT') AND NOT has_table_privilege('zasp_red_team_worker','public.zasp_red_team_runs','SELECT') AND NOT has_table_privilege('zasp_red_team_adapter','public.zasp_inventory_entities','SELECT')
+ AND EXISTS(SELECT 1 FROM zasp_schema_metadata marker JOIN pg_roles role_value ON role_value.rolname=marker.value WHERE marker.key='red_team_execution_prior_permissions_owner' AND role_value.rolcanlogin AND (marker.value=session_user OR EXISTS(SELECT 1 FROM zasp_discovery_principal_bindings binding WHERE binding.principal_name=marker.value AND binding.authority_role='zasp_discovery_authority')))
  AND zasp_effective_scope_permissions('[]'::jsonb,'organization_admin') ? 'run_tests' AND zasp_effective_scope_permissions('[]'::jsonb,'security_engineer') ? 'run_tests' AND zasp_effective_scope_permissions('[]'::jsonb,'developer_owner') ? 'run_tests' AND NOT zasp_effective_scope_permissions('[]'::jsonb,'read_only_viewer') ? 'run_tests'
 $security$;
 CREATE FUNCTION public.zasp_red_team_execution_live_fingerprint() RETURNS text LANGUAGE sql STABLE SET search_path TO pg_catalog, public AS $fingerprint$
@@ -417,7 +418,37 @@ $readiness$;
 CREATE FUNCTION public.zasp_red_team_target_adapter_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $adapter_readiness$
  SELECT zasp_red_team_execution_readiness(expected_checksum,expected_fingerprint) AND zasp_red_team_principal_ready('zasp_red_team_adapter')
 $adapter_readiness$;
+DO $prior_permissions_owner$
+DECLARE prior_owner text;prior_acl_canonical boolean;
+BEGIN
+ SELECT procedure.proowner::regrole::text,
+        (SELECT count(*)=3
+             AND count(*) FILTER(WHERE acl.grantee=0 AND acl.grantor=procedure.proowner AND acl.privilege_type='EXECUTE' AND NOT acl.is_grantable)=1
+             AND count(*) FILTER(WHERE acl.grantee=procedure.proowner AND acl.grantor=procedure.proowner AND acl.privilege_type='EXECUTE' AND NOT acl.is_grantable)=1
+             AND count(*) FILTER(WHERE acl.grantee=(SELECT oid FROM pg_roles WHERE rolname='zasp_discovery_api') AND acl.grantor=procedure.proowner AND acl.privilege_type='EXECUTE' AND NOT acl.is_grantable)=1
+           FROM aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner))) acl)
+   INTO prior_owner,prior_acl_canonical
+ FROM pg_proc procedure
+ WHERE procedure.oid='public.zasp_effective_scope_permissions(jsonb,text)'::regprocedure;
+ IF prior_owner IS NULL OR NOT EXISTS(SELECT 1 FROM pg_roles role_value WHERE role_value.rolname=prior_owner AND role_value.rolcanlogin)
+    OR NOT (prior_owner=session_user OR EXISTS(SELECT 1 FROM zasp_discovery_principal_bindings binding WHERE binding.principal_name=prior_owner AND binding.authority_role='zasp_discovery_authority')) THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='unsafe inherited permissions owner';
+ END IF;
+ IF NOT COALESCE(prior_acl_canonical,false) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='noncanonical inherited permissions ACL';END IF;
+ INSERT INTO public.zasp_schema_metadata(key,value) VALUES('red_team_execution_prior_permissions_owner',prior_owner);
+END
+$prior_permissions_owner$;
 ALTER FUNCTION public.zasp_security_agent_session_isolation_readiness(text,text) OWNER TO zasp_discovery_authority;
+ALTER FUNCTION public.zasp_effective_scope_permissions(jsonb,text) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION public.zasp_effective_scope_permissions(jsonb,text) FROM PUBLIC,zasp_discovery_api;
+DO $normalize_effective_permissions_acl$
+BEGIN
+ EXECUTE format('REVOKE ALL ON FUNCTION public.zasp_effective_scope_permissions(jsonb,text) FROM %I',session_user);
+END
+$normalize_effective_permissions_acl$;
+SET LOCAL ROLE zasp_discovery_authority;
+GRANT EXECUTE ON FUNCTION public.zasp_effective_scope_permissions(jsonb,text) TO zasp_discovery_api;
+RESET ROLE;
 ALTER FUNCTION public.zasp_red_team_execution_security_ready() OWNER TO zasp_discovery_authority;
 ALTER FUNCTION public.zasp_red_team_execution_live_fingerprint() OWNER TO zasp_discovery_authority;
 ALTER FUNCTION public.zasp_red_team_execution_readiness(text,text) OWNER TO zasp_discovery_authority;
@@ -435,4 +466,4 @@ END
 $product_release_evolution$;
 
 UPDATE public.zasp_schema_metadata SET value='red-team-execution-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='security-agent-session-isolation-v1';
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('red_team_execution_fingerprint', '5f3a61dcc185dd6667a6e02551338549632338bfc7e21602fdd521e75fd90c48') ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('red_team_execution_fingerprint', 'bb848d5c9936143cc9251dd44410de037a382b1190e1d04069df18b0a38f669a') ON CONFLICT(key) DO UPDATE SET value=excluded.value;

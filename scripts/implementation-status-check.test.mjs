@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 355; expected 356/,
+        /production-available count is 365; expected 366/,
       );
     },
   );
@@ -242,6 +242,26 @@ test("rejects demotion of audited shipped deployment tasks", async () => {
         await assert.rejects(
           () => validateLedger({ ledgerPath, sourcePlanPath }),
           new RegExp(`production class missing does not match audited production-available for ${id}`),
+        );
+      },
+    );
+  }
+});
+
+test("rejects demotion of audited shipped recovery tasks", async () => {
+  for (const id of [
+    "M8-20a", "M8-20b", "M8-20c", "M8-20",
+    "M8-21a", "M8-21b", "M8-21c", "M8-21d", "M8-21e", "M8-21",
+  ]) {
+    await withLedger(
+      (ledger) => ledger.replace(
+        new RegExp(`(M8\\t${id}\\tComplete\\t)production-available`),
+        "$1component-only",
+      ),
+      async (ledgerPath) => {
+        await assert.rejects(
+          () => validateLedger({ ledgerPath, sourcePlanPath }),
+          new RegExp(`production class component-only does not match audited production-available for ${id}`),
         );
       },
     );

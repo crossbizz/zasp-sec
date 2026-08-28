@@ -9,6 +9,7 @@ import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 
 test("combined production E2E owns every local boundary and fixed assertion", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const recoveryWorkerSource = await readFile(new URL("../services/platform/agentsec-worker/production_combined_e2e_test.go", import.meta.url), "utf8");
   for (const value of [
     "initdb", "postgres", "agentsec-migrate", "agentsec-api", "vinext", "Google Chrome",
     "/api/v1/session/start", "/auth/callback", "__Host-zasp_session", "Support agent",
@@ -79,7 +80,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL", "ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL", "ZASP_RUNTIME_INDEX_DB_PRINCIPAL",
     "ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL", "ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL", "ZASP_GATEWAY_CONTROL_DB_PRINCIPAL",
     "ZASP_SECURITY_AGENT_API_DB_PRINCIPAL", "ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL", "ZASP_SECURITY_AGENT_POSTGRES_DSN",
-    "provisionPostgresPrincipals", "apiDSN", "zasp.production-e2e.test", "--host-resolver-rules", "SIGQUIT",
+    "provisionPostgresPrincipals", "apiDSN", "zasp.production-e2e.test", "zasp.production-e2e.localhost", "--host-resolver-rules", "SIGQUIT",
     "schema 14 typed_inventory_cutover verified", "agentsec-worker-e2e", "runDeterministicLocalDiscovery",
     "deterministic local provider and artifact authority completed public sync", "typed inventory public routes derive only from complete discovery snapshots",
     "typed inventory browser deep-link reload proven", "second-source retention proven", "complete-empty source removal proven",
@@ -90,6 +91,10 @@ test("combined production E2E owns every local boundary and fixed assertion", as
 		"Task6 authenticated heartbeat and healthy sensor coverage proven", "Task6 token rotation and version-pinned sensor update proven",
     "Task6 reload and deletion left no enrollment credential in persistent browser state", "zasp_runtime_sensor_heartbeat",
 		"exerciseSecurityAgentAutomaticLifecycle", "production-e2e-security-agent", "multi-tenant supervised approval, autonomous response, exact-session isolation with unrelated allowance and cleanup, signed temporary policy apply/cleanup, and irreversible connector revocation proven", "TestProductionCombinedE2ETemporaryPolicyActionWorker", "Apply temporary containment policy", "Isolate runtime session", "ZASP_COMBINED_E2E_ACTION_SESSION_ID", "ZASP_COMBINED_E2E_ACTION_OTHER_SESSION_ID", "TTL 600s", "zasp_e2e_security_agent_action",
+		"agentsecctl", "schema 27 production_recovery verified", "ZASP_RECOVERY_WORKER_DB_PRINCIPAL", "ZASP_RECOVERY_OUTBOX_DB_PRINCIPAL",
+		"runProductionRecoveryLifecycle", "TestProductionCombinedE2ERecoveryWorker", "ZASP_COMBINED_E2E_RECOVERY_PHASE",
+		"committed recovery response loss replayed one backup, outbox, audit, and receipt", "signed recovery manifest published last", "cross-tenant recovery read rejected",
+		"Recovery rehearsal completed", "Temporary resources deleted", "live Neon/AWS/S3/KMS/Kubernetes recovery remains NOT RUN",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   const apiEnvironment = source.slice(source.indexOf("const apiEnvironment = {"), source.indexOf("api = startChild(apiBinary"));
   for (const value of ["HOSTNAME", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_FINDING_TICKET_EGRESS_CIDRS"]) assert.match(apiEnvironment, new RegExp(value));
@@ -110,6 +115,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
   assert.doesNotMatch(seedBoundary, /'(?:home|agents|tools|identities|runtimes|(?:agent|tool|identity|runtime|asset):pid_[0-9a-f-]{36}|agent_(?:capabilities|relationships|sessions):pid_[0-9a-f-]{36})'/i);
 	const securityAgentBoundary = source.slice(source.indexOf("async function exerciseSecurityAgentAutomaticLifecycle"), source.indexOf("async function", source.indexOf("async function exerciseSecurityAgentAutomaticLifecycle") + 15));
 	for (const value of ["security-agent", "zasp_security_agent_worker", "30s", "Validate definition", "Enable supervised execution", "Approve", "autonomous", "pid_90000001-0000-4000-8000-000000000001", "Apply temporary containment policy", "Isolate runtime session", "TTL 600s", "create_temporary_policy", "isolate_session", "runTemporaryPolicyActionWorker", "cleanup_pending", "remediated\\|cleaned\\|2\\|2", "contained\\|cleanup_pending\\|1\\|3\\|0", "remediated\\|cleaned\\|2\\|4", "Revoke integration connection", "Identity administrator approval required", "revoke_integration_connection", "runConnectorRevocationProviderWorker", "INSERT INTO zasp_risk_finding_evidence", "remediated\\|verified\\|verified\\|revoked\\|revoked\\|pending\\|pending_authorization"]) assert.match(securityAgentBoundary, new RegExp(value));
+	for (const field of ["artifact_reference", "artifact_key", "artifact_version_id", "size_bytes", "tool_version"]) assert.match(securityAgentBoundary, new RegExp(field));
 	const connectorWorkerBoundary = source.slice(source.indexOf("async function runConnectorRevocationProviderWorker"), source.indexOf("async function", source.indexOf("async function runConnectorRevocationProviderWorker") + 15));
 	for (const value of ["TestProductionCombinedE2EConnectorRevocationWorker", "real connector reconciler revoked exact reference", "ZASP_COMBINED_E2E_CONNECTOR_REFERENCE"]) assert.match(connectorWorkerBoundary, new RegExp(value));
 	assert.match(connectorWorkerBoundary, /ZASP_COMBINED_E2E_CONNECTOR_DSN: `postgres:\/\/zasp_e2e_api@/);
@@ -118,6 +124,17 @@ test("combined production E2E owns every local boundary and fixed assertion", as
 	assert.doesNotMatch(securityAgentBoundary, /zasp_security_agent_(?:schedule_triggers|prepare_run|execute_run)(?:_v21)?\s*\(/i);
 	assert.match(securityAgentBoundary, /NOT EXISTS\(SELECT 1 FROM zasp_security_agent_runs run WHERE \(run\.organization_id,run\.workspace_id,run\.environment_id,run\.run_id\)=\(effect\.organization_id,effect\.workspace_id,effect\.environment_id,effect\.run_id\)\)/i);
 	assert.doesNotMatch(securityAgentBoundary, /JOIN zasp_security_agent_runs run USING\(organization_id,workspace_id,environment_id,run_id\)[\s\S]*effect\.organization_id<>run\.organization_id/i);
+	const recoveryBoundary = source.slice(source.indexOf("async function runProductionRecoveryLifecycle"), source.indexOf("async function", source.indexOf("async function runProductionRecoveryLifecycle") + 15));
+	for (const value of ["backup", "start", "--credential-file", "--ca-bundle-file", "TestProductionCombinedE2ERecoveryWorker", "ZASP_COMBINED_E2E_RECOVERY_ARTIFACT_FILE", "/administration/recovery", "Start restore rehearsal", "committed recovery response loss replayed one backup, outbox, audit, and receipt", "cross-tenant recovery read rejected", "signed recovery manifest published last", "Temporary resources deleted"]) assert.match(recoveryBoundary, new RegExp(value));
+	assert.match(recoveryBoundary, /recoveryOrigin\.origin}\/api\/v1\/recovery\/backups/);
+	assert.match(recoveryBoundary, /JSON\.stringify\(\{ backup_id: foreignBackupID, retention_days: 30 \}\)/);
+	assert.doesNotMatch(recoveryBoundary, /publicOrigin}\/api\/v1\/recovery\/backups/);
+	assert.ok(recoveryBoundary.indexOf('document.readyState !== "loading"') < recoveryBoundary.indexOf("sessionStorage.setItem"), "recovery state was written before the replacement product document loaded");
+	assert.match(recoveryBoundary, /recovery session state was not retained in the loaded product document/);
+	assert.doesNotMatch(recoveryBoundary, /zasp_recovery_(?:finish_backup|finish_restore|fail_operation|acknowledge_outbox)\s*\(/i);
+	const recoveryWorkerBoundary = recoveryWorkerSource.slice(recoveryWorkerSource.indexOf("func TestProductionCombinedE2ERecoveryWorker"), recoveryWorkerSource.indexOf("func combinedE2ERecoveryDatabase"));
+	for (const value of ["composeRecoveryOutboxWorkerRuntime", "composeRecoveryWorkerRuntime", ".Ready(ctx)", ".Processor.RunOnce(ctx)", ".Close()"]) assert.match(recoveryWorkerBoundary, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+	assert.doesNotMatch(recoveryWorkerBoundary, /newRecovery(?:Outbox|Backup|Restore)Processor/);
   for (const unsafeControl of ["Start bounded run", "waiting_approval", "Simulate policy", "Decision history"]) {
     const escaped = unsafeControl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     assert.doesNotMatch(source, new RegExp(`(?:clickBrowserText|clickBrowserTextContains|clickBrowserAria)\\([^\\n]*${escaped}`, "i"));

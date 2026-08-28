@@ -49,4 +49,11 @@ func TestProductionRedTeamExecutionMetadataPinsDurableTenantAuthority(t *testing
 	if !strings.Contains(metadata.DownSQL(), "red team execution rollback rejected") || !strings.Contains(metadata.DownSQL(), "zasp_red_team_execution_live_fingerprint") {
 		t.Fatal("v25 down migration is not guarded by exact live authority")
 	}
+	if !strings.Contains(metadata.UpSQL(), "red_team_execution_prior_permissions_owner") ||
+		!strings.Contains(metadata.UpSQL(), "MESSAGE='noncanonical inherited permissions ACL'") ||
+		!strings.Contains(metadata.UpSQL(), "aclexplode(COALESCE(procedure.proacl,acldefault('f',procedure.proowner)))") ||
+		!strings.Contains(metadata.DownSQL(), "ALTER FUNCTION public.zasp_effective_scope_permissions(jsonb,text) OWNER TO %I") ||
+		!strings.Contains(metadata.DownSQL(), "DELETE FROM public.zasp_schema_metadata WHERE key='red_team_execution_prior_permissions_owner'") {
+		t.Fatal("v25 does not preserve and restore the inherited permissions function owner")
+	}
 }

@@ -77,6 +77,22 @@ func TestRecoveryRepositoryCreatesScopedBackupAndRestoreWithExactAuthority(t *te
 	}
 }
 
+func TestRecoveryRepositoryAcceptsReplayWithOriginalStableCorrelationAuthority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestRecoveryPublicRepository(t, database)
+	digest := sha256.Sum256([]byte("recovery-request"))
+	storedCorrelationID := "pid_71000008-0000-4000-8000-000000000008"
+	database.responses[postgresRecoveryStartBackupSQL] = json.RawMessage(`{"audit_id":"pid_71000004-0000-4000-8000-000000000004","body":{"id":"` + testRecoveryBackupID + `","version":1,"state":"queued","retention_days":30,"attempt":0,"created_at":"2026-08-25T12:00:00Z"},"correlation_id":"` + storedCorrelationID + `","receipt_id":"pid_71000005-0000-4000-8000-000000000005","replayed":true}`)
+	result, err := repository.StartBackup(context.Background(), identity, RecoveryBackupMutation{
+		BackupID: testRecoveryBackupID, RetentionDays: 30, IdempotencyKey: "recovery-backup-0001", RequestDigest: digest[:],
+		AuditID: "pid_71000006-0000-4000-8000-000000000006", CorrelationID: testCorrelationID, ReceiptID: "pid_71000007-0000-4000-8000-000000000007",
+	})
+	if err != nil || !result.Replayed || result.CorrelationID != storedCorrelationID {
+		t.Fatalf("result=%#v err=%v", result, err)
+	}
+}
+
 func TestRecoveryRepositoryStrictlyDecodesStateAndPublicLocator(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
@@ -106,6 +122,24 @@ func TestRecoveryRepositoryStrictlyDecodesStateAndPublicLocator(t *testing.T) {
 				t.Fatalf("error=%v", err)
 			}
 		})
+	}
+}
+
+func TestRecoveryRepositoryAcceptsExactPrestartDispatchExhaustion(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestRecoveryPublicRepository(t, database)
+	database.responses[postgresRecoveryGetBackupSQL] = json.RawMessage(`{"id":"` + testRecoveryBackupID + `","version":2,"state":"failed","retention_days":30,"attempt":0,"error_code":"exhausted","created_at":"2026-08-25T12:00:00Z","completed_at":"2026-08-25T12:00:02Z"}`)
+	if backup, err := repository.GetBackup(context.Background(), identity, testRecoveryBackupID); err != nil || backup.State != "failed" || backup.Attempt != 0 || backup.StartedAt != nil {
+		t.Fatalf("backup=%#v err=%v", backup, err)
+	}
+	manifestJSON, err := json.Marshal(recoveryManifestFixture(identity))
+	if err != nil {
+		t.Fatal(err)
+	}
+	database.responses[postgresRecoveryGetRestoreSQL] = json.RawMessage(`{"id":"` + testRecoveryRestoreID + `","version":2,"state":"failed","target_environment":"recovery-e2e-01","attempt":0,"manifest":` + string(manifestJSON) + `,"error_code":"exhausted","created_at":"2026-08-25T12:00:00Z","completed_at":"2026-08-25T12:00:02Z"}`)
+	if restore, err := repository.GetRestore(context.Background(), identity, testRecoveryRestoreID); err != nil || restore.State != "failed" || restore.Attempt != 0 || restore.StartedAt != nil {
+		t.Fatalf("restore=%#v err=%v", restore, err)
 	}
 }
 

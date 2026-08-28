@@ -16,16 +16,17 @@ import (
 )
 
 type recoveryAuthorityFake struct {
-	mu          sync.Mutex
-	claim       recoveryOperationClaim
-	steps       []string
-	heartbeats  int
-	finished    apiserver.RecoveryManifestLocator
-	failedCode  string
-	releaseErr  error
-	captureErr  error
-	finishErr   error
-	disposition string
+	mu            sync.Mutex
+	claim         recoveryOperationClaim
+	steps         []string
+	heartbeats    int
+	finished      apiserver.RecoveryManifestLocator
+	failedCode    string
+	releaseErr    error
+	captureErr    error
+	finishErr     error
+	disposition   string
+	captureLimits map[string]int
 }
 
 func (fake *recoveryAuthorityFake) Ready(context.Context) error { return nil }
@@ -73,10 +74,14 @@ func (fake *recoveryAuthorityFake) ReleaseHold(context.Context, recoveryOperatio
 	return fake.releaseErr
 }
 
-func (fake *recoveryAuthorityFake) CapturePage(_ context.Context, _ recoveryOperationLease, section string, after *string, _ int) (recoveryCapturePage, error) {
+func (fake *recoveryAuthorityFake) CapturePage(_ context.Context, _ recoveryOperationLease, section string, after *string, limit int) (recoveryCapturePage, error) {
 	fake.mu.Lock()
 	defer fake.mu.Unlock()
 	fake.steps = append(fake.steps, "capture:"+section)
+	if fake.captureLimits == nil {
+		fake.captureLimits = make(map[string]int)
+	}
+	fake.captureLimits[section] = limit
 	if fake.captureErr != nil {
 		return recoveryCapturePage{}, fake.captureErr
 	}
@@ -164,6 +169,9 @@ func TestRecoveryBackupProcessorHoldsCapturesPublishesAndFinishesUnderOneLease(t
 	}
 	if len(publisher.input.Sections["configuration"]) != 1 || len(publisher.input.Sections["projection"]) != 1 || len(publisher.input.Sections["evidence"]) != 1 || len(publisher.input.Sections["counts"]) != 1 {
 		t.Fatalf("publication=%#v", publisher.input)
+	}
+	if authority.captureLimits["configuration"] != 100 || authority.captureLimits["counts"] != 1 {
+		t.Fatalf("capture limits=%v", authority.captureLimits)
 	}
 }
 

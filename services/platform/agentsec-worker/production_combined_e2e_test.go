@@ -10,7 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,8 +32,599 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
+	"github.com/zasp-ai/zasp-sec/services/platform/recovery/neondriver"
 )
+
+func TestProductionCombinedE2ERecoveryWorker(t *testing.T) {
+	phase := os.Getenv("ZASP_COMBINED_E2E_RECOVERY_PHASE")
+	if phase == "" {
+		t.Skip("combined E2E helper")
+	}
+	if phase != "backup" && phase != "restore" {
+		t.Fatal("combined E2E recovery phase is invalid")
+	}
+	workerDSN, outboxDSN := os.Getenv("ZASP_COMBINED_E2E_RECOVERY_WORKER_DSN"), os.Getenv("ZASP_COMBINED_E2E_RECOVERY_OUTBOX_DSN")
+	artifactFile := os.Getenv("ZASP_COMBINED_E2E_RECOVERY_ARTIFACT_FILE")
+	if workerDSN == "" || outboxDSN == "" || artifactFile == "" || filepath.Clean(artifactFile) != artifactFile {
+		t.Fatal("combined E2E recovery authority is incomplete")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	workerDatabase := &combinedE2ERecoveryDatabaseTrace{database: combinedE2ERecoveryDatabase(t, ctx, workerDSN)}
+	outboxDatabase := combinedE2ERecoveryDatabase(t, ctx, outboxDSN)
+	authority, err := newPostgresRecoveryOperationAuthority(workerDatabase)
+	if err != nil {
+		diagnostic, diagnosticErr := workerDatabase.QueryJSON(ctx, `SELECT jsonb_build_object('principal',zasp_recovery_principal_ready('zasp_recovery_worker'),'release',zasp_recovery_execution_readiness($1,$2))`, migrations.ProductionRecovery().Checksum(), migrations.ProductionRecoverySemanticFingerprint())
+		t.Fatalf("operation authority: %v diagnostic=%s diagnostic_error=%v", err, diagnostic, diagnosticErr)
+	}
+	outboxAuthority, err := newPostgresRecoveryOutboxAuthority(outboxDatabase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	driver := &combinedE2ERecoveryQueueDriver{}
+	queue, err := jobqueue.New(driver, jobqueue.Config{OperationTimeout: time.Second, MaximumBatchMessages: 10, MaximumMessageBytes: 1 << 20, MaximumBatchBytes: 1 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	topic := recoveryBackupOutboxTopic
+	if phase == "restore" {
+		topic = recoveryRestoreOutboxTopic
+	}
+	outboxConfig := validRecoveryOutboxRuntimeConfig()
+	outboxConfig.WorkerID = "production-e2e-recovery-outbox"
+	outboxConfig.LeaseDuration = 10 * time.Second
+	outboxConfig.ShutdownTimeout = 3 * time.Second
+	outboxConfig.BatchSize = 1
+	outboxConfig.RecoveryOutboxTopic = topic
+	if phase == "restore" {
+		outboxConfig.RecoveryQueueURL = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-recovery-restore-jobs"
+	}
+	outbox, err := composeRecoveryOutboxWorkerRuntime(outboxConfig, outboxAuthority, queue, func(context.Context) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := outbox.Processor.(readinessGatedWorkerProcessor); !ok || outbox.Ready == nil || outbox.Close == nil || outboxConfig.Mode != workerModeRecoveryOutbox {
+		t.Fatalf("recovery outbox composition=%#v mode=%q", outbox, outboxConfig.Mode)
+	}
+	if err := outbox.Ready(ctx); err != nil {
+		t.Fatalf("recovery outbox readiness: %v", err)
+	}
+	if err := outbox.Processor.RunOnce(ctx); err != nil {
+		t.Fatalf("publish recovery outbox: %v", err)
+	}
+	if err := outbox.Close(); err != nil {
+		t.Fatalf("close recovery outbox: %v", err)
+	}
+
+	artifactDriver := &combinedE2EArtifactDriver{objects: map[string]artifactstore.DriverObject{}}
+	if phase == "restore" {
+		combinedE2ELoadRecoveryArtifacts(t, artifactFile, artifactDriver)
+	}
+	artifacts, err := artifactstore.New(artifactDriver, artifactstore.Config{OperationTimeout: time.Second, MaximumBytes: 64 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	operationConfig := validRecoveryRuntimeConfig()
+	operationConfig.WorkerID = "production-e2e-recovery-" + phase
+	operationConfig.LeaseDuration = 10 * time.Second
+	operationConfig.ShutdownTimeout = 3 * time.Second
+	operationConfig.BatchSize = 1
+	if phase == "backup" {
+		publisher, publisherErr := newRecoveryArtifactPublisher(recoveryArtifactPublisherConfig{Store: artifacts, Signer: combinedE2ERecoverySigner{}, NeonProjectID: "silent-river-123456", NeonBranchID: "br-falling-sun-123456", PostgresLSN: authority.PostgresLSN, Now: combinedE2EClock})
+		if publisherErr != nil {
+			t.Fatal(publisherErr)
+		}
+		closed := false
+		dependencies, dependencyErr := composeRecoveryWorkerRuntime(operationConfig, authority, &productionRecoveryDependencies{Queue: queue, Publisher: publisher, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil }})
+		if dependencyErr != nil {
+			t.Fatal(dependencyErr)
+		}
+		t.Cleanup(func() {
+			if !closed {
+				_ = dependencies.Close()
+			}
+		})
+		if _, ok := dependencies.Processor.(readinessGatedWorkerProcessor); !ok || dependencies.Ready == nil || dependencies.Close == nil || operationConfig.Mode != workerModeRecovery || operationConfig.RecoveryOperationKind != "backup" {
+			t.Fatalf("recovery backup composition=%#v mode=%q kind=%q", dependencies, operationConfig.Mode, operationConfig.RecoveryOperationKind)
+		}
+		if readyErr := dependencies.Ready(ctx); readyErr != nil {
+			t.Fatalf("backup readiness: %v", readyErr)
+		}
+		if processorErr := dependencies.Processor.RunOnce(ctx); processorErr != nil {
+			t.Fatalf("backup processor: %v acknowledged=%t artifacts=%v database=%v metrics=%q", processorErr, driver.acknowledged, artifactDriver.order, workerDatabase.snapshot(), dependencies.Metrics())
+		}
+		if !driver.acknowledged || len(artifactDriver.order) != 4 || !strings.Contains(artifactDriver.order[3], "recovery-manifest") {
+			t.Fatalf("backup queue/artifact order ack=%v order=%v", driver.acknowledged, artifactDriver.order)
+		}
+		if closeErr := dependencies.Close(); closeErr != nil || !closed {
+			t.Fatalf("backup close=%v closed=%t", closeErr, closed)
+		}
+		combinedE2ESaveRecoveryArtifacts(t, artifactFile, artifactDriver)
+		t.Log("signed recovery manifest published last")
+		return
+	}
+
+	loader, err := newRecoveryArtifactManifestLoader(recoveryManifestLoaderConfig{Store: artifacts, Verifier: combinedE2ERecoveryVerifier{}, Now: combinedE2EClock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaderTrace := &combinedE2ERecoveryManifestLoaderTrace{delegate: loader}
+	neon := newCombinedE2ERecoveryNeonTLS(t)
+	kubernetes := &combinedE2ERecoveryKubernetes{uid: "18111111-2222-4333-8444-555555555555", database: workerDatabase, targetRoot: t.TempDir()}
+	infrastructure, err := newProductionRecoveryRestoreInfrastructure(productionRecoveryRestoreInfrastructureConfig{Neon: neon, Kubernetes: kubernetes, ProjectID: "silent-river-123456", ParentBranchID: "br-falling-sun-123456"})
+	if err != nil || infrastructure.Ready(ctx) != nil {
+		t.Fatalf("local recovery infrastructure: %v", err)
+	}
+	operationConfig.PostgresDSN = "postgres://recovery@ep-main.us-west-2.aws.neon.tech/zasp?sslmode=verify-full"
+	operationConfig.RecoveryOperationKind = "restore"
+	operationConfig.RecoveryQueueURL = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-recovery-restore-jobs"
+	operationConfig.RecoveryNeonSecretReference = "ref:neon/project-api-key"
+	operationConfig.RecoveryKubernetesURL = "https://kubernetes.default.svc"
+	operationConfig.RecoveryKubernetesToken = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	operationConfig.RecoveryKubernetesCA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	operationConfig.RecoveryRunnerImage = "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/agentsec-worker@sha256:" + strings.Repeat("a", 64)
+	operationConfig.RecoveryRunnerServiceAccount = "agentsec-recovery-runner"
+	operationConfig.RecoveryNeonEgressCIDRs = []string{"10.24.8.0/24"}
+	closed := false
+	dependencies, err := composeRecoveryWorkerRuntime(operationConfig, authority, &productionRecoveryDependencies{Queue: queue, Loader: loaderTrace, Infrastructure: infrastructure, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if !closed {
+			_ = dependencies.Close()
+		}
+	})
+	if _, ok := dependencies.Processor.(readinessGatedWorkerProcessor); !ok || dependencies.Ready == nil || dependencies.Close == nil || operationConfig.Mode != workerModeRecovery || operationConfig.RecoveryOperationKind != "restore" {
+		t.Fatalf("recovery restore composition=%#v mode=%q kind=%q", dependencies, operationConfig.Mode, operationConfig.RecoveryOperationKind)
+	}
+	if readyErr := dependencies.Ready(ctx); readyErr != nil {
+		t.Fatalf("restore readiness: %v", readyErr)
+	}
+	if err := dependencies.Processor.RunOnce(ctx); err != nil {
+		t.Fatalf("restore processor: %v loader=%v acknowledged=%t artifacts=%v reads=%v database=%v metrics=%q neon=%t/%t kubernetes=%v", err, loaderTrace.failure(), driver.acknowledged, artifactDriver.order, artifactDriver.readSnapshot(), workerDatabase.snapshot(), dependencies.Metrics(), neon.created, neon.deleted, kubernetes.calls)
+	}
+	if !driver.acknowledged || !neon.created || !neon.deleted || strings.Join(kubernetes.calls, ",") != "provision,validate,rebuild,cleanup-namespace,record-cleanup" {
+		t.Fatalf("restore ack=%v neon=%v/%v kubernetes=%v", driver.acknowledged, neon.created, neon.deleted, kubernetes.calls)
+	}
+	if closeErr := dependencies.Close(); closeErr != nil || !closed {
+		t.Fatalf("restore close=%v closed=%t", closeErr, closed)
+	}
+	t.Log("local TLS Neon fixture, exact projection counts, and temporary resource cleanup completed")
+}
+
+func combinedE2ERecoveryDatabase(t *testing.T, ctx context.Context, dsn string) recoveryJSONDatabase {
+	t.Helper()
+	poolConfig, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	poolConfig.MaxConns, poolConfig.MinConns = 3, 1
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	database, err := apiserver.NewPostgresJSONDatabase(&workerPostgresDriver{pool: pool})
+	if err != nil {
+		pool.Close()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	return database
+}
+
+type combinedE2ERecoveryDatabaseTrace struct {
+	database recoveryJSONDatabase
+	mu       sync.Mutex
+	steps    []string
+}
+
+type combinedE2ERecoveryManifestLoaderTrace struct {
+	delegate recoveryManifestLoader
+	mu       sync.Mutex
+	err      error
+}
+
+func (trace *combinedE2ERecoveryManifestLoaderTrace) Load(ctx context.Context, claim recoveryOperationClaim) (recoveryLoadedManifest, error) {
+	loaded, err := trace.delegate.Load(ctx, claim)
+	trace.mu.Lock()
+	trace.err = err
+	trace.mu.Unlock()
+	return loaded, err
+}
+
+func (trace *combinedE2ERecoveryManifestLoaderTrace) failure() error {
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
+	return trace.err
+}
+
+func (trace *combinedE2ERecoveryDatabaseTrace) QueryJSON(ctx context.Context, statement string, arguments ...any) (json.RawMessage, error) {
+	payload, err := trace.database.QueryJSON(ctx, statement, arguments...)
+	label := map[string]string{
+		recoveryWorkerReadySQL: "ready", recoveryClaimDeliverySQL: "claim_delivery", recoveryHeartbeatOperationSQL: "heartbeat",
+		recoveryBeginHoldSQL: "begin_hold", recoveryReleaseHoldSQL: "release_hold", recoveryCapturePageSQL: "capture_page",
+		recoveryFinishBackupSQL: "finish_backup", recoveryFailOperationSQL: "fail", recoveryCurrentLSNSQL: "lsn",
+	}[statement]
+	if label == "" {
+		label = "other"
+	}
+	if err != nil {
+		label += ":error"
+	}
+	trace.mu.Lock()
+	trace.steps = append(trace.steps, label)
+	trace.mu.Unlock()
+	return payload, err
+}
+
+func (trace *combinedE2ERecoveryDatabaseTrace) snapshot() []string {
+	trace.mu.Lock()
+	defer trace.mu.Unlock()
+	return append([]string(nil), trace.steps...)
+}
+
+type combinedE2ERecoverySigner struct{}
+
+func (combinedE2ERecoverySigner) Sign(_ context.Context, payload []byte) (string, []byte, error) {
+	digest := sha256.Sum256(payload)
+	return "arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111", digest[:], nil
+}
+
+type combinedE2ERecoveryVerifier struct{}
+
+func (combinedE2ERecoveryVerifier) Verify(_ context.Context, key string, payload, signature []byte) error {
+	digest := sha256.Sum256(payload)
+	if key != "arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111" || !bytes.Equal(digest[:], signature) {
+		return errors.New("recovery signature mismatch")
+	}
+	return nil
+}
+
+type combinedE2ERecoveryQueueDriver struct {
+	mu           sync.Mutex
+	messages     []jobqueue.DriverMessage
+	delivered    bool
+	acknowledged bool
+}
+
+func (driver *combinedE2ERecoveryQueueDriver) PublishBatch(_ context.Context, messages []jobqueue.DriverMessage) ([]jobqueue.DriverPublished, error) {
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	driver.messages = append([]jobqueue.DriverMessage(nil), messages...)
+	result := make([]jobqueue.DriverPublished, len(messages))
+	for index, message := range messages {
+		result[index] = jobqueue.DriverPublished{EntryID: message.EntryID, JobID: message.JobID, MessageID: fmt.Sprintf("recovery-e2e-%d", index+1)}
+	}
+	return result, nil
+}
+
+func (driver *combinedE2ERecoveryQueueDriver) ConsumeBatch(_ context.Context, limit int) ([]jobqueue.DriverDelivery, error) {
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	if driver.delivered || len(driver.messages) == 0 || limit < len(driver.messages) {
+		return []jobqueue.DriverDelivery{}, nil
+	}
+	driver.delivered = true
+	result := make([]jobqueue.DriverDelivery, len(driver.messages))
+	for index, message := range driver.messages {
+		result[index] = jobqueue.DriverDelivery{Message: message, MessageID: fmt.Sprintf("recovery-e2e-%d", index+1), ReceiptHandle: fmt.Sprintf("recovery-receipt-%d", index+1), ReceiveCount: 1}
+	}
+	return result, nil
+}
+
+func (driver *combinedE2ERecoveryQueueDriver) AcknowledgeBatch(_ context.Context, receipts []jobqueue.DriverReceipt) ([]domain.ProductID, error) {
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	if len(receipts) != len(driver.messages) {
+		return nil, errors.New("recovery acknowledgement mismatch")
+	}
+	result := make([]domain.ProductID, len(receipts))
+	for index := range receipts {
+		result[index] = receipts[index].JobID
+	}
+	driver.acknowledged = true
+	return result, nil
+}
+
+func (_ *combinedE2ERecoveryQueueDriver) ExtendVisibility(_ context.Context, receipts []jobqueue.DriverReceipt, _ int32) ([]domain.ProductID, error) {
+	result := make([]domain.ProductID, len(receipts))
+	for index := range receipts {
+		result[index] = receipts[index].JobID
+	}
+	return result, nil
+}
+
+type combinedE2ERecoveryArtifactWire struct {
+	Order   []string                                `json:"order"`
+	Objects []combinedE2ERecoveryArtifactObjectWire `json:"objects"`
+}
+
+type combinedE2ERecoveryArtifactObjectWire struct {
+	Key, OrganizationID, WorkspaceID, EnvironmentID, Reference, VersionID, MediaType string
+	Body                                                                             []byte
+}
+
+func combinedE2ESaveRecoveryArtifacts(t *testing.T, filename string, driver *combinedE2EArtifactDriver) {
+	t.Helper()
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	wire := combinedE2ERecoveryArtifactWire{Order: append([]string(nil), driver.order...), Objects: make([]combinedE2ERecoveryArtifactObjectWire, 0, len(driver.objects))}
+	for _, object := range driver.objects {
+		wire.Objects = append(wire.Objects, combinedE2ERecoveryArtifactObjectWire{Key: object.Key, OrganizationID: object.OrganizationID().String(), WorkspaceID: object.WorkspaceID().String(), EnvironmentID: object.EnvironmentID().String(), Reference: object.Reference.String(), VersionID: object.VersionID, MediaType: object.MediaType, Body: bytes.Clone(object.Body)})
+	}
+	encoded, err := json.Marshal(wire)
+	if err != nil || os.WriteFile(filename, encoded, 0o600) != nil {
+		t.Fatal("persist recovery artifacts")
+	}
+}
+
+func combinedE2ELoadRecoveryArtifacts(t *testing.T, filename string, driver *combinedE2EArtifactDriver) {
+	t.Helper()
+	body, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wire combinedE2ERecoveryArtifactWire
+	if decodeStrictWorkerJSON(body, &wire) != nil || len(wire.Objects) != 4 || len(wire.Order) != 4 {
+		t.Fatal("invalid persisted recovery artifacts")
+	}
+	driver.order = append([]string(nil), wire.Order...)
+	for _, item := range wire.Objects {
+		organization, organizationErr := domain.ParseProductID(item.OrganizationID)
+		workspace, workspaceErr := domain.ParseProductID(item.WorkspaceID)
+		environment, environmentErr := domain.ParseProductID(item.EnvironmentID)
+		referenceID, referenceErr := domain.ParseProductID(item.Reference)
+		scope, scopeErr := domain.NewScope(organization, workspace, environment)
+		reference, evidenceErr := domain.NewEvidenceRef(referenceID)
+		if organizationErr != nil || workspaceErr != nil || environmentErr != nil || referenceErr != nil || scopeErr != nil || evidenceErr != nil {
+			t.Fatal("invalid persisted recovery artifact authority")
+		}
+		object := combinedE2ECloneDriverObject(artifactstore.DriverObject{DriverLocator: artifactstore.DriverLocator{Key: item.Key, Scope: scope, Reference: reference, VersionID: item.VersionID}, MediaType: item.MediaType, Body: bytes.Clone(item.Body)})
+		driver.objects[item.Key+"\x1f"+item.VersionID] = object
+	}
+}
+
+type combinedE2ERecoveryNeonTLS struct {
+	server  *httptest.Server
+	created bool
+	deleted bool
+}
+
+func newCombinedE2ERecoveryNeonTLS(t *testing.T) *combinedE2ERecoveryNeonTLS {
+	t.Helper()
+	fixture := &combinedE2ERecoveryNeonTLS{}
+	fixture.server = httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		switch {
+		case request.Method == http.MethodGet && strings.HasSuffix(request.URL.Path, "/br-falling-sun-123456"):
+			response.WriteHeader(http.StatusOK)
+		case request.Method == http.MethodPost && strings.HasSuffix(request.URL.Path, "/branches"):
+			body, _ := io.ReadAll(io.LimitReader(request.Body, 8193))
+			if len(body) == 0 || len(body) > 8192 {
+				response.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			fixture.created = true
+			response.WriteHeader(http.StatusCreated)
+		case request.Method == http.MethodDelete && strings.HasSuffix(request.URL.Path, "/br-recovery-e2e"):
+			fixture.deleted = true
+			response.WriteHeader(http.StatusNoContent)
+		default:
+			response.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(fixture.server.Close)
+	return fixture
+}
+
+func (fixture *combinedE2ERecoveryNeonTLS) request(ctx context.Context, method, path string, body io.Reader) (int, error) {
+	request, err := http.NewRequestWithContext(ctx, method, fixture.server.URL+path, body)
+	if err != nil {
+		return 0, err
+	}
+	response, err := fixture.server.Client().Do(request)
+	if err != nil {
+		return 0, err
+	}
+	defer response.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 8192))
+	return response.StatusCode, nil
+}
+
+func (fixture *combinedE2ERecoveryNeonTLS) Ready(ctx context.Context) error {
+	status, err := fixture.request(ctx, http.MethodGet, "/api/v2/projects/silent-river-123456/branches/br-falling-sun-123456", nil)
+	if err != nil || status != http.StatusOK {
+		return errors.New("local Neon readiness failed")
+	}
+	return nil
+}
+
+func (fixture *combinedE2ERecoveryNeonTLS) CreateBranch(ctx context.Context, request neondriver.CreateBranchRequest) (neondriver.Branch, error) {
+	body, _ := json.Marshal(request)
+	status, err := fixture.request(ctx, http.MethodPost, "/api/v2/projects/silent-river-123456/branches", bytes.NewReader(body))
+	if err != nil || status != http.StatusCreated {
+		return neondriver.Branch{}, errors.New("local Neon create failed")
+	}
+	return neondriver.Branch{ID: "br-recovery-e2e", ProjectID: "silent-river-123456", ParentID: "br-falling-sun-123456", ParentLSN: request.ParentLSN, Name: request.Name, Endpoints: []neondriver.Endpoint{{ID: "ep-recovery-e2e", BranchID: "br-recovery-e2e", Type: "read_write", Host: "ep-recovery.internal"}}}, nil
+}
+
+func (*combinedE2ERecoveryNeonTLS) GetBranchByName(context.Context, string, string) (neondriver.Branch, error) {
+	return neondriver.Branch{}, neondriver.ErrNotFound
+}
+
+func (fixture *combinedE2ERecoveryNeonTLS) DeleteBranch(ctx context.Context, project, branch string) error {
+	if project != "silent-river-123456" || branch != "br-recovery-e2e" {
+		return errors.New("local Neon delete authority drift")
+	}
+	status, err := fixture.request(ctx, http.MethodDelete, "/api/v2/projects/"+project+"/branches/"+branch, nil)
+	if err != nil || status != http.StatusNoContent {
+		return errors.New("local Neon delete failed")
+	}
+	return nil
+}
+
+type combinedE2ERecoveryKubernetes struct {
+	plan       recoveryKubernetesPlan
+	uid        string
+	calls      []string
+	database   recoveryJSONDatabase
+	targetRoot string
+}
+
+type combinedE2ERecoveryDatabaseFunc func(context.Context, string, ...any) (json.RawMessage, error)
+
+func (function combinedE2ERecoveryDatabaseFunc) QueryJSON(ctx context.Context, statement string, arguments ...any) (json.RawMessage, error) {
+	return function(ctx, statement, arguments...)
+}
+
+type combinedE2ERecoveryJobDatabase struct{ database recoveryJSONDatabase }
+
+func (database combinedE2ERecoveryJobDatabase) ValidateScope(ctx context.Context, organization, workspace, environment string) (json.RawMessage, error) {
+	if database.database == nil {
+		return nil, errWorkerExecution
+	}
+	return database.database.QueryJSON(ctx, recoveryValidateScopeSQL, organization, workspace, environment)
+}
+
+func (database combinedE2ERecoveryJobDatabase) ProjectionPage(ctx context.Context, organization, workspace, environment, snapshotID, section, afterID string, limit int) (apiserver.SnapshotProjectionPage, error) {
+	if database.database == nil {
+		return apiserver.SnapshotProjectionPage{}, errWorkerExecution
+	}
+	payload, err := database.database.QueryJSON(ctx, recoveryProjectionPageSQL, organization, workspace, environment, snapshotID, section, nullableRecoveryCursor(afterID), limit)
+	if err != nil {
+		return apiserver.SnapshotProjectionPage{}, errWorkerExecution
+	}
+	return decodeRecoveryProjectionPage(payload)
+}
+
+func TestCombinedE2ERecoveryKubernetesDerivesValidationFromRestoredDatabase(t *testing.T) {
+	projection := json.RawMessage(`[]`)
+	digest := sha256.Sum256(projection)
+	fixture := &combinedE2ERecoveryKubernetes{
+		uid:        "18111111-2222-4333-8444-555555555555",
+		targetRoot: t.TempDir(),
+		database: combinedE2ERecoveryDatabaseFunc(func(_ context.Context, statement string, _ ...any) (json.RawMessage, error) {
+			if statement != recoveryValidateScopeSQL {
+				return nil, errors.New("unexpected recovery statement")
+			}
+			return json.RawMessage(`{"counts":{"assets":3,"findings":2,"policies":1},"evidence_samples":[],"projection":[]}`), nil
+		}),
+	}
+	plan := recoveryKubernetesPlan{
+		Scope:                recoveryWorkerScope(t),
+		RestoreID:            "pid_71000004-0000-4000-8000-000000000004",
+		TargetEnvironment:    "recovery-test",
+		ExpectedCounts:       apiserver.RecoveryCounts{Assets: 999, Findings: 999, Policies: 999},
+		ProjectionDigest:     digest,
+		EvidenceSampleDigest: sha256.Sum256([]byte("[]")),
+	}
+	fixture.plan = plan
+	observed, _, err := fixture.Validate(context.Background(), plan, fixture.uid)
+	if err != nil || observed != (apiserver.RecoveryCounts{Assets: 3, Findings: 2, Policies: 1}) {
+		t.Fatalf("observed=%#v err=%v", observed, err)
+	}
+	rebuilt, err := fixture.Rebuild(context.Background(), plan, fixture.uid)
+	if err != nil || rebuilt != digest {
+		t.Fatalf("rebuilt=%x err=%v", rebuilt, err)
+	}
+}
+
+func (*combinedE2ERecoveryKubernetes) Ready(context.Context) error { return nil }
+func (fixture *combinedE2ERecoveryKubernetes) Provision(_ context.Context, plan recoveryKubernetesPlan) (string, error) {
+	fixture.calls = append(fixture.calls, "provision")
+	fixture.plan = plan
+	if len(plan.Jobs) != 3 || plan.NetworkPolicy.Name != "recovery-deny-by-default" {
+		return "", errors.New("isolated recovery plan rejected")
+	}
+	return fixture.uid, nil
+}
+func (fixture *combinedE2ERecoveryKubernetes) Validate(ctx context.Context, plan recoveryKubernetesPlan, uid string) (apiserver.RecoveryCounts, apiserver.RecoveryArtifactLocator, error) {
+	fixture.calls = append(fixture.calls, "validate")
+	if plan.RestoreID != fixture.plan.RestoreID || uid != fixture.uid || fixture.database == nil {
+		return apiserver.RecoveryCounts{}, apiserver.RecoveryArtifactLocator{}, errors.New("recovery validation authority drift")
+	}
+	config := combinedE2ERecoveryJobConfig(plan, recoveryJobModePostgresValidation, "")
+	var output bytes.Buffer
+	if err := runRecoveryJob(ctx, config, combinedE2ERecoveryJobDatabase{database: fixture.database}, &output); err != nil {
+		return apiserver.RecoveryCounts{}, apiserver.RecoveryArtifactLocator{}, err
+	}
+	var result struct {
+		SchemaVersion        string                   `json:"schema_version"`
+		Counts               apiserver.RecoveryCounts `json:"counts"`
+		EvidenceSampleSHA256 string                   `json:"evidence_sample_sha256"`
+	}
+	if decodeStrictWorkerJSON(output.Bytes(), &result) != nil || result.SchemaVersion != "recovery_validation_job_v1" || result.EvidenceSampleSHA256 != config.EvidenceSampleSHA256 {
+		return apiserver.RecoveryCounts{}, apiserver.RecoveryArtifactLocator{}, errors.New("recovery validation output rejected")
+	}
+	return result.Counts, recoveryEvidenceLocator(plan.Scope, "pid_71000008-0000-4000-8000-000000000008", "recovery_validation_v1"), nil
+}
+func (fixture *combinedE2ERecoveryKubernetes) Rebuild(ctx context.Context, plan recoveryKubernetesPlan, uid string) ([sha256.Size]byte, error) {
+	fixture.calls = append(fixture.calls, "rebuild")
+	if plan.RestoreID != fixture.plan.RestoreID || uid != fixture.uid || fixture.database == nil || fixture.targetRoot == "" {
+		return [sha256.Size]byte{}, errors.New("recovery rebuild authority drift")
+	}
+	var rebuilt [sha256.Size]byte
+	for _, mode := range []recoveryJobMode{recoveryJobModeGraphProjection, recoveryJobModeSearchProjection} {
+		target := filepath.Join(fixture.targetRoot, string(mode))
+		if err := os.Mkdir(target, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+			return [sha256.Size]byte{}, err
+		}
+		config := combinedE2ERecoveryJobConfig(plan, mode, target)
+		var output bytes.Buffer
+		if err := runRecoveryJob(ctx, config, combinedE2ERecoveryJobDatabase{database: fixture.database}, &output); err != nil {
+			return [sha256.Size]byte{}, err
+		}
+		var result struct {
+			SchemaVersion        string `json:"schema_version"`
+			Kind                 string `json:"kind"`
+			ProjectionSHA256     string `json:"projection_sha256"`
+			EvidenceSampleSHA256 string `json:"evidence_sample_sha256"`
+		}
+		if decodeStrictWorkerJSON(output.Bytes(), &result) != nil || result.SchemaVersion != "recovery_projection_job_v1" || result.Kind != strings.TrimSuffix(strings.TrimPrefix(string(mode), "recovery-"), "-projection") || result.EvidenceSampleSHA256 != config.EvidenceSampleSHA256 {
+			return [sha256.Size]byte{}, errors.New("recovery rebuild output rejected")
+		}
+		decoded, err := hex.DecodeString(result.ProjectionSHA256)
+		if err != nil || len(decoded) != sha256.Size || rebuilt != ([sha256.Size]byte{}) && !bytes.Equal(rebuilt[:], decoded) {
+			return [sha256.Size]byte{}, errors.New("recovery rebuild digest rejected")
+		}
+		copy(rebuilt[:], decoded)
+	}
+	return rebuilt, nil
+}
+
+func combinedE2ERecoveryJobConfig(plan recoveryKubernetesPlan, mode recoveryJobMode, targetDirectory string) recoveryJobConfig {
+	return recoveryJobConfig{
+		Mode: mode, PostgresDSN: "postgres://recovery@ep-recovery.us-west-2.aws.neon.tech/zasp?sslmode=verify-full", BranchIP: "10.24.8.7",
+		OrganizationID: plan.Scope.OrganizationID().String(), WorkspaceID: plan.Scope.WorkspaceID().String(), EnvironmentID: plan.Scope.EnvironmentID().String(), TargetEnvironment: plan.TargetEnvironment,
+		ProjectionSHA256: hex.EncodeToString(plan.ProjectionDigest[:]), EvidenceSampleSHA256: hex.EncodeToString(plan.EvidenceSampleDigest[:]), TargetDirectory: targetDirectory,
+	}
+}
+func (fixture *combinedE2ERecoveryKubernetes) Cleanup(_ context.Context, plan recoveryKubernetesPlan, uid string) (apiserver.RecoveryCleanupEvidence, error) {
+	fixture.calls = append(fixture.calls, "cleanup")
+	if plan.RestoreID != fixture.plan.RestoreID || uid != fixture.uid {
+		return apiserver.RecoveryCleanupEvidence{}, errors.New("recovery cleanup authority drift")
+	}
+	return apiserver.RecoveryCleanupEvidence{State: "deleted", Evidence: recoveryEvidenceLocator(plan.Scope, "pid_71000009-0000-4000-8000-000000000009", "recovery_cleanup_v1")}, nil
+}
+
+func (fixture *combinedE2ERecoveryKubernetes) CleanupNamespace(_ context.Context, plan recoveryKubernetesCleanupPlan, uid string) (string, error) {
+	fixture.calls = append(fixture.calls, "cleanup-namespace")
+	if plan.RestoreID != fixture.plan.RestoreID || uid != fixture.uid {
+		return uid, errors.New("recovery cleanup authority drift")
+	}
+	return uid, nil
+}
+
+func (fixture *combinedE2ERecoveryKubernetes) RecordCleanup(_ context.Context, plan recoveryKubernetesCleanupPlan, uid, state string) (apiserver.RecoveryCleanupEvidence, error) {
+	fixture.calls = append(fixture.calls, "record-cleanup")
+	if plan.RestoreID != fixture.plan.RestoreID || uid != fixture.uid || state != "deleted" {
+		return apiserver.RecoveryCleanupEvidence{}, errors.New("recovery cleanup evidence drift")
+	}
+	return apiserver.RecoveryCleanupEvidence{State: state, Evidence: recoveryEvidenceLocator(plan.Scope, "pid_71000009-0000-4000-8000-000000000009", "recovery_cleanup_v1")}, nil
+}
 
 func TestProductionCombinedE2EDiscoveryWorker(t *testing.T) {
 	workerDSN := os.Getenv("ZASP_COMBINED_E2E_WORKER_DSN")
@@ -780,6 +1375,8 @@ func combinedE2EMarshal(value any) json.RawMessage {
 type combinedE2EArtifactDriver struct {
 	mu      sync.Mutex
 	objects map[string]artifactstore.DriverObject
+	order   []string
+	reads   []string
 }
 
 func (driver *combinedE2EArtifactDriver) Put(_ context.Context, object artifactstore.DriverObject) (artifactstore.DriverObject, error) {
@@ -795,6 +1392,7 @@ func (driver *combinedE2EArtifactDriver) Put(_ context.Context, object artifacts
 		return combinedE2ECloneDriverObject(current), nil
 	}
 	driver.objects[key] = combinedE2ECloneDriverObject(object)
+	driver.order = append(driver.order, object.MediaType)
 	return combinedE2ECloneDriverObject(object), nil
 }
 
@@ -803,9 +1401,17 @@ func (driver *combinedE2EArtifactDriver) Get(_ context.Context, locator artifact
 	defer driver.mu.Unlock()
 	object, ok := driver.objects[locator.Key+"\x1f"+locator.VersionID]
 	if !ok {
+		driver.reads = append(driver.reads, "missing:"+locator.Reference.String())
 		return artifactstore.DriverObject{}, errors.New("artifact missing")
 	}
+	driver.reads = append(driver.reads, object.MediaType)
 	return combinedE2ECloneDriverObject(object), nil
+}
+
+func (driver *combinedE2EArtifactDriver) readSnapshot() []string {
+	driver.mu.Lock()
+	defer driver.mu.Unlock()
+	return append([]string(nil), driver.reads...)
 }
 
 func (driver *combinedE2EArtifactDriver) Delete(_ context.Context, locator artifactstore.DriverLocator) error {

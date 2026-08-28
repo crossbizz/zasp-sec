@@ -263,7 +263,7 @@ func (client *recoveryClient) call(ctx context.Context, method, path string, bod
 	if readErr != nil || len(encoded) < 2 || len(encoded) > maximumRecoveryResponseBytes || response.StatusCode != status || response.Header.Get("Cache-Control") != "no-store" || mediaErr != nil || mediaType != "application/json" {
 		return errRecoveryAPIUnavailable
 	}
-	if method == http.MethodPost && (!validRecoveryProductID(response.Header.Get("X-Audit-ID")) || !validRecoveryProductID(response.Header.Get("X-Mutation-Receipt-ID"))) {
+	if method == http.MethodPost && (!validRecoveryProductID(response.Header.Get("X-Audit-ID")) || response.Header.Get("X-Mutation-Receipt-ID") != "") {
 		return errRecoveryAPIUnavailable
 	}
 	if err := decodeRecoveryJSON(encoded, output); err != nil {
@@ -373,7 +373,8 @@ func validRecoveryBackup(value recoveryBackup) bool {
 	created, _ := parseRecoveryTime(value.CreatedAt)
 	started, startedErr := parseRecoveryOptionalTime(value.StartedAt)
 	completed, completedErr := parseRecoveryOptionalTime(value.CompletedAt)
-	if startedErr != nil || completedErr != nil || value.StartedAt != "" && started.Before(created) || value.CompletedAt != "" && (value.StartedAt == "" || completed.Before(started)) {
+	prestartExhausted := value.State == "failed" && value.Attempt == 0 && value.StartedAt == "" && value.CompletedAt != "" && value.ErrorCode == "exhausted"
+	if startedErr != nil || completedErr != nil || value.StartedAt != "" && started.Before(created) || value.CompletedAt != "" && completed.Before(created) || value.CompletedAt != "" && !prestartExhausted && (value.StartedAt == "" || completed.Before(started)) {
 		return false
 	}
 	switch value.State {
@@ -386,7 +387,7 @@ func validRecoveryBackup(value recoveryBackup) bool {
 	case "retryable":
 		return validRecoveryTime(value.StartedAt) && value.CompletedAt == "" && value.Manifest == nil && value.ErrorCode != ""
 	case "failed":
-		return validRecoveryTime(value.StartedAt) && validRecoveryTime(value.CompletedAt) && value.Manifest == nil && value.ErrorCode != ""
+		return validRecoveryTime(value.CompletedAt) && value.Manifest == nil && value.ErrorCode != "" && (value.Attempt >= 1 && validRecoveryTime(value.StartedAt) || prestartExhausted)
 	default:
 		return false
 	}
@@ -399,7 +400,8 @@ func validRecoveryRestore(value recoveryRestore) bool {
 	created, _ := parseRecoveryTime(value.CreatedAt)
 	started, startedErr := parseRecoveryOptionalTime(value.StartedAt)
 	completed, completedErr := parseRecoveryOptionalTime(value.CompletedAt)
-	if startedErr != nil || completedErr != nil || value.StartedAt != "" && started.Before(created) || value.CompletedAt != "" && (value.StartedAt == "" || completed.Before(started)) || value.ObservedCounts != nil && !validRecoveryCounts(*value.ObservedCounts) || value.ValidationEvidence != nil && !validRecoveryValidation(*value.ValidationEvidence) || value.CleanupEvidence != nil && !validRecoveryCleanup(*value.CleanupEvidence) {
+	prestartExhausted := value.State == "failed" && value.Attempt == 0 && value.StartedAt == "" && value.CompletedAt != "" && value.ErrorCode == "exhausted" && value.ValidationEvidence == nil && value.CleanupEvidence == nil
+	if startedErr != nil || completedErr != nil || value.StartedAt != "" && started.Before(created) || value.CompletedAt != "" && completed.Before(created) || value.CompletedAt != "" && !prestartExhausted && (value.StartedAt == "" || completed.Before(started)) || value.ObservedCounts != nil && !validRecoveryCounts(*value.ObservedCounts) || value.ValidationEvidence != nil && !validRecoveryValidation(*value.ValidationEvidence) || value.CleanupEvidence != nil && !validRecoveryCleanup(*value.CleanupEvidence) {
 		return false
 	}
 	switch value.State {
@@ -414,7 +416,7 @@ func validRecoveryRestore(value recoveryRestore) bool {
 	case "retryable":
 		return validRecoveryTime(value.StartedAt) && value.CompletedAt == "" && value.ObservedCounts == nil && value.ErrorCode != ""
 	case "failed", "failed_cleanup":
-		return validRecoveryTime(value.StartedAt) && validRecoveryTime(value.CompletedAt) && value.ObservedCounts == nil && value.ErrorCode != "" && (value.State != "failed_cleanup" || value.CleanupEvidence != nil && value.CleanupEvidence.State == "failed")
+		return validRecoveryTime(value.CompletedAt) && value.ObservedCounts == nil && value.ErrorCode != "" && (value.Attempt >= 1 && validRecoveryTime(value.StartedAt) && (value.State != "failed_cleanup" || value.CleanupEvidence != nil && value.CleanupEvidence.State == "failed") || prestartExhausted)
 	default:
 		return false
 	}

@@ -90,11 +90,13 @@ describe("production discovery response decoders", () => {
     expect(decodeRecoveryBackup({ ...queuedBackup, version: 2, state: "capturing", attempt: 1, started_at: "2026-08-25T12:00:01Z" }, recoveryScope).state).toBe("capturing");
     expect(decodeRecoveryBackup({ ...queuedBackup, version: 3, state: "succeeded", attempt: 1, manifest, started_at: "2026-08-25T12:00:01Z", completed_at: "2026-08-25T12:00:02Z" }, recoveryScope).state).toBe("succeeded");
     expect(decodeRecoveryBackup({ ...queuedBackup, version: 3, state: "failed", attempt: 1, error_code: "exhausted", started_at: "2026-08-25T12:00:01Z", completed_at: "2026-08-25T12:00:02Z" }, recoveryScope).state).toBe("failed");
+    expect(decodeRecoveryBackup({ ...queuedBackup, version: 2, state: "failed", error_code: "exhausted", completed_at: "2026-08-25T12:00:02Z" }, recoveryScope).state).toBe("failed");
 
     expect(decodeRecoveryRestore(queuedRestore, recoveryScope)).toEqual(queuedRestore);
     expect(decodeRecoveryRestore({ ...queuedRestore, version: 2, state: "rebuilding", attempt: 1, started_at: "2026-08-25T12:00:01Z", validation_evidence: { state: "validated", expected_counts: counts, observed_counts: counts, evidence } }, recoveryScope).state).toBe("rebuilding");
     expect(decodeRecoveryRestore({ ...queuedRestore, version: 5, state: "succeeded", attempt: 1, started_at: "2026-08-25T12:00:01Z", completed_at: "2026-08-25T12:00:05Z", observed_counts: counts, validation_evidence: { state: "validated", expected_counts: counts, observed_counts: counts, evidence }, cleanup_evidence: { state: "deleted", evidence } }, recoveryScope).state).toBe("succeeded");
     expect(decodeRecoveryRestore({ ...queuedRestore, version: 5, state: "failed_cleanup", attempt: 1, started_at: "2026-08-25T12:00:01Z", completed_at: "2026-08-25T12:00:05Z", error_code: "cleanup_failed", cleanup_evidence: { state: "failed", evidence } }, recoveryScope).state).toBe("failed_cleanup");
+    expect(decodeRecoveryRestore({ ...queuedRestore, version: 2, state: "failed", error_code: "exhausted", completed_at: "2026-08-25T12:00:05Z" }, recoveryScope).state).toBe("failed");
   });
 
   it.each([

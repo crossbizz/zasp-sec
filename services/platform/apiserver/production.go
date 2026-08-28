@@ -153,7 +153,7 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		}
 	}
 	if stringIn(repository.schema, RedTeamExecutionSchemaVersion, AttackLabExecutionSchemaVersion, ProductionRecoverySchemaVersion) {
-		redTeamHandler, redTeamErr := NewRedTeamPublicHTTPHandler(repository, cookie.WorkflowSigningKey)
+		redTeamHandler, redTeamErr := NewRedTeamPublicHTTPHandler(securityAgentRepository, cookie.WorkflowSigningKey)
 		if redTeamErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
