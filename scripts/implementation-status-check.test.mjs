@@ -314,3 +314,19 @@ test("rejects a published milestone matrix that drifts from the audited map", as
     },
   );
 });
+
+test("rejects a published availability summary that drifts from the audited ledger", async () => {
+  await withLedgerAndStatus(
+    (ledger) => ledger,
+    (status) => status.replace(
+      "| Production-available | 394 |",
+      "| Production-available | 393 |",
+    ),
+    async ({ ledgerPath, statusPath }) => {
+      await assert.rejects(
+        () => validateLedger({ ledgerPath, sourcePlanPath, statusPath }),
+        /documentation summary does not match audited class counts/,
+      );
+    },
+  );
+});

@@ -214,6 +214,17 @@ function renderAvailabilityMatrix() {
   return lines.join("\n");
 }
 
+function renderAvailabilitySummary() {
+  return [
+    "| Production class | Count |",
+    "| --- | ---: |",
+    `| Production-available | ${expectedClassCounts.get("production-available")} |`,
+    `| Component-only | ${expectedClassCounts.get("component-only")} |`,
+    `| Blocked/external | ${expectedClassCounts.get("blocked/external")} |`,
+    `| Missing | ${expectedClassCounts.get("missing")} |`,
+  ].join("\n");
+}
+
 export async function validateLedger({
   ledgerPath = path.join(repositoryRoot, "docs/internal/implementation_production_availability_v1.5.tsv"),
   ownerMapPath = path.join(repositoryRoot, "docs/internal/implementation_production_availability_owners_v1.5.tsv"),
@@ -326,6 +337,9 @@ export async function validateLedger({
 
   if (!status.includes(`## Production availability by milestone\n\n${renderAvailabilityMatrix()}`)) {
     errors.push("documentation matrix does not match audited milestone counts");
+  }
+  if (!status.includes(`## Production availability summary\n\n${renderAvailabilitySummary()}`)) {
+    errors.push("documentation summary does not match audited class counts");
   }
 
   if (errors.length) {
