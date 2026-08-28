@@ -51,6 +51,10 @@ func TestRedTeamRepositoryRejectsUnsafeOrCrossSchemaRequestsWithoutIO(t *testing
 		if _, err := repository.CreateRedTeamDefinition(context.Background(), identity, input); err == nil {
 			t.Fatalf("unsafe request accepted by schema %q", repository.schema)
 		}
+		input = RedTeamDefinitionMutation{ID: "pid_79000001-0000-4000-8000-000000000001", IdempotencyKey: "red-team-create-0002", Name: "Duplicate effects", TargetID: "pid_79000002-0000-4000-8000-000000000002", TargetKind: "mcp_server", Categories: []string{"prompt_injection"}, Safety: RedTeamSafety{Environment: "staging", CredentialClass: "read_only", ExpectedSideEffects: []string{"audit event", "audit event"}}, CorrelationID: "pid_79000004-0000-4000-8000-000000000004"}
+		if _, err := repository.CreateRedTeamDefinition(context.Background(), identity, input); err == nil {
+			t.Fatalf("duplicate side effects accepted by schema %q", repository.schema)
+		}
 	}
 	if len(database.statements) != 0 {
 		t.Fatalf("unexpected IO %#v", database.statements)

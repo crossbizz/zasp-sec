@@ -396,6 +396,26 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/attack-lab/preflight": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Resolve one exact tenant-scoped Attack Lab safety decision
+         * @description Returns only redacted source, target, environment, credential class, destination, success criterion, side-effect, and sandbox-limit authority. Run creation independently revalidates the same durable authority and fails closed on drift.
+         */
+        readonly get: operations["preflightAttackLabRun"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/attack-lab/runs": {
         readonly parameters: {
             readonly query?: never;
@@ -2166,11 +2186,34 @@ export type components = {
             /** @enum {string} */
             readonly error_code?: "retryable" | "denied" | "malformed" | "outcome_unknown" | "cleanup_failed" | "cancelled" | "exhausted";
             readonly evidence: readonly string[];
+            readonly evidence_checksum?: string;
             readonly evidence_reference?: string;
+            readonly evidence_size?: number;
             /** @enum {string} */
             readonly evidence_state: "complete" | "unavailable";
+            readonly evidence_version_id?: string;
             /** @enum {string} */
             readonly verdict?: "verified" | "not_reproduced" | "inconclusive";
+        };
+        readonly AttackLabPreflight: {
+            readonly allowed_destinations: readonly string[];
+            /** @enum {string} */
+            readonly credential_class: "read_only" | "test_write";
+            readonly decision_digest: string;
+            /** Format: date-time */
+            readonly decision_expires_at: string;
+            readonly definition_id: components["schemas"]["ProductID"];
+            readonly definition_version: number;
+            readonly destination: string;
+            /** @enum {string} */
+            readonly environment: "development" | "test" | "staging";
+            readonly expected_side_effects: readonly string[];
+            readonly limits: components["schemas"]["AttackLabSandboxLimits"];
+            readonly source_run_id: components["schemas"]["ProductID"];
+            readonly success_criterion: string;
+            readonly target_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly target_kind: "agent_endpoint" | "mcp_server" | "coding_agent";
         };
         readonly AttackLabRerunInput: {
             readonly run_id: components["schemas"]["ProductID"];
@@ -2193,7 +2236,10 @@ export type components = {
             readonly environment: "development" | "test" | "staging";
             /** @enum {string} */
             readonly error_code?: "retryable" | "denied" | "malformed" | "outcome_unknown" | "cleanup_failed" | "cancelled" | "exhausted";
+            readonly evidence_checksum?: string;
             readonly evidence_reference?: string;
+            readonly evidence_size?: number;
+            readonly evidence_version_id?: string;
             readonly id: components["schemas"]["ProductID"];
             readonly limits: components["schemas"]["AttackLabSandboxLimits"];
             /** Format: date-time */
@@ -2229,7 +2275,10 @@ export type components = {
             readonly environment: "development" | "test" | "staging";
             /** @enum {string} */
             readonly error_code?: "retryable" | "denied" | "malformed" | "outcome_unknown" | "cleanup_failed" | "cancelled" | "exhausted";
+            readonly evidence_checksum?: string;
             readonly evidence_reference?: string;
+            readonly evidence_size?: number;
+            readonly evidence_version_id?: string;
             readonly id: components["schemas"]["ProductID"];
             readonly limits: components["schemas"]["AttackLabSandboxLimits"];
             /** Format: date-time */
@@ -2249,6 +2298,7 @@ export type components = {
         readonly AttackLabRunInput: {
             /** @constant */
             readonly approved: true;
+            readonly decision_digest: string;
             readonly run_id: components["schemas"]["ProductID"];
             readonly source_run_id: components["schemas"]["ProductID"];
         };
@@ -3767,6 +3817,7 @@ export type ApiTokenRevealGrant = components['schemas']['APITokenRevealGrant'];
 export type ApiTokenRevealGrantPage = components['schemas']['APITokenRevealGrantPage'];
 export type ApiTokenRevealGrantSummary = components['schemas']['APITokenRevealGrantSummary'];
 export type AttackLabAttempt = components['schemas']['AttackLabAttempt'];
+export type AttackLabPreflight = components['schemas']['AttackLabPreflight'];
 export type AttackLabRerunInput = components['schemas']['AttackLabRerunInput'];
 export type AttackLabRun = components['schemas']['AttackLabRun'];
 export type AttackLabRunDetail = components['schemas']['AttackLabRunDetail'];
@@ -4785,6 +4836,33 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly preflightAttackLabRun: {
+        readonly parameters: {
+            readonly query: {
+                readonly source_run_id: components["schemas"]["ProductID"];
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Exact redacted Attack Lab safety decision. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["AttackLabPreflight"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

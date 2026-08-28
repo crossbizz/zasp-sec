@@ -12,6 +12,7 @@ import { IdentityAPIProvider } from "../features/identity/IdentityAPIProvider";
 import { IdentityAccessView } from "../features/identity/IdentityAccessView";
 import { ScopeOnboardingView } from "../features/identity/ScopeOnboardingView";
 import { ProductionRiskView } from "../features/risk/ProductionRiskView";
+import { ProductionAttackLabView } from "../features/redteam/ProductionAttackLabView";
 import { ProductionRedTeamView } from "../features/redteam/ProductionRedTeamView";
 import { RecoveryOperationsView } from "../features/recovery/RecoveryOperationsView";
 import { ProductionSecurityAgentsView } from "../features/securityagents/SecurityAgentsView";
@@ -31,6 +32,7 @@ const productionRoutes = [
   { path: "/violations", label: "Findings", capability: "findings.read" },
   { path: "/exposure/attack-paths", label: "Attack Paths", capability: "attack-paths.read" },
   { path: "/red-team/results", label: "Red Team", capability: "red-team.read" },
+  { path: "/test/attack-lab", label: "Attack Lab", capability: "red-team.read" },
   { path: "/policies", label: "Policies", capability: "policies.read" },
   { path: "/connectors", label: "Integrations", capability: "integrations.read" },
   { path: "/integrations/sensors", label: "Sensors", capability: "sensors.read" },
@@ -53,6 +55,7 @@ function ProductionRouteSurface({ path, navigate }: { path: string; navigate(pat
   if (session.status !== "authenticated") return null;
   if (path === "/violations" || path === "/exposure/attack-paths") return <ProductionRiskView path={path} canWrite={session.hasCapability("findings.write")} onNavigate={navigate} />;
   if (path === "/red-team/results") return <ProductionRedTeamView canWrite={session.hasCapability("red-team.write")} onNavigate={navigate} />;
+  if (path === "/test/attack-lab") return <ProductionAttackLabView canWrite={session.hasCapability("red-team.write")} />;
   if (path === "/policies") return <ProductionPoliciesView canWrite={session.hasCapability("policies.write")} />;
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;

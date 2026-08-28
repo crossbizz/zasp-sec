@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 140 || len(public) != 140 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 140/140", len(seen), len(public))
+	if len(seen) != 141 || len(public) != 141 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 141/141", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {

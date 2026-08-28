@@ -95,6 +95,8 @@ test("combined production E2E owns every local boundary and fixed assertion", as
 		"runProductionRecoveryLifecycle", "TestProductionCombinedE2ERecoveryWorker", "ZASP_COMBINED_E2E_RECOVERY_PHASE",
 		"committed recovery response loss replayed one backup, outbox, audit, and receipt", "signed recovery manifest published last", "cross-tenant recovery read rejected",
 		"Recovery rehearsal completed", "Temporary resources deleted", "live Neon/AWS/S3/KMS/Kubernetes recovery remains NOT RUN",
+		"exerciseProductionAttackLabLifecycle", "TestProductionCombinedE2EAttackLabWorker", "ZASP_COMBINED_E2E_ATTACK_LAB_CONTROLLER_DSN",
+		"Review safety decision", "Approve exact safety decision", "composed Attack Lab outbox and controller completed deterministic isolated sandbox evidence",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   const apiEnvironment = source.slice(source.indexOf("const apiEnvironment = {"), source.indexOf("api = startChild(apiBinary"));
   for (const value of ["HOSTNAME", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_FINDING_TICKET_EGRESS_CIDRS"]) assert.match(apiEnvironment, new RegExp(value));
@@ -135,6 +137,9 @@ test("combined production E2E owns every local boundary and fixed assertion", as
 	const recoveryWorkerBoundary = recoveryWorkerSource.slice(recoveryWorkerSource.indexOf("func TestProductionCombinedE2ERecoveryWorker"), recoveryWorkerSource.indexOf("func combinedE2ERecoveryDatabase"));
 	for (const value of ["composeRecoveryOutboxWorkerRuntime", "composeRecoveryWorkerRuntime", ".Ready(ctx)", ".Processor.RunOnce(ctx)", ".Close()"]) assert.match(recoveryWorkerBoundary, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 	assert.doesNotMatch(recoveryWorkerBoundary, /newRecovery(?:Outbox|Backup|Restore)Processor/);
+	const attackLabBoundary = recoveryWorkerSource.slice(recoveryWorkerSource.indexOf("func TestProductionCombinedE2EAttackLabWorker"), recoveryWorkerSource.indexOf("func TestProductionCombinedE2ERecoveryWorker"));
+	for (const value of ["composeAttackLabOutboxWorkerRuntime", "composeAttackLabWorkerRuntime", ".Ready(ctx)", ".Processor.RunOnce(ctx)", ".Close()", "ZASP_COMBINED_E2E_ATTACK_LAB_EXPECT_CANCELLED", "composed Attack Lab outbox and controller acknowledged cancelled run without sandbox side effects"]) assert.match(attackLabBoundary, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+	assert.doesNotMatch(attackLabBoundary, /newAttackLab(?:Outbox|Processor)/);
   for (const unsafeControl of ["Start bounded run", "waiting_approval", "Simulate policy", "Decision history"]) {
     const escaped = unsafeControl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     assert.doesNotMatch(source, new RegExp(`(?:clickBrowserText|clickBrowserTextContains|clickBrowserAria)\\([^\\n]*${escaped}`, "i"));

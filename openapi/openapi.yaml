@@ -2549,6 +2549,24 @@ paths:
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/attack-lab/preflight:
+    get:
+      operationId: preflightAttackLabRun
+      summary: Resolve one exact tenant-scoped Attack Lab safety decision
+      description: Returns only redacted source, target, environment, credential class, destination, success criterion, side-effect, and sandbox-limit authority. Run creation independently revalidates the same durable authority and fails closed on drift.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - { name: source_run_id, in: query, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      responses:
+        '200': { description: Exact redacted Attack Lab safety decision., content: { application/json: { schema: { $ref: '#/components/schemas/AttackLabPreflight' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/attack-lab/runs:
     get:
       operationId: listAttackLabRuns
@@ -4847,13 +4865,33 @@ components:
       properties:
         items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/TestRun' } }
         next_cursor: { type: string, minLength: 2, maxLength: 1024, pattern: '^[A-Za-z0-9_-]+$' }
+    AttackLabPreflight:
+      type: object
+      additionalProperties: false
+      required: [source_run_id, definition_id, definition_version, target_id, target_kind, environment, credential_class, destination, allowed_destinations, success_criterion, expected_side_effects, decision_digest, decision_expires_at, limits]
+      properties:
+        source_run_id: { $ref: '#/components/schemas/ProductID' }
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        target_kind: { type: string, enum: [agent_endpoint, mcp_server, coding_agent] }
+        environment: { type: string, enum: [development, test, staging] }
+        credential_class: { type: string, enum: [read_only, test_write] }
+        destination: { type: string, minLength: 1, maxLength: 253, pattern: '^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$' }
+        allowed_destinations: { type: array, minItems: 1, maxItems: 1, items: { type: string, minLength: 1, maxLength: 253, pattern: '^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$' } }
+        success_criterion: { type: string, minLength: 1, maxLength: 512 }
+        expected_side_effects: { type: array, minItems: 1, maxItems: 16, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 256 } }
+        decision_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        decision_expires_at: { type: string, format: date-time }
+        limits: { $ref: '#/components/schemas/AttackLabSandboxLimits' }
     AttackLabRunInput:
       type: object
       additionalProperties: false
-      required: [run_id, source_run_id, approved]
+      required: [run_id, source_run_id, decision_digest, approved]
       properties:
         run_id: { $ref: '#/components/schemas/ProductID' }
         source_run_id: { $ref: '#/components/schemas/ProductID' }
+        decision_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
         approved: { type: boolean, const: true }
     AttackLabRerunInput:
       type: object
@@ -4897,6 +4935,9 @@ components:
         verdict: { type: string, enum: [verified, not_reproduced, inconclusive] }
         error_code: { type: string, enum: [retryable, denied, malformed, outcome_unknown, cleanup_failed, cancelled, exhausted] }
         evidence_reference: { type: string, minLength: 1, maxLength: 1024 }
+        evidence_version_id: { type: string, minLength: 1, maxLength: 512, pattern: '^\S+$' }
+        evidence_checksum: { type: string, pattern: '^[0-9a-f]{64}$' }
+        evidence_size: { type: integer, minimum: 1, maximum: 67108864 }
     AttackLabAttempt:
       type: object
       additionalProperties: false
@@ -4911,6 +4952,9 @@ components:
         error_code: { type: string, enum: [retryable, denied, malformed, outcome_unknown, cleanup_failed, cancelled, exhausted] }
         evidence: { type: array, maxItems: 5, items: { type: string, minLength: 1, maxLength: 512 } }
         evidence_reference: { type: string, minLength: 1, maxLength: 1024 }
+        evidence_version_id: { type: string, minLength: 1, maxLength: 512, pattern: '^\S+$' }
+        evidence_checksum: { type: string, pattern: '^[0-9a-f]{64}$' }
+        evidence_size: { type: integer, minimum: 1, maximum: 67108864 }
         completed_at: { type: string, format: date-time }
     AttackLabRunDetail:
       type: object
@@ -4939,6 +4983,9 @@ components:
         verdict: { type: string, enum: [verified, not_reproduced, inconclusive] }
         error_code: { type: string, enum: [retryable, denied, malformed, outcome_unknown, cleanup_failed, cancelled, exhausted] }
         evidence_reference: { type: string, minLength: 1, maxLength: 1024 }
+        evidence_version_id: { type: string, minLength: 1, maxLength: 512, pattern: '^\S+$' }
+        evidence_checksum: { type: string, pattern: '^[0-9a-f]{64}$' }
+        evidence_size: { type: integer, minimum: 1, maximum: 67108864 }
         attempts: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/AttackLabAttempt' } }
     AttackLabRunPage:
       type: object

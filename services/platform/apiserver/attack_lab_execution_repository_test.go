@@ -48,6 +48,7 @@ func TestAttackLabExecutionRepositoryBindsOutboxControllerAndProxyAuthority(t *t
 	evidenceReference := "s3://zasp-attack-lab-evidence/" + evidenceKey
 	complete := cleanup
 	complete.Version, complete.Status, complete.CleanupState, complete.Verdict, complete.EvidenceReference, complete.CompletedAt = 5, "complete", "complete", "verified", evidenceReference, &now
+	complete.EvidenceVersionID, complete.EvidenceChecksum, complete.EvidenceSizeBytes = "version-1", strings.Repeat("c", 64), 512
 	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{
 		postgresAttackLabExecutionReadinessSQL: json.RawMessage(`true`), postgresAttackLabPrincipalReadySQL: json.RawMessage(`true`),
 		postgresAttackLabClaimOutboxSQL: claimedOutbox, postgresAttackLabHeartbeatOutboxSQL: mustRedTeamJSON(t, map[string]any{"topic": AttackLabOutboxTopic, "lease_expires_at": now.Add(60 * time.Second), "remaining_count": 1}),

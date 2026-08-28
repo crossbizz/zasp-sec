@@ -20,6 +20,7 @@ type RedTeamPublicAuthority interface {
 	ListRedTeamRuns(context.Context, RequestIdentity, RedTeamRunPageRequest) (RedTeamRunPage, error)
 	GetRedTeamRun(context.Context, RequestIdentity, string) (RedTeamRunDetail, error)
 	CancelRedTeamRun(context.Context, RequestIdentity, RedTeamCancelRequest) (RedTeamRunMutationResult, error)
+	PreflightAttackLabRun(context.Context, RequestIdentity, string) (AttackLabPreflight, error)
 	ListAttackLabRuns(context.Context, RequestIdentity, AttackLabRunPageRequest) (AttackLabRunPage, error)
 	GetAttackLabRun(context.Context, RequestIdentity, string) (AttackLabRunDetail, error)
 	CreateAttackLabRun(context.Context, RequestIdentity, AttackLabCreateRequest) (AttackLabMutationResult, error)
@@ -63,6 +64,8 @@ func (handler *redTeamPublicHTTPHandler) ServeHTTP(writer http.ResponseWriter, r
 		handler.getRun(writer, request, routed.PathParameters["id"])
 	case "cancelTestRun":
 		handler.cancelRun(writer, request, routed.PathParameters["id"])
+	case "preflightAttackLabRun":
+		handler.preflightAttackLabRun(writer, request)
 	case "listAttackLabRuns":
 		handler.listAttackLabRuns(writer, request)
 	case "createAttackLabRun":
@@ -76,6 +79,26 @@ func (handler *redTeamPublicHTTPHandler) ServeHTTP(writer http.ResponseWriter, r
 	default:
 		writeProductionError(writer, request, ErrRepositoryOperation)
 	}
+}
+
+func (handler *redTeamPublicHTTPHandler) preflightAttackLabRun(writer http.ResponseWriter, request *http.Request) {
+	identity, ok := IdentityFromRequest(request)
+	query, queryOK := exactWorkflowQuery(request.URL.RawQuery, map[string]int{"source_run_id": 64})
+	sourceRunID := query.Get("source_run_id")
+	if !ok || request.Method != http.MethodGet || !queryOK || !validRedTeamCredential(identity) || !validProductID(sourceRunID) || requireZeroByteInput(request) != nil {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	result, err := handler.repository.PreflightAttackLabRun(request.Context(), identity, sourceRunID)
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
+	if result.SourceRunID != sourceRunID || !validAttackLabPreflightResult(result) {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	writeJSONValue(writer, request, http.StatusOK, result, nil)
 }
 
 func (handler *redTeamPublicHTTPHandler) listDefinitions(writer http.ResponseWriter, request *http.Request) {
@@ -301,15 +324,16 @@ func (handler *redTeamPublicHTTPHandler) createAttackLabRun(writer http.Response
 	identity, ok := IdentityFromRequest(request)
 	idempotency, expected, headersOK := discoveryMutationHeaders(request, true)
 	var input struct {
-		RunID       string `json:"run_id"`
-		SourceRunID string `json:"source_run_id"`
-		Approved    bool   `json:"approved"`
+		RunID          string `json:"run_id"`
+		SourceRunID    string `json:"source_run_id"`
+		DecisionDigest string `json:"decision_digest"`
+		Approved       bool   `json:"approved"`
 	}
-	if !ok || request.Method != http.MethodPost || request.URL.RawQuery != "" || !validRedTeamCredential(identity) || !headersOK || expected != 0 || decodeProductionJSON(request, &input) != nil || !input.Approved {
+	if !ok || request.Method != http.MethodPost || request.URL.RawQuery != "" || !validRedTeamCredential(identity) || !headersOK || expected != 0 || decodeProductionJSON(request, &input) != nil || !input.Approved || !validAttackLabDigest(input.DecisionDigest) {
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
-	result, err := handler.repository.CreateAttackLabRun(request.Context(), identity, AttackLabCreateRequest{RunID: input.RunID, SourceRunID: input.SourceRunID, Approved: input.Approved, IdempotencyKey: idempotency, CorrelationID: correlationIDFromContext(request.Context())})
+	result, err := handler.repository.CreateAttackLabRun(request.Context(), identity, AttackLabCreateRequest{RunID: input.RunID, SourceRunID: input.SourceRunID, DecisionDigest: input.DecisionDigest, Approved: input.Approved, IdempotencyKey: idempotency, CorrelationID: correlationIDFromContext(request.Context())})
 	if err != nil {
 		writeProductionError(writer, request, err)
 		return
@@ -484,7 +508,7 @@ func (surface *redTeamWorkflowSurface) ServeHTTP(writer http.ResponseWriter, req
 		writeProductionError(writer, request, ErrRepositoryAuthentication)
 		return
 	}
-	if stringIn(routed.OperationID, "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun", "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun") {
+	if stringIn(routed.OperationID, "listTests", "createTest", "getTest", "updateTest", "runTest", "listTestRuns", "getTestRun", "cancelTestRun", "preflightAttackLabRun", "listAttackLabRuns", "createAttackLabRun", "getAttackLabRun", "cancelAttackLabRun", "rerunAttackLabRun") {
 		surface.redTeam.ServeHTTP(writer, request)
 		return
 	}

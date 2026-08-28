@@ -29,6 +29,10 @@ const task5KubernetesPartialIntegrationID = "pid_74000003-0000-4000-8000-0000000
 const task5KubernetesFailedIntegrationID = "pid_74000004-0000-4000-8000-000000000004";
 const task5GitHubIntegrationID = "pid_75000001-0000-4000-8000-000000000001";
 const task5OktaIntegrationID = "pid_76000001-0000-4000-8000-000000000001";
+const attackLabSourceRunID = "pid_7f300001-0000-4000-8000-000000000001";
+const attackLabDefinitionID = "pid_7f300002-0000-4000-8000-000000000002";
+const attackLabTargetID = "pid_7f300003-0000-4000-8000-000000000003";
+const attackLabBindingID = "pid_7f300004-0000-4000-8000-000000000004";
 const identityGroupReference = "scim-group-test-018f85a0-2c17-7ba3-91d1-7f0382dd7c88";
 const stytchWebhookSecret = "whsec_MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=";
 
@@ -498,7 +502,7 @@ try {
 	console.log("combined E2E: tenant-scoped Red Team route loaded through isolated Security Agent API authority");
 
 	const hiddenRequestStart = productAPIRequests.length;
-	for (const hiddenPath of ["/test/attack-lab", "/reports", "/guardrails/dashboard", "/prompt-hardening"]) {
+	for (const hiddenPath of ["/reports", "/guardrails/dashboard", "/prompt-hardening"]) {
     await navigateBrowser(browser.cdp, `${publicOrigin}${hiddenPath}`);
     await waitForBrowserText(browser.cdp, /Security overview/);
     assert.equal(new URL(await browserCurrentURL(browser.cdp)).pathname, "/", `hidden route was not canonicalized: ${hiddenPath}`);
@@ -701,6 +705,7 @@ try {
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate plan|Start supervised run|Approve|Reject|Cancel run)$/i), false);
 	await exerciseSecurityAgentAutomaticLifecycle(browser.cdp, workerBinary, workerE2EBinary, apiBinary, apiEnvironment, healthPort, postgresPort, dsn, publicOrigin, actionPrivateKey);
 	console.log("combined E2E: full-document receipt recovery, local integration, and automatic Security Agent authority proven");
+	await exerciseProductionAttackLabLifecycle(browser.cdp, workerE2EBinary, postgresPort, dsn, publicOrigin);
 	await runProductionRecoveryLifecycle(browser.cdp, agentsecctl, workerE2EBinary, postgresPort, dsn, publicOrigin, certificate, recoveryCredentialFile, expectedProductionScope);
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/identity-access`);
@@ -1982,6 +1987,118 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	assert.match(history, /approved/);
 	assert.doesNotMatch(history, /Foreign autonomous response/);
 	console.log("combined E2E: multi-tenant supervised approval, autonomous response, exact-session isolation with unrelated allowance and cleanup, signed temporary policy apply/cleanup, and irreversible connector revocation proven through real production workers");
+}
+
+async function exerciseProductionAttackLabLifecycle(cdp, workerE2EBinary, postgresPort, dsn, publicOrigin) {
+	const organizationID = "pid_10000001-0000-4000-8000-000000000001";
+	const workspaceID = "pid_10000022-0000-4000-8000-000000000022";
+	const environmentID = "pid_10000023-0000-4000-8000-000000000023";
+	const actorID = "pid_10000004-0000-4000-8000-000000000004";
+	const credentialReference = "ref:red-team/target_e2e_0001";
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `
+UPDATE zasp_authorized_scopes SET permissions='["view","manage_workflows","manage_findings","manage_identity","run_tests"]'::jsonb
+ WHERE principal_id='${actorID}' AND organization_id='${organizationID}' AND (workspace_id,environment_id) IN
+ (('pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003'),('${workspaceID}','${environmentID}'));
+UPDATE zasp_product_sessions SET permissions='["view","manage_workflows","manage_findings","manage_identity","run_tests"]'::jsonb
+ WHERE principal_id='${actorID}' AND revoked_at IS NULL;
+INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,state,first_seen_at,last_seen_at,product_kind,observed_at,fresh_until,winning_attributes)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${attackLabTargetID}','agent_endpoint','Attack Lab staging agent','active',transaction_timestamp(),transaction_timestamp(),'agent',transaction_timestamp(),transaction_timestamp()+interval '1 hour',
+ jsonb_build_object('red_team',jsonb_build_object('enabled',true,'endpoint','https://adapter.customer.example/v1/evaluate','credential_reference','${credentialReference}','target_kinds',jsonb_build_array('agent_endpoint'))))
+ON CONFLICT(organization_id,workspace_id,environment_id,id) DO UPDATE SET state='active',observed_at=transaction_timestamp(),fresh_until=transaction_timestamp()+interval '1 hour',winning_attributes=excluded.winning_attributes;
+INSERT INTO zasp_red_team_definitions(organization_id,workspace_id,environment_id,definition_id,version,name,target_id,target_kind,categories,safety,enabled,created_by)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${attackLabDefinitionID}',1,'Attack Lab prompt safety','${attackLabTargetID}','agent_endpoint','["prompt_injection"]'::jsonb,'{"environment":"staging","credential_class":"read_only","expected_side_effects":["bounded canary evaluation"]}'::jsonb,true,'${actorID}')
+ON CONFLICT DO NOTHING;
+INSERT INTO zasp_red_team_runs(organization_id,workspace_id,environment_id,run_id,version,definition_id,definition_version,requested_by,state,attempt,cancel_requested,queued_at,started_at,completed_at,input_digest,verdict,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${attackLabSourceRunID}',3,'${attackLabDefinitionID}',1,'${actorID}','complete',1,false,transaction_timestamp()-interval '10 seconds',transaction_timestamp()-interval '9 seconds',transaction_timestamp()-interval '5 seconds',digest(convert_to('attack-lab-source-e2e','UTF8'),'sha256'),'fail','s3://zasp-production-e2e-evidence/attack-lab-source','attack-lab-source','version-source-e2e',digest(convert_to('attack-lab-source-evidence','UTF8'),'sha256'),512)
+ON CONFLICT DO NOTHING;
+INSERT INTO zasp_red_team_attempts(organization_id,workspace_id,environment_id,run_id,attempt,input_digest,verdict,objective,behavior,error_code,evidence,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${attackLabSourceRunID}',1,digest(convert_to('attack-lab-source-e2e','UTF8'),'sha256'),'fail','Reject direct prompt injection','The staging target exposed the bounded canary',NULL,'["policy bypass observed"]'::jsonb,'s3://zasp-production-e2e-evidence/attack-lab-source','attack-lab-source','version-source-e2e',digest(convert_to('attack-lab-source-evidence','UTF8'),'sha256'),512,transaction_timestamp()-interval '5 seconds')
+ON CONFLICT DO NOTHING;
+SELECT zasp_attack_lab_register_credential_binding('${organizationID}','${workspaceID}','${environmentID}','${attackLabBindingID}','${attackLabTargetID}','${credentialReference}','read_only',1,digest(convert_to('attack-lab-credential-e2e','UTF8'),'sha256'),transaction_timestamp()+interval '1 hour');
+`]);
+
+	await reloadBrowser(cdp);
+	await selectBrowserOption(cdp, "Authorized scope", "Staging");
+	await waitForBrowserSelectedOption(cdp, "Authorized scope", "Staging");
+	await navigateBrowser(cdp, `${publicOrigin}/test/attack-lab`);
+	await waitForBrowserText(cdp, new RegExp(attackLabSourceRunID));
+	assert.equal(await browserHasInteractiveText(cdp, /^Run Attack Lab$/i), true, "Attack Lab production route did not expose the authorized approval action");
+	await clickBrowserText(cdp, "Review safety decision");
+	const preflight = await waitForBrowserText(cdp, /Reject direct prompt injection/);
+	assert.match(preflight, /adapter\.customer\.example/);
+	assert.match(preflight, /staging/);
+	assert.match(preflight, /read only/);
+	assert.match(preflight, /500m CPU/);
+	assert.doesNotMatch(preflight, /credential_reference|target_e2e_0001|lease_token/i);
+	await clickBrowserAria(cdp, "Approve exact safety decision");
+	await clickBrowserText(cdp, "Run Attack Lab");
+
+	let runID = "";
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		runID = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT run_id FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,source_run_id)=('${organizationID}','${workspaceID}','${environmentID}','${attackLabSourceRunID}') ORDER BY queued_at DESC,run_id DESC LIMIT 1;`])).stdout.trim();
+		if (/^pid_[0-9a-f-]{36}$/.test(runID)) break;
+		await delay(25);
+	}
+	assert.match(runID, /^pid_[0-9a-f-]{36}$/, "Attack Lab browser approval did not create a durable run");
+	const worker = await command(workerE2EBinary, ["-test.run=^TestProductionCombinedE2EAttackLabWorker$", "-test.v", "-test.count=1"], {
+		cwd: platform,
+		timeout: 60_000,
+		env: {
+			...process.env,
+			ZASP_COMBINED_E2E_ATTACK_LAB_CONTROLLER_DSN: `postgres://zasp_e2e_attack_lab_controller@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
+			ZASP_COMBINED_E2E_ATTACK_LAB_OUTBOX_DSN: `postgres://zasp_e2e_attack_lab_outbox@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
+			ZASP_COMBINED_E2E_ATTACK_LAB_RUN_ID: runID,
+		},
+	});
+	assert.match(worker.stdout, /composed Attack Lab outbox and controller completed deterministic isolated sandbox evidence/);
+	const completed = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',state,verdict,cleanup_state,attempt,(SELECT count(*) FROM zasp_attack_lab_attempts WHERE run_id='${runID}'),(SELECT count(*) FROM zasp_attack_lab_outbox WHERE payload->>'run_id'='${runID}' AND state='published')) FROM zasp_attack_lab_runs WHERE run_id='${runID}';`])).stdout.trim();
+	assert.equal(completed, "complete|verified|complete|1|1|1", "Attack Lab composed workers did not persist one terminal result, cleanup, attempt, and publication");
+
+	await reloadBrowser(cdp);
+	await waitForBrowserText(cdp, /verified/);
+	await clickBrowserAria(cdp, `Open Attack Lab run ${runID}`);
+	const evidence = await waitForBrowserText(cdp, /success criterion observed/);
+	assert.match(evidence, /exact destination allowed/);
+	assert.match(evidence, /isolated job completed/);
+	assert.match(evidence, /Cleanup complete: yes/);
+	assert.match(evidence, /Immutable evidence: s3:\/\/zasp-production-e2e-evidence\//);
+	assert.match(evidence, /@ version-[0-9a-f]{16}/);
+	assert.match(evidence, /sha256:[0-9a-f]{64}/);
+	assert.match(evidence, /[1-9][0-9]* bytes/);
+	await clickBrowserText(cdp, "Re-run safely");
+	let rerunID = "";
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		rerunID = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT run_id FROM zasp_attack_lab_runs WHERE source_run_id='${attackLabSourceRunID}' AND run_id<>'${runID}' ORDER BY queued_at DESC,run_id DESC LIMIT 1;`])).stdout.trim();
+		if (/^pid_[0-9a-f-]{36}$/.test(rerunID)) break;
+		await delay(25);
+	}
+	assert.match(rerunID, /^pid_[0-9a-f-]{36}$/, "Attack Lab rerun was not durably queued");
+	await clickBrowserAria(cdp, `Open Attack Lab run ${rerunID}`);
+	await clickBrowserText(cdp, "Cancel run");
+	const cancelled = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',state,cancel_requested,cleanup_state,attempt,error_code) FROM zasp_attack_lab_runs WHERE run_id='${rerunID}';`])).stdout.trim();
+	assert.equal(cancelled, "cancelled|t|complete|0|cancelled", "Attack Lab queued cancellation did not terminalize without a sandbox");
+	const cancelledWorker = await command(workerE2EBinary, ["-test.run=^TestProductionCombinedE2EAttackLabWorker$", "-test.v", "-test.count=1"], {
+		cwd: platform,
+		timeout: 60_000,
+		env: {
+			...process.env,
+			ZASP_COMBINED_E2E_ATTACK_LAB_CONTROLLER_DSN: `postgres://zasp_e2e_attack_lab_controller@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
+			ZASP_COMBINED_E2E_ATTACK_LAB_OUTBOX_DSN: `postgres://zasp_e2e_attack_lab_outbox@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
+			ZASP_COMBINED_E2E_ATTACK_LAB_RUN_ID: rerunID,
+			ZASP_COMBINED_E2E_ATTACK_LAB_EXPECT_CANCELLED: "true",
+		},
+	});
+	assert.match(cancelledWorker.stdout, /acknowledged cancelled run without sandbox side effects/);
+	const cancelledPublication = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',state,(SELECT count(*) FROM zasp_attack_lab_attempts WHERE run_id='${rerunID}'),(SELECT count(*) FROM zasp_attack_lab_outbox WHERE payload->>'run_id'='${rerunID}' AND state='published')) FROM zasp_attack_lab_runs WHERE run_id='${rerunID}';`])).stdout.trim();
+	assert.equal(cancelledPublication, "cancelled|0|1", "Attack Lab cancelled delivery did not ACK terminally without a sandbox attempt");
+	await reloadBrowser(cdp);
+	const reloaded = await waitForBrowserText(cdp, new RegExp(rerunID));
+	assert.match(reloaded, /verified/);
+	assert.match(reloaded, /cancelled/);
+	assert.doesNotMatch(reloaded, /ref:red-team|lease_token|controller_id|credential_binding/i);
+	await selectBrowserOption(cdp, "Authorized scope", "Production");
+	await waitForBrowserSelectedOption(cdp, "Authorized scope", "Production");
+	console.log("combined E2E: production Attack Lab preflight, explicit approval, composed outbox/controller, isolated evidence, cleanup, rerun, cancellation, and reload proven");
 }
 
 async function runProductionRecoveryLifecycle(cdp, agentsecctl, workerE2EBinary, postgresPort, dsn, publicOrigin, certificate, credentialFile, expectedScope) {

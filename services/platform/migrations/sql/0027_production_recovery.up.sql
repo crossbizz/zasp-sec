@@ -609,4 +609,4 @@ END
 $product_release_evolution$;
 
 UPDATE public.zasp_schema_metadata SET value='production-recovery-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='attack-lab-execution-v1';
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('production_recovery_fingerprint', 'f9e4add36404742a04e28354149fd4ed2e94cb3389971fa0b573763c97bc6350') ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('production_recovery_fingerprint', '26f5f366b915dad467cca9d7c7941946f359b4884f53c48afb3b089d54179e6d') ON CONFLICT(key) DO UPDATE SET value=excluded.value;

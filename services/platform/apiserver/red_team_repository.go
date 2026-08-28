@@ -329,10 +329,15 @@ func validRedTeamSafety(value RedTeamSafety) bool {
 	if !stringIn(value.Environment, "development", "test", "staging") || !stringIn(value.CredentialClass, "read_only", "test_write") || len(value.ExpectedSideEffects) < 1 || len(value.ExpectedSideEffects) > 16 {
 		return false
 	}
+	seen := make(map[string]struct{}, len(value.ExpectedSideEffects))
 	for _, item := range value.ExpectedSideEffects {
 		if len(item) < 1 || len(item) > 256 || item != strings.TrimSpace(item) {
 			return false
 		}
+		if _, duplicate := seen[item]; duplicate {
+			return false
+		}
+		seen[item] = struct{}{}
 	}
 	return true
 }

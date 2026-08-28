@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { decodeTestDefinition, decodeTestDefinitionPage, decodeTestRun, decodeTestRunDetail, decodeTestRunPage } from "./decoders";
+import { decodeAttackLabPreflight, decodeAttackLabRun, decodeAttackLabRunDetail, decodeAttackLabRunPage, decodeTestDefinition, decodeTestDefinitionPage, decodeTestRun, decodeTestRunDetail, decodeTestRunPage } from "./decoders";
 
 const definitionID = "pid_91000001-0000-4000-8000-000000000001";
 const targetID = "pid_91000002-0000-4000-8000-000000000002";
 const runID = "pid_91000003-0000-4000-8000-000000000003";
+const attackLabRunID = "pid_91000004-0000-4000-8000-000000000004";
 
 const definition = {
   id: definitionID,
@@ -77,5 +78,39 @@ describe("red team API decoders", () => {
     const older = { ...completeRun, id: "pid_91000004-0000-4000-8000-000000000004", queued_at: "2026-08-24T09:00:00Z" };
     expect(decodeTestRunPage({ items: [completeRun, older], next_cursor: "Y3Vyc29yXzAy" }).items).toHaveLength(2);
     expect(() => decodeTestRunPage({ items: [older, completeRun] })).toThrow("schema mismatch");
+  });
+
+  it("accepts exact Attack Lab preflight, run, detail, and page authority", () => {
+    const limits = { cpu: "500m", memory: "1Gi", ephemeral_storage: "2Gi", timeout_seconds: 300 } as const;
+    const preflight = { source_run_id: runID, definition_id: definitionID, definition_version: 2, target_id: targetID, target_kind: "agent_endpoint", environment: "staging", credential_class: "read_only", destination: "adapter.customer.example", allowed_destinations: ["adapter.customer.example"], success_criterion: "Evaluate curated categories: prompt_injection", expected_side_effects: ["bounded evaluation"], decision_digest: "a".repeat(64), decision_expires_at: "2026-08-24T10:10:00Z", limits } as const;
+    expect(decodeAttackLabPreflight(preflight).destination).toBe("adapter.customer.example");
+    const complete = { id: attackLabRunID, version: 4, source_run_id: runID, definition_id: definitionID, definition_version: 2, target_id: targetID, target_kind: "agent_endpoint", environment: "staging", credential_class: "read_only", destination: "adapter.customer.example", status: "complete", attempt: 1, cancel_requested: false, cleanup_state: "complete", limits, queued_at: "2026-08-24T10:06:00Z", started_at: "2026-08-24T10:06:01Z", attempt_started_at: "2026-08-24T10:06:01Z", completed_at: "2026-08-24T10:06:05Z", verdict: "verified", evidence_reference: "s3://zasp-attack-lab-evidence/exact", evidence_version_id: "version-attack-lab-1", evidence_checksum: "c".repeat(64), evidence_size: 512 } as const;
+    expect(decodeAttackLabRun(complete).verdict).toBe("verified");
+    const attempt = { attempt: 1, evidence_state: "complete", verdict: "verified", criterion_observed: true, canary_touched: true, cleanup_completed: true, evidence: ["semantic:criterion observed", "gateway:allowed", "egress:destination exact", "kubernetes:job complete", "cloud:canary touched"], evidence_reference: complete.evidence_reference, evidence_version_id: complete.evidence_version_id, evidence_checksum: complete.evidence_checksum, evidence_size: complete.evidence_size, completed_at: complete.completed_at } as const;
+    expect(decodeAttackLabRunDetail({ ...complete, attempts: [attempt] }).attempts[0]?.canary_touched).toBe(true);
+    expect(decodeAttackLabRunPage({ items: [complete] }).items[0]?.id).toBe(attackLabRunID);
+  });
+
+  it.each([
+    { allowed_destinations: ["foreign.example"] },
+    { environment: "production" },
+    { limits: { cpu: "1", memory: "1Gi", ephemeral_storage: "2Gi", timeout_seconds: 300 } },
+    { expected_side_effects: [] },
+    { expected_side_effects: ["duplicate", "duplicate"] },
+    { decision_digest: "A".repeat(64) },
+    { decision_expires_at: "2026-08-24T03:10:00-07:00" },
+  ])("rejects hostile Attack Lab preflight %#", (change) => {
+    const value = { source_run_id: runID, definition_id: definitionID, definition_version: 2, target_id: targetID, target_kind: "agent_endpoint", environment: "staging", credential_class: "read_only", destination: "adapter.customer.example", allowed_destinations: ["adapter.customer.example"], success_criterion: "Evaluate curated categories", expected_side_effects: ["bounded evaluation"], decision_digest: "a".repeat(64), decision_expires_at: "2026-08-24T10:10:00Z", limits: { cpu: "500m", memory: "1Gi", ephemeral_storage: "2Gi", timeout_seconds: 300 }, ...change };
+    expect(() => decodeAttackLabPreflight(value)).toThrow("schema mismatch");
+  });
+
+  it("rejects incoherent Attack Lab run and attempt authority", () => {
+    const value = { id: attackLabRunID, version: 4, source_run_id: runID, definition_id: definitionID, definition_version: 2, target_id: targetID, target_kind: "agent_endpoint", environment: "staging", credential_class: "read_only", destination: "adapter.customer.example", status: "complete", attempt: 1, cancel_requested: false, cleanup_state: "complete", limits: { cpu: "500m", memory: "1Gi", ephemeral_storage: "2Gi", timeout_seconds: 300 }, queued_at: "2026-08-24T10:06:00Z", started_at: "2026-08-24T10:06:01Z", attempt_started_at: "2026-08-24T10:06:01Z", completed_at: "2026-08-24T10:06:05Z", verdict: "verified", evidence_reference: "s3://zasp-attack-lab-evidence/exact", evidence_version_id: "version-attack-lab-1", evidence_checksum: "c".repeat(64), evidence_size: 512 };
+    expect(() => decodeAttackLabRun({ ...value, attempt_started_at: undefined })).toThrow("schema mismatch");
+    expect(() => decodeAttackLabRun({ ...value, cleanup_state: "pending" })).toThrow("schema mismatch");
+    const attempt = { attempt: 1, evidence_state: "complete", verdict: "verified", criterion_observed: true, canary_touched: true, cleanup_completed: true, evidence: ["semantic:criterion observed", "gateway:allowed", "egress:destination exact", "kubernetes:job complete", "cloud:canary touched"], evidence_reference: "s3://foreign", evidence_version_id: value.evidence_version_id, evidence_checksum: value.evidence_checksum, evidence_size: value.evidence_size, completed_at: value.completed_at };
+    expect(() => decodeAttackLabRunDetail({ ...value, attempts: [attempt] })).toThrow("schema mismatch");
+    expect(() => decodeAttackLabRun({ ...value, evidence_version_id: undefined })).toThrow("schema mismatch");
+    expect(() => decodeAttackLabRun({ ...value, evidence_checksum: "0".repeat(64) })).toThrow("schema mismatch");
   });
 });

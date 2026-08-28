@@ -1,7 +1,7 @@
 import type { APIClient } from "../../../apps/web/api/client";
 import { APITransportError, requireAPIData } from "../../../apps/web/api/client";
-import { decodeInventoryPage, decodeTestDefinition, decodeTestDefinitionPage, decodeTestRun, decodeTestRunDetail, decodeTestRunPage } from "../../../apps/web/api/decoders";
-import type { InventorySummary, TestDefinition, TestDefinitionInput, TestDefinitionUpdateInput, TestRun, TestRunDetail } from "../../../apps/web/api/generated";
+import { decodeAttackLabPreflight, decodeAttackLabRun, decodeAttackLabRunDetail, decodeAttackLabRunPage, decodeInventoryPage, decodeTestDefinition, decodeTestDefinitionPage, decodeTestRun, decodeTestRunDetail, decodeTestRunPage } from "../../../apps/web/api/decoders";
+import type { AttackLabPreflight, AttackLabRun, AttackLabRunDetail, InventorySummary, TestDefinition, TestDefinitionInput, TestDefinitionUpdateInput, TestRun, TestRunDetail } from "../../../apps/web/api/generated";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 
 const quotedVersion = /^"[1-9][0-9]{0,5}"$/;
@@ -20,6 +20,12 @@ export type ProductionRedTeamAPI = Readonly<{
   listRuns(signal?: AbortSignal): Promise<readonly TestRun[]>;
   getRun(id: string, signal?: AbortSignal): Promise<TestRunDetail>;
   cancelRun(id: string, version: number, attempt: MutationAttempt, signal?: AbortSignal): Promise<TestRun>;
+  preflightAttackLab(sourceRunID: string, signal?: AbortSignal): Promise<AttackLabPreflight>;
+  listAttackLabRuns(signal?: AbortSignal): Promise<readonly AttackLabRun[]>;
+  getAttackLabRun(id: string, signal?: AbortSignal): Promise<AttackLabRunDetail>;
+  createAttackLabRun(preflight: AttackLabPreflight, runID: string, attempt: MutationAttempt, signal?: AbortSignal): Promise<AttackLabRun>;
+  cancelAttackLabRun(id: string, version: number, attempt: MutationAttempt, signal?: AbortSignal): Promise<AttackLabRun>;
+  rerunAttackLabRun(sourceRunID: string, version: number, runID: string, attempt: MutationAttempt, signal?: AbortSignal): Promise<AttackLabRun>;
   listTargets(signal?: AbortSignal): Promise<readonly InventorySummary[]>;
 }>;
 
@@ -40,6 +46,20 @@ export function createProductionRedTeamAPI(client: APIClient): ProductionRedTeam
     async getRun(id, signal) { return requireVersioned(await client.GET("/api/v1/test-runs/{id}", { params: { path: { id } }, signal }), decodeTestRunDetail); },
     async cancelRun(id, version, attempt, signal) {
       requireVersion(version); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/test-runs/{id}/cancel", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, signal }); return requireMutation(result, decodeTestRun);
+    },
+    async preflightAttackLab(sourceRunID, signal) {
+      requireProductID(sourceRunID); const value = requireAPIData(await client.GET("/api/v1/attack-lab/preflight", { params: { query: { source_run_id: sourceRunID } }, signal }), decodeAttackLabPreflight); if (value.source_run_id !== sourceRunID) invalidAttackLabResponse(); return value;
+    },
+    async listAttackLabRuns(signal) { return loadRootCursorPages((cursor) => client.GET("/api/v1/attack-lab/runs", { params: { query: { cursor, limit: 100 } }, signal }), decodeAttackLabRunPage); },
+    async getAttackLabRun(id, signal) { requireProductID(id); const value = requireVersioned(await client.GET("/api/v1/attack-lab/runs/{id}", { params: { path: { id } }, signal }), decodeAttackLabRunDetail); if (value.id !== id) invalidAttackLabResponse(); return value; },
+    async createAttackLabRun(preflight, runID, attempt, signal) {
+      const sourceRunID = preflight.source_run_id; requireProductID(sourceRunID); requireProductID(runID); if (sourceRunID === runID || !/^[0-9a-f]{64}$/.test(preflight.decision_digest) || /^0{64}$/.test(preflight.decision_digest)) invalidAttackLabConfiguration(); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/attack-lab/runs", { params: { header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"0"', "X-CSRF-Token": "" } }, body: { run_id: runID, source_run_id: sourceRunID, decision_digest: preflight.decision_digest, approved: true }, signal }); const value = requireMutation(result, decodeAttackLabRun); if (value.id !== runID || value.source_run_id !== sourceRunID || value.version !== 1 || value.status !== "queued" || value.attempt !== 0) invalidAttackLabResponse(); return value;
+    },
+    async cancelAttackLabRun(id, version, attempt, signal) {
+      requireProductID(id); requireVersion(version); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/attack-lab/runs/{id}/cancel", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, signal }); const value = requireMutation(result, decodeAttackLabRun); if (value.id !== id || value.version !== version + 1 || !value.cancel_requested && value.status !== "cancelled") invalidAttackLabResponse(); return value;
+    },
+    async rerunAttackLabRun(sourceRunID, version, runID, attempt, signal) {
+      requireProductID(sourceRunID); requireProductID(runID); if (sourceRunID === runID) invalidAttackLabConfiguration(); requireVersion(version); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/attack-lab/runs/{id}/rerun", { params: { path: { id: sourceRunID }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, body: { run_id: runID }, signal }); const value = requireMutation(result, decodeAttackLabRun); if (value.id !== runID || value.version !== 1 || value.status !== "queued" || value.attempt !== 0) invalidAttackLabResponse(); return value;
     },
     async listTargets(signal) {
       const [agents, tools] = await Promise.all([
@@ -70,6 +90,9 @@ function requireMutation<T extends { readonly version: number }>(result: APIResu
 
 function requireVersion(value: number): void { if (!Number.isSafeInteger(value) || value < 1 || value > 1_000_000) throw new APITransportError("invalid_configuration", "Invalid red team version"); }
 function requireMutationAttempt(value: MutationAttempt): void { if (!idempotencyKey.test(value.idempotencyKey)) throw new APITransportError("invalid_configuration", "Invalid red team idempotency key"); }
+function requireProductID(value: string): void { if (!productID.test(value)) invalidAttackLabConfiguration(); }
+function invalidAttackLabConfiguration(): never { throw new APITransportError("invalid_configuration", "Invalid Attack Lab request configuration"); }
+function invalidAttackLabResponse(): never { throw new APITransportError("invalid_response", "Attack Lab response contradicted its request authority"); }
 
 export function redTeamProductID(): string { return `pid_${globalThis.crypto.randomUUID()}`; }
 export function redTeamIdempotencyKey(): string { return `redteam_${globalThis.crypto.randomUUID()}`; }

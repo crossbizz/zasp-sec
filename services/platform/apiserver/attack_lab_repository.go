@@ -1,18 +1,22 @@
 package apiserver
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"strings"
 	"time"
 )
 
 const (
-	postgresAttackLabListRunsSQL = `SELECT zasp_attack_lab_list_runs($1,$2,$3,$4,NULLIF($5,''),$6)`
-	postgresAttackLabGetRunSQL   = `SELECT zasp_attack_lab_get_run($1,$2,$3,$4)`
-	postgresAttackLabCreateSQL   = `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,$5,$6,$7,$8)`
-	postgresAttackLabCancelSQL   = `SELECT zasp_attack_lab_cancel_run($1,$2,$3,$4,$5,$6,$7,$8)`
-	postgresAttackLabRerunSQL    = `SELECT zasp_attack_lab_rerun($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	postgresAttackLabListRunsSQL  = `SELECT zasp_attack_lab_list_runs($1,$2,$3,$4,NULLIF($5,''),$6)`
+	postgresAttackLabPreflightSQL = `SELECT zasp_attack_lab_preflight($1,$2,$3,$4)`
+	postgresAttackLabGetRunSQL    = `SELECT zasp_attack_lab_get_run($1,$2,$3,$4)`
+	postgresAttackLabCreateSQL    = `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	postgresAttackLabCancelSQL    = `SELECT zasp_attack_lab_cancel_run($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresAttackLabRerunSQL     = `SELECT zasp_attack_lab_rerun($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 )
 
 type AttackLabSandboxLimits struct {
@@ -20,6 +24,23 @@ type AttackLabSandboxLimits struct {
 	Memory           string `json:"memory"`
 	EphemeralStorage string `json:"ephemeral_storage"`
 	TimeoutSeconds   int    `json:"timeout_seconds"`
+}
+
+type AttackLabPreflight struct {
+	SourceRunID         string                 `json:"source_run_id"`
+	DefinitionID        string                 `json:"definition_id"`
+	DefinitionVersion   int64                  `json:"definition_version"`
+	TargetID            string                 `json:"target_id"`
+	TargetKind          string                 `json:"target_kind"`
+	Environment         string                 `json:"environment"`
+	CredentialClass     string                 `json:"credential_class"`
+	Destination         string                 `json:"destination"`
+	AllowedDestinations []string               `json:"allowed_destinations"`
+	SuccessCriterion    string                 `json:"success_criterion"`
+	ExpectedSideEffects []string               `json:"expected_side_effects"`
+	DecisionDigest      string                 `json:"decision_digest"`
+	DecisionExpiresAt   time.Time              `json:"decision_expires_at"`
+	Limits              AttackLabSandboxLimits `json:"limits"`
 }
 
 type AttackLabRun struct {
@@ -45,6 +66,9 @@ type AttackLabRun struct {
 	Verdict           string                 `json:"verdict,omitempty"`
 	ErrorCode         string                 `json:"error_code,omitempty"`
 	EvidenceReference string                 `json:"evidence_reference,omitempty"`
+	EvidenceVersionID string                 `json:"evidence_version_id,omitempty"`
+	EvidenceChecksum  string                 `json:"evidence_checksum,omitempty"`
+	EvidenceSizeBytes int64                  `json:"evidence_size,omitempty"`
 }
 
 type AttackLabAttempt struct {
@@ -57,6 +81,9 @@ type AttackLabAttempt struct {
 	ErrorCode         string    `json:"error_code,omitempty"`
 	Evidence          []string  `json:"evidence"`
 	EvidenceReference string    `json:"evidence_reference,omitempty"`
+	EvidenceVersionID string    `json:"evidence_version_id,omitempty"`
+	EvidenceChecksum  string    `json:"evidence_checksum,omitempty"`
+	EvidenceSizeBytes int64     `json:"evidence_size,omitempty"`
 	CompletedAt       time.Time `json:"completed_at"`
 }
 
@@ -80,6 +107,7 @@ type AttackLabRunPageRequest struct {
 type AttackLabCreateRequest struct {
 	RunID          string
 	SourceRunID    string
+	DecisionDigest string
 	Approved       bool
 	IdempotencyKey string
 	CorrelationID  string
@@ -106,6 +134,21 @@ type AttackLabMutationResult struct {
 	CorrelationID string       `json:"correlation_id"`
 	ReceiptID     string       `json:"receipt_id"`
 	Replayed      bool         `json:"replayed"`
+}
+
+func (repository *PostgresRepository) PreflightAttackLabRun(ctx context.Context, identity RequestIdentity, sourceRunID string) (AttackLabPreflight, error) {
+	if !validAttackLabRepositoryRequest(repository, ctx, identity) || !validProductID(sourceRunID) {
+		return AttackLabPreflight{}, ErrRepositoryOperation
+	}
+	payload, err := repository.database.QueryJSON(ctx, postgresAttackLabPreflightSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), sourceRunID)
+	if err != nil {
+		return AttackLabPreflight{}, discoveryProviderError(err)
+	}
+	var result AttackLabPreflight
+	if !exactJSONFields(payload, "allowed_destinations", "credential_class", "decision_digest", "decision_expires_at", "definition_id", "definition_version", "destination", "environment", "expected_side_effects", "limits", "source_run_id", "success_criterion", "target_id", "target_kind") || decodeStrictDiscovery(payload, &result) != nil || result.SourceRunID != sourceRunID || !validAttackLabPreflightResult(result) {
+		return AttackLabPreflight{}, ErrRepositoryUnavailable
+	}
+	return result, nil
 }
 
 func (repository *PostgresRepository) ListAttackLabRuns(ctx context.Context, identity RequestIdentity, input AttackLabRunPageRequest) (AttackLabRunPage, error) {
@@ -159,7 +202,7 @@ func (repository *PostgresRepository) GetAttackLabRun(ctx context.Context, ident
 	}
 	prior := 0
 	for _, attempt := range result.Attempts {
-		if !validAttackLabAttempt(attempt) || attempt.Attempt <= prior || attempt.Attempt > result.Attempt || attempt.EvidenceReference != result.EvidenceReference {
+		if !validAttackLabAttempt(attempt) || attempt.Attempt <= prior || attempt.Attempt > result.Attempt || attempt.EvidenceReference != result.EvidenceReference || attempt.EvidenceVersionID != result.EvidenceVersionID || attempt.EvidenceChecksum != result.EvidenceChecksum || attempt.EvidenceSizeBytes != result.EvidenceSizeBytes {
 			return AttackLabRunDetail{}, ErrRepositoryUnavailable
 		}
 		prior = attempt.Attempt
@@ -179,10 +222,11 @@ func (repository *PostgresRepository) GetAttackLabRun(ctx context.Context, ident
 }
 
 func (repository *PostgresRepository) CreateAttackLabRun(ctx context.Context, identity RequestIdentity, input AttackLabCreateRequest) (AttackLabMutationResult, error) {
-	if !validAttackLabRepositoryRequest(repository, ctx, identity) || !validProductID(input.RunID) || !validProductID(input.SourceRunID) || input.RunID == input.SourceRunID || !input.Approved || !validPublicIdempotency(input.IdempotencyKey) || !validProductID(input.CorrelationID) {
+	decisionDigest, digestOK := decodeAttackLabDigest(input.DecisionDigest)
+	if !validAttackLabRepositoryRequest(repository, ctx, identity) || !validProductID(input.RunID) || !validProductID(input.SourceRunID) || input.RunID == input.SourceRunID || !input.Approved || !digestOK || !validPublicIdempotency(input.IdempotencyKey) || !validProductID(input.CorrelationID) {
 		return AttackLabMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresAttackLabCreateSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IdempotencyKey, input.RunID, input.SourceRunID, input.CorrelationID)
+	payload, err := repository.database.QueryJSON(ctx, postgresAttackLabCreateSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IdempotencyKey, input.RunID, input.SourceRunID, decisionDigest, input.CorrelationID)
 	if err != nil {
 		return AttackLabMutationResult{}, discoveryProviderError(err)
 	}
@@ -228,7 +272,7 @@ func validAttackLabRepositoryRequest(repository *PostgresRepository, ctx context
 }
 
 func validAttackLabRun(value AttackLabRun) bool {
-	if !validProductID(value.ID) || value.Version < 1 || value.Version > 1000000 || !validProductID(value.SourceRunID) || !validProductID(value.DefinitionID) || value.DefinitionVersion < 1 || value.DefinitionVersion > 1000000 || !validProductID(value.TargetID) || !stringIn(value.TargetKind, "agent_endpoint", "mcp_server", "coding_agent") || !stringIn(value.Environment, "development", "test", "staging") || !stringIn(value.CredentialClass, "read_only", "test_write") || !validAttackLabDestination(value.Destination) || value.Attempt < 0 || value.Attempt > 5 || value.Limits != (AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}) || !canonicalRedTeamTime(value.QueuedAt) || value.StartedAt != nil && (!canonicalRedTeamTime(*value.StartedAt) || value.StartedAt.Before(value.QueuedAt)) || value.AttemptStartedAt != nil && (!canonicalRedTeamTime(*value.AttemptStartedAt) || value.StartedAt == nil || value.AttemptStartedAt.Before(*value.StartedAt)) || (value.Attempt == 0) != (value.AttemptStartedAt == nil) || value.CompletedAt != nil && (!canonicalRedTeamTime(*value.CompletedAt) || value.CompletedAt.Before(value.QueuedAt) || value.StartedAt != nil && value.CompletedAt.Before(*value.StartedAt) || value.AttemptStartedAt != nil && value.CompletedAt.Before(*value.AttemptStartedAt)) || value.EvidenceReference != "" && !canonicalInventoryText(value.EvidenceReference, 1, 1024) {
+	if !validProductID(value.ID) || value.Version < 1 || value.Version > 1000000 || !validProductID(value.SourceRunID) || !validProductID(value.DefinitionID) || value.DefinitionVersion < 1 || value.DefinitionVersion > 1000000 || !validProductID(value.TargetID) || !stringIn(value.TargetKind, "agent_endpoint", "mcp_server", "coding_agent") || !stringIn(value.Environment, "development", "test", "staging") || !stringIn(value.CredentialClass, "read_only", "test_write") || !validAttackLabDestination(value.Destination) || value.Attempt < 0 || value.Attempt > 5 || value.Limits != (AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}) || !canonicalRedTeamTime(value.QueuedAt) || value.StartedAt != nil && (!canonicalRedTeamTime(*value.StartedAt) || value.StartedAt.Before(value.QueuedAt)) || value.AttemptStartedAt != nil && (!canonicalRedTeamTime(*value.AttemptStartedAt) || value.StartedAt == nil || value.AttemptStartedAt.Before(*value.StartedAt)) || (value.Attempt == 0) != (value.AttemptStartedAt == nil) || value.CompletedAt != nil && (!canonicalRedTeamTime(*value.CompletedAt) || value.CompletedAt.Before(value.QueuedAt) || value.StartedAt != nil && value.CompletedAt.Before(*value.StartedAt) || value.AttemptStartedAt != nil && value.CompletedAt.Before(*value.AttemptStartedAt)) || !validAttackLabPublicEvidence(value.EvidenceReference, value.EvidenceVersionID, value.EvidenceChecksum, value.EvidenceSizeBytes) {
 		return false
 	}
 	started, completed, verdict, failure, evidence := value.StartedAt != nil, value.CompletedAt != nil, value.Verdict != "", value.ErrorCode != "", value.EvidenceReference != ""
@@ -252,14 +296,31 @@ func validAttackLabRun(value AttackLabRun) bool {
 	}
 }
 
+func validAttackLabPreflightResult(value AttackLabPreflight) bool {
+	if !validProductID(value.SourceRunID) || !validProductID(value.DefinitionID) || value.DefinitionVersion < 1 || value.DefinitionVersion > 1_000_000 || !validProductID(value.TargetID) || !stringIn(value.TargetKind, "agent_endpoint", "mcp_server", "coding_agent") || !stringIn(value.Environment, "development", "test", "staging") || !stringIn(value.CredentialClass, "read_only", "test_write") || !validAttackLabDestination(value.Destination) || len(value.AllowedDestinations) != 1 || value.AllowedDestinations[0] != value.Destination || !validRedTeamBoundedText(value.SuccessCriterion, 512) || len(value.ExpectedSideEffects) < 1 || len(value.ExpectedSideEffects) > 16 || !canonicalRedTeamTime(value.DecisionExpiresAt) || value.DecisionExpiresAt.IsZero() || !validAttackLabDigest(value.DecisionDigest) || value.Limits != (AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}) {
+		return false
+	}
+	seen := make(map[string]struct{}, len(value.ExpectedSideEffects))
+	for _, effect := range value.ExpectedSideEffects {
+		if !validRedTeamBoundedText(effect, 256) {
+			return false
+		}
+		if _, exists := seen[effect]; exists {
+			return false
+		}
+		seen[effect] = struct{}{}
+	}
+	return true
+}
+
 func validAttackLabAttempt(value AttackLabAttempt) bool {
 	if value.Attempt < 1 || value.Attempt > 5 || !canonicalRedTeamTime(value.CompletedAt) || !value.CleanupCompleted || value.Verdict == "verified" && (!value.CriterionObserved || !value.CanaryTouched) || value.Verdict == "not_reproduced" && (value.CriterionObserved || value.CanaryTouched) {
 		return false
 	}
 	if value.EvidenceState == "unavailable" {
-		return len(value.Evidence) == 0 && value.EvidenceReference == "" && !value.CriterionObserved && !value.CanaryTouched && (value.Verdict == "inconclusive" && value.ErrorCode == "outcome_unknown" || value.Verdict == "" && value.ErrorCode == "cancelled")
+		return len(value.Evidence) == 0 && validAttackLabPublicEvidence(value.EvidenceReference, value.EvidenceVersionID, value.EvidenceChecksum, value.EvidenceSizeBytes) && value.EvidenceReference == "" && !value.CriterionObserved && !value.CanaryTouched && (value.Verdict == "inconclusive" && value.ErrorCode == "outcome_unknown" || value.Verdict == "" && value.ErrorCode == "cancelled")
 	}
-	if value.EvidenceState != "complete" || len(value.Evidence) != 5 || !canonicalInventoryText(value.EvidenceReference, 1, 1024) || !(stringIn(value.Verdict, "verified", "not_reproduced", "inconclusive") || value.Verdict == "" && value.ErrorCode == "cancelled") {
+	if value.EvidenceState != "complete" || len(value.Evidence) != 5 || value.EvidenceReference == "" || !validAttackLabPublicEvidence(value.EvidenceReference, value.EvidenceVersionID, value.EvidenceChecksum, value.EvidenceSizeBytes) || !(stringIn(value.Verdict, "verified", "not_reproduced", "inconclusive") || value.Verdict == "" && value.ErrorCode == "cancelled") {
 		return false
 	}
 	prefixes := [...]string{"semantic:", "gateway:", "egress:", "kubernetes:", "cloud:"}
@@ -269,6 +330,27 @@ func validAttackLabAttempt(value AttackLabAttempt) bool {
 		}
 	}
 	return value.ErrorCode == "" || value.Verdict == "inconclusive" && stringIn(value.ErrorCode, "denied", "malformed", "outcome_unknown", "cleanup_failed", "exhausted", "cancelled") || value.Verdict == "" && value.ErrorCode == "cancelled"
+}
+
+func validAttackLabPublicEvidence(reference, versionID, checksum string, size int64) bool {
+	if reference == "" {
+		return versionID == "" && checksum == "" && size == 0
+	}
+	_, checksumOK := decodeAttackLabDigest(checksum)
+	return canonicalInventoryText(reference, 1, 1024) && len(versionID) >= 1 && len(versionID) <= 512 && !strings.ContainsAny(versionID, " \t\r\n\x00") && checksumOK && size >= 1 && size <= 64<<20
+}
+
+func validAttackLabDigest(value string) bool {
+	_, ok := decodeAttackLabDigest(value)
+	return ok
+}
+
+func decodeAttackLabDigest(value string) ([]byte, bool) {
+	if len(value) != sha256.Size*2 || value != strings.ToLower(value) {
+		return nil, false
+	}
+	decoded, err := hex.DecodeString(value)
+	return decoded, err == nil && len(decoded) == sha256.Size && !bytes.Equal(decoded, make([]byte, sha256.Size))
 }
 
 func validAttackLabDestination(value string) bool {

@@ -355,26 +355,26 @@ M5	M5-19	Complete	component-only	T12-red-team	audited component-only proof: Farg
 M5	M5-20	Complete	component-only	T12-red-team	audited component-only proof: Fargate service account
 M5	M5-21	Complete	component-only	T12-red-team	audited component-only proof: Fargate SG policy
 M5	M5-22	Complete	component-only	T12-red-team	audited component-only proof: Attack Lab egress proxy token
-M5	M5-23a	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab target check
-M5	M5-23b	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab credential check
-M5	M5-23c	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab destination check
-M5	M5-23d	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab success criteria check
-M5	M5-23	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab preflight
-M5	M5-24	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab canary contract
-M5	M5-25	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab evidence collector
-M5	M5-26	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab verdict
-M5	M5-27	Complete	component-only	T13-attack-lab	audited component-only proof: API listAttackLabRuns
-M5	M5-28	Complete	component-only	T13-attack-lab	audited component-only proof: API createAttackLabRun
-M5	M5-29	Complete	component-only	T13-attack-lab	audited component-only proof: API getAttackLabRun
-M5	M5-30	Complete	component-only	T13-attack-lab	audited component-only proof: API cancelAttackLabRun
-M5	M5-31	Complete	component-only	T13-attack-lab	audited component-only proof: API rerunAttackLabRun
-M5	M5-32	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab worker
-M5	M5-33a	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab preflight target UI
-M5	M5-33b	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab preflight network UI
-M5	M5-33c	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab preflight limits UI
-M5	M5-33	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab preflight UI
-M5	M5-34	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab result UI
-M5	M5-35	Complete	component-only	T13-attack-lab	audited component-only proof: M5 gate
+M5	M5-23a	Complete	production-available	T13-attack-lab	production evidence: exact active tenant target preflight; composed API/worker/browser E2E
+M5	M5-23b	Complete	production-available	T13-attack-lab	production evidence: versioned read-only credential binding; composed API/worker/browser E2E
+M5	M5-23c	Complete	production-available	T13-attack-lab	production evidence: exact destination and single-host egress authority; composed API/worker/browser E2E
+M5	M5-23d	Complete	production-available	T13-attack-lab	production evidence: source-run criterion and bounded side effects; composed API/worker/browser E2E
+M5	M5-23	Complete	production-available	T13-attack-lab	production evidence: tenant-scoped fail-closed preflight API and explicit approval; installed-Chrome E2E
+M5	M5-24	Complete	production-available	T13-attack-lab	production evidence: bounded non-production canary contract and isolated provider seam; composed worker E2E
+M5	M5-25	Complete	production-available	T13-attack-lab	production evidence: manifest-last versioned evidence artifact and redacted five-line result; composed worker E2E
+M5	M5-26	Complete	production-available	T13-attack-lab	production evidence: strict verified/not-reproduced/inconclusive verdict authority; composed worker E2E
+M5	M5-27	Complete	production-available	T13-attack-lab	production evidence: tenant-scoped cursor-bounded listAttackLabRuns; public API/browser E2E
+M5	M5-28	Complete	production-available	T13-attack-lab	production evidence: idempotent approved createAttackLabRun with durable outbox; public API/browser E2E
+M5	M5-29	Complete	production-available	T13-attack-lab	production evidence: strict tenant-scoped getAttackLabRun with attempt evidence; public API/browser E2E
+M5	M5-30	Complete	production-available	T13-attack-lab	production evidence: version-fenced cancel with terminal no-sandbox delivery; composed worker/browser E2E
+M5	M5-31	Complete	production-available	T13-attack-lab	production evidence: version-fenced safe rerun with refreshed authority; public API/browser E2E
+M5	M5-32	Complete	production-available	T13-attack-lab	production evidence: composed outbox/controller, leases, ACK-last, evidence and mandatory cleanup; real composition E2E
+M5	M5-33a	Complete	production-available	T13-attack-lab	production evidence: exact target and criterion review in production Attack Lab route; installed-Chrome E2E
+M5	M5-33b	Complete	production-available	T13-attack-lab	production evidence: exact allowed destination review without credential disclosure; installed-Chrome E2E
+M5	M5-33c	Complete	production-available	T13-attack-lab	production evidence: CPU/memory/storage/time limits shown before approval; installed-Chrome E2E
+M5	M5-33	Complete	production-available	T13-attack-lab	production evidence: explicit safety-decision checkbox gates run creation; installed-Chrome E2E
+M5	M5-34	Complete	production-available	T13-attack-lab	production evidence: verdict/evidence/cleanup/rerun/cancel/reload UI; installed-Chrome E2E
+M5	M5-35	Complete	production-available	T13-attack-lab	production evidence: schema v26, public API, composed workers, browser, tenant denial and secret-forensics gates
 M6	M6-01	Complete	production-available	PROD-current-composition	audited shipped composition: policy domain
 M6	M6-02	Complete	production-available	PROD-current-composition	audited shipped composition: policy validator
 M6	M6-03	Complete	production-available	T06-runtime-data-plane	production evidence: OPA compiler; verified by Task 6 source/deploy review and focused race/release gates
@@ -675,7 +675,7 @@ M8	M8-42e	Complete	component-only	T14-data-workflows	audited component-only proo
 M8	M8-42f	Complete	component-only	T14-data-workflows	audited component-only proof: evidence leakage policy test
 M8	M8-42	Complete	component-only	T14-data-workflows	audited component-only proof: secret leakage security test
 M8	M8-43	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime policy bypass test
-M8	M8-44	Complete	component-only	T13-attack-lab	audited component-only proof: Attack Lab safety test
+M8	M8-44	Complete	production-available	T13-attack-lab	production evidence: fail-closed non-production sandbox, exact egress, bounded resources, no-sandbox cancellation and mandatory cleanup gates
 M8	M8-45	Blocked	blocked/external	EXT-image-attestation	audited external evidence gate: SBOM generation
 M8	M8-46	Blocked	blocked/external	EXT-image-attestation	audited external evidence gate: image signing
 M8	M8-47	Complete	production-available	PROD-current-composition	audited shipped composition: dependency vulnerability gate

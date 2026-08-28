@@ -12,8 +12,10 @@ func TestProductionAttackLabExecutionPinsDerivedMultiTenantAuthority(t *testing.
 	}
 	for _, required := range []string{
 		"zasp_attack_lab_runs", "zasp_attack_lab_attempts", "zasp_attack_lab_outbox", "zasp_attack_lab_request_receipts", "zasp_attack_lab_audit",
-		"zasp_attack_lab_register_principals", "zasp_attack_lab_create_run", "zasp_attack_lab_cancel_run", "zasp_attack_lab_rerun", "zasp_attack_lab_execution_readiness",
+		"zasp_attack_lab_register_principals", "zasp_attack_lab_preflight", "zasp_attack_lab_create_run", "zasp_attack_lab_cancel_run", "zasp_attack_lab_rerun", "zasp_attack_lab_execution_readiness",
 		"source_run_id", "state,verdict)=(organization_value,workspace_value,environment_value,source_run_value,'complete','fail')", "zasp_red_team_target_binding_valid",
+		"decision_digest", "decision_expires_at", "credential_binding_version", "target_attributes_digest",
+		"'evidence_version_id'", "'evidence_checksum'", "'evidence_size'",
 		"'cpu','500m'", "'memory','1Gi'", "'ephemeral_storage','2Gi'", "'timeout_seconds',300", "attack-lab-jobs", "organization_id,workspace_id,environment_id",
 	} {
 		if !strings.Contains(metadata.UpSQL(), required) {

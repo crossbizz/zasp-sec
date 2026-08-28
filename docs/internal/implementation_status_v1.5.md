@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 366 |
-| Component-only | 301 |
+| Production-available | 387 |
+| Component-only | 280 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -124,6 +124,13 @@ production composition, not merely a component proof or external evidence.
   cross-tenant denial. The combined disposable-PostgreSQL and installed-Chrome
   journey passes; live managed Neon, AWS, S3, KMS, and Kubernetes execution
   remains explicit external evidence.
+- Attack Lab v26 composes tenant-scoped preflight and run APIs, explicit safety
+  approval, durable outbox/controller workers, bounded non-production sandbox
+  execution, evidence-last persistence, mandatory cleanup, rerun/cancel, and a
+  production browser route. The combined journey proves the exact public API,
+  real composition seams, reload, cancellation without sandbox side effects,
+  tenant isolation, and persistent-state redaction; managed Kubernetes/Fargate
+  execution remains explicit external evidence.
 - Task 5 promotes canonical asset/Agent/Tool/Identity/Runtime and relationship
   inventory, ownership mutations, tenant-scoped observed/verified/blocked RBAC
   capabilities, all 12 evidence-backed posture rules, risk factors, bounded
@@ -145,12 +152,12 @@ production composition, not merely a component proof or external evidence.
 | M2 | 72 | 50 | 22 | 0 | 0 |
 | M3 | 75 | 57 | 16 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
-| M5 | 42 | 0 | 42 | 0 | 0 |
+| M5 | 42 | 20 | 22 | 0 | 0 |
 | M6 | 36 | 22 | 14 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
-| M8 | 141 | 33 | 56 | 52 | 0 |
-| **Total** | **728** | **366** | **301** | **61** | **0** |
+| M8 | 141 | 34 | 55 | 52 | 0 |
+| **Total** | **728** | **387** | **280** | **61** | **0** |
 
 ## Prerequisite work
 
