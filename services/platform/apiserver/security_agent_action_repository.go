@@ -281,14 +281,16 @@ func validTemporaryPolicyEffectClaim(claim TemporaryPolicyEffectClaim) bool {
 		return false
 	}
 	seen := make(map[string]struct{}, len(claim.Targets))
+	previousDeviceID := ""
 	for _, target := range claim.Targets {
-		if !validTemporaryPolicyTarget(target) {
+		if !validTemporaryPolicyTarget(target) || previousDeviceID != "" && target.DeviceID <= previousDeviceID {
 			return false
 		}
 		if _, exists := seen[target.DeviceID]; exists {
 			return false
 		}
 		seen[target.DeviceID] = struct{}{}
+		previousDeviceID = target.DeviceID
 	}
 	return true
 }

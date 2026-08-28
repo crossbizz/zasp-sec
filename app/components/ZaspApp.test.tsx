@@ -180,6 +180,7 @@ describe("Zasp application", () => {
 				if (path === "/api/v1/policies") return apiJSON({ items: [{ id: "policy-production", name: "Production policy", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" }], page_info: { next_cursor: null, has_more: false } });
 				if (path === "/api/v1/workflow-mutation-receipts") return apiJSON({ items: [] });
 				if (path === "/api/v1/policies/policy-production") return apiJSON({ id: "policy-production", name: "Production policy", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" }, 200, { ETag: '"1"' });
+				if (path === "/api/v1/policies/policy-production/decisions") return apiJSON({ items: [] });
 				if (path === "/api/v1/integrations") return apiJSON({ items: [], page_info: { next_cursor: null, has_more: false } });
 				if (path === "/api/v1/integration-catalog") return apiJSON({ items: [] });
 				throw new Error(`unexpected product fetch ${path}`);
@@ -191,13 +192,13 @@ describe("Zasp application", () => {
 		expect(screen.getByRole("button", { name: "Create policy" })).toBeVisible();
 		await userEvent.click(await screen.findByRole("button", { name: "Open Production policy" }));
 		expect(await screen.findByText("Policy detail · policy-production")).toBeVisible();
-		expect(screen.queryByRole("button", { name: /simulate policy/i })).not.toBeInTheDocument();
-		expect(screen.queryByRole("heading", { name: "Decision history" })).not.toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Simulate against runtime history" })).toBeVisible();
+		expect(await screen.findByText("No runtime decisions")).toBeVisible();
 		await userEvent.click(screen.getByRole("link", { name: "Integrations" }));
 		expect(await screen.findByRole("heading", { name: "Integrations" })).toBeVisible();
 		expect(screen.queryByRole("button", { name: /authorize|sync/i })).not.toBeInTheDocument();
 		expect(requests).toEqual(expect.arrayContaining(["/api/v1/session/bootstrap", "/api/v1/policies", "/api/v1/policies/policy-production", "/api/v1/integrations", "/api/v1/integration-catalog"]));
-		expect(requests).not.toContain("/api/v1/policies/policy-production/decisions");
+		expect(requests).toContain("/api/v1/policies/policy-production/decisions");
 	});
 
 	it("routes Red Team capabilities to the tenant-backed production surface", async () => {

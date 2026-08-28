@@ -176,6 +176,8 @@ spec:
       ports: [{ protocol: TCP, port: 5432 }]
     - to: [{ ipBlock: { cidr: {{ required "network.stytchCIDR is required" .Values.network.stytchCIDR | quote }} } }]
       ports: [{ protocol: TCP, port: 443 }]
+    - to: [{ ipBlock: { cidr: {{ required "network.opensearchCIDR is required" .Values.network.opensearchCIDR | quote }} } }]
+      ports: [{ protocol: TCP, port: 443 }]
 {{- $connectorAWS := required "network.connectorEgressCIDRs.aws is required" .Values.network.connectorEgressCIDRs.aws }}
 {{- $connectorGitHub := required "network.connectorEgressCIDRs.github is required" .Values.network.connectorEgressCIDRs.github }}
 {{- $connectorOkta := required "network.connectorEgressCIDRs.okta is required" .Values.network.connectorEgressCIDRs.okta }}

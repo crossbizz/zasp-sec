@@ -36,7 +36,7 @@ func TestGatewayRuntimeSyncsSignedPolicyAndEvaluatesWithoutControlPlaneCall(t *t
 	if err != nil || result.Decision != "block" || result.PolicyVersion != 1 || len(result.MatchedPolicyIDs) != 1 || control.calls != controlCalls {
 		t.Fatalf("result=%#v err=%v calls=%d/%d", result, err, control.calls, controlCalls)
 	}
-	if runtime.RecordOnce(context.Background()) != nil || len(control.events) != 1 || control.events[0].Decision != "block" || control.events[0].Classification["outcome"] != "blocked" || control.events[0].NextFloor != 1 {
+	if runtime.RecordOnce(context.Background()) != nil || len(control.events) != 1 || control.events[0].Decision != "block" || control.events[0].Classification["outcome"] != "blocked" || control.events[0].NextFloor != 1 || len(control.events[0].PolicyIDs) != 1 || control.events[0].PolicyIDs[0] != result.MatchedPolicyIDs[0] {
 		t.Fatalf("events=%#v", control.events)
 	}
 }
@@ -602,8 +602,8 @@ func TestGatewayRuntimeAcknowledgesOnlyExactAuthorityBoundQuarantine(t *testing.
 	secondRequest := gatewayEvaluationRequest{EventID: gatewayRuntimeSequenceID(902), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "read"}, Classification: gatewayRuntimeClassification("blocked")}
 	firstDigest, _ := gatewayEvaluationRequestDigest(firstRequest)
 	secondDigest, _ := gatewayEvaluationRequestDigest(secondRequest)
-	firstEvent := gatewayDecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: firstRequest.EventID, ExpectedFloor: 6, NextFloor: 7, PolicyVersion: 1, Decision: "block", ActionKind: "mcp", Classification: gatewayRuntimeClassification("blocked"), OccurredAt: now.Add(-gatewayEvidenceMaximumAge)}
-	secondEvent := gatewayDecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: secondRequest.EventID, ExpectedFloor: 5, NextFloor: 6, PolicyVersion: 1, Decision: "block", ActionKind: "mcp", Classification: gatewayRuntimeClassification("blocked"), OccurredAt: now.Add(-gatewayEvidenceMaximumAge + time.Second)}
+	firstEvent := gatewayDecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: firstRequest.EventID, ExpectedFloor: 6, NextFloor: 7, PolicyVersion: 1, Decision: "block", ActionKind: "mcp", PolicyIDs: []string{"policy-1"}, Classification: gatewayRuntimeClassification("blocked"), OccurredAt: now.Add(-gatewayEvidenceMaximumAge)}
+	secondEvent := gatewayDecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: secondRequest.EventID, ExpectedFloor: 5, NextFloor: 6, PolicyVersion: 1, Decision: "block", ActionKind: "mcp", PolicyIDs: []string{"policy-1"}, Classification: gatewayRuntimeClassification("blocked"), OccurredAt: now.Add(-gatewayEvidenceMaximumAge + time.Second)}
 	firstReceipt := gatewayEvaluationReceipt{EventID: firstEvent.EventID, RequestDigest: firstDigest, Result: gatewayEvaluationResult{Decision: "block", PolicyVersion: 1, CacheState: policy.GatewayPolicyValid, MatchedPolicyIDs: []string{"policy-1"}}, EvaluatedAt: firstEvent.OccurredAt}
 	secondReceipt := gatewayEvaluationReceipt{EventID: secondEvent.EventID, RequestDigest: secondDigest, Result: gatewayEvaluationResult{Decision: "block", PolicyVersion: 1, CacheState: policy.GatewayPolicyValid, MatchedPolicyIDs: []string{"policy-1"}}, EvaluatedAt: secondEvent.OccurredAt}
 	evidence := &gatewayEvidenceStoreStub{
@@ -645,7 +645,7 @@ func TestGatewayRuntimeReplaysDurableQuarantineAcknowledgmentAfterRestart(t *tes
 	cache, _ := policy.NewGatewayPolicyCache(keys, authority.Binding(), func() time.Time { return now })
 	request := gatewayEvaluationRequest{EventID: gatewayRuntimeSequenceID(911), ActionKind: "mcp", Attributes: map[string]string{"tool.name": "shell"}, Classification: gatewayRuntimeClassification("blocked")}
 	digest, _ := gatewayEvaluationRequestDigest(request)
-	event := gatewayDecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: request.EventID, ExpectedFloor: 2, NextFloor: 3, PolicyVersion: 1, Decision: "block", ActionKind: "mcp", Classification: gatewayRuntimeClassification("blocked"), OccurredAt: now.Add(-gatewayEvidenceMaximumAge)}
+	event := gatewayDecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: request.EventID, ExpectedFloor: 2, NextFloor: 3, PolicyVersion: 1, Decision: "block", ActionKind: "mcp", PolicyIDs: []string{"policy-1"}, Classification: gatewayRuntimeClassification("blocked"), OccurredAt: now.Add(-gatewayEvidenceMaximumAge)}
 	receipt := gatewayEvaluationReceipt{EventID: event.EventID, RequestDigest: digest, Result: gatewayEvaluationResult{Decision: "block", PolicyVersion: 1, CacheState: policy.GatewayPolicyValid, MatchedPolicyIDs: []string{"policy-1"}}, EvaluatedAt: event.OccurredAt}
 	directory, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {

@@ -20,8 +20,8 @@ const allowedProductionClasses = new Set([
   "missing",
 ]);
 const expectedClassCounts = new Map([
-  ["production-available", 391],
-  ["component-only", 276],
+  ["production-available", 394],
+  ["component-only", 273],
   ["blocked/external", 61],
   ["missing", 0],
 ]);
@@ -33,7 +33,7 @@ const expectedMilestoneClassCounts = new Map([
   ["M3", new Map([["production-available", 60], ["component-only", 13], ["blocked/external", 2], ["missing", 0]])],
   ["M4", new Map([["production-available", 82], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
   ["M5", new Map([["production-available", 20], ["component-only", 22], ["blocked/external", 0], ["missing", 0]])],
-  ["M6", new Map([["production-available", 22], ["component-only", 14], ["blocked/external", 0], ["missing", 0]])],
+  ["M6", new Map([["production-available", 25], ["component-only", 11], ["blocked/external", 0], ["missing", 0]])],
   ["M7", new Map([["production-available", 37], ["component-only", 25], ["blocked/external", 0], ["missing", 0]])],
   ["M7A", new Map([["production-available", 21], ["component-only", 92], ["blocked/external", 0], ["missing", 0]])],
   ["M8", new Map([["production-available", 34], ["component-only", 55], ["blocked/external", 52], ["missing", 0]])],
@@ -69,7 +69,7 @@ const auditedProductionAvailableIDs = new Set([
   "M3-09", "M3-10", "M3-11", "M3-12", "M3-13", "M3-15", "M3-16", "M3-17", "M3-18", "M3-19", "M3-20", "M3-21", "M3-26", "M3-27", "M3-28", "M3-29", "M3-30", "M3-31", "M3-32", "M3-33", "M3-34", "M3-35", "M3-36", "M3-37", "M3-38", "M3-39", "M3-40", "M3-41", "M3-42", "M3-43a", "M3-43b", "M3-43c", "M3-43d", "M3-43", "M3-44", "M3-45", "M3-46", "M3-47", "M3-48c2", "M3-48c3", "M3-48d", "M3-49", "M3-50", "M3-51", "M3-52a", "M3-52b", "M3-52e",
   "M4-01a", "M4-01b", "M4-01c", "M4-01d", "M4-01e", "M4-01f", "M4-01", "M4-02", "M4-05", "M4-16", "M4-17", "M4-18", "M4-19", "M4-20", "M4-21", "M4-22", "M4-23", "M4-24", "M4-25", "M4-26", "M4-27", "M4-28", "M4-29", "M4-30", "M4-31", "M4-32", "M4-33", "M4-38", "M4-39", "M4-40", "M4-41", "M4-42", "M4-59a", "M4-59b", "M4-59c", "M4-59d", "M4-59e", "M4-59",
   "M5-23a", "M5-23b", "M5-23c", "M5-23d", "M5-23", "M5-24", "M5-25", "M5-26", "M5-27", "M5-28", "M5-29", "M5-30", "M5-31", "M5-32", "M5-33a", "M5-33b", "M5-33c", "M5-33", "M5-34", "M5-35",
-  "M6-03", "M6-04", "M6-05", "M6-06", "M6-07", "M6-24", "M6-25", "M6-26", "M6-31e",
+  "M6-03", "M6-04", "M6-05", "M6-06", "M6-07", "M6-13", "M6-16", "M6-17", "M6-24", "M6-25", "M6-26", "M6-31e",
   "M8-09a", "M8-09b", "M8-09c", "M8-09", "M8-10", "M8-11", "M8-12", "M8-13", "M8-14",
   "M8-20a", "M8-20b", "M8-20c", "M8-20", "M8-21a", "M8-21b", "M8-21c", "M8-21d", "M8-21e", "M8-21", "M8-44",
   "M8-57a", "M8-57b", "M8-57c", "M8-57",

@@ -74,7 +74,7 @@ func (control gatewayHTTPControl) Record(ctx context.Context, event gatewayDecis
 	value := gatewaycontrol.DecisionEvent{
 		CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID,
 		ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion,
-		Decision: event.Decision, ActionKind: event.ActionKind, Classification: cloneGatewayStrings(event.Classification), OccurredAt: event.OccurredAt,
+		Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: append([]string(nil), event.PolicyIDs...), Classification: cloneGatewayStrings(event.Classification), OccurredAt: event.OccurredAt,
 	}
 	if err := control.next.Record(ctx, value); err != nil {
 		if errors.Is(err, gatewaycontrol.ErrRecordExpired) {

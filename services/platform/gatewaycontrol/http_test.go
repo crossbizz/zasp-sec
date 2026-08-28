@@ -100,6 +100,7 @@ func TestSignedHTTPControlBindsAuthorityPolicyAndDecisionWithoutCallerScope(t *t
 		PolicyVersion: 3,
 		Decision:      "block",
 		ActionKind:    "http",
+		PolicyIDs:     []string{"policy-runtime"},
 		Classification: map[string]string{
 			"category": "access", "route_class": "admin", "resource_class": "secret", "outcome": "blocked",
 		},
@@ -133,7 +134,7 @@ func TestSignedHTTPControlReturnsOnlyExactAuthenticatedExpiredOutcome(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	event := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(6), ExpectedFloor: 7, NextFloor: 8, PolicyVersion: 3, Decision: "block", ActionKind: "http", Classification: map[string]string{"category": "access", "route_class": "admin", "resource_class": "secret", "outcome": "blocked"}, OccurredAt: now.Add(-24 * time.Hour)}
+	event := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(6), ExpectedFloor: 7, NextFloor: 8, PolicyVersion: 3, Decision: "block", ActionKind: "http", PolicyIDs: []string{"policy-runtime"}, Classification: map[string]string{"category": "access", "route_class": "admin", "resource_class": "secret", "outcome": "blocked"}, OccurredAt: now.Add(-24 * time.Hour)}
 	if err := client.Record(context.Background(), event); !errors.Is(err, ErrRecordExpired) || repository.recordCalls != 1 {
 		t.Fatalf("record err=%v calls=%d", err, repository.recordCalls)
 	}

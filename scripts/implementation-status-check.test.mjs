@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 390; expected 391/,
+        /production-available count is 393; expected 394/,
       );
     },
   );
@@ -273,6 +273,23 @@ test("rejects demotion of audited durable gateway tasks", async () => {
     await withLedger(
       (ledger) => ledger.replace(
         new RegExp(`(${milestone}\\t${id}\\tComplete\\t)production-available`),
+        "$1component-only",
+      ),
+      async (ledgerPath) => {
+        await assert.rejects(
+          () => validateLedger({ ledgerPath, sourcePlanPath }),
+          new RegExp(`production class component-only does not match audited production-available for ${id}`),
+        );
+      },
+    );
+  }
+});
+
+test("rejects demotion of production-composed policy history operations", async () => {
+  for (const id of ["M6-13", "M6-16", "M6-17"]) {
+    await withLedger(
+      (ledger) => ledger.replace(
+        new RegExp(`(M6\\t${id}\\tComplete\\t)production-available`),
         "$1component-only",
       ),
       async (ledgerPath) => {

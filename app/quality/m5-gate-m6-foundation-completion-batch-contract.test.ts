@@ -15,13 +15,9 @@ describe("M5 gate and M6 policy-foundation completion batch", () => {
       readFile(resolve(root, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(root, "apps/web/api/generated.ts"), "utf8"),
     ]);
-    for (const operation of ["listPolicies", "createPolicy", "getPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy"]) {
+    for (const operation of ["listPolicies", "createPolicy", "getPolicy", "updatePolicy", "deletePolicy", "simulatePolicy", "rolloutPolicy", "disablePolicy", "listPolicyDecisions"]) {
       expect(openapi).toContain(`operationId: ${operation}`);
       expect(generated).toContain(operation);
-    }
-    for (const operation of ["simulatePolicy", "listPolicyDecisions"]) {
-      expect(openapi).not.toContain(`operationId: ${operation}`);
-      expect(generated).not.toContain(` ${operation}:`);
     }
   });
 

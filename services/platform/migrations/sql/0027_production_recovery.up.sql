@@ -24,6 +24,64 @@ BEGIN
 END
 $roles$;
 
+CREATE FUNCTION public.zasp_policy_id_array_valid(value jsonb) RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path TO pg_catalog, public AS $policy_ids$
+ SELECT jsonb_typeof(value)='array' AND jsonb_array_length(value)<=512 AND NOT EXISTS(
+  SELECT 1 FROM (
+   SELECT policy_id,ordinality,lag(policy_id) OVER(ORDER BY ordinality) prior_id
+   FROM jsonb_array_elements_text(value) WITH ORDINALITY AS item(policy_id,ordinality)
+  ) ordered
+  WHERE policy_id!~'^[a-z][a-z0-9._:-]{0,127}$' OR ordinality>1 AND prior_id>=policy_id
+ )
+$policy_ids$;
+
+ALTER TABLE public.zasp_runtime_gateway_events ADD COLUMN policy_ids jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.zasp_runtime_gateway_events ADD CONSTRAINT zasp_runtime_gateway_events_policy_ids_v27_ck CHECK(public.zasp_policy_id_array_valid(policy_ids));
+CREATE INDEX zasp_runtime_gateway_events_policy_ids_v27_idx ON public.zasp_runtime_gateway_events USING gin (policy_ids);
+CREATE INDEX zasp_runtime_gateway_events_policy_history_v27_idx ON public.zasp_runtime_gateway_events(organization_id,workspace_id,environment_id,occurred_at DESC,event_id ASC);
+
+CREATE FUNCTION public.zasp_runtime_gateway_record_event_v27(credential_value text,event_value text,expected_floor_value bigint,next_floor_value bigint,request_digest_value bytea,policy_version_value bigint,decision_value text,action_kind_value text,classification_value jsonb,policy_ids_value jsonb,occurred_value timestamptz) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $record$
+DECLARE authority_value jsonb;organization_value text;workspace_value text;environment_value text;device_value text;existing_value zasp_runtime_gateway_events%ROWTYPE;canonical_digest bytea;result_value jsonb;
+BEGIN
+ IF NOT zasp_valid_product_id(event_value) OR expected_floor_value<0 OR next_floor_value<=expected_floor_value OR octet_length(request_digest_value)<>32 OR policy_version_value<1 OR decision_value NOT IN('allow','monitor','block') OR action_kind_value NOT IN('http','mcp') OR jsonb_typeof(classification_value)<>'object' OR NOT zasp_policy_id_array_valid(policy_ids_value)
+  OR NOT classification_value ?& ARRAY['category','route_class','resource_class','outcome'] OR classification_value-ARRAY['category','route_class','resource_class','outcome','session_id','agent_id','target_id','capability_category','capability_outcome']<>'{}'::jsonb
+  OR octet_length(convert_to(classification_value::text,'UTF8'))>16384 OR EXISTS(SELECT 1 FROM jsonb_each_text(classification_value) item WHERE length(item.value) NOT BETWEEN 1 AND 128 OR item.value<>btrim(item.value) OR item.value!~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$')
+  OR classification_value ? 'session_id' AND NOT zasp_valid_product_id(classification_value->>'session_id')
+  OR classification_value ?| ARRAY['agent_id','target_id','capability_category','capability_outcome'] AND (decision_value<>'block' OR NOT classification_value ?& ARRAY['agent_id','target_id','capability_category','capability_outcome'] OR NOT zasp_valid_product_id(classification_value->>'agent_id') OR NOT zasp_valid_product_id(classification_value->>'target_id') OR (classification_value->>'capability_category',classification_value->>'capability_outcome') NOT IN(('data_read','read'),('data_write','write'),('action_execute','execute'),('identity_assume','assume'),('network_egress','connect'),('administration','administer')))
+  OR occurred_value IS NULL OR occurred_value>transaction_timestamp()+interval '30 seconds' THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway event rejected';END IF;
+ authority_value:=zasp_runtime_gateway_credential_authority(credential_value,'runtime-gateway');organization_value:=authority_value->>'organization_id';workspace_value:=authority_value->>'workspace_id';environment_value:=authority_value->>'environment_id';device_value:=authority_value->>'device_id';
+ canonical_digest:=digest(convert_to(jsonb_build_object('credential_id',credential_value,'device_id',device_value,'event_id',event_value,'expected_floor',expected_floor_value,'next_floor',next_floor_value,'policy_version',policy_version_value,'decision',decision_value,'action_kind',action_kind_value,'classification',classification_value,'policy_ids',policy_ids_value,'occurred_at',to_char(occurred_value AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))::text,'UTF8'),'sha256');
+ IF canonical_digest<>request_digest_value THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='gateway event rejected';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),organization_value,workspace_value,environment_value,device_value),0));
+ SELECT * INTO existing_value FROM zasp_runtime_gateway_events event_row WHERE (event_row.organization_id,event_row.workspace_id,event_row.environment_id,event_row.event_id)=(organization_value,workspace_value,environment_value,event_value);
+ IF FOUND THEN
+  IF (existing_value.device_id,existing_value.credential_id,existing_value.sequence,existing_value.request_digest,existing_value.policy_version,existing_value.decision,existing_value.action_kind,existing_value.classification,existing_value.policy_ids,existing_value.occurred_at) IS DISTINCT FROM (device_value,credential_value,next_floor_value,request_digest_value,policy_version_value,decision_value,action_kind_value,classification_value,policy_ids_value,occurred_value) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='gateway event rejected';END IF;
+  UPDATE zasp_runtime_gateway_reconciliation_state SET used_at=COALESCE(used_at,transaction_timestamp()) WHERE singleton;RETURN jsonb_build_object('event_id',event_value,'device_id',device_value,'sequence',next_floor_value,'recorded_at',existing_value.recorded_at,'replayed',true);
+ END IF;
+ IF occurred_value<transaction_timestamp()-interval '24 hours' THEN UPDATE zasp_runtime_gateway_reconciliation_state SET used_at=COALESCE(used_at,transaction_timestamp()) WHERE singleton;RETURN jsonb_build_object('event_id',event_value,'outcome','record_window_expired');END IF;
+ IF classification_value ? 'agent_id' THEN PERFORM zasp_inventory_record_capability_evidence(organization_value,workspace_value,environment_value,classification_value->>'agent_id',classification_value->>'target_id',classification_value->>'capability_category',classification_value->>'capability_outcome','runtime_policy',event_value,occurred_value);END IF;
+ PERFORM zasp_runtime_gateway_advance_replay(credential_value,expected_floor_value,next_floor_value,request_digest_value);
+ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment_id,device_id,credential_id,event_id,sequence,request_digest,policy_version,decision,action_kind,classification,policy_ids,occurred_at) VALUES(organization_value,workspace_value,environment_value,device_value,credential_value,event_value,next_floor_value,request_digest_value,policy_version_value,decision_value,action_kind_value,classification_value,policy_ids_value,occurred_value) RETURNING jsonb_build_object('event_id',event_id,'device_id',device_id,'sequence',sequence,'recorded_at',recorded_at,'replayed',false) INTO result_value;
+ UPDATE zasp_runtime_gateway_reconciliation_state SET used_at=COALESCE(used_at,transaction_timestamp()) WHERE singleton;RETURN result_value;
+END
+$record$;
+
+CREATE FUNCTION public.zasp_policy_list_runtime_decisions(organization_value text,workspace_value text,environment_value text,policy_value text,limit_value integer) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog, public AS $decisions$
+DECLARE result_value jsonb;
+BEGIN
+ IF NOT zasp_discovery_principal_ready('zasp_discovery_api') OR NOT zasp_valid_product_id(organization_value) OR NOT zasp_valid_product_id(workspace_value) OR NOT zasp_valid_product_id(environment_value) OR policy_value!~'^policy-[a-z0-9][a-z0-9-]{0,120}$' OR limit_value NOT BETWEEN 1 AND 100 THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='policy decision history rejected';END IF;
+ SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('id',event.event_id,'policy_id',policy_value,'environment_id',event.environment_id,'result',event.decision,'correlation_id',event.event_id,'at',to_char(event.occurred_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) ORDER BY event.occurred_at DESC,event.event_id ASC),'[]'::jsonb)) INTO result_value
+ FROM (SELECT event.* FROM zasp_runtime_gateway_events event WHERE (event.organization_id,event.workspace_id,event.environment_id)=(organization_value,workspace_value,environment_value) AND event.policy_ids ? policy_value ORDER BY event.occurred_at DESC,event.event_id ASC LIMIT limit_value) event;
+ RETURN result_value;
+END
+$decisions$;
+
+ALTER FUNCTION public.zasp_policy_id_array_valid(jsonb) OWNER TO zasp_discovery_authority;
+ALTER FUNCTION public.zasp_runtime_gateway_record_event_v27(text,text,bigint,bigint,bytea,bigint,text,text,jsonb,jsonb,timestamptz) OWNER TO zasp_discovery_authority;
+ALTER FUNCTION public.zasp_policy_list_runtime_decisions(text,text,text,text,integer) OWNER TO zasp_discovery_authority;
+REVOKE ALL ON FUNCTION public.zasp_policy_id_array_valid(jsonb),public.zasp_runtime_gateway_record_event_v27(text,text,bigint,bigint,bytea,bigint,text,text,jsonb,jsonb,timestamptz),public.zasp_policy_list_runtime_decisions(text,text,text,text,integer) FROM PUBLIC,zasp_discovery_api,zasp_gateway_control;
+GRANT EXECUTE ON FUNCTION public.zasp_runtime_gateway_record_event_v27(text,text,bigint,bigint,bytea,bigint,text,text,jsonb,jsonb,timestamptz) TO zasp_gateway_control;
+GRANT EXECUTE ON FUNCTION public.zasp_policy_list_runtime_decisions(text,text,text,text,integer) TO zasp_discovery_api;
+
 CREATE TABLE public.zasp_recovery_principal_bindings(
  principal_name text PRIMARY KEY CHECK(principal_name~'^[a-z][a-z0-9_]{2,62}$'),
  authority_role text NOT NULL UNIQUE CHECK(authority_role IN('zasp_recovery_worker','zasp_recovery_outbox_worker')),
@@ -571,6 +629,10 @@ CREATE FUNCTION public.zasp_recovery_execution_security_ready() RETURNS boolean 
  AND NOT has_function_privilege('zasp_discovery_api','public.zasp_recovery_validate_scope(text,text,text)','EXECUTE')
  AND NOT has_function_privilege('zasp_discovery_api','public.zasp_recovery_projection_page(text,text,text,text,text,text,integer)','EXECUTE')
  AND has_function_privilege('zasp_recovery_outbox_worker','public.zasp_recovery_claim_outbox(text,text,bytea,integer,integer)','EXECUTE')
+	AND has_function_privilege('zasp_discovery_api','public.zasp_policy_list_runtime_decisions(text,text,text,text,integer)','EXECUTE') AND NOT has_function_privilege('zasp_gateway_control','public.zasp_policy_list_runtime_decisions(text,text,text,text,integer)','EXECUTE')
+	AND has_function_privilege('zasp_gateway_control','public.zasp_runtime_gateway_record_event_v27(text,text,bigint,bigint,bytea,bigint,text,text,jsonb,jsonb,timestamptz)','EXECUTE') AND NOT has_function_privilege('zasp_discovery_api','public.zasp_runtime_gateway_record_event_v27(text,text,bigint,bigint,bytea,bigint,text,text,jsonb,jsonb,timestamptz)','EXECUTE')
+	AND NOT has_function_privilege('zasp_discovery_api','public.zasp_policy_id_array_valid(jsonb)','EXECUTE') AND NOT has_function_privilege('zasp_gateway_control','public.zasp_policy_id_array_valid(jsonb)','EXECUTE')
+	AND (SELECT count(*) FROM pg_index index_value JOIN pg_class index_class ON index_class.oid=index_value.indexrelid JOIN pg_roles owner ON owner.oid=index_class.relowner WHERE index_value.indrelid='public.zasp_runtime_gateway_events'::regclass AND index_class.relname IN('zasp_runtime_gateway_events_policy_ids_v27_idx','zasp_runtime_gateway_events_policy_history_v27_idx') AND index_value.indisvalid AND index_value.indisready AND NOT index_value.indisunique AND NOT index_value.indisprimary AND owner.rolname='zasp_discovery_authority')=2
 	AND (SELECT count(*) FROM pg_roles WHERE rolname IN('zasp_discovery_api','zasp_discovery_worker','zasp_security_agent_api','zasp_security_agent_worker','zasp_security_agent_action_worker','zasp_runtime_ingest','zasp_runtime_worker','zasp_outbox_worker','zasp_runtime_gateway','zasp_discovery_scheduler','zasp_projection_risk_worker','zasp_projection_graph_worker','zasp_projection_search_worker','zasp_runtime_coordinator','zasp_runtime_archive_worker','zasp_runtime_index_worker','zasp_runtime_correlation_worker','zasp_runtime_projection_worker','zasp_gateway_control','zasp_red_team_worker','zasp_red_team_outbox_worker','zasp_red_team_adapter','zasp_attack_lab_controller','zasp_attack_lab_outbox_worker','zasp_attack_lab_proxy','zasp_recovery_worker','zasp_recovery_outbox_worker') AND has_function_privilege(rolname,'public.zasp_recovery_execution_readiness(text,text)','EXECUTE'))=27
 $security$;
 
@@ -583,9 +645,12 @@ CREATE FUNCTION public.zasp_recovery_execution_live_fingerprint() RETURNS text L
   UNION ALL SELECT concat_ws('|','index',class.relname,pg_get_indexdef(class.oid)) FROM pg_class class JOIN pg_namespace namespace ON namespace.oid=class.relnamespace WHERE namespace.nspname='public' AND class.relname LIKE 'zasp_recovery_%' AND class.relkind='i'
   UNION ALL SELECT concat_ws('|','column',class.relname,attribute.attname,attribute.atttypid::regtype::text,attribute.attnotnull,COALESCE(pg_get_expr(default_value.adbin,default_value.adrelid),'')) FROM pg_attribute attribute JOIN pg_class class ON class.oid=attribute.attrelid JOIN pg_namespace namespace ON namespace.oid=class.relnamespace LEFT JOIN pg_attrdef default_value ON default_value.adrelid=attribute.attrelid AND default_value.adnum=attribute.attnum WHERE namespace.nspname='public' AND class.relname LIKE 'zasp_recovery_%' AND attribute.attnum>0 AND NOT attribute.attisdropped
   UNION ALL SELECT concat_ws('|','constraint',class.relname,constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value JOIN pg_class class ON class.oid=constraint_value.conrelid WHERE class.relname LIKE 'zasp_recovery_%'
+	UNION ALL SELECT concat_ws('|','runtime_gateway_column',class.relname,attribute.attname,attribute.atttypid::regtype::text,attribute.attnotnull,COALESCE(pg_get_expr(default_value.adbin,default_value.adrelid),'')) FROM pg_attribute attribute JOIN pg_class class ON class.oid=attribute.attrelid JOIN pg_namespace namespace ON namespace.oid=class.relnamespace LEFT JOIN pg_attrdef default_value ON default_value.adrelid=attribute.attrelid AND default_value.adnum=attribute.attnum WHERE namespace.nspname='public' AND class.relname='zasp_runtime_gateway_events' AND attribute.attname='policy_ids' AND NOT attribute.attisdropped
+	UNION ALL SELECT concat_ws('|','runtime_gateway_constraint',class.relname,constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value JOIN pg_class class ON class.oid=constraint_value.conrelid WHERE class.relname='zasp_runtime_gateway_events' AND constraint_value.conname='zasp_runtime_gateway_events_policy_ids_v27_ck'
+	UNION ALL SELECT concat_ws('|','runtime_gateway_index',index_class.relname,owner.rolname,index_value.indisvalid,index_value.indisready,index_value.indisunique,index_value.indisprimary,pg_get_indexdef(index_value.indexrelid)) FROM pg_index index_value JOIN pg_class index_class ON index_class.oid=index_value.indexrelid JOIN pg_roles owner ON owner.oid=index_class.relowner WHERE index_value.indrelid='public.zasp_runtime_gateway_events'::regclass AND index_class.relname IN('zasp_runtime_gateway_events_policy_ids_v27_idx','zasp_runtime_gateway_events_policy_history_v27_idx')
   UNION ALL SELECT concat_ws('|','policy',class.relname,policy.polname,policy.polpermissive,pg_get_expr(policy.polqual,policy.polrelid),pg_get_expr(policy.polwithcheck,policy.polrelid)) FROM pg_policy policy JOIN pg_class class ON class.oid=policy.polrelid WHERE class.relname LIKE 'zasp_recovery_%'
   UNION ALL SELECT concat_ws('|','trigger',class.relname,trigger.tgname,pg_get_triggerdef(trigger.oid,true)) FROM pg_trigger trigger JOIN pg_class class ON class.oid=trigger.tgrelid JOIN pg_namespace namespace ON namespace.oid=class.relnamespace WHERE namespace.nspname='public' AND trigger.tgname LIKE '%_recovery_hold' AND NOT trigger.tgisinternal
-  UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname LIKE 'zasp_recovery_%'
+  UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND (procedure.proname LIKE 'zasp_recovery_%' OR procedure.proname IN('zasp_policy_id_array_valid','zasp_runtime_gateway_record_event_v27','zasp_policy_list_runtime_decisions'))
  ) SELECT encode(digest(convert_to(string_agg(value,E'\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities
 $fingerprint$;
 
@@ -609,4 +674,4 @@ END
 $product_release_evolution$;
 
 UPDATE public.zasp_schema_metadata SET value='production-recovery-v1',applied_at=transaction_timestamp() WHERE key='production_core_schema' AND value='attack-lab-execution-v1';
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('production_recovery_fingerprint', '26f5f366b915dad467cca9d7c7941946f359b4884f53c48afb3b089d54179e6d') ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('production_recovery_fingerprint', '12487d82d24fd4de68fc595e57306a085cc237218597c039f90477ce1ba7f364') ON CONFLICT(key) DO UPDATE SET value=excluded.value;

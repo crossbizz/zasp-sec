@@ -74,7 +74,7 @@ func TestBuildProductionGatewayDependenciesUsesExactHTTPSAuthorityAndClosesOnce(
 func TestGatewayHTTPControlPreservesOnlyExactExpiredRecordOutcome(t *testing.T) {
 	client := &gatewayHTTPClientStub{recordErr: gatewaycontrol.ErrRecordExpired}
 	control := gatewayHTTPControl{next: client}
-	event := gatewayDecisionEvent{CredentialID: gatewayRuntimeID(5), DeviceID: gatewayRuntimeID(4), EventID: gatewayRuntimeID(6), ExpectedFloor: 0, NextFloor: 1, PolicyVersion: 1, Decision: "block", ActionKind: "mcp", Classification: gatewayRuntimeClassification("blocked"), OccurredAt: gatewayRuntimeTime()}
+	event := gatewayDecisionEvent{CredentialID: gatewayRuntimeID(5), DeviceID: gatewayRuntimeID(4), EventID: gatewayRuntimeID(6), ExpectedFloor: 0, NextFloor: 1, PolicyVersion: 1, Decision: "block", ActionKind: "mcp", PolicyIDs: []string{"policy-runtime"}, Classification: gatewayRuntimeClassification("blocked"), OccurredAt: gatewayRuntimeTime()}
 	if err := control.Record(context.Background(), event); !errors.Is(err, errGatewayRecordExpired) {
 		t.Fatalf("expired record=%v", err)
 	}

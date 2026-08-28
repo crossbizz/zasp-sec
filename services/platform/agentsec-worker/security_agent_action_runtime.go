@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
-	"sort"
 	"sync"
 	"time"
 
@@ -212,7 +211,6 @@ func temporaryPolicyResultDigest(inputDigest string, envelopeDigests []string) (
 	if err != nil || len(envelopeDigests) == 0 || len(envelopeDigests) > 1000 {
 		return "", errWorkerExecution
 	}
-	sort.Strings(envelopeDigests)
 	resultHash := sha256.New()
 	_, _ = resultHash.Write(input)
 	for _, value := range envelopeDigests {

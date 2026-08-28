@@ -951,6 +951,19 @@ resource "aws_iam_role_policy" "api_connectors" {
         Resource = [for secret in aws_secretsmanager_secret.connector_provider : secret.arn]
       },
       {
+        Effect = "Allow"
+        Action = ["es:ESHttpGet"]
+        Resource = [
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_mapping",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_doc/_zasp_schema_v1",
+        ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["es:ESHttpPost"]
+        Resource = "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_search"
+      },
+      {
         Effect   = "Allow"
         Action   = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"]
         Resource = [for secret in aws_secretsmanager_secret.connector_reference : secret.arn]

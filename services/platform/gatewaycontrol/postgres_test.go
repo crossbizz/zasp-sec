@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
@@ -46,7 +47,7 @@ func TestPostgresRepositoryUsesExactV27RecoveryReadiness(t *testing.T) {
 }
 
 func TestPostgresRepositoryRetainsExactV16ReadinessFallback(t *testing.T) {
-	database := &postgresDatabaseStub{responses: []any{false, true}}
+	database := &postgresDatabaseStub{responses: []any{&pgconn.PgError{Code: "42883", Message: "function unavailable"}, true}}
 	repository, err := NewPostgresRepository(database, time.Second)
 	if err != nil || repository.Ready(context.Background()) != nil {
 		t.Fatalf("repository=%#v err=%v", repository, err)
@@ -54,6 +55,16 @@ func TestPostgresRepositoryRetainsExactV16ReadinessFallback(t *testing.T) {
 	metadata := migrations.ProductionRuntimeIngestReconciliation()
 	if len(database.calls) != 2 || database.calls[1].statement != postgresReadySQL || !reflect.DeepEqual(database.calls[1].arguments, []any{metadata.Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()}) {
 		t.Fatalf("calls=%#v", database.calls)
+	}
+}
+
+func TestPostgresRepositoryFailsClosedOnCurrentReadinessFailure(t *testing.T) {
+	for _, response := range []any{false, errors.New("permission denied")} {
+		database := &postgresDatabaseStub{responses: []any{response, true}}
+		repository, err := NewPostgresRepository(database, time.Second)
+		if err != nil || !errors.Is(repository.Ready(context.Background()), errPostgresRepository) || len(database.calls) != 1 {
+			t.Fatalf("response=%#v repository=%#v calls=%#v err=%v", response, repository, database.calls, err)
+		}
 	}
 }
 
@@ -78,14 +89,14 @@ func TestPostgresRepositoryStrictlyDecodesPolicyAndNoUpdate(t *testing.T) {
 
 func TestPostgresRepositoryRecordsThroughServerCanonicalDigest(t *testing.T) {
 	authority := fixtureAuthority(make([]byte, 32))
-	event := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "monitor", ActionKind: "mcp", Classification: map[string]string{"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "monitored"}, OccurredAt: time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)}
+	event := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "monitor", ActionKind: "mcp", PolicyIDs: []string{"policy-runtime"}, Classification: map[string]string{"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "monitored"}, OccurredAt: time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)}
 	database := &postgresDatabaseStub{responses: []any{json.RawMessage(`{"event_id":"` + event.EventID + `","device_id":"` + event.DeviceID + `","sequence":5,"recorded_at":"2026-08-20T12:00:01Z","replayed":false}`)}}
 	repository, _ := NewPostgresRepository(database, time.Second)
 	if err := repository.Record(context.Background(), event); err != nil {
 		t.Fatal(err)
 	}
 	call := database.calls[0]
-	if !strings.Contains(call.statement, "digest(convert_to(jsonb_build_object") || strings.Contains(call.statement, "request_digest_value") || len(call.arguments) != 10 {
+	if !strings.Contains(call.statement, "digest(convert_to(jsonb_build_object") || !strings.Contains(call.statement, "'policy_ids',$10::jsonb") || strings.Contains(call.statement, "request_digest_value") || len(call.arguments) != 11 {
 		t.Fatalf("call=%#v", call)
 	}
 	if call.arguments[0] != event.CredentialID || call.arguments[1] != event.EventID || call.arguments[2] != event.ExpectedFloor || call.arguments[3] != event.NextFloor {
@@ -95,7 +106,7 @@ func TestPostgresRepositoryRecordsThroughServerCanonicalDigest(t *testing.T) {
 
 func TestDecisionEventAcceptsOnlyExactBlockedCapabilityBinding(t *testing.T) {
 	authority := fixtureAuthority(make([]byte, 32))
-	base := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "block", ActionKind: "mcp", Classification: map[string]string{
+	base := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "block", ActionKind: "mcp", PolicyIDs: []string{"policy-runtime"}, Classification: map[string]string{
 		"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "blocked",
 		"agent_id": fixtureID(10), "target_id": fixtureID(11), "capability_category": "identity_assume", "capability_outcome": "assume",
 	}, OccurredAt: time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)}
@@ -103,10 +114,13 @@ func TestDecisionEventAcceptsOnlyExactBlockedCapabilityBinding(t *testing.T) {
 		t.Fatalf("valid blocked binding rejected: %#v", base)
 	}
 	for name, mutate := range map[string]func(*DecisionEvent){
-		"partial": func(value *DecisionEvent) { delete(value.Classification, "target_id") },
-		"pair":    func(value *DecisionEvent) { value.Classification["capability_outcome"] = "write" },
-		"allow":   func(value *DecisionEvent) { value.Decision = "allow" },
-		"monitor": func(value *DecisionEvent) { value.Decision = "monitor" },
+		"partial":          func(value *DecisionEvent) { delete(value.Classification, "target_id") },
+		"pair":             func(value *DecisionEvent) { value.Classification["capability_outcome"] = "write" },
+		"allow":            func(value *DecisionEvent) { value.Decision = "allow" },
+		"monitor":          func(value *DecisionEvent) { value.Decision = "monitor" },
+		"policy order":     func(value *DecisionEvent) { value.PolicyIDs = []string{"policy-z", "policy-a"} },
+		"policy duplicate": func(value *DecisionEvent) { value.PolicyIDs = []string{"policy-a", "policy-a"} },
+		"policy control":   func(value *DecisionEvent) { value.PolicyIDs = []string{"policy-a\nsecret"} },
 	} {
 		t.Run(name, func(t *testing.T) {
 			candidate := cloneDecisionEvent(base)
@@ -120,7 +134,7 @@ func TestDecisionEventAcceptsOnlyExactBlockedCapabilityBinding(t *testing.T) {
 
 func TestPostgresRepositoryReturnsOnlyExactExpiredRecordOutcome(t *testing.T) {
 	authority := fixtureAuthority(make([]byte, 32))
-	event := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "monitor", ActionKind: "mcp", Classification: map[string]string{"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "monitored"}, OccurredAt: time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)}
+	event := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "monitor", ActionKind: "mcp", PolicyIDs: []string{"policy-runtime"}, Classification: map[string]string{"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "monitored"}, OccurredAt: time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)}
 	for _, test := range []struct {
 		raw  string
 		want error
@@ -166,6 +180,9 @@ func (database *postgresDatabaseStub) QueryRow(_ context.Context, statement stri
 	}
 	response := database.responses[0]
 	database.responses = database.responses[1:]
+	if err, ok := response.(error); ok {
+		return postgresRowStub{err: err}
+	}
 	return postgresRowStub{value: response}
 }
 

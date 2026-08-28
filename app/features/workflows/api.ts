@@ -13,6 +13,8 @@ import {
   decodePolicy,
   decodePolicyPage,
   decodePolicyRollout,
+	decodePolicySimulation,
+	decodeRuntimeDecisionPage,
   decodeSecurityAgentDefinition,
   decodeWorkflowMutationReceiptPage,
   type Decoder,
@@ -30,6 +32,8 @@ import type {
   Policy,
   PolicyRollout,
   PolicyRolloutInput,
+	PolicySimulation,
+	RuntimeDecision,
   WorkflowMutationReceipt,
 } from "../../../apps/web/api/generated";
 
@@ -254,6 +258,12 @@ export function createPoliciesAPI(client: APIClient) {
     async disablePolicy(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<WorkflowReceipt<PolicyRollout>> {
       return executeWorkflowMutation(async (active) => requireWorkflowReceipt(await client.POST("/api/v1/policies/{id}/disable", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: {} }), decodePolicyRollout), attempt);
     },
+		async simulatePolicy(id: string): Promise<PolicySimulation> {
+			return requireAPIData(await client.POST("/api/v1/policies/{id}/simulate", { params: { path: { id } }, body: {} }), decodePolicySimulation);
+		},
+		async listPolicyDecisions(id: string, limit = 100, signal?: AbortSignal): Promise<readonly RuntimeDecision[]> {
+			return requireAPIData(await client.GET("/api/v1/policies/{id}/decisions", { params: { path: { id }, query: { limit } }, signal }), decodeRuntimeDecisionPage).items;
+		},
   };
 }
 

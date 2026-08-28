@@ -3,10 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { APIClient } from "../../../apps/web/api/client";
-import type { Integration } from "../../../apps/web/api/generated";
+import type { Integration, Policy } from "../../../apps/web/api/generated";
 import { APIProvider } from "../../api/APIProvider";
 import { SessionProvider } from "../../auth/SessionProvider";
-import { ProductionIntegrationsView } from "./ProductionWorkflowViews";
+import { ProductionIntegrationsView, ProductionPoliciesView } from "./ProductionWorkflowViews";
 import { WorkflowMutationProvider } from "./useRetainedWorkflowMutation";
 
 const integration: Integration = {
@@ -32,6 +32,57 @@ const receiptHeaders = {
   "X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001",
   "X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002",
 };
+
+const runtimePolicy: Policy = { id: "policy-runtime-history", name: "Runtime history", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "invoke" }], action: "block", rollout: "monitor", failure_mode: "closed" };
+
+describe("production policy evidence", () => {
+	it("simulates bounded runtime history and renders durable tenant decisions", async () => {
+		const user = userEvent.setup();
+		const GET = vi.fn(async (path: string) => {
+			if (path === "/api/v1/session/bootstrap") return jsonResult(sessionBootstrap(new Date(Date.now() + 60_000).toISOString()));
+			if (path === "/api/v1/policies") return jsonResult({ items: [runtimePolicy], page_info: { next_cursor: null, has_more: false } });
+			if (path === "/api/v1/policies/{id}") return jsonResult(runtimePolicy, 200, { ETag: '"3"' });
+			if (path === "/api/v1/policies/{id}/decisions") return jsonResult({ items: [{ id: "pid_70000002-0000-4000-8000-000000000002", policy_id: runtimePolicy.id, environment_id: "pid_10000003-0000-4000-8000-000000000003", result: "block", correlation_id: "pid_70000002-0000-4000-8000-000000000002", at: "2026-08-28T12:00:00Z" }] });
+			throw new Error(`unexpected GET ${path}`);
+		});
+		const simulation = { matches: 2, would_block: 1, example_session_ids: ["pid_70000001-0000-4000-8000-000000000001"] };
+		const POST = vi.fn(async () => jsonResult(simulation));
+		render(<APIProvider client={{ GET, POST } as unknown as APIClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionPoliciesView canWrite /></WorkflowMutationProvider></SessionProvider></APIProvider>);
+
+		await user.click(await screen.findByRole("button", { name: "Open Runtime history" }));
+		await user.click(await screen.findByRole("button", { name: "Simulate against runtime history" }));
+		expect(await screen.findByText("2 matched historical actions · 1 would block")).toBeVisible();
+		expect(await screen.findByText("block · 2026-08-28T12:00:00Z")).toBeVisible();
+		expect(screen.getByText("pid_70000001-0000-4000-8000-000000000001")).toBeVisible();
+		expect(POST).toHaveBeenCalledWith("/api/v1/policies/{id}/simulate", { params: { path: { id: runtimePolicy.id } }, body: {} });
+		expect(GET).toHaveBeenCalledWith("/api/v1/policies/{id}/decisions", { params: { path: { id: runtimePolicy.id }, query: { limit: 100 } }, signal: undefined });
+	});
+
+	it("keeps late decision history from a previously selected policy out of the current detail", async () => {
+		const user = userEvent.setup();
+		const secondPolicy: Policy = { ...runtimePolicy, id: "policy-second", name: "Second policy" };
+		const firstHistory = deferred<ReturnType<typeof jsonResult>>();
+		const secondHistory = deferred<ReturnType<typeof jsonResult>>();
+		const GET = vi.fn(async (path: string, options?: { params?: { path?: { id?: string } } }) => {
+			if (path === "/api/v1/session/bootstrap") return jsonResult(sessionBootstrap(new Date(Date.now() + 60_000).toISOString()));
+			if (path === "/api/v1/policies") return jsonResult({ items: [runtimePolicy, secondPolicy], page_info: { next_cursor: null, has_more: false } });
+			if (path === "/api/v1/policies/{id}") return jsonResult(options?.params?.path?.id === secondPolicy.id ? secondPolicy : runtimePolicy, 200, { ETag: '"3"' });
+			if (path === "/api/v1/policies/{id}/decisions") return options?.params?.path?.id === secondPolicy.id ? secondHistory.promise : firstHistory.promise;
+			throw new Error(`unexpected GET ${path}`);
+		});
+		render(<APIProvider client={{ GET } as unknown as APIClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionPoliciesView canWrite /></WorkflowMutationProvider></SessionProvider></APIProvider>);
+
+		await user.click(await screen.findByRole("button", { name: "Open Runtime history" }));
+		await user.click(await screen.findByRole("button", { name: "Open Second policy" }));
+		secondHistory.resolve(jsonResult({ items: [{ id: "pid_70000004-0000-4000-8000-000000000004", policy_id: secondPolicy.id, environment_id: "pid_10000003-0000-4000-8000-000000000003", result: "monitor", correlation_id: "pid_70000004-0000-4000-8000-000000000004", at: "2026-08-28T13:00:00Z" }] }));
+		expect(await screen.findByText("monitor · 2026-08-28T13:00:00Z")).toBeVisible();
+		firstHistory.resolve(jsonResult({ items: [{ id: "pid_70000002-0000-4000-8000-000000000002", policy_id: runtimePolicy.id, environment_id: "pid_10000003-0000-4000-8000-000000000003", result: "block", correlation_id: "pid_70000002-0000-4000-8000-000000000002", at: "2026-08-28T12:00:00Z" }] }));
+		await act(async () => { await firstHistory.promise; });
+
+		expect(screen.getByText("monitor · 2026-08-28T13:00:00Z")).toBeVisible();
+		expect(screen.queryByText("block · 2026-08-28T12:00:00Z")).not.toBeInTheDocument();
+	});
+});
 
 describe("production integration deletion", () => {
 	it("starts GitHub OAuth from the capability-gated product UI and retries the exact retained attempt", async () => {

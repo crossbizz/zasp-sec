@@ -52,12 +52,12 @@ func TestGatewayEvidenceDiskStoreRestoresPendingDecisionsExactly(t *testing.T) {
 	event := gatewayDecisionEvent{
 		CredentialID: expected.CredentialID, DeviceID: expected.DeviceID, EventID: gatewayRuntimeID(9),
 		ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "block", ActionKind: "mcp",
-		Classification: gatewayRuntimeClassification("blocked"), OccurredAt: gatewayRuntimeTime(),
+		PolicyIDs: []string{"policy-1"}, Classification: gatewayRuntimeClassification("blocked"), OccurredAt: gatewayRuntimeTime(),
 	}
 	quarantinedEvent := gatewayDecisionEvent{
 		CredentialID: expected.CredentialID, DeviceID: expected.DeviceID, EventID: gatewayRuntimeID(8),
 		ExpectedFloor: 3, NextFloor: 4, PolicyVersion: 2, Decision: "monitor", ActionKind: "http",
-		Classification: gatewayRuntimeClassification("monitored"), OccurredAt: gatewayRuntimeTime().Add(-25 * time.Hour),
+		PolicyIDs: []string{"policy-2"}, Classification: gatewayRuntimeClassification("monitored"), OccurredAt: gatewayRuntimeTime().Add(-25 * time.Hour),
 	}
 	quarantined := gatewayQuarantinedDecisionEvent{Event: quarantinedEvent, Reason: gatewayEvidenceExpiredReason, QuarantinedAt: gatewayRuntimeTime()}
 	pendingDigest := sha256.Sum256([]byte(`{"event_id":"` + event.EventID + `","action_kind":"mcp","attributes":{"tool.name":"shell"},"classification":{"category":"runtime","outcome":"blocked","resource_class":"tool","route_class":"local"}}`))
@@ -552,6 +552,7 @@ func gatewayEvidenceStoreFixture(authority gatewayAuthority, eventID string, exp
 			matched[index] = fmt.Sprintf("policy-%03d-%s", index, strings.Repeat("x", 110))
 		}
 	}
+	event.PolicyIDs = append([]string(nil), matched...)
 	return event, gatewayEvaluationReceipt{
 		EventID: eventID, RequestDigest: sha256.Sum256([]byte(eventID)),
 		Result: gatewayEvaluationResult{Decision: "block", PolicyVersion: 1, CacheState: policy.GatewayPolicyValid, MatchedPolicyIDs: matched}, EvaluatedAt: occurredAt,

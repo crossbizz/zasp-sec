@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { APITransportError } from "../../../apps/web/api/client";
-import type { ConnectorManifest, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationInput, IntegrationSchedule, IntegrationScheduleInput, IntegrationSync, IntegrationUpdateInput, Policy, PolicyRollout } from "../../../apps/web/api/generated";
+import type { ConnectorManifest, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationInput, IntegrationSchedule, IntegrationScheduleInput, IntegrationSync, IntegrationUpdateInput, Policy, PolicyRollout, PolicySimulation, RuntimeDecision } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { useOptionalSession, useSession } from "../../auth/SessionProvider";
@@ -61,6 +61,9 @@ export function ProductionPoliciesView({ canWrite }: { canWrite: boolean }) {
   const [editName, setEditName] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [busy, setBusy] = useState(false);
+	const [simulation, setSimulation] = useState<DiscoveryLoad<PolicySimulation>>({ status: "idle" });
+	const [decisions, setDecisions] = useState<DiscoveryLoad<readonly RuntimeDecision[]>>({ status: "idle" });
+	const decisionHistoryGeneration = useRef(0);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true); setFeedback(null);
@@ -73,8 +76,21 @@ export function ProductionPoliciesView({ canWrite }: { canWrite: boolean }) {
     }
     setSelected(result.receipt); setEditName(result.receipt.value.name); invalidate(["workflow:policies"]); setFeedback({ tone: "status", message: `Policy ${result.kind}. Audit ${result.receipt.auditID}` });
   };
-  const runMutation = (operation: () => Promise<PolicyMutationResult>) => void run(async () => { applyMutation(await operation()); });
-  const open = (id: string) => void run(async () => { const current = await api.getPolicy(id); setSelected(current); setEditName(current.value.name); });
+	const runMutation = (operation: () => Promise<PolicyMutationResult>) => void run(async () => { applyMutation(await operation()); });
+	const loadDecisions = (id: string) => {
+		const generation = ++decisionHistoryGeneration.current;
+		setDecisions({ status: "loading" });
+		void api.listPolicyDecisions(id).then(
+			(value) => { if (decisionHistoryGeneration.current === generation) setDecisions({ status: "success", value }); },
+			() => { if (decisionHistoryGeneration.current === generation) setDecisions({ status: "error" }); },
+		);
+	};
+	const open = (id: string) => void run(async () => { const current = await api.getPolicy(id); setSelected(current); setEditName(current.value.name); setSimulation({ status: "idle" }); loadDecisions(id); });
+	const simulate = () => selected && void run(async () => {
+		setSimulation({ status: "loading" });
+		try { setSimulation({ status: "success", value: await api.simulatePolicy(selected.value.id) }); }
+		catch (error) { setSimulation({ status: "error" }); throw error; }
+	});
   const create = () => void run(async () => {
     const intent: PolicyMutationIntent = { kind: "create", value: { id: policyID, name, scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" } };
     applyMutation(await mutation.execute(intent, async (frozen, attempt) => ({ kind: "created" as const, receipt: await api.createPolicy(frozen.value, attempt) })));
@@ -89,7 +105,8 @@ export function ProductionPoliciesView({ canWrite }: { canWrite: boolean }) {
     {mutation.canRetry && <p role="alert">The response was lost. The exact operation and idempotency key are retained. <Button disabled={busy} onClick={retryMutation}>Retry retained policy operation</Button></p>}
     {canWrite && <Card title="Create policy"><div className="form-grid"><Field label="Policy ID" value={policyID} disabled={mutation.isUnresolved} pattern="policy-[a-z0-9-]+" onChange={(event) => setPolicyID(event.target.value)} /><Field label="Name" value={name} disabled={mutation.isUnresolved} maxLength={128} onChange={(event) => setName(event.target.value)} /></div><Button variant="primary" disabled={busy || mutation.isUnresolved || !policyID || !name} onClick={create}>Create policy</Button></Card>}
     <Card title="Authorized policies">{query.data?.length ? <div className="connection-list">{query.data.map((policy) => <button type="button" key={policy.id} disabled={busy || mutation.isUnresolved} onClick={() => open(policy.id)} aria-label={`Open ${policy.name}`}><strong>{policy.name}</strong><span>{policy.action}</span><span>{policy.rollout}</span></button>)}</div> : query.status === "empty" ? <EmptyState title="No policies" description="Create the first scoped runtime policy when write access is enabled." /> : null}</Card>
-    {selected && <Card title={`Policy detail · ${selected.value.id}`}><p><Badge tone="info">{selected.value.rollout}</Badge> Version {selected.version}</p><Field label="Policy name" value={editName} disabled={!canWrite || busy || mutation.isUnresolved} onChange={(event) => setEditName(event.target.value)} /><p>{selected.value.conditions.map((condition) => `${condition.field} ${condition.operator} ${condition.value}`).join(", ")}</p>{canWrite && <div className="button-row"><Button disabled={busy || mutation.isUnresolved} onClick={update}>Save changes</Button>{selected.value.rollout === "draft" && <Button disabled={busy || mutation.isUnresolved} onClick={() => rollout("monitor")}>Roll to monitor</Button>}{selected.value.rollout === "monitor" && <Button variant="primary" disabled={busy || mutation.isUnresolved} onClick={() => rollout("enforced")}>Enforce policy</Button>}{(selected.value.rollout === "monitor" || selected.value.rollout === "enforced") && <Button disabled={busy || mutation.isUnresolved} onClick={disable}>Disable policy</Button>}</div>}</Card>}
+		{selected && <Card title={`Policy detail · ${selected.value.id}`}><p><Badge tone="info">{selected.value.rollout}</Badge> Version {selected.version}</p><Field label="Policy name" value={editName} disabled={!canWrite || busy || mutation.isUnresolved} onChange={(event) => setEditName(event.target.value)} /><p>{selected.value.conditions.map((condition) => `${condition.field} ${condition.operator} ${condition.value}`).join(", ")}</p>{canWrite && <div className="button-row"><Button disabled={busy || mutation.isUnresolved} onClick={update}>Save changes</Button><Button disabled={busy || mutation.isUnresolved || simulation.status === "loading"} onClick={simulate}>Simulate against runtime history</Button>{selected.value.rollout === "draft" && <Button disabled={busy || mutation.isUnresolved} onClick={() => rollout("monitor")}>Roll to monitor</Button>}{selected.value.rollout === "monitor" && <Button variant="primary" disabled={busy || mutation.isUnresolved} onClick={() => rollout("enforced")}>Enforce policy</Button>}{(selected.value.rollout === "monitor" || selected.value.rollout === "enforced") && <Button disabled={busy || mutation.isUnresolved} onClick={disable}>Disable policy</Button>}</div>}{simulation.status === "loading" && <LoadingState label="Simulating policy…" />}{simulation.status === "error" && <p role="alert">Policy simulation is unavailable.</p>}{simulation.status === "success" && simulation.value && <div><p>{simulation.value.matches} matched historical actions · {simulation.value.would_block} would block</p>{simulation.value.example_session_ids.length > 0 && <ul>{simulation.value.example_session_ids.map((id) => <li key={id}>{id}</li>)}</ul>}</div>}</Card>}
+		{selected && <Card title="Runtime decision history">{decisions.status === "loading" && <LoadingState label="Loading policy decisions…" />}{decisions.status === "error" && <p role="alert">Runtime decision history is unavailable. <Button disabled={busy} onClick={() => loadDecisions(selected.value.id)}>Retry</Button></p>}{decisions.status === "success" && decisions.value?.length ? <ul>{decisions.value.map((decision) => <li key={decision.id}><strong>{decision.result} · {decision.at}</strong><span>{decision.correlation_id}</span></li>)}</ul> : decisions.status === "success" ? <EmptyState title="No runtime decisions" description="This policy has no durable runtime decisions in the current tenant scope." /> : null}</Card>}
   </div>;
 }
 

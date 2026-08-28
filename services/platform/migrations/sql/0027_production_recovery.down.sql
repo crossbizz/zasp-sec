@@ -1,8 +1,8 @@
 DO $rollback_guard$
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='production-recovery-v1') OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>27)
-  OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_recovery_fingerprint' AND value='26f5f366b915dad467cca9d7c7941946f359b4884f53c48afb3b089d54179e6d')
-  OR NOT public.zasp_recovery_execution_security_ready() OR public.zasp_recovery_execution_live_fingerprint()<>'26f5f366b915dad467cca9d7c7941946f359b4884f53c48afb3b089d54179e6d'
+  OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_recovery_fingerprint' AND value='12487d82d24fd4de68fc595e57306a085cc237218597c039f90477ce1ba7f364')
+  OR NOT public.zasp_recovery_execution_security_ready() OR public.zasp_recovery_execution_live_fingerprint()<>'12487d82d24fd4de68fc595e57306a085cc237218597c039f90477ce1ba7f364'
   OR EXISTS(SELECT 1 FROM public.zasp_recovery_backups) OR EXISTS(SELECT 1 FROM public.zasp_recovery_restores) OR EXISTS(SELECT 1 FROM public.zasp_recovery_holds WHERE state<>'released') OR EXISTS(SELECT 1 FROM public.zasp_recovery_outbox WHERE state<>'published') OR EXISTS(SELECT 1 FROM public.zasp_recovery_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_recovery_audit) THEN
   RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='production recovery rollback rejected';
  END IF;
@@ -10,6 +10,9 @@ END
 $rollback_guard$;
 
 DROP FUNCTION public.zasp_recovery_execution_readiness(text,text);DROP FUNCTION public.zasp_recovery_execution_live_fingerprint();DROP FUNCTION public.zasp_recovery_execution_security_ready();
+DROP FUNCTION public.zasp_policy_list_runtime_decisions(text,text,text,text,integer);DROP FUNCTION public.zasp_runtime_gateway_record_event_v27(text,text,bigint,bigint,bytea,bigint,text,text,jsonb,jsonb,timestamptz);
+DROP INDEX public.zasp_runtime_gateway_events_policy_ids_v27_idx;DROP INDEX public.zasp_runtime_gateway_events_policy_history_v27_idx;
+ALTER TABLE public.zasp_runtime_gateway_events DROP CONSTRAINT zasp_runtime_gateway_events_policy_ids_v27_ck;ALTER TABLE public.zasp_runtime_gateway_events DROP COLUMN policy_ids;DROP FUNCTION public.zasp_policy_id_array_valid(jsonb);
 DROP FUNCTION public.zasp_recovery_fail_operation(text,text,text,text,text,text,bytea,text,integer,jsonb);DROP FUNCTION public.zasp_recovery_finish_restore(text,text,text,text,text,bytea,jsonb,jsonb,jsonb);DROP FUNCTION public.zasp_recovery_checkpoint_restore(text,text,text,text,text,bytea,text,text,jsonb);DROP FUNCTION public.zasp_recovery_finish_backup(text,text,text,text,text,bytea,jsonb);DROP FUNCTION public.zasp_recovery_projection_page(text,text,text,text,text,text,integer);DROP FUNCTION public.zasp_recovery_validate_scope(text,text,text);DROP FUNCTION public.zasp_recovery_capture_page(text,text,text,text,text,bytea,text,text,integer);DROP FUNCTION public.zasp_recovery_release_hold(text,text,text,text,text,bytea);DROP FUNCTION public.zasp_recovery_begin_hold(text,text,text,text,text,bytea);DROP FUNCTION public.zasp_recovery_heartbeat_operation(text,text,text,text,text,text,bytea,integer);DROP FUNCTION public.zasp_recovery_claim_delivery(text,text,text,text,text,text,bytea,integer);DROP FUNCTION public.zasp_recovery_claim_operation(text,text,bytea,integer,integer);
 DROP FUNCTION public.zasp_recovery_retry_outbox(text,text,text,text,text,bytea,integer,text);DROP FUNCTION public.zasp_recovery_ack_outbox(text,text,text,text,text,bytea,text);DROP FUNCTION public.zasp_recovery_heartbeat_outbox(text,text,bytea,integer,integer);DROP FUNCTION public.zasp_recovery_claim_outbox(text,text,bytea,integer,integer);DROP FUNCTION public.zasp_recovery_get_restore(text,text,text,text);DROP FUNCTION public.zasp_recovery_get_backup(text,text,text,text);DROP FUNCTION public.zasp_recovery_create_restore(text,text,text,text,text,text,text,text,text,text,bytea,jsonb,bytea);DROP FUNCTION public.zasp_recovery_create_backup(text,text,text,text,text,text,text,integer,text,text,bytea);
 DROP FUNCTION public.zasp_recovery_cleanup_evidence_valid(text,text,text,jsonb);

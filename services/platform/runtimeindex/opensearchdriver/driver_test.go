@@ -123,6 +123,24 @@ func TestDriverReadinessRequiresExactMappingAndImmutableMarker(t *testing.T) {
 	}
 }
 
+func TestDriverAllowsLoopbackOnlyThroughExplicitTestAuthority(t *testing.T) {
+	base := Config{Endpoint: "http://127.0.0.1:19092", Region: "us-west-2", RequestTimeout: 5 * time.Second, MaximumRequestBytes: 1 << 20, MaximumResponseBytes: 1 << 20}
+	credentials := aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
+		return aws.Credentials{AccessKeyID: "test", SecretAccessKey: "test"}, nil
+	})
+	if driver, err := newWithClient(base, credentials, signerStub{}, httpDoerFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("unused") }), time.Now); err == nil || driver != nil {
+		t.Fatalf("loopback accepted without test authority: %#v %v", driver, err)
+	}
+	base.AllowTestLoopback = true
+	if driver, err := newWithClient(base, credentials, signerStub{}, httpDoerFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("unused") }), time.Now); err != nil || driver == nil {
+		t.Fatalf("explicit test loopback rejected: %#v %v", driver, err)
+	}
+	base.Endpoint = "http://10.0.0.1:19092"
+	if driver, err := newWithClient(base, credentials, signerStub{}, httpDoerFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("unused") }), time.Now); err == nil || driver != nil {
+		t.Fatalf("non-loopback test authority accepted: %#v %v", driver, err)
+	}
+}
+
 func testDriver(t *testing.T, doer HTTPDoer) *Driver {
 	t.Helper()
 	driver, err := newWithClient(Config{Endpoint: "https://search-runtime.us-west-2.es.amazonaws.com", Region: "us-west-2", RequestTimeout: 5 * time.Second, MaximumRequestBytes: 1 << 20, MaximumResponseBytes: 1 << 20}, aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
