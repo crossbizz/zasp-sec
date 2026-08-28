@@ -2177,6 +2177,8 @@ export type components = {
         };
         readonly AttackLabRun: {
             readonly attempt: number;
+            /** Format: date-time */
+            readonly attempt_started_at?: string;
             readonly cancel_requested: boolean;
             /** @enum {string} */
             readonly cleanup_state: "pending" | "in_progress" | "complete" | "failed";
@@ -2210,6 +2212,8 @@ export type components = {
         };
         readonly AttackLabRunDetail: {
             readonly attempt: number;
+            /** Format: date-time */
+            readonly attempt_started_at?: string;
             readonly attempts: readonly components["schemas"]["AttackLabAttempt"][];
             readonly cancel_requested: boolean;
             /** @enum {string} */

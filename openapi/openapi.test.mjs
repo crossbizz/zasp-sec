@@ -719,6 +719,10 @@ describe("production workflow concurrency contract", () => {
     assert.equal(document.components.schemas.AttackLabRunInput.additionalProperties, false);
     assert.ok(document.components.schemas.AttackLabRun.required.includes("cleanup_state"));
     assert.ok(document.components.schemas.AttackLabRunDetail.required.includes("attempts"));
+    assert.deepEqual(document.components.schemas.AttackLabRun.properties.attempt_started_at, { type: "string", format: "date-time" });
+    assert.deepEqual(document.components.schemas.AttackLabRunDetail.properties.attempt_started_at, { type: "string", format: "date-time" });
+    assert.equal(document.components.schemas.TestRun.properties.attempt_started_at, undefined);
+    assert.equal(document.components.schemas.TestRunDetail.properties.attempt_started_at, undefined);
     const backupStart = operations.get("startRecoveryBackup").operation;
     const restoreStart = operations.get("startRecoveryRestore").operation;
     assert.deepEqual(backupStart.requestBody.content["application/json"].schema, { $ref: "#/components/schemas/RecoveryBackupInput" });

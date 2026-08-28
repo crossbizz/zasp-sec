@@ -1,8 +1,8 @@
 DO $rollback_guard$
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_core_schema' AND value='attack-lab-execution-v1') OR EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version>26)
-	    OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='attack_lab_execution_fingerprint' AND value='541c06b1a16f0f70d7d9ecc5cb490c710858a0593a18af1226c5c7958f599d72')
-	    OR NOT public.zasp_attack_lab_execution_security_ready() OR public.zasp_attack_lab_execution_live_fingerprint()<>'541c06b1a16f0f70d7d9ecc5cb490c710858a0593a18af1226c5c7958f599d72'
+	    OR NOT EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='attack_lab_execution_fingerprint' AND value='fb752d90dd53bbfcee0e6bd75fa2a61c745fa7a37c66afa73d0c632840c3ee8f')
+	    OR NOT public.zasp_attack_lab_execution_security_ready() OR public.zasp_attack_lab_execution_live_fingerprint()<>'fb752d90dd53bbfcee0e6bd75fa2a61c745fa7a37c66afa73d0c632840c3ee8f'
     OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_credential_bindings) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_runs) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_cleanup_checkpoints) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_outbox) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_request_receipts) OR EXISTS(SELECT 1 FROM public.zasp_attack_lab_audit) THEN
    RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab execution rollback rejected';
  END IF;
@@ -16,6 +16,7 @@ DROP FUNCTION public.zasp_attack_lab_finish_cleanup(text,text,text,text,text,byt
 DROP FUNCTION public.zasp_attack_lab_begin_cleanup(text,text,text,text,text,bytea,bytea,text,text,boolean,boolean,text,jsonb,text,text,text,bytea,bigint);
 DROP FUNCTION public.zasp_attack_lab_resolve_egress(text,text,text,text,text);
 DROP FUNCTION public.zasp_attack_lab_mark_running(text,text,text,text,text,bytea,bytea,text);
+DROP FUNCTION public.zasp_attack_lab_begin_provisioning(text,text,text,text,text,bytea,bytea);
 DROP FUNCTION public.zasp_attack_lab_retry_run(text,text,text,text,text,bytea,bytea,text,timestamptz);
 DROP FUNCTION public.zasp_attack_lab_heartbeat_run(text,text,text,text,text,bytea,integer);
 DROP FUNCTION public.zasp_attack_lab_claim_run(text,text,text,text,text,bytea,integer);
@@ -31,6 +32,8 @@ DROP FUNCTION public.zasp_attack_lab_list_runs(text,text,text,timestamptz,text,i
 DROP FUNCTION public.zasp_attack_lab_mutation_result(text,text,text,text,text,text,text,text,jsonb);
 DROP FUNCTION public.zasp_attack_lab_run_json(public.zasp_attack_lab_runs);
 DROP FUNCTION public.zasp_attack_lab_principals_ready();
+DROP FUNCTION public.zasp_attack_lab_revoke_credential_binding(text,text,text,text,bigint);
+DROP FUNCTION public.zasp_attack_lab_register_credential_binding(text,text,text,text,text,text,text,bigint,bytea,timestamptz);
 DROP FUNCTION public.zasp_attack_lab_principal_ready(text);
 DO $principal_cleanup$
 DECLARE binding record;

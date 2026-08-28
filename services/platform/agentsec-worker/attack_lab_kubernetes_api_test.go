@@ -181,6 +181,28 @@ func TestProductionAttackLabKubernetesAPIReconcilesExactCreateConflictWithoutDup
 	}
 }
 
+func TestProductionAttackLabKubernetesAPICreateWrongContentTypeWithDelayedVisibilityIsOutcomeUnknown(t *testing.T) {
+	tokenPath := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(tokenPath, []byte("header.payload.signature-with-bounded-production-length-1234567890"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	created := attackLabKubernetesTestResponse(http.StatusCreated, `created`)
+	created.Header.Set("Content-Type", "text/plain")
+	transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{
+		created,
+		attackLabKubernetesTestResponse(http.StatusNotFound, `{"apiVersion":"v1","kind":"Status","reason":"NotFound","code":404}`),
+	}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+	uid, err := api.Create(context.Background(), attackLabKubernetesTestJob())
+	var failure *attackLabProviderFailure
+	if uid != "" || !errors.As(err, &failure) || failure.code != "outcome_unknown" {
+		t.Fatalf("uid=%q failure=%#v err=%v", uid, failure, err)
+	}
+	if len(transport.requests) != 2 || transport.requests[0].Method != http.MethodPost || transport.requests[1].Method != http.MethodGet {
+		t.Fatalf("requests=%#v", transport.requests)
+	}
+}
+
 func TestProductionAttackLabKubernetesAPIRejectsCreateConflictWithDriftedJobSpec(t *testing.T) {
 	tokenPath := filepath.Join(t.TempDir(), "token")
 	if err := os.WriteFile(tokenPath, []byte("header.payload.signature-with-bounded-production-length-1234567890"), 0o600); err != nil {

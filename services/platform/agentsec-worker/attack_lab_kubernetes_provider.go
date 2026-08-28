@@ -21,6 +21,7 @@ var attackLabKubernetesUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}
 type attackLabClusterAPI interface {
 	Ready(context.Context) error
 	Create(context.Context, attackLabKubernetesJob) (string, error)
+	Reconcile(context.Context, attackLabKubernetesJob) (string, bool, error)
 	Collect(context.Context, string, string, string, time.Duration) (attackLabClusterOutcome, error)
 	Destroy(context.Context, string, string, string) error
 }
@@ -89,21 +90,9 @@ func (provider *productionAttackLabKubernetesProvider) Create(ctx context.Contex
 	if provider == nil || ctx == nil || ctx.Err() != nil || !validProductionAttackLabSandboxRequest(request, provider.config.Now()) {
 		return attackLabSandbox{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
-	name, ok := attackLabJobName(request.Run.ID)
-	if !ok {
-		return attackLabSandbox{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
-	}
-	expires := request.Run.StartedAt.Add(time.Duration(request.Run.Limits.TimeoutSeconds) * time.Second)
-	token, err := signAttackLabEgressToken(provider.config.SigningKey, request, provider.config.Now(), expires)
+	job, err := provider.jobForRequest(request)
 	if err != nil {
-		return attackLabSandbox{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
-	}
-	job := attackLabKubernetesJob{
-		Namespace: provider.config.Namespace, Name: name, ServiceAccount: provider.config.ServiceAccount, Image: provider.config.RunnerImage,
-		ProxyEndpoint: provider.config.ProxyEndpoint, ProxyCAFile: provider.config.ProxyCAFile, EgressToken: token,
-		OrganizationID: request.Scope.OrganizationID().String(), WorkspaceID: request.Scope.WorkspaceID().String(), EnvironmentID: request.Scope.EnvironmentID().String(), RunID: request.Run.ID, Destination: request.Run.Destination,
-		SuccessCriterion: request.Preflight.SuccessCriterion, ExpectedSideEffects: append([]string(nil), request.Preflight.ExpectedSideEffects...), InputDigest: hex.EncodeToString(request.InputDigest[:]),
-		Labels: map[string]string{"zasp.io/execution": "attack-lab", "zasp.io/run-id": request.Run.ID}, Limits: request.Run.Limits, ActiveDeadlineSeconds: request.Run.Limits.TimeoutSeconds, AllowsDirectEgress: false,
+		return attackLabSandbox{}, err
 	}
 	bounded, cancel := context.WithTimeout(ctx, provider.config.OperationTimeout)
 	defer cancel()
@@ -111,7 +100,43 @@ func (provider *productionAttackLabKubernetesProvider) Create(ctx context.Contex
 	if createErr != nil || !attackLabKubernetesUIDPattern.MatchString(uid) {
 		return attackLabSandbox{}, productionAttackLabProviderError(createErr, "outcome_unknown")
 	}
-	return attackLabSandbox{Reference: "k8s://attack-lab/jobs/" + name + "@" + uid}, nil
+	return attackLabSandbox{Reference: "k8s://attack-lab/jobs/" + job.Name + "@" + uid}, nil
+}
+
+func (provider *productionAttackLabKubernetesProvider) Reconcile(ctx context.Context, request attackLabSandboxRequest) (attackLabSandbox, bool, error) {
+	if provider == nil || ctx == nil || ctx.Err() != nil || !validProductionAttackLabSandboxReconcileRequest(request) {
+		return attackLabSandbox{}, false, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
+	}
+	job, err := provider.jobForRequest(request)
+	if err != nil {
+		return attackLabSandbox{}, false, err
+	}
+	bounded, cancel := context.WithTimeout(ctx, provider.config.OperationTimeout)
+	defer cancel()
+	uid, reconcileErr := provider.config.Cluster.Create(bounded, job)
+	if reconcileErr != nil || !attackLabKubernetesUIDPattern.MatchString(uid) {
+		return attackLabSandbox{}, false, productionAttackLabProviderError(reconcileErr, "outcome_unknown")
+	}
+	return attackLabSandbox{Reference: "k8s://attack-lab/jobs/" + job.Name + "@" + uid}, true, nil
+}
+
+func (provider *productionAttackLabKubernetesProvider) jobForRequest(request attackLabSandboxRequest) (attackLabKubernetesJob, error) {
+	name, ok := attackLabJobName(request.Scope, request.Run.ID)
+	if !ok || request.Run.AttemptStartedAt == nil {
+		return attackLabKubernetesJob{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
+	}
+	expires := request.Run.AttemptStartedAt.Add(time.Duration(request.Run.Limits.TimeoutSeconds) * time.Second)
+	token, err := signAttackLabEgressToken(provider.config.SigningKey, request, *request.Run.AttemptStartedAt, expires)
+	if err != nil {
+		return attackLabKubernetesJob{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
+	}
+	return attackLabKubernetesJob{
+		Namespace: provider.config.Namespace, Name: name, ServiceAccount: provider.config.ServiceAccount, Image: provider.config.RunnerImage,
+		ProxyEndpoint: provider.config.ProxyEndpoint, ProxyCAFile: provider.config.ProxyCAFile, EgressToken: token,
+		OrganizationID: request.Scope.OrganizationID().String(), WorkspaceID: request.Scope.WorkspaceID().String(), EnvironmentID: request.Scope.EnvironmentID().String(), RunID: request.Run.ID, Destination: request.Run.Destination,
+		SuccessCriterion: request.Preflight.SuccessCriterion, ExpectedSideEffects: append([]string(nil), request.Preflight.ExpectedSideEffects...), InputDigest: hex.EncodeToString(request.InputDigest[:]),
+		Labels: map[string]string{"zasp.io/execution": "attack-lab", "zasp.io/run-id": request.Run.ID}, Limits: request.Run.Limits, ActiveDeadlineSeconds: request.Run.Limits.TimeoutSeconds, AllowsDirectEgress: false,
+	}, nil
 }
 
 func (provider *productionAttackLabKubernetesProvider) Collect(ctx context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (attackLabSandboxResult, error) {
@@ -119,7 +144,7 @@ func (provider *productionAttackLabKubernetesProvider) Collect(ctx context.Conte
 		return attackLabSandboxResult{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	name, uid, ok := attackLabSandboxIdentity(sandbox.Reference)
-	wantName, nameOK := attackLabJobName(request.Run.ID)
+	wantName, nameOK := attackLabJobName(request.Scope, request.Run.ID)
 	if !ok || !nameOK || name != wantName {
 		return attackLabSandboxResult{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
@@ -161,7 +186,11 @@ func (provider *productionAttackLabKubernetesProvider) Destroy(ctx context.Conte
 }
 
 func validProductionAttackLabSandboxRequest(request attackLabSandboxRequest, now time.Time) bool {
-	if request.Scope.Validate() != nil || request.InputDigest == [sha256.Size]byte{} || request.Run.StartedAt == nil || request.Run.StartedAt.Location() != time.UTC || now.IsZero() || now.Location() != time.UTC || now.Before(*request.Run.StartedAt) || !now.Before(request.Run.StartedAt.Add(300*time.Second)) || request.Run.Status != "leased" && request.Run.Status != "running" || request.Run.Attempt < 1 || request.Run.Attempt > 5 || request.Run.Environment == "production" || !stringInWorker(request.Run.Environment, "development", "test", "staging") || !stringInWorker(request.Run.CredentialClass, "read_only", "test_write") || request.Run.Limits != (apiserver.AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}) || request.Preflight.Environment != request.Run.Environment || request.Preflight.CredentialClass != request.Run.CredentialClass || request.Preflight.Destination != request.Run.Destination || len(request.Preflight.AllowedDestinations) != 1 || request.Preflight.AllowedDestinations[0] != request.Run.Destination || !validAttackLabWorkerDestination(request.Run.Destination) || !validAttackLabProviderText(request.Preflight.SuccessCriterion, 512) || len(request.Preflight.ExpectedSideEffects) < 1 || len(request.Preflight.ExpectedSideEffects) > 16 {
+	return validProductionAttackLabSandboxReconcileRequest(request) && !now.IsZero() && now.Location() == time.UTC && !now.Before(*request.Run.AttemptStartedAt) && now.Before(request.Run.AttemptStartedAt.Add(300*time.Second))
+}
+
+func validProductionAttackLabSandboxReconcileRequest(request attackLabSandboxRequest) bool {
+	if request.Scope.Validate() != nil || request.InputDigest == [sha256.Size]byte{} || request.Run.StartedAt == nil || request.Run.AttemptStartedAt == nil || request.Run.StartedAt.Location() != time.UTC || request.Run.AttemptStartedAt.Location() != time.UTC || request.Run.AttemptStartedAt.Before(*request.Run.StartedAt) || request.Run.Status != "leased" && request.Run.Status != "running" || request.Run.Attempt < 1 || request.Run.Attempt > 5 || request.Run.Environment == "production" || !stringInWorker(request.Run.Environment, "development", "test", "staging") || !stringInWorker(request.Run.CredentialClass, "read_only", "test_write") || request.Run.Limits != (apiserver.AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}) || request.Preflight.Environment != request.Run.Environment || request.Preflight.CredentialClass != request.Run.CredentialClass || request.Preflight.Destination != request.Run.Destination || len(request.Preflight.AllowedDestinations) != 1 || request.Preflight.AllowedDestinations[0] != request.Run.Destination || !validAttackLabWorkerDestination(request.Run.Destination) || !validAttackLabProviderText(request.Preflight.SuccessCriterion, 512) || len(request.Preflight.ExpectedSideEffects) < 1 || len(request.Preflight.ExpectedSideEffects) > 16 {
 		return false
 	}
 	for _, value := range []string{request.Run.ID, request.Run.SourceRunID, request.Run.DefinitionID, request.Run.TargetID} {
@@ -197,12 +226,12 @@ func validAttackLabProviderText(value string, maximum int) bool {
 	return true
 }
 
-func attackLabJobName(runID string) (string, bool) {
-	if !strings.HasPrefix(runID, "pid_") {
+func attackLabJobName(scope domain.Scope, runID string) (string, bool) {
+	if scope.Validate() != nil || !strings.HasPrefix(runID, "pid_") || !regexp.MustCompile(`^pid_[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$`).MatchString(runID) {
 		return "", false
 	}
-	identifier := strings.ReplaceAll(strings.TrimPrefix(runID, "pid_"), "-", "")
-	name := "zasp-attack-lab-" + identifier
+	digest := sha256.Sum256([]byte(strings.Join([]string{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), runID}, "\x1f")))
+	name := "zasp-attack-lab-" + hex.EncodeToString(digest[:16])
 	return name, regexp.MustCompile(`^zasp-attack-lab-[a-f0-9]{32}$`).MatchString(name)
 }
 

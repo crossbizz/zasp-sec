@@ -505,13 +505,17 @@ func (api *productionAttackLabKubernetesAPI) Create(ctx context.Context, job att
 	path := fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", job.Namespace)
 	responseBody, status, err := api.do(ctx, http.MethodPost, path, requestBody)
 	if err != nil {
-		if uid, reconcileErr := api.reconcileCreatedJob(ctx, job); reconcileErr == nil {
+		if uid, found, reconcileErr := api.Reconcile(ctx, job); reconcileErr == nil && found {
 			return uid, nil
 		}
 		return "", err
 	}
 	if status == http.StatusConflict {
-		return api.reconcileCreatedJob(ctx, job)
+		uid, found, reconcileErr := api.Reconcile(ctx, job)
+		if reconcileErr != nil || !found {
+			return "", productionAttackLabProviderError(reconcileErr, "outcome_unknown")
+		}
+		return uid, nil
 	}
 	if status != http.StatusCreated {
 		return "", attackLabKubernetesStatusError(status, "outcome_unknown")
@@ -523,17 +527,26 @@ func (api *productionAttackLabKubernetesAPI) Create(ctx context.Context, job att
 	return created.Metadata.UID, nil
 }
 
-func (api *productionAttackLabKubernetesAPI) reconcileCreatedJob(ctx context.Context, job attackLabKubernetesJob) (string, error) {
+func (api *productionAttackLabKubernetesAPI) Reconcile(ctx context.Context, job attackLabKubernetesJob) (string, bool, error) {
+	if api == nil || ctx == nil || ctx.Err() != nil || !validAttackLabKubernetesAPIJob(job) {
+		return "", false, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
+	}
 	path := fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs/%s", job.Namespace, job.Name)
 	body, status, err := api.do(ctx, http.MethodGet, path, nil)
-	if err != nil || status != http.StatusOK {
-		return "", &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+	if err != nil {
+		return "", false, productionAttackLabProviderError(err, "outcome_unknown")
+	}
+	if status == http.StatusNotFound {
+		return "", false, nil
+	}
+	if status != http.StatusOK {
+		return "", false, attackLabKubernetesStatusError(status, "outcome_unknown")
 	}
 	var existing attackLabKubernetesJobManifest
 	if !decodeAttackLabKubernetesJob(body, &existing) || !validExactAttackLabKubernetesJob(existing, job) {
-		return "", &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+		return "", false, &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
-	return existing.Metadata.UID, nil
+	return existing.Metadata.UID, true, nil
 }
 
 func validExactAttackLabKubernetesJob(actual attackLabKubernetesJobManifest, job attackLabKubernetesJob) bool {
@@ -729,14 +742,18 @@ func (api *productionAttackLabKubernetesAPI) do(ctx context.Context, method, pat
 		return nil, 0, &attackLabProviderFailure{code: "retryable", retryAfter: 30 * time.Second}
 	}
 	defer response.Body.Close()
+	responseFailureCode := "malformed"
+	if method == http.MethodPost || method == http.MethodDelete {
+		responseFailureCode = "outcome_unknown"
+	}
 	mediaType, _, mediaErr := mime.ParseMediaType(response.Header.Get("Content-Type"))
 	if mediaErr != nil || mediaType != "application/json" {
-		return nil, response.StatusCode, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
+		return nil, response.StatusCode, &attackLabProviderFailure{code: responseFailureCode, retryAfter: 30 * time.Second}
 	}
 	limited := io.LimitReader(response.Body, attackLabKubernetesResponseLimit+1)
 	responseBody, readErr := io.ReadAll(limited)
 	if readErr != nil || len(responseBody) > attackLabKubernetesResponseLimit {
-		return nil, response.StatusCode, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
+		return nil, response.StatusCode, &attackLabProviderFailure{code: responseFailureCode, retryAfter: 30 * time.Second}
 	}
 	return responseBody, response.StatusCode, nil
 }

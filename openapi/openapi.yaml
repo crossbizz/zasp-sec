@@ -4892,6 +4892,7 @@ components:
         limits: { $ref: '#/components/schemas/AttackLabSandboxLimits' }
         queued_at: { type: string, format: date-time }
         started_at: { type: string, format: date-time }
+        attempt_started_at: { type: string, format: date-time }
         completed_at: { type: string, format: date-time }
         verdict: { type: string, enum: [verified, not_reproduced, inconclusive] }
         error_code: { type: string, enum: [retryable, denied, malformed, outcome_unknown, cleanup_failed, cancelled, exhausted] }
@@ -4933,6 +4934,7 @@ components:
         limits: { $ref: '#/components/schemas/AttackLabSandboxLimits' }
         queued_at: { type: string, format: date-time }
         started_at: { type: string, format: date-time }
+        attempt_started_at: { type: string, format: date-time }
         completed_at: { type: string, format: date-time }
         verdict: { type: string, enum: [verified, not_reproduced, inconclusive] }
         error_code: { type: string, enum: [retryable, denied, malformed, outcome_unknown, cleanup_failed, cancelled, exhausted] }

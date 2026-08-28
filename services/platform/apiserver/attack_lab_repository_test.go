@@ -41,6 +41,7 @@ func TestAttackLabRepositoryRejectsHostileStateTuplesAndClientAuthority(t *testi
 	}
 	complete := base
 	complete.Version, complete.Status, complete.Attempt, complete.StartedAt, complete.CompletedAt, complete.Verdict, complete.CleanupState, complete.EvidenceReference = 4, "complete", 1, &startedAt, &completedAt, "verified", "complete", "s3://attack-lab-evidence/object"
+	complete.AttemptStartedAt = &startedAt
 	if !validAttackLabRun(complete) {
 		t.Fatal("valid complete state rejected")
 	}
@@ -86,6 +87,7 @@ func TestAttackLabRepositoryAcceptsActiveCancellationAndRequiresCompleteEvidence
 		Limits:            AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300},
 		QueuedAt:          queuedAt,
 		StartedAt:         &startedAt,
+		AttemptStartedAt:  &startedAt,
 	}
 	if !validAttackLabRun(active) {
 		t.Fatal("active cancellation state rejected")
@@ -108,5 +110,25 @@ func TestAttackLabRepositoryAcceptsActiveCancellationAndRequiresCompleteEvidence
 	attempt.Evidence = attempt.Evidence[:4]
 	if validAttackLabAttempt(attempt) {
 		t.Fatal("incomplete evidence accepted")
+	}
+}
+
+func TestAttackLabRepositoryReadsCancelledRunWithExactFinalCleanupAttempt(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	queuedAt := time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)
+	startedAt, completedAt := queuedAt.Add(time.Minute), queuedAt.Add(2*time.Minute)
+	runID := "pid_79400001-0000-4000-8000-000000000001"
+	run := AttackLabRun{ID: runID, Version: 4, SourceRunID: "pid_79400002-0000-4000-8000-000000000002", DefinitionID: "pid_79400003-0000-4000-8000-000000000003", DefinitionVersion: 1, TargetID: "pid_79400004-0000-4000-8000-000000000004", TargetKind: "coding_agent", Environment: "test", CredentialClass: "test_write", Destination: "canary.attack-lab.internal", Status: "cancelled", Attempt: 1, CancelRequested: true, CleanupState: "complete", Limits: AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}, QueuedAt: queuedAt, StartedAt: &startedAt, AttemptStartedAt: &startedAt, CompletedAt: &completedAt, ErrorCode: "cancelled"}
+	attempt := AttackLabAttempt{Attempt: 1, EvidenceState: "unavailable", CleanupCompleted: true, ErrorCode: "cancelled", Evidence: []string{}, CompletedAt: completedAt}
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{postgresAttackLabGetRunSQL: mustRedTeamJSON(t, AttackLabRunDetail{AttackLabRun: run, Attempts: []AttackLabAttempt{attempt}})}}
+	repository := &PostgresRepository{database: database, schema: AttackLabExecutionSchemaVersion}
+	detail, err := repository.GetAttackLabRun(context.Background(), identity, runID)
+	if err != nil || len(detail.Attempts) != 1 || detail.Attempts[0].ErrorCode != "cancelled" {
+		t.Fatalf("detail=%#v err=%v", detail, err)
+	}
+	database.responses[postgresAttackLabGetRunSQL] = mustRedTeamJSON(t, AttackLabRunDetail{AttackLabRun: run, Attempts: []AttackLabAttempt{}})
+	if _, err := repository.GetAttackLabRun(context.Background(), identity, runID); err == nil {
+		t.Fatal("post-sandbox cancellation without its durable cleanup attempt was accepted")
 	}
 }
