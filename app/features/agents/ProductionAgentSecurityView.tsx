@@ -94,7 +94,18 @@ function ConnectedDataView({ data, api, initialDetailID, onNavigate, canWrite }:
 }
 
 function ConnectedHome({ value, onNavigate }: { value: HomeSummary; onNavigate(path: string): void }) {
-  return <div className="page"><PageHeader title="Security overview" description="Authoritative posture for the selected scope." /><MetricGrid metrics={[{ label: "Agents", value: value.agent_count, onClick: () => onNavigate("/discovery/assets") }, { label: "High-risk paths", value: value.high_risk_paths, tone: value.high_risk_paths > 0 ? "danger" : undefined, onClick: () => onNavigate("/exposure/attack-paths") }, { label: "Verified changes", value: value.verified_changes }, { label: "Blocked changes", value: value.blocked_changes }]} />{value.attention_required && <div role="alert" className="form-error">Attention required</div>}</div>;
+  const operational = value.high_risk_paths + value.pending_approvals + value.needs_human_runs + value.failed_runs + value.inconclusive_runs > 0 || !value.healthy;
+  return <div className="page"><PageHeader title="Security overview" description="Authoritative posture for the selected scope." /><MetricGrid metrics={[{ label: "Agents", value: value.agent_count, onClick: () => onNavigate("/discovery/assets") }, { label: "High-risk paths", value: value.high_risk_paths, tone: value.high_risk_paths > 0 ? "danger" : undefined, onClick: () => onNavigate("/exposure/attack-paths") }, { label: "Verified changes", value: value.verified_changes }, { label: "Blocked changes", value: value.blocked_changes }]} />
+    {!value.healthy && <div role="alert" className="form-error">Coverage is degraded</div>}
+    {operational && <Card title="Needs attention"><div className="review-summary">
+      <button type="button" onClick={() => onNavigate("/exposure/attack-paths")}><span>Critical exposures</span><strong>{value.high_risk_paths}</strong></button>
+      <button type="button" onClick={() => onNavigate("/protect/approvals")}><span>Pending approvals</span><strong>{value.pending_approvals} · oldest {value.oldest_approval_age_seconds}s</strong></button>
+      <button type="button" onClick={() => onNavigate("/protect/security-agents")}><span>Needs human</span><strong>{value.needs_human_runs}</strong></button>
+      <button type="button" onClick={() => onNavigate("/protect/security-agents")}><span>Failed or inconclusive</span><strong>{value.failed_runs + value.inconclusive_runs}</strong></button>
+      <button type="button" onClick={() => onNavigate("/integrations/sensors")}><span>Stale launch coverage</span><strong>{value.healthy ? "Healthy" : "Degraded"}</strong></button>
+      <button type="button" onClick={() => onNavigate("/protect/security-agents")}><span>Recent containment</span><strong>{value.recent_contained + value.recent_remediated}</strong></button>
+    </div></Card>}
+  </div>;
 }
 
 function ConnectedInventory({ title, category, values, api, initialDetailID, canWrite }: { title: string; category: "agent" | "tool" | "identity" | "runtime"; values: readonly InventorySummary[]; api: ProductionAgentSecurityAPI; initialDetailID: string; canWrite: boolean }) {

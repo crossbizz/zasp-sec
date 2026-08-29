@@ -19,6 +19,31 @@ function summary(id: string, name: string) {
 }
 
 describe("production typed inventory API", () => {
+  it("renders the tenant-scoped Security Agent attention queue and routes every operational card", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const home = { agent_count: 4, high_risk_paths: 2, verified_changes: 3, blocked_changes: 1, pending_approvals: 5, oldest_approval_age_seconds: 900, needs_human_runs: 2, failed_runs: 1, inconclusive_runs: 3, recent_contained: 4, recent_remediated: 2, healthy: false, attention_required: true };
+    const api: ProductionAgentSecurityAPI = {
+      listAgents: async () => [], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
+      getAgent: async () => { throw new Error("unused"); }, getTool: async () => { throw new Error("unused"); }, getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },
+      getAgentCapabilities: async () => [], getAgentRelationships: async () => [], listAgentSessions: async () => [],
+      updateAgent: async () => { throw new Error("unused"); }, getHomeSummary: async () => home,
+    };
+
+    render(<APIProvider><ProductionAgentSecurityView path="/" api={api} onNavigate={onNavigate} /></APIProvider>);
+
+    expect(await screen.findByText("Needs attention")).toBeVisible();
+    for (const value of ["Critical exposures", "Pending approvals", "Needs human", "Failed or inconclusive", "Stale launch coverage", "Recent containment"]) expect(screen.getByRole("button", { name: new RegExp(value) })).toBeVisible();
+    expect(screen.getByText("5 · oldest 900s")).toBeVisible();
+    expect(screen.getByText("6", { selector: "strong" })).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent("Coverage is degraded");
+
+    await user.click(screen.getByRole("button", { name: /Pending approvals/ }));
+    await user.click(screen.getByRole("button", { name: /Needs human/ }));
+    await user.click(screen.getByRole("button", { name: /Stale launch coverage/ }));
+    expect(onNavigate.mock.calls.map(([path]) => path)).toEqual(["/protect/approvals", "/protect/security-agents", "/integrations/sensors"]);
+  });
+
   it("loads all cursor pages with exact limit, continuation, and abort authority", async () => {
     const signal = new AbortController().signal;
     const get = vi.fn(async (_path: string, options: { params?: { query?: { cursor?: string; limit?: number } }; signal?: AbortSignal }) => ({

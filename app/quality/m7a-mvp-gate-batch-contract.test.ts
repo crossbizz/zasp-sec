@@ -9,7 +9,7 @@ describe("M7A-85 through M7A-101 Security Agent MVP gate", () => {
     const securityAgents = read("app/features/securityagents/SecurityAgentsView.tsx");
     for (const value of ["Definition template", "Definition name", "Authorized environment", "Template controls", "Limits", "Resource version", "Definition enabled", "Save definition", "Delete definition", "Security Agent runs", "Pending approvals", "Expected effect", "Reauthenticate to decide", "Cancel run"]) expect(securityAgents).toContain(value);
     for (const operation of ["listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) expect(securityAgents).toContain(operation);
-    const home = read("app/features/agents/AgentSecurityView.tsx");
+    const home = read("app/features/agents/ProductionAgentSecurityView.tsx");
     const app = read("app/components/ZaspApp.tsx");
     const productionApp = read("app/components/ZaspProductionApp.tsx");
     expect(app).not.toContain('{ path: "/protect/approvals"');

@@ -571,8 +571,8 @@ M7A	M7A-87	Complete	component-only	T10-product-ui	audited component-only proof: 
 M7A	M7A-88	Complete	component-only	T10-product-ui	audited component-only proof: Security Agent Approvals list UI
 M7A	M7A-89	Complete	component-only	T10-product-ui	audited component-only proof: Security Agent Approval detail UI
 M7A	M7A-90	Complete	component-only	T10-product-ui	audited component-only proof: Security Agent activity links
-M7A	M7A-90a	Complete	component-only	T10-product-ui	audited component-only proof: Home Security Agent attention summary
-M7A	M7A-90b	Complete	component-only	T10-product-ui	audited component-only proof: Home Needs-attention UI
+M7A	M7A-90a	Complete	production-available	T10-product-ui	production-composed v29 tenant-scoped Home summary counts pending approvals, oldest age, Needs-human/Failed/Inconclusive runs and recent Contained/Remediated outcomes
+M7A	M7A-90b	Complete	production-available	T10-product-ui	production Home renders ordered navigable attention cards from strict scoped summary authority and preserves degraded coverage state
 M7A	M7A-90c	Complete	component-only	T10-product-ui	audited component-only proof: approval-required webhook notification
 M7A	M7A-90d	Complete	component-only	T10-product-ui	audited component-only proof: Home daily-ops E2E
 M7A	M7A-91	Complete	component-only	T09-agent-actions	audited component-only proof: Planner unavailable degraded test
