@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 463 |
-| Component-only | 204 |
+| Production-available | 477 |
+| Component-only | 190 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -150,6 +150,12 @@ production composition, not merely a component proof or external evidence.
   exact-session isolation, and supported connector revocation. Run-test, Attack
   Lab handoff, evidence export, and response webhook remain component-only until
   their Security Agent adapters and durable verification paths are mounted.
+- The production Security Agent loop provides tenant-fair durable claims,
+  idempotent autonomous execution, approval pause/resume, action-specific
+  verification, cancellation, redacted audit, ambiguous-provider isolation,
+  and multi-tenant supervised/autonomous E2E. AI-planner degradation, approval
+  expiry reconciliation, full budget enforcement, and the remaining aggregate
+  rehearsals stay component-only.
 - `docs/operations/production-deployment.md` and release contracts retain
   image, provider, DNS/TLS, secret, tracing, and public-deployment evidence as
   explicit external gates.
@@ -167,9 +173,9 @@ production composition, not merely a component proof or external evidence.
 | M5 | 42 | 20 | 22 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
-| M7A | 113 | 70 | 43 | 0 | 0 |
+| M7A | 113 | 84 | 29 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **463** | **204** | **61** | **0** |
+| **Total** | **728** | **477** | **190** | **61** | **0** |
 
 ## Prerequisite work
 

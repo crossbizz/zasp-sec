@@ -530,17 +530,17 @@ M7A	M7A-46	Complete	production-available	T07-security-agent-authority	production
 M7A	M7A-47	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: mandatory approval floors for irreversible and containment actions
 M7A	M7A-48	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent API: fresh-auth activation and capability-gated action enablement
 M7A	M7A-49	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: step, duration, token, and tenant concurrency budgets
-M7A	M7A-50	Complete	component-only	T09-agent-actions	audited component-only proof: Run queue job
+M7A	M7A-50	Complete	production-available	T09-agent-actions	production-composed tenant-scoped database queue with lease fencing and replay-safe run identity
 M7A	M7A-51	Complete	component-only	T09-agent-actions	audited component-only proof: Run planner state
-M7A	M7A-52	Complete	component-only	T09-agent-actions	audited component-only proof: Auto-action executor
-M7A	M7A-53	Complete	component-only	T09-agent-actions	audited component-only proof: Waiting approval state
-M7A	M7A-54	Complete	component-only	T09-agent-actions	audited component-only proof: Approval fresh-auth guard
-M7A	M7A-55	Complete	component-only	T09-agent-actions	audited component-only proof: Approval decision resume job
-M7A	M7A-56	Complete	component-only	T09-agent-actions	audited component-only proof: Action execution result classifier
-M7A	M7A-57	Complete	component-only	T09-agent-actions	audited component-only proof: Step verifier dispatcher
-M7A	M7A-58	Complete	component-only	T09-agent-actions	audited component-only proof: Run final outcome evaluator
-M7A	M7A-59	Complete	component-only	T09-agent-actions	audited component-only proof: Run cancellation
-M7A	M7A-60	Complete	component-only	T09-agent-actions	audited component-only proof: Security Agent audit event helper
+M7A	M7A-52	Complete	production-available	T09-agent-actions	production-composed idempotent autonomous finding-response executor with exact prior-outcome replay
+M7A	M7A-53	Complete	production-available	T09-agent-actions	production-composed plan authority persists approval-required steps and stops progression in waiting_approval
+M7A	M7A-54	Complete	production-available	T09-agent-actions	production-composed approval decision requires bounded fresh browser authentication
+M7A	M7A-55	Complete	production-available	T09-agent-actions	production-composed approval decision resumes the exact run once or terminates it on reject and cancel
+M7A	M7A-56	Complete	production-available	T09-agent-actions	production-composed action authorities classify verified, known-failure, and unknown provider outcomes without blind replay
+M7A	M7A-57	Complete	production-available	T09-agent-actions	production-composed action-specific finding, policy, session, and connector verification dispatch
+M7A	M7A-58	Complete	production-available	T09-agent-actions	production-composed run evaluator reaches contained or remediated only after durable verification
+M7A	M7A-59	Complete	production-available	T09-agent-actions	production-composed cancellation stops future progression while retaining cleanup authority
+M7A	M7A-60	Complete	production-available	T09-agent-actions	production-composed redacted audit authority records trigger, plan, authorization, approval, execution, verification, and outcome
 M7A	M7A-61	Complete	production-available	PROD-current-composition	audited shipped composition: API listSecurityAgentTemplates
 M7A	M7A-62	Complete	production-available	T07-security-agent-authority	production-composed public API: capability-filtered listSecurityActions
 M7A	M7A-63	Complete	production-available	PROD-current-composition	audited shipped composition: API listSecurityAgents
@@ -577,13 +577,13 @@ M7A	M7A-90c	Complete	component-only	T10-product-ui	audited component-only proof:
 M7A	M7A-90d	Complete	component-only	T10-product-ui	audited component-only proof: Home daily-ops E2E
 M7A	M7A-91	Complete	component-only	T09-agent-actions	audited component-only proof: Planner unavailable degraded test
 M7A	M7A-92	Complete	component-only	T09-agent-actions	audited component-only proof: Approval expiry degraded test
-M7A	M7A-93	Complete	component-only	T09-agent-actions	audited component-only proof: Unknown external outcome test
+M7A	M7A-93	Complete	production-available	T09-agent-actions	production-composed connector timeout and ambiguous-provider outcome remains needs_human without side-effect replay
 M7A	M7A-94	Complete	component-only	T09-agent-actions	audited component-only proof: Cross-tenant planner reference test
 M7A	M7A-95	Complete	component-only	T09-agent-actions	audited component-only proof: Security Agent action budget test
 M7A	M7A-96	Complete	component-only	T09-agent-actions	audited component-only proof: Security Agent auto-response E2E
-M7A	M7A-97	Complete	component-only	T09-agent-actions	audited component-only proof: Security Agent approval E2E
-M7A	M7A-98	Complete	component-only	T09-agent-actions	audited component-only proof: Security Agent audit completeness E2E
-M7A	M7A-99	Complete	component-only	T09-agent-actions	audited component-only proof: Security Agent SaaS isolation E2E
+M7A	M7A-97	Complete	production-available	T09-agent-actions	combined browser and real-worker E2E proves no connector revoke before fresh-auth admin approval and exactly one verified execution
+M7A	M7A-98	Complete	production-available	T09-agent-actions	combined PostgreSQL and browser E2E proves complete redacted supervised and autonomous audit chains
+M7A	M7A-99	Complete	production-available	T09-agent-actions	combined multi-tenant E2E proves same-looking triggers, approvals, actions, and outcomes remain tenant isolated
 M7A	M7A-100	Complete	component-only	T09-agent-actions	audited component-only proof: Security Agent single-tenant profile E2E
 M7A	M7A-101	Complete	component-only	T09-agent-actions	audited component-only proof: M7A gate
 M8	M8-01a	Complete	component-only	T15-deployment	audited component-only proof: production overlay VPC review
