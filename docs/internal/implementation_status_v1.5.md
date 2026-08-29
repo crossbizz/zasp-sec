@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 480 |
-| Component-only | 187 |
+| Production-available | 481 |
+| Component-only | 186 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -143,12 +143,15 @@ production composition, not merely a component proof or external evidence.
   Production APIs provide replay-safe simulation, manual runs, cursor history,
   cancellation, and fresh-auth approvals. The combined multi-tenant journey
   proves autonomous response, supervised approval, session isolation, temporary
-  containment cleanup, and connector revocation. Automatic attack-path triggers
-  and the AI planner boundary remain component-only.
+  containment cleanup, and connector revocation. The v30 API lifecycle also
+  drains one tenant-scoped approval notification at a time through the pinned,
+  HMAC-signed Generic Webhook authority with durable deduplication and no raw
+  evidence or secret material. Automatic attack-path triggers and the AI planner
+  boundary remain component-only.
 - The supervised-action registry is production-filtered. Its shipped v21-v24
   adapters cover finding response, signed temporary containment with expiry,
   exact-session isolation, and supported connector revocation. Run-test, Attack
-  Lab handoff, evidence export, and response webhook remain component-only until
+  Lab handoff, evidence export, and run-response webhook remain component-only until
   their Security Agent adapters and durable verification paths are mounted.
 - The production Security Agent loop provides tenant-fair durable claims,
   idempotent autonomous execution, approval pause/resume, action-specific
@@ -173,9 +176,9 @@ production composition, not merely a component proof or external evidence.
 | M5 | 42 | 20 | 22 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
-| M7A | 113 | 87 | 26 | 0 | 0 |
+| M7A | 113 | 88 | 25 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **480** | **187** | **61** | **0** |
+| **Total** | **728** | **481** | **186** | **61** | **0** |
 
 ## Prerequisite work
 

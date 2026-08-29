@@ -573,7 +573,7 @@ M7A	M7A-89	Complete	component-only	T10-product-ui	audited component-only proof: 
 M7A	M7A-90	Complete	component-only	T10-product-ui	audited component-only proof: Security Agent activity links
 M7A	M7A-90a	Complete	production-available	T10-product-ui	production-composed v29 tenant-scoped Home summary counts pending approvals, oldest age, Needs-human/Failed/Inconclusive runs and recent Contained/Remediated outcomes
 M7A	M7A-90b	Complete	production-available	T10-product-ui	production Home renders ordered navigable attention cards from strict scoped summary authority and preserves degraded coverage state
-M7A	M7A-90c	Complete	component-only	T10-product-ui	audited component-only proof: approval-required webhook notification
+M7A	M7A-90c	Complete	production-available	T10-product-ui	production-composed v30 approval trigger deduplicates tenant-scoped notifications and the API lifecycle delivers one HMAC-signed minimal Generic Webhook event through pinned egress without evidence or secret material
 M7A	M7A-90d	Complete	component-only	T10-product-ui	audited component-only proof: Home daily-ops E2E
 M7A	M7A-91	Complete	component-only	T09-agent-actions	audited component-only proof: Planner unavailable degraded test
 M7A	M7A-92	Complete	production-available	T09-agent-actions	v28 worker-only reconciler atomically expires tenant-scoped approvals, cancels the step, moves the run to needs_human, emits one redacted audit event, and never reclaims the run

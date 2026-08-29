@@ -100,10 +100,15 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 	exporter := newStructuredSpanExporter(os.Stdout)
 	tracedDatabase := &tracedJSONDatabase{next: database, metrics: metrics, exporter: exporter}
 	var securityAgentRepository *apiserver.PostgresRepository
+	var approvalNotificationRepository *apiserver.PostgresRepository
 	if !invalidRuntimeValue(securityAgentDatabase) {
 		tracedSecurityAgentDatabase := &tracedJSONDatabase{next: securityAgentDatabase, metrics: metrics, exporter: exporter}
 		var securityAgentErr error
 		securityAgentRepository, securityAgentErr = apiserver.NewSecurityAgentPostgresRepository(tracedSecurityAgentDatabase)
+		if securityAgentErr != nil {
+			return RuntimeDependencies{}, errRuntimeUnavailable
+		}
+		approvalNotificationRepository, securityAgentErr = apiserver.NewApprovalNotificationPostgresRepository(tracedSecurityAgentDatabase)
 		if securityAgentErr != nil {
 			return RuntimeDependencies{}, errRuntimeUnavailable
 		}
@@ -256,6 +261,18 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
+	lifecycleWorkers := []func(context.Context) error{connectorReconciler.Run}
+	var approvalNotificationReconciler *apiserver.ApprovalNotificationReconciler
+	if approvalNotificationRepository != nil {
+		approvalNotificationReconciler, err = apiserver.NewApprovalNotificationReconciler(apiserver.ApprovalNotificationReconcilerConfig{
+			Repository: approvalNotificationRepository, Secrets: ticketSecrets, Webhook: ticketWebhook,
+			Owner: workerOwner, LeaseSeconds: 30, Interval: time.Second, NewLeaseToken: newFindingTicketLeaseToken,
+		})
+		if err != nil {
+			return RuntimeDependencies{}, errRuntimeUnavailable
+		}
+		lifecycleWorkers = append(lifecycleWorkers, approvalNotificationReconciler.Run)
+	}
 	cookie := apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}, FindingTickets: ticketService}
 	var handlers apiserver.Dependencies
 	var authenticate apiserver.Authenticator
@@ -311,12 +328,17 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
 	keepConnectorResources = true
-	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: connectorReconciler.Run, ReadinessCheck: func(ctx context.Context) error {
+	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
 		if err := repository.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
 		if securityAgentRepository != nil {
 			if err := securityAgentRepository.Ready(ctx); err != nil {
+				return errRuntimeUnavailable
+			}
+		}
+		if approvalNotificationRepository != nil {
+			if err := approvalNotificationRepository.ReadyApprovalNotifications(ctx); err != nil || approvalNotificationReconciler == nil || !approvalNotificationReconciler.Ready() {
 				return errRuntimeUnavailable
 			}
 		}

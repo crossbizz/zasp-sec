@@ -1198,6 +1198,13 @@ test("release gives finding tickets exact API-only webhook egress and secret-rea
 	const terraform = await readFile(new URL("../staging/main.tf", import.meta.url), "utf8");
 	assert.match(terraform, /secret:\$\{local\.connector_secret_root\}\/webhook\/\*/);
 	assert.match(terraform, /kms:EncryptionContext:SecretARN[\s\S]*connector_secret_root[\s\S]*webhook\/\*/);
+	const runtime = await readFile(new URL("../../services/platform/agentsec-api/production_runtime.go", import.meta.url), "utf8");
+	assert.match(runtime, /NewApprovalNotificationPostgresRepository\(tracedSecurityAgentDatabase\)/);
+	assert.match(runtime, /NewApprovalNotificationReconciler[\s\S]*Repository: approvalNotificationRepository[\s\S]*Secrets: ticketSecrets[\s\S]*Webhook: ticketWebhook/);
+	assert.match(runtime, /lifecycleWorkers = append\(lifecycleWorkers, approvalNotificationReconciler\.Run\)/);
+	assert.match(runtime, /ReadyApprovalNotifications\(ctx\)[\s\S]*approvalNotificationReconciler\.Ready\(\)/);
+	const webhook = await readFile(new URL("../../services/platform/apiserver/finding_ticket_webhook.go", import.meta.url), "utf8");
+	assert.match(webhook, /DeliverApprovalNotification[\s\S]*security_agent\.approval_required[\s\S]*X-Zasp-Signature/);
 });
 
 test("release renders read-only synthetic and exact SLO budgets without credential values", async () => {

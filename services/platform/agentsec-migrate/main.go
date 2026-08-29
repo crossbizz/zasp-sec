@@ -120,6 +120,8 @@ type releaseMigrationRunner interface {
 	DownProductionPolicyDeployment(context.Context) error
 	UpProductionHomeAttention(context.Context) error
 	DownProductionHomeAttention(context.Context) error
+	UpProductionApprovalNotification(context.Context) error
+	DownProductionApprovalNotification(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -431,10 +433,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 29
 		}
-		if version != 29 {
+		if version == 29 {
+			if err := runner.UpProductionApprovalNotification(ctx); err != nil {
+				return err
+			}
+			version = 30
+		}
+		if version != 30 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 30 {
+			if err := runner.DownProductionApprovalNotification(ctx); err != nil {
+				return err
+			}
+			version = 29
+		}
 		if version == 29 {
 			if err := runner.DownProductionHomeAttention(ctx); err != nil {
 				return err

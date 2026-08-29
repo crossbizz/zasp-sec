@@ -49,6 +49,31 @@ func TestFindingTicketWebhookSignsExactPayloadAndStrictlyDecodesTicket(t *testin
 	}
 }
 
+func TestFindingTicketWebhookSignsApprovalNotificationAndAcceptsOnlyEmptyNoContent(t *testing.T) {
+	deliveryID := "pid_41000001-0000-4000-8000-000000000001"
+	payload := `{"delivery_id":"` + deliveryID + `","event":"security_agent.approval_required","version":1}`
+	payloadHash := sha256.Sum256([]byte(payload))
+	digest := "sha256:" + hex.EncodeToString(payloadHash[:])
+	secret := []byte("0123456789abcdef0123456789abcdef")
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		body, _ := io.ReadAll(request.Body)
+		mac := hmac.New(sha256.New, secret)
+		_, _ = mac.Write(body)
+		if request.Header.Get("User-Agent") != "zasp-security-agent-webhook/1" || request.Header.Get("X-Zasp-Event") != "security_agent.approval_required" || request.Header.Get("X-Zasp-Signature") != "sha256="+hex.EncodeToString(mac.Sum(nil)) || string(body) != payload {
+			t.Errorf("headers=%#v body=%s", request.Header, body)
+		}
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	webhook, err := newFindingTicketWebhook(server.Client(), 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := webhook.DeliverApprovalNotification(context.Background(), server.URL, payload, digest, deliveryID, secret); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFindingTicketWebhookFailsClosedOnRedirectProviderTextAndSchemaDrift(t *testing.T) {
 	deliveryID := "pid_41000001-0000-4000-8000-000000000001"
 	payload := `{"delivery_id":"` + deliveryID + `","version":1}`
