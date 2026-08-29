@@ -164,3 +164,18 @@ be81cc7e904cde8916d07d18ef7a51e25f6b4d74:services/platform/agentsec-worker/recov
 531bbe0b748eb125383b423f7b9c88efe6122b00:services/platform/agentsec-worker/recovery_database_test.go:generic-api-key:115
 9f70b6c69d41f562c2e10763cbbda454892a4f90:services/platform/agentsec-worker/recovery_outbox_database_test.go:generic-api-key:49
 f03217f980b7c9001238960eb21919027daddb48:services/platform/agentsec-worker/recovery_database_test.go:generic-api-key:49
+
+# The fixed-action proxy uses descriptive local client credentials only inside
+# hermetic TLS and composition tests. Ignore their exact introduction findings;
+# changed or relocated values remain detectable by the full-history gate.
+9412d9c4f2fcd1a366574db96b4872ba6860512b:services/runtime-gateway/production_runtime_test.go:generic-api-key:80
+9412d9c4f2fcd1a366574db96b4872ba6860512b:services/runtime-gateway/production_runtime_test.go:generic-api-key:161
+9412d9c4f2fcd1a366574db96b4872ba6860512b:services/runtime-gateway/proxy_test.go:generic-api-key:37
+9412d9c4f2fcd1a366574db96b4872ba6860512b:services/runtime-gateway/proxy_test.go:generic-api-key:73
+9412d9c4f2fcd1a366574db96b4872ba6860512b:services/runtime-gateway/proxy_test.go:generic-api-key:84
+9412d9c4f2fcd1a366574db96b4872ba6860512b:services/runtime-gateway/proxy_test.go:generic-api-key:102
+9412d9c4f2fcd1a366574db96b4872ba6860512b:services/runtime-gateway/proxy_test.go:generic-api-key:128
+9412d9c4f2fcd1a366574db96b4872ba6860512b:services/runtime-gateway/proxy_test.go:generic-api-key:166
+9412d9c4f2fcd1a366574db96b4872ba6860512b:services/runtime-gateway/proxy_test.go:generic-api-key:171
+9412d9c4f2fcd1a366574db96b4872ba6860512b:services/runtime-gateway/proxy_test.go:generic-api-key:175
+9412d9c4f2fcd1a366574db96b4872ba6860512b:services/runtime-gateway/proxy_test.go:generic-api-key:179

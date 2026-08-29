@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"sync"
 	"time"
@@ -172,8 +173,37 @@ func (processor *securityAgentActionProcessor) applyClaim(ctx context.Context, c
 	if err != nil {
 		return errWorkerExecution
 	}
-	_, err = processor.config.Authority.FinishTemporaryPolicyEffect(ctx, claim, processor.config.WorkerID, leaseToken, resultDigest, ids[0], ids[1])
-	return err
+	retryInterval := processor.config.HeartbeatInterval / 4
+	if retryInterval < 10*time.Millisecond {
+		retryInterval = 10 * time.Millisecond
+	}
+	if retryInterval > 100*time.Millisecond {
+		retryInterval = 100 * time.Millisecond
+	}
+	waitLimit := time.Duration(processor.config.LeaseSeconds) * time.Second / 3
+	if waitLimit > 5*time.Second {
+		waitLimit = 5 * time.Second
+	}
+	ticker := time.NewTicker(retryInterval)
+	defer ticker.Stop()
+	timer := time.NewTimer(waitLimit)
+	defer timer.Stop()
+	for {
+		_, err = processor.config.Authority.FinishTemporaryPolicyEffect(ctx, claim, processor.config.WorkerID, leaseToken, resultDigest, ids[0], ids[1])
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, apiserver.ErrRepositoryConflict) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return errWorkerExecution
+		case <-timer.C:
+			return errWorkerExecution
+		case <-ticker.C:
+		}
+	}
 }
 
 func (processor *securityAgentActionProcessor) verifyReadback(claim apiserver.TemporaryPolicyEffectClaim, readback apiserver.TemporaryPolicyTargetEnvelope, now time.Time) error {

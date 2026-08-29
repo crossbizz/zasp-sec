@@ -141,16 +141,19 @@ const gatewayDependencies = [{
   review: "approved",
 }];
 
-const runtimeGatewayDependencies = [{
+const runtimeGatewayDependencies = [
+  ["github.com/dgraph-io/badger/v4", "v4.9.1", "Apache-2.0"],
+  ["github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
+].map(([name, version, license]) => ({
   ecosystem: "go",
   manifest: "services/runtime-gateway/go.mod",
-  name: "github.com/dgraph-io/badger/v4",
-  version: "v4.9.1",
-  license: "Apache-2.0",
+  name,
+  version,
+  license,
   owner: "platform-data",
   scope: "runtime",
   review: "approved",
-}];
+}));
 
 const sensorDependencies = ["api", "apimachinery", "client-go"].map((name) => ({
   ecosystem: "go",
@@ -311,7 +314,9 @@ function filesFixture() {
       "",
       "require github.com/zasp-ai/zasp-sec/services/health v0.0.0",
       "require github.com/zasp-ai/zasp-sec/services/platform v0.0.0",
-      `require ${runtimeGatewayDependencies[0].name} ${runtimeGatewayDependencies[0].version}`,
+      "require (",
+      ...runtimeGatewayDependencies.map(({ name, version }) => `\t${name} ${version}`),
+      ")",
       "require github.com/google/flatbuffers v25.2.10+incompatible // indirect",
       "",
       "replace github.com/zasp-ai/zasp-sec/services/health => ../health",
@@ -344,7 +349,7 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 13, dependencies: 33 });
+  assert.deepEqual(validate(), { manifests: 13, dependencies: 34 });
 });
 
 test("binds exact hash-locked isolated Cartography and Prowler runtimes", async (t) => {
@@ -598,11 +603,11 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 13, dependencies: 35 });
+  assert.deepEqual(validate(lock, files), { manifests: 13, dependencies: 36 });
 });
 
 test("accepts only exact repository-owned module requirements and replacements outside the third-party lock", async (t) => {
-  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 13, dependencies: 33 });
+  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 13, dependencies: 34 });
 
   for (const [name, mutate] of [
     ["missing health replacement", (files) => {

@@ -14,13 +14,18 @@ type gatewayHTTPHandler struct {
 	maximumBytes int64
 }
 
-func newGatewayHandler(runtime *gatewayRuntime, maximumBytes int64) (http.Handler, error) {
-	if runtime == nil || maximumBytes < 1024 || maximumBytes > 64*1024 {
+func newGatewayHandler(runtime *gatewayRuntime, maximumBytes int64, proxy ...http.Handler) (http.Handler, error) {
+	if runtime == nil || maximumBytes < 1024 || maximumBytes > 64*1024 || len(proxy) > 1 || len(proxy) == 1 && proxy[0] == nil {
 		return nil, errGatewayRuntime
 	}
 	handler := &gatewayHTTPHandler{runtime: runtime, maximumBytes: maximumBytes}
 	mux := http.NewServeMux()
 	mux.Handle(gatewayEvaluatePath, handler)
+	if len(proxy) == 1 {
+		mux.Handle(gatewayHTTPProxyPath, proxy[0])
+		mux.Handle(gatewayHTTPProxyPath+"/", proxy[0])
+		mux.Handle(gatewayMCPProxyPath, proxy[0])
+	}
 	mux.Handle("/", http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		gatewayJSONError(response, http.StatusNotFound, "not_found")
 	}))

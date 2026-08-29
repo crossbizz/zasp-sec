@@ -147,6 +147,7 @@ for (const [manifest, name, version, license] of [
   ["services/event-ingest/go.mod", "github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
   ["services/gateway-control/go.mod", "github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
   ["services/runtime-gateway/go.mod", "github.com/dgraph-io/badger/v4", "v4.9.1", "Apache-2.0"],
+  ["services/runtime-gateway/go.mod", "github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
   ["services/sensor-agent/go.mod", "k8s.io/api", "v0.35.5", "Apache-2.0"],
   ["services/sensor-agent/go.mod", "k8s.io/apimachinery", "v0.35.5", "Apache-2.0"],
   ["services/sensor-agent/go.mod", "k8s.io/client-go", "v0.35.5", "Apache-2.0"],

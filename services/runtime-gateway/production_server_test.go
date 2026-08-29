@@ -17,6 +17,7 @@ func TestServeProductionGatewayCanceledBeforeListenClosesDependencies(t *testing
 		ControlPlaneURL: "https://gateway-control.zasp.example",
 		OrganizationID:  gatewayRuntimeID(1), WorkspaceID: gatewayRuntimeID(2), EnvironmentID: gatewayRuntimeID(3), DeviceID: gatewayRuntimeID(4), CredentialID: gatewayRuntimeID(5),
 		PrivateKeyFile: filepath.Join(directory, "credential.json"), PolicyKeysFile: filepath.Join(directory, "keys.json"), PolicyCacheFile: filepath.Join(directory, "cache.json"), EvidenceStoreDirectory: filepath.Join(directory, "evidence"), EvidenceMaximumBytes: 8 << 30, BootstrapFailureMode: "closed",
+		ProxyUpstreamURL: "https://tools.customer.example/v1/actions", ProxyAllowedCIDRs: []string{"203.0.113.0/24"}, ProxyClientTokenFile: filepath.Join(directory, "proxy-token"),
 		MaximumRequestBytes: 16 * 1024, MaximumPendingEvents: 16, OperationTimeout: time.Second, SyncInterval: time.Second, ShutdownTimeout: time.Second,
 	}
 	closed := 0
@@ -46,6 +47,7 @@ func TestServeProductionGatewayRejectsMissingOperationalMetrics(t *testing.T) {
 		ControlPlaneURL: "https://gateway-control.zasp.example",
 		OrganizationID:  gatewayRuntimeID(1), WorkspaceID: gatewayRuntimeID(2), EnvironmentID: gatewayRuntimeID(3), DeviceID: gatewayRuntimeID(4), CredentialID: gatewayRuntimeID(5),
 		PrivateKeyFile: filepath.Join(directory, "credential.json"), PolicyKeysFile: filepath.Join(directory, "keys.json"), PolicyCacheFile: filepath.Join(directory, "cache.json"), EvidenceStoreDirectory: filepath.Join(directory, "evidence"), EvidenceMaximumBytes: 8 << 30, BootstrapFailureMode: "closed",
+		ProxyUpstreamURL: "https://tools.customer.example/v1/actions", ProxyAllowedCIDRs: []string{"203.0.113.0/24"}, ProxyClientTokenFile: filepath.Join(directory, "proxy-token"),
 		MaximumRequestBytes: 16 * 1024, MaximumPendingEvents: 16, OperationTimeout: time.Second, SyncInterval: time.Second, ShutdownTimeout: time.Second,
 	}
 	dependencies := productionGatewayDependencies{

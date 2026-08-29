@@ -9,6 +9,9 @@ runtimeGateway:
   credentialID: ""
   credentialSecretName: ""
   policyKeysSecretName: ""
+  proxyClientTokenSecretName: ""
+  proxyUpstreamURL: ""
+  proxyAllowedCIDRs: []
   policyCache:
     maximumBytes: 67108864
     storageClassName: ""

@@ -59,6 +59,9 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
     ZASP_GATEWAY_POLICY_CACHE_FILE: "/var/lib/zasp/policy/cache.json",
     ZASP_GATEWAY_EVIDENCE_STORE_DIRECTORY: "/var/lib/zasp/policy/evidence",
     ZASP_GATEWAY_EVIDENCE_MAX_BYTES: "8589934592",
+    ZASP_GATEWAY_PROXY_UPSTREAM_URL: edgeRelease.proxyUpstreamURL,
+    ZASP_GATEWAY_PROXY_ALLOWED_CIDRS: edgeRelease.proxyAllowedCIDRs.join(","),
+    ZASP_GATEWAY_PROXY_CLIENT_TOKEN_FILE: "/var/run/secrets/zasp-config/proxy-token",
     ZASP_GATEWAY_BOOTSTRAP_FAILURE_MODE: "closed", ZASP_GATEWAY_MAX_REQUEST_BYTES: "65536",
     ZASP_GATEWAY_MAX_PENDING_EVENTS: "1024", ZASP_GATEWAY_OPERATION_TIMEOUT: "10s",
     ZASP_GATEWAY_SYNC_INTERVAL: "30s", ZASP_GATEWAY_SHUTDOWN_TIMEOUT: "15s",
@@ -66,8 +69,10 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   assert.doesNotMatch(JSON.stringify(deployment), /ZASP_(?:POSTGRES|DATABASE)|postgres|DATABASE_URL/);
   assert.deepEqual(pod.volumes.find(({ name }) => name === "credential-source").secret, { defaultMode: 288, secretName: edgeRelease.credentialSecretName });
   assert.deepEqual(pod.volumes.find(({ name }) => name === "policy-keys-source").secret, { defaultMode: 288, secretName: edgeRelease.policyKeysSecretName });
+  assert.deepEqual(pod.volumes.find(({ name }) => name === "proxy-token-source").secret, { defaultMode: 288, secretName: edgeRelease.proxyClientTokenSecretName });
   assert.match(pod.initContainers[0].args[0], /cp \/source\/credential\/credential\.json \/config\/credential\.json/);
   assert.match(pod.initContainers[0].args[0], /chmod 600 \/config\/credential\.json \/config\/policy-keys\.json/);
+  assert.match(pod.initContainers[0].args[0], /cp \/source\/proxy\/token \/config\/proxy-token/);
   assert.equal(container.volumeMounts.some(({ name }) => name === "credential-source" || name === "policy-keys-source"), false);
   assert.equal(pod.volumes.find(({ name }) => name === "policy-cache").persistentVolumeClaim.claimName, "runtime-gateway-cache");
   const claim = one(resources, "PersistentVolumeClaim", "runtime-gateway-cache");
@@ -77,6 +82,8 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   assert.equal(resources.some(({ kind }) => kind === "PodDisruptionBudget"), false);
   const egress = one(resources, "NetworkPolicy", "runtime-gateway-control-plane");
   assert.deepEqual(egress.spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)), edgeRelease.controlPlaneCIDRs);
+  const proxyEgress = one(resources, "NetworkPolicy", "runtime-gateway-proxy-upstream");
+  assert.deepEqual(proxyEgress.spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock.cidr)), edgeRelease.proxyAllowedCIDRs);
   const monitoring = one(resources, "NetworkPolicy", "runtime-gateway-monitoring");
   assert.deepEqual(monitoring.spec.ingress[0].ports, [{ protocol: "TCP", port: 8081 }]);
   assert.equal(one(resources, "ServiceMonitor", "runtime-gateway").spec.endpoints[0].path, "/metrics");
@@ -389,7 +396,7 @@ test("production release renders private Nango dependency plus a fail-closed loc
 test("rendered release rejects an unreviewed job identity", async () => {
   const resources = await renderRelease(release);
   const names = resources.filter(({ kind }) => kind === "Job").map(({ metadata }) => metadata.name).sort();
-  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v27", "nango-migrate", "zasp-canary-secret-sync"]);
+  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v28", "nango-migrate", "zasp-canary-secret-sync"]);
   assert.throws(() => validateRenderedRelease([...resources, {
     apiVersion: "batch/v1",
     kind: "Job",
@@ -470,9 +477,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.deepEqual(one(resources, "Service", "agentsec-api").spec.ports.map(({ name, port }) => [name, port]), [["product", 8080], ["internal", 8081]]);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Ingress").map(({ metadata }) => metadata.name).sort(), ["zasp-product", "zasp-runtime"]);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Service" && ["neo4j", "nango", "otel-collector"].includes(metadata.name) && metadata.annotations?.["service.beta.kubernetes.io/aws-load-balancer-type"]), false);
-  assert.equal(one(resources, "Job", "agentsec-schema-v27").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
-  assert.match(one(resources, "Job", "agentsec-schema-v27").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
-  const migration = one(resources, "Job", "agentsec-schema-v27");
+  assert.equal(one(resources, "Job", "agentsec-schema-v28").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.match(one(resources, "Job", "agentsec-schema-v28").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
+  const migration = one(resources, "Job", "agentsec-schema-v28");
   assert.equal(migration.spec.template.spec.serviceAccountName, "agentsec-migration");
   assert.equal(migration.spec.template.spec.containers[0].env.some(({ valueFrom }) => valueFrom?.secretKeyRef), false);
   assert.equal(migration.spec.template.spec.containers[0].volumeMounts[0].mountPath, "/var/run/secrets/zasp-migration");
@@ -506,14 +513,15 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_SECURITY_AGENT_API_DB_PRINCIPAL: "zasp_security_agent_api_runtime",
     ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL: "zasp_security_agent_worker_runtime",
     ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL: "zasp_security_agent_action_worker_runtime",
+    ZASP_POLICY_DEPLOYMENT_DB_PRINCIPAL: "zasp_policy_deployment_worker_runtime",
   });
-  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v27", "-10"]]) {
+  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v28", "-10"]]) {
     const resource = one(resources, kind, name);
     assert.equal(resource.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
     assert.equal(resource.metadata.annotations["helm.sh/hook-weight"], weight);
   }
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "27");
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "27");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "28");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "28");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
   const apiSecretProvider = one(resources, "SecretProviderClass", release.secretProviderClass);
   assert.equal(apiSecretProvider.spec.secretObjects[0].data.length, 9);
@@ -620,9 +628,49 @@ test("release runs temporary policy actions with a separate signing identity", a
   assert.doesNotMatch(policy, /Resource\s*=\s*"\*"|s3:|sqs:|es:|sts:/);
 });
 
+test("release deploys the central policy writer with one exact signing identity", async () => {
+  const resources = await renderRelease(release);
+  const deployment = one(resources, "Deployment", "agentsec-policy-deployment");
+  const pod = deployment.spec.template.spec;
+  const container = pod.containers[0];
+
+  assert.equal(deployment.spec.replicas, 2);
+  assert.equal(pod.serviceAccountName, "zasp-policy-deployment");
+  assert.equal(one(resources, "ServiceAccount", "zasp-policy-deployment").metadata.annotations["eks.amazonaws.com/role-arn"], "arn:aws:iam::123456789012:role/zasp-production-policy-deployment-worker");
+  assert.deepEqual(envOf(deployment), {
+    ZASP_WORKER_MODE: "policy-deployment",
+    ZASP_DATABASE_AUTHORITY: "zasp_policy_deployment_worker",
+    ZASP_WORKER_ID: "fieldRef:metadata.name",
+    ZASP_POLL_INTERVAL: "1s",
+    ZASP_LEASE_DURATION: "60s",
+    ZASP_BATCH_SIZE: "8",
+    ZASP_SHUTDOWN_TIMEOUT: "20s",
+    ZASP_GATEWAY_SIGNING_KEY_ID: "gateway-key-01",
+    ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE: "/var/run/secrets/zasp-policy-deployment/gateway-signing-private-key",
+  });
+  assert.match(container.args[0], /export ZASP_POSTGRES_DSN="\$\(cat \/var\/run\/secrets\/zasp-policy-deployment\/postgres-dsn\)"/);
+  assert.equal(one(resources, "SecretProviderClass", "zasp-production-policy-deployment-secrets").spec.secretObjects[0].data.length, 2);
+  assert.equal(one(resources, "Service", "agentsec-policy-deployment").spec.ports[0].port, 8081);
+  assert.equal(one(resources, "PodDisruptionBudget", "agentsec-policy-deployment").spec.minAvailable, 1);
+  assert.equal(one(resources, "HorizontalPodAutoscaler", "agentsec-policy-deployment").spec.maxReplicas, 6);
+  assert.equal(one(resources, "ServiceMonitor", "agentsec-policy-deployment").spec.endpoints[0].path, "/metrics");
+  assert.match(JSON.stringify(one(resources, "PrometheusRule", "zasp-production-slos")), /ZaspPolicyDeploymentUnavailable.*agentsec-policy-deployment/);
+
+  const network = one(resources, "NetworkPolicy", "policy-deployment-database");
+  assert.deepEqual(network.spec.podSelector.matchLabels, { "app.kubernetes.io/name": "agentsec-policy-deployment" });
+  assert.deepEqual(network.spec.egress[0].ports, [{ protocol: "TCP", port: 5432 }]);
+
+  const terraform = await readFile(new URL("../staging/main.tf", import.meta.url), "utf8");
+  const policyStart = terraform.indexOf('resource "aws_iam_role_policy" "policy_deployment_worker"');
+  const policy = terraform.slice(policyStart, terraform.indexOf("\nresource ", policyStart + 1));
+  assert.match(policy, /postgres-policy-deployment-worker-dsn/);
+  assert.match(policy, /gateway-policy-signing-private-key/);
+  assert.doesNotMatch(policy, /Resource\s*=\s*"\*"|s3:|sqs:|es:|sts:/);
+});
+
 test("release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies", async () => {
   const resources = await renderRelease(release);
-  const workloadNames = ["agentsec-api", "agentsec-attack-lab-controller", "agentsec-attack-lab-outbox", "agentsec-attack-lab-proxy", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-event-ingest", "agentsec-gateway-control", "agentsec-outbox-publisher", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "agentsec-recovery-backup", "agentsec-recovery-backup-outbox", "agentsec-recovery-restore", "agentsec-recovery-restore-outbox", "agentsec-red-team-adapter", "agentsec-red-team-outbox", "agentsec-red-team-worker", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection", "agentsec-security-agent", "agentsec-security-agent-action", "nango", "otel-collector", "web"];
+  const workloadNames = ["agentsec-api", "agentsec-attack-lab-controller", "agentsec-attack-lab-outbox", "agentsec-attack-lab-proxy", "agentsec-discovery-scheduler", "agentsec-discovery-worker", "agentsec-event-ingest", "agentsec-gateway-control", "agentsec-outbox-publisher", "agentsec-policy-deployment", "agentsec-projection-graph", "agentsec-projection-risk", "agentsec-projection-search", "agentsec-recovery-backup", "agentsec-recovery-backup-outbox", "agentsec-recovery-restore", "agentsec-recovery-restore-outbox", "agentsec-red-team-adapter", "agentsec-red-team-outbox", "agentsec-red-team-worker", "agentsec-runtime-archive", "agentsec-runtime-complete", "agentsec-runtime-coordinator", "agentsec-runtime-correlation", "agentsec-runtime-index", "agentsec-runtime-outbox", "agentsec-runtime-projection", "agentsec-security-agent", "agentsec-security-agent-action", "nango", "otel-collector", "web"];
   assert.deepEqual(resources.filter(({ kind }) => kind === "Deployment").map(({ metadata }) => metadata.name).sort(), workloadNames);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Service").map(({ metadata }) => metadata.name).sort(), workloadNames);
   for (const name of workloadNames) {
@@ -636,7 +684,7 @@ test("release applies non-root rollout, zone and host spread, drain, PDB, and de
     assert.equal(deployment.spec.template.spec.containers[0].lifecycle.preStop.exec.command.at(-1), "sleep 10");
     if (name !== "web" && name !== "nango" && name !== "otel-collector") {
       const shutdown = deployment.spec.template.spec.containers[0].env.find(({ name: key }) => ["ZASP_SHUTDOWN_TIMEOUT", "ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT", "ZASP_GATEWAY_CONTROL_SHUTDOWN_TIMEOUT", "ZASP_RED_TEAM_ADAPTER_SHUTDOWN_TIMEOUT", "ZASP_ATTACK_LAB_PROXY_SHUTDOWN_TIMEOUT"].includes(key));
-      assert.equal(shutdown.value, name === "agentsec-security-agent" || name === "agentsec-security-agent-action" || name.startsWith("agentsec-recovery-") ? "20s" : "15s");
+      assert.equal(shutdown.value, name === "agentsec-security-agent" || name === "agentsec-security-agent-action" || name === "agentsec-policy-deployment" || name.startsWith("agentsec-recovery-") ? "20s" : "15s");
       assert.ok(10 + Number.parseInt(shutdown.value, 10) + 5 <= deployment.spec.template.spec.terminationGracePeriodSeconds);
     }
     assert.deepEqual(deployment.spec.template.spec.topologySpreadConstraints.map(({ topologyKey }) => topologyKey), ["topology.kubernetes.io/zone", "kubernetes.io/hostname"]);
@@ -1031,7 +1079,7 @@ test("release isolates Attack Lab execution behind a proxy-only Fargate authorit
   assert.equal(trust.metadata.namespace, "zasp-attack-lab");
   assert.match(trust.data["proxy-ca.crt"], /^-----BEGIN CERTIFICATE-----/);
 
-  const migration = one(resources, "Job", "agentsec-schema-v27");
+  const migration = one(resources, "Job", "agentsec-schema-v28");
   assert.equal(envOf(migration).ZASP_ATTACK_LAB_CONTROLLER_DB_PRINCIPAL, "zasp_attack_lab_controller_runtime");
   assert.equal(envOf(migration).ZASP_ATTACK_LAB_OUTBOX_DB_PRINCIPAL, "zasp_attack_lab_outbox_runtime");
   assert.equal(envOf(migration).ZASP_ATTACK_LAB_PROXY_DB_PRINCIPAL, "zasp_attack_lab_proxy_runtime");
@@ -1168,6 +1216,7 @@ test("release renders read-only synthetic and exact SLO budgets without credenti
     ["ZaspDiscoveryWorkerUnavailable", "agentsec-discovery-worker"],
     ["ZaspSecurityAgentUnavailable", "agentsec-security-agent"],
     ["ZaspSecurityAgentActionUnavailable", "agentsec-security-agent-action"],
+    ["ZaspPolicyDeploymentUnavailable", "agentsec-policy-deployment"],
     ["ZaspOutboxPublisherUnavailable", "agentsec-outbox-publisher"],
     ["ZaspProjectionRiskUnavailable", "agentsec-projection-risk"],
     ["ZaspProjectionGraphUnavailable", "agentsec-projection-graph"],
@@ -1178,7 +1227,7 @@ test("release renders read-only synthetic and exact SLO budgets without credenti
     assert.match(availability.expr, /absent\(/);
   }
   for (const [alert, metric] of [
-    ["ZaspTask4WorkerDependencyNotReady", 'agentsec_ready{namespace="agentsec",service=~"agentsec-(discovery-(scheduler|worker)|security-agent(-action)?|outbox-publisher|projection-(risk|graph|search))"} == 0'],
+    ["ZaspTask4WorkerDependencyNotReady", 'agentsec_ready{namespace="agentsec",service=~"agentsec-(discovery-(scheduler|worker)|security-agent(-action)?|policy-deployment|outbox-publisher|projection-(risk|graph|search))"} == 0'],
     ["ZaspProjectionBacklogAge", "zasp_worker_projection_backlog_age_seconds"],
     ["ZaspWorkerLeaseLoss", "zasp_worker_lease_loss_total"],
     ["ZaspWorkerExhaustion", "zasp_worker_exhaustion_total"],

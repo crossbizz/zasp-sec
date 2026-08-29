@@ -352,7 +352,7 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 	default:
 		return gatewayEvaluationResult{}, errGatewayRuntime
 	}
-	if len(request.Classification) == 8 && result.Decision != "block" {
+	if request.Classification["capability_category"] != "" && result.Decision != "block" {
 		return gatewayEvaluationResult{}, errGatewayRuntime
 	}
 
@@ -393,7 +393,7 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 		PolicyVersion:  result.PolicyVersion,
 		Decision:       result.Decision,
 		ActionKind:     request.ActionKind,
-		PolicyIDs:      append([]string(nil), result.MatchedPolicyIDs...),
+		PolicyIDs:      cloneGatewayStringSlice(result.MatchedPolicyIDs),
 		Classification: cloneGatewayStrings(request.Classification),
 		OccurredAt:     now,
 	}
@@ -841,7 +841,7 @@ func validGatewayEvaluationRequest(request gatewayEvaluationRequest) bool {
 		len(request.Attributes) < 1 || len(request.Attributes) > 8 || !validGatewayClassification(request.Classification) {
 		return false
 	}
-	allowed := map[string]struct{}{"resource.class": {}, "principal.class": {}, "session_id": {}}
+	allowed := map[string]struct{}{"resource.class": {}, "principal.class": {}, "session_id": {}, "action": {}, "resource": {}, "principal_id": {}, "agent_id": {}, "environment_id": {}, "mcp.method": {}}
 	if request.ActionKind == "http" {
 		allowed["http.method"] = struct{}{}
 		allowed["http.route_class"] = struct{}{}
@@ -861,6 +861,11 @@ func validGatewayEvaluationRequest(request gatewayEvaluationRequest) bool {
 	}
 	if sessionID, present := request.Attributes["session_id"]; present && !validGatewayProductID(sessionID) {
 		return false
+	}
+	for _, key := range []string{"principal_id", "agent_id", "environment_id"} {
+		if value, present := request.Attributes[key]; present && !validGatewayProductID(value) {
+			return false
+		}
 	}
 	attributeSession, attributeHasSession := request.Attributes["session_id"]
 	classificationSession, classificationHasSession := request.Classification["session_id"]
@@ -947,6 +952,15 @@ func cloneGatewayStrings(values map[string]string) map[string]string {
 	return result
 }
 
+func cloneGatewayStringSlice(values []string) []string {
+	if values == nil {
+		return nil
+	}
+	result := make([]string, len(values))
+	copy(result, values)
+	return result
+}
+
 func cloneGatewayEvaluationResult(value gatewayEvaluationResult) gatewayEvaluationResult {
 	if value.MatchedPolicyIDs != nil {
 		matched := make([]string, len(value.MatchedPolicyIDs))
@@ -957,7 +971,7 @@ func cloneGatewayEvaluationResult(value gatewayEvaluationResult) gatewayEvaluati
 }
 
 func cloneGatewayDecisionEvent(value gatewayDecisionEvent) gatewayDecisionEvent {
-	value.PolicyIDs = append([]string(nil), value.PolicyIDs...)
+	value.PolicyIDs = cloneGatewayStringSlice(value.PolicyIDs)
 	value.Classification = cloneGatewayStrings(value.Classification)
 	return value
 }

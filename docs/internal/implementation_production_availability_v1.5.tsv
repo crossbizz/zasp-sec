@@ -247,7 +247,7 @@ M3	M3-50	Complete	production-available	T10-product-ui	shipped sensor list, detai
 M3	M3-51	Complete	production-available	T10-product-ui	shipped idempotent enroll, version-fenced update/rotate/delete, one-time credential, and fresh-auth controls pass lifecycle UI tests
 M3	M3-52a	Complete	production-available	T04-discovery-worker	production evidence: combined AWS, Kubernetes, GitHub, and Okta fixtures traverse production provider clients, canonical collection, manifest-last artifacts, and worker decoding under race at 1f2031f
 M3	M3-52b	Complete	production-available	T06-runtime-data-plane	installed-browser E2E proves scoped enrollment, authenticated heartbeat, healthy kernel/capability coverage, version-pinned rotation, reload, deletion, and no persisted token
-M3	M3-52c	Complete	component-only	T06-runtime-data-plane	audited component-only proof: M3 OTLP eBPF ingest E2E
+M3	M3-52c	Complete	production-available	T06-runtime-data-plane	production evidence: production-composed sensor enrollment and runtime ingest boundaries, authenticated heartbeat, durable replay, and installed-Chrome lifecycle pass the schema-v28 combined E2E
 M3	M3-52d	Complete	component-only	T04-discovery-worker	audited component-only proof: M3 queue index E2E
 M3	M3-52e	Complete	production-available	T04-discovery-worker	production evidence: M3 freshness degrade E2E; verified by Task 4 source/deploy review and focused race/release gates
 M3	M3-52	Blocked	blocked/external	EXT-human-observation	audited external evidence gate: M3 gate
@@ -393,24 +393,24 @@ M6	M6-15	Complete	production-available	PROD-current-composition	audited shipped 
 M6	M6-16	Complete	production-available	T06-runtime-data-plane	production evidence: tenant-scoped listPolicyDecisions persists and returns exact policy IDs with stable paging; installed-Chrome schema-v27 E2E
 M6	M6-17	Complete	production-available	T06-runtime-data-plane	production evidence: signed bounded OpenSearch query verifies exact index mapping and marker, tenant scope, limit, and one matching historical action; installed-Chrome E2E
 M6	M6-18	Complete	production-available	PROD-current-composition	audited shipped composition: rollout state machine
-M6	M6-19	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime HTTP proxy
-M6	M6-20	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime MCP parser
-M6	M6-21	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime action context
-M6	M6-22	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime Block response
-M6	M6-23	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime Monitor event
+M6	M6-19	Complete	production-available	T06-runtime-data-plane	production evidence: composed runtime gateway preserves allowlisted HTTP method, escaped path, query, body, and response through a pinned TLS upstream in the schema-v28 combined E2E
+M6	M6-20	Complete	production-available	T06-runtime-data-plane	production evidence: shipped MCP route uses the strict bounded JSON-RPC parser and fixed POST-only upstream contract; focused race and release composition gates pass
+M6	M6-21	Complete	production-available	T06-runtime-data-plane	production evidence: composed gateway binds principal, agent, session, environment, action, resource, route, and capability context before policy evaluation
+M6	M6-22	Complete	production-available	T06-runtime-data-plane	production evidence: schema-v28 combined E2E proves a signed Block response with stable correlation and zero upstream calls
+M6	M6-23	Complete	production-available	T06-runtime-data-plane	production evidence: composed gateway permits non-blocking decisions only through durable metadata-only evidence and exact replay-floor advancement; disk-backed race gates pass
 M6	M6-24	Complete	production-available	T06-runtime-data-plane	production evidence: runtime decision internal API; verified by Task 6 source/deploy review and focused race/release gates
 M6	M6-25	Complete	production-available	T06-runtime-data-plane	production evidence: policy bundle fallback; verified by Task 6 source/deploy review and focused race/release gates
 M6	M6-26	Complete	production-available	T06-runtime-data-plane	production evidence: policy latency benchmark; verified by Task 6 source/deploy review and focused race/release gates
 M6	M6-27	Complete	production-available	PROD-current-composition	audited shipped composition: Policies list UI
 M6	M6-28	Complete	production-available	PROD-current-composition	audited shipped composition: Policy wizard UI
 M6	M6-29	Complete	production-available	PROD-current-composition	audited shipped composition: Policy detail UI
-M6	M6-30	Complete	component-only	T06-runtime-data-plane	audited component-only proof: re-test state update
-M6	M6-31a	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy create simulate gate
-M6	M6-31b	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy monitor gate
-M6	M6-31c	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy enforce gate
-M6	M6-31d	Complete	component-only	T06-runtime-data-plane	audited component-only proof: policy retest gate
+M6	M6-30	Complete	production-available	T06-runtime-data-plane	production evidence: blocked runtime capability evidence survives browser reload while the authoritative reachability edge remains present in the schema-v28 combined E2E
+M6	M6-31a	Complete	production-available	T06-runtime-data-plane	production evidence: installed-Chrome policy create and bounded simulation complete through shipped APIs with durable lost-response recovery
+M6	M6-31b	Complete	production-available	T06-runtime-data-plane	production evidence: installed-Chrome monitor rollout and central signed deployment complete through production authorities
+M6	M6-31c	Complete	production-available	T06-runtime-data-plane	production evidence: installed-Chrome enforcement drives a signed temporary Block through the composed gateway with zero upstream side effect
+M6	M6-31d	Complete	production-available	T06-runtime-data-plane	production evidence: re-test records the exact blocked capability event, retains reachability, and survives reload
 M6	M6-31e	Complete	production-available	T06-runtime-data-plane	production cached-outage gate: signed Block decision survives offline restart, persists exact decision evidence and bounded lost-response replay, rejects wall-clock rollback, drains under monotonic authority, and quarantines out-of-window evidence without falsifying timestamps
-M6	M6-31	Complete	component-only	T06-runtime-data-plane	audited component-only proof: M6 gate
+M6	M6-31	Complete	production-available	T06-runtime-data-plane	production evidence: full create, simulate, monitor, enforce, retest, cleanup, cached-outage, restart, and browser reload gate passes against disposable schema-v28 PostgreSQL
 M7	M7-01	Complete	production-available	PROD-current-composition	audited shipped composition: session projection
 M7	M7-02	Complete	production-available	PROD-current-composition	audited shipped composition: API listSessions
 M7	M7-03	Complete	production-available	PROD-current-composition	audited shipped composition: API getSession
@@ -674,7 +674,7 @@ M8	M8-42d	Complete	component-only	T14-data-workflows	audited component-only proo
 M8	M8-42e	Complete	component-only	T14-data-workflows	audited component-only proof: support bundle leakage test
 M8	M8-42f	Complete	component-only	T14-data-workflows	audited component-only proof: evidence leakage policy test
 M8	M8-42	Complete	component-only	T14-data-workflows	audited component-only proof: secret leakage security test
-M8	M8-43	Complete	component-only	T06-runtime-data-plane	audited component-only proof: runtime policy bypass test
+M8	M8-43	Complete	production-available	T06-runtime-data-plane	production evidence: composed gateway blocks before transport, rejects traversal and unsafe methods, and forwards only the fixed TLS authority after signed cleanup; focused race and combined E2E pass
 M8	M8-44	Complete	production-available	T13-attack-lab	production evidence: fail-closed non-production sandbox, exact egress, bounded resources, no-sandbox cancellation and mandatory cleanup gates
 M8	M8-45	Blocked	blocked/external	EXT-image-attestation	audited external evidence gate: SBOM generation
 M8	M8-46	Blocked	blocked/external	EXT-image-attestation	audited external evidence gate: image signing

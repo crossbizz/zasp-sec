@@ -28,6 +28,7 @@ replicas:
   discoveryScheduler: 2
   securityAgent: 2
   securityAgentAction: 2
+  policyDeployment: 2
   projectionRisk: 2
   projectionGraph: 2
   projectionSearch: 2
@@ -63,6 +64,7 @@ secrets:
   schedulerProviderClassName: zasp-production-scheduler-secrets
   securityAgentProviderClassName: zasp-production-security-agent-secrets
   securityAgentActionProviderClassName: zasp-production-security-agent-action-secrets
+  policyDeploymentProviderClassName: zasp-production-policy-deployment-secrets
   projectionRiskProviderClassName: zasp-production-projection-risk-secrets
   projectionGraphProviderClassName: zasp-production-projection-graph-secrets
   projectionSearchProviderClassName: zasp-production-projection-search-secrets
@@ -90,6 +92,7 @@ secrets:
   securityAgentAPIPostgresDSNObjectName: ""
   securityAgentWorkerPostgresDSNObjectName: ""
   securityAgentActionPostgresDSNObjectName: ""
+  policyDeploymentPostgresDSNObjectName: ""
   gatewaySigningPrivateKeyObjectName: ""
   migrationPostgresDSNObjectName: ""
   workerPostgresDSNObjectName: ""
@@ -275,7 +278,7 @@ runtime:
   projectionRoleArn: ""
   completeRoleArn: ""
 schema:
-  expectedVersion: 27
+  expectedVersion: 28
   migrationTimeout: 10m
 databasePrincipals:
   migration: ""
@@ -283,6 +286,7 @@ databasePrincipals:
   securityAgentAPI: ""
   securityAgentWorker: ""
   securityAgentActionWorker: ""
+  policyDeploymentWorker: ""
   discoveryWorker: ""
   runtimeIngest: ""
   runtimeWorker: ""
@@ -325,6 +329,9 @@ serviceAccounts:
     roleArn: ""
   securityAgentAction:
     name: zasp-security-agent-action
+    roleArn: ""
+  policyDeployment:
+    name: zasp-policy-deployment
     roleArn: ""
   projectionSearch:
     name: zasp-projection-search

@@ -48,6 +48,23 @@ func TestComposeWorkerRuntimeMountsOnlyProductionReadyModes(t *testing.T) {
 	}
 }
 
+func TestComposePolicyDeploymentWorkerRuntimeBindsV28AuthorityAndSigningKey(t *testing.T) {
+	_, privateKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dependencies, err := composePolicyDeploymentWorkerRuntime(validPolicyDeploymentRuntimeConfig(), readyWorkerDatabase{}, privateKey)
+	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
+		t.Fatalf("policy deployment dependencies=%#v err=%v", dependencies, err)
+	}
+	if err := dependencies.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose(t *testing.T) {
 	closed := false
 	discovery := &productionDiscoveryDependencies{
@@ -623,6 +640,14 @@ func validSecurityAgentActionRuntimeConfig() workerRuntimeConfig {
 	}
 }
 
+func validPolicyDeploymentRuntimeConfig() workerRuntimeConfig {
+	return workerRuntimeConfig{
+		Mode: workerModePolicyDeployment, PostgresDSN: "postgres://policy_deployment@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_policy_deployment_worker", WorkerID: "policy-deployment-01",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 8, ShutdownTimeout: 20 * time.Second,
+		GatewaySigningKeyID: "gateway-key-01", GatewaySigningPrivateFile: "/var/run/secrets/zasp-policy-deployment/gateway-signing-private-key",
+	}
+}
+
 func validDiscoveryRuntimeConfig() workerRuntimeConfig {
 	return workerRuntimeConfig{
 		Mode: workerModeDiscovery, PostgresDSN: "postgres://discovery@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_discovery_worker", WorkerID: "discovery-01",
@@ -745,7 +770,7 @@ func (readyWorkerDatabase) QueryJSON(_ context.Context, statement string, _ ...a
 	if strings.Contains(statement, "jsonb_build_object('ready'") {
 		return json.RawMessage(`{"ready":true}`), nil
 	}
-	if strings.Contains(statement, "zasp_security_agent_temporary_policy_readiness") || strings.Contains(statement, "zasp_security_agent_autonomous_readiness") || strings.Contains(statement, "zasp_security_agent_readiness") {
+	if strings.Contains(statement, "zasp_security_agent_temporary_policy_readiness") || strings.Contains(statement, "zasp_security_agent_autonomous_readiness") || strings.Contains(statement, "zasp_security_agent_readiness") || strings.Contains(statement, "zasp_policy_deployment_execution_readiness") {
 		return json.RawMessage(`{"release":true,"principal":true}`), nil
 	}
 	if strings.Contains(statement, "zasp_runtime_ingest_reconciliation_readiness") || strings.Contains(statement, "zasp_runtime_gateway_reconciliation_readiness") {

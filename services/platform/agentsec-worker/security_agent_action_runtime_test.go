@@ -132,6 +132,24 @@ func TestSecurityAgentActionProcessorFailsClosedWhenDurableReadbackDrifts(t *tes
 	}
 }
 
+func TestSecurityAgentActionProcessorWaitsForCentralPolicyDeploymentBeforeFinishing(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	_, privateKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim := apiserver.TemporaryPolicyEffectClaim{OrganizationID: "pid_70000001-0000-4000-8000-000000000001", WorkspaceID: "pid_70000002-0000-4000-8000-000000000002", EnvironmentID: "pid_70000003-0000-4000-8000-000000000003", RunID: "pid_78000001-0000-4000-8000-000000000001", StepID: "pid_78000002-0000-4000-8000-000000000002", Phase: "apply", InputDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", TTLSeconds: 600, LeaseExpiresAt: now.Add(time.Minute), Targets: []apiserver.TemporaryPolicyTarget{{DeviceID: "pid_78000003-0000-4000-8000-000000000003", CredentialID: "pid_78000004-0000-4000-8000-000000000004", Sequence: 2, PolicyVersion: 2}}}
+	authority := &temporaryPolicyAuthorityFixture{claims: []apiserver.TemporaryPolicyEffectClaim{claim}, finishConflicts: 1}
+	processor, err := newSecurityAgentActionProcessor(securityAgentActionProcessorConfig{Authority: authority, WorkerID: "security-agent-action-1", LeaseSeconds: 60, BatchSize: 10, HeartbeatInterval: 10 * time.Millisecond, KeyID: "gateway-key-01", PrivateKey: privateKey, Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil }, NewProductID: sequentialActionProductIDs()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer processor.Close()
+	if err := processor.RunOnce(context.Background()); err != nil || authority.finishCalls != 2 || len(authority.finished) != 1 {
+		t.Fatalf("err=%v finish_calls=%d finished=%#v", err, authority.finishCalls, authority.finished)
+	}
+}
+
 func TestSecurityAgentActionProcessorDoesNotStrandContainmentWhenConnectorReconciliationFails(t *testing.T) {
 	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 	_, privateKey, err := ed25519.GenerateKey(nil)
@@ -216,6 +234,8 @@ type temporaryPolicyAuthorityFixture struct {
 	reorderReadbackPolicies bool
 	reconcileErr            error
 	reconcileCalls          int
+	finishConflicts         int
+	finishCalls             int
 }
 
 func (*temporaryPolicyAuthorityFixture) Ready(context.Context) error { return nil }
@@ -259,6 +279,11 @@ func (fixture *temporaryPolicyAuthorityFixture) ReadTemporaryPolicyTarget(_ cont
 func (fixture *temporaryPolicyAuthorityFixture) FinishTemporaryPolicyEffect(_ context.Context, claim apiserver.TemporaryPolicyEffectClaim, _, _, resultDigest, _, _ string) (apiserver.TemporaryPolicyFinishResult, error) {
 	fixture.mu.Lock()
 	defer fixture.mu.Unlock()
+	fixture.finishCalls++
+	if fixture.finishConflicts > 0 {
+		fixture.finishConflicts--
+		return apiserver.TemporaryPolicyFinishResult{}, apiserver.ErrRepositoryConflict
+	}
 	fixture.finished = append(fixture.finished, claim)
 	state := "cleanup_pending"
 	if claim.Phase == "cleanup" {

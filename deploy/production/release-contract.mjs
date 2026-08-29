@@ -78,6 +78,7 @@ export async function renderRelease(value) {
     ["serviceAccounts.scheduler.roleArn", `arn:aws:iam::${platformAccountID}:role/zasp-production-discovery-scheduler`],
     ["serviceAccounts.securityAgent.roleArn", `arn:aws:iam::${platformAccountID}:role/zasp-production-security-agent-worker`],
     ["serviceAccounts.securityAgentAction.roleArn", `arn:aws:iam::${platformAccountID}:role/zasp-production-security-agent-action-worker`],
+    ["serviceAccounts.policyDeployment.roleArn", `arn:aws:iam::${platformAccountID}:role/zasp-production-policy-deployment-worker`],
     ["serviceAccounts.projectionRisk.roleArn", value.projectionRisk.roleArn],
     ["serviceAccounts.projectionGraph.roleArn", value.projectionGraph.roleArn],
     ["serviceAccounts.projectionGraphInit.roleArn", value.projectionGraph.initRoleArn],
@@ -110,6 +111,7 @@ export async function renderRelease(value) {
     ["secrets.securityAgentAPIPostgresDSNObjectName", "zasp/production/postgres-security-agent-api-dsn"],
     ["secrets.securityAgentWorkerPostgresDSNObjectName", "zasp/production/postgres-security-agent-worker-dsn"],
     ["secrets.securityAgentActionPostgresDSNObjectName", "zasp/production/postgres-security-agent-action-worker-dsn"],
+    ["secrets.policyDeploymentPostgresDSNObjectName", "zasp/production/postgres-policy-deployment-worker-dsn"],
     ["secrets.gatewaySigningPrivateKeyObjectName", "zasp/production/gateway-policy-signing-private-key"],
     ["secrets.workerPostgresDSNObjectName", "zasp/production/postgres-worker-dsn"],
     ["secrets.schedulerPostgresDSNObjectName", "zasp/production/postgres-scheduler-dsn"],
@@ -154,6 +156,7 @@ export async function renderRelease(value) {
     ["databasePrincipals.securityAgentAPI", "zasp_security_agent_api_runtime"],
     ["databasePrincipals.securityAgentWorker", "zasp_security_agent_worker_runtime"],
     ["databasePrincipals.securityAgentActionWorker", "zasp_security_agent_action_worker_runtime"],
+    ["databasePrincipals.policyDeploymentWorker", "zasp_policy_deployment_worker_runtime"],
     ["databasePrincipals.discoveryWorker", "zasp_discovery_runtime"],
     ["databasePrincipals.runtimeIngest", "zasp_ingest_runtime"],
     ["databasePrincipals.runtimeWorker", "zasp_runtime_worker_runtime"],
@@ -354,10 +357,13 @@ export async function renderCustomerEdgeRelease(value) {
     ["runtimeGateway.credentialID", value.credentialID],
     ["runtimeGateway.credentialSecretName", value.credentialSecretName],
     ["runtimeGateway.policyKeysSecretName", value.policyKeysSecretName],
+    ["runtimeGateway.proxyClientTokenSecretName", value.proxyClientTokenSecretName],
+    ["runtimeGateway.proxyUpstreamURL", value.proxyUpstreamURL],
     ["runtimeGateway.policyCache.storageClassName", value.storageClassName],
     ["sensorAgent.tokenSecretName", value.sensorTokenSecretName],
     ["sensorAgent.stateHostPath", value.stateHostPath],
     ...value.controlPlaneCIDRs.map((cidr, index) => [`network.controlPlaneCIDRs[${index}]`, cidr]),
+    ...value.proxyAllowedCIDRs.map((cidr, index) => [`runtimeGateway.proxyAllowedCIDRs[${index}]`, cidr]),
     ...value.kubernetesAPICIDRs.map((cidr, index) => [`network.kubernetesAPICIDRs[${index}]`, cidr]),
     ...value.nodeCIDRs.map((cidr, index) => [`network.nodeCIDRs[${index}]`, cidr]),
   ];
@@ -396,12 +402,15 @@ export async function renderCustomerEdgeRelease(value) {
 }
 
 function validCustomerEdgeRelease(value) {
-  const keys = ["controlPlaneURL", "image", "sensorImage", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "sensorTokenSecretName", "storageClassName", "controlPlaneCIDRs", "kubernetesAPICIDRs", "nodeCIDRs", "stateHostPath"];
+  const keys = ["controlPlaneURL", "image", "sensorImage", "organizationID", "workspaceID", "environmentID", "deviceID", "credentialID", "credentialSecretName", "policyKeysSecretName", "proxyClientTokenSecretName", "proxyUpstreamURL", "sensorTokenSecretName", "storageClassName", "controlPlaneCIDRs", "proxyAllowedCIDRs", "kubernetesAPICIDRs", "nodeCIDRs", "stateHostPath"];
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== keys.sort().join("\0") || !digestPattern.test(value.image) || !digestPattern.test(value.sensorImage) || value.image === value.sensorImage) return false;
   if (!/^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value.controlPlaneURL)) return false;
   if (![value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID].every((identifier) => productIDPattern.test(identifier)) || new Set([value.organizationID, value.workspaceID, value.environmentID, value.deviceID, value.credentialID]).size !== 5) return false;
-  const secretNames = [value.credentialSecretName, value.policyKeysSecretName, value.sensorTokenSecretName];
-  return secretNames.every((name) => namePattern.test(name)) && new Set(secretNames).size === secretNames.length && namePattern.test(value.storageClassName) && value.stateHostPath === "/var/lib/zasp-sensor" && validCIDRList(value.controlPlaneCIDRs) && validCIDRList(value.kubernetesAPICIDRs) && validCIDRList(value.nodeCIDRs);
+  let proxy;
+  try { proxy = new URL(value.proxyUpstreamURL); } catch { return false; }
+  if (proxy.href !== value.proxyUpstreamURL || proxy.protocol !== "https:" || !hostPattern.test(proxy.hostname) || proxy.username !== "" || proxy.password !== "" || proxy.port !== "" || proxy.pathname === "/" || proxy.search !== "" || proxy.hash !== "") return false;
+  const secretNames = [value.credentialSecretName, value.policyKeysSecretName, value.proxyClientTokenSecretName, value.sensorTokenSecretName];
+  return secretNames.every((name) => namePattern.test(name)) && new Set(secretNames).size === secretNames.length && namePattern.test(value.storageClassName) && value.stateHostPath === "/var/lib/zasp-sensor" && validCIDRList(value.controlPlaneCIDRs) && validGatewayProxyCIDRList(value.proxyAllowedCIDRs) && validCIDRList(value.kubernetesAPICIDRs) && validCIDRList(value.nodeCIDRs);
 }
 
 function validRelease(value) {
@@ -507,6 +516,7 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["agentsec-discovery-worker", "zasp-discovery-worker"],
     ["agentsec-security-agent", "zasp-security-agent"],
     ["agentsec-security-agent-action", "zasp-security-agent-action"],
+    ["agentsec-policy-deployment", "zasp-policy-deployment"],
     ["agentsec-outbox-publisher", "zasp-outbox-publisher"],
     ["agentsec-recovery-backup-outbox", "zasp-recovery-backup-outbox"],
     ["agentsec-recovery-restore-outbox", "zasp-recovery-restore-outbox"],
@@ -541,6 +551,7 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["zasp-discovery-worker", "discovery-worker"],
     ["zasp-security-agent", "security-agent-worker"],
     ["zasp-security-agent-action", "security-agent-action-worker"],
+    ["zasp-policy-deployment", "policy-deployment-worker"],
     ["zasp-outbox-publisher", "outbox"],
     ["zasp-recovery-backup-outbox", "recovery-backup-outbox"],
     ["zasp-recovery-restore-outbox", "recovery-restore-outbox"],
@@ -582,7 +593,7 @@ export function validateRenderedRelease(resources, platformAccountID) {
     if (!rendered || (role === null ? roleArn !== undefined : roleArn !== `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`)) throw new Error("release rejected");
   }
   const jobIdentities = new Map([
-    ["agentsec-schema-v27", "agentsec-migration"],
+    ["agentsec-schema-v28", "agentsec-migration"],
     ["agentsec-projection-graph-init-v1", "agentsec-projection-graph-init"],
     ["agentsec-projection-search-init-v1", "agentsec-projection-search-init"],
     ["nango-migrate", "nango-migrate"],
@@ -619,6 +630,14 @@ function validCABundle(value) {
 function validCIDRList(value) {
   if (!Array.isArray(value) || value.length < 1 || value.length > 16 || new Set(value).size !== value.length) return false;
   return value.every((cidr) => cidrRange(cidr) !== undefined);
+}
+
+function validGatewayProxyCIDRList(value) {
+  if (!validCIDRList(value) || hasCIDROverlap(value)) return false;
+  return value.every((cidr) => {
+    const { first, second, prefix } = cidrRange(cidr);
+    return prefix >= 16 && first !== 0 && first !== 127 && first < 224 && !(first === 169 && second === 254);
+  });
 }
 
 function validPrivateCIDRList(value) {

@@ -38,6 +38,40 @@ type ActionContext struct {
 	Metadata      map[string]string `json:"metadata"`
 }
 
+var gatewayPolicyCapabilities = Capabilities{
+	Triggers: []string{"tool", "runtime", "network", "file", "credential"},
+	Fields:   []string{"action", "resource", "principal_id", "agent_id", "session_id", "environment_id"},
+	Actions:  []Action{ActionMonitor, ActionBlock},
+}
+
+// CompileGatewayPolicy maps the public policy contract onto the runtime
+// gateway vocabulary. Policies owned by another enforcement plane are valid
+// product policies but are not included in a gateway bundle.
+func CompileGatewayPolicy(value Policy) (CompiledPolicy, bool, error) {
+	if Validate(value, gatewayPolicyCapabilities) != nil {
+		return CompiledPolicy{}, false, ErrRejected
+	}
+	if value.Rollout == string(RolloutDraft) || value.Rollout == string(RolloutDisabled) {
+		return CompiledPolicy{}, false, nil
+	}
+	switch value.Trigger {
+	case "tool":
+		value.Trigger = "tool_call"
+	case "runtime":
+		value.Trigger = "http_request"
+	default:
+		return CompiledPolicy{}, false, nil
+	}
+	if value.Rollout == string(RolloutMonitor) {
+		value.Action = ActionMonitor
+	}
+	compiled, err := Compile(value)
+	if err != nil {
+		return CompiledPolicy{}, false, ErrRejected
+	}
+	return compiled, true, nil
+}
+
 func NormalizeActionContext(value ActionContext) (ActionContext, error) {
 	if !bounded(value.PrincipalID, 128) || !bounded(value.AgentID, 128) || !bounded(value.SessionID, 128) || !bounded(value.Action, 64) || !bounded(value.Resource, 256) || !bounded(value.EnvironmentID, 128) || len(value.Metadata) > 32 {
 		return ActionContext{}, ErrRejected
@@ -201,22 +235,36 @@ func ParseMCPAction(source []byte, principalID, agentID, sessionID, environmentI
 		return ActionContext{}, ErrRejected
 	}
 	var value struct {
-		JSONRPC string `json:"jsonrpc"`
-		ID      string `json:"id"`
-		Method  string `json:"method"`
-		Params  struct {
-			Name      string `json:"name"`
-			Arguments struct {
-				Resource string `json:"resource"`
-			} `json:"arguments"`
-		} `json:"params"`
+		JSONRPC string          `json:"jsonrpc"`
+		ID      string          `json:"id"`
+		Method  string          `json:"method"`
+		Params  json.RawMessage `json:"params"`
 	}
 	decoder := json.NewDecoder(bytes.NewReader(source))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&value) != nil || value.JSONRPC != "2.0" || !bounded(value.ID, 128) || value.Method != "tools/call" || !bounded(value.Params.Name, 128) || !bounded(value.Params.Arguments.Resource, 256) || decoder.Decode(&struct{}{}) == nil {
+	if decoder.Decode(&value) != nil || value.JSONRPC != "2.0" || !bounded(value.ID, 128) || value.Method != "tools/call" || len(value.Params) == 0 || decoder.Decode(&struct{}{}) == nil {
 		return ActionContext{}, ErrRejected
 	}
-	return NormalizeActionContext(ActionContext{PrincipalID: principalID, AgentID: agentID, SessionID: sessionID, Action: value.Method, Resource: value.Params.Arguments.Resource, EnvironmentID: environmentID, Metadata: map[string]string{"tool.name": value.Params.Name}})
+	var params struct {
+		Name      string                     `json:"name"`
+		Arguments map[string]json.RawMessage `json:"arguments"`
+	}
+	paramsDecoder := json.NewDecoder(bytes.NewReader(value.Params))
+	paramsDecoder.DisallowUnknownFields()
+	if paramsDecoder.Decode(&params) != nil || paramsDecoder.Decode(&struct{}{}) == nil || !bounded(params.Name, 128) || len(params.Arguments) < 1 || len(params.Arguments) > 64 {
+		return ActionContext{}, ErrRejected
+	}
+	resourceRaw, exists := params.Arguments["resource"]
+	var resource string
+	if !exists || json.Unmarshal(resourceRaw, &resource) != nil || !bounded(resource, 256) {
+		return ActionContext{}, ErrRejected
+	}
+	for key, raw := range params.Arguments {
+		if !bounded(key, 128) || len(raw) == 0 || len(raw) > 8*1024 {
+			return ActionContext{}, ErrRejected
+		}
+	}
+	return NormalizeActionContext(ActionContext{PrincipalID: principalID, AgentID: agentID, SessionID: sessionID, Action: params.Name, Resource: resource, EnvironmentID: environmentID, Metadata: map[string]string{"tool.name": params.Name, "mcp.method": value.Method, "resource": resource}})
 }
 
 type RuntimeDecision struct {

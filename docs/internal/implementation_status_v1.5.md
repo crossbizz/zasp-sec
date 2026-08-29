@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 394 |
-| Component-only | 273 |
+| Production-available | 407 |
+| Component-only | 260 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -150,14 +150,14 @@ production composition, not merely a component proof or external evidence.
 | M1 | 68 | 58 | 10 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 50 | 22 | 0 | 0 |
-| M3 | 75 | 60 | 13 | 2 | 0 |
+| M3 | 75 | 61 | 12 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 20 | 22 | 0 | 0 |
-| M6 | 36 | 25 | 11 | 0 | 0 |
+| M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 21 | 92 | 0 | 0 |
-| M8 | 141 | 34 | 55 | 52 | 0 |
-| **Total** | **728** | **394** | **273** | **61** | **0** |
+| M8 | 141 | 35 | 54 | 52 | 0 |
+| **Total** | **728** | **407** | **260** | **61** | **0** |
 
 ## Prerequisite work
 
