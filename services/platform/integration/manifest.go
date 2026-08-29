@@ -85,6 +85,11 @@ func BuiltinManifests() []ConnectorManifest {
 			Key: "okta", Provider: "Okta", Category: "identity", Description: "Inventory users, groups, applications, and service principals through first-party OAuth with PKCE.", DataTypes: []string{"application", "group", "identity"}, Actions: []string{"inventory_read"}, AuthMode: "okta_oauth_pkce", SetupSchema: []SetupField{{Key: "issuer", Label: "Okta issuer", Type: "uri", Required: true, Description: "Exact customer tenant issuer at https://tenant.okta.com."}}, AccessGuidance: "Grant the fixed read-only directory scopes and restrict the integration account.", TestSemantics: "Verify issuer, subject, scopes, and one bounded directory page.", adapterKey: "okta_first_party_v1", ossName: "okta-api",
 		},
 		{
+			Key: "slack", Provider: "Slack", Category: "collaboration", Description: "Connect one approved Slack workspace through managed authorization and a bounded private proxy.", DataTypes: []string{"workspace"}, Actions: []string{"managed_authorization", "proxy_read"}, AuthMode: "managed_oauth",
+			SetupSchema:    []SetupField{{Key: "workspace_label", Label: "Workspace label", Type: "string", Required: true, Description: "A non-secret label used to identify the approved workspace in the product."}},
+			AccessGuidance: "Authorize only the intended workspace and keep the managed connection scopes read-only.", TestSemantics: "Verify the tenant-bound workspace reference and one allowlisted read-only proxy request.", adapterKey: "private_auth_proxy_v1", ossName: "private-auth-proxy",
+		},
+		{
 			Key: "generic-webhook", Provider: "Generic Webhook", Category: "notification",
 			Description: "Send signed response and approval notifications to one configured HTTPS destination.",
 			DataTypes:   []string{"response", "approval"}, Actions: []string{"response_notification", "approval_response"},
@@ -172,6 +177,11 @@ func (catalog *Catalog) ValidateSetup(key string, configuration map[string]strin
 	case "okta":
 		issuer, err := url.Parse(configuration["issuer"])
 		if err != nil || issuer.Scheme != "https" || issuer.User != nil || issuer.Port() != "" || issuer.Path != "" || issuer.RawQuery != "" || issuer.Fragment != "" || !oktaIssuerHostPattern.MatchString(issuer.Hostname()) {
+			return ErrInvalid
+		}
+		return nil
+	case "slack":
+		if !validText(configuration["workspace_label"], 128) {
 			return ErrInvalid
 		}
 		return nil

@@ -720,14 +720,14 @@ func (stub connectorCapabilitiesStub) ConnectorAvailable(_ context.Context, key 
 func TestWorkflowHandlerIsolatesProviderCapabilityDegradation(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	repository := &workflowRepositoryStub{}
-	handler, err := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now, connectorCapabilitiesStub{"github": true, "okta": false})
+	handler, err := newWorkflowHTTPHandler(repository, []byte("0123456789abcdef0123456789abcdef"), time.Now, connectorCapabilitiesStub{"github": true, "okta": false, "slack": true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	request := workflowRequest(t, identity, testCorrelationID, "listIntegrationCatalog", nil, http.MethodGet, "/api/v1/integration-catalog", "")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"key":"github"`) || strings.Contains(response.Body.String(), `"key":"okta"`) || strings.Contains(response.Body.String(), `"key":"aws"`) || strings.Contains(response.Body.String(), `"key":"kubernetes"`) {
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"key":"github"`) || !strings.Contains(response.Body.String(), `"key":"slack"`) || strings.Contains(response.Body.String(), `"key":"okta"`) || strings.Contains(response.Body.String(), `"key":"aws"`) || strings.Contains(response.Body.String(), `"key":"kubernetes"`) || strings.Contains(strings.ToLower(response.Body.String()), "nango") {
 		t.Fatalf("provider-isolated catalog = %d %s", response.Code, response.Body.String())
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -12,6 +13,46 @@ type resolverFunc func(context.Context, string) ([]net.IP, error)
 
 func (function resolverFunc) LookupIP(ctx context.Context, host string) ([]net.IP, error) {
 	return function(ctx, host)
+}
+
+func TestNangoProxyAllowsOnlyDeclaredCanonicalQueryParameters(t *testing.T) {
+	config := Config{
+		BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production",
+		Entries: []Entry{{
+			Key: "onepassword-events", ProviderHost: "events.1password.com", AuthMode: "api_key",
+			Rules: []Rule{{Method: "GET", PathPrefix: "/api/v2/events", QueryKeys: []string{"cursor", "limit"}}},
+		}},
+	}
+	resolver := resolverFunc(func(context.Context, string) ([]net.IP, error) { return []net.IP{net.ParseIP("13.107.42.14")}, nil })
+	calls := 0
+	client := proxyFunc(func(_ context.Context, request ProxyRequest) (ProxyResponse, error) {
+		calls++
+		if request.RawQuery != "cursor=next_1&limit=1" {
+			t.Fatalf("raw query %q", request.RawQuery)
+		}
+		return ProxyResponse{StatusCode: 200, Body: []byte(`{"items":[]}`)}, nil
+	})
+	adapter, err := NewAdapter(config, resolver, client, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := adapter.ProxyWithQuery(context.Background(), "onepassword-events", "ref:nango/connection-0001", "GET", "/api/v2/events", url.Values{"limit": {"1"}, "cursor": {"next_1"}}, nil); err != nil {
+		t.Fatal(err)
+	}
+	for name, query := range map[string]url.Values{
+		"unknown":   {"target": {"http://169.254.169.254"}},
+		"duplicate": {"limit": {"1", "2"}},
+		"control":   {"cursor": {"next\nvalue"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := adapter.ProxyWithQuery(context.Background(), "onepassword-events", "ref:nango/connection-0001", "GET", "/api/v2/events", query, nil); !errors.Is(err, ErrInvalid) {
+				t.Fatalf("error=%v", err)
+			}
+		})
+	}
+	if calls != 1 {
+		t.Fatalf("proxy calls=%d", calls)
+	}
 }
 
 type proxyFunc func(context.Context, ProxyRequest) (ProxyResponse, error)
@@ -46,6 +87,21 @@ func TestPrivateNangoRegistryRejectsCoreKeysAndAllowsOnlyCataloguedProxyTemplate
 		if _, err := NewAdapter(config, resolver, client, time.Second); !errors.Is(err, ErrInvalid) {
 			t.Fatalf("core key %q error=%v", key, err)
 		}
+	}
+}
+
+func TestPrivateNangoRegistryRejectsDuplicateProxyRules(t *testing.T) {
+	config := Config{
+		BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production",
+		Entries: []Entry{{Key: "slack", ProviderHost: "slack.com", AuthMode: "oauth", Rules: []Rule{
+			{Method: "GET", PathPrefix: "/api/team.", QueryKeys: []string{"cursor"}},
+			{Method: "GET", PathPrefix: "/api/team.", QueryKeys: []string{"limit"}},
+		}}},
+	}
+	resolver := resolverFunc(func(context.Context, string) ([]net.IP, error) { return []net.IP{net.ParseIP("13.107.42.14")}, nil })
+	client := proxyFunc(func(context.Context, ProxyRequest) (ProxyResponse, error) { return ProxyResponse{StatusCode: 200}, nil })
+	if _, err := NewAdapter(config, resolver, client, time.Second); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("duplicate proxy rule accepted: %v", err)
 	}
 }
 

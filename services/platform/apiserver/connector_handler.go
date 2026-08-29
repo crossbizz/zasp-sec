@@ -22,9 +22,10 @@ import (
 var connectorOAuthValuePattern = regexp.MustCompile(`^[A-Za-z0-9._~-]{8,512}$`)
 
 type OAuthSecretMaterial struct {
-	State     string
-	Verifier  []byte
-	ExpiresAt time.Time
+	State            string
+	Verifier         []byte
+	AuthorizationURL string
+	ExpiresAt        time.Time
 }
 
 type ConnectorOAuthSecretStore interface {
@@ -48,6 +49,69 @@ type ConnectorOAuthProvider interface {
 	Revoke(context.Context, string) error
 }
 
+type ConnectorAuthorizationStart struct {
+	Scope                                 domain.Scope
+	PrincipalID, IntegrationID, AttemptID string
+	ConnectorKey, AuthorityProvider       string
+	ProposedState, Challenge              string
+	ExpiresAt                             time.Time
+}
+
+type ConnectorAuthorizationTarget struct {
+	URL, State string
+	ExpiresAt  time.Time
+}
+
+type ConnectorAuthorizationStarter interface {
+	StartAuthorization(context.Context, ConnectorAuthorizationStart) (ConnectorAuthorizationTarget, error)
+}
+
+type ConnectorAuthorizationCompletion struct {
+	Scope                                 domain.Scope
+	PrincipalID, IntegrationID, AttemptID string
+	ConnectorKey, AuthorityProvider       string
+	State, Code                           string
+	Verifier                              []byte
+}
+
+type ConnectorAuthorizationCompleter interface {
+	CompleteAuthorization(context.Context, ConnectorAuthorizationCompletion) (ConnectorOAuthGrant, error)
+}
+
+type ConnectorAuthorizationRecovery struct {
+	Scope                                 domain.Scope
+	PrincipalID, IntegrationID, AttemptID string
+	EffectID                              string
+	ConnectorKey, AuthorityProvider       string
+}
+
+type ConnectorAuthorizationRecoverer interface {
+	RecoverAuthorization(context.Context, ConnectorAuthorizationRecovery) (ConnectorOAuthGrant, error)
+}
+
+type ConnectorAuthorizationDiscard struct {
+	Scope                                 domain.Scope
+	PrincipalID, IntegrationID, AttemptID string
+	EffectID                              string
+	ConnectorKey, AuthorityProvider       string
+	Revoke                                bool
+}
+
+type ConnectorAuthorizationDiscarder interface {
+	DiscardAuthorization(context.Context, ConnectorAuthorizationDiscard) error
+}
+
+type ConnectorAuthorizationRevocation struct {
+	Scope                           domain.Scope
+	IntegrationID, EffectID         string
+	ConnectorKey, AuthorityProvider string
+	ConnectionReference             string
+}
+
+type ConnectorAuthorizationRevoker interface {
+	RevokeAuthorization(context.Context, ConnectorAuthorizationRevocation) error
+}
+
 var ErrConnectorOutcomeNotFound = errors.New("connector outcome not found")
 
 type ConnectorOAuthProviderFactory interface {
@@ -55,10 +119,11 @@ type ConnectorOAuthProviderFactory interface {
 }
 
 type ConnectorOAuthProviderDefinition struct {
-	Provider        ConnectorOAuthProvider
-	Factory         ConnectorOAuthProviderFactory
-	RequestedScopes []string
-	CredentialClass string
+	Provider          ConnectorOAuthProvider
+	Factory           ConnectorOAuthProviderFactory
+	RequestedScopes   []string
+	CredentialClass   string
+	AuthorityProvider string
 }
 
 type connectorWorkflowReader interface {
@@ -167,7 +232,7 @@ func (handler *connectorHTTPHandler) remediateQuarantine(writer http.ResponseWri
 	providerKey, providerConfiguration, workflowOK := authorizedOAuthIntegrationStatus(workflow, integrationID, "degraded", "pending_authorization", "active", "revoking")
 	definition, ready := handler.registry.Provider(request.Context(), providerKey)
 	cleanupErr := error(nil)
-	if workflowErr == nil && workflowOK && providerKey == quarantine.Provider {
+	if workflowErr == nil && workflowOK && ready && definition.AuthorityProvider == quarantine.Provider {
 		switch quarantine.Operation {
 		case "pkce_cleanup":
 			cleanupErr = handler.secrets.Delete(request.Context(), quarantine.ConnectionReference)
@@ -186,7 +251,7 @@ func (handler *connectorHTTPHandler) remediateQuarantine(writer http.ResponseWri
 			cleanupErr = ErrRepositoryUnavailable
 		}
 	}
-	if workflowErr != nil || !workflowOK || providerKey != quarantine.Provider || cleanupErr != nil {
+	if workflowErr != nil || !workflowOK || !ready || definition.AuthorityProvider != quarantine.Provider || cleanupErr != nil {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
@@ -234,22 +299,45 @@ func (handler *connectorHTTPHandler) authorize(writer http.ResponseWriter, reque
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
-	expiresAt := handler.now().UTC().Add(10 * time.Minute)
+	now := handler.now().UTC()
+	expiresAt := now.Add(10 * time.Minute)
 	reference := "ref:oauth/pkce/" + strings.TrimPrefix(attemptID, "pid_")
 	sessionDigest := sha256.Sum256([]byte(cookie.Value))
-	requestDigest := connectorAuthorizationIntentDigest(identity, workflow, integrationID, attemptID, providerKey, providerConfiguration, definition.RequestedScopes)
+	requestDigest := connectorAuthorizationIntentDigest(identity, workflow, integrationID, attemptID, definition.AuthorityProvider, providerConfiguration, definition.RequestedScopes)
 	configurationJSON, configurationErr := json.Marshal(providerConfiguration)
 	if configurationErr != nil {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
 	cleanupID := connectorDeterministicID(identity.Scope, attemptID, "pkce-cleanup")
-	if _, err := handler.repository.StagePKCECleanup(request.Context(), identity.Scope, PKCECleanupStage{ID: cleanupID, IntegrationID: integrationID, Provider: providerKey, Reference: reference, RequestDigest: requestDigest[:], AvailableAt: expiresAt, Reason: "oauth_attempt_expiry"}); err != nil {
+	if _, err := handler.repository.StagePKCECleanup(request.Context(), identity.Scope, PKCECleanupStage{ID: cleanupID, IntegrationID: integrationID, Provider: definition.AuthorityProvider, Reference: reference, RequestDigest: requestDigest[:], AvailableAt: expiresAt, Reason: "oauth_attempt_expiry"}); err != nil {
 		writeProductionError(writer, request, err)
 		return
 	}
-	material, err := handler.secrets.Acquire(request.Context(), reference, OAuthSecretMaterial{State: state, Verifier: []byte(verifier), ExpiresAt: expiresAt}, expiresAt)
-	if err != nil || !connectorOAuthValuePattern.MatchString(material.State) || !connectorPKCEVerifier(material.Verifier) || !material.ExpiresAt.After(handler.now()) || material.ExpiresAt.After(expiresAt.Add(time.Second)) {
+	challengeDigest := sha256.Sum256([]byte(verifier))
+	challenge := rawURLBase64(challengeDigest[:])
+	target := ConnectorAuthorizationTarget{State: state, ExpiresAt: expiresAt}
+	if starter, ok := provider.(ConnectorAuthorizationStarter); ok {
+		target, err = starter.StartAuthorization(request.Context(), ConnectorAuthorizationStart{
+			Scope: identity.Scope, PrincipalID: identity.PrincipalID.String(), IntegrationID: integrationID, AttemptID: attemptID,
+			ConnectorKey: providerKey, AuthorityProvider: definition.AuthorityProvider, ProposedState: state, Challenge: challenge, ExpiresAt: expiresAt,
+		})
+	} else {
+		target.URL, err = provider.AuthorizationURL(state, challenge)
+	}
+	if err != nil || !connectorOAuthValuePattern.MatchString(target.State) || !target.ExpiresAt.After(now) || target.ExpiresAt.After(expiresAt) || !validConnectorAuthorizationTarget(target.URL, target.State) {
+		if _, activateErr := handler.repository.ActivatePKCECleanup(request.Context(), identity.Scope, cleanupID); activateErr != nil {
+			writeProductionError(writer, request, activateErr)
+			return
+		}
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	material, err := handler.secrets.Acquire(request.Context(), reference, OAuthSecretMaterial{State: target.State, Verifier: []byte(verifier), AuthorizationURL: target.URL, ExpiresAt: target.ExpiresAt.UTC()}, target.ExpiresAt.UTC())
+	if material.AuthorizationURL == "" && material.State == target.State {
+		material.AuthorizationURL = target.URL
+	}
+	if err != nil || !connectorOAuthValuePattern.MatchString(material.State) || !connectorPKCEVerifier(material.Verifier) || !material.ExpiresAt.After(handler.now()) || material.ExpiresAt.After(expiresAt.Add(time.Second)) || !validConnectorAuthorizationTarget(material.AuthorizationURL, material.State) {
 		if _, activateErr := handler.repository.ActivatePKCECleanup(request.Context(), identity.Scope, cleanupID); activateErr != nil {
 			writeProductionError(writer, request, activateErr)
 			return
@@ -259,7 +347,7 @@ func (handler *connectorHTTPHandler) authorize(writer http.ResponseWriter, reque
 	}
 	stateDigest := sha256.Sum256([]byte(material.State))
 	attempt, err := handler.repository.StartOAuth(request.Context(), identity, OAuthStart{
-		AttemptID: attemptID, IntegrationID: integrationID, Provider: providerKey, SessionDigest: sessionDigest[:], StateDigest: stateDigest[:], PKCEVerifierReference: reference,
+		AttemptID: attemptID, IntegrationID: integrationID, Provider: definition.AuthorityProvider, SessionDigest: sessionDigest[:], StateDigest: stateDigest[:], PKCEVerifierReference: reference,
 		RequestDigest: requestDigest[:], RequestedScopes: definition.RequestedScopes, ExpiresAt: material.ExpiresAt.UTC(), IntegrationVersion: workflow.Version, Configuration: configurationJSON,
 	})
 	if err != nil {
@@ -270,18 +358,7 @@ func (handler *connectorHTTPHandler) authorize(writer http.ResponseWriter, reque
 		writeProductionError(writer, request, err)
 		return
 	}
-	challengeDigest := sha256.Sum256(material.Verifier)
-	challenge := rawURLBase64(challengeDigest[:])
-	target, err := provider.AuthorizationURL(material.State, challenge)
-	if err != nil || !validConnectorAuthorizationTarget(target, material.State) {
-		if _, activateErr := handler.repository.ActivatePKCECleanup(request.Context(), identity.Scope, cleanupID); activateErr != nil {
-			writeProductionError(writer, request, activateErr)
-			return
-		}
-		writeProductionError(writer, request, ErrRepositoryUnavailable)
-		return
-	}
-	payload, err := json.Marshal(map[string]any{"authorization_attempt_id": attempt.ID, "authorization_url": target, "expires_at": attempt.ExpiresAt.UTC()})
+	payload, err := json.Marshal(map[string]any{"authorization_attempt_id": attempt.ID, "authorization_url": material.AuthorizationURL, "expires_at": attempt.ExpiresAt.UTC()})
 	writeProductionResponse(writer, request, http.StatusOK, payload, err)
 }
 
@@ -318,7 +395,7 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		}
 		return nil
 	}
-	definition, ready := handler.registry.Provider(request.Context(), consumption.Provider)
+	definition, providerKey, ready := handler.registry.ProviderForAuthority(request.Context(), consumption.Provider)
 	if !ready || !equalStringSet(consumption.RequestedScopes, definition.RequestedScopes) {
 		if err := rejectConsumed("authorization_intent_changed"); err != nil {
 			writeProductionError(writer, request, err)
@@ -328,9 +405,9 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		return
 	}
 	workflow, workflowErr := handler.workflows.GetWorkflow(request.Context(), identity.Scope, "integration", consumption.IntegrationID)
-	providerKey, providerConfiguration, integrationOK := authorizedOAuthIntegration(workflow, consumption.IntegrationID)
+	workflowProviderKey, providerConfiguration, integrationOK := authorizedOAuthIntegration(workflow, consumption.IntegrationID)
 	provider, providerConfigErr := connectorOAuthProvider(definition, providerConfiguration)
-	if workflowErr != nil || !integrationOK || providerKey != consumption.Provider || providerConfigErr != nil {
+	if workflowErr != nil || !integrationOK || workflowProviderKey != providerKey || definition.AuthorityProvider != consumption.Provider || providerConfigErr != nil {
 		if err := rejectConsumed("authorization_intent_changed"); err != nil {
 			writeProductionError(writer, request, err)
 			return
@@ -338,7 +415,7 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		writeProductionError(writer, request, ErrRepositoryConflict)
 		return
 	}
-	expectedDigest := connectorAuthorizationIntentDigest(identity, workflow, consumption.IntegrationID, consumption.ID, providerKey, providerConfiguration, definition.RequestedScopes)
+	expectedDigest := connectorAuthorizationIntentDigest(identity, workflow, consumption.IntegrationID, consumption.ID, definition.AuthorityProvider, providerConfiguration, definition.RequestedScopes)
 	if decodeErr != nil || len(requestDigest) != sha256.Size || subtle.ConstantTimeCompare(requestDigest, expectedDigest[:]) != 1 {
 		if err := rejectConsumed("authorization_intent_changed"); err != nil {
 			writeProductionError(writer, request, err)
@@ -370,7 +447,16 @@ func (handler *connectorHTTPHandler) callback(writer http.ResponseWriter, reques
 		writeProductionError(writer, request, err)
 		return
 	}
-	grant, providerErr := provider.Complete(request.Context(), effectID, query.Get("code"), verifier)
+	grant := ConnectorOAuthGrant{}
+	providerErr := error(nil)
+	if completer, ok := provider.(ConnectorAuthorizationCompleter); ok {
+		grant, providerErr = completer.CompleteAuthorization(request.Context(), ConnectorAuthorizationCompletion{
+			Scope: identity.Scope, PrincipalID: identity.PrincipalID.String(), IntegrationID: consumption.IntegrationID, AttemptID: consumption.ID,
+			ConnectorKey: providerKey, AuthorityProvider: definition.AuthorityProvider, State: state, Code: query.Get("code"), Verifier: verifier,
+		})
+	} else {
+		grant, providerErr = provider.Complete(request.Context(), effectID, query.Get("code"), verifier)
+	}
 	clear(verifier)
 	if providerErr != nil || !validConnectorOAuthGrant(grant, definition.CredentialClass) {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
@@ -429,7 +515,7 @@ func authorizedOAuthIntegrationStatus(value WorkflowValue, expectedID string, al
 		}
 		configuration[key] = value
 	}
-	return provider, configuration, providerOK && statusOK && configurationOK && stringIn(provider, "github", "okta") && stringIn(status, allowedStatuses...)
+	return provider, configuration, providerOK && keyPatternForCatalog(provider) && statusOK && configurationOK && stringIn(status, allowedStatuses...)
 }
 
 func connectorOAuthProvider(definition ConnectorOAuthProviderDefinition, configuration map[string]string) (ConnectorOAuthProvider, error) {

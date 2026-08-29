@@ -161,9 +161,16 @@ describe("workflow mutation receipt decoder", () => {
 
 	it("accepts the bounded Nango OAuth provider authority", () => {
 		const value = receipt("completeIntegrationOAuth");
-		value.intent = { ...value.intent, provider: "nango:github-enterprise" };
-		value.result = { ...(value.result as Record<string, unknown>), connector_key: "nango:github-enterprise" };
+		value.intent = { ...value.intent, provider: "nango:slack" };
+		value.result = { ...(value.result as Record<string, unknown>), connector_key: "slack" };
 		expect(decodeWorkflowMutationReceipt(value)).toEqual(value);
+	});
+
+	it("rejects a private Nango authority exposed as the public connector key", () => {
+		const value = receipt("completeIntegrationOAuth");
+		value.intent = { ...value.intent, provider: "nango:slack" };
+		value.result = { ...(value.result as Record<string, unknown>), connector_key: "nango:slack" };
+		expect(() => decodeWorkflowMutationReceipt(value)).toThrow("schema mismatch");
 	});
 
 	it("requires reference authorization receipts to match the current captured scope", () => {

@@ -3,7 +3,9 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +19,29 @@ func fixtureID(t *testing.T, value int) domain.ProductID {
 		t.Fatal(err)
 	}
 	return id
+}
+
+func TestSlackLongTailManifestUsesProductLanguageAndNonSecretSetup(t *testing.T) {
+	catalog, err := NewCatalog(BuiltinManifests())
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := catalog.Search(CatalogFilter{Query: "Slack"})
+	if err != nil || len(items) != 1 || items[0].Key != "slack" || items[0].AuthMode != "managed_oauth" {
+		t.Fatalf("items=%#v error=%v", items, err)
+	}
+	serialized, _ := json.Marshal(items[0])
+	for _, forbidden := range []string{"nango", "service secret", "provider credential"} {
+		if strings.Contains(strings.ToLower(string(serialized)), forbidden) {
+			t.Fatalf("manifest leaked %q: %s", forbidden, serialized)
+		}
+	}
+	if err := catalog.ValidateSetup("slack", map[string]string{"workspace_label": "Security operations"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := catalog.ValidateSetup("slack", map[string]string{"workspace_label": ""}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("empty label error=%v", err)
+	}
 }
 
 func fixtureScope(t *testing.T) domain.Scope {

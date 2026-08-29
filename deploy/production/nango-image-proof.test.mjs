@@ -21,6 +21,8 @@ test("pinned Nango image contains the migration entrypoint and preserves verify-
     image: nangoImage,
     migrationEntrypoint: "packages/server/dist/migrate.js",
     databaseTLS: "verify-full",
+    oauthCallback: "product-bound",
+    connectURL: "private-service",
     authEnabled: true,
     gracefulShutdown: true,
     readOnlyRoot: true,

@@ -180,15 +180,28 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	connectorRegistry, err := apiserver.NewConnectorProviderRegistry(map[string]apiserver.ConnectorOAuthProviderDefinition{
+	connectorProviders := map[string]apiserver.ConnectorOAuthProviderDefinition{
 		"github": {Provider: &githubOAuthProvider{adapter: githubAdapter}, RequestedScopes: []string{"actions:read", "contents:read", "metadata:read"}, CredentialClass: "github_installation_reference"},
 		"okta":   {Factory: &oktaOAuthFactory{clientID: config.OktaClientID, secretReference: config.OktaSecretReference, callback: config.PublicOrigin + "/api/v1/integrations/oauth/callback", exchange: &oktaExchangeClient{http: providerHTTP, secrets: providerSecrets}, timeout: config.ProviderTimeout}, RequestedScopes: []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"}, CredentialClass: "okta_refresh_reference"},
-	}, map[string]apiserver.ConnectorCapabilityCheck{
+	}
+	connectorChecks := map[string]apiserver.ConnectorCapabilityCheck{
 		"github": func(ctx context.Context) error {
 			return errors.Join(providerSecrets.ready(ctx, config.GitHubSecretReference), providerSecrets.ready(ctx, config.GitHubPrivateKeyReference))
 		},
 		"okta": func(ctx context.Context) error { return providerSecrets.ready(ctx, config.OktaSecretReference) },
-	})
+	}
+	nangoSecrets, err := newNangoServiceSecretResolver("/var/run/secrets/zasp-nango/service-key")
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	nangoCloser, err := addProductionNangoProvider(config, nangoSecrets, connectorProviders, connectorChecks)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	if nangoCloser != nil {
+		connectorResources = append(connectorResources, nangoCloser)
+	}
+	connectorRegistry, err := apiserver.NewConnectorProviderRegistry(connectorProviders, connectorChecks)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}

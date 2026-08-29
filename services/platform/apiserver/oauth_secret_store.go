@@ -31,9 +31,10 @@ type durableOAuthSecretStore struct {
 }
 
 type storedOAuthSecret struct {
-	State     string    `json:"state"`
-	Verifier  string    `json:"verifier"`
-	ExpiresAt time.Time `json:"expires_at"`
+	State            string    `json:"state"`
+	Verifier         string    `json:"verifier"`
+	AuthorizationURL string    `json:"authorization_url,omitempty"`
+	ExpiresAt        time.Time `json:"expires_at"`
 }
 
 func NewDurableOAuthSecretStore(driver OAuthSecretDriver, prefix, kmsKey string, timeout time.Duration, now func() time.Time) (ConnectorOAuthSecretStore, error) {
@@ -48,7 +49,7 @@ func (store *durableOAuthSecretStore) Acquire(ctx context.Context, reference str
 	if !ok || ctx == nil || ctx.Err() != nil || !validOAuthSecretMaterial(candidate, store.now()) || !expiresAt.Equal(candidate.ExpiresAt) {
 		return OAuthSecretMaterial{}, ErrRepositoryOperation
 	}
-	payload, err := json.Marshal(storedOAuthSecret{State: candidate.State, Verifier: string(candidate.Verifier), ExpiresAt: candidate.ExpiresAt.UTC()})
+	payload, err := json.Marshal(storedOAuthSecret{State: candidate.State, Verifier: string(candidate.Verifier), AuthorizationURL: candidate.AuthorizationURL, ExpiresAt: candidate.ExpiresAt.UTC()})
 	if err != nil {
 		return OAuthSecretMaterial{}, ErrRepositoryUnavailable
 	}
@@ -115,7 +116,7 @@ func (store *durableOAuthSecretStore) read(ctx context.Context, name string) (OA
 	if decoder.Decode(&extra) != io.EOF {
 		return OAuthSecretMaterial{}, ErrRepositoryUnavailable
 	}
-	result := OAuthSecretMaterial{State: value.State, Verifier: []byte(value.Verifier), ExpiresAt: value.ExpiresAt.UTC()}
+	result := OAuthSecretMaterial{State: value.State, Verifier: []byte(value.Verifier), AuthorizationURL: value.AuthorizationURL, ExpiresAt: value.ExpiresAt.UTC()}
 	if !validOAuthSecretMaterial(result, store.now()) {
 		return OAuthSecretMaterial{}, ErrRepositoryUnavailable
 	}
@@ -134,7 +135,7 @@ func (store *durableOAuthSecretStore) name(reference string) (string, bool) {
 }
 
 func validOAuthSecretMaterial(value OAuthSecretMaterial, now time.Time) bool {
-	return connectorOAuthValuePattern.MatchString(value.State) && connectorPKCEVerifier(value.Verifier) && value.ExpiresAt.Location() == time.UTC && value.ExpiresAt.After(now) && !value.ExpiresAt.After(now.Add(10*time.Minute+time.Second))
+	return connectorOAuthValuePattern.MatchString(value.State) && connectorPKCEVerifier(value.Verifier) && (value.AuthorizationURL == "" || len(value.AuthorizationURL) <= 4096 && validConnectorAuthorizationTarget(value.AuthorizationURL, value.State)) && value.ExpiresAt.Location() == time.UTC && value.ExpiresAt.After(now) && !value.ExpiresAt.After(now.Add(10*time.Minute+time.Second))
 }
 
 func cloneOAuthSecretMaterial(value OAuthSecretMaterial) OAuthSecretMaterial {

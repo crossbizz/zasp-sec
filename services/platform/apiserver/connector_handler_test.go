@@ -219,9 +219,8 @@ func TestConnectorAuthorizeActivatesAtomicPKCECleanupWhenProviderURLFails(t *tes
 	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "authorizeIntegration", PathParameters: map[string]string{"id": integrationID}}))
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	wantCleanupID := connectorDeterministicID(identity.Scope, repository.started.AttemptID, "pkce-cleanup")
-	if response.Code != http.StatusServiceUnavailable || repository.activatedID != wantCleanupID || len(repository.staged) != 1 {
-		t.Fatalf("authorization URL failure status=%d activated=%q want=%q staged=%#v", response.Code, repository.activatedID, wantCleanupID, repository.staged)
+	if response.Code != http.StatusServiceUnavailable || len(repository.staged) != 1 || repository.activatedID != repository.staged[0].ID || repository.started.AttemptID != "" {
+		t.Fatalf("authorization URL failure status=%d activated=%q started=%#v staged=%#v", response.Code, repository.activatedID, repository.started, repository.staged)
 	}
 }
 
@@ -253,6 +252,111 @@ func (stub *connectorProviderStub) Discard(context.Context, string, bool) error 
 	return stub.discardErr
 }
 func (*connectorProviderStub) Revoke(context.Context, string) error { return nil }
+
+type connectorLongTailProviderStub struct {
+	start    ConnectorAuthorizationStart
+	complete ConnectorAuthorizationCompletion
+	recover  ConnectorAuthorizationRecovery
+	revoke   ConnectorAuthorizationRevocation
+}
+
+func (*connectorLongTailProviderStub) AuthorizationURL(string, string) (string, error) {
+	return "", ErrRepositoryUnavailable
+}
+func (*connectorLongTailProviderStub) Complete(context.Context, string, string, []byte) (ConnectorOAuthGrant, error) {
+	return ConnectorOAuthGrant{}, ErrRepositoryUnavailable
+}
+func (*connectorLongTailProviderStub) Recover(context.Context, string) (ConnectorOAuthGrant, error) {
+	return ConnectorOAuthGrant{}, ErrConnectorOutcomeNotFound
+}
+func (*connectorLongTailProviderStub) Discard(context.Context, string, bool) error { return nil }
+func (*connectorLongTailProviderStub) Revoke(context.Context, string) error        { return nil }
+func (stub *connectorLongTailProviderStub) StartAuthorization(_ context.Context, input ConnectorAuthorizationStart) (ConnectorAuthorizationTarget, error) {
+	stub.start = input
+	return ConnectorAuthorizationTarget{URL: "https://slack.com/oauth/v2/authorize?redirect_uri=https%3A%2F%2Fapp.zasp.test%2Fapi%2Fv1%2Fintegrations%2Foauth%2Fcallback&state=nango_state_12345678", State: "nango_state_12345678", ExpiresAt: input.ExpiresAt}, nil
+}
+func (stub *connectorLongTailProviderStub) CompleteAuthorization(_ context.Context, input ConnectorAuthorizationCompletion) (ConnectorOAuthGrant, error) {
+	stub.complete = input
+	return ConnectorOAuthGrant{ConnectionReference: "ref:nango/connection/11111111-1111-4111-8111-111111111111", ProviderSubject: "user_0123456789abcdef", CredentialClass: "nango_connection_reference", Metadata: json.RawMessage(`{"connector_key":"slack"}`)}, nil
+}
+func (stub *connectorLongTailProviderStub) RecoverAuthorization(_ context.Context, input ConnectorAuthorizationRecovery) (ConnectorOAuthGrant, error) {
+	stub.recover = input
+	return ConnectorOAuthGrant{ConnectionReference: "ref:nango/connection/11111111-1111-4111-8111-111111111111", ProviderSubject: "user_0123456789abcdef", CredentialClass: "nango_connection_reference", Metadata: json.RawMessage(`{"connector_key":"slack"}`)}, nil
+}
+func (stub *connectorLongTailProviderStub) RevokeAuthorization(_ context.Context, input ConnectorAuthorizationRevocation) error {
+	stub.revoke = input
+	return nil
+}
+
+func TestConnectorAuthorizeBindsPublicLongTailKeyToPrivateProviderAuthority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	integrationID := "pid_70000001-0000-4000-8000-000000000001"
+	repository := &connectorAuthorizationStub{}
+	provider := &connectorLongTailProviderStub{}
+	registry, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{
+		"slack": {Provider: provider, RequestedScopes: []string{"nango:auth", "nango:proxy"}, CredentialClass: "nango_connection_reference", AuthorityProvider: "nango:slack"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{
+		Repository: repository, Workflows: connectorWorkflowStub{value: connectorWorkflowValue(integrationID, "slack")}, Secrets: &connectorSecretStub{}, Registry: registry,
+		Clock: func() time.Time { return time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "https://app.zasp.test/api/v1/integrations/"+integrationID+"/authorize", strings.NewReader(`{}`))
+	request.Header.Set("Idempotency-Key", "authorize-slack-0001")
+	request.Header.Set("Content-Type", "application/json")
+	request.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "browser-session-token-0001"})
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "authorizeIntegration", PathParameters: map[string]string{"id": integrationID}}))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || repository.started.Provider != "nango:slack" || provider.start.IntegrationID != integrationID || provider.start.AttemptID != repository.started.AttemptID || provider.start.Scope != identity.Scope || provider.start.PrincipalID != identity.PrincipalID.String() || !strings.Contains(response.Body.String(), "nango_state_12345678") {
+		t.Fatalf("status=%d started=%#v provider=%#v body=%s", response.Code, repository.started, provider.start, response.Body.String())
+	}
+}
+
+func TestConnectorCallbackCompletesLongTailAgainstPrivateAuthority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	identity.CredentialKind = CredentialBrowserSession
+	now := time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC)
+	state := "nango_state_12345678"
+	integrationID := "pid_70000001-0000-4000-8000-000000000001"
+	attemptID := "pid_70000002-0000-4000-8000-000000000002"
+	workflow := connectorWorkflowValue(integrationID, "slack")
+	repository := &connectorAuthorizationStub{consumed: OAuthConsumption{
+		ID: attemptID, IntegrationID: integrationID, Provider: "nango:slack", PrincipalID: identity.PrincipalID.String(), PKCEVerifierReference: "ref:oauth/pkce/attempt-0001", ReturnPath: "/connectors", RequestedScopes: []string{"nango:auth", "nango:proxy"}, ExpiresAt: now.Add(5 * time.Minute), ConsumedAt: now,
+	}}
+	digest := connectorAuthorizationIntentDigest(identity, workflow, integrationID, attemptID, "nango:slack", map[string]string{}, repository.consumed.RequestedScopes)
+	repository.consumed.RequestDigest = jsonDigest(digest[:])
+	provider := &connectorLongTailProviderStub{}
+	registry, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{
+		"slack": {Provider: provider, RequestedScopes: []string{"nango:auth", "nango:proxy"}, CredentialClass: "nango_connection_reference", AuthorityProvider: "nango:slack"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler, err := NewConnectorHTTPHandler(ConnectorHTTPConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Secrets: &connectorSecretStub{reference: repository.consumed.PKCEVerifierReference, material: OAuthSecretMaterial{State: state, Verifier: []byte(strings.Repeat("v", 43)), ExpiresAt: now.Add(5 * time.Minute)}}, Registry: registry, Clock: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/api/v1/integrations/oauth/callback?code=provider_code_123&state="+state, nil)
+	request.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "browser-session-token-0001"})
+	request = request.WithContext(context.WithValue(request.Context(), identityContextKey{}, identity))
+	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "completeIntegrationOAuthCallback", PathParameters: map[string]string{}}))
+	if _, ok := IdentityFromRequest(request); !ok {
+		t.Fatal("valid callback identity was not attached")
+	}
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusSeeOther || provider.complete.ConnectorKey != "slack" || provider.complete.AuthorityProvider != "nango:slack" || provider.complete.State != state || provider.complete.Code != "provider_code_123" || repository.completed.CredentialClass != "nango_connection_reference" {
+		t.Fatalf("status=%d completion=%#v durable=%#v body=%s", response.Code, provider.complete, repository.completed, response.Body.String())
+	}
+}
 
 func TestConnectorCallbackMarksEffectUnknownBeforeProviderAndRetainsRecoveryAfterPersistenceFailure(t *testing.T) {
 	identity := fixtureRequestIdentity(t)

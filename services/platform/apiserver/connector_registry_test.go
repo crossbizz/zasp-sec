@@ -33,3 +33,28 @@ func TestConnectorProviderRegistryIsOneProviderCapabilityAuthority(t *testing.T)
 		t.Fatalf("unserved AWS registry error = %v", err)
 	}
 }
+
+func TestConnectorProviderRegistryMapsPublicLongTailKeyToPrivateNangoAuthority(t *testing.T) {
+	registry, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{
+		"github": {Provider: &connectorProviderStub{}, RequestedScopes: []string{"read:org", "repo"}, CredentialClass: "github_installation_reference"},
+		"slack": {
+			Provider: &connectorProviderStub{}, RequestedScopes: []string{"nango:auth", "nango:proxy"}, CredentialClass: "nango_connection_reference", AuthorityProvider: "nango:slack",
+		},
+	}, map[string]ConnectorCapabilityCheck{"github": func(context.Context) error { return nil }, "slack": func(context.Context) error { return nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	public, ready := registry.Provider(context.Background(), "slack")
+	if !ready || public.AuthorityProvider != "nango:slack" {
+		t.Fatalf("public definition=%#v ready=%t", public, ready)
+	}
+	private, key, ready := registry.ProviderForAuthority(context.Background(), "nango:slack")
+	if !ready || key != "slack" || private.AuthorityProvider != "nango:slack" {
+		t.Fatalf("private definition=%#v key=%q ready=%t", private, key, ready)
+	}
+	if _, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{
+		"slack": {Provider: &connectorProviderStub{}, RequestedScopes: []string{"nango:auth"}, CredentialClass: "nango_connection_reference", AuthorityProvider: "nango:other"},
+	}, nil); !errors.Is(err, ErrRepositoryConfiguration) {
+		t.Fatalf("mismatched authority error=%v", err)
+	}
+}

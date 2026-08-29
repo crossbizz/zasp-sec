@@ -198,12 +198,12 @@ M3	M3-18	Complete	production-available	T04-discovery-worker	production evidence:
 M3	M3-19	Complete	production-available	T04-discovery-worker	production evidence: GitHub installation, repository, workflow, environment, permission, and identity relationships pass exact subject-bound pagination and resume gates at 1f2031f
 M3	M3-20	Complete	production-available	T04-discovery-worker	production evidence: Okta users, groups, applications, assignments, roles, and service principals normalize with exact issuer/subject scope and cursor lineage at 1f2031f
 M3	M3-21	Complete	production-available	T04-discovery-worker	production evidence: integration freshness; verified by Task 4 source/deploy review and focused race/release gates
-M3	M3-22a	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango private deployment
-M3	M3-22b	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango free feature boundary
-M3	M3-22c	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango storage secrets
-M3	M3-22	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango internal service config
-M3	M3-23	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango connection adapter
-M3	M3-24	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango auth callback
+M3	M3-22a	Complete	production-available	T03-launch-connectors	production Nango runs as an exact-pinned private two-replica service with no ingress and product-only admission
+M3	M3-22b	Complete	production-available	T03-launch-connectors	shipped product composes only managed Auth lifecycle and the bounded Proxy wrapper; Functions, Webhooks, MCP, RBAC, and Enterprise workers remain outside product authority
+M3	M3-22c	Complete	production-available	T03-launch-connectors	rendered Nango and API workloads consume only exact Kubernetes references for database URL, encryption key, and the single production service key
+M3	M3-22	Complete	production-available	T03-launch-connectors	product capability readiness probes the private server plus the exact authenticated prod Slack integration behind a success-only 30-second cache and keeps Nango off public ingress
+M3	M3-23	Complete	production-available	T03-launch-connectors	production API composes tenant-derived Nango connection creation, recovery, and revocation while PostgreSQL persists only the opaque scoped connection reference
+M3	M3-24	Complete	production-available	T03-launch-connectors	production OAuth start and callback bind tenant, integration, attempt, state, stored verifier, authority provider, callback URL, and lost-response recovery before activation
 M3	M3-25	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango proxy wrapper
 M3	M3-26	Complete	production-available	T06-runtime-data-plane	production evidence: sensor enrollment model; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-27	Complete	production-available	T06-runtime-data-plane	production evidence: API listSensors; verified by Task 6 source/deploy review and focused race/release gates

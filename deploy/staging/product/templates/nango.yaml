@@ -123,8 +123,11 @@ spec:
             - { name: NANGO_ENTERPRISE, value: "false" }
             - { name: NANGO_LOGS_ENABLED, value: "false" }
             - { name: NANGO_MIGRATE_AT_START, value: "false" }
-            - { name: NANGO_SERVER_URL, value: "http://nango.{{ .Release.Namespace }}.svc.cluster.local:3003" }
-            - { name: NANGO_PUBLIC_SERVER_URL, value: "http://nango.{{ .Release.Namespace }}.svc.cluster.local:3003" }
+            - { name: NANGO_PUBLIC_CONNECT_URL, value: "http://nango.{{ .Release.Namespace }}.svc.cluster.local:3003/connect" }
+            - { name: NANGO_PUBLIC_SERVER_URL, value: {{ printf "%s/api/v1/integrations" (required "global.publicOrigin is required" .Values.global.publicOrigin) | quote }} }
+            - { name: NANGO_SERVER_URL, value: {{ printf "%s/api/v1/integrations" (required "global.publicOrigin is required" .Values.global.publicOrigin) | quote }} }
+            - name: NANGO_SECRET_KEY_PROD
+              valueFrom: { secretKeyRef: { name: {{ required "nango.storageSecretName is required" .Values.nango.storageSecretName | quote }}, key: service-key } }
             - { name: NANGO_TELEMETRY_SDK, value: "false" }
             - { name: RECORDS_DATABASE_POOL_MAX, value: "20" }
             - { name: RECORDS_DATABASE_POOL_MIN, value: "0" }
@@ -160,6 +163,18 @@ metadata:
 spec:
   minAvailable: 1
   selector: { matchLabels: { app.kubernetes.io/name: nango } }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-to-nango
+  labels: { app.kubernetes.io/name: agentsec-api, app.kubernetes.io/part-of: zasp }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app.kubernetes.io/name: nango } } }]
+      ports: [{ protocol: TCP, port: 3003 }]
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

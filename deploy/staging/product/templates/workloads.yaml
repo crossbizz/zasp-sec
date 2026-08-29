@@ -98,6 +98,9 @@ spec:
             - { name: ZASP_GITHUB_PRIVATE_KEY_REFERENCE, value: {{ required "connectors.githubPrivateKeyReference is required" $root.Values.connectors.githubPrivateKeyReference | quote }} }
             - { name: ZASP_OKTA_CLIENT_ID, value: {{ required "connectors.oktaClientID is required" $root.Values.connectors.oktaClientID | quote }} }
             - { name: ZASP_OKTA_CLIENT_SECRET_REFERENCE, value: {{ required "connectors.oktaClientSecretReference is required" $root.Values.connectors.oktaClientSecretReference | quote }} }
+            - { name: ZASP_NANGO_BASE_URL, value: "http://nango.{{ $root.Release.Namespace }}.svc.cluster.local:3003" }
+            - { name: ZASP_NANGO_SERVICE_SECRET_REFERENCE, value: "ref:nango/service-key-0001" }
+            - { name: ZASP_NANGO_ENVIRONMENT, value: "prod" }
             {{- end }}
             {{- if $root.Values.global.organizationID }}
             - { name: ZASP_ORGANIZATION_ID, value: {{ $root.Values.global.organizationID | quote }} }
@@ -119,6 +122,7 @@ spec:
           volumeMounts:
             - { name: runtime-secrets, mountPath: /var/run/secrets/zasp, readOnly: true }
             - { name: connector-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+            - { name: nango-service-key, mountPath: /var/run/secrets/zasp-nango, readOnly: true }
           {{- end }}
       {{- if eq .name "agentsec-api" }}
       volumes:
@@ -132,6 +136,11 @@ spec:
             defaultMode: 256
             sources:
               - serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token }
+        - name: nango-service-key
+          secret:
+            secretName: {{ required "nango.storageSecretName is required" $root.Values.nango.storageSecretName | quote }}
+            defaultMode: 288
+            items: [{ key: service-key, path: service-key, mode: 288 }]
       {{- end }}
 {{- end }}
 ---

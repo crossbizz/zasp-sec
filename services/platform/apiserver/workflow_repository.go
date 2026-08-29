@@ -279,6 +279,9 @@ func validWorkflowMutationReceipt(value WorkflowMutationReceipt) bool {
 }
 
 func validIntegrationWorkflowReceipt(value WorkflowMutationReceipt) bool {
+	if value.Operation == "completeIntegrationOAuth" {
+		return validOAuthIntegrationWorkflowReceipt(value)
+	}
 	if !stringIn(value.Operation, "createIntegration", "updateIntegration", "deleteIntegration") {
 		return true
 	}
@@ -343,6 +346,47 @@ func validIntegrationWorkflowReceipt(value WorkflowMutationReceipt) bool {
 		Configuration map[string]string `json:"configuration"`
 	}
 	return exactJSONFields(intent.Body, "configuration", "name") && decodeStrictDiscovery(intent.Body, &body) == nil && body.Name == result.Name && equalWorkflowStringMaps(body.Configuration, result.Configuration)
+}
+
+func validOAuthIntegrationWorkflowReceipt(value WorkflowMutationReceipt) bool {
+	if !exactJSONFields(value.Intent, "authorization_attempt_id", "integration_id", "provider") || !exactJSONFields(value.Result, "connector_key", "configuration", "created_at", "id", "name", "status", "updated_at") {
+		return false
+	}
+	var intent struct {
+		AuthorizationAttemptID string `json:"authorization_attempt_id"`
+		IntegrationID          string `json:"integration_id"`
+		Provider               string `json:"provider"`
+	}
+	var result struct {
+		ID            string            `json:"id"`
+		ConnectorKey  string            `json:"connector_key"`
+		Name          string            `json:"name"`
+		Configuration map[string]string `json:"configuration"`
+		Status        string            `json:"status"`
+		CreatedAt     time.Time         `json:"created_at"`
+		UpdatedAt     time.Time         `json:"updated_at"`
+	}
+	if decodeStrictDiscovery(value.Intent, &intent) != nil || decodeStrictDiscovery(value.Result, &result) != nil || !validProductID(intent.AuthorizationAttemptID) || intent.IntegrationID != value.ResourceID || result.ID != value.ResourceID || result.Status != "active" || result.CreatedAt.IsZero() || result.UpdatedAt.Before(result.CreatedAt) || len(result.Name) < 1 || len(result.Name) > 128 || len(result.Configuration) < 1 || len(result.Configuration) > 16 || value.IdempotencyKey != "oauth-completion:"+intent.AuthorizationAttemptID {
+		return false
+	}
+	publicKey := intent.Provider
+	if strings.HasPrefix(intent.Provider, "nango:") {
+		publicKey = strings.TrimPrefix(intent.Provider, "nango:")
+		if stringIn(publicKey, "aws", "github", "kubernetes", "okta") || !keyPatternForCatalog(publicKey) {
+			return false
+		}
+	} else if !stringIn(intent.Provider, "github", "okta") {
+		return false
+	}
+	if result.ConnectorKey != publicKey {
+		return false
+	}
+	for key, item := range result.Configuration {
+		if len(key) < 1 || len(key) > 128 || len(item) < 1 || len(item) > 2048 {
+			return false
+		}
+	}
+	return true
 }
 
 func equalWorkflowStringMaps(left, right map[string]string) bool {

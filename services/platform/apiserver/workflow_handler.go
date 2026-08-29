@@ -745,7 +745,7 @@ func locallyCompleteWorkflowManifests(ctx context.Context, capabilities Connecto
 	values := platformintegration.BuiltinManifests()
 	result := make([]platformintegration.ConnectorManifest, 0, len(values))
 	for _, value := range values {
-		if stringIn(value.Key, "aws", "kubernetes", "github", "okta") && capabilities.ConnectorAvailable(ctx, value.Key) {
+		if value.Key != "generic-webhook" && capabilities.ConnectorAvailable(ctx, value.Key) {
 			result = append(result, value)
 			continue
 		}

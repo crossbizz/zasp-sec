@@ -23,7 +23,7 @@ type PolicyMutationResult =
 type IntegrationMutationIntent =
   | { kind: "create"; value: IntegrationInput }
   | { kind: "update"; id: string; version: string; value: IntegrationUpdateInput }
-  | { kind: "authorize-oauth"; id: string; connectorKey: "github" | "okta" }
+  | { kind: "authorize-oauth"; id: string; connectorKey: string }
   | { kind: "authorize-reference"; id: string; version: string; connectorKey: "aws" | "kubernetes" }
   | { kind: "sync"; id: string; version: string }
   | { kind: "put-schedule"; id: string; version: string; value: IntegrationScheduleInput }
@@ -221,10 +221,9 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
         })));
   };
   const authorizeOAuth = () => {
-    if (!selected || !isOAuthAuthorizationCandidate(selected.value) || session?.status !== "authenticated") return;
+    if (!selected || !isOAuthAuthorizationCandidate(selected.value, selectedManifest) || session?.status !== "authenticated") return;
     const current = selected;
     const connectorKey = current.value.connector_key;
-    if (!isOAuthConnector(connectorKey)) return;
     const intent = { kind: "authorize-oauth", id: current.value.id, connectorKey } as const;
     void run(async () => {
       const authorization = await mutation.execute(intent, async (frozen, attempt) => {
@@ -307,8 +306,8 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   const revocationPending = visibleSelected?.value.status === "revoking" && mutation.isUnresolved && pendingRevocation !== null;
   const revocationRetryReady = pendingRevocation === null || revocationClock >= pendingRevocation.retryNotBefore;
   const referenceAuthorizationCandidate = selected !== null && isReferenceAuthorizationCandidate(selected.value);
-  const oauthAuthorizationCandidate = selected !== null && isOAuthAuthorizationCandidate(selected.value) && session?.status === "authenticated";
   const selectedManifest = selected ? catalog.data?.find((value) => value.key === selected.value.connector_key) : undefined;
+  const oauthAuthorizationCandidate = selected !== null && isOAuthAuthorizationCandidate(selected.value, selectedManifest) && session?.status === "authenticated";
   const discoveryWriteAllowed = Boolean(canWrite && selected?.value.status === "active" && isFirstPartyConnector(selected.value.connector_key) && selectedManifest?.actions.includes("inventory_read"));
   const manualSyncAllowed = discoveryWriteAllowed && freshness.status === "success" && syncs.status === "success";
   return (
@@ -484,7 +483,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                     disabled={busy || mutation.isUnresolved}
                     onClick={authorizeOAuth}
                   >
-                    Authorize {selected?.value.connector_key === "github" ? "GitHub" : "Okta"}
+                    Authorize {selectedManifest?.provider ?? selected?.value.connector_key}
                   </Button>
                 )}
                 <Button
@@ -615,7 +614,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                 ? visibleSelected.value.status === "active"
                   ? "Reference authorization is active."
                   : "Authorization uses the configured reference without exposing its value."
-                : isOAuthConnector(visibleSelected.value.connector_key)
+                : isOAuthConnectorManifest(selectedManifest, visibleSelected.value.connector_key)
                   ? "Authorization continues on the provider site. Provider credentials are never returned to this browser."
                   : "Provider authorization controls are unavailable for this connector."}
             </p>
@@ -740,8 +739,8 @@ function titleCase(value: string): string {
   return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1);
 }
 
-function isOAuthConnector(value: string): value is "github" | "okta" {
-  return value === "github" || value === "okta";
+function isOAuthConnectorManifest(manifest: ConnectorManifest | undefined, connectorKey: string): boolean {
+  return manifest?.key === connectorKey && (manifest.auth_mode === "github_app_oauth" || manifest.auth_mode === "okta_oauth_pkce" || manifest.auth_mode === "managed_oauth");
 }
 
 function isFirstPartyConnector(value: string): value is "aws" | "kubernetes" | "github" | "okta" {
@@ -752,8 +751,8 @@ function isReferenceAuthorizationCandidate(value: Integration): value is Integra
   return isReferenceConnector(value.connector_key) && (value.status === "configured" || value.status === "pending_authorization" || value.status === "degraded");
 }
 
-function isOAuthAuthorizationCandidate(value: Integration): value is Integration & { connector_key: "github" | "okta" } {
-  return isOAuthConnector(value.connector_key) && (value.status === "configured" || value.status === "pending_authorization" || value.status === "active");
+function isOAuthAuthorizationCandidate(value: Integration, manifest: ConnectorManifest | undefined): boolean {
+  return isOAuthConnectorManifest(manifest, value.connector_key) && (value.status === "configured" || value.status === "pending_authorization" || value.status === "active");
 }
 
 function defaultNavigateAuthorization(target: string): void {

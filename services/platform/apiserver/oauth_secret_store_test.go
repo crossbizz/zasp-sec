@@ -49,14 +49,14 @@ func TestDurableOAuthSecretStoreReplaysOriginalMaterialAndConsumesOnce(t *testin
 		t.Fatal(err)
 	}
 	reference := "ref:oauth/pkce/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-	original := OAuthSecretMaterial{State: strings.Repeat("s", 43), Verifier: []byte(strings.Repeat("v", 43)), ExpiresAt: now.Add(10 * time.Minute)}
+	original := OAuthSecretMaterial{State: strings.Repeat("s", 43), Verifier: []byte(strings.Repeat("v", 43)), AuthorizationURL: "https://github.com/login/oauth/authorize?state=" + strings.Repeat("s", 43), ExpiresAt: now.Add(10 * time.Minute)}
 	stored, err := store.Acquire(context.Background(), reference, original, original.ExpiresAt)
-	if err != nil || stored.State != original.State || string(stored.Verifier) != string(original.Verifier) || !stored.ExpiresAt.Equal(original.ExpiresAt) {
+	if err != nil || stored.State != original.State || string(stored.Verifier) != string(original.Verifier) || stored.AuthorizationURL != original.AuthorizationURL || !stored.ExpiresAt.Equal(original.ExpiresAt) {
 		t.Fatalf("initial acquire = %#v, %v", stored, err)
 	}
-	replayCandidate := OAuthSecretMaterial{State: strings.Repeat("x", 43), Verifier: []byte(strings.Repeat("y", 43)), ExpiresAt: now.Add(9 * time.Minute)}
+	replayCandidate := OAuthSecretMaterial{State: strings.Repeat("x", 43), Verifier: []byte(strings.Repeat("y", 43)), AuthorizationURL: "https://github.com/login/oauth/authorize?state=" + strings.Repeat("x", 43), ExpiresAt: now.Add(9 * time.Minute)}
 	replayed, err := store.Acquire(context.Background(), reference, replayCandidate, replayCandidate.ExpiresAt)
-	if err != nil || replayed.State != original.State || string(replayed.Verifier) != string(original.Verifier) || !replayed.ExpiresAt.Equal(original.ExpiresAt) || driver.created != 2 {
+	if err != nil || replayed.State != original.State || string(replayed.Verifier) != string(original.Verifier) || replayed.AuthorizationURL != original.AuthorizationURL || !replayed.ExpiresAt.Equal(original.ExpiresAt) || driver.created != 2 {
 		t.Fatalf("replayed acquire = %#v, %v creates=%d", replayed, err, driver.created)
 	}
 	verifier, err := store.Consume(context.Background(), reference)

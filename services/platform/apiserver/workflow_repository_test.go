@@ -205,7 +205,7 @@ func TestWorkflowRepositoryListsReferenceAuthorizationReceipt(t *testing.T) {
 
 func TestWorkflowRepositoryListsOAuthAndRemediationReceipts(t *testing.T) {
 	for name, receipt := range map[string]string{
-		"oauth":       `{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"completeIntegrationOAuth","idempotency_key":"oauth-completion:pid_74000002-0000-4000-8000-000000000002","intent":{"authorization_attempt_id":"pid_74000002-0000-4000-8000-000000000002","integration_id":"pid_74000001-0000-4000-8000-000000000001","provider":"github"},"result":{"id":"pid_74000001-0000-4000-8000-000000000001"},"resource_kind":"integration","resource_id":"pid_74000001-0000-4000-8000-000000000001","resource_version":2,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-19T00:01:00Z","expires_at":"2026-08-26T00:01:00Z"}`,
+		"oauth":       `{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"completeIntegrationOAuth","idempotency_key":"oauth-completion:pid_74000002-0000-4000-8000-000000000002","intent":{"authorization_attempt_id":"pid_74000002-0000-4000-8000-000000000002","integration_id":"pid_74000001-0000-4000-8000-000000000001","provider":"github"},"result":{"id":"pid_74000001-0000-4000-8000-000000000001","connector_key":"github","name":"GitHub","configuration":{"authorization_mode":"github_app"},"status":"active","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:01:00Z"},"resource_kind":"integration","resource_id":"pid_74000001-0000-4000-8000-000000000001","resource_version":2,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-19T00:01:00Z","expires_at":"2026-08-26T00:01:00Z"}`,
 		"remediation": `{"id":"pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc","operation":"remediateIntegrationAuthorization","idempotency_key":"quarantine-remediation-0001","intent":{"body":{"acknowledgement":"provider_grant_verified_absent"},"expected_version":2,"resource_id":"pid_74000001-0000-4000-8000-000000000001"},"result":{"id":"pid_74000001-0000-4000-8000-000000000001"},"resource_kind":"integration","resource_id":"pid_74000001-0000-4000-8000-000000000001","resource_version":3,"audit_id":"pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","correlation_id":"pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","created_at":"2026-08-19T00:01:00Z","expires_at":"2026-08-26T00:01:00Z"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -215,6 +215,23 @@ func TestWorkflowRepositoryListsOAuthAndRemediationReceipts(t *testing.T) {
 				t.Fatalf("connector receipt = (%#v, %v)", receipts, err)
 			}
 		})
+	}
+}
+
+func TestWorkflowRepositoryBindsPrivateOAuthAuthorityToPublicConnectorKey(t *testing.T) {
+	const integrationID = "pid_74000001-0000-4000-8000-000000000001"
+	value := WorkflowMutationReceipt{
+		ID: "pid_cccccccc-cccc-4ccc-8ccc-cccccccccccc", Operation: "completeIntegrationOAuth", IdempotencyKey: "oauth-completion:pid_74000002-0000-4000-8000-000000000002",
+		Intent:       json.RawMessage(`{"authorization_attempt_id":"pid_74000002-0000-4000-8000-000000000002","integration_id":"` + integrationID + `","provider":"nango:slack"}`),
+		Result:       json.RawMessage(`{"id":"` + integrationID + `","connector_key":"slack","name":"Slack workspace","configuration":{"workspace_label":"Security operations"},"status":"active","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:01:00Z"}`),
+		ResourceKind: "integration", ResourceID: integrationID, ResourceVersion: 2, AuditID: "pid_aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", CorrelationID: "pid_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", CreatedAt: time.Date(2026, 8, 19, 0, 1, 0, 0, time.UTC), ExpiresAt: time.Date(2026, 8, 26, 0, 1, 0, 0, time.UTC),
+	}
+	if !validWorkflowMutationReceipt(value) {
+		t.Fatal("exact private authority to public key receipt rejected")
+	}
+	value.Result = json.RawMessage(`{"id":"` + integrationID + `","connector_key":"nango:slack","name":"Slack workspace","configuration":{"workspace_label":"Security operations"},"status":"active","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:01:00Z"}`)
+	if validWorkflowMutationReceipt(value) {
+		t.Fatal("private authority leaked into public connector identity")
 	}
 }
 

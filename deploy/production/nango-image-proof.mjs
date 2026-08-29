@@ -19,6 +19,13 @@ export async function runNangoImageProof() {
     await exec("docker", ["run", "--rm", "--platform", "linux/amd64", ...boundary, "--entrypoint", "node", nangoImage, "--check", entrypoint], commandOptions());
     await exec("docker", ["run", "--rm", "--platform", "linux/amd64", ...boundary, "--entrypoint", "/bin/sh", nangoImage, "-c", `test -f ${entrypoint} && test -f packages/server/lib/migrate.ts && test ! -e packages/server/lib/migrate.js`], commandOptions());
     await exec("docker", ["run", "--rm", "--platform", "linux/amd64", ...boundary, "--entrypoint", "node", nangoImage, "--input-type=module", "--eval", shutdownProofScript], commandOptions());
+    await exec("docker", [
+      "run", "--rm", "--platform", "linux/amd64", ...boundary,
+      "--env", "NANGO_SERVER_URL=https://app.zasp.test/api/v1/integrations",
+      "--env", "NANGO_PUBLIC_SERVER_URL=https://app.zasp.test/api/v1/integrations",
+      "--env", "NANGO_PUBLIC_CONNECT_URL=http://nango.agentsec.svc.cluster.local:3003/connect",
+      "--entrypoint", "node", nangoImage, "--input-type=module", "--eval", urlAuthorityProofScript,
+    ], commandOptions());
     proofDirectory = await createTLSProofDirectory();
     const proofDatabaseURL = new URL("postgres://db.nango.test:5432/nango?sslmode=verify-full");
     proofDatabaseURL.username = "nango";
@@ -33,7 +40,7 @@ export async function runNangoImageProof() {
       "--env", "RECORDS_DATABASE_SSL=true",
       "--entrypoint", "node", nangoImage, "--input-type=module", "--eval", tlsProofScript,
     ], { ...commandOptions(), timeout: 30_000 });
-    return Object.freeze({ image: nangoImage, migrationEntrypoint: entrypoint, databaseTLS: "verify-full", authEnabled: true, gracefulShutdown: true, readOnlyRoot: true, runtimeUser: "1000:1000", verified: true });
+    return Object.freeze({ image: nangoImage, migrationEntrypoint: entrypoint, databaseTLS: "verify-full", oauthCallback: "product-bound", connectURL: "private-service", authEnabled: true, gracefulShutdown: true, readOnlyRoot: true, runtimeUser: "1000:1000", verified: true });
   } catch {
     throw new Error(proofError);
   } finally {
@@ -112,6 +119,14 @@ const source = await readFile("packages/server/dist/server.js", "utf8");
 for (const contract of ["server.close(async () =>", "process.on('SIGTERM'", "beginShutdown();", "await db.destroy();", "await destroyRecords();"]) {
   if (!source.includes(contract)) process.exit(1);
 }
+`;
+
+const urlAuthorityProofScript = String.raw`
+const { getGlobalOAuthCallbackUrl } = await import("file:///app/nango/packages/shared/dist/utils/utils.js");
+const { basePublicUrl, baseUrl, connectUrl } = await import("file:///app/nango/packages/utils/dist/environment/detection.js");
+if (getGlobalOAuthCallbackUrl() !== "https://app.zasp.test/api/v1/integrations/oauth/callback") throw new Error("callback authority drift");
+if (baseUrl !== "https://app.zasp.test/api/v1/integrations" || basePublicUrl !== baseUrl) throw new Error("public authority drift");
+if (connectUrl !== "http://nango.agentsec.svc.cluster.local:3003/connect") throw new Error("connect authority drift");
 `;
 
 async function ensureImage() {

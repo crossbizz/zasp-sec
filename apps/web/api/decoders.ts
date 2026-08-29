@@ -643,7 +643,9 @@ function decodeWorkflowReceiptPayload(operation: unknown, kind: unknown, resourc
     const intent = exactRecord(intentValue, ["authorization_attempt_id", "integration_id", "provider"]);
     productID(intent.authorization_attempt_id); productID(intent.integration_id);
     if (typeof intent.provider !== "string" || !/^(github|okta|nango:[a-z0-9][a-z0-9_-]{1,62})$/.test(intent.provider)) fail();
-    if (kind !== "integration" || result.id !== resourceID || result.status !== "active" || intent.integration_id !== resourceID || intent.provider !== result.connector_key || idempotencyKey !== `oauth-completion:${intent.authorization_attempt_id}`) fail();
+    const publicConnectorKey = intent.provider.startsWith("nango:") ? intent.provider.slice("nango:".length) : intent.provider;
+    if (intent.provider.startsWith("nango:") && ["aws", "github", "kubernetes", "okta"].includes(publicConnectorKey)) fail();
+    if (kind !== "integration" || result.id !== resourceID || result.status !== "active" || intent.integration_id !== resourceID || publicConnectorKey !== result.connector_key || idempotencyKey !== `oauth-completion:${intent.authorization_attempt_id}`) fail();
     return;
   }
   const intent = exactRecord(intentValue, ["body", "expected_version", "resource_id"]);

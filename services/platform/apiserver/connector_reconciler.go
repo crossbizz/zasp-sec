@@ -223,7 +223,7 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	definition, ready := reconciler.registry.Provider(providerContext, providerKey)
 	if lease.LastErrorCode == "cleanup_pending" {
 		provider, providerErr := connectorOAuthProvider(definition, configuration)
-		if err != nil || !valid || !ready || providerKey != lease.Provider || providerErr != nil {
+		if err != nil || !valid || !ready || definition.AuthorityProvider != lease.Provider || providerErr != nil {
 			return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", ErrRepositoryUnavailable)
 		}
 		if err := provider.Discard(providerContext, lease.ID, false); err != nil {
@@ -239,7 +239,7 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	if err != nil || !valid || !ready {
 		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_outcome_ambiguous", ErrRepositoryUnavailable)
 	}
-	if providerKey != lease.Provider || !equalStringSet(definition.RequestedScopes, lease.RequestedScopes) {
+	if definition.AuthorityProvider != lease.Provider || !equalStringSet(definition.RequestedScopes, lease.RequestedScopes) {
 		return reconciler.failAfterCleanup(providerContext, finalizationContext, lease, nil, "authorization_intent_changed")
 	}
 	expected := connectorAuthorizationIntentDigestValues(scope, lease.PrincipalID, workflow, lease.IntegrationID, lease.OAuthAttemptID, lease.Provider, configuration, definition.RequestedScopes)
@@ -248,7 +248,16 @@ func (reconciler *ConnectorReconciler) reconcileLease(ctx context.Context, lease
 	if decodeErr != nil || subtle.ConstantTimeCompare(actual, expected[:]) != 1 || providerErr != nil {
 		return reconciler.failAfterCleanup(providerContext, finalizationContext, lease, provider, "authorization_intent_changed")
 	}
-	grant, recoverErr := provider.Recover(providerContext, lease.ID)
+	grant := ConnectorOAuthGrant{}
+	recoverErr := error(nil)
+	if recoverer, ok := provider.(ConnectorAuthorizationRecoverer); ok {
+		grant, recoverErr = recoverer.RecoverAuthorization(providerContext, ConnectorAuthorizationRecovery{
+			Scope: scope, PrincipalID: lease.PrincipalID, IntegrationID: lease.IntegrationID, AttemptID: lease.OAuthAttemptID,
+			EffectID: lease.ID, ConnectorKey: providerKey, AuthorityProvider: definition.AuthorityProvider,
+		})
+	} else {
+		grant, recoverErr = provider.Recover(providerContext, lease.ID)
+	}
 	if errors.Is(recoverErr, ErrConnectorOutcomeNotFound) {
 		if lease.Attempt < 100 {
 			return recoverErr
@@ -306,31 +315,42 @@ func (reconciler *ConnectorReconciler) reconcileRevocation(providerContext, fina
 	providerKey, configuration, valid := authorizedOAuthIntegrationStatus(workflow, lease.IntegrationID, "revoking")
 	definition, ready := reconciler.registry.Provider(providerContext, providerKey)
 	provider, providerErr := connectorOAuthProvider(definition, configuration)
-	if err != nil || !valid || !ready || providerKey != lease.Provider || providerErr != nil {
+	if err != nil || !valid || !ready || definition.AuthorityProvider != lease.Provider || providerErr != nil {
 		if lease.Attempt >= 100 {
 			_, quarantineErr := reconciler.repository.QuarantineConnectorReconciliation(finalizationContext, lease, "provider_revocation_ambiguous")
 			return quarantineErr
 		}
 		return ErrRepositoryUnavailable
 	}
-	if err := provider.Revoke(providerContext, lease.ConnectionReference); err != nil {
+	revokeErr := error(nil)
+	if revoker, ok := provider.(ConnectorAuthorizationRevoker); ok {
+		revokeErr = revoker.RevokeAuthorization(providerContext, ConnectorAuthorizationRevocation{
+			Scope: scope, IntegrationID: lease.IntegrationID, EffectID: lease.ID, ConnectorKey: providerKey,
+			AuthorityProvider: definition.AuthorityProvider, ConnectionReference: lease.ConnectionReference,
+		})
+	} else {
+		revokeErr = provider.Revoke(providerContext, lease.ConnectionReference)
+	}
+	if revokeErr != nil {
 		if lease.Attempt >= 100 {
 			_, quarantineErr := reconciler.repository.QuarantineConnectorReconciliation(finalizationContext, lease, "provider_revocation_ambiguous")
 			return quarantineErr
 		}
-		return err
+		return revokeErr
 	}
 	_, err = reconciler.repository.CompleteConnectorRevocation(finalizationContext, lease)
 	return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_revocation_ambiguous", err)
 }
 
 func (reconciler *ConnectorReconciler) failAfterCleanup(providerContext, finalizationContext context.Context, lease ConnectorEffectLease, provider ConnectorOAuthProvider, reason string) error {
+	providerKey := ""
 	if provider == nil {
-		definition, ready := reconciler.registry.Provider(providerContext, lease.Provider)
+		definition, resolvedProviderKey, ready := reconciler.registry.ProviderForAuthority(providerContext, lease.Provider)
+		providerKey = resolvedProviderKey
 		if ready {
 			workflow, err := reconciler.workflows.GetWorkflow(providerContext, mustConnectorLeaseScope(lease), "integration", lease.IntegrationID)
-			_, configuration, valid := authorizedOAuthIntegration(workflow, lease.IntegrationID)
-			if err == nil && valid {
+			workflowProviderKey, configuration, valid := authorizedOAuthIntegration(workflow, lease.IntegrationID)
+			if err == nil && valid && workflowProviderKey == providerKey && definition.AuthorityProvider == lease.Provider {
 				provider, _ = connectorOAuthProvider(definition, configuration)
 			}
 		}
@@ -338,8 +358,20 @@ func (reconciler *ConnectorReconciler) failAfterCleanup(providerContext, finaliz
 	if provider == nil {
 		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_outcome_ambiguous", ErrRepositoryUnavailable)
 	}
-	if err := provider.Discard(providerContext, lease.ID, true); err != nil {
-		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", err)
+	if providerKey == "" && reconciler.registry != nil {
+		providerKey = reconciler.registry.authorityToKey[lease.Provider]
+	}
+	discardErr := error(nil)
+	if discarder, ok := provider.(ConnectorAuthorizationDiscarder); ok {
+		discardErr = discarder.DiscardAuthorization(providerContext, ConnectorAuthorizationDiscard{
+			Scope: mustConnectorLeaseScope(lease), PrincipalID: lease.PrincipalID, IntegrationID: lease.IntegrationID, AttemptID: lease.OAuthAttemptID,
+			EffectID: lease.ID, ConnectorKey: providerKey, AuthorityProvider: lease.Provider, Revoke: true,
+		})
+	} else {
+		discardErr = provider.Discard(providerContext, lease.ID, true)
+	}
+	if discardErr != nil {
+		return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_cleanup_ambiguous", discardErr)
 	}
 	_, err := reconciler.repository.FailConnectorReconciliation(finalizationContext, lease, reason)
 	return reconciler.quarantineFinalAttempt(finalizationContext, lease, "provider_outcome_ambiguous", err)

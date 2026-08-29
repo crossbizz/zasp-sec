@@ -27,6 +27,9 @@ const awsPending: Integration = {
 	status: "pending_authorization",
 };
 const awsActive: Integration = { ...awsPending, status: "active", updated_at: "2026-08-19T00:02:00Z" };
+const githubManifest = { key: "github", provider: "GitHub", category: "developer", description: "GitHub inventory", data_types: ["repository"], actions: ["inventory_read"], auth_mode: "github_app_oauth", setup_schema: [{ key: "authorization_mode", label: "Authorization mode", type: "string", required: true, description: "First-party application" }], access_guidance: "Authorize selected repositories.", test_semantics: "Verify the installation." };
+const slackIntegration: Integration = { ...integration, connector_key: "slack", name: "Slack workspace", configuration: { workspace_label: "Security operations" }, status: "configured" };
+const slackManifest = { key: "slack", provider: "Slack", category: "collaboration", description: "Slack inventory", data_types: ["workspace"], actions: ["inventory_read"], auth_mode: "managed_oauth", setup_schema: [{ key: "workspace_label", label: "Workspace label", type: "string", required: true, description: "Approved workspace label" }], access_guidance: "Authorize one workspace.", test_semantics: "Verify the workspace." };
 const receiptHeaders = {
   ETag: '"2"',
   "X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001",
@@ -90,7 +93,7 @@ describe("production integration deletion", () => {
 		const target = "https://github.com/login/oauth/authorize?state=opaque-state";
 		const navigation = vi.fn();
 		const GET = vi.fn(async (path: string) => {
-			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [] });
+			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [githubManifest] });
 			if (path === "/api/v1/integrations") return jsonResult({ items: [integration], page_info: { next_cursor: null, has_more: false } });
 			if (path === "/api/v1/integrations/{id}") return jsonResult(integration, 200, { ETag: '"1"' });
 			throw new Error(`unexpected GET ${path}`);
@@ -118,6 +121,29 @@ describe("production integration deletion", () => {
 		expect(calls.every(([path]) => path === "/api/v1/integrations/{id}/authorize")).toBe(true);
 		expect(new Set(calls.map(([, options]) => options.params.header["Idempotency-Key"])).size).toBe(1);
 		expect(calls.every(([, options]) => JSON.stringify(options.body) === "{}")).toBe(true);
+	});
+
+	it("starts a capability-gated managed Slack authorization without exposing Nango", async () => {
+		const user = userEvent.setup();
+		const target = "https://slack.com/oauth/v2/authorize?state=opaque-state";
+		const navigation = vi.fn();
+		const GET = vi.fn(async (path: string) => {
+			if (path === "/api/v1/integration-catalog") return jsonResult({ items: [slackManifest] });
+			if (path === "/api/v1/integrations") return jsonResult({ items: [slackIntegration], page_info: { next_cursor: null, has_more: false } });
+			if (path === "/api/v1/integrations/{id}") return jsonResult(slackIntegration, 200, { ETag: '"1"' });
+			throw new Error(`unexpected GET ${path}`);
+		});
+		const POST = vi.fn(async () => jsonResult({ authorization_attempt_id: "pid_70000002-0000-4000-8000-000000000002", authorization_url: target, expires_at: new Date(Date.now() + 10 * 60_000).toISOString() }, 200, { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }));
+		renderFreshIntegrations({ GET, POST } as unknown as APIClient, new Date(Date.now() + 60_000).toISOString(), navigation);
+
+		await user.click(await screen.findByRole("button", { name: "Open Slack workspace" }));
+		const dialog = screen.getByRole("dialog", { name: "Slack workspace" });
+		expect(within(dialog).getByRole("button", { name: "Authorize Slack" })).toBeEnabled();
+		expect(dialog).toHaveTextContent("Provider credentials are never returned to this browser.");
+		expect(dialog).not.toHaveTextContent(/Nango/i);
+		await user.click(within(dialog).getByRole("button", { name: "Authorize Slack" }));
+		await waitFor(() => expect(navigation).toHaveBeenCalledWith(target));
+		expect(POST).toHaveBeenCalledOnce();
 	});
 
 	it("fails closed when reference authorization has no session authority", async () => {

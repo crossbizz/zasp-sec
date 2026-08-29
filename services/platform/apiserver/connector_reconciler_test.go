@@ -423,6 +423,38 @@ func TestConnectorReconcilerRecoversDurableOutcomeWithoutRepeatingProviderEffect
 	}
 }
 
+func TestConnectorReconcilerRecoversLongTailOutcomeFromTenantBoundAuthority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_70001001-0000-4000-8000-000000000001"
+	attemptID := "pid_70001002-0000-4000-8000-000000000002"
+	effectID := "pid_70001003-0000-4000-8000-000000000003"
+	workflow := connectorWorkflowValue(integrationID, "slack")
+	scopes := []string{"nango:auth", "nango:proxy"}
+	digest := connectorAuthorizationIntentDigestValues(identity.Scope, identity.PrincipalID.String(), workflow, integrationID, attemptID, "nango:slack", map[string]string{}, scopes)
+	repository := &connectorReconciliationRepositoryStub{lease: ConnectorEffectLease{
+		OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(),
+		ID: effectID, IntegrationID: integrationID, OAuthAttemptID: attemptID, PrincipalID: identity.PrincipalID.String(), RequestedScopes: scopes, Provider: "nango:slack", Operation: "authorize", IdempotencyKey: "oauth-authorize:" + attemptID,
+		RequestDigest: hex.EncodeToString(digest[:]), Attempt: 1, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute),
+	}}
+	provider := &connectorLongTailProviderStub{}
+	registry, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{
+		"slack": {Provider: provider, RequestedScopes: scopes, CredentialClass: "nango_connection_reference", AuthorityProvider: "nango:slack"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reconciler, err := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 10, Interval: time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reconciler.reconcileOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if provider.recover.Scope != identity.Scope || provider.recover.IntegrationID != integrationID || provider.recover.AttemptID != attemptID || provider.recover.EffectID != effectID || provider.recover.ConnectorKey != "slack" || provider.recover.AuthorityProvider != "nango:slack" || repository.completed.CredentialClass != "nango_connection_reference" {
+		t.Fatalf("recovery=%#v completed=%#v", provider.recover, repository.completed)
+	}
+}
+
 func TestConnectorReconcilerNeverRejectsUnknownOutcomeOnTransientWorkflowFailure(t *testing.T) {
 	identity := fixtureRequestIdentity(t)
 	integrationID := "pid_70700001-0000-4000-8000-000000000001"
@@ -804,6 +836,35 @@ func TestConnectorReconcilerConfirmsProviderRevocationBeforeLocalTerminalState(t
 	provider.revokeErr = errors.New("provider unavailable")
 	if err := reconciler.reconcileOnce(context.Background()); err == nil || repository.revoked || repository.failedCode != "" {
 		t.Fatalf("unconfirmed revocation err=%v repository=%#v", err, repository)
+	}
+}
+
+func TestConnectorReconcilerRevokesLongTailConnectionWithTenantBinding(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_70002001-0000-4000-8000-000000000001"
+	workflow := connectorRevokingWorkflow(t, integrationID, "slack")
+	reference := "ref:nango/connection/11111111-1111-4111-8111-111111111111"
+	repository := &connectorReconciliationRepositoryStub{lease: ConnectorEffectLease{
+		OrganizationID: identity.Scope.OrganizationID().String(), WorkspaceID: identity.Scope.WorkspaceID().String(), EnvironmentID: identity.Scope.EnvironmentID().String(),
+		ID: "pid_70002003-0000-4000-8000-000000000003", IntegrationID: integrationID, Provider: "nango:slack", Operation: "revoke", IdempotencyKey: "delete-integration-0001",
+		RequestDigest: hex.EncodeToString(make([]byte, sha256.Size)), ConnectionReference: reference, Attempt: 1, LeaseOwner: "connector-worker-a", LeaseToken: hex.EncodeToString(make([]byte, sha256.Size)), LeaseExpiresAt: time.Now().Add(time.Minute),
+	}}
+	provider := &connectorLongTailProviderStub{}
+	registry, err := NewConnectorProviderRegistry(map[string]ConnectorOAuthProviderDefinition{
+		"slack": {Provider: provider, RequestedScopes: []string{"nango:auth", "nango:proxy"}, CredentialClass: "nango_connection_reference", AuthorityProvider: "nango:slack"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reconciler, err := NewConnectorReconciler(ConnectorReconcilerConfig{Repository: repository, Workflows: connectorWorkflowStub{value: workflow}, Registry: registry, Secrets: &connectorSecretStub{}, Owner: "connector-worker-a", LeaseSeconds: 30, Limit: 10, Interval: time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reconciler.reconcileOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if provider.revoke.Scope != identity.Scope || provider.revoke.IntegrationID != integrationID || provider.revoke.EffectID != repository.lease.ID || provider.revoke.ConnectorKey != "slack" || provider.revoke.AuthorityProvider != "nango:slack" || provider.revoke.ConnectionReference != reference || !repository.revoked {
+		t.Fatalf("revocation=%#v durable=%v", provider.revoke, repository.revoked)
 	}
 }
 

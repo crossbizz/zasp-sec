@@ -230,8 +230,9 @@ test("production release renders private Nango dependency plus a fail-closed loc
     NANGO_ENTERPRISE: "false",
     NANGO_LOGS_ENABLED: "false",
     NANGO_MIGRATE_AT_START: "false",
-    NANGO_SERVER_URL: "http://nango.agentsec.svc.cluster.local:3003",
-    NANGO_PUBLIC_SERVER_URL: "http://nango.agentsec.svc.cluster.local:3003",
+    NANGO_PUBLIC_CONNECT_URL: "http://nango.agentsec.svc.cluster.local:3003/connect",
+    NANGO_PUBLIC_SERVER_URL: `https://${release.host}/api/v1/integrations`,
+    NANGO_SERVER_URL: `https://${release.host}/api/v1/integrations`,
     NANGO_TELEMETRY_SDK: "false",
     RECORDS_DATABASE_POOL_MAX: "20",
     RECORDS_DATABASE_POOL_MIN: "0",
@@ -240,6 +241,7 @@ test("production release renders private Nango dependency plus a fail-closed loc
     SERVER_PORT: "3003",
   });
   assert.deepEqual(nango.spec.template.spec.containers[0].env.find(({ name }) => name === "NANGO_DATABASE_URL").valueFrom.secretKeyRef, { name: release.nango.storageSecretName, key: "database-url" });
+  assert.deepEqual(nango.spec.template.spec.containers[0].env.find(({ name }) => name === "NANGO_SECRET_KEY_PROD").valueFrom.secretKeyRef, { name: release.nango.storageSecretName, key: "service-key" });
   assert.equal(nango.spec.template.spec.containers[0].env.some(({ name }) => name === "FLAG_AUTH_ENABLED"), false);
   assert.match(nango.spec.template.spec.containers[0].args[0], /sslmode.*verify-full/);
   assert.match(nango.spec.template.spec.containers[0].args[0], /exec node packages\/server\/dist\/server\.js/);
@@ -308,6 +310,9 @@ test("production release renders private Nango dependency plus a fail-closed loc
   const nangoNetwork = one(resources, "NetworkPolicy", "nango-private");
   assert.deepEqual(nangoNetwork.spec.egress.flatMap(({ to }) => to.map(({ ipBlock }) => ipBlock?.cidr).filter(Boolean)).sort(), [...release.nango.databaseEgressCIDRs, ...release.nango.providerEgressCIDRs].sort());
   assert.doesNotMatch(JSON.stringify(nangoNetwork), /0\.0\.0\.0\/0|::\/0/);
+  const apiNangoNetwork = one(resources, "NetworkPolicy", "api-to-nango");
+  assert.deepEqual(apiNangoNetwork.spec.podSelector.matchLabels, { "app.kubernetes.io/name": "agentsec-api" });
+  assert.deepEqual(apiNangoNetwork.spec.egress, [{ to: [{ podSelector: { matchLabels: { "app.kubernetes.io/name": "nango" } } }], ports: [{ protocol: "TCP", port: 3003 }] }]);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Ingress" && /nango/i.test(metadata.name)), false);
   assert.equal(resources.some(({ metadata }) => /(?:runner|persist|orchestrat|functions|webhooks|jobs)/i.test(metadata.name) && /nango/i.test(metadata.name)), false);
 
@@ -1117,6 +1122,11 @@ test("release gives only API an explicit connector identity, reference-only conf
     ZASP_OKTA_CLIENT_ID: release.connectors.oktaClientID,
     ZASP_OKTA_CLIENT_SECRET_REFERENCE: release.connectors.oktaClientSecretReference,
   });
+	assert.deepEqual(Object.fromEntries(Object.entries(env).filter(([name]) => name.startsWith("ZASP_NANGO_"))), {
+		ZASP_NANGO_BASE_URL: "http://nango.agentsec.svc.cluster.local:3003",
+		ZASP_NANGO_SERVICE_SECRET_REFERENCE: "ref:nango/service-key-0001",
+		ZASP_NANGO_ENVIRONMENT: "prod",
+	});
 	assert.deepEqual(Object.fromEntries(Object.entries(env).filter(([name]) => name.startsWith("ZASP_POLICY_HISTORY_"))), {
 		ZASP_POLICY_HISTORY_ENDPOINT: release.runtime.openSearchEndpoint,
 		ZASP_POLICY_HISTORY_INDEX: "zasp-runtime-events-v1",
@@ -1135,6 +1145,11 @@ test("release gives only API an explicit connector identity, reference-only conf
       sources: [{ serviceAccountToken: { audience: "sts.amazonaws.com", expirationSeconds: 900, path: "token" } }],
     },
   });
+	assert.deepEqual(container.volumeMounts.find(({ name }) => name === "nango-service-key"), { name: "nango-service-key", mountPath: "/var/run/secrets/zasp-nango", readOnly: true });
+	assert.deepEqual(pod.volumes.find(({ name }) => name === "nango-service-key"), {
+		name: "nango-service-key",
+		secret: { secretName: release.nango.storageSecretName, defaultMode: 288, items: [{ key: "service-key", path: "service-key", mode: 288 }] },
+	});
   for (const account of resources.filter(({ kind }) => kind === "ServiceAccount")) {
     assert.doesNotMatch(JSON.stringify(account.metadata.annotations ?? {}), new RegExp(release.connectors.roleArn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), account.metadata.name);
   }
@@ -1160,7 +1175,7 @@ test("release gives only API an explicit connector identity, reference-only conf
 	assert.ok(apiDependencies.spec.egress.some(({ to, ports }) => to?.[0]?.ipBlock?.cidr === "10.50.0.0/24" && ports?.[0]?.port === 443));
 
   const rendered = JSON.stringify(resources);
-  for (const workload of resources.filter(({ kind, metadata }) => ["Deployment", "Job", "CronJob"].includes(kind) && !["nango", "nango-migrate"].includes(metadata.name))) assert.doesNotMatch(JSON.stringify(workload), /NANGO_/);
+  for (const workload of resources.filter(({ kind, metadata }) => ["Deployment", "Job", "CronJob"].includes(kind) && !["agentsec-api", "nango", "nango-migrate"].includes(metadata.name))) assert.doesNotMatch(JSON.stringify(workload), /NANGO_/);
   assert.equal(resources.filter(({ kind }) => kind === "Deployment").some(({ metadata }) => /nango-(?:runner|persist|orchestrat|functions|webhooks|jobs)/i.test(metadata.name)), false);
   assert.doesNotMatch(rendered, /github-client-secret-value|okta-client-secret-value/);
   assert.equal(one(resources, "SecretProviderClass", release.secretProviderClass).spec.secretObjects[0].data.length, 9);
