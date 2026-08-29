@@ -72,6 +72,8 @@ const (
 	productionHomeAttentionName             = "production_home_attention"
 	productionApprovalNotificationVersion   = int64(30)
 	productionApprovalNotificationName      = "production_approval_notification"
+	productionWorkflowCompatibilityVersion  = int64(31)
+	productionWorkflowCompatibilityName     = "production_workflow_compatibility"
 	rollbackTimeout                         = 5 * time.Second
 
 	tableExistsSQL                                     = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
@@ -120,6 +122,7 @@ const (
 	productionPolicyDeploymentReadinessSQL             = `SELECT zasp_policy_deployment_execution_readiness($1,$2)`
 	productionHomeAttentionReadinessSQL                = `SELECT zasp_production_home_attention_readiness($1,$2)`
 	productionApprovalNotificationReadinessSQL         = `SELECT zasp_production_approval_notification_readiness($1,$2)`
+	productionWorkflowCompatibilityReadinessSQL        = `SELECT zasp_production_workflow_compatibility_readiness($1,$2)`
 	typedInventoryRollbackAllowedSQL                   = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_inventory_cutover_state" WHERE "phase" = 'cutover')`
 	runtimeDataPlaneRollbackAllowedSQL                 = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_data_plane_state" WHERE "used_at" IS NOT NULL)`
 	runtimeGatewayReconciliationRollbackAllowedSQL     = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_gateway_reconciliation_state" WHERE "used_at" IS NOT NULL)`
@@ -328,6 +331,12 @@ var productionApprovalNotificationUpSQL string
 
 //go:embed sql/0030_production_approval_notification.down.sql
 var productionApprovalNotificationDownSQL string
+
+//go:embed sql/0031_production_workflow_compatibility.up.sql
+var productionWorkflowCompatibilityUpSQL string
+
+//go:embed sql/0031_production_workflow_compatibility.down.sql
+var productionWorkflowCompatibilityDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -559,6 +568,13 @@ func ProductionApprovalNotification() Metadata {
 	return Metadata{version: productionApprovalNotificationVersion, name: productionApprovalNotificationName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionWorkflowCompatibility() Metadata {
+	up := strings.TrimSpace(productionWorkflowCompatibilityUpSQL)
+	down := strings.TrimSpace(productionWorkflowCompatibilityDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: productionWorkflowCompatibilityVersion, name: productionWorkflowCompatibilityName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -685,6 +701,10 @@ func ProductionApprovalNotificationSemanticFingerprint() string {
 	return semanticFingerprint(productionApprovalNotificationUpSQL, "production_approval_notification_fingerprint")
 }
 
+func ProductionWorkflowCompatibilitySemanticFingerprint() string {
+	return semanticFingerprint(productionWorkflowCompatibilityUpSQL, "production_workflow_compatibility_fingerprint")
+}
+
 func semanticFingerprint(source, key string) string {
 	marker := "'" + key + "', '"
 	start := strings.Index(source, marker)
@@ -786,7 +806,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 30 {
+	if count < 1 || count > 31 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -849,6 +869,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution(), ProductionRecovery(), ProductionPolicyDeployment(), ProductionHomeAttention())
 	} else if count == 30 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution(), ProductionRecovery(), ProductionPolicyDeployment(), ProductionHomeAttention(), ProductionApprovalNotification())
+	} else if count == 31 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution(), ProductionRecovery(), ProductionPolicyDeployment(), ProductionHomeAttention(), ProductionApprovalNotification(), ProductionWorkflowCompatibility())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -2718,6 +2740,68 @@ func (runner *Runner) DownProductionApprovalNotification(ctx context.Context) er
 	})
 }
 
+func (runner *Runner) UpProductionWorkflowCompatibility(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockWorkflowMutationsSQL, lockRiskProjectionSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionApprovalNotificationState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionApprovalNotification()
+		if err := requireMigrationReadiness(ctx, transaction, productionApprovalNotificationReadinessSQL, prior.Checksum(), ProductionApprovalNotificationSemanticFingerprint()); err != nil {
+			return err
+		}
+		metadata := ProductionWorkflowCompatibility()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionWorkflowCompatibilityState(ctx, transaction); err != nil {
+			return err
+		}
+		return requireMigrationReadiness(ctx, transaction, productionWorkflowCompatibilityReadinessSQL, metadata.Checksum(), ProductionWorkflowCompatibilitySemanticFingerprint())
+	})
+}
+
+func (runner *Runner) DownProductionWorkflowCompatibility(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockWorkflowMutationsSQL, lockRiskProjectionSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionWorkflowCompatibilityState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionWorkflowCompatibility()
+		if err := requireMigrationReadiness(ctx, transaction, productionWorkflowCompatibilityReadinessSQL, metadata.Checksum(), ProductionWorkflowCompatibilitySemanticFingerprint()); err != nil {
+			return err
+		}
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionApprovalNotificationState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionApprovalNotification()
+		return requireMigrationReadiness(ctx, transaction, productionApprovalNotificationReadinessSQL, prior.Checksum(), ProductionApprovalNotificationSemanticFingerprint())
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -2961,6 +3045,10 @@ func readProductionHomeAttentionState(ctx context.Context, queryer Queryer) erro
 
 func readProductionApprovalNotificationState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution(), ProductionRecovery(), ProductionPolicyDeployment(), ProductionHomeAttention(), ProductionApprovalNotification()})
+}
+
+func readProductionWorkflowCompatibilityState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution(), ProductionRecovery(), ProductionPolicyDeployment(), ProductionHomeAttention(), ProductionApprovalNotification(), ProductionWorkflowCompatibility()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

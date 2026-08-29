@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 481 |
-| Component-only | 186 |
+| Production-available | 482 |
+| Component-only | 185 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -176,9 +176,9 @@ production composition, not merely a component proof or external evidence.
 | M5 | 42 | 20 | 22 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
-| M7A | 113 | 88 | 25 | 0 | 0 |
+| M7A | 113 | 89 | 24 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **481** | **186** | **61** | **0** |
+| **Total** | **728** | **482** | **185** | **61** | **0** |
 
 ## Prerequisite work
 
@@ -315,7 +315,7 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 | M7A-93 | August 18, 2026 | Unknown external outcomes become Inconclusive and are never blindly retried. |
 | M7A-92 | August 18, 2026 | Expired mandatory approvals move waiting work to Needs human and never enqueue automatic resume. |
 | M7A-91 | August 18, 2026 | Planner failure records one bounded unavailable error, executes no action, and does not change existing runtime enforcement. |
-| M7A-90d | August 18, 2026 | The Home fixture exposes critical paths, approvals, Needs-human runs, stale coverage, and recent containment through explicit canonical actions. |
+| M7A-90d | August 29, 2026 | The production combined E2E routes one exact tenant's critical exposure, pending approval, Needs-human run, and degraded sensor through shipped browser/API actions, excludes same-looking foreign resources, persists sensor deletion, and proves unrelated attention remains. |
 | M7A-90c | August 18, 2026 | Approval-required notification emits one signed idempotent event with approval/run context only and no evidence body or secret. |
 | M7A-90b | August 18, 2026 | Home renders ordered Needs-attention cards for exposure, approvals, responder failures, stale coverage, and containment without masking degraded state. |
 | M7A-90a | August 18, 2026 | Home summary adds Organization-scoped approval age, responder state counts, and recent contained/remediated outcomes while preserving stale/degraded attention. |

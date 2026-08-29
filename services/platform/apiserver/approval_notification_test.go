@@ -105,7 +105,7 @@ func TestApprovalNotificationReconcilerSignsOneMinimalTenantScopedDelivery(t *te
 	}
 }
 
-func TestApprovalNotificationReconcilerReleasesFailedDeliveryWithoutEchoingProviderError(t *testing.T) {
+func TestApprovalNotificationReconcilerIsolatesFailedTenantDeliveryWithoutEchoingProviderError(t *testing.T) {
 	lease := approvalNotificationFixture(t)
 	repository := &approvalNotificationRepositoryStub{lease: lease}
 	secrets := &findingTicketSecretResolverStub{material: []byte(strings.Repeat("s", 32))}
@@ -122,14 +122,29 @@ func TestApprovalNotificationReconcilerReleasesFailedDeliveryWithoutEchoingProvi
 		t.Fatalf("empty warmup err=%v ready=%t", err, reconciler.Ready())
 	}
 	repository.lease = lease
-	if err := reconciler.ReconcileOnce(context.Background()); !errors.Is(err, ErrRepositoryUnavailable) || strings.Contains(err.Error(), "provider-secret") {
+	if err := reconciler.ReconcileOnce(context.Background()); err != nil {
 		t.Fatalf("error=%v", err)
 	}
-	if reconciler.Ready() {
-		t.Fatal("provider failure left approval notification reconciler ready")
+	if !reconciler.Ready() {
+		t.Fatal("one tenant provider failure made the shared approval notification reconciler unready")
 	}
 	if repository.fails != 1 || repository.completes != 0 || webhook.calls != 1 {
 		t.Fatalf("calls fail/complete/webhook=%d/%d/%d", repository.fails, repository.completes, webhook.calls)
+	}
+}
+
+func TestApprovalNotificationReconcilerFailsClosedWhenRetryCannotPersist(t *testing.T) {
+	lease := approvalNotificationFixture(t)
+	repository := &approvalNotificationRepositoryStub{lease: lease, failErr: errors.New("database detail")}
+	reconciler, err := NewApprovalNotificationReconciler(ApprovalNotificationReconcilerConfig{
+		Repository: repository, Secrets: &findingTicketSecretResolverStub{material: []byte(strings.Repeat("s", 32))}, Webhook: &approvalNotificationWebhookStub{err: errors.New("provider detail")}, Owner: "agentsec-api:test", LeaseSeconds: 30,
+		NewLeaseToken: func() (string, error) { return lease.LeaseToken, nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reconciler.ReconcileOnce(context.Background()); !errors.Is(err, ErrRepositoryUnavailable) || reconciler.Ready() || repository.fails != 1 {
+		t.Fatalf("error=%v ready=%t fails=%d", err, reconciler.Ready(), repository.fails)
 	}
 }
 

@@ -138,17 +138,22 @@ func (reconciler *ApprovalNotificationReconciler) ReconcileOnce(ctx context.Cont
 	secret, err := reconciler.secrets.ResolveFindingTicketSecret(providerContext, lease.SecretReference)
 	if err != nil || len(secret) < 32 || len(secret) > 4096 {
 		clear(secret)
-		_ = reconciler.repository.FailApprovalNotification(finalizationContext, lease.Scope, lease.DeliveryID, lease.LeaseToken, lease.PayloadDigest)
-		reconciler.ready.Store(false)
-		return ErrRepositoryUnavailable
+		return reconciler.finishFailedTenantDelivery(finalizationContext, lease)
 	}
 	defer clear(secret)
 	if err := deliverApprovalNotificationSafely(reconciler.webhook, providerContext, lease, secret); err != nil {
-		_ = reconciler.repository.FailApprovalNotification(finalizationContext, lease.Scope, lease.DeliveryID, lease.LeaseToken, lease.PayloadDigest)
+		return reconciler.finishFailedTenantDelivery(finalizationContext, lease)
+	}
+	if err := reconciler.repository.CompleteApprovalNotification(finalizationContext, lease.Scope, lease.DeliveryID, lease.LeaseToken, lease.PayloadDigest); err != nil {
 		reconciler.ready.Store(false)
 		return ErrRepositoryUnavailable
 	}
-	if err := reconciler.repository.CompleteApprovalNotification(finalizationContext, lease.Scope, lease.DeliveryID, lease.LeaseToken, lease.PayloadDigest); err != nil {
+	reconciler.ready.Store(true)
+	return nil
+}
+
+func (reconciler *ApprovalNotificationReconciler) finishFailedTenantDelivery(ctx context.Context, lease ApprovalNotificationLease) error {
+	if err := reconciler.repository.FailApprovalNotification(ctx, lease.Scope, lease.DeliveryID, lease.LeaseToken, lease.PayloadDigest); err != nil {
 		reconciler.ready.Store(false)
 		return ErrRepositoryUnavailable
 	}

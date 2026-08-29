@@ -20,8 +20,8 @@ const allowedProductionClasses = new Set([
   "missing",
 ]);
 const expectedClassCounts = new Map([
-  ["production-available", 481],
-  ["component-only", 186],
+  ["production-available", 482],
+  ["component-only", 185],
   ["blocked/external", 61],
   ["missing", 0],
 ]);
@@ -35,7 +35,7 @@ const expectedMilestoneClassCounts = new Map([
   ["M5", new Map([["production-available", 20], ["component-only", 22], ["blocked/external", 0], ["missing", 0]])],
   ["M6", new Map([["production-available", 36], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
   ["M7", new Map([["production-available", 37], ["component-only", 25], ["blocked/external", 0], ["missing", 0]])],
-  ["M7A", new Map([["production-available", 88], ["component-only", 25], ["blocked/external", 0], ["missing", 0]])],
+  ["M7A", new Map([["production-available", 89], ["component-only", 24], ["blocked/external", 0], ["missing", 0]])],
   ["M8", new Map([["production-available", 35], ["component-only", 54], ["blocked/external", 52], ["missing", 0]])],
 ]);
 const productionOwnerTaskIDs = new Set([
@@ -72,7 +72,7 @@ const auditedProductionAvailableIDs = new Set([
   "M6-03", "M6-04", "M6-05", "M6-06", "M6-07", "M6-13", "M6-16", "M6-17", "M6-19", "M6-20", "M6-21", "M6-22", "M6-23", "M6-24", "M6-25", "M6-26", "M6-30", "M6-31a", "M6-31b", "M6-31c", "M6-31d", "M6-31e", "M6-31",
   "M7A-02", "M7A-03", "M7A-04", "M7A-05", "M7A-06", "M7A-07", "M7A-08", "M7A-09", "M7A-10", "M7A-11", "M7A-12", "M7A-13", "M7A-14", "M7A-35", "M7A-37", "M7A-38", "M7A-39", "M7A-42", "M7A-43", "M7A-44", "M7A-45", "M7A-46", "M7A-47", "M7A-48", "M7A-49", "M7A-62", "M7A-68", "M7A-69", "M7A-70", "M7A-71", "M7A-72", "M7A-73", "M7A-74", "M7A-75", "M7A-76",
   "M7A-15", "M7A-16", "M7A-17", "M7A-18", "M7A-18a", "M7A-18b", "M7A-18c", "M7A-18d", "M7A-19", "M7A-20", "M7A-25", "M7A-26", "M7A-27", "M7A-28",
-  "M7A-50", "M7A-52", "M7A-53", "M7A-54", "M7A-55", "M7A-56", "M7A-57", "M7A-58", "M7A-59", "M7A-60", "M7A-90a", "M7A-90b", "M7A-90c", "M7A-92", "M7A-93", "M7A-97", "M7A-98", "M7A-99",
+  "M7A-50", "M7A-52", "M7A-53", "M7A-54", "M7A-55", "M7A-56", "M7A-57", "M7A-58", "M7A-59", "M7A-60", "M7A-90a", "M7A-90b", "M7A-90c", "M7A-90d", "M7A-92", "M7A-93", "M7A-97", "M7A-98", "M7A-99",
   "M8-09a", "M8-09b", "M8-09c", "M8-09", "M8-10", "M8-11", "M8-12", "M8-13", "M8-14",
   "M8-20a", "M8-20b", "M8-20c", "M8-20", "M8-21a", "M8-21b", "M8-21c", "M8-21d", "M8-21e", "M8-21", "M8-43", "M8-44",
   "M8-57a", "M8-57b", "M8-57c", "M8-57",

@@ -80,6 +80,34 @@ CREATE ROLE approval_notification_gateway LOGIN INHERIT NOSUPERUSER NOCREATEDB N
 	if err := runner.UpProductionApprovalNotification(ctx); err != nil {
 		t.Fatalf("v30 up: %v", err)
 	}
+	compatibility := migrations.ProductionWorkflowCompatibility()
+	compatibilityProbe, err := connection.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := compatibilityProbe.Exec(ctx, compatibility.UpSQL()); err != nil {
+		_ = compatibilityProbe.Rollback(ctx)
+		t.Fatal(err)
+	}
+	if _, err := compatibilityProbe.Exec(ctx, `INSERT INTO zasp_schema_versions(version,name,checksum) VALUES($1,$2,$3)`, compatibility.Version(), compatibility.Name(), compatibility.Checksum()); err != nil {
+		_ = compatibilityProbe.Rollback(ctx)
+		t.Fatal(err)
+	}
+	var compatibilityFingerprint string
+	if err := compatibilityProbe.QueryRow(ctx, `SELECT zasp_production_workflow_compatibility_live_fingerprint()`).Scan(&compatibilityFingerprint); err != nil {
+		_ = compatibilityProbe.Rollback(ctx)
+		t.Fatal(err)
+	}
+	if compatibilityFingerprint != migrations.ProductionWorkflowCompatibilitySemanticFingerprint() {
+		_ = compatibilityProbe.Rollback(ctx)
+		t.Fatalf("v31 candidate fingerprint=%s", compatibilityFingerprint)
+	}
+	if err := compatibilityProbe.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpProductionWorkflowCompatibility(ctx); err != nil {
+		t.Fatalf("v31 up: %v", err)
+	}
 	var registered bool
 	if err := connection.QueryRow(ctx, `SELECT zasp_discovery_register_principals(session_user,'approval_notification_discovery_api','approval_notification_discovery_worker','approval_notification_ingest','approval_notification_runtime','approval_notification_outbox','approval_notification_gateway')`).Scan(&registered); err != nil || !registered {
 		t.Fatalf("discovery register=%t err=%v", registered, err)
@@ -93,6 +121,14 @@ CREATE ROLE approval_notification_gateway LOGIN INHERIT NOSUPERUSER NOCREATEDB N
 	organization := identity.Scope.OrganizationID().String()
 	workspace := identity.Scope.WorkspaceID().String()
 	environment := identity.Scope.EnvironmentID().String()
+	var workflowMutation json.RawMessage
+	if err := connection.QueryRow(ctx, `SELECT zasp_workflow_mutate('create','policy','policy-v31-compatibility',$1,$2,$3,$4,'createPolicy','v31-workflow-write-0001',0,$5::jsonb,$6::jsonb,$7,$8,'')`,
+		organization, workspace, environment, identity.PrincipalID.String(),
+		`{"body":{"id":"policy-v31-compatibility","name":"V31 compatibility","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"read"}],"action":"monitor","rollout":"draft","failure_mode":"open"},"expected_version":0,"resource_id":""}`,
+		`{"id":"policy-v31-compatibility","name":"V31 compatibility","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"read"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`,
+		"pid_76aa0001-0000-4000-8000-000000000001", "pid_76aa0002-0000-4000-8000-000000000002").Scan(&workflowMutation); err != nil || !strings.Contains(string(workflowMutation), `"version": 1`) {
+		t.Fatalf("v31 workflow mutation=%s err=%v", workflowMutation, err)
+	}
 	foreignOrganization := "pid_76ffffff-ffff-4fff-8fff-ffffffffffff"
 	integration := "pid_76000010-0000-4000-8000-000000000010"
 	foreignIntegration := "pid_76000011-0000-4000-8000-000000000011"
@@ -208,10 +244,26 @@ CREATE ROLE approval_notification_gateway LOGIN INHERIT NOSUPERUSER NOCREATEDB N
 			t.Fatal(err)
 		}
 	}
+	var compatibilityReady, compatibilitySecurity bool
+	if err := connection.QueryRow(ctx, `SELECT zasp_production_workflow_compatibility_readiness($1,$2),zasp_production_workflow_compatibility_security_ready()`, compatibility.Checksum(), migrations.ProductionWorkflowCompatibilitySemanticFingerprint()).Scan(&compatibilityReady, &compatibilitySecurity); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_production_workflow_compatibility_live_fingerprint()`).Scan(&compatibilityFingerprint); err != nil {
+		t.Fatal(err)
+	}
+	if !compatibilityReady || !compatibilitySecurity || compatibilityFingerprint != migrations.ProductionWorkflowCompatibilitySemanticFingerprint() {
+		t.Fatalf("v31 readiness=%t security=%t fingerprint=%s expected=%s", compatibilityReady, compatibilitySecurity, compatibilityFingerprint, migrations.ProductionWorkflowCompatibilitySemanticFingerprint())
+	}
+	if err := runner.DownProductionWorkflowCompatibility(ctx); err != nil {
+		t.Fatalf("v31 down: %v", err)
+	}
 	if err := runner.DownProductionApprovalNotification(ctx); err != nil {
 		t.Fatalf("v30 down: %v", err)
 	}
 	if err := runner.UpProductionApprovalNotification(ctx); err != nil {
 		t.Fatalf("v30 re-up: %v", err)
+	}
+	if err := runner.UpProductionWorkflowCompatibility(ctx); err != nil {
+		t.Fatalf("v31 re-up: %v", err)
 	}
 }

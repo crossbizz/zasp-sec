@@ -165,8 +165,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, and approval notification releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, and workflow compatibility releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -179,6 +179,7 @@ try {
 	console.log("combined E2E: schema 28 production_policy_deployment verified");
 	console.log("combined E2E: schema 29 production_home_attention verified");
 	console.log("combined E2E: schema 30 production_approval_notification verified");
+	console.log("combined E2E: schema 31 production_workflow_compatibility verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -597,24 +598,14 @@ try {
   }
   console.log("combined E2E: browser launch connector setup catalog proven");
   await clickBrowserAria(browser.cdp, "Open Harness terminal revocation");
-  await waitForBrowserText(browser.cdp, /Provider credentials are never returned to this browser/);
-  await clickBrowserText(browser.cdp, "Authorize GitHub");
-  await waitForBrowserText(browser.cdp, /Provider authorization harness/);
-  assert.equal(await browserCurrentURL(browser.cdp), `${publicOrigin}/connector-oauth-e2e-provider`);
-  assert.equal(connectorAuthorizationRequests.length, 2, "browser OAuth response-loss replay count drifted");
-  assert.equal(new Set(connectorAuthorizationRequests.map((request) => request.idempotencyKey)).size, 1, "browser OAuth retry changed idempotency key");
-  for (const request of connectorAuthorizationRequests) {
-    assert.equal(request.body, "{}");
-    assert.equal(request.contentType, "application/json");
-    assert.match(request.csrf, /^.{32,256}$/);
-    assert.equal(request.expectedScope, "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003");
-    assert.equal(request.origin, publicOrigin);
-  }
-  assert.equal(productAPIRequests.slice(connectorUIRequestStart).some((request) => request.path === `/api/v1/integrations/${terminalRevocationIntegrationID}/authorize`), true, "product UI did not invoke connector authorization");
+  await waitForBrowserText(browser.cdp, /Provider authorization controls are unavailable for this connector/);
+  assert.equal(await browserHasInteractiveText(browser.cdp, /^Authorize GitHub$/), false, "unavailable managed provider exposed an authorization side effect");
+  assert.equal(connectorAuthorizationRequests.length, 0, "fail-closed provider unexpectedly reached the authorization boundary");
+  assert.equal(productAPIRequests.slice(connectorUIRequestStart).some((request) => request.path === `/api/v1/integrations/${terminalRevocationIntegrationID}/authorize`), false, "fail-closed provider invoked connector authorization");
   assert.doesNotMatch(await browserBodyText(browser.cdp), /authorization_(?:url|attempt_id)|code_verifier|opaque-e2e-state/i);
-  console.log("combined E2E: browser OAuth authorization navigation and exact retained request proven");
-  await navigateBrowser(browser.cdp, `${publicOrigin}/connectors`);
+  await clickBrowserText(browser.cdp, "Close");
   await waitForBrowserText(browser.cdp, /Harness terminal revocation/);
+  console.log("combined E2E: unavailable managed OAuth authority remained fail-closed with zero provider calls");
 
   const expectedProductionScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
   const terminalDeleteStart = integrationDeleteRequests.length;
@@ -1726,6 +1717,12 @@ async function exerciseSecurityAgentAutomaticLifecycle(cdp, workerBinary, worker
 	const sessionDefinition = "pid_78000030-0000-4000-8000-000000000030";
 	const isolatedSession = "pid_79000010-0000-4000-8000-000000000010";
 	const unrelatedSession = "pid_79000011-0000-4000-8000-000000000011";
+	const dailyOpsRun = "pid_7a000001-0000-4000-8000-000000000001";
+	const dailyOpsSensor = "pid_7a000002-0000-4000-8000-000000000002";
+	const dailyOpsSensorToken = "pid_7a000004-0000-4000-8000-000000000004";
+	const foreignDailyOpsRun = "pid_9a000001-0000-4000-8000-000000000001";
+	const foreignDailyOpsSensor = "pid_9a000002-0000-4000-8000-000000000002";
+	const foreignDailyOpsSensorToken = "pid_9a000004-0000-4000-8000-000000000004";
 	const gatewayDevice = "pid_79000001-0000-4000-8000-000000000001";
 	const gatewayEnrollment = "pid_79000002-0000-4000-8000-000000000002";
 	const gatewayCredential = "pid_79000003-0000-4000-8000-000000000003";
@@ -1771,6 +1768,18 @@ FROM zasp_discovery_snapshots snapshot WHERE (snapshot.organization_id,snapshot.
 INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorDefinition}','supervised',1,1,
 jsonb_build_object('id','${connectorDefinition}','name','Compromised connector response','trigger_kind','finding','trigger_source','connector_revocation','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',300,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('revoke_integration_connection'),'verification_kind','connection_state','definition_version',1,'enabled',true),'security-agent-actions-v1');
+INSERT INTO zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_id,requested_by,state,last_error_code,completed_at)
+VALUES
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${dailyOpsRun}','${primaryDefinition}',1,'pid_7a000003-0000-4000-8000-000000000003','pid_10000004-0000-4000-8000-000000000004','needs_human','manual_review_required',transaction_timestamp()),
+('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignDailyOpsRun}','${foreignDefinition}',1,'pid_9a000003-0000-4000-8000-000000000003','pid_90000004-0000-4000-8000-000000000004','needs_human','manual_review_required',transaction_timestamp());
+INSERT INTO zasp_sensors(organization_id,workspace_id,environment_id,id,name,kind,mode,state)
+VALUES
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${dailyOpsSensor}','Daily ops stale sensor','tetragon','metadata_only','degraded'),
+('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignDailyOpsSensor}','Foreign daily ops stale sensor','tetragon','metadata_only','degraded');
+INSERT INTO zasp_sensor_tokens(organization_id,workspace_id,environment_id,id,sensor_id,audience,salt,token_hash,expires_at,format_version,locator_digest,token_generation,sensor_version_at_issue,v15_issued_at)
+VALUES
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${dailyOpsSensorToken}','${dailyOpsSensor}','event-ingest',decode(repeat('a1',32),'hex'),decode(repeat('a2',32),'hex'),transaction_timestamp()+interval '1 hour',1,decode(repeat('a3',32),'hex'),1,1,transaction_timestamp()),
+('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignDailyOpsSensorToken}','${foreignDailyOpsSensor}','event-ingest',decode(repeat('b1',32),'hex'),decode(repeat('b2',32),'hex'),transaction_timestamp()+interval '1 hour',1,decode(repeat('b3',32),'hex'),1,1,transaction_timestamp());
 INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES
 ('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','*',true,'production-e2e-security-agent'),
 ('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','update_finding_response',true,'production-e2e-security-agent'),
@@ -1827,6 +1836,7 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 		await delay(50);
 	}
 	assert.match(approvalID, /^pid_[0-9a-f-]{36}$/, `worker did not prepare supervised authority and execute autonomous authority: state=${automaticState}; output=${worker.output()}`);
+	await exerciseHomeDailyOperations(cdp, publicOrigin, dsn, approvalID, dailyOpsRun, dailyOpsSensor);
 
 	await navigateBrowser(cdp, `${publicOrigin}/protect/approvals`);
 	await waitForBrowserText(cdp, /Move finding to under review/);
@@ -2026,6 +2036,60 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	assert.match(history, /approved/);
 	assert.doesNotMatch(history, /Foreign autonomous response/);
 	console.log("combined E2E: multi-tenant supervised approval, autonomous response, exact-session isolation with unrelated allowance and cleanup, signed temporary policy apply/cleanup, and irreversible connector revocation proven through real production workers");
+}
+
+async function exerciseHomeDailyOperations(cdp, publicOrigin, dsn, approvalID, runID, sensorID) {
+	const expectedScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+	const headers = { "X-Zasp-Expected-Scope": expectedScope };
+	const before = await browserFetchJSON(cdp, "/api/v1/home/summary", headers);
+	assert.equal(before.status, 200, `Home summary unavailable: ${JSON.stringify(before.body)}`);
+	assert.ok(before.body.high_risk_paths >= 1 && before.body.pending_approvals >= 1 && before.body.needs_human_runs === 1 && before.body.attention_required && !before.body.healthy, `Home omitted daily-ops authority: ${JSON.stringify(before.body)}`);
+
+	await navigateBrowser(cdp, `${publicOrigin}/`);
+	const home = await waitForBrowserText(cdp, /Needs attention/);
+	for (const item of ["Critical exposures", "Pending approvals", "Needs human", "Stale launch coverage"]) assert.match(home, new RegExp(item));
+	console.log("combined E2E: Home exposed every daily-ops item");
+
+	await clickBrowserTextContains(cdp, "Critical exposures");
+	await waitForBrowserText(cdp, /Attack Paths/);
+	assert.ok(await browserCountAriaPrefix(cdp, "Open attack path") >= 1, "Home critical exposure route had no authoritative path");
+
+	await navigateBrowser(cdp, `${publicOrigin}/`);
+	await waitForBrowserText(cdp, /Needs attention/);
+	await clickBrowserTextContains(cdp, "Pending approvals");
+	await waitForBrowserText(cdp, /Security Agent approvals/);
+	await clickBrowserAria(cdp, `Open approval ${approvalID}`);
+	assert.match(await waitForBrowserText(cdp, /Move finding to under review/), /pending/i);
+	await clickBrowserAria(cdp, "Close");
+
+	await navigateBrowser(cdp, `${publicOrigin}/`);
+	await waitForBrowserText(cdp, /Needs attention/);
+	await clickBrowserTextContains(cdp, "Needs human");
+	await waitForBrowserText(cdp, /Security agents/);
+	assert.doesNotMatch(await browserBodyText(cdp), /pid_9a000001-0000-4000-8000-000000000001|Foreign daily ops stale sensor/, "Home daily-ops route crossed tenant scope");
+	await clickBrowserAria(cdp, `Open run ${runID}`);
+	assert.match(await waitForBrowserText(cdp, /No plan has been persisted/), /needs_human/);
+	await clickBrowserAria(cdp, "Close");
+
+	await navigateBrowser(cdp, `${publicOrigin}/`);
+	await waitForBrowserText(cdp, /Needs attention/);
+	await clickBrowserTextContains(cdp, "Stale launch coverage");
+	await waitForBrowserText(cdp, /Runtime sensors/);
+	const sensors = await waitForBrowserText(cdp, /Daily ops stale sensor/);
+	assert.match(sensors, /degraded/);
+	assert.doesNotMatch(sensors, /Foreign daily ops stale sensor/);
+	await clickBrowserAria(cdp, "Open Daily ops stale sensor");
+	assert.match(await waitForBrowserText(cdp, /Resource version "1"/), /degraded/);
+	await clickBrowserText(cdp, "Delete sensor");
+	await waitForBrowserText(cdp, /Sensor deleted and its active tokens revoked\./);
+	await waitForBrowserAction(cdp, `document.querySelector(${JSON.stringify('[aria-label="Open Daily ops stale sensor"]')}) === null`);
+	const sensorState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT state || '|' || version FROM zasp_sensors WHERE (organization_id,workspace_id,environment_id,id)=('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','${sensorID}');`])).stdout.trim();
+	assert.equal(sensorState, "deleted|2", "daily-ops sensor disappeared without exact deleted state");
+
+	const after = await browserFetchJSON(cdp, "/api/v1/home/summary", headers);
+	assert.equal(after.status, 200);
+	for (const field of ["high_risk_paths", "pending_approvals", "needs_human_runs"]) assert.equal(after.body[field], before.body[field], `unrelated sensor action silently cleared ${field}`);
+	console.log("combined E2E: Home daily-ops routing preserved explicit terminal and degraded authority");
 }
 
 async function exerciseProductionAttackLabLifecycle(cdp, workerE2EBinary, postgresPort, dsn, publicOrigin) {
@@ -3332,6 +3396,10 @@ async function dispatchBrowserKey(cdp, key, options = {}) {
 
 async function clickBrowserText(cdp, text) {
   await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,a')].find((candidate) => candidate.textContent?.trim() === value); if (!element) return false; element.focus(); element.click(); return true; })()`);
+}
+
+async function clickBrowserTextContains(cdp, text) {
+	await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,a')].find((candidate) => candidate.textContent?.includes(value)); if (!element) return false; element.focus(); element.click(); return true; })()`);
 }
 
 async function clickBrowserAria(cdp, label) {
