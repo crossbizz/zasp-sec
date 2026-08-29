@@ -23,6 +23,7 @@ func newGatewayHandler(runtime *gatewayRuntime, maximumBytes int64, proxy ...htt
 	mux.Handle(gatewayEvaluatePath, handler)
 	if len(proxy) == 1 {
 		mux.Handle(gatewayHTTPProxyPath, proxy[0])
+		mux.Handle(gatewayHTTPProxyPath+"/", proxy[0])
 		mux.Handle(gatewayMCPProxyPath, proxy[0])
 	}
 	mux.Handle("/", http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {

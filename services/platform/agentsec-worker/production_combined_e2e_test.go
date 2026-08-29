@@ -861,6 +861,9 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	}
 	privateKey := ed25519.PrivateKey(privateKeyBytes)
 	publicKey := append(ed25519.PublicKey(nil), privateKey.Public().(ed25519.PublicKey)...)
+	actionPrivateKey := append(ed25519.PrivateKey(nil), privateKey...)
+	policyPrivateKey := append(ed25519.PrivateKey(nil), privateKey...)
+	defer clear(privateKey)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -886,7 +889,7 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 8, ShutdownTimeout: 20 * time.Second,
 		GatewaySigningKeyID: "gateway-key-01", GatewaySigningPrivateFile: "/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key",
 	}
-	dependencies, err := composeSecurityAgentActionWorkerRuntime(config, tracedDatabase, privateKey)
+	dependencies, err := composeSecurityAgentActionWorkerRuntime(config, tracedDatabase, actionPrivateKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -894,12 +897,69 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	if err := dependencies.Ready(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if err := dependencies.Processor.RunOnce(ctx); err != nil {
-		t.Fatalf("%v; database trace=%s; postgres trace=%s", err, tracedDatabase.Trace(), postgresTrace.String())
-	}
 	if phase == "reconcile" {
+		if err := dependencies.Processor.RunOnce(ctx); err != nil {
+			t.Fatalf("%v; database trace=%s; postgres trace=%s", err, tracedDatabase.Trace(), postgresTrace.String())
+		}
 		t.Log("connector revocation reconciled through the production action worker")
 		return
+	}
+
+	policyDSN := os.Getenv("ZASP_COMBINED_E2E_POLICY_DEPLOYMENT_DSN")
+	if policyDSN == "" {
+		t.Fatal("combined E2E policy deployment authority is missing")
+	}
+	policyPoolConfig, err := pgxpool.ParseConfig(policyDSN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policyPoolConfig.MaxConns, policyPoolConfig.MinConns = 3, 1
+	policyPool, err := pgxpool.NewWithConfig(ctx, policyPoolConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policyDatabase, err := apiserver.NewPostgresJSONDatabase(&workerPostgresDriver{pool: policyPool})
+	if err != nil {
+		policyPool.Close()
+		t.Fatal(err)
+	}
+	defer func() { _ = policyDatabase.Close() }()
+	deployed, err := composePolicyDeploymentWorkerRuntime(workerRuntimeConfig{
+		Mode: workerModePolicyDeployment, PostgresDSN: policyDSN, DatabaseAuthority: "zasp_policy_deployment_worker", WorkerID: "production-e2e-policy-deployment",
+		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 8, ShutdownTimeout: 20 * time.Second,
+		GatewaySigningKeyID: "gateway-key-01", GatewaySigningPrivateFile: "/var/run/secrets/zasp-policy-deployment/gateway-signing-private-key",
+	}, policyDatabase, policyPrivateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := deployed.Ready(ctx); err != nil {
+		_ = deployed.Close()
+		t.Fatal(err)
+	}
+	deploymentCtx, stopDeployment := context.WithCancel(ctx)
+	deploymentDone := make(chan error, 1)
+	go func() {
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			if err := deployed.Processor.RunOnce(deploymentCtx); err != nil && deploymentCtx.Err() == nil {
+				deploymentDone <- err
+				return
+			}
+			select {
+			case <-deploymentCtx.Done():
+				deploymentDone <- nil
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+	actionErr := dependencies.Processor.RunOnce(ctx)
+	stopDeployment()
+	deploymentErr := <-deploymentDone
+	closeErr := deployed.Close()
+	if actionErr != nil || deploymentErr != nil || closeErr != nil {
+		t.Fatalf("action=%v deployment=%v close=%v; database trace=%s; postgres trace=%s", actionErr, deploymentErr, closeErr, tracedDatabase.Trace(), postgresTrace.String())
 	}
 
 	gatewayPool, err := pgxpool.New(ctx, os.Getenv("ZASP_COMBINED_E2E_GATEWAY_DSN"))
@@ -907,10 +967,10 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer gatewayPool.Close()
-	afterSequence, expectedPolicies := int64(0), 2
+	afterSequence, expectedPolicies := int64(0), 3
 	expectedRunState := "contained"
 	if phase == "cleanup" {
-		afterSequence, expectedPolicies, expectedRunState = 1, 0, "remediated"
+		afterSequence, expectedPolicies, expectedRunState = 1, 1, "remediated"
 	}
 	if rawSequence := os.Getenv("ZASP_COMBINED_E2E_AFTER_SEQUENCE"); rawSequence != "" {
 		parsed, parseErr := strconv.ParseInt(rawSequence, 10, 64)
@@ -942,7 +1002,12 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 		if targetSession == "" || otherSession == "" || targetSession == otherSession {
 			t.Fatal("combined E2E session authority is invalid")
 		}
+		sessionPolicies := 0
 		for _, compiled := range verified.Policies {
+			if !strings.HasPrefix(compiled.ID, "session-isolation-") {
+				continue
+			}
+			sessionPolicies++
 			input := map[string]string{"session_id": targetSession}
 			if compiled.Trigger == "tool_call" {
 				input["tool.name"] = "shell"
@@ -956,6 +1021,9 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 				t.Fatalf("session policy=%#v blocked=%#v blocked_err=%v allowed=%#v allowed_err=%v", compiled, blocked, blockedErr, allowed, allowedErr)
 			}
 		}
+		if sessionPolicies != 2 {
+			t.Fatalf("session policy count=%d bundle=%s", sessionPolicies, raw)
+		}
 	}
 	var runState string
 	if err := gatewayPool.QueryRow(ctx, `SELECT run.state FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) WHERE effect.action_key='create_temporary_policy' ORDER BY effect.updated_at DESC LIMIT 1`).Scan(&runState); err == nil {
@@ -965,9 +1033,9 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 		t.Fatalf("phase=%s sequence=%d", phase, envelope.Sequence)
 	}
 	if actionKey == "isolate_session" {
-		t.Logf("signed session isolation gateway policy %s and verified exact target plus unrelated allowance through gateway authority; state=%s", phase, expectedRunState)
+		t.Logf("central policy deployment signed session isolation gateway policy %s and verified exact target plus unrelated allowance through gateway authority; state=%s", phase, expectedRunState)
 	} else {
-		t.Logf("signed temporary gateway policy %s and verified through gateway authority; state=%s", phase, expectedRunState)
+		t.Logf("central policy deployment signed temporary gateway policy %s and verified through gateway authority; state=%s", phase, expectedRunState)
 	}
 }
 

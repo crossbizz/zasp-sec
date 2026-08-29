@@ -484,6 +484,51 @@ func TestGatewayRuntimePersistsAllowAndExpiredDecisionReplayReceipts(t *testing.
 	}
 }
 
+func TestGatewayRuntimePersistsSessionBoundAllowAtExistingReplayFloor(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	now := gatewayRuntimeTime()
+	authority := gatewayRuntimeAuthority()
+	authority.ReplayFloor = 5
+	envelope, err := policy.SignGatewayPolicyEnvelope(policy.GatewayPolicySigningInput{
+		KeyID: "gateway-key-1", Binding: authority.Binding(), Sequence: 2, PolicyVersion: 2,
+		Now: now, IssuedAt: now, ExpiresAt: now.Add(time.Hour), FailureMode: "open", Policies: []policy.CompiledPolicy{},
+	}, private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	control := &gatewayControlStub{authority: authority, envelope: &envelope}
+	keys, _ := policy.NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-1": public})
+	cache, _ := policy.NewGatewayPolicyCache(keys, authority.Binding(), func() time.Time { return now })
+	directory, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence, err := newGatewayEvidenceDiskStore(filepath.Join(directory, "evidence"), authority, 8, 8<<30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer evidence.Close()
+	runtime, err := newGatewayRuntime(gatewayRuntimeConfig{Control: control, Cache: cache, Evidence: evidence, ExpectedAuthority: authority, CredentialID: authority.CredentialID, BootstrapFailureMode: "closed", MaximumPendingEvents: 8, Now: func() time.Time { return now }})
+	if err != nil || runtime.SyncOnce(context.Background()) != nil {
+		t.Fatalf("runtime=%#v err=%v", runtime, err)
+	}
+	sessionID := gatewayRuntimeSequenceID(41)
+	classification := gatewayRuntimeClassification("requested")
+	classification["session_id"] = sessionID
+	request := gatewayEvaluationRequest{EventID: gatewayRuntimeSequenceID(31), ActionKind: "http", Attributes: map[string]string{
+		"http.method": "PUT", "http.route_class": "local", "action": "read", "resource": "repository",
+		"principal_id": gatewayRuntimeSequenceID(4), "agent_id": gatewayRuntimeSequenceID(40), "session_id": sessionID, "environment_id": authority.EnvironmentID,
+	}, Classification: classification}
+	result, err := runtime.Evaluate(context.Background(), request)
+	if err != nil || result.Decision != "allow" || runtime.nextFloor != 6 || len(runtime.pending) != 1 || runtime.RecordOnce(context.Background()) != nil {
+		t.Fatalf("result=%#v confirmed=%t floor=%d next=%d pending=%d healthy=%t err=%v", result, runtime.authorityConfirmed, runtime.confirmedFloor, runtime.nextFloor, len(runtime.pending), runtime.evidenceHealthy, err)
+	}
+	loaded, err := evidence.Load()
+	if err != nil || loaded.ConfirmedFloor != 6 || len(loaded.Pending) != 0 || len(control.events) != 1 || control.events[0].PolicyIDs == nil || len(control.events[0].PolicyIDs) != 0 {
+		t.Fatalf("loaded=%#v events=%#v err=%v", loaded, control.events, err)
+	}
+}
+
 func TestGatewayRuntimeRetainsDrainedReceiptsWithoutPendingQueueThroughputCap(t *testing.T) {
 	public, private, _ := ed25519.GenerateKey(rand.Reader)
 	now := gatewayRuntimeTime()

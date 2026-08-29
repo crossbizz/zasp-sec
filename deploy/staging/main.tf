@@ -23,6 +23,7 @@ locals {
     security_agent_api           = var.database_principals.security_agent_api
     security_agent_worker        = var.database_principals.security_agent_worker
     security_agent_action_worker = var.database_principals.security_agent_action_worker
+    policy_deployment_worker     = var.database_principals.policy_deployment_worker
     discovery_worker             = var.database_principals.discovery_worker
     runtime_ingest               = var.database_principals.runtime_ingest
     runtime_worker               = var.database_principals.runtime_worker
@@ -52,6 +53,7 @@ locals {
     postgres-security-agent-api-dsn           = local.database_principals.security_agent_api
     postgres-security-agent-worker-dsn        = local.database_principals.security_agent_worker
     postgres-security-agent-action-worker-dsn = local.database_principals.security_agent_action_worker
+    postgres-policy-deployment-worker-dsn     = local.database_principals.policy_deployment_worker
     postgres-worker-dsn                       = local.database_principals.discovery_worker
     postgres-migration-dsn                    = local.database_principals.migration
     postgres-runtime-ingest-dsn               = local.database_principals.runtime_ingest
@@ -588,6 +590,7 @@ resource "aws_secretsmanager_secret" "product" {
     "postgres-security-agent-api-dsn",
     "postgres-security-agent-worker-dsn",
     "postgres-security-agent-action-worker-dsn",
+    "postgres-policy-deployment-worker-dsn",
     "postgres-worker-dsn",
     "postgres-migration-dsn",
     "postgres-runtime-ingest-dsn",
@@ -1164,6 +1167,42 @@ resource "aws_iam_role_policy" "security_agent_action_worker" {
       Condition = { StringEquals = {
         "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
         "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product["postgres-security-agent-action-worker-dsn"].arn
+      } }
+    },
+    {
+      Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product["gateway-policy-signing-private-key"].arn
+      } }
+    },
+  ] })
+}
+
+resource "aws_iam_role" "policy_deployment_worker" {
+  name = "${var.cluster_name}-policy-deployment-worker"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = { StringEquals = {
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:zasp-policy-deployment"
+      } }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "policy_deployment_worker" {
+  name = "${var.cluster_name}-policy-deployment-worker-secrets"
+  role = aws_iam_role.policy_deployment_worker.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = [aws_secretsmanager_secret.product["postgres-policy-deployment-worker-dsn"].arn, aws_secretsmanager_secret.product["gateway-policy-signing-private-key"].arn] },
+    {
+      Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
+      Condition = { StringEquals = {
+        "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
+        "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product["postgres-policy-deployment-worker-dsn"].arn
       } }
     },
     {

@@ -60,7 +60,7 @@ func (roundTripper *productionGatewayProxyRoundTripper) Ready(ctx context.Contex
 }
 
 func (roundTripper *productionGatewayProxyRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
-	if roundTripper == nil || request == nil || request.URL == nil || request.Context() == nil || request.Context().Err() != nil || request.Method != http.MethodPost || roundTripper.upstream == nil || request.URL.String() != roundTripper.upstream.String() {
+	if roundTripper == nil || request == nil || request.URL == nil || request.Context() == nil || request.Context().Err() != nil || !validGatewayProxyMethod(request.Method) || roundTripper.upstream == nil || !validGatewayProxyTarget(roundTripper.upstream, request.URL) {
 		return nil, errRuntimeUnavailable
 	}
 	host, pinnedIP, err := roundTripper.pinned(request.Context())

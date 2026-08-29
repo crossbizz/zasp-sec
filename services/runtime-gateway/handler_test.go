@@ -57,6 +57,28 @@ func TestGatewayHandlerRejectsUnknownOversizedAndNonPOSTRequests(t *testing.T) {
 	}
 }
 
+func TestGatewayHandlerRoutesHTTPProxySuffixWithoutNormalizingIt(t *testing.T) {
+	runtime := gatewayHTTPRuntime(t)
+	calls := 0
+	proxy := http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		calls++
+		if request.Method != http.MethodPatch || request.URL.String() != gatewayHTTPProxyPath+"/repositories/a%2Fb?dry_run=true" {
+			t.Fatalf("method=%q url=%q", request.Method, request.URL.String())
+		}
+		response.WriteHeader(http.StatusNoContent)
+	})
+	handler, err := newGatewayHandler(runtime, 16*1024, proxy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPatch, gatewayHTTPProxyPath+"/repositories/a%2Fb?dry_run=true", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent || calls != 1 {
+		t.Fatalf("status=%d calls=%d body=%s", response.Code, calls, response.Body.String())
+	}
+}
+
 func gatewayHTTPRuntime(t *testing.T) *gatewayRuntime {
 	t.Helper()
 	public, private, _ := ed25519.GenerateKey(rand.Reader)

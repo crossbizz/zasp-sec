@@ -31,6 +31,7 @@ const input = {
     discoveryWorker: { serviceAccount: "zasp-discovery-worker", roleArn: "arn:aws:iam::123456789012:role/zasp-production-discovery-worker" },
     securityAgent: { serviceAccount: "zasp-security-agent", roleArn: "arn:aws:iam::123456789012:role/zasp-production-security-agent-worker" },
     securityAgentAction: { serviceAccount: "zasp-security-agent-action", roleArn: "arn:aws:iam::123456789012:role/zasp-production-security-agent-action-worker" },
+    policyDeployment: { serviceAccount: "zasp-policy-deployment", roleArn: "arn:aws:iam::123456789012:role/zasp-production-policy-deployment-worker" },
     projectionRisk: { serviceAccount: "zasp-projection-risk", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-risk" },
     projectionGraph: { serviceAccount: "zasp-projection-graph", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-graph" },
     projectionSearch: { serviceAccount: "zasp-projection-search", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search" },
@@ -69,7 +70,7 @@ const input = {
 test("release preflight validates all eleven images and least-privilege identities", () => {
   const calls = [];
   const value = runPreflight(["--input", "release.json"], { read: () => JSON.stringify(input), spawn: (tool, args, options) => { calls.push({ tool, args, options }); return { status: 0 }; } });
-  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 11, deployments: 31, cloudIdentities: 32 });
+  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 11, deployments: 32, cloudIdentities: 33 });
   assert.deepEqual(calls.map(({ tool, args }) => ({ tool, args })), [
     { tool: "terraform", args: ["version", "-json"] },
     { tool: "helm", args: ["version", "--short"] },

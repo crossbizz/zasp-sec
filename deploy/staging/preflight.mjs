@@ -20,6 +20,7 @@ const identityContract = Object.freeze({
   discoveryWorker: Object.freeze({ serviceAccount: "zasp-discovery-worker", role: "discovery-worker", deployment: true }),
   securityAgent: Object.freeze({ serviceAccount: "zasp-security-agent", role: "security-agent-worker", deployment: true }),
   securityAgentAction: Object.freeze({ serviceAccount: "zasp-security-agent-action", role: "security-agent-action-worker", deployment: true }),
+  policyDeployment: Object.freeze({ serviceAccount: "zasp-policy-deployment", role: "policy-deployment-worker", deployment: true }),
   outboxPublisher: Object.freeze({ serviceAccount: "zasp-outbox-publisher", role: "outbox", deployment: true }),
   recoveryBackupOutbox: Object.freeze({ serviceAccount: "zasp-recovery-backup-outbox", role: "recovery-backup-outbox", deployment: true }),
   recoveryRestoreOutbox: Object.freeze({ serviceAccount: "zasp-recovery-restore-outbox", role: "recovery-restore-outbox", deployment: true }),

@@ -169,6 +169,26 @@ func TestSecurityAgentActionModeRequiresSeparateDatabaseAndSigningAuthority(t *t
 	}
 }
 
+func TestPolicyDeploymentModeRequiresDedicatedDatabaseAndSigningAuthority(t *testing.T) {
+	values := map[string]string{
+		"ZASP_WORKER_MODE": "policy-deployment", "ZASP_POSTGRES_DSN": "postgres://policy_deployment@postgres.internal/zasp?sslmode=verify-full",
+		"ZASP_DATABASE_AUTHORITY": "zasp_policy_deployment_worker", "ZASP_WORKER_ID": "policy-deployment-01",
+		"ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "60s", "ZASP_BATCH_SIZE": "8", "ZASP_SHUTDOWN_TIMEOUT": "20s",
+		"ZASP_GATEWAY_SIGNING_KEY_ID": "gateway-key-01", "ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE": "/var/run/secrets/zasp-policy-deployment/gateway-signing-private-key",
+	}
+	config, err := loadWorkerRuntimeConfig(mapLookup(values))
+	if err != nil || config.Mode != workerMode("policy-deployment") || config.DatabaseAuthority != "zasp_policy_deployment_worker" || config.GatewaySigningKeyID != "gateway-key-01" {
+		t.Fatalf("config=%#v err=%v", config, err)
+	}
+	for key, value := range map[string]string{"ZASP_DATABASE_AUTHORITY": "zasp_security_agent_action_worker", "ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE": "/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key", "ZASP_GATEWAY_SIGNING_KEY_ID": "short"} {
+		drift := cloneStringMap(values)
+		drift[key] = value
+		if _, err := loadWorkerRuntimeConfig(mapLookup(drift)); !errors.Is(err, errWorkerConfiguration) {
+			t.Fatalf("%s drift accepted: %v", key, err)
+		}
+	}
+}
+
 func TestProjectionModesRequireKindSpecificAuthority(t *testing.T) {
 	t.Parallel()
 

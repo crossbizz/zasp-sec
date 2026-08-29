@@ -75,7 +75,7 @@ func (control gatewayHTTPControl) Record(ctx context.Context, event gatewayDecis
 	value := gatewaycontrol.DecisionEvent{
 		CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID,
 		ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion,
-		Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: append([]string(nil), event.PolicyIDs...), Classification: cloneGatewayStrings(event.Classification), OccurredAt: event.OccurredAt,
+		Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: cloneGatewayStringSlice(event.PolicyIDs), Classification: cloneGatewayStrings(event.Classification), OccurredAt: event.OccurredAt,
 	}
 	if err := control.next.Record(ctx, value); err != nil {
 		if errors.Is(err, gatewaycontrol.ErrRecordExpired) {
@@ -140,10 +140,14 @@ func buildProductionGatewayDependencies(ctx context.Context, config productionGa
 }
 
 func buildProductionGatewayDependenciesWithFactory(ctx context.Context, config productionGatewayConfig, factory gatewayHTTPClientFactory) (productionGatewayDependencies, error) {
+	return buildProductionGatewayDependenciesWithFactories(ctx, config, factory, net.DefaultResolver, productionGatewayProxyTransport)
+}
+
+func buildProductionGatewayDependenciesWithFactories(ctx context.Context, config productionGatewayConfig, factory gatewayHTTPClientFactory, resolver gatewayProxyResolver, transportFactory gatewayProxyTransportFactory) (productionGatewayDependencies, error) {
 	if ctx == nil || ctx.Err() != nil || !validProductionGatewayConfig(config) {
 		return productionGatewayDependencies{}, errRuntimeUnavailable
 	}
-	if factory == nil {
+	if factory == nil || resolver == nil || transportFactory == nil {
 		return productionGatewayDependencies{}, errRuntimeUnavailable
 	}
 	credential, err := loadGatewayCredential(config.PrivateKeyFile, config.CredentialID)
@@ -199,7 +203,7 @@ func buildProductionGatewayDependenciesWithFactory(ctx context.Context, config p
 	// A cold control plane must not prevent deterministic local failure-mode
 	// enforcement. A successful refresh is required only to emit durable events.
 	_ = runtime.SyncOnce(ctx)
-	proxy, err := newProductionGatewayProxy(runtime, config, net.DefaultResolver, productionGatewayProxyTransport)
+	proxy, err := newProductionGatewayProxy(runtime, config, resolver, transportFactory)
 	if err != nil {
 		return failEvidence()
 	}

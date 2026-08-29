@@ -60,6 +60,64 @@ func TestGatewayProxyForwardsMonitoredHTTPActionExactlyOnceWithoutControlHeaders
 	}
 }
 
+func TestGatewayProxyPreservesHTTPMethodEscapedPathQueryAndEmptyBody(t *testing.T) {
+	runtime := gatewayProxyRuntime(t, "http_request", policy.ActionMonitor, policy.Condition{Field: "http.method", Operator: "equals", Value: http.MethodPut})
+	upstream := &gatewayProxyRoundTripper{}
+	base, _ := url.Parse("https://tools.customer.example/v1/actions")
+	handler, err := newGatewayProxyHandler(gatewayProxyConfig{
+		Runtime: runtime, Client: &http.Client{Transport: upstream}, Upstream: base,
+		ClientToken: []byte("0123456789abcdef0123456789abcdef"), MaximumBytes: 16 * 1024,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPut, gatewayHTTPProxyPath+"/repositories/a%2Fb?dry_run=true&limit=10", nil)
+	if target, ok := gatewayProxyTarget(base, request.URL, false); !ok {
+		t.Fatalf("source_url=%#v target=%#v", request.URL, target)
+	}
+	setGatewayProxyHeaders(request, gatewayRuntimeSequenceID(12))
+	request.Header.Set("X-Zasp-Gateway-Token", "0123456789abcdef0123456789abcdef")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK || upstream.calls != 1 || upstream.request == nil {
+		t.Fatalf("status=%d calls=%d request=%#v body=%s", response.Code, upstream.calls, upstream.request, response.Body.String())
+	}
+	if upstream.request.Method != http.MethodPut || upstream.request.URL.String() != "https://tools.customer.example/v1/actions/repositories/a%2Fb?dry_run=true&limit=10" || len(upstream.body) != 0 {
+		t.Fatalf("method=%q url=%q body=%q", upstream.request.Method, upstream.request.URL.String(), upstream.body)
+	}
+}
+
+func TestGatewayProxyRejectsHTTPTraversalAndUnsafeMethodsBeforeUpstream(t *testing.T) {
+	runtime := gatewayProxyRuntime(t, "http_request", policy.ActionMonitor, policy.Condition{Field: "action", Operator: "equals", Value: "write"})
+	upstream := &gatewayProxyRoundTripper{}
+	base, _ := url.Parse("https://tools.customer.example/v1/actions")
+	handler, err := newGatewayProxyHandler(gatewayProxyConfig{Runtime: runtime, Client: &http.Client{Transport: upstream}, Upstream: base, ClientToken: []byte("0123456789abcdef0123456789abcdef"), MaximumBytes: 16 * 1024})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		method string
+		target string
+	}{
+		{method: http.MethodPut, target: gatewayHTTPProxyPath + "/%2e%2e/admin"},
+		{method: http.MethodConnect, target: gatewayHTTPProxyPath + "/repositories"},
+		{method: http.MethodTrace, target: gatewayHTTPProxyPath + "/repositories"},
+	} {
+		request := httptest.NewRequest(test.method, test.target, nil)
+		setGatewayProxyHeaders(request, gatewayRuntimeSequenceID(13))
+		request.Header.Set("X-Zasp-Gateway-Token", "0123456789abcdef0123456789abcdef")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code < http.StatusBadRequest || response.Code >= http.StatusInternalServerError {
+			t.Fatalf("method=%q target=%q status=%d body=%s", test.method, test.target, response.Code, response.Body.String())
+		}
+	}
+	if upstream.calls != 0 {
+		t.Fatalf("upstream calls=%d", upstream.calls)
+	}
+}
+
 func TestGatewayProxyRejectsHopByHopRequestAndRedirectResponse(t *testing.T) {
 	runtime := gatewayProxyRuntime(t, "http_request", policy.ActionMonitor, policy.Condition{Field: "action", Operator: "equals", Value: "write"})
 	upstream := &gatewayProxyRoundTripper{response: &http.Response{StatusCode: http.StatusFound, Header: http.Header{"Location": {"https://foreign.example/"}}, Body: io.NopCloser(strings.NewReader("redirect"))}}

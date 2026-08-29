@@ -170,6 +170,12 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
 		return composeSecurityAgentActionWorkerRuntime(config, database, privateKey)
+	case workerModePolicyDeployment:
+		privateKey, err := loadSecurityAgentActionPrivateKey(config.GatewaySigningPrivateFile)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return composePolicyDeploymentWorkerRuntime(config, database, privateKey)
 	case workerModeDiscovery:
 		discovery, err := newProductionDiscoveryDependencies(productionDiscoveryDependenciesConfig(config))
 		if err != nil {

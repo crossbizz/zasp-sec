@@ -88,6 +88,7 @@ variable "database_principals" {
     security_agent_api           = string
     security_agent_worker        = string
     security_agent_action_worker = string
+    policy_deployment_worker     = string
     discovery_worker             = string
     runtime_ingest               = string
     runtime_worker               = string
@@ -118,6 +119,7 @@ variable "database_principals" {
     security_agent_api           = "zasp_security_agent_api_runtime"
     security_agent_worker        = "zasp_security_agent_worker_runtime"
     security_agent_action_worker = "zasp_security_agent_action_worker_runtime"
+    policy_deployment_worker     = "zasp_policy_deployment_worker_runtime"
     discovery_worker             = "zasp_discovery_runtime"
     runtime_ingest               = "zasp_ingest_runtime"
     runtime_worker               = "zasp_runtime_worker_runtime"
@@ -144,10 +146,10 @@ variable "database_principals" {
   }
 
   validation {
-    condition = length(distinct(values(var.database_principals))) == 28 && alltrue([
+    condition = length(distinct(values(var.database_principals))) == 29 && alltrue([
       for principal in values(var.database_principals) : can(regex("^[a-z][a-z0-9_]{2,62}$", principal))
     ])
-    error_message = "database_principals must contain twenty-eight distinct bounded PostgreSQL login names."
+    error_message = "database_principals must contain twenty-nine distinct bounded PostgreSQL login names."
   }
 }
 

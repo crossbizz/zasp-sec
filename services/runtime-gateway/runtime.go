@@ -393,7 +393,7 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 		PolicyVersion:  result.PolicyVersion,
 		Decision:       result.Decision,
 		ActionKind:     request.ActionKind,
-		PolicyIDs:      append([]string(nil), result.MatchedPolicyIDs...),
+		PolicyIDs:      cloneGatewayStringSlice(result.MatchedPolicyIDs),
 		Classification: cloneGatewayStrings(request.Classification),
 		OccurredAt:     now,
 	}
@@ -952,6 +952,15 @@ func cloneGatewayStrings(values map[string]string) map[string]string {
 	return result
 }
 
+func cloneGatewayStringSlice(values []string) []string {
+	if values == nil {
+		return nil
+	}
+	result := make([]string, len(values))
+	copy(result, values)
+	return result
+}
+
 func cloneGatewayEvaluationResult(value gatewayEvaluationResult) gatewayEvaluationResult {
 	if value.MatchedPolicyIDs != nil {
 		matched := make([]string, len(value.MatchedPolicyIDs))
@@ -962,7 +971,7 @@ func cloneGatewayEvaluationResult(value gatewayEvaluationResult) gatewayEvaluati
 }
 
 func cloneGatewayDecisionEvent(value gatewayDecisionEvent) gatewayDecisionEvent {
-	value.PolicyIDs = append([]string(nil), value.PolicyIDs...)
+	value.PolicyIDs = cloneGatewayStringSlice(value.PolicyIDs)
 	value.Classification = cloneGatewayStrings(value.Classification)
 	return value
 }

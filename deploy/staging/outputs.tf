@@ -121,6 +121,9 @@ output "security_agent_worker_role_arn" {
 output "security_agent_action_worker_role_arn" {
   value = aws_iam_role.security_agent_action_worker.arn
 }
+output "policy_deployment_worker_role_arn" {
+  value = aws_iam_role.policy_deployment_worker.arn
+}
 output "outbox_role_arn" {
   value = aws_iam_role.outbox.arn
 }

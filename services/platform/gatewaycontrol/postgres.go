@@ -194,6 +194,7 @@ func decodePostgresAuthority(raw json.RawMessage, credentialID string) (Authorit
 	if strictJSON(raw, &payload) != nil {
 		return Authority{}, errPostgresRepository
 	}
+	payload.ExpiresAt = payload.ExpiresAt.UTC()
 	publicKey, err := base64.RawURLEncoding.DecodeString(payload.PublicKey)
 	if err != nil || len(publicKey) != ed25519.PublicKeySize || base64.RawURLEncoding.EncodeToString(publicKey) != payload.PublicKey {
 		return Authority{}, errPostgresRepository

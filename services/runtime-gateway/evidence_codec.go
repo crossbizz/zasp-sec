@@ -229,7 +229,7 @@ func gatewayEvaluationReceiptFromWire(receipt gatewayEvaluationWire) (gatewayEva
 }
 
 func gatewayDecisionEventToWire(event gatewayDecisionEvent) gatewayDecisionEventWire {
-	return gatewayDecisionEventWire{CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID, ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion, Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: append([]string(nil), event.PolicyIDs...), Classification: cloneGatewayStrings(event.Classification), OccurredAt: event.OccurredAt.Format("2006-01-02T15:04:05Z")}
+	return gatewayDecisionEventWire{CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID, ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion, Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: cloneGatewayStringSlice(event.PolicyIDs), Classification: cloneGatewayStrings(event.Classification), OccurredAt: event.OccurredAt.Format("2006-01-02T15:04:05Z")}
 }
 
 func gatewayDecisionEventFromWire(event gatewayDecisionEventWire) (gatewayDecisionEvent, error) {
@@ -237,7 +237,7 @@ func gatewayDecisionEventFromWire(event gatewayDecisionEventWire) (gatewayDecisi
 	if err != nil {
 		return gatewayDecisionEvent{}, errGatewayRuntime
 	}
-	return gatewayDecisionEvent{CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID, ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion, Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: append([]string(nil), event.PolicyIDs...), Classification: cloneGatewayStrings(event.Classification), OccurredAt: occurredAt}, nil
+	return gatewayDecisionEvent{CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID, ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion, Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: cloneGatewayStringSlice(event.PolicyIDs), Classification: cloneGatewayStrings(event.Classification), OccurredAt: occurredAt}, nil
 }
 
 func sameGatewayDecisionEvent(left, right gatewayDecisionEvent) bool {

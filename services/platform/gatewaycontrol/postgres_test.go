@@ -34,6 +34,19 @@ func TestPostgresRepositoryUsesCurrentV27ReadinessAndAuthority(t *testing.T) {
 	}
 }
 
+func TestPostgresRepositoryCanonicalizesEquivalentDatabaseTimeZone(t *testing.T) {
+	authority := fixtureAuthority(make([]byte, 32))
+	database := &postgresDatabaseStub{responses: []any{json.RawMessage(`{"organization_id":"` + authority.OrganizationID + `","workspace_id":"` + authority.WorkspaceID + `","environment_id":"` + authority.EnvironmentID + `","device_id":"` + authority.DeviceID + `","device_version":3,"replay_floor":7,"credential_id":"` + authority.CredentialID + `","credential_generation":2,"key_id":"gateway-key-1","algorithm":"Ed25519","public_key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","audience":"runtime-gateway","expires_at":"2026-08-21T05:00:00-07:00"}`)}}
+	repository, err := NewPostgresRepository(database, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, err := repository.Authority(context.Background(), authority.CredentialID)
+	if err != nil || actual.ExpiresAt.Location() != time.UTC || !sameAuthority(actual, authority) {
+		t.Fatalf("authority=%#v err=%v", actual, err)
+	}
+}
+
 func TestPostgresRepositoryUsesExactV27RecoveryReadiness(t *testing.T) {
 	database := &postgresDatabaseStub{responses: []any{true}}
 	repository, err := NewPostgresRepository(database, time.Second)
@@ -108,7 +121,8 @@ func TestDecisionEventAcceptsOnlyExactBlockedCapabilityBinding(t *testing.T) {
 	authority := fixtureAuthority(make([]byte, 32))
 	base := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "block", ActionKind: "mcp", PolicyIDs: []string{"policy-runtime"}, Classification: map[string]string{
 		"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "blocked",
-		"agent_id": fixtureID(10), "target_id": fixtureID(11), "capability_category": "identity_assume", "capability_outcome": "assume",
+		"session_id": fixtureID(12),
+		"agent_id":   fixtureID(10), "target_id": fixtureID(11), "capability_category": "identity_assume", "capability_outcome": "assume",
 	}, OccurredAt: time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)}
 	if !validDecisionEvent(base) {
 		t.Fatalf("valid blocked binding rejected: %#v", base)
@@ -129,6 +143,25 @@ func TestDecisionEventAcceptsOnlyExactBlockedCapabilityBinding(t *testing.T) {
 				t.Fatalf("hostile binding accepted: %#v", candidate)
 			}
 		})
+	}
+}
+
+func TestDecisionEventAcceptsOnlyExactOptionalSessionBinding(t *testing.T) {
+	authority := fixtureAuthority(make([]byte, 32))
+	base := DecisionEvent{CredentialID: authority.CredentialID, DeviceID: authority.DeviceID, EventID: fixtureID(9), ExpectedFloor: 4, NextFloor: 5, PolicyVersion: 3, Decision: "monitor", ActionKind: "http", PolicyIDs: []string{"policy-runtime"}, Classification: map[string]string{
+		"category": "runtime", "route_class": "local", "resource_class": "tool", "outcome": "monitored", "session_id": fixtureID(12),
+	}, OccurredAt: time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)}
+	if !validDecisionEvent(base) {
+		t.Fatalf("valid session binding rejected: %#v", base)
+	}
+	base.Classification["session_id"] = "session-secret"
+	if validDecisionEvent(base) {
+		t.Fatalf("invalid session binding accepted: %#v", base)
+	}
+	delete(base.Classification, "session_id")
+	base.Classification["unknown"] = fixtureID(12)
+	if validDecisionEvent(base) {
+		t.Fatalf("unknown classification accepted: %#v", base)
 	}
 }
 

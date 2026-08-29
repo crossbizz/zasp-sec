@@ -22,6 +22,7 @@ const deployment = {
     { name: "agentsec-discovery-worker", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-discovery-worker", roleArn: "arn:aws:iam::123456789012:role/zasp-production-discovery-worker" },
     { name: "agentsec-security-agent", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-security-agent", roleArn: "arn:aws:iam::123456789012:role/zasp-production-security-agent-worker" },
     { name: "agentsec-security-agent-action", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-security-agent-action", roleArn: "arn:aws:iam::123456789012:role/zasp-production-security-agent-action-worker" },
+    { name: "agentsec-policy-deployment", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-policy-deployment", roleArn: "arn:aws:iam::123456789012:role/zasp-production-policy-deployment-worker" },
     { name: "agentsec-outbox-publisher", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-outbox-publisher", roleArn: "arn:aws:iam::123456789012:role/zasp-production-outbox" },
     { name: "agentsec-recovery-backup-outbox", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-recovery-backup-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-recovery-backup-outbox" },
     { name: "agentsec-recovery-restore-outbox", image: digest("registry.example/zasp/worker", "c"), serviceAccount: "zasp-recovery-restore-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-recovery-restore-outbox" },
@@ -49,7 +50,7 @@ const deployment = {
     { name: "otel-collector", image: "otel/opentelemetry-collector-contrib:0.158.0@sha256:c5918f78992ee73b0d6f0e599423ac5ec52dd5d9726733114d6eca53d5a32ed5", serviceAccount: "otel-collector", roleArn: null },
   ],
   jobIdentities: [
-    { name: "agentsec-schema-v27", serviceAccount: "agentsec-migration", roleArn: "arn:aws:iam::123456789012:role/zasp-production-migration" },
+    { name: "agentsec-schema-v28", serviceAccount: "agentsec-migration", roleArn: "arn:aws:iam::123456789012:role/zasp-production-migration" },
     { name: "agentsec-attack-lab-runner", serviceAccount: "agentsec-attack-lab-runner", roleArn: null },
     { name: "agentsec-projection-graph-init-v1", serviceAccount: "agentsec-projection-graph-init", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-graph-init" },
     { name: "agentsec-projection-search-init-v1", serviceAccount: "agentsec-projection-search-init", roleArn: "arn:aws:iam::123456789012:role/zasp-production-projection-search-init" },
@@ -59,7 +60,7 @@ const deployment = {
   ],
 };
 
-test("staging deployment binds thirty-one deployments and every init/runner/canary identity to one account", () => {
+test("staging deployment binds thirty-two deployments and every init/runner/canary identity to one account", () => {
   assert.deepEqual(buildStagingDeployment(deployment), deployment);
   const runtime = {
     start: () => "deploy-run-1",
@@ -71,7 +72,7 @@ test("staging deployment binds thirty-one deployments and every init/runner/cana
   assert.throws(() => buildStagingDeployment({ ...deployment, serviceAccount: "shared-release" }), /rejected/);
   assert.throws(() => buildStagingDeployment({ ...deployment, workloads: [...deployment.workloads, { name: "unsupported-extra", image: digest("registry.example/zasp/extra", "c"), serviceAccount: "shared-release", roleArn: "arn:aws:iam::123456789012:role/zasp-production" }] }), /rejected/);
   assert.throws(() => buildStagingDeployment({ ...deployment, workloads: deployment.workloads.map((workload) => ({ ...workload, serviceAccount: "shared-release" })) }), /rejected/);
-  assert.throws(() => buildStagingDeployment({ ...deployment, jobIdentities: deployment.jobIdentities.map((identity) => identity.name === "agentsec-schema-v27" ? { ...identity, roleArn: "arn:aws:iam::210987654321:role/zasp-production-migration" } : identity) }), /rejected/);
+  assert.throws(() => buildStagingDeployment({ ...deployment, jobIdentities: deployment.jobIdentities.map((identity) => identity.name === "agentsec-schema-v28" ? { ...identity, roleArn: "arn:aws:iam::210987654321:role/zasp-production-migration" } : identity) }), /rejected/);
 });
 
 test("staging evidence is deterministic, credential-free, and gates exact private readiness", () => {

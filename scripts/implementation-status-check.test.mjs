@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 393; expected 394/,
+        /production-available count is 406; expected 407/,
       );
     },
   );
@@ -195,17 +195,17 @@ test("rejects a same-owner same-milestone audited class swap", async () => {
   await withLedger(
     (ledger) => ledger
       .replace(
-        "M3\tM3-41\tComplete\tproduction-available\tT06-runtime-data-plane",
-        "M3\tM3-41\tComplete\tcomponent-only\tT06-runtime-data-plane",
+        "M3\tM3-52a\tComplete\tproduction-available\tT04-discovery-worker",
+        "M3\tM3-52a\tComplete\tcomponent-only\tT04-discovery-worker",
       )
       .replace(
-        "M3\tM3-52c\tComplete\tcomponent-only\tT06-runtime-data-plane",
-        "M3\tM3-52c\tComplete\tproduction-available\tT06-runtime-data-plane",
+        "M3\tM3-52d\tComplete\tcomponent-only\tT04-discovery-worker",
+        "M3\tM3-52d\tComplete\tproduction-available\tT04-discovery-worker",
       ),
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production class component-only does not match audited production-available for M3-41/,
+        /production class component-only does not match audited production-available for M3-52a/,
       );
     },
   );
@@ -319,8 +319,8 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => status.replace(
-      "| Production-available | 394 |",
-      "| Production-available | 393 |",
+      "| Production-available | 407 |",
+      "| Production-available | 406 |",
     ),
     async ({ ledgerPath, statusPath }) => {
       await assert.rejects(

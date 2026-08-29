@@ -34,6 +34,7 @@ const (
 	workerModeSecurityAgentAction  workerMode = "security-agent-action"
 	workerModeRecoveryOutbox       workerMode = "recovery-outbox"
 	workerModeRecovery             workerMode = "recovery"
+	workerModePolicyDeployment     workerMode = "policy-deployment"
 	workerModeProjectionGraphInit  workerMode = "projection-graph-init"
 	workerModeProjectionSearchInit workerMode = "projection-search-init"
 )
@@ -227,6 +228,7 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 		workerModeSecurityAgentAction: "zasp_security_agent_action_worker",
 		workerModeRecoveryOutbox:      "zasp_recovery_outbox_worker",
 		workerModeRecovery:            "zasp_recovery_worker",
+		workerModePolicyDeployment:    "zasp_policy_deployment_worker",
 	}[config.Mode]
 	return wantAuthority != "" && config.DatabaseAuthority == wantAuthority && workerIdentityPattern.MatchString(config.WorkerID) && validModeDependencies(config) &&
 		config.PollInterval >= 50*time.Millisecond && config.PollInterval <= time.Minute && config.LeaseDuration >= 5*time.Second && config.LeaseDuration <= 15*time.Minute &&
@@ -284,6 +286,8 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
 	case workerModeSecurityAgentAction:
 		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`).MatchString(config.GatewaySigningKeyID) && config.GatewaySigningPrivateFile == "/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key" && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
+	case workerModePolicyDeployment:
+		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`).MatchString(config.GatewaySigningKeyID) && config.GatewaySigningPrivateFile == "/var/run/secrets/zasp-policy-deployment/gateway-signing-private-key" && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
 	default:
 		return false
 	}

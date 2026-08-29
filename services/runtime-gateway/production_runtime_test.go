@@ -115,7 +115,7 @@ func TestProductionGatewayProxyPinsEveryAllowedAnswerAndClearsLocalToken(t *test
 	resolver := gatewayProxyResolverStub{addresses: []net.IPAddr{{IP: net.ParseIP("203.0.113.12")}, {IP: net.ParseIP("203.0.113.11")}}}
 	upstream := &gatewayProxyRoundTripper{response: &http.Response{StatusCode: http.StatusAccepted, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"accepted":true}`))}}
 	var pinnedHost, pinnedIP string
-	handler, err := newProductionGatewayProxy(gatewayProxyRuntime(t, "http_request", policy.ActionMonitor, policy.Condition{Field: "http.method", Operator: "equals", Value: http.MethodPost}), config, resolver, func(host, ip string, timeout time.Duration) http.RoundTripper {
+	handler, err := newProductionGatewayProxy(gatewayProxyRuntime(t, "http_request", policy.ActionMonitor, policy.Condition{Field: "http.method", Operator: "equals", Value: http.MethodPut}), config, resolver, func(host, ip string, timeout time.Duration) http.RoundTripper {
 		pinnedHost, pinnedIP = host, ip
 		if timeout != time.Second {
 			t.Fatalf("timeout=%s", timeout)
@@ -125,12 +125,12 @@ func TestProductionGatewayProxyPinsEveryAllowedAnswerAndClearsLocalToken(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(http.MethodPost, gatewayHTTPProxyPath, strings.NewReader(`{"operation":"read"}`))
+	request := httptest.NewRequest(http.MethodPut, gatewayHTTPProxyPath+"/repositories/a%2Fb?dry_run=true", strings.NewReader(`{"operation":"read"}`))
 	setGatewayProxyHeaders(request, gatewayRuntimeID(9))
 	request.Header.Set("X-Zasp-Gateway-Token", string(token))
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusAccepted || pinnedHost != "tools.customer.example" || pinnedIP != "203.0.113.11" || upstream.calls != 1 {
+	if response.Code != http.StatusAccepted || pinnedHost != "tools.customer.example" || pinnedIP != "203.0.113.11" || upstream.calls != 1 || upstream.request == nil || upstream.request.Method != http.MethodPut || upstream.request.URL.String() != "https://tools.customer.example/v1/actions/repositories/a%2Fb?dry_run=true" {
 		t.Fatalf("status=%d host=%q ip=%q calls=%d body=%s", response.Code, pinnedHost, pinnedIP, upstream.calls, response.Body.String())
 	}
 	if handler.Close() != nil || handler.Close() != nil || len(handler.clientToken) != 0 {

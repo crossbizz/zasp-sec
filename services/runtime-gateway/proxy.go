@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
@@ -81,16 +83,23 @@ func (handler *gatewayProxyHandler) ServeHTTP(response http.ResponseWriter, requ
 		gatewayJSONError(response, http.StatusServiceUnavailable, "service_unavailable")
 		return
 	}
-	if request.URL.Path != gatewayHTTPProxyPath && request.URL.Path != gatewayMCPProxyPath {
+	isMCP := request.URL.Path == gatewayMCPProxyPath
+	isHTTP := request.URL.Path == gatewayHTTPProxyPath || strings.HasPrefix(request.URL.Path, gatewayHTTPProxyPath+"/")
+	if !isHTTP && !isMCP {
 		gatewayJSONError(response, http.StatusNotFound, "not_found")
 		return
 	}
-	if request.Method != http.MethodPost {
+	if isMCP && request.Method != http.MethodPost || isHTTP && !validGatewayProxyMethod(request.Method) {
 		response.Header().Set("Allow", http.MethodPost)
 		gatewayJSONError(response, http.StatusMethodNotAllowed, "method_not_allowed")
 		return
 	}
-	if request.URL.RawQuery != "" {
+	if isMCP && (request.URL.RawQuery != "" || request.URL.ForceQuery) {
+		gatewayJSONError(response, http.StatusBadRequest, "invalid_request")
+		return
+	}
+	target, targetOK := gatewayProxyTarget(handler.upstream, request.URL, isMCP)
+	if !targetOK {
 		gatewayJSONError(response, http.StatusBadRequest, "invalid_request")
 		return
 	}
@@ -98,7 +107,7 @@ func (handler *gatewayProxyHandler) ServeHTTP(response http.ResponseWriter, requ
 		gatewayJSONError(response, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	if request.URL.Path == gatewayMCPProxyPath && request.Header.Get("Content-Type") != "application/json" {
+	if isMCP && request.Header.Get("Content-Type") != "application/json" {
 		gatewayJSONError(response, http.StatusUnsupportedMediaType, "unsupported_media_type")
 		return
 	}
@@ -107,7 +116,7 @@ func (handler *gatewayProxyHandler) ServeHTTP(response http.ResponseWriter, requ
 		gatewayJSONError(response, http.StatusBadRequest, "invalid_request")
 		return
 	}
-	body, ok := gatewayProxyBody(response, request, handler.maximumBytes)
+	body, ok := gatewayProxyBody(response, request, handler.maximumBytes, !isMCP)
 	if !ok {
 		return
 	}
@@ -133,7 +142,7 @@ func (handler *gatewayProxyHandler) ServeHTTP(response http.ResponseWriter, requ
 		}{Code: "policy_blocked", CorrelationID: evaluation.EventID, PolicyIDs: append([]string(nil), result.MatchedPolicyIDs...)})
 		return
 	}
-	handler.forward(response, request, forwardHeaders, body, evaluation.EventID)
+	handler.forward(response, request, target, forwardHeaders, body, evaluation.EventID)
 }
 
 func (handler *gatewayProxyHandler) authorized(candidate string) bool {
@@ -143,7 +152,7 @@ func (handler *gatewayProxyHandler) authorized(candidate string) bool {
 	return subtle.ConstantTimeCompare([]byte(candidate), handler.clientToken) == 1
 }
 
-func gatewayProxyBody(response http.ResponseWriter, request *http.Request, maximum int64) ([]byte, bool) {
+func gatewayProxyBody(response http.ResponseWriter, request *http.Request, maximum int64, allowEmpty bool) ([]byte, bool) {
 	request.Body = http.MaxBytesReader(response, request.Body, maximum)
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
@@ -155,11 +164,81 @@ func gatewayProxyBody(response http.ResponseWriter, request *http.Request, maxim
 		}
 		return nil, false
 	}
-	if len(body) == 0 {
+	if len(body) == 0 && !allowEmpty {
 		gatewayJSONError(response, http.StatusBadRequest, "invalid_request")
 		return nil, false
 	}
 	return body, true
+}
+
+func validGatewayProxyMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions:
+		return true
+	default:
+		return false
+	}
+}
+
+func gatewayProxyTarget(base, source *url.URL, mcp bool) (*url.URL, bool) {
+	if base == nil || source == nil || base.Scheme != "https" || base.Host == "" || base.User != nil || base.RawQuery != "" || base.Fragment != "" {
+		return nil, false
+	}
+	target := *base
+	if mcp {
+		return &target, source.Path == gatewayMCPProxyPath && source.EscapedPath() == gatewayMCPProxyPath && source.RawQuery == "" && !source.ForceQuery
+	}
+	escaped := source.EscapedPath()
+	if escaped != gatewayHTTPProxyPath && !strings.HasPrefix(escaped, gatewayHTTPProxyPath+"/") || len(escaped) > 2048 || len(source.RawQuery) > 4096 {
+		return nil, false
+	}
+	if source.RawQuery != "" {
+		if _, err := url.ParseQuery(source.RawQuery); err != nil {
+			return nil, false
+		}
+	}
+	suffix := strings.TrimPrefix(escaped, gatewayHTTPProxyPath)
+	decoded, err := url.PathUnescape(suffix)
+	if err != nil || !utf8.ValidString(decoded) || strings.HasPrefix(decoded, "//") {
+		return nil, false
+	}
+	for _, segment := range strings.Split(decoded, "/") {
+		if segment == "." || segment == ".." {
+			return nil, false
+		}
+		for _, character := range segment {
+			if unicode.IsControl(character) {
+				return nil, false
+			}
+		}
+	}
+	target.Path = strings.TrimSuffix(base.Path, "/") + decoded
+	target.RawPath = strings.TrimSuffix(base.EscapedPath(), "/") + suffix
+	if target.RawPath == target.Path {
+		target.RawPath = ""
+	}
+	target.RawQuery = source.RawQuery
+	target.ForceQuery = source.ForceQuery
+	if !validGatewayProxyTarget(base, &target) {
+		return nil, false
+	}
+	return &target, true
+}
+
+func validGatewayProxyTarget(base, target *url.URL) bool {
+	if base == nil || target == nil || target.Scheme != base.Scheme || target.Host != base.Host || target.User != nil || target.Fragment != "" || len(target.EscapedPath()) > 2048 || len(target.RawQuery) > 4096 {
+		return false
+	}
+	basePath := strings.TrimSuffix(base.EscapedPath(), "/")
+	targetPath := target.EscapedPath()
+	if targetPath != basePath && !strings.HasPrefix(targetPath, basePath+"/") {
+		return false
+	}
+	if target.RawQuery != "" {
+		_, err := url.ParseQuery(target.RawQuery)
+		return err == nil
+	}
+	return true
 }
 
 func (handler *gatewayProxyHandler) evaluation(request *http.Request, body []byte) (gatewayEvaluationRequest, bool) {
@@ -231,8 +310,8 @@ func (handler *gatewayProxyHandler) evaluation(request *http.Request, body []byt
 	return evaluation, true
 }
 
-func (handler *gatewayProxyHandler) forward(response http.ResponseWriter, source *http.Request, headers http.Header, body []byte, correlationID string) {
-	request, err := http.NewRequestWithContext(source.Context(), http.MethodPost, handler.upstream.String(), bytes.NewReader(body))
+func (handler *gatewayProxyHandler) forward(response http.ResponseWriter, source *http.Request, target *url.URL, headers http.Header, body []byte, correlationID string) {
+	request, err := http.NewRequestWithContext(source.Context(), source.Method, target.String(), bytes.NewReader(body))
 	if err != nil {
 		gatewayJSONError(response, http.StatusServiceUnavailable, "service_unavailable")
 		return

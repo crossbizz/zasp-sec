@@ -84,7 +84,7 @@ func validDecisionEvent(value DecisionEvent) bool {
 		value.NextFloor != value.ExpectedFloor+1 || value.PolicyVersion == 0 ||
 		value.Decision != "allow" && value.Decision != "monitor" && value.Decision != "block" ||
 		value.ActionKind != "http" && value.ActionKind != "mcp" || !validTime(value.OccurredAt) ||
-		!validPolicyIDs(value.PolicyIDs) || len(value.Classification) != 4 && len(value.Classification) != 8 {
+		!validPolicyIDs(value.PolicyIDs) {
 		return false
 	}
 	for _, key := range []string{"category", "route_class", "resource_class", "outcome"} {
@@ -92,8 +92,18 @@ func validDecisionEvent(value DecisionEvent) bool {
 			return false
 		}
 	}
-	if len(value.Classification) == 4 {
+	baseFields := 4
+	if sessionID, present := value.Classification["session_id"]; present {
+		if !validProductID(sessionID) {
+			return false
+		}
+		baseFields++
+	}
+	if len(value.Classification) == baseFields {
 		return true
+	}
+	if len(value.Classification) != baseFields+4 {
+		return false
 	}
 	return value.Decision == "block" && validProductID(value.Classification["agent_id"]) && validProductID(value.Classification["target_id"]) &&
 		validCapabilityPair(value.Classification["capability_category"], value.Classification["capability_outcome"])

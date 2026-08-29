@@ -10,7 +10,7 @@ spec:
   namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
   endpoints:
     - { port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }
-{{- range $name := list "agentsec-discovery-scheduler" "agentsec-security-agent" "agentsec-security-agent-action" "agentsec-outbox-publisher" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" "agentsec-event-ingest" "agentsec-gateway-control" "agentsec-runtime-outbox" "agentsec-runtime-coordinator" "agentsec-runtime-archive" "agentsec-runtime-index" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete" }}
+{{- range $name := list "agentsec-discovery-scheduler" "agentsec-security-agent" "agentsec-security-agent-action" "agentsec-policy-deployment" "agentsec-outbox-publisher" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" "agentsec-event-ingest" "agentsec-gateway-control" "agentsec-runtime-outbox" "agentsec-runtime-coordinator" "agentsec-runtime-archive" "agentsec-runtime-index" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete" }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -134,6 +134,11 @@ spec:
           for: 5m
           labels: { severity: page }
           annotations: { summary: "Security agent action worker is unavailable or absent" }
+        - alert: ZaspPolicyDeploymentUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-policy-deployment"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-policy-deployment"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "Central policy deployment worker is unavailable or absent" }
         - alert: ZaspOutboxPublisherUnavailable
           expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-outbox-publisher"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-outbox-publisher"})
           for: 5m
@@ -176,7 +181,7 @@ spec:
           labels: { severity: ticket }
           annotations: { summary: "A runtime data-plane dependency is not ready" }
         - alert: ZaspTask4WorkerDependencyNotReady
-          expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service=~"agentsec-(discovery-(scheduler|worker)|security-agent(-action)?|outbox-publisher|projection-(risk|graph|search))"} == 0
+          expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service=~"agentsec-(discovery-(scheduler|worker)|security-agent(-action)?|policy-deployment|outbox-publisher|projection-(risk|graph|search))"} == 0
           for: 10m
           labels: { severity: ticket }
           annotations: { summary: "A discovery or projection worker dependency is not ready" }
