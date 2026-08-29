@@ -166,7 +166,8 @@ func matchingRule(rules []Rule, method, path string) (Rule, bool) {
 	var selected Rule
 	found := false
 	for _, rule := range rules {
-		if method == rule.Method && strings.HasPrefix(path, rule.PathPrefix) && (!found || len(rule.PathPrefix) > len(selected.PathPrefix)) {
+		pathMatches := path == rule.PathPrefix || strings.HasSuffix(rule.PathPrefix, "/") && strings.HasPrefix(path, rule.PathPrefix)
+		if method == rule.Method && pathMatches && (!found || len(rule.PathPrefix) > len(selected.PathPrefix)) {
 			selected, found = rule, true
 		}
 	}

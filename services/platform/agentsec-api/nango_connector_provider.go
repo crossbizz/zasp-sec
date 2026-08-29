@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -21,6 +23,7 @@ import (
 
 var nangoServiceReferencePattern = regexp.MustCompile(`^ref:nango/service-key-([a-z0-9][a-z0-9_-]{3,127})$`)
 var nangoKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{1,63}$`)
+var slackWorkspaceIDPattern = regexp.MustCompile(`^T[A-Z0-9]{8,20}$`)
 
 type nangoConnectionAPI interface {
 	StartOAuth(context.Context, nango.OAuthStartRequest) (nango.OAuthAuthorization, error)
@@ -29,8 +32,13 @@ type nangoConnectionAPI interface {
 	RevokeConnection(context.Context, nango.ConnectionRevocationRequest) error
 }
 
+type nangoProxyAPI interface {
+	Proxy(context.Context, string, string, string, string, []byte) (nango.ProxyResponse, error)
+}
+
 type nangoOAuthProviderConfig struct {
 	Client                                       nangoConnectionAPI
+	Proxy                                        nangoProxyAPI
 	BaseURL, ServiceSecretReference, Environment string
 	ConnectorKey, Provider, AuthorizationHost    string
 	AuthorizationPath, CallbackURL               string
@@ -49,7 +57,7 @@ type cachedNangoCapabilityCheck struct {
 func newNangoOAuthProvider(config nangoOAuthProviderConfig) (*nangoOAuthProvider, error) {
 	base, baseErr := url.Parse(config.BaseURL)
 	callback, callbackErr := url.Parse(config.CallbackURL)
-	if config.Client == nil || baseErr != nil || callbackErr != nil || base.Scheme != "http" && base.Scheme != "https" || base.User != nil || base.Port() == "" || base.Path != "" || base.RawQuery != "" || base.Fragment != "" || !strings.HasSuffix(strings.ToLower(base.Hostname()), ".svc.cluster.local") || net.ParseIP(base.Hostname()) != nil ||
+	if config.Client == nil || config.Proxy == nil || baseErr != nil || callbackErr != nil || base.Scheme != "http" && base.Scheme != "https" || base.User != nil || base.Port() == "" || base.Path != "" || base.RawQuery != "" || base.Fragment != "" || !strings.HasSuffix(strings.ToLower(base.Hostname()), ".svc.cluster.local") || net.ParseIP(base.Hostname()) != nil ||
 		!nangoServiceReferencePattern.MatchString(config.ServiceSecretReference) || !nangoKeyPattern.MatchString(config.Environment) || !nangoKeyPattern.MatchString(config.ConnectorKey) || config.Provider != config.ConnectorKey ||
 		strings.ToLower(config.AuthorizationHost) != config.AuthorizationHost || net.ParseIP(config.AuthorizationHost) != nil || strings.ContainsAny(config.AuthorizationHost, "/:@?#\\\x00\r\n\t ") || config.AuthorizationPath == "" || config.AuthorizationPath[0] != '/' || strings.ContainsAny(config.AuthorizationPath, "?#\\\r\n") ||
 		callback.Scheme != "https" || callback.Host == "" || callback.Port() != "" || callback.User != nil || callback.Path != "/api/v1/integrations/oauth/callback" || callback.RawQuery != "" || callback.Fragment != "" {
@@ -97,7 +105,7 @@ func (provider *nangoOAuthProvider) CompleteAuthorization(ctx context.Context, i
 		NangoBaseURL: provider.config.BaseURL, ServiceSecretReference: provider.config.ServiceSecretReference, Environment: provider.config.Environment,
 		ConnectorKey: provider.config.ConnectorKey, Provider: provider.config.Provider, State: input.State, Code: input.Code, Binding: nangoConnectionBinding(input.Scope, input.IntegrationID, input.AttemptID),
 	})
-	return provider.grant(result, err)
+	return provider.grant(ctx, result, err)
 }
 
 func (provider *nangoOAuthProvider) RecoverAuthorization(ctx context.Context, input apiserver.ConnectorAuthorizationRecovery) (apiserver.ConnectorOAuthGrant, error) {
@@ -108,7 +116,7 @@ func (provider *nangoOAuthProvider) RecoverAuthorization(ctx context.Context, in
 		NangoBaseURL: provider.config.BaseURL, ServiceSecretReference: provider.config.ServiceSecretReference, Environment: provider.config.Environment,
 		ConnectorKey: provider.config.ConnectorKey, Provider: provider.config.Provider, Binding: nangoConnectionBinding(input.Scope, input.IntegrationID, input.AttemptID),
 	})
-	return provider.grant(result, err)
+	return provider.grant(ctx, result, err)
 }
 
 func (provider *nangoOAuthProvider) DiscardAuthorization(ctx context.Context, input apiserver.ConnectorAuthorizationDiscard) error {
@@ -165,18 +173,65 @@ func (provider *nangoOAuthProvider) validRecovery(input apiserver.ConnectorAutho
 	return provider != nil && input.Scope.Validate() == nil && validNangoProductID(input.PrincipalID) && validNangoProductID(input.IntegrationID) && validNangoProductID(input.AttemptID) && validNangoProductID(input.EffectID) && input.ConnectorKey == provider.config.ConnectorKey && input.AuthorityProvider == "nango:"+provider.config.ConnectorKey
 }
 
-func (provider *nangoOAuthProvider) grant(connection nango.Connection, err error) (apiserver.ConnectorOAuthGrant, error) {
+func (provider *nangoOAuthProvider) grant(ctx context.Context, connection nango.Connection, err error) (apiserver.ConnectorOAuthGrant, error) {
 	if errors.Is(err, nango.ErrConnectionNotFound) {
 		return apiserver.ConnectorOAuthGrant{}, apiserver.ErrConnectorOutcomeNotFound
 	}
 	if err != nil || connection.ConnectorKey != provider.config.ConnectorKey {
 		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
 	}
+	response, err := provider.config.Proxy.Proxy(ctx, provider.config.ConnectorKey, connection.Reference, http.MethodGet, "/api/team.info", nil)
+	workspaceID, workspaceOK := exactSlackWorkspaceID(response, err)
+	if !workspaceOK {
+		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
+	}
 	metadata, err := json.Marshal(map[string]string{"connector_key": provider.config.ConnectorKey, "source": "managed_auth_proxy"})
 	if err != nil {
 		return apiserver.ConnectorOAuthGrant{}, errRuntimeUnavailable
 	}
-	return apiserver.ConnectorOAuthGrant{ConnectionReference: connection.Reference, ProviderSubject: connection.ProviderSubject, CredentialClass: "nango_connection_reference", Metadata: metadata}, nil
+	return apiserver.ConnectorOAuthGrant{ConnectionReference: connection.Reference, ProviderSubject: workspaceID, CredentialClass: "nango_connection_reference", Metadata: metadata}, nil
+}
+
+func exactSlackWorkspaceID(response nango.ProxyResponse, proxyErr error) (string, bool) {
+	if proxyErr != nil || response.StatusCode != http.StatusOK || response.Location != "" || len(response.Body) < 2 || len(response.Body) > 64<<10 || containsNangoSensitivePayload(response.Body) {
+		return "", false
+	}
+	var payload struct {
+		OK   bool `json:"ok"`
+		Team struct {
+			ID             string          `json:"id"`
+			Name           string          `json:"name"`
+			Domain         string          `json:"domain"`
+			EmailDomain    string          `json:"email_domain"`
+			EnterpriseID   *string         `json:"enterprise_id"`
+			EnterpriseName *string         `json:"enterprise_name"`
+			Icon           json.RawMessage `json:"icon"`
+		} `json:"team"`
+		Warning          string `json:"warning"`
+		ResponseMetadata struct {
+			Warnings []string `json:"warnings"`
+		} `json:"response_metadata"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(response.Body))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&payload) != nil {
+		return "", false
+	}
+	var trailing any
+	if decoder.Decode(&trailing) != io.EOF || !payload.OK || !slackWorkspaceIDPattern.MatchString(payload.Team.ID) {
+		return "", false
+	}
+	return payload.Team.ID, true
+}
+
+func containsNangoSensitivePayload(value []byte) bool {
+	lower := bytes.ToLower(value)
+	for _, marker := range [][]byte{[]byte("access_token"), []byte("refresh_token"), []byte("client_secret"), []byte("private_key"), []byte("password")} {
+		if bytes.Contains(lower, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func nangoConnectionBinding(scope domain.Scope, integrationID, attemptID string) nango.ConnectionBinding {
@@ -190,6 +245,24 @@ func validNangoProductID(value string) bool {
 
 type nangoServiceSecretResolver struct {
 	path string
+}
+
+type nangoProviderDNSResolver struct{}
+
+func (nangoProviderDNSResolver) LookupIP(ctx context.Context, host string) ([]net.IP, error) {
+	return net.DefaultResolver.LookupIP(ctx, "ip", host)
+}
+
+type nangoConnectorResources struct {
+	connection io.Closer
+	proxy      io.Closer
+}
+
+func (resources *nangoConnectorResources) Close() error {
+	if resources == nil {
+		return nil
+	}
+	return errors.Join(resources.proxy.Close(), resources.connection.Close())
 }
 
 func addProductionNangoProvider(config RuntimeConfig, resolver nango.ServiceSecretResolver, providers map[string]apiserver.ConnectorOAuthProviderDefinition, checks map[string]apiserver.ConnectorCapabilityCheck) (io.Closer, error) {
@@ -206,11 +279,26 @@ func addProductionNangoProvider(config RuntimeConfig, resolver nango.ServiceSecr
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}
+	proxyClient, err := nango.NewProductionProxyClient(resolver, config.ProviderTimeout)
+	if err != nil {
+		_ = client.Close()
+		return nil, errRuntimeUnavailable
+	}
+	proxy, err := nango.NewAdapter(nango.Config{
+		BaseURL: config.NangoBaseURL, ServiceSecretReference: config.NangoServiceSecretReference, Environment: config.NangoEnvironment,
+		Entries: []nango.Entry{{Key: "slack", ProviderHost: "slack.com", AuthMode: "oauth", Rules: []nango.Rule{{Method: http.MethodGet, PathPrefix: "/api/team.info"}}}},
+	}, nangoProviderDNSResolver{}, proxyClient, config.ProviderTimeout)
+	if err != nil {
+		_ = proxyClient.Close()
+		_ = client.Close()
+		return nil, errRuntimeUnavailable
+	}
 	provider, err := newNangoOAuthProvider(nangoOAuthProviderConfig{
-		Client: client, BaseURL: config.NangoBaseURL, ServiceSecretReference: config.NangoServiceSecretReference, Environment: config.NangoEnvironment,
+		Client: client, Proxy: proxy, BaseURL: config.NangoBaseURL, ServiceSecretReference: config.NangoServiceSecretReference, Environment: config.NangoEnvironment,
 		ConnectorKey: "slack", Provider: "slack", AuthorizationHost: "slack.com", AuthorizationPath: "/oauth/v2/authorize", CallbackURL: config.PublicOrigin + "/api/v1/integrations/oauth/callback",
 	})
 	if err != nil {
+		_ = proxyClient.Close()
 		_ = client.Close()
 		return nil, errRuntimeUnavailable
 	}
@@ -229,11 +317,12 @@ func addProductionNangoProvider(config RuntimeConfig, resolver nango.ServiceSecr
 	}
 	checks["slack"], err = newCachedNangoCapabilityCheck(liveCheck, 30*time.Second, func() time.Time { return time.Now().UTC() })
 	if err != nil {
+		_ = proxyClient.Close()
 		_ = client.Close()
 		delete(providers, "slack")
 		return nil, errRuntimeUnavailable
 	}
-	return client, nil
+	return &nangoConnectorResources{connection: client, proxy: proxyClient}, nil
 }
 
 func newCachedNangoCapabilityCheck(check apiserver.ConnectorCapabilityCheck, ttl time.Duration, now func() time.Time) (apiserver.ConnectorCapabilityCheck, error) {

@@ -62,7 +62,7 @@ func (function proxyFunc) Proxy(ctx context.Context, request ProxyRequest) (Prox
 }
 
 func TestPrivateNangoRegistryRejectsCoreKeysAndAllowsOnlyCataloguedProxyTemplates(t *testing.T) {
-	config := Config{BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production", Entries: []Entry{{Key: "slack", ProviderHost: "slack.com", AuthMode: "oauth", Rules: []Rule{{Method: "GET", PathPrefix: "/api/team."}}}}}
+	config := Config{BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production", Entries: []Entry{{Key: "slack", ProviderHost: "slack.com", AuthMode: "oauth", Rules: []Rule{{Method: "GET", PathPrefix: "/api/team.info"}}}}}
 	resolver := resolverFunc(func(_ context.Context, host string) ([]net.IP, error) {
 		if host != "slack.com" {
 			t.Fatalf("resolved host %q", host)
@@ -94,8 +94,8 @@ func TestPrivateNangoRegistryRejectsDuplicateProxyRules(t *testing.T) {
 	config := Config{
 		BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production",
 		Entries: []Entry{{Key: "slack", ProviderHost: "slack.com", AuthMode: "oauth", Rules: []Rule{
-			{Method: "GET", PathPrefix: "/api/team.", QueryKeys: []string{"cursor"}},
-			{Method: "GET", PathPrefix: "/api/team.", QueryKeys: []string{"limit"}},
+			{Method: "GET", PathPrefix: "/api/team.info", QueryKeys: []string{"cursor"}},
+			{Method: "GET", PathPrefix: "/api/team.info", QueryKeys: []string{"limit"}},
 		}}},
 	}
 	resolver := resolverFunc(func(context.Context, string) ([]net.IP, error) { return []net.IP{net.ParseIP("13.107.42.14")}, nil })
@@ -106,7 +106,7 @@ func TestPrivateNangoRegistryRejectsDuplicateProxyRules(t *testing.T) {
 }
 
 func TestNangoProxyRejectsPrivateDNSRedirectsUnexpectedPathsAndSecretBodies(t *testing.T) {
-	config := Config{BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production", Entries: []Entry{{Key: "slack", ProviderHost: "slack.com", AuthMode: "oauth", Rules: []Rule{{Method: "GET", PathPrefix: "/api/team."}}}}}
+	config := Config{BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production", Entries: []Entry{{Key: "slack", ProviderHost: "slack.com", AuthMode: "oauth", Rules: []Rule{{Method: "GET", PathPrefix: "/api/team.info"}}}}}
 	privateResolver := resolverFunc(func(context.Context, string) ([]net.IP, error) { return []net.IP{net.ParseIP("169.254.169.254")}, nil })
 	client := proxyFunc(func(context.Context, ProxyRequest) (ProxyResponse, error) {
 		t.Fatal("unsafe request reached client")
@@ -126,5 +126,28 @@ func TestNangoProxyRejectsPrivateDNSRedirectsUnexpectedPathsAndSecretBodies(t *t
 	}
 	if _, err := adapter.Proxy(context.Background(), "slack", "ref:nango/connection-0001", "POST", "/api/admin", []byte(`{"access_token":"plaintext"}`)); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("hostile request error=%v", err)
+	}
+}
+
+func TestNangoProxyTreatsNonSlashRulesAsExactPaths(t *testing.T) {
+	config := Config{BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production", Entries: []Entry{{Key: "slack", ProviderHost: "slack.com", AuthMode: "oauth", Rules: []Rule{{Method: "GET", PathPrefix: "/api/team.info"}}}}}
+	resolver := resolverFunc(func(context.Context, string) ([]net.IP, error) { return []net.IP{net.ParseIP("13.107.42.14")}, nil })
+	calls := 0
+	client := proxyFunc(func(context.Context, ProxyRequest) (ProxyResponse, error) {
+		calls++
+		return ProxyResponse{StatusCode: 200, Body: []byte(`{"ok":true}`)}, nil
+	})
+	adapter, err := NewAdapter(config, resolver, client, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := adapter.Proxy(context.Background(), "slack", "ref:nango/connection-0001", "GET", "/api/team.info", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := adapter.Proxy(context.Background(), "slack", "ref:nango/connection-0001", "GET", "/api/team.info/foreign", nil); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("suffix path error=%v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("proxy calls=%d", calls)
 	}
 }

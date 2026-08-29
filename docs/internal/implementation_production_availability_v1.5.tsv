@@ -204,7 +204,7 @@ M3	M3-22c	Complete	production-available	T03-launch-connectors	rendered Nango and
 M3	M3-22	Complete	production-available	T03-launch-connectors	product capability readiness probes the private server plus the exact authenticated prod Slack integration behind a success-only 30-second cache and keeps Nango off public ingress
 M3	M3-23	Complete	production-available	T03-launch-connectors	production API composes tenant-derived Nango connection creation, recovery, and revocation while PostgreSQL persists only the opaque scoped connection reference
 M3	M3-24	Complete	production-available	T03-launch-connectors	production OAuth start and callback bind tenant, integration, attempt, state, stored verifier, authority provider, callback URL, and lost-response recovery before activation
-M3	M3-25	Complete	component-only	T03-launch-connectors	audited component-only proof: Nango proxy wrapper
+M3	M3-25	Complete	production-available	T03-launch-connectors	production OAuth activation invokes the composed Nango proxy wrapper for one exact GET /api/team.info rule and persists only the verified workspace ID plus opaque connection reference
 M3	M3-26	Complete	production-available	T06-runtime-data-plane	production evidence: sensor enrollment model; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-27	Complete	production-available	T06-runtime-data-plane	production evidence: API listSensors; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-28	Complete	production-available	T06-runtime-data-plane	production evidence: API createSensorEnrollment; verified by Task 6 source/deploy review and focused race/release gates
@@ -666,7 +666,7 @@ M8	M8-40b	Complete	component-only	T16-recovery-ops	audited component-only proof:
 M8	M8-40c	Complete	component-only	T16-recovery-ops	audited component-only proof: OpenSearch tenant isolation security test
 M8	M8-40d	Complete	component-only	T16-recovery-ops	audited component-only proof: S3 tenant isolation security test
 M8	M8-40	Complete	component-only	T16-recovery-ops	audited component-only proof: Organization/Workspace isolation security result
-M8	M8-41	Complete	component-only	T03-launch-connectors	audited component-only proof: connector SSRF security test
+M8	M8-41	Complete	component-only	T03-launch-connectors	audited component-only proof: connector SSRF security test; production activation blocks overrides, but no public caller-supplied destination exists to generate the task's required durable rejection audit
 M8	M8-42a	Complete	component-only	T14-data-workflows	audited component-only proof: log secret leakage test
 M8	M8-42b	Complete	component-only	T14-data-workflows	audited component-only proof: PostHog secret leakage test
 M8	M8-42c	Complete	component-only	T14-data-workflows	audited component-only proof: AI secret leakage test

@@ -22,6 +22,17 @@ type nangoConnectionAPIStub struct {
 	recoverErr error
 }
 
+type nangoProxyAPIStub struct {
+	connectorKey, connectionReference, method, path string
+	response                                        nango.ProxyResponse
+	err                                             error
+}
+
+func (stub *nangoProxyAPIStub) Proxy(_ context.Context, connectorKey, connectionReference, method, path string, _ []byte) (nango.ProxyResponse, error) {
+	stub.connectorKey, stub.connectionReference, stub.method, stub.path = connectorKey, connectionReference, method, path
+	return stub.response, stub.err
+}
+
 func (stub *nangoConnectionAPIStub) StartOAuth(_ context.Context, request nango.OAuthStartRequest) (nango.OAuthAuthorization, error) {
 	stub.start = request
 	return nango.OAuthAuthorization{URL: "https://slack.com/oauth/v2/authorize?state=nango_state_12345678", State: "nango_state_12345678", ExpiresAt: requestBindingExpiry}, nil
@@ -44,8 +55,9 @@ var requestBindingExpiry = time.Date(2026, 8, 28, 12, 10, 0, 0, time.UTC)
 func TestNangoOAuthProviderBindsLifecycleToExactTenantAndPrivateAuthority(t *testing.T) {
 	identity := fixtureRuntimeIdentity(t)
 	api := &nangoConnectionAPIStub{connection: nango.Connection{Reference: "ref:nango/connection/11111111-1111-4111-8111-111111111111", ProviderSubject: "user_0123456789abcdef", ConnectorKey: "slack"}}
+	proxy := &nangoProxyAPIStub{response: nango.ProxyResponse{StatusCode: 200, Body: []byte(`{"ok":true,"team":{"id":"T0123456789","name":"Security","icon":{"image_default":true}}}`)}}
 	provider, err := newNangoOAuthProvider(nangoOAuthProviderConfig{
-		Client: api, BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production",
+		Client: api, Proxy: proxy, BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production",
 		ConnectorKey: "slack", Provider: "slack", AuthorizationHost: "slack.com", AuthorizationPath: "/oauth/v2/authorize", CallbackURL: "https://app.example.test/api/v1/integrations/oauth/callback",
 	})
 	if err != nil {
@@ -61,7 +73,7 @@ func TestNangoOAuthProviderBindsLifecycleToExactTenantAndPrivateAuthority(t *tes
 	}
 	completion := apiserver.ConnectorAuthorizationCompletion{Scope: start.Scope, PrincipalID: start.PrincipalID, IntegrationID: start.IntegrationID, AttemptID: start.AttemptID, ConnectorKey: "slack", AuthorityProvider: "nango:slack", State: target.State, Code: "provider_code_12345678", Verifier: []byte("verifier_1234567890123456789012345678901234567890123")}
 	grant, err := provider.CompleteAuthorization(context.Background(), completion)
-	if err != nil || grant.ConnectionReference != api.connection.Reference || grant.ProviderSubject != api.connection.ProviderSubject || grant.CredentialClass != "nango_connection_reference" || string(grant.Metadata) != `{"connector_key":"slack","source":"managed_auth_proxy"}` || api.complete.Binding.AttemptID != start.AttemptID {
+	if err != nil || grant.ConnectionReference != api.connection.Reference || grant.ProviderSubject != "T0123456789" || grant.CredentialClass != "nango_connection_reference" || string(grant.Metadata) != `{"connector_key":"slack","source":"managed_auth_proxy"}` || api.complete.Binding.AttemptID != start.AttemptID || proxy.connectorKey != "slack" || proxy.connectionReference != api.connection.Reference || proxy.method != "GET" || proxy.path != "/api/team.info" {
 		t.Fatalf("grant=%#v complete=%#v err=%v", grant, api.complete, err)
 	}
 	recovery := apiserver.ConnectorAuthorizationRecovery{Scope: start.Scope, PrincipalID: start.PrincipalID, IntegrationID: start.IntegrationID, AttemptID: start.AttemptID, EffectID: "pid_66666666-6666-4666-8666-666666666666", ConnectorKey: "slack", AuthorityProvider: "nango:slack"}
@@ -81,7 +93,8 @@ func TestNangoOAuthProviderBindsLifecycleToExactTenantAndPrivateAuthority(t *tes
 func TestNangoOAuthProviderRejectsAuthorityDriftBeforeNangoIO(t *testing.T) {
 	identity := fixtureRuntimeIdentity(t)
 	api := &nangoConnectionAPIStub{}
-	provider, err := newNangoOAuthProvider(nangoOAuthProviderConfig{Client: api, BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production", ConnectorKey: "slack", Provider: "slack", AuthorizationHost: "slack.com", AuthorizationPath: "/oauth/v2/authorize", CallbackURL: "https://app.example.test/api/v1/integrations/oauth/callback"})
+	proxy := &nangoProxyAPIStub{response: nango.ProxyResponse{StatusCode: 200, Body: []byte(`{"ok":true,"team":{"id":"T0123456789"}}`)}}
+	provider, err := newNangoOAuthProvider(nangoOAuthProviderConfig{Client: api, Proxy: proxy, BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production", ConnectorKey: "slack", Provider: "slack", AuthorizationHost: "slack.com", AuthorizationPath: "/oauth/v2/authorize", CallbackURL: "https://app.example.test/api/v1/integrations/oauth/callback"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,6 +106,20 @@ func TestNangoOAuthProviderRejectsAuthorityDriftBeforeNangoIO(t *testing.T) {
 	_, err = provider.RecoverAuthorization(context.Background(), apiserver.ConnectorAuthorizationRecovery{Scope: input.Scope, PrincipalID: input.PrincipalID, IntegrationID: input.IntegrationID, AttemptID: input.AttemptID, EffectID: "pid_66666666-6666-4666-8666-666666666666", ConnectorKey: "slack", AuthorityProvider: "nango:slack"})
 	if !errors.Is(err, apiserver.ErrConnectorOutcomeNotFound) {
 		t.Fatalf("missing outcome mapping=%v", err)
+	}
+}
+
+func TestNangoOAuthProviderRejectsMalformedWorkspaceProofBeforeActivation(t *testing.T) {
+	identity := fixtureRuntimeIdentity(t)
+	api := &nangoConnectionAPIStub{connection: nango.Connection{Reference: "ref:nango/connection/11111111-1111-4111-8111-111111111111", ProviderSubject: "user_0123456789abcdef", ConnectorKey: "slack"}}
+	proxy := &nangoProxyAPIStub{response: nango.ProxyResponse{StatusCode: 200, Body: []byte(`{"ok":true,"team":{"id":"T0123456789"},"access_token":"secret"}`)}}
+	provider, err := newNangoOAuthProvider(nangoOAuthProviderConfig{Client: api, Proxy: proxy, BaseURL: "http://nango.connector.svc.cluster.local:3003", ServiceSecretReference: "ref:nango/service-key-0001", Environment: "production", ConnectorKey: "slack", Provider: "slack", AuthorizationHost: "slack.com", AuthorizationPath: "/oauth/v2/authorize", CallbackURL: "https://app.example.test/api/v1/integrations/oauth/callback"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := apiserver.ConnectorAuthorizationCompletion{Scope: identity.Scope, PrincipalID: identity.PrincipalID.String(), IntegrationID: "pid_44444444-4444-4444-8444-444444444444", AttemptID: "pid_55555555-5555-4555-8555-555555555555", ConnectorKey: "slack", AuthorityProvider: "nango:slack", State: "nango_state_12345678", Code: "provider_code_12345678", Verifier: []byte("verifier_1234567890123456789012345678901234567890123")}
+	if _, err := provider.CompleteAuthorization(context.Background(), input); !errors.Is(err, errRuntimeUnavailable) {
+		t.Fatalf("malformed workspace proof error=%v", err)
 	}
 }
 
@@ -135,7 +162,8 @@ func TestProductionNangoRegistrationIsOptionalAndAddsOnlySlackLongTailAuthority(
 	}
 	defer closer.Close()
 	definition, exists := providers["slack"]
-	if !exists || definition.AuthorityProvider != "nango:slack" || definition.CredentialClass != "nango_connection_reference" || len(definition.RequestedScopes) != 2 || checks["slack"] == nil || len(providers) != 2 || len(checks) != 2 {
+	provider, productionProvider := definition.Provider.(*nangoOAuthProvider)
+	if !exists || !productionProvider || provider.config.Proxy == nil || definition.AuthorityProvider != "nango:slack" || definition.CredentialClass != "nango_connection_reference" || len(definition.RequestedScopes) != 2 || checks["slack"] == nil || len(providers) != 2 || len(checks) != 2 {
 		t.Fatalf("providers=%#v checks=%#v", providers, checks)
 	}
 	without := fixtureRuntimeConfig()
