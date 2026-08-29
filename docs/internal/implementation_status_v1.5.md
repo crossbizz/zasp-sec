@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 449 |
-| Component-only | 218 |
+| Production-available | 463 |
+| Component-only | 204 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -145,6 +145,11 @@ production composition, not merely a component proof or external evidence.
   proves autonomous response, supervised approval, session isolation, temporary
   containment cleanup, and connector revocation. Automatic attack-path triggers
   and the AI planner boundary remain component-only.
+- The supervised-action registry is production-filtered. Its shipped v21-v24
+  adapters cover finding response, signed temporary containment with expiry,
+  exact-session isolation, and supported connector revocation. Run-test, Attack
+  Lab handoff, evidence export, and response webhook remain component-only until
+  their Security Agent adapters and durable verification paths are mounted.
 - `docs/operations/production-deployment.md` and release contracts retain
   image, provider, DNS/TLS, secret, tracing, and public-deployment evidence as
   explicit external gates.
@@ -162,9 +167,9 @@ production composition, not merely a component proof or external evidence.
 | M5 | 42 | 20 | 22 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
-| M7A | 113 | 56 | 57 | 0 | 0 |
+| M7A | 113 | 70 | 43 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **449** | **218** | **61** | **0** |
+| **Total** | **728** | **463** | **204** | **61** | **0** |
 
 ## Prerequisite work
 

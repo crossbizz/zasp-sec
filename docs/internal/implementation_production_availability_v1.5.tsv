@@ -487,24 +487,24 @@ M7A	M7A-11	Complete	production-available	T07-security-agent-authority	production
 M7A	M7A-12	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent API and worker: scoped run create, page, detail, and fenced state changes
 M7A	M7A-13	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent worker: stable scoped step append, read, and update
 M7A	M7A-14	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent API: scoped approval page, detail, and fresh-auth decision
-M7A	M7A-15	Complete	component-only	T08-supervised-agent	audited component-only proof: Action registry interface
-M7A	M7A-16	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: temporary runtime policy metadata
-M7A	M7A-17	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: temporary runtime policy execute
-M7A	M7A-18	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: temporary runtime policy verify
-M7A	M7A-18a	Complete	component-only	T08-supervised-agent	audited component-only proof: temporary-control expiry claim
-M7A	M7A-18b	Complete	component-only	T08-supervised-agent	audited component-only proof: temporary-control cleanup executor
-M7A	M7A-18c	Complete	component-only	T08-supervised-agent	audited component-only proof: temporary-control cleanup verifier
-M7A	M7A-18d	Complete	component-only	T08-supervised-agent	audited component-only proof: temporary-control expiry worker loop
-M7A	M7A-19	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: isolate supported session metadata
-M7A	M7A-20	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: isolate supported session execute/verify
+M7A	M7A-15	Complete	production-available	T08-supervised-agent	production-composed action registry exposes only readiness-proven provider actions and autonomy ceilings
+M7A	M7A-16	Complete	production-available	T08-supervised-agent	production-composed v22 temporary-policy metadata with mandatory approval, TTL cleanup, and signed verification
+M7A	M7A-17	Complete	production-available	T08-supervised-agent	production-composed v22 action worker signs and stores exact tenant-bound temporary runtime policy envelopes
+M7A	M7A-18	Complete	production-available	T08-supervised-agent	production-composed v22 action worker verifies durable gateway readback before success
+M7A	M7A-18a	Complete	production-available	T08-supervised-agent	production-composed v22 action authority claims expired temporary controls with lease fencing
+M7A	M7A-18b	Complete	production-available	T08-supervised-agent	production-composed v22 action worker publishes signed empty-policy cleanup envelopes
+M7A	M7A-18c	Complete	production-available	T08-supervised-agent	production-composed v22 action worker verifies cleanup readback before terminal completion
+M7A	M7A-18d	Complete	production-available	T08-supervised-agent	production-composed readiness-gated action loop reconciles apply and TTL cleanup across replicas
+M7A	M7A-19	Complete	production-available	T08-supervised-agent	production-composed v24 isolate-session metadata is supervised, reversible, and exact-session bound
+M7A	M7A-20	Complete	production-available	T08-supervised-agent	production-composed v24 action worker applies, verifies, and cleans exact-session isolation while preserving unrelated sessions
 M7A	M7A-21	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: run existing test
 M7A	M7A-22	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: start Attack Lab verification
 M7A	M7A-23	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: evidence export
 M7A	M7A-24	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: signed webhook handoff
-M7A	M7A-25	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: finding response metadata
-M7A	M7A-26	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: supported connection revoke metadata
-M7A	M7A-27	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: supported connection revoke execute
-M7A	M7A-28	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: supported connection revoke verify
+M7A	M7A-25	Complete	production-available	T08-supervised-agent	production-composed v21 finding-response metadata permits bounded autonomous execution with durable verification
+M7A	M7A-26	Complete	production-available	T08-supervised-agent	production-composed v23 connector-revoke metadata is admin-approved, irreversible, and provider-capability filtered
+M7A	M7A-27	Complete	production-available	T08-supervised-agent	production-composed v23 worker dispatches exact supported GitHub and Okta connection revocation through the durable reconciler
+M7A	M7A-28	Complete	production-available	T08-supervised-agent	production-composed v23 authority verifies terminal connector state before remediating the run
 M7A	M7A-29	Complete	production-available	PROD-current-composition	audited shipped composition: Built-in template registry
 M7A	M7A-30	Complete	production-available	PROD-current-composition	audited shipped composition: Suspicious Egress template
 M7A	M7A-31	Complete	production-available	PROD-current-composition	audited shipped composition: Credential Exposure template
