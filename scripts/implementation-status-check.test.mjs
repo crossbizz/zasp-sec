@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 476; expected 477/,
+        /production-available count is 477; expected 478/,
       );
     },
   );
@@ -319,8 +319,8 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => status.replace(
+      "| Production-available | 478 |",
       "| Production-available | 477 |",
-      "| Production-available | 476 |",
     ),
     async ({ ledgerPath, statusPath }) => {
       await assert.rejects(

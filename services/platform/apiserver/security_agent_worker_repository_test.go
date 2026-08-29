@@ -7,10 +7,11 @@ import (
 	"time"
 )
 
-func TestSecurityAgentWorkerRepositoryUsesExactV27RecoveryReadiness(t *testing.T) {
+func TestSecurityAgentWorkerRepositoryUsesExactV28PolicyDeploymentReadiness(t *testing.T) {
 	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
-		postgresSecurityAgentWorkerReadyV27SQL: json.RawMessage(`{"release":true,"principal":true}`),
-		postgresSecurityAgentScheduleV24SQL:    json.RawMessage(`{"created":1}`),
+		postgresSecurityAgentWorkerReadyV28SQL:     json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentExpireApprovalsV28SQL: json.RawMessage(`{"expired":2}`),
+		postgresSecurityAgentScheduleV24SQL:        json.RawMessage(`{"created":1}`),
 	}}
 	repository, err := NewSecurityAgentWorkerRepository(database)
 	if err != nil {
@@ -19,8 +20,25 @@ func TestSecurityAgentWorkerRepositoryUsesExactV27RecoveryReadiness(t *testing.T
 	if created, err := repository.ScheduleSecurityAgentTriggers(context.Background(), "security-agent-worker-1", 10); err != nil || created != 1 {
 		t.Fatalf("created=%d err=%v", created, err)
 	}
-	if len(database.statements) != 2 || database.statements[0] != postgresSecurityAgentWorkerReadyV27SQL || database.statements[1] != postgresSecurityAgentScheduleV24SQL {
+	if expired, err := repository.ExpireSecurityAgentApprovals(context.Background(), "security-agent-worker-1", 10); err != nil || expired != 2 {
+		t.Fatalf("expired=%d err=%v", expired, err)
+	}
+	if len(database.statements) != 3 || database.statements[0] != postgresSecurityAgentWorkerReadyV28SQL || database.statements[1] != postgresSecurityAgentScheduleV24SQL || database.statements[2] != postgresSecurityAgentExpireApprovalsV28SQL {
 		t.Fatalf("statements=%#v", database.statements)
+	}
+}
+
+func TestSecurityAgentWorkerRepositoryRejectsMalformedApprovalExpiryResult(t *testing.T) {
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{
+		postgresSecurityAgentWorkerReadyV28SQL:     json.RawMessage(`{"release":true,"principal":true}`),
+		postgresSecurityAgentExpireApprovalsV28SQL: json.RawMessage(`{"expired":26}`),
+	}}
+	repository, err := NewSecurityAgentWorkerRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.ExpireSecurityAgentApprovals(context.Background(), "security-agent-worker-1", 25); err == nil {
+		t.Fatal("over-limit expiry result accepted")
 	}
 }
 
@@ -69,7 +87,7 @@ func TestSecurityAgentWorkerRepositoryClaimsPlansHeartbeatsAndExecutesExactTenan
 	if result, err := repository.ExecuteSecurityAgentRun(context.Background(), claims[0], "security-agent-worker-1", "lease-token-000000000001", auditID, correlationID); err != nil || result.OutcomeID != outcomeID {
 		t.Fatalf("execute=%#v err=%v", result, err)
 	}
-	if len(database.statements) != 9 || database.statements[0] != postgresSecurityAgentWorkerReadyV27SQL || database.statements[1] != postgresSecurityAgentWorkerReadyV24SQL || database.statements[2] != postgresSecurityAgentWorkerReadyV23SQL || database.statements[3] != postgresSecurityAgentWorkerReadySQL || database.statements[4] != postgresSecurityAgentScheduleTriggersSQL || database.statements[5] != postgresSecurityAgentClaimRunsSQL || database.statements[6] != postgresSecurityAgentHeartbeatRunSQL || database.statements[7] != postgresSecurityAgentPrepareRunSQL || database.statements[8] != postgresSecurityAgentExecuteRunSQL {
+	if len(database.statements) != 10 || database.statements[0] != postgresSecurityAgentWorkerReadyV28SQL || database.statements[1] != postgresSecurityAgentWorkerReadyV27SQL || database.statements[2] != postgresSecurityAgentWorkerReadyV24SQL || database.statements[3] != postgresSecurityAgentWorkerReadyV23SQL || database.statements[4] != postgresSecurityAgentWorkerReadySQL || database.statements[5] != postgresSecurityAgentScheduleTriggersSQL || database.statements[6] != postgresSecurityAgentClaimRunsSQL || database.statements[7] != postgresSecurityAgentHeartbeatRunSQL || database.statements[8] != postgresSecurityAgentPrepareRunSQL || database.statements[9] != postgresSecurityAgentExecuteRunSQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }
@@ -87,7 +105,10 @@ func TestSecurityAgentWorkerRepositoryUsesExactV24SessionIsolationAuthority(t *t
 	if err != nil || created != 1 {
 		t.Fatalf("created=%d err=%v", created, err)
 	}
-	if len(database.statements) != 3 || database.statements[0] != postgresSecurityAgentWorkerReadyV27SQL || database.statements[1] != postgresSecurityAgentWorkerReadyV24SQL || database.statements[2] != postgresSecurityAgentScheduleV24SQL {
+	if expired, err := repository.ExpireSecurityAgentApprovals(context.Background(), "security-agent-worker-1", 10); err != nil || expired != 0 {
+		t.Fatalf("legacy expiry=%d err=%v", expired, err)
+	}
+	if len(database.statements) != 4 || database.statements[0] != postgresSecurityAgentWorkerReadyV28SQL || database.statements[1] != postgresSecurityAgentWorkerReadyV27SQL || database.statements[2] != postgresSecurityAgentWorkerReadyV24SQL || database.statements[3] != postgresSecurityAgentScheduleV24SQL {
 		t.Fatalf("statements=%#v", database.statements)
 	}
 }

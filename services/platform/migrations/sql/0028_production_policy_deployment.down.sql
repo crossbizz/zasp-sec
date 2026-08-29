@@ -2,8 +2,8 @@ DO $guard$
 BEGIN
   IF EXISTS(SELECT 1 FROM zasp_schema_versions WHERE version>28)
      OR NOT EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_core_schema' AND value='production-recovery-v1')
-     OR NOT EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_policy_deployment_fingerprint' AND value='84e625560595f2405649bc4ac5c690ed53ae7df315024c5d6d3adc20f01f09dd')
-     OR NOT zasp_policy_deployment_execution_security_ready() OR zasp_policy_deployment_execution_live_fingerprint()<>'84e625560595f2405649bc4ac5c690ed53ae7df315024c5d6d3adc20f01f09dd' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='policy deployment rollback rejected';END IF;
+     OR NOT EXISTS(SELECT 1 FROM zasp_schema_metadata WHERE key='production_policy_deployment_fingerprint' AND value='9e1b9c6ca6764465b6208efd779e7ca197fd4fad84a71dab78b8a3925693b9e8')
+     OR NOT zasp_policy_deployment_execution_security_ready() OR zasp_policy_deployment_execution_live_fingerprint()<>'9e1b9c6ca6764465b6208efd779e7ca197fd4fad84a71dab78b8a3925693b9e8' THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='policy deployment rollback rejected';END IF;
   IF EXISTS(SELECT 1 FROM zasp_policy_deployment_work WHERE state='leased' OR applied_generation>0) OR EXISTS(SELECT 1 FROM zasp_security_agent_temporary_policy_targets WHERE desired_generation IS NOT NULL) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='policy deployment rollback unsafe';END IF;
 END
 $guard$;
@@ -26,10 +26,11 @@ ALTER FUNCTION public.zasp_security_agent_store_temporary_policy_target_v27(text
 ALTER FUNCTION public.zasp_security_agent_store_session_policy_target_v27(text,text,text,text,text,text,text,text,text,text,bigint,bigint,text,timestamptz,timestamptz,text,bytea,jsonb,bytea,bytea) RENAME TO zasp_security_agent_store_session_policy_target;
 ALTER TABLE public.zasp_security_agent_temporary_policy_targets DROP COLUMN desired_generation;
 
-REVOKE ALL ON FUNCTION public.zasp_policy_deployment_execution_readiness(text,text) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_action_worker,zasp_runtime_gateway,zasp_policy_deployment_worker;
+REVOKE ALL ON FUNCTION public.zasp_policy_deployment_execution_readiness(text,text) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_worker,zasp_security_agent_action_worker,zasp_runtime_gateway,zasp_policy_deployment_worker;
 DROP FUNCTION public.zasp_policy_deployment_execution_readiness(text,text);
 DROP FUNCTION public.zasp_policy_deployment_execution_live_fingerprint();
 DROP FUNCTION public.zasp_policy_deployment_execution_security_ready();
+DROP FUNCTION public.zasp_security_agent_expire_approvals_v28(text,integer);
 DROP FUNCTION public.zasp_policy_deployment_finish(text,text,text,text,bigint,text,text,bytea);
 DROP FUNCTION public.zasp_policy_deployment_read(text,text,text,text,bigint);
 DROP FUNCTION public.zasp_policy_deployment_store(text,text,text,text,bigint,text,text,text,bigint,bigint,text,timestamptz,timestamptz,text,bytea,jsonb,bytea,bytea);

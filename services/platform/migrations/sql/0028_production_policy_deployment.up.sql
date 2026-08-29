@@ -285,19 +285,57 @@ BEGIN
 END
 $finish$;
 
+CREATE FUNCTION public.zasp_security_agent_expire_approvals_v28(worker_value text,limit_value integer) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog, public AS $expire$
+DECLARE item record;expired_value integer:=0;approval_version_value bigint;body_value jsonb;audit_value text;correlation_value text;
+BEGIN
+  IF NOT zasp_security_agent_principal_ready('zasp_security_agent_worker') OR length(worker_value) NOT BETWEEN 1 AND 128 OR limit_value NOT BETWEEN 1 AND 25 THEN
+    RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='security agent approval expiry rejected';
+  END IF;
+  FOR item IN
+    SELECT approval.organization_id,approval.workspace_id,approval.environment_id,approval.approval_id,approval.run_id,approval.step_id
+    FROM zasp_security_agent_approvals approval
+    JOIN zasp_security_agent_runs run ON (run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(approval.organization_id,approval.workspace_id,approval.environment_id,approval.run_id)
+    WHERE approval.state='pending' AND approval.expires_at<=transaction_timestamp() AND run.state='waiting_approval'
+    ORDER BY approval.expires_at,approval.organization_id,approval.workspace_id,approval.environment_id,approval.approval_id
+    FOR UPDATE OF approval SKIP LOCKED LIMIT limit_value
+  LOOP
+    PERFORM 1 FROM zasp_security_agent_runs run WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id,run.state)=(item.organization_id,item.workspace_id,item.environment_id,item.run_id,'waiting_approval') FOR UPDATE;
+    IF NOT FOUND THEN CONTINUE;END IF;
+    UPDATE zasp_security_agent_approvals approval SET state='expired',version=approval.version+1,decided_at=transaction_timestamp()
+    WHERE (approval.organization_id,approval.workspace_id,approval.environment_id,approval.approval_id,approval.state)=(item.organization_id,item.workspace_id,item.environment_id,item.approval_id,'pending') AND approval.expires_at<=transaction_timestamp()
+    RETURNING approval.version INTO approval_version_value;
+    IF NOT FOUND THEN CONTINUE;END IF;
+    UPDATE zasp_security_agent_steps step SET state='cancelled',version=step.version+1,updated_at=transaction_timestamp()
+    WHERE (step.organization_id,step.workspace_id,step.environment_id,step.run_id,step.step_id,step.state)=(item.organization_id,item.workspace_id,item.environment_id,item.run_id,item.step_id,'waiting_approval');
+    IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent approval step drift';END IF;
+    UPDATE zasp_security_agent_runs run SET state='needs_human',version=run.version+1,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,last_error_code='approval_expired',updated_at=transaction_timestamp(),completed_at=transaction_timestamp()
+    WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id,run.state)=(item.organization_id,item.workspace_id,item.environment_id,item.run_id,'waiting_approval');
+    IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='security agent approval run drift';END IF;
+    body_value:=jsonb_build_object('approval_id',item.approval_id,'run_id',item.run_id,'step_id',item.step_id,'state','expired','version',approval_version_value);
+    audit_value:=zasp_discovery_canonical_id(item.organization_id,item.workspace_id,item.environment_id,'security_agent_audit',item.approval_id||chr(31)||'expired');
+    correlation_value:=zasp_discovery_canonical_id(item.organization_id,item.workspace_id,item.environment_id,'security_agent_correlation',item.approval_id||chr(31)||'expired');
+    INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,step_id,approval_id,actor_id,event_kind,event_digest,body)
+    VALUES(item.organization_id,item.workspace_id,item.environment_id,audit_value,correlation_value,item.run_id,item.step_id,item.approval_id,worker_value,'approval_expired',digest(convert_to(body_value::text,'UTF8'),'sha256'),body_value);
+    expired_value:=expired_value+1;
+  END LOOP;
+  RETURN jsonb_build_object('expired',expired_value);
+END
+$expire$;
+
 INSERT INTO public.zasp_policy_deployment_fairness(organization_id) SELECT DISTINCT device.organization_id FROM public.zasp_gateway_devices device ON CONFLICT DO NOTHING;
 INSERT INTO public.zasp_policy_deployment_work(organization_id,workspace_id,environment_id,device_id) SELECT device.organization_id,device.workspace_id,device.environment_id,device.id FROM public.zasp_gateway_devices device WHERE device.state='active' ON CONFLICT DO NOTHING;
 
 DO $functions$
 DECLARE procedure_oid oid;
 BEGIN
-  FOR procedure_oid IN SELECT procedure.oid FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname=ANY(ARRAY['zasp_policy_deployment_principal_ready','zasp_policy_deployment_register_principal','zasp_policy_deployment_enqueue_device','zasp_policy_deployment_source_trigger','zasp_policy_deployment_target_sequence_guard','zasp_policy_deployment_target_verify_guard','zasp_policy_deployment_store_temporary_source','zasp_policy_deployment_claim','zasp_policy_deployment_heartbeat','zasp_policy_deployment_store','zasp_policy_deployment_read','zasp_policy_deployment_finish','zasp_security_agent_store_temporary_policy_target','zasp_security_agent_store_session_policy_target']) LOOP
+  FOR procedure_oid IN SELECT procedure.oid FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace WHERE namespace.nspname='public' AND procedure.proname=ANY(ARRAY['zasp_policy_deployment_principal_ready','zasp_policy_deployment_register_principal','zasp_policy_deployment_enqueue_device','zasp_policy_deployment_source_trigger','zasp_policy_deployment_target_sequence_guard','zasp_policy_deployment_target_verify_guard','zasp_policy_deployment_store_temporary_source','zasp_policy_deployment_claim','zasp_policy_deployment_heartbeat','zasp_policy_deployment_store','zasp_policy_deployment_read','zasp_policy_deployment_finish','zasp_security_agent_store_temporary_policy_target','zasp_security_agent_store_session_policy_target','zasp_security_agent_expire_approvals_v28']) LOOP
     EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',procedure_oid::regprocedure);
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC,zasp_discovery_api,zasp_security_agent_action_worker,zasp_runtime_gateway,zasp_policy_deployment_worker',procedure_oid::regprocedure);
   END LOOP;
 END
 $functions$;
 GRANT EXECUTE ON FUNCTION public.zasp_security_agent_store_temporary_policy_target(text,text,text,text,text,text,text,text,text,text,bigint,bigint,text,timestamptz,timestamptz,text,bytea,jsonb,bytea,bytea),public.zasp_security_agent_store_session_policy_target(text,text,text,text,text,text,text,text,text,text,bigint,bigint,text,timestamptz,timestamptz,text,bytea,jsonb,bytea,bytea) TO zasp_security_agent_action_worker;
+GRANT EXECUTE ON FUNCTION public.zasp_security_agent_expire_approvals_v28(text,integer) TO zasp_security_agent_worker;
 GRANT EXECUTE ON FUNCTION public.zasp_policy_deployment_principal_ready(),public.zasp_policy_deployment_claim(text,text,integer,integer),public.zasp_policy_deployment_heartbeat(text,text,text,text,bigint,text,text,integer),public.zasp_policy_deployment_store(text,text,text,text,bigint,text,text,text,bigint,bigint,text,timestamptz,timestamptz,text,bytea,jsonb,bytea,bytea),public.zasp_policy_deployment_read(text,text,text,text,bigint),public.zasp_policy_deployment_finish(text,text,text,text,bigint,text,text,bytea) TO zasp_policy_deployment_worker;
 
 CREATE FUNCTION public.zasp_policy_deployment_execution_security_ready() RETURNS boolean LANGUAGE sql STABLE SET search_path TO pg_catalog, public AS $security$
@@ -308,6 +346,9 @@ CREATE FUNCTION public.zasp_policy_deployment_execution_security_ready() RETURNS
  AND has_function_privilege('zasp_policy_deployment_worker','public.zasp_policy_deployment_claim(text,text,integer,integer)','EXECUTE')
  AND has_function_privilege('zasp_policy_deployment_worker','public.zasp_policy_deployment_store(text,text,text,text,bigint,text,text,text,bigint,bigint,text,timestamptz,timestamptz,text,bytea,jsonb,bytea,bytea)','EXECUTE')
  AND NOT has_function_privilege('zasp_runtime_gateway','public.zasp_policy_deployment_store(text,text,text,text,bigint,text,text,text,bigint,bigint,text,timestamptz,timestamptz,text,bytea,jsonb,bytea,bytea)','EXECUTE')
+ AND has_function_privilege('zasp_security_agent_worker','public.zasp_security_agent_expire_approvals_v28(text,integer)','EXECUTE')
+ AND NOT has_function_privilege('zasp_security_agent_api','public.zasp_security_agent_expire_approvals_v28(text,integer)','EXECUTE')
+ AND NOT has_function_privilege('zasp_security_agent_action_worker','public.zasp_security_agent_expire_approvals_v28(text,integer)','EXECUTE')
 $security$;
 
 CREATE FUNCTION public.zasp_policy_deployment_execution_live_fingerprint() RETURNS text LANGUAGE sql STABLE SET search_path TO pg_catalog, public AS $fingerprint$
@@ -321,7 +362,7 @@ CREATE FUNCTION public.zasp_policy_deployment_execution_live_fingerprint() RETUR
   UNION ALL SELECT concat_ws('|','constraint',class.relname,constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value JOIN pg_class class ON class.oid=constraint_value.conrelid WHERE class.relname LIKE 'zasp_policy_deployment_%'
   UNION ALL SELECT concat_ws('|','policy',class.relname,policy.polname,policy.polpermissive,pg_get_expr(policy.polqual,policy.polrelid),pg_get_expr(policy.polwithcheck,policy.polrelid)) FROM pg_policy policy JOIN pg_class class ON class.oid=policy.polrelid WHERE class.relname LIKE 'zasp_policy_deployment_%'
   UNION ALL SELECT concat_ws('|','trigger',class.relname,trigger.tgname,pg_get_triggerdef(trigger.oid,true)) FROM pg_trigger trigger JOIN pg_class class ON class.oid=trigger.tgrelid WHERE trigger.tgname LIKE '%policy_deployment%' OR trigger.tgname LIKE '%policy_sequence' OR trigger.tgname LIKE '%policy_verify'
-  UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND (procedure.proname LIKE 'zasp_policy_deployment_%' OR procedure.proname IN('zasp_security_agent_store_temporary_policy_target','zasp_security_agent_store_session_policy_target'))
+  UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND (procedure.proname LIKE 'zasp_policy_deployment_%' OR procedure.proname IN('zasp_security_agent_store_temporary_policy_target','zasp_security_agent_store_session_policy_target','zasp_security_agent_expire_approvals_v28'))
  ) SELECT encode(digest(convert_to(string_agg(value,E'\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities
 $fingerprint$;
 
@@ -334,8 +375,8 @@ $readiness$;
 ALTER FUNCTION public.zasp_policy_deployment_execution_security_ready() OWNER TO zasp_discovery_authority;
 ALTER FUNCTION public.zasp_policy_deployment_execution_live_fingerprint() OWNER TO zasp_discovery_authority;
 ALTER FUNCTION public.zasp_policy_deployment_execution_readiness(text,text) OWNER TO zasp_discovery_authority;
-REVOKE ALL ON FUNCTION public.zasp_policy_deployment_execution_security_ready(),public.zasp_policy_deployment_execution_live_fingerprint(),public.zasp_policy_deployment_execution_readiness(text,text) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_action_worker,zasp_runtime_gateway,zasp_policy_deployment_worker;
-GRANT EXECUTE ON FUNCTION public.zasp_policy_deployment_execution_readiness(text,text) TO zasp_discovery_api,zasp_security_agent_action_worker,zasp_runtime_gateway,zasp_policy_deployment_worker;
+REVOKE ALL ON FUNCTION public.zasp_policy_deployment_execution_security_ready(),public.zasp_policy_deployment_execution_live_fingerprint(),public.zasp_policy_deployment_execution_readiness(text,text) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_worker,zasp_security_agent_action_worker,zasp_runtime_gateway,zasp_policy_deployment_worker;
+GRANT EXECUTE ON FUNCTION public.zasp_policy_deployment_execution_readiness(text,text) TO zasp_discovery_api,zasp_security_agent_worker,zasp_security_agent_action_worker,zasp_runtime_gateway,zasp_policy_deployment_worker;
 
 ALTER FUNCTION public.zasp_recovery_execution_readiness(text,text) RENAME TO zasp_recovery_execution_readiness_v27;
 REVOKE ALL ON FUNCTION public.zasp_recovery_execution_readiness_v27(text,text) FROM PUBLIC,zasp_discovery_api,zasp_security_agent_api,zasp_recovery_worker,zasp_recovery_outbox_worker,zasp_discovery_worker,zasp_security_agent_worker,zasp_security_agent_action_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control,zasp_red_team_worker,zasp_red_team_outbox_worker,zasp_red_team_adapter,zasp_attack_lab_controller,zasp_attack_lab_outbox_worker,zasp_attack_lab_proxy;
@@ -349,4 +390,4 @@ ALTER FUNCTION public.zasp_recovery_execution_readiness(text,text) OWNER TO zasp
 REVOKE ALL ON FUNCTION public.zasp_recovery_execution_readiness(text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.zasp_recovery_execution_readiness(text,text) TO zasp_discovery_api,zasp_security_agent_api,zasp_recovery_worker,zasp_recovery_outbox_worker,zasp_discovery_worker,zasp_security_agent_worker,zasp_security_agent_action_worker,zasp_runtime_ingest,zasp_runtime_worker,zasp_outbox_worker,zasp_runtime_gateway,zasp_discovery_scheduler,zasp_projection_risk_worker,zasp_projection_graph_worker,zasp_projection_search_worker,zasp_runtime_coordinator,zasp_runtime_archive_worker,zasp_runtime_index_worker,zasp_runtime_correlation_worker,zasp_runtime_projection_worker,zasp_gateway_control,zasp_red_team_worker,zasp_red_team_outbox_worker,zasp_red_team_adapter,zasp_attack_lab_controller,zasp_attack_lab_outbox_worker,zasp_attack_lab_proxy;
 
-INSERT INTO public.zasp_schema_metadata(key,value) VALUES('production_policy_deployment_fingerprint', '84e625560595f2405649bc4ac5c690ed53ae7df315024c5d6d3adc20f01f09dd') ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+INSERT INTO public.zasp_schema_metadata(key,value) VALUES('production_policy_deployment_fingerprint', '9e1b9c6ca6764465b6208efd779e7ca197fd4fad84a71dab78b8a3925693b9e8') ON CONFLICT(key) DO UPDATE SET value=excluded.value;

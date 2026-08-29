@@ -34,6 +34,9 @@ func (processor *securityAgentProcessor) RunOnce(ctx context.Context) error {
 	if processor == nil || ctx == nil || ctx.Err() != nil {
 		return errWorkerExecution
 	}
+	if _, err := processor.config.Authority.ExpireSecurityAgentApprovals(ctx, processor.config.WorkerID, processor.config.BatchSize); err != nil {
+		return errWorkerExecution
+	}
 	if _, err := processor.config.Authority.ScheduleSecurityAgentTriggers(ctx, processor.config.WorkerID, processor.config.BatchSize); err != nil {
 		return errWorkerExecution
 	}

@@ -9,28 +9,30 @@ import (
 )
 
 const (
-	postgresSecurityAgentWorkerReadyV27SQL   = `SELECT jsonb_build_object('release',zasp_recovery_execution_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
-	postgresSecurityAgentWorkerReadyV24SQL   = `SELECT jsonb_build_object('release',zasp_security_agent_session_isolation_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
-	postgresSecurityAgentWorkerReadyV23SQL   = `SELECT jsonb_build_object('release',zasp_security_agent_connector_revocation_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
-	postgresSecurityAgentWorkerReadySQL      = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
-	postgresSecurityAgentWorkerReadyV21SQL   = `SELECT jsonb_build_object('release',zasp_security_agent_autonomous_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
-	postgresSecurityAgentScheduleTriggersSQL = `SELECT zasp_security_agent_schedule_triggers_v22($1,$2)`
-	postgresSecurityAgentScheduleV23SQL      = `SELECT zasp_security_agent_schedule_triggers_v23($1,$2)`
-	postgresSecurityAgentScheduleV24SQL      = `SELECT zasp_security_agent_schedule_triggers_v24($1,$2)`
-	postgresSecurityAgentScheduleV21SQL      = `SELECT zasp_security_agent_schedule_triggers_v21($1,$2)`
-	postgresSecurityAgentClaimRunsSQL        = `SELECT zasp_security_agent_claim_runs_v22($1,$2,$3,$4)`
-	postgresSecurityAgentClaimRunsV23SQL     = `SELECT zasp_security_agent_claim_runs_v23($1,$2,$3,$4)`
-	postgresSecurityAgentClaimRunsV24SQL     = `SELECT zasp_security_agent_claim_runs_v23($1,$2,$3,$4)`
-	postgresSecurityAgentClaimRunsV21SQL     = `SELECT zasp_security_agent_claim_runs($1,$2,$3,$4)`
-	postgresSecurityAgentHeartbeatRunSQL     = `SELECT zasp_security_agent_heartbeat_run($1,$2,$3,$4,$5,$6,$7)`
-	postgresSecurityAgentPrepareRunSQL       = `SELECT zasp_security_agent_prepare_run_v22($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresSecurityAgentPrepareRunV23SQL    = `SELECT zasp_security_agent_prepare_run_v23($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresSecurityAgentPrepareRunV24SQL    = `SELECT zasp_security_agent_prepare_run_v24($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresSecurityAgentPrepareRunV21SQL    = `SELECT zasp_security_agent_prepare_run_v21($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	postgresSecurityAgentExecuteRunSQL       = `SELECT zasp_security_agent_execute_run_v22($1,$2,$3,$4,$5,$6,$7,$8)`
-	postgresSecurityAgentExecuteRunV23SQL    = `SELECT zasp_security_agent_execute_run_v23($1,$2,$3,$4,$5,$6,$7,$8)`
-	postgresSecurityAgentExecuteRunV24SQL    = `SELECT zasp_security_agent_execute_run_v24($1,$2,$3,$4,$5,$6,$7,$8)`
-	postgresSecurityAgentExecuteRunV21SQL    = `SELECT zasp_security_agent_execute_run_v21($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresSecurityAgentWorkerReadyV28SQL     = `SELECT jsonb_build_object('release',zasp_policy_deployment_execution_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+	postgresSecurityAgentWorkerReadyV27SQL     = `SELECT jsonb_build_object('release',zasp_recovery_execution_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+	postgresSecurityAgentWorkerReadyV24SQL     = `SELECT jsonb_build_object('release',zasp_security_agent_session_isolation_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+	postgresSecurityAgentWorkerReadyV23SQL     = `SELECT jsonb_build_object('release',zasp_security_agent_connector_revocation_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+	postgresSecurityAgentWorkerReadySQL        = `SELECT jsonb_build_object('release',zasp_security_agent_temporary_policy_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+	postgresSecurityAgentWorkerReadyV21SQL     = `SELECT jsonb_build_object('release',zasp_security_agent_autonomous_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+	postgresSecurityAgentScheduleTriggersSQL   = `SELECT zasp_security_agent_schedule_triggers_v22($1,$2)`
+	postgresSecurityAgentScheduleV23SQL        = `SELECT zasp_security_agent_schedule_triggers_v23($1,$2)`
+	postgresSecurityAgentScheduleV24SQL        = `SELECT zasp_security_agent_schedule_triggers_v24($1,$2)`
+	postgresSecurityAgentScheduleV21SQL        = `SELECT zasp_security_agent_schedule_triggers_v21($1,$2)`
+	postgresSecurityAgentExpireApprovalsV28SQL = `SELECT zasp_security_agent_expire_approvals_v28($1,$2)`
+	postgresSecurityAgentClaimRunsSQL          = `SELECT zasp_security_agent_claim_runs_v22($1,$2,$3,$4)`
+	postgresSecurityAgentClaimRunsV23SQL       = `SELECT zasp_security_agent_claim_runs_v23($1,$2,$3,$4)`
+	postgresSecurityAgentClaimRunsV24SQL       = `SELECT zasp_security_agent_claim_runs_v23($1,$2,$3,$4)`
+	postgresSecurityAgentClaimRunsV21SQL       = `SELECT zasp_security_agent_claim_runs($1,$2,$3,$4)`
+	postgresSecurityAgentHeartbeatRunSQL       = `SELECT zasp_security_agent_heartbeat_run($1,$2,$3,$4,$5,$6,$7)`
+	postgresSecurityAgentPrepareRunSQL         = `SELECT zasp_security_agent_prepare_run_v22($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentPrepareRunV23SQL      = `SELECT zasp_security_agent_prepare_run_v23($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentPrepareRunV24SQL      = `SELECT zasp_security_agent_prepare_run_v24($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentPrepareRunV21SQL      = `SELECT zasp_security_agent_prepare_run_v21($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentExecuteRunSQL         = `SELECT zasp_security_agent_execute_run_v22($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresSecurityAgentExecuteRunV23SQL      = `SELECT zasp_security_agent_execute_run_v23($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresSecurityAgentExecuteRunV24SQL      = `SELECT zasp_security_agent_execute_run_v24($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresSecurityAgentExecuteRunV21SQL      = `SELECT zasp_security_agent_execute_run_v21($1,$2,$3,$4,$5,$6,$7,$8)`
 )
 
 type SecurityAgentRunClaim struct {
@@ -69,11 +71,32 @@ type SecurityAgentExecuteResult struct {
 
 type SecurityAgentWorkerAuthority interface {
 	Ready(context.Context) error
+	ExpireSecurityAgentApprovals(context.Context, string, int) (int, error)
 	ScheduleSecurityAgentTriggers(context.Context, string, int) (int, error)
 	ClaimSecurityAgentRuns(context.Context, string, string, int, int) ([]SecurityAgentRunClaim, error)
 	HeartbeatSecurityAgentRun(context.Context, SecurityAgentRunClaim, string, string, int) error
 	PrepareSecurityAgentRun(context.Context, SecurityAgentRunClaim, string, string, string, time.Time, string, string) (SecurityAgentPrepareResult, error)
 	ExecuteSecurityAgentRun(context.Context, SecurityAgentRunClaim, string, string, string, string) (SecurityAgentExecuteResult, error)
+}
+
+func (repository *SecurityAgentWorkerRepository) ExpireSecurityAgentApprovals(ctx context.Context, workerID string, limit int) (int, error) {
+	if repository == nil || ctx == nil || ctx.Err() != nil || !validSecurityAgentText(workerID, 128) || limit < 1 || limit > 25 {
+		return 0, ErrRepositoryOperation
+	}
+	if repository.expireSQL == "" {
+		return 0, nil
+	}
+	payload, err := repository.database.QueryJSON(ctx, repository.expireSQL, workerID, limit)
+	if err != nil {
+		return 0, discoveryProviderError(err)
+	}
+	var result struct {
+		Expired int `json:"expired"`
+	}
+	if !exactJSONFields(payload, "expired") || decodeStrictDiscovery(payload, &result) != nil || result.Expired < 0 || result.Expired > limit {
+		return 0, ErrRepositoryUnavailable
+	}
+	return result.Expired, nil
 }
 
 func (repository *SecurityAgentWorkerRepository) ScheduleSecurityAgentTriggers(ctx context.Context, workerID string, limit int) (int, error) {
@@ -94,10 +117,10 @@ func (repository *SecurityAgentWorkerRepository) ScheduleSecurityAgentTriggers(c
 }
 
 type SecurityAgentWorkerRepository struct {
-	database                          JSONDatabase
-	readySQL, checksum, fingerprint   string
-	scheduleSQL, claimSQL, prepareSQL string
-	executeSQL                        string
+	database                                     JSONDatabase
+	readySQL, checksum, fingerprint              string
+	expireSQL, scheduleSQL, claimSQL, prepareSQL string
+	executeSQL                                   string
 }
 
 func NewSecurityAgentWorkerRepository(database JSONDatabase) (*SecurityAgentWorkerRepository, error) {
@@ -107,6 +130,7 @@ func NewSecurityAgentWorkerRepository(database JSONDatabase) (*SecurityAgentWork
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	configurations := []SecurityAgentWorkerRepository{
+		{database: database, readySQL: postgresSecurityAgentWorkerReadyV28SQL, checksum: migrations.ProductionPolicyDeployment().Checksum(), fingerprint: migrations.ProductionPolicyDeploymentSemanticFingerprint(), expireSQL: postgresSecurityAgentExpireApprovalsV28SQL, scheduleSQL: postgresSecurityAgentScheduleV24SQL, claimSQL: postgresSecurityAgentClaimRunsV24SQL, prepareSQL: postgresSecurityAgentPrepareRunV24SQL, executeSQL: postgresSecurityAgentExecuteRunV24SQL},
 		{database: database, readySQL: postgresSecurityAgentWorkerReadyV27SQL, checksum: migrations.ProductionRecovery().Checksum(), fingerprint: migrations.ProductionRecoverySemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleV24SQL, claimSQL: postgresSecurityAgentClaimRunsV24SQL, prepareSQL: postgresSecurityAgentPrepareRunV24SQL, executeSQL: postgresSecurityAgentExecuteRunV24SQL},
 		{database: database, readySQL: postgresSecurityAgentWorkerReadyV24SQL, checksum: migrations.ProductionSecurityAgentSessionIsolation().Checksum(), fingerprint: migrations.ProductionSecurityAgentSessionIsolationSemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleV24SQL, claimSQL: postgresSecurityAgentClaimRunsV24SQL, prepareSQL: postgresSecurityAgentPrepareRunV24SQL, executeSQL: postgresSecurityAgentExecuteRunV24SQL},
 		{database: database, readySQL: postgresSecurityAgentWorkerReadyV23SQL, checksum: migrations.ProductionSecurityAgentConnectorRevocation().Checksum(), fingerprint: migrations.ProductionSecurityAgentConnectorRevocationSemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleV23SQL, claimSQL: postgresSecurityAgentClaimRunsV23SQL, prepareSQL: postgresSecurityAgentPrepareRunV23SQL, executeSQL: postgresSecurityAgentExecuteRunV23SQL},

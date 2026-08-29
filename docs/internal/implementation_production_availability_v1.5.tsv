@@ -576,7 +576,7 @@ M7A	M7A-90b	Complete	component-only	T10-product-ui	audited component-only proof:
 M7A	M7A-90c	Complete	component-only	T10-product-ui	audited component-only proof: approval-required webhook notification
 M7A	M7A-90d	Complete	component-only	T10-product-ui	audited component-only proof: Home daily-ops E2E
 M7A	M7A-91	Complete	component-only	T09-agent-actions	audited component-only proof: Planner unavailable degraded test
-M7A	M7A-92	Complete	component-only	T09-agent-actions	audited component-only proof: Approval expiry degraded test
+M7A	M7A-92	Complete	production-available	T09-agent-actions	v28 worker-only reconciler atomically expires tenant-scoped approvals, cancels the step, moves the run to needs_human, emits one redacted audit event, and never reclaims the run
 M7A	M7A-93	Complete	production-available	T09-agent-actions	production-composed connector timeout and ambiguous-provider outcome remains needs_human without side-effect replay
 M7A	M7A-94	Complete	component-only	T09-agent-actions	audited component-only proof: Cross-tenant planner reference test
 M7A	M7A-95	Complete	component-only	T09-agent-actions	audited component-only proof: Security Agent action budget test

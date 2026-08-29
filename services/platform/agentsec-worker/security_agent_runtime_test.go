@@ -29,11 +29,27 @@ func TestSecurityAgentProcessorPlansForApprovalThenExecutesOnlyApprovedWork(t *t
 	if err := processor.RunOnce(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if authority.scheduleCalls != 1 || authority.claimCalls != 1 || len(authority.prepared) != 1 || authority.prepared[0] != first.RunID || len(authority.executed) != 1 || authority.executed[0] != second.RunID {
-		t.Fatalf("schedules=%d claims=%d prepared=%v executed=%v", authority.scheduleCalls, authority.claimCalls, authority.prepared, authority.executed)
+	if authority.expireCalls != 1 || authority.scheduleCalls != 1 || authority.claimCalls != 1 || len(authority.prepared) != 1 || authority.prepared[0] != first.RunID || len(authority.executed) != 1 || authority.executed[0] != second.RunID {
+		t.Fatalf("expires=%d schedules=%d claims=%d prepared=%v executed=%v", authority.expireCalls, authority.scheduleCalls, authority.claimCalls, authority.prepared, authority.executed)
 	}
 	if authority.approvalExpiresAt != now.Add(15*time.Minute) || authority.leaseToken != "lease-token-000000000001" {
 		t.Fatalf("approval expires=%s lease=%q", authority.approvalExpiresAt, authority.leaseToken)
+	}
+}
+
+func TestSecurityAgentProcessorFailsClosedBeforeScheduleWhenApprovalExpiryReconciliationFails(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	authority := &securityAgentWorkerAuthorityStub{expireErr: errors.New("expiry unavailable")}
+	processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{
+		Authority: authority, WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 10, HeartbeatInterval: 20 * time.Second,
+		Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil },
+		NewProductID: func() (string, error) { return "pid_78000010-0000-4000-8000-000000000010", nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := processor.RunOnce(context.Background()); !errors.Is(err, errWorkerExecution) || authority.expireCalls != 1 || authority.scheduleCalls != 0 || authority.claimCalls != 0 {
+		t.Fatalf("run error=%v expires=%d schedules=%d claims=%d", err, authority.expireCalls, authority.scheduleCalls, authority.claimCalls)
 	}
 }
 
@@ -94,6 +110,8 @@ func securityAgentTestClaim(runID string, prepared bool, now time.Time) apiserve
 
 type securityAgentWorkerAuthorityStub struct {
 	claims             []apiserver.SecurityAgentRunClaim
+	expireCalls        int
+	expireErr          error
 	scheduleCalls      int
 	scheduleErr        error
 	claimCalls         int
@@ -107,6 +125,11 @@ type securityAgentWorkerAuthorityStub struct {
 }
 
 func (*securityAgentWorkerAuthorityStub) Ready(context.Context) error { return nil }
+
+func (authority *securityAgentWorkerAuthorityStub) ExpireSecurityAgentApprovals(context.Context, string, int) (int, error) {
+	authority.expireCalls++
+	return 1, authority.expireErr
+}
 
 func (authority *securityAgentWorkerAuthorityStub) ScheduleSecurityAgentTriggers(context.Context, string, int) (int, error) {
 	authority.scheduleCalls++
