@@ -474,19 +474,19 @@ M7	M7-40e	Complete	component-only	T14-data-workflows	audited component-only proo
 M7	M7-40f	Complete	production-available	PROD-current-composition	audited shipped composition: M7 UI API coverage E2E
 M7	M7-40	Complete	component-only	T14-data-workflows	audited component-only proof: M7 gate
 M7A	M7A-01	Complete	production-available	PROD-current-composition	audited shipped composition: Security Agent domain types
-M7A	M7A-02	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent run domain types
-M7A	M7A-03	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent plan schema
-M7A	M7A-04	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security action metadata type
-M7A	M7A-05	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent Neon migration
-M7A	M7A-06	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent run Neon migration
-M7A	M7A-07	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent step Neon migration
-M7A	M7A-08	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent approval Neon migration
-M7A	M7A-09	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security action idempotency table
-M7A	M7A-10	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent repository create/get
-M7A	M7A-11	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent repository list/update/delete
-M7A	M7A-12	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent run repository
-M7A	M7A-13	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent step repository
-M7A	M7A-14	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent approval repository
+M7A	M7A-02	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: bounded run states and terminal transition fencing
+M7A	M7A-03	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: versioned typed plans with bounded summaries
+M7A	M7A-04	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: exact action metadata and registry filtering
+M7A	M7A-05	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: tenant-scoped definition tables, indexes, ACLs, and readiness
+M7A	M7A-06	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: tenant-scoped immutable-trigger run storage
+M7A	M7A-07	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: ordered unique run-step storage
+M7A	M7A-08	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: expiring single-decision approval storage
+M7A	M7A-09	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: scoped replay receipts and exact prior outcomes
+M7A	M7A-10	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent API: scoped definition create and detail
+M7A	M7A-11	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent API: cursor list, update, and soft delete
+M7A	M7A-12	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent API and worker: scoped run create, page, detail, and fenced state changes
+M7A	M7A-13	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent worker: stable scoped step append, read, and update
+M7A	M7A-14	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent API: scoped approval page, detail, and fresh-auth decision
 M7A	M7A-15	Complete	component-only	T08-supervised-agent	audited component-only proof: Action registry interface
 M7A	M7A-16	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: temporary runtime policy metadata
 M7A	M7A-17	Complete	component-only	T08-supervised-agent	audited component-only proof: Action: temporary runtime policy execute
@@ -511,25 +511,25 @@ M7A	M7A-31	Complete	production-available	PROD-current-composition	audited shippe
 M7A	M7A-32	Complete	production-available	PROD-current-composition	audited shipped composition: Prompt/Tool Injection template
 M7A	M7A-33	Complete	production-available	PROD-current-composition	audited shipped composition: Repeated Policy Violation template
 M7A	M7A-34	Complete	production-available	PROD-current-composition	audited shipped composition: Shadow Agent Triage template
-M7A	M7A-35	Complete	component-only	T07-security-agent-authority	audited component-only proof: Trigger matcher: finding
+M7A	M7A-35	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent worker: tenant-scoped finding trigger matcher
 M7A	M7A-36	Complete	component-only	T07-security-agent-authority	audited component-only proof: Trigger matcher: attack path
-M7A	M7A-37	Complete	component-only	T07-security-agent-authority	audited component-only proof: Trigger matcher: runtime decision
-M7A	M7A-38	Complete	component-only	T07-security-agent-authority	audited component-only proof: Trigger deduplication
+M7A	M7A-37	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent worker: bounded runtime-decision session matcher
+M7A	M7A-38	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent worker: tenant-scoped trigger fingerprint replay suppression
 M7A	M7A-38a	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security trigger event contract
 M7A	M7A-38b	Complete	component-only	T07-security-agent-authority	audited component-only proof: automatic Security Agent trigger dispatcher
 M7A	M7A-38c	Complete	component-only	T07-security-agent-authority	audited component-only proof: trigger source wiring
 M7A	M7A-38d	Complete	component-only	T07-security-agent-authority	audited component-only proof: automatic trigger E2E
-M7A	M7A-39	Complete	component-only	T07-security-agent-authority	audited component-only proof: Evidence snapshot builder
+M7A	M7A-39	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent worker: canonical scoped evidence snapshot and digest
 M7A	M7A-40	Complete	component-only	T07-security-agent-authority	audited component-only proof: Planner input separation
 M7A	M7A-41	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent planner purpose
-M7A	M7A-42	Complete	component-only	T07-security-agent-authority	audited component-only proof: Planner step/action limit
-M7A	M7A-43	Complete	component-only	T07-security-agent-authority	audited component-only proof: Planner scope/reference validator
-M7A	M7A-44	Complete	component-only	T07-security-agent-authority	audited component-only proof: Planner action schema validator
-M7A	M7A-45	Complete	component-only	T07-security-agent-authority	audited component-only proof: Planner prompt-injection security test
-M7A	M7A-46	Complete	component-only	T07-security-agent-authority	audited component-only proof: ActionAuthorizer base
-M7A	M7A-47	Complete	component-only	T07-security-agent-authority	audited component-only proof: Product approval floor rules
-M7A	M7A-48	Complete	component-only	T07-security-agent-authority	audited component-only proof: Creator permission validation
-M7A	M7A-49	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent run budget
+M7A	M7A-42	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: definition and product action-count limits
+M7A	M7A-43	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: tenant and run reference validation
+M7A	M7A-44	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: exact allowed-action schema validation
+M7A	M7A-45	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: untrusted evidence cannot introduce action, target, URL, or argument drift
+M7A	M7A-46	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: deterministic allow, approval-required, and deny decisions
+M7A	M7A-47	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: mandatory approval floors for irreversible and containment actions
+M7A	M7A-48	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent API: fresh-auth activation and capability-gated action enablement
+M7A	M7A-49	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: step, duration, token, and tenant concurrency budgets
 M7A	M7A-50	Complete	component-only	T09-agent-actions	audited component-only proof: Run queue job
 M7A	M7A-51	Complete	component-only	T09-agent-actions	audited component-only proof: Run planner state
 M7A	M7A-52	Complete	component-only	T09-agent-actions	audited component-only proof: Auto-action executor
@@ -542,21 +542,21 @@ M7A	M7A-58	Complete	component-only	T09-agent-actions	audited component-only proo
 M7A	M7A-59	Complete	component-only	T09-agent-actions	audited component-only proof: Run cancellation
 M7A	M7A-60	Complete	component-only	T09-agent-actions	audited component-only proof: Security Agent audit event helper
 M7A	M7A-61	Complete	production-available	PROD-current-composition	audited shipped composition: API listSecurityAgentTemplates
-M7A	M7A-62	Complete	component-only	T07-security-agent-authority	audited component-only proof: API listSecurityActions
+M7A	M7A-62	Complete	production-available	T07-security-agent-authority	production-composed public API: capability-filtered listSecurityActions
 M7A	M7A-63	Complete	production-available	PROD-current-composition	audited shipped composition: API listSecurityAgents
 M7A	M7A-64	Complete	production-available	PROD-current-composition	audited shipped composition: API createSecurityAgent
 M7A	M7A-65	Complete	production-available	PROD-current-composition	audited shipped composition: API getSecurityAgent
 M7A	M7A-66	Complete	production-available	PROD-current-composition	audited shipped composition: API updateSecurityAgent
 M7A	M7A-67	Complete	production-available	PROD-current-composition	audited shipped composition: API deleteSecurityAgent
-M7A	M7A-68	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent dry-run simulator
-M7A	M7A-69	Complete	component-only	T07-security-agent-authority	audited component-only proof: API simulateSecurityAgent
-M7A	M7A-70	Complete	component-only	T07-security-agent-authority	audited component-only proof: API runSecurityAgent
-M7A	M7A-71	Complete	component-only	T07-security-agent-authority	audited component-only proof: API listSecurityAgentRuns
-M7A	M7A-72	Complete	component-only	T07-security-agent-authority	audited component-only proof: API getSecurityAgentRun
-M7A	M7A-73	Complete	component-only	T07-security-agent-authority	audited component-only proof: API cancelSecurityAgentRun
-M7A	M7A-74	Complete	component-only	T07-security-agent-authority	audited component-only proof: API listSecurityAgentApprovals
-M7A	M7A-75	Complete	component-only	T07-security-agent-authority	audited component-only proof: API getSecurityAgentApproval
-M7A	M7A-76	Complete	component-only	T07-security-agent-authority	audited component-only proof: API decideSecurityAgentApproval
+M7A	M7A-68	Complete	production-available	T07-security-agent-authority	production-composed v27 dry-run authority: scoped plan and approval simulation with zero effects
+M7A	M7A-69	Complete	production-available	T07-security-agent-authority	production-composed public API: replay-safe simulateSecurityAgent with zero side effects
+M7A	M7A-70	Complete	production-available	T07-security-agent-authority	production-composed public API: scoped replay-safe manual runSecurityAgent
+M7A	M7A-71	Complete	production-available	T07-security-agent-authority	production-composed public API: tenant-bound filtered cursor listSecurityAgentRuns
+M7A	M7A-72	Complete	production-available	T07-security-agent-authority	production-composed public API: redacted plan, approval, execution, and verification run detail
+M7A	M7A-73	Complete	production-available	T07-security-agent-authority	production-composed public API: version-fenced replay-safe cancelSecurityAgentRun
+M7A	M7A-74	Complete	production-available	T07-security-agent-authority	production-composed public API: tenant-bound filtered cursor listSecurityAgentApprovals
+M7A	M7A-75	Complete	production-available	T07-security-agent-authority	production-composed public API: scoped approval detail with effect, reversibility, TTL, and evidence
+M7A	M7A-76	Complete	production-available	T07-security-agent-authority	production-composed public API: fresh-auth approve, reject, and cancel with self-approval denial
 M7A	M7A-77	Complete	production-available	PROD-current-composition	audited shipped composition: Security Agents nav/list UI
 M7A	M7A-78	Complete	production-available	PROD-current-composition	audited shipped composition: Security Agent builder Start/Trigger UI
 M7A	M7A-79	Complete	production-available	PROD-current-composition	audited shipped composition: Security Agent builder Goal/Scope UI

@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 414 |
-| Component-only | 253 |
+| Production-available | 449 |
+| Component-only | 218 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -138,6 +138,13 @@ production composition, not merely a component proof or external evidence.
   The finding-ticket action is mounted end to end with exact tenant scope,
   response-loss replay, HMAC-signed redacted webhooks, pinned outbound
   authority, and same-tab reload proof in installed Chrome.
+- The Security Agent authority is mounted through its isolated API database,
+  readiness-gated scheduler and action workers, and private Kubernetes identities.
+  Production APIs provide replay-safe simulation, manual runs, cursor history,
+  cancellation, and fresh-auth approvals. The combined multi-tenant journey
+  proves autonomous response, supervised approval, session isolation, temporary
+  containment cleanup, and connector revocation. Automatic attack-path triggers
+  and the AI planner boundary remain component-only.
 - `docs/operations/production-deployment.md` and release contracts retain
   image, provider, DNS/TLS, secret, tracing, and public-deployment evidence as
   explicit external gates.
@@ -155,9 +162,9 @@ production composition, not merely a component proof or external evidence.
 | M5 | 42 | 20 | 22 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
-| M7A | 113 | 21 | 92 | 0 | 0 |
+| M7A | 113 | 56 | 57 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **414** | **253** | **61** | **0** |
+| **Total** | **728** | **449** | **218** | **61** | **0** |
 
 ## Prerequisite work
 
