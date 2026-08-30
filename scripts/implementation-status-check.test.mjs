@@ -149,7 +149,7 @@ test("rejects an external row without an approved typed gate ID", async () => {
 
 test("rejects an approved but wrong production owner for a source ID", async () => {
   await withLedger(
-    (ledger) => ledger.replace("M2\tM2-20\tComplete\tcomponent-only\tT11-identity-admin", "M2\tM2-20\tComplete\tcomponent-only\tT02-discovery-authority"),
+    (ledger) => ledger.replace("M2\tM2-20\tComplete\tproduction-available\tT11-identity-admin", "M2\tM2-20\tComplete\tproduction-available\tT02-discovery-authority"),
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 485; expected 486/,
+        /production-available count is 504; expected 505/,
       );
     },
   );
@@ -216,6 +216,28 @@ test("rejects demotion of the shipped finding ticket and final M4 gate", async (
     await withLedger(
       (ledger) => ledger.replace(
         new RegExp(`(M4\\t${id}\\tComplete\\t)production-available`),
+        "$1component-only",
+      ),
+      async (ledgerPath) => {
+        await assert.rejects(
+          () => validateLedger({ ledgerPath, sourcePlanPath }),
+          new RegExp(`production class component-only does not match audited production-available for ${id}`),
+        );
+      },
+    );
+  }
+});
+
+test("rejects demotion of audited shipped identity administration tasks", async () => {
+  for (const id of [
+    "M2-20", "M2-21", "M2-22", "M2-23", "M2-24",
+    "M2-25", "M2-26", "M2-27", "M2-28", "M2-29", "M2-30",
+    "M2-31", "M2-32", "M2-33", "M2-43c", "M2-43d", "M2-43e",
+    "M2-47a", "M2-47b",
+  ]) {
+    await withLedger(
+      (ledger) => ledger.replace(
+        new RegExp(`(M2\\t${id}\\tComplete\\t)production-available`),
         "$1component-only",
       ),
       async (ledgerPath) => {
@@ -319,8 +341,8 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => status.replace(
-      "| Production-available | 486 |",
-      "| Production-available | 477 |",
+      "| Production-available | 505 |",
+      "| Production-available | 496 |",
     ),
     async ({ ledgerPath, statusPath }) => {
       await assert.rejects(

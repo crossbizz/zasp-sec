@@ -130,20 +130,20 @@ M2	M2-16	Complete	production-available	PROD-current-composition	audited shipped 
 M2	M2-17	Complete	production-available	PROD-current-composition	audited shipped composition: API getCurrentPrincipal
 M2	M2-18	Complete	production-available	PROD-current-composition	audited shipped composition: API listMembers
 M2	M2-19	Complete	production-available	PROD-current-composition	audited shipped composition: API listBuiltInRoles
-M2	M2-20	Complete	component-only	T11-identity-admin	audited component-only proof: SSO service
-M2	M2-21	Complete	component-only	T11-identity-admin	audited component-only proof: API listSSOConnections
-M2	M2-22	Complete	component-only	T11-identity-admin	audited component-only proof: API createSSOConnection
-M2	M2-23	Complete	component-only	T11-identity-admin	audited component-only proof: API deleteSSOConnection
-M2	M2-24	Complete	component-only	T11-identity-admin	audited component-only proof: API testSSOConnection
-M2	M2-25	Complete	component-only	T11-identity-admin	audited component-only proof: SCIM config service
-M2	M2-26	Complete	component-only	T11-identity-admin	audited component-only proof: API listSCIMConnections
-M2	M2-27	Complete	component-only	T11-identity-admin	audited component-only proof: API createSCIMConnection
-M2	M2-28	Complete	component-only	T11-identity-admin	audited component-only proof: API deleteSCIMConnection
-M2	M2-29	Complete	component-only	T11-identity-admin	audited component-only proof: Stytch webhook verifier
-M2	M2-30	Complete	component-only	T11-identity-admin	audited component-only proof: Stytch deprovision reconciliation
-M2	M2-31	Complete	component-only	T11-identity-admin	audited component-only proof: group mapping store
-M2	M2-32	Complete	component-only	T11-identity-admin	audited component-only proof: API listGroupMappings
-M2	M2-33	Complete	component-only	T11-identity-admin	audited component-only proof: API updateGroupMappings
+M2	M2-20	Complete	production-available	T11-identity-admin	production Stytch SSO service is mounted through the identity coordinator with exact provider authority, durable replay, and bounded redacted failures
+M2	M2-21	Complete	production-available	T11-identity-admin	production listSSOConnections is mounted and exercised through the generated-client browser journey against the provider-faithful Stytch boundary
+M2	M2-22	Complete	production-available	T11-identity-admin	production createSSOConnection is fresh-auth guarded, replay safe, durably audited, and exercised through the installed-browser journey
+M2	M2-23	Complete	production-available	T11-identity-admin	production deleteSSOConnection is mounted with exact tenant/provider binding and durable replay semantics
+M2	M2-24	Complete	production-available	T11-identity-admin	production testSSOConnection is mounted and exercised through the installed-browser Stytch workflow
+M2	M2-25	Complete	production-available	T11-identity-admin	production SCIM service is mounted through the identity coordinator with one-time encrypted credential reveal authority
+M2	M2-26	Complete	production-available	T11-identity-admin	production listSCIMConnections is mounted and exercised through the generated-client browser journey without returning bearer credentials
+M2	M2-27	Complete	production-available	T11-identity-admin	production createSCIMConnection is fresh-auth guarded, replay safe, durably audited, and exposes its bearer token only through an acknowledged one-time grant
+M2	M2-28	Complete	production-available	T11-identity-admin	production deleteSCIMConnection is mounted with exact tenant/provider binding and durable replay semantics
+M2	M2-29	Complete	production-available	T11-identity-admin	exact /api/v1/webhooks/stytch production routing verifies the signed bounded payload before durable reconciliation
+M2	M2-30	Complete	production-available	T11-identity-admin	production Stytch deprovision reconciliation is tenant bound, replay safe, atomically revokes access, and is exercised by the combined PostgreSQL journey
+M2	M2-31	Complete	production-available	T11-identity-admin	production group-mapping authority persists exact tenant scope and atomically revokes affected sessions and tokens
+M2	M2-32	Complete	production-available	T11-identity-admin	production listGroupMappings is mounted behind browser-session tenant authorization and the generated client
+M2	M2-33	Complete	production-available	T11-identity-admin	production updateGroupMappings is fresh-auth and version guarded, tenant scoped, durably audited, and exercised through installed Chrome
 M2	M2-34	Complete	production-available	PROD-current-composition	audited shipped composition: API token model
 M2	M2-35	Complete	production-available	PROD-current-composition	audited shipped composition: API listAPITokens
 M2	M2-36	Complete	production-available	PROD-current-composition	audited shipped composition: API createAPIToken
@@ -157,9 +157,9 @@ M2	M2-41	Complete	component-only	T11-identity-admin	audited component-only proof
 M2	M2-42	Complete	component-only	T11-identity-admin	audited component-only proof: API getAuditExport
 M2	M2-43a	Complete	production-available	PROD-current-composition	audited shipped composition: Identity route shell
 M2	M2-43b	Complete	production-available	PROD-current-composition	audited shipped composition: Members and roles panel
-M2	M2-43c	Complete	component-only	T11-identity-admin	audited component-only proof: SSO panel
-M2	M2-43d	Complete	component-only	T11-identity-admin	audited component-only proof: SCIM panel
-M2	M2-43e	Complete	component-only	T11-identity-admin	audited component-only proof: Group mapping panel
+M2	M2-43c	Complete	production-available	T11-identity-admin	production Identity & Access route mounts the generated-client SSO panel and the installed-browser journey exercises list, create, and test
+M2	M2-43d	Complete	production-available	T11-identity-admin	production Identity & Access route mounts the generated-client SCIM panel and proves one-time credential display with no durable raw-token retention
+M2	M2-43e	Complete	production-available	T11-identity-admin	production Identity & Access route mounts the generated-client group-mapping panel and exercises exact scoped mutation and session reconciliation
 M2	M2-43	Complete	production-available	PROD-current-composition	audited shipped composition: identity admin UI shell
 M2	M2-44	Complete	production-available	PROD-current-composition	audited shipped composition: identity admin actions
 M2	M2-45	Complete	production-available	PROD-current-composition	audited shipped composition: API access UI
@@ -167,8 +167,8 @@ M2	M2-46a	Complete	production-available	PROD-current-composition	audited shipped
 M2	M2-46b	Complete	production-available	PROD-current-composition	audited shipped composition: Environment onboarding form
 M2	M2-46c	Complete	production-available	PROD-current-composition	audited shipped composition: Scope selector
 M2	M2-46	Complete	production-available	PROD-current-composition	audited shipped composition: workspace/env onboarding UI
-M2	M2-47a	Complete	component-only	T11-identity-admin	audited component-only proof: M2 SSO session E2E
-M2	M2-47b	Complete	component-only	T11-identity-admin	audited component-only proof: M2 SCIM deprovision E2E
+M2	M2-47a	Complete	production-available	T11-identity-admin	combined disposable-PostgreSQL and installed-Chrome E2E proves provider-faithful SSO creation, testing, fresh reauthentication, and scoped session authority
+M2	M2-47b	Complete	production-available	T11-identity-admin	combined disposable-PostgreSQL and installed-Chrome E2E proves SCIM creation, one-time secret handling, group mapping, signed deprovision, replay, and access revocation
 M2	M2-47c	Complete	production-available	PROD-current-composition	audited shipped composition: M2 workspace authorization E2E
 M2	M2-47d	Complete	production-available	PROD-current-composition	audited shipped composition: M2 API token E2E
 M2	M2-47e	Complete	production-available	PROD-current-composition	audited shipped composition: M2 audit E2E

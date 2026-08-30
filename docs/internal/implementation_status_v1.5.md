@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 486 |
-| Component-only | 181 |
+| Production-available | 505 |
+| Component-only | 162 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -115,6 +115,12 @@ production composition, not merely a component proof or external evidence.
   exact-pinned private Nango. Nango database TLS verifies the server certificate
   and hostname through the pinned image's bundled PostgreSQL driver; its M3
   adapter, callback, and proxy rows remain component-only.
+- Production identity administration mounts exact Stytch SSO and SCIM
+  provider authority, durable replay-safe mutations, signed deprovision
+  reconciliation, tenant-scoped group mapping, and the generated-client browser
+  panels. The combined disposable-PostgreSQL and installed-Chrome journey proves
+  fresh reauthentication, one-time SCIM secret handling, and access revocation;
+  audit export and the live managed-Stytch observation remain unpromoted.
 - The customer-edge chart and live disposable three-node Kubernetes proof run
   exact-pinned Tetragon plus the non-root sensor, preserve zero drops and full
   capability reports, forward real process events, and survive leader loss.
@@ -170,7 +176,7 @@ production composition, not merely a component proof or external evidence.
 | M0 | 27 | 7 | 17 | 3 | 0 |
 | M1 | 68 | 58 | 10 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
-| M2 | 72 | 50 | 22 | 0 | 0 |
+| M2 | 72 | 69 | 3 | 0 | 0 |
 | M3 | 75 | 68 | 5 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 20 | 22 | 0 | 0 |
@@ -178,7 +184,7 @@ production composition, not merely a component proof or external evidence.
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 93 | 20 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **486** | **181** | **61** | **0** |
+| **Total** | **728** | **505** | **162** | **61** | **0** |
 
 ## Prerequisite work
 
