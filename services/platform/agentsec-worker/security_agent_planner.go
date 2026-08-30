@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -34,6 +36,7 @@ const (
 type securityAgentPlannerEvidence struct {
 	ID      string `json:"id"`
 	Kind    string `json:"kind"`
+	Version int64  `json:"version"`
 	Summary string `json:"summary"`
 }
 
@@ -64,8 +67,16 @@ type securityAgentPlannerCandidate struct {
 	Steps   []securityAgentPlannerStep `json:"steps"`
 }
 
+type securityAgentPlannerResult struct {
+	Candidate     securityAgentPlannerCandidate
+	Failure       securityAgentPlannerFailure
+	OutputDigest  string
+	Model         string
+	PolicyVersion string
+}
+
 type securityAgentPlanner interface {
-	Plan(context.Context, securityAgentPlannerContext) (securityAgentPlannerCandidate, securityAgentPlannerFailure)
+	Plan(context.Context, securityAgentPlannerContext) securityAgentPlannerResult
 	Close() error
 }
 
@@ -90,6 +101,29 @@ type productionSecurityAgentPlanner struct {
 	closed        bool
 }
 
+func newProductionSecurityAgentPlanner(config workerRuntimeConfig) (*productionSecurityAgentPlanner, error) {
+	if !validWorkerRuntimeConfig(config) || config.Mode != workerModeSecurityAgent {
+		return nil, errRuntimeUnavailable
+	}
+	return newSecurityAgentPlannerFromFile(config)
+}
+
+func newSecurityAgentPlannerFromFile(config workerRuntimeConfig) (*productionSecurityAgentPlanner, error) {
+	token, ok := readPinnedFile(config.SecurityAgentPlannerToken, 24, 512, 0o444)
+	if !ok {
+		return nil, errRuntimeUnavailable
+	}
+	defer clear(token)
+	planner, err := newSecurityAgentPlanner(securityAgentPlannerConfig{
+		Endpoint: config.SecurityAgentPlannerEndpoint, Model: config.SecurityAgentPlannerModel, Token: token,
+		Timeout: config.SecurityAgentPlannerTimeout, MaximumTokens: config.SecurityAgentPlannerTokens, PolicyVersion: config.SecurityAgentPlannerPolicy,
+	})
+	if err != nil {
+		return nil, errRuntimeUnavailable
+	}
+	return planner, nil
+}
+
 func newSecurityAgentPlanner(config securityAgentPlannerConfig) (*productionSecurityAgentPlanner, error) {
 	parsed, err := url.Parse(config.Endpoint)
 	if err != nil || parsed.String() != config.Endpoint || parsed.Scheme != "https" || parsed.Host != "openrouter.ai" || parsed.Path != "/api/v1/chat/completions" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || !validSecurityAgentPlannerToken(config.Model, 128, true) || !validSecurityAgentPlannerCredential(config.Token) || config.Timeout < time.Second || config.Timeout > 30*time.Second || config.MaximumTokens < 1 || config.MaximumTokens > 4096 || !validSecurityAgentPlannerToken(config.PolicyVersion, 63, false) {
@@ -112,24 +146,27 @@ func newSecurityAgentPlanner(config securityAgentPlannerConfig) (*productionSecu
 	}, nil
 }
 
-func (planner *productionSecurityAgentPlanner) Plan(ctx context.Context, contextValue securityAgentPlannerContext) (candidate securityAgentPlannerCandidate, failure securityAgentPlannerFailure) {
+func (planner *productionSecurityAgentPlanner) Plan(ctx context.Context, contextValue securityAgentPlannerContext) (result securityAgentPlannerResult) {
 	defer func() {
 		if recover() != nil {
-			candidate = securityAgentPlannerCandidate{}
-			failure = securityAgentPlannerUnavailable
+			result.Candidate = securityAgentPlannerCandidate{}
+			result.Failure = securityAgentPlannerUnavailable
+			result.OutputDigest = ""
 		}
 	}()
-	if planner == nil || ctx == nil || ctx.Err() != nil || !validSecurityAgentPlannerContext(contextValue) {
-		return securityAgentPlannerCandidate{}, securityAgentPlannerUnavailable
+	if planner == nil {
+		return securityAgentPlannerResult{Failure: securityAgentPlannerUnavailable}
 	}
 	planner.mu.RLock()
-	if planner.closed || planner.client == nil || len(planner.token) == 0 {
-		planner.mu.RUnlock()
-		return securityAgentPlannerCandidate{}, securityAgentPlannerUnavailable
-	}
 	token := string(planner.token)
-	endpoint, model, maximumTokens, policyVersion, client := planner.endpoint, planner.model, planner.maximumTokens, planner.policyVersion, planner.client
+	endpoint, model, maximumTokens, policyVersion, client, closed := planner.endpoint, planner.model, planner.maximumTokens, planner.policyVersion, planner.client, planner.closed
 	planner.mu.RUnlock()
+	result.Model = model
+	result.PolicyVersion = policyVersion
+	if ctx == nil || ctx.Err() != nil || !validSecurityAgentPlannerContext(contextValue) || closed || client == nil || token == "" {
+		result.Failure = securityAgentPlannerUnavailable
+		return result
+	}
 
 	userContent, err := json.Marshal(struct {
 		Purpose           string                         `json:"purpose"`
@@ -147,7 +184,8 @@ func (planner *productionSecurityAgentPlanner) Plan(ctx context.Context, context
 		UntrustedEvidence: append([]securityAgentPlannerEvidence(nil), contextValue.Evidence...),
 	})
 	if err != nil || len(userContent) > 48*1024 {
-		return securityAgentPlannerCandidate{}, securityAgentPlannerRejected
+		result.Failure = securityAgentPlannerUnavailable
+		return result
 	}
 	body, err := json.Marshal(securityAgentOpenRouterRequest{
 		Model: model, MaximumTokens: maximumTokens, Temperature: 0,
@@ -156,11 +194,13 @@ func (planner *productionSecurityAgentPlanner) Plan(ctx context.Context, context
 		ResponseFormat: securityAgentOpenRouterResponseFormat{Type: "json_schema", JSONSchema: securityAgentOpenRouterJSONSchema{Name: securityAgentPlannerPurpose, Strict: true, Schema: securityAgentPlannerCandidateSchema()}},
 	})
 	if err != nil || len(body) > 64*1024 {
-		return securityAgentPlannerCandidate{}, securityAgentPlannerRejected
+		result.Failure = securityAgentPlannerUnavailable
+		return result
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return securityAgentPlannerCandidate{}, securityAgentPlannerUnavailable
+		result.Failure = securityAgentPlannerUnavailable
+		return result
 	}
 	request.Header.Set("Authorization", "Bearer "+token)
 	request.Header.Set("Content-Type", "application/json")
@@ -168,26 +208,38 @@ func (planner *productionSecurityAgentPlanner) Plan(ctx context.Context, context
 	request.Header.Set("X-Zasp-Data-Policy", policyVersion)
 	response, err := client.Do(request)
 	if err != nil || response == nil {
-		return securityAgentPlannerCandidate{}, securityAgentPlannerUnavailable
+		result.Failure = securityAgentPlannerUnavailable
+		return result
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return securityAgentPlannerCandidate{}, securityAgentPlannerUnavailable
+		result.Failure = securityAgentPlannerUnavailable
+		return result
 	}
 	responseBody, err := io.ReadAll(io.LimitReader(response.Body, securityAgentPlannerResponseLimit+1))
-	if err != nil || len(responseBody) == 0 || len(responseBody) > securityAgentPlannerResponseLimit {
-		return securityAgentPlannerCandidate{}, securityAgentPlannerRejected
+	if err != nil || len(responseBody) == 0 {
+		result.Failure = securityAgentPlannerUnavailable
+		return result
+	}
+	responseDigest := sha256.Sum256(responseBody)
+	result.OutputDigest = "sha256:" + hex.EncodeToString(responseDigest[:])
+	if len(responseBody) > securityAgentPlannerResponseLimit {
+		result.Failure = securityAgentPlannerRejected
+		return result
 	}
 	content, ok := validSecurityAgentOpenRouterResponse(responseBody, model)
 	if !ok || len(content) > 32*1024 {
-		return securityAgentPlannerCandidate{}, securityAgentPlannerRejected
+		result.Failure = securityAgentPlannerRejected
+		return result
 	}
 	decoder := json.NewDecoder(strings.NewReader(content))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&candidate) != nil || !jsonDecoderAtEOF(decoder) || !validSecurityAgentPlannerCandidate(candidate, contextValue) {
-		return securityAgentPlannerCandidate{}, securityAgentPlannerRejected
+	if decoder.Decode(&result.Candidate) != nil || !jsonDecoderAtEOF(decoder) || !validSecurityAgentPlannerCandidate(result.Candidate, contextValue) {
+		result.Candidate = securityAgentPlannerCandidate{}
+		result.Failure = securityAgentPlannerRejected
+		return result
 	}
-	return candidate, ""
+	return result
 }
 
 func (planner *productionSecurityAgentPlanner) Close() error {
@@ -285,7 +337,7 @@ func validSecurityAgentPlannerContext(value securityAgentPlannerContext) bool {
 	}
 	evidence := map[string]struct{}{}
 	for _, item := range value.Evidence {
-		if !validSecurityAgentPlannerProductID(item.ID) || !slices.Contains([]string{"finding", "attack_path", "runtime_decision", "session", "policy"}, item.Kind) || !validSecurityAgentPlannerText(item.Summary, 4096) {
+		if !validSecurityAgentPlannerProductID(item.ID) || !slices.Contains([]string{"finding", "attack_path", "runtime_decision", "session", "policy"}, item.Kind) || item.Version < 1 || item.Version > 9007199254740991 || !validSecurityAgentPlannerText(item.Summary, 4096) {
 			return false
 		}
 		if _, duplicate := evidence[item.ID]; duplicate {

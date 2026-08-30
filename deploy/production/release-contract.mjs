@@ -36,6 +36,7 @@ const connectorKeys = Object.freeze(["awsRegion", "roleArn", "awsCustomerRolePre
 const connectorEgressKeys = Object.freeze(["aws", "github", "okta", "kubernetes"]);
 const nangoKeys = Object.freeze(["storageSecretName", "databaseEgressCIDRs", "providerEgressCIDRs"]);
 const telemetryKeys = Object.freeze(["backend", "endpoint", "authSecretName", "egressCIDRs"]);
+const securityAgentPlannerKeys = Object.freeze(["endpoint", "model", "egressCIDRs"]);
 
 export async function inspectContainerBuilds() {
   const definitions = [
@@ -110,6 +111,7 @@ export async function renderRelease(value) {
     ["secrets.apiPostgresDSNObjectName", "zasp/production/postgres-api-dsn"],
     ["secrets.securityAgentAPIPostgresDSNObjectName", "zasp/production/postgres-security-agent-api-dsn"],
     ["secrets.securityAgentWorkerPostgresDSNObjectName", "zasp/production/postgres-security-agent-worker-dsn"],
+    ["secrets.securityAgentPlannerTokenObjectName", "zasp/production/openrouter-security-agent-api-key"],
     ["secrets.securityAgentActionPostgresDSNObjectName", "zasp/production/postgres-security-agent-action-worker-dsn"],
     ["secrets.policyDeploymentPostgresDSNObjectName", "zasp/production/postgres-policy-deployment-worker-dsn"],
     ["secrets.gatewaySigningPrivateKeyObjectName", "zasp/production/gateway-policy-signing-private-key"],
@@ -314,6 +316,7 @@ export async function renderRelease(value) {
     ...value.connectors.awsCustomerRoleARNs.map((roleARN, index) => [`connectors.awsCustomerRoleARNs[${index}]`, roleARN]),
     ...connectorEgressKeys.flatMap((provider) => value.connectorEgressCIDRs[provider].map((cidr, index) => [`network.connectorEgressCIDRs.${provider}[${index}]`, cidr])),
     ...value.findingTicketEgressCIDRs.map((cidr, index) => [`network.findingTicketEgressCIDRs[${index}]`, cidr]),
+    ...value.securityAgentPlanner.egressCIDRs.map((cidr, index) => [`network.securityAgentPlannerEgressCIDRs[${index}]`, cidr]),
     ["nango.storageSecretName", value.nango.storageSecretName],
     ...value.nango.databaseEgressCIDRs.map((cidr, index) => [`nango.databaseEgressCIDRs[${index}]`, cidr]),
     ...value.nango.providerEgressCIDRs.map((cidr, index) => [`nango.providerEgressCIDRs[${index}]`, cidr]),
@@ -414,7 +417,7 @@ function validCustomerEdgeRelease(value) {
 }
 
 function validRelease(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["attackLab", "awsS3CIDRs", "connectorEgressCIDRs", "connectors", "discovery", "findingTicketEgressCIDRs", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "recovery", "redTeam", "runtime", "nango", "telemetry", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).sort().join("\0") !== ["attackLab", "awsS3CIDRs", "connectorEgressCIDRs", "connectors", "discovery", "findingTicketEgressCIDRs", "securityAgentPlanner", "projectionGraph", "projectionRisk", "projectionSearch", "outbox", "recovery", "redTeam", "runtime", "nango", "telemetry", "host", "images", "secretProviderClass", "tlsSecretName"].sort().join("\0")) return false;
   if (!hostPattern.test(value.host) || !namePattern.test(value.tlsSecretName) || !namePattern.test(value.secretProviderClass)) return false;
   if (!validS3CIDRList(value.awsS3CIDRs)) return false;
   if (!value.images || typeof value.images !== "object" || Array.isArray(value.images) || Object.keys(value.images).sort().join("\0") !== [...imageNames].sort().join("\0")) return false;
@@ -496,6 +499,7 @@ function validRelease(value) {
   if (!value.connectorEgressCIDRs || typeof value.connectorEgressCIDRs !== "object" || Array.isArray(value.connectorEgressCIDRs) || Object.keys(value.connectorEgressCIDRs).sort().join("\0") !== [...connectorEgressKeys].sort().join("\0")) return false;
   if (!connectorEgressKeys.every((provider) => validCIDRList(value.connectorEgressCIDRs[provider]))) return false;
   if (!validProviderCIDRList(value.findingTicketEgressCIDRs)) return false;
+  if (!value.securityAgentPlanner || typeof value.securityAgentPlanner !== "object" || Array.isArray(value.securityAgentPlanner) || Object.keys(value.securityAgentPlanner).sort().join("\0") !== [...securityAgentPlannerKeys].sort().join("\0") || value.securityAgentPlanner.endpoint !== "https://openrouter.ai/api/v1/chat/completions" || value.securityAgentPlanner.model !== "openai/gpt-5-mini" || !validProviderCIDRList(value.securityAgentPlanner.egressCIDRs)) return false;
   if (!value.nango || typeof value.nango !== "object" || Array.isArray(value.nango) || Object.keys(value.nango).sort().join("\0") !== [...nangoKeys].sort().join("\0") || !namePattern.test(value.nango.storageSecretName) || !validPrivateCIDRList(value.nango.databaseEgressCIDRs) || !validProviderCIDRList(value.nango.providerEgressCIDRs)) return false;
   if (hasCIDROverlap([...value.nango.databaseEgressCIDRs, ...value.nango.providerEgressCIDRs])) return false;
   if (!value.telemetry || typeof value.telemetry !== "object" || Array.isArray(value.telemetry) || Object.keys(value.telemetry).sort().join("\0") !== [...telemetryKeys].sort().join("\0")) return false;
@@ -593,7 +597,7 @@ export function validateRenderedRelease(resources, platformAccountID) {
     if (!rendered || (role === null ? roleArn !== undefined : roleArn !== `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`)) throw new Error("release rejected");
   }
   const jobIdentities = new Map([
-    ["agentsec-schema-v31", "agentsec-migration"],
+    ["agentsec-schema-v32", "agentsec-migration"],
     ["agentsec-projection-graph-init-v1", "agentsec-projection-graph-init"],
     ["agentsec-projection-search-init-v1", "agentsec-projection-search-init"],
     ["nango-migrate", "nango-migrate"],

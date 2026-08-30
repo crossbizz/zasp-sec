@@ -128,6 +128,7 @@ export const productionReleaseFixture = Object.freeze({
     kubernetes: Object.freeze(["203.0.113.0/28"]),
   }),
   findingTicketEgressCIDRs: Object.freeze(["192.0.2.64/28"]),
+  securityAgentPlanner: Object.freeze({ endpoint: "https://openrouter.ai/api/v1/chat/completions", model: "openai/gpt-5-mini", egressCIDRs: Object.freeze(["192.0.2.80/28"]) }),
   nango: Object.freeze({
     storageSecretName: "nango-storage",
     databaseEgressCIDRs: Object.freeze(["10.30.0.0/24"]),

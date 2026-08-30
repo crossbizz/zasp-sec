@@ -19,7 +19,7 @@ func TestSecurityAgentProcessorPlansForApprovalThenExecutesOnlyApprovedWork(t *t
 		"pid_78000013-0000-4000-8000-000000000013", "pid_78000014-0000-4000-8000-000000000014",
 	}
 	processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{
-		Authority: authority, WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 10, HeartbeatInterval: 20 * time.Second,
+		Authority: authority, Planner: successfulSecurityAgentPlanner(), WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 10, HeartbeatInterval: 20 * time.Second,
 		Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil },
 		NewProductID: func() (string, error) { value := ids[0]; ids = ids[1:]; return value, nil },
 	})
@@ -29,11 +29,14 @@ func TestSecurityAgentProcessorPlansForApprovalThenExecutesOnlyApprovedWork(t *t
 	if err := processor.RunOnce(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if authority.expireCalls != 1 || authority.scheduleCalls != 1 || authority.claimCalls != 1 || len(authority.prepared) != 1 || authority.prepared[0] != first.RunID || len(authority.executed) != 1 || authority.executed[0] != second.RunID {
+	if authority.expireCalls != 1 || authority.scheduleCalls != 1 || authority.claimCalls != 1 || len(authority.plannerContexts) != 1 || len(authority.prepared) != 1 || authority.prepared[0] != first.RunID || len(authority.executed) != 1 || authority.executed[0] != second.RunID {
 		t.Fatalf("expires=%d schedules=%d claims=%d prepared=%v executed=%v", authority.expireCalls, authority.scheduleCalls, authority.claimCalls, authority.prepared, authority.executed)
 	}
 	if authority.approvalExpiresAt != now.Add(15*time.Minute) || authority.leaseToken != "lease-token-000000000001" {
 		t.Fatalf("approval expires=%s lease=%q", authority.approvalExpiresAt, authority.leaseToken)
+	}
+	if planner := processor.config.Planner.(*securityAgentPlannerStub); len(planner.contexts) != 1 || len(planner.contexts[0].Evidence) != 1 || planner.contexts[0].Evidence[0].Version != 9 {
+		t.Fatalf("planner contexts=%+v", planner.contexts)
 	}
 }
 
@@ -41,7 +44,7 @@ func TestSecurityAgentProcessorFailsClosedBeforeScheduleWhenApprovalExpiryReconc
 	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 	authority := &securityAgentWorkerAuthorityStub{expireErr: errors.New("expiry unavailable")}
 	processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{
-		Authority: authority, WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 10, HeartbeatInterval: 20 * time.Second,
+		Authority: authority, Planner: successfulSecurityAgentPlanner(), WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 10, HeartbeatInterval: 20 * time.Second,
 		Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil },
 		NewProductID: func() (string, error) { return "pid_78000010-0000-4000-8000-000000000010", nil },
 	})
@@ -57,7 +60,7 @@ func TestSecurityAgentProcessorFailsClosedBeforeClaimWhenTriggerSchedulingFails(
 	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 	authority := &securityAgentWorkerAuthorityStub{scheduleErr: errors.New("schedule unavailable")}
 	processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{
-		Authority: authority, WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 10, HeartbeatInterval: 20 * time.Second,
+		Authority: authority, Planner: successfulSecurityAgentPlanner(), WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 10, HeartbeatInterval: 20 * time.Second,
 		Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil },
 		NewProductID: func() (string, error) { return "pid_78000010-0000-4000-8000-000000000010", nil },
 	})
@@ -75,7 +78,7 @@ func TestSecurityAgentProcessorKeepsLeaseThroughVerifiedEffect(t *testing.T) {
 	authority := &securityAgentWorkerAuthorityStub{claims: []apiserver.SecurityAgentRunClaim{claim}, executeEntered: make(chan struct{}, 1), executeRelease: make(chan struct{}), heartbeatObserved: make(chan struct{}, 1)}
 	ids := []string{"pid_78000013-0000-4000-8000-000000000013", "pid_78000014-0000-4000-8000-000000000014"}
 	processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{
-		Authority: authority, WorkerID: "security-agent-worker-1", LeaseSeconds: 30, BatchSize: 1, HeartbeatInterval: 10 * time.Millisecond,
+		Authority: authority, Planner: successfulSecurityAgentPlanner(), WorkerID: "security-agent-worker-1", LeaseSeconds: 30, BatchSize: 1, HeartbeatInterval: 10 * time.Millisecond,
 		Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil },
 		NewProductID: func() (string, error) { value := ids[0]; ids = ids[1:]; return value, nil },
 	})
@@ -100,6 +103,26 @@ func TestSecurityAgentProcessorKeepsLeaseThroughVerifiedEffect(t *testing.T) {
 	}
 }
 
+func TestSecurityAgentProcessorPersistsPlannerUnavailableWithoutPreparingOrExecuting(t *testing.T) {
+	now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	claim := securityAgentTestClaim("pid_78000001-0000-4000-8000-000000000001", false, now)
+	authority := &securityAgentWorkerAuthorityStub{claims: []apiserver.SecurityAgentRunClaim{claim}}
+	planner := successfulSecurityAgentPlanner()
+	planner.result = securityAgentPlannerResult{Failure: securityAgentPlannerUnavailable, Model: "openai/gpt-5-mini", PolicyVersion: "security-agent-planner-v1"}
+	ids := []string{"pid_78000010-0000-4000-8000-000000000010", "pid_78000011-0000-4000-8000-000000000011"}
+	processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{
+		Authority: authority, Planner: planner, WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 1, HeartbeatInterval: 20 * time.Second,
+		Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil },
+		NewProductID: func() (string, error) { value := ids[0]; ids = ids[1:]; return value, nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := processor.RunOnce(context.Background()); err != nil || len(authority.failedPlanner) != 1 || authority.failedPlanner[0] != "planner_unavailable" || len(authority.prepared) != 0 || len(authority.executed) != 0 {
+		t.Fatalf("run=%v failed=%v prepared=%v executed=%v", err, authority.failedPlanner, authority.prepared, authority.executed)
+	}
+}
+
 func securityAgentTestClaim(runID string, prepared bool, now time.Time) apiserver.SecurityAgentRunClaim {
 	return apiserver.SecurityAgentRunClaim{
 		OrganizationID: "pid_70000001-0000-4000-8000-000000000001", WorkspaceID: "pid_70000002-0000-4000-8000-000000000002", EnvironmentID: "pid_70000003-0000-4000-8000-000000000003",
@@ -116,6 +139,8 @@ type securityAgentWorkerAuthorityStub struct {
 	scheduleErr        error
 	claimCalls         int
 	prepared, executed []string
+	plannerContexts    []string
+	failedPlanner      []string
 	approvalExpiresAt  time.Time
 	leaseToken         string
 	executeEntered     chan struct{}
@@ -123,6 +148,8 @@ type securityAgentWorkerAuthorityStub struct {
 	heartbeatObserved  chan struct{}
 	heartbeatCalls     int
 }
+
+func (*securityAgentWorkerAuthorityStub) SecurityAgentPlannerAvailable() bool { return true }
 
 func (*securityAgentWorkerAuthorityStub) Ready(context.Context) error { return nil }
 
@@ -160,6 +187,20 @@ func (authority *securityAgentWorkerAuthorityStub) PrepareSecurityAgentRun(_ con
 	return apiserver.SecurityAgentPrepareResult{RunID: claim.RunID, State: "waiting_approval", ApprovalID: approvalID, StepID: "pid_78000020-0000-4000-8000-000000000020", PlanHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Version: claim.Version + 1}, nil
 }
 
+func (authority *securityAgentWorkerAuthorityStub) LoadSecurityAgentPlannerContext(_ context.Context, claim apiserver.SecurityAgentRunClaim, _, _ string) (apiserver.SecurityAgentPlannerContext, error) {
+	authority.plannerContexts = append(authority.plannerContexts, claim.RunID)
+	return apiserver.SecurityAgentPlannerContext{InputDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", OrganizationID: claim.OrganizationID, WorkspaceID: claim.WorkspaceID, EnvironmentID: claim.EnvironmentID, RunID: claim.RunID, DefinitionID: claim.DefinitionID, Purpose: securityAgentPlannerPurpose, OperatorGoal: "Select the safest bounded response", CatalogVersion: "security-agent-actions-v1", MaximumSteps: 1, AllowedActions: []string{"update_finding_response"}, AllowedTargets: []string{claim.TriggerID}, Evidence: []apiserver.SecurityAgentPlannerEvidence{{ID: claim.TriggerID, Kind: "finding", Version: 9, Summary: "Untrusted evidence"}}}, nil
+}
+
+func (authority *securityAgentWorkerAuthorityStub) AcceptSecurityAgentPlannerCandidate(_ context.Context, claim apiserver.SecurityAgentRunClaim, _ string, token string, _ apiserver.SecurityAgentPlannerSubmission, approvalID string, expiresAt time.Time, _, _ string) (apiserver.SecurityAgentPrepareResult, error) {
+	return authority.PrepareSecurityAgentRun(context.Background(), claim, "", token, approvalID, expiresAt, "", "")
+}
+
+func (authority *securityAgentWorkerAuthorityStub) FailSecurityAgentPlanner(_ context.Context, claim apiserver.SecurityAgentRunClaim, _, _ string, failure apiserver.SecurityAgentPlannerFailure, _, _ string) (apiserver.SecurityAgentPlannerFailureResult, error) {
+	authority.failedPlanner = append(authority.failedPlanner, failure.ErrorCode)
+	return apiserver.SecurityAgentPlannerFailureResult{RunID: claim.RunID, State: "failed", ErrorCode: failure.ErrorCode, Version: claim.Version + 1}, nil
+}
+
 func (authority *securityAgentWorkerAuthorityStub) ExecuteSecurityAgentRun(_ context.Context, claim apiserver.SecurityAgentRunClaim, _ string, token, _, _ string) (apiserver.SecurityAgentExecuteResult, error) {
 	authority.executed = append(authority.executed, claim.RunID)
 	authority.leaseToken = token
@@ -171,3 +212,19 @@ func (authority *securityAgentWorkerAuthorityStub) ExecuteSecurityAgentRun(_ con
 	}
 	return apiserver.SecurityAgentExecuteResult{RunID: claim.RunID, State: "remediated", StepID: "pid_78000020-0000-4000-8000-000000000020", EffectState: "verified", OutcomeID: "pid_78000021-0000-4000-8000-000000000021", ResultDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Version: claim.Version + 1}, nil
 }
+
+type securityAgentPlannerStub struct {
+	result   securityAgentPlannerResult
+	contexts []securityAgentPlannerContext
+}
+
+func successfulSecurityAgentPlanner() *securityAgentPlannerStub {
+	return &securityAgentPlannerStub{result: securityAgentPlannerResult{Candidate: securityAgentPlannerCandidate{Version: 1, Summary: "Review safely", Steps: []securityAgentPlannerStep{{Index: 0, Action: "update_finding_response", TargetID: "pid_70000005-0000-4000-8000-000000000005"}}}, OutputDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Model: "openai/gpt-5-mini", PolicyVersion: "security-agent-planner-v1"}}
+}
+
+func (planner *securityAgentPlannerStub) Plan(_ context.Context, contextValue securityAgentPlannerContext) securityAgentPlannerResult {
+	planner.contexts = append(planner.contexts, contextValue)
+	return planner.result
+}
+
+func (*securityAgentPlannerStub) Close() error { return nil }

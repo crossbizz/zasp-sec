@@ -520,8 +520,8 @@ M7A	M7A-38b	Complete	component-only	T07-security-agent-authority	audited compone
 M7A	M7A-38c	Complete	component-only	T07-security-agent-authority	audited component-only proof: trigger source wiring
 M7A	M7A-38d	Complete	component-only	T07-security-agent-authority	audited component-only proof: automatic trigger E2E
 M7A	M7A-39	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent worker: canonical scoped evidence snapshot and digest
-M7A	M7A-40	Complete	component-only	T07-security-agent-authority	audited component-only proof: Planner input separation
-M7A	M7A-41	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security Agent planner purpose
+M7A	M7A-40	Complete	production-available	T07-security-agent-authority	production-composed v32 planner keeps the fixed system authority separate from one bounded tenant-context user message and labels evidence untrusted
+M7A	M7A-41	Complete	production-available	T07-security-agent-authority	production-composed one-call OpenRouter planner pins the security-response purpose, model, schema, token budget, timeout, and no-retry transport
 M7A	M7A-42	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: definition and product action-count limits
 M7A	M7A-43	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: tenant and run reference validation
 M7A	M7A-44	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: exact allowed-action schema validation
@@ -531,7 +531,7 @@ M7A	M7A-47	Complete	production-available	T07-security-agent-authority	production
 M7A	M7A-48	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent API: fresh-auth activation and capability-gated action enablement
 M7A	M7A-49	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: step, duration, token, and tenant concurrency budgets
 M7A	M7A-50	Complete	production-available	T09-agent-actions	production-composed tenant-scoped database queue with lease fencing and replay-safe run identity
-M7A	M7A-51	Complete	component-only	T09-agent-actions	audited component-only proof: Run planner state
+M7A	M7A-51	Complete	production-available	T09-agent-actions	production-composed v32 worker loads and accepts one lease-fenced tenant plan, persists its digests and receipt, then advances the exact run under durable replay authority
 M7A	M7A-52	Complete	production-available	T09-agent-actions	production-composed idempotent autonomous finding-response executor with exact prior-outcome replay
 M7A	M7A-53	Complete	production-available	T09-agent-actions	production-composed plan authority persists approval-required steps and stops progression in waiting_approval
 M7A	M7A-54	Complete	production-available	T09-agent-actions	production-composed approval decision requires bounded fresh browser authentication
@@ -575,7 +575,7 @@ M7A	M7A-90a	Complete	production-available	T10-product-ui	production-composed v29
 M7A	M7A-90b	Complete	production-available	T10-product-ui	production Home renders ordered navigable attention cards from strict scoped summary authority and preserves degraded coverage state
 M7A	M7A-90c	Complete	production-available	T10-product-ui	production-composed v30 approval trigger deduplicates tenant-scoped notifications and the API lifecycle delivers one HMAC-signed minimal Generic Webhook event through pinned egress without evidence or secret material
 M7A	M7A-90d	Complete	production-available	T10-product-ui	production combined E2E proves exact tenant-scoped Home critical-exposure, pending-approval, Needs-human, and degraded-sensor routes through shipped browser/API authority with foreign resources absent and the sensor action persisted as deleted
-M7A	M7A-91	Complete	component-only	T09-agent-actions	audited component-only proof: Planner unavailable degraded test
+M7A	M7A-91	Complete	production-available	T09-agent-actions	combined disposable-PostgreSQL E2E invokes the shipped worker composition through a local TLS OpenRouter-compatible 503 endpoint and proves durable planner_unavailable, zero plan/step/approval/effect rows, and unchanged enforced policy
 M7A	M7A-92	Complete	production-available	T09-agent-actions	v28 worker-only reconciler atomically expires tenant-scoped approvals, cancels the step, moves the run to needs_human, emits one redacted audit event, and never reclaims the run
 M7A	M7A-93	Complete	production-available	T09-agent-actions	production-composed connector timeout and ambiguous-provider outcome remains needs_human without side-effect replay
 M7A	M7A-94	Complete	component-only	T09-agent-actions	audited component-only proof: Cross-tenant planner reference test

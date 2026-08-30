@@ -234,6 +234,18 @@ spec:
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
+metadata: { name: security-agent-planner, labels: { app.kubernetes.io/part-of: zasp } }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-security-agent } }
+  policyTypes: [Egress]
+  egress:
+    {{- range .Values.network.securityAgentPlannerEgressCIDRs }}
+    - to: [{ ipBlock: { cidr: {{ . | quote }} } }]
+      ports: [{ protocol: TCP, port: 443 }]
+    {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
 metadata: { name: security-agent-action-database, labels: { app.kubernetes.io/part-of: zasp } }
 spec:
   podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-security-agent-action } }

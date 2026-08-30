@@ -205,8 +205,12 @@ func validRedTeamCAFile(path string) bool {
 }
 
 func readRedTeamPinnedFile(path string, minimum, maximum int64) ([]byte, bool) {
+	return readPinnedFile(path, minimum, maximum, 0o400)
+}
+
+func readPinnedFile(path string, minimum, maximum int64, permission os.FileMode) ([]byte, bool) {
 	before, err := os.Lstat(path)
-	if err != nil || minimum < 1 || maximum < minimum || !before.Mode().IsRegular() || before.Mode()&os.ModeSymlink != 0 || before.Mode().Perm() != 0o400 || before.Size() < minimum || before.Size() > maximum {
+	if err != nil || minimum < 1 || maximum < minimum || permission.Perm() != permission || !before.Mode().IsRegular() || before.Mode()&os.ModeSymlink != 0 || before.Mode().Perm() != permission || before.Size() < minimum || before.Size() > maximum {
 		return nil, false
 	}
 	file, err := os.Open(path)
@@ -217,7 +221,7 @@ func readRedTeamPinnedFile(path string, minimum, maximum int64) ([]byte, bool) {
 	payload, readErr := io.ReadAll(io.LimitReader(file, maximum+1))
 	closeErr := file.Close()
 	after, afterErr := os.Lstat(path)
-	ok := statErr == nil && readErr == nil && closeErr == nil && afterErr == nil && opened.Mode().IsRegular() && opened.Mode().Perm() == 0o400 && after.Mode().IsRegular() && after.Mode().Perm() == 0o400 && os.SameFile(before, opened) && os.SameFile(opened, after) && opened.Size() == before.Size() && after.Size() == before.Size() && int64(len(payload)) == before.Size()
+	ok := statErr == nil && readErr == nil && closeErr == nil && afterErr == nil && opened.Mode().IsRegular() && opened.Mode().Perm() == permission && after.Mode().IsRegular() && after.Mode().Perm() == permission && os.SameFile(before, opened) && os.SameFile(opened, after) && opened.Size() == before.Size() && after.Size() == before.Size() && int64(len(payload)) == before.Size()
 	if !ok {
 		clear(payload)
 		return nil, false

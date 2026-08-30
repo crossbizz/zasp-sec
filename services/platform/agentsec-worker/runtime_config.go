@@ -130,6 +130,12 @@ type workerRuntimeConfig struct {
 	AttackLabOperationTimeout    time.Duration
 	GatewaySigningKeyID          string
 	GatewaySigningPrivateFile    string
+	SecurityAgentPlannerEndpoint string
+	SecurityAgentPlannerModel    string
+	SecurityAgentPlannerToken    string
+	SecurityAgentPlannerTimeout  time.Duration
+	SecurityAgentPlannerTokens   int
+	SecurityAgentPlannerPolicy   string
 }
 
 func loadProjectionInitConfig(getenv func(string) string) (workerRuntimeConfig, error) {
@@ -171,6 +177,8 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 	discoveryReadinessTimeout, discoveryReadinessTimeoutErr := time.ParseDuration(getenv("ZASP_DISCOVERY_READINESS_TIMEOUT"))
 	redTeamRunnerTimeout, redTeamRunnerTimeoutErr := time.ParseDuration(getenv("ZASP_RED_TEAM_RUNNER_TIMEOUT"))
 	attackLabOperationTimeout, attackLabOperationTimeoutErr := time.ParseDuration(getenv("ZASP_ATTACK_LAB_OPERATION_TIMEOUT"))
+	plannerTimeout, plannerTimeoutErr := time.ParseDuration(getenv("ZASP_SECURITY_AGENT_PLANNER_TIMEOUT"))
+	plannerTokens, plannerTokensErr := strconv.Atoi(getenv("ZASP_SECURITY_AGENT_PLANNER_MAX_TOKENS"))
 	batch, batchErr := strconv.Atoi(getenv("ZASP_BATCH_SIZE"))
 	config := workerRuntimeConfig{
 		Mode: workerMode(getenv("ZASP_WORKER_MODE")), PostgresDSN: getenv("ZASP_POSTGRES_DSN"),
@@ -193,11 +201,12 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		AttackLabSecurityGroup: getenv("ZASP_ATTACK_LAB_SECURITY_GROUP_ID"),
 		AttackLabKubernetesURL: getenv("ZASP_ATTACK_LAB_KUBERNETES_ENDPOINT"), AttackLabKubernetesToken: getenv("ZASP_ATTACK_LAB_KUBERNETES_TOKEN_FILE"), AttackLabKubernetesCA: getenv("ZASP_ATTACK_LAB_KUBERNETES_CA_FILE"), AttackLabProxyEndpoint: getenv("ZASP_ATTACK_LAB_PROXY_ENDPOINT"), AttackLabProxyCAFile: getenv("ZASP_ATTACK_LAB_PROXY_CA_FILE"), AttackLabSigningKeyFile: getenv("ZASP_ATTACK_LAB_EGRESS_SIGNING_KEY_FILE"), AttackLabOperationTimeout: attackLabOperationTimeout,
 		GatewaySigningKeyID: getenv("ZASP_GATEWAY_SIGNING_KEY_ID"), GatewaySigningPrivateFile: getenv("ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE"),
+		SecurityAgentPlannerEndpoint: getenv("ZASP_SECURITY_AGENT_PLANNER_ENDPOINT"), SecurityAgentPlannerModel: getenv("ZASP_SECURITY_AGENT_PLANNER_MODEL"), SecurityAgentPlannerToken: getenv("ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE"), SecurityAgentPlannerTimeout: plannerTimeout, SecurityAgentPlannerTokens: plannerTokens, SecurityAgentPlannerPolicy: getenv("ZASP_SECURITY_AGENT_PLANNER_POLICY_VERSION"),
 		RuntimeRoleARN: getenv("ZASP_RUNTIME_ROLE_ARN"), RuntimeTokenFile: getenv("ZASP_RUNTIME_WEB_IDENTITY_TOKEN_FILE"),
 		RuntimeStageRoleARN: getenv("ZASP_RUNTIME_STAGE_ROLE_ARN"), RuntimeStageTokenFile: getenv("ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE"), RuntimeStageVersion: getenv("ZASP_RUNTIME_STAGE_VERSION"),
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
-	if pollErr != nil || leaseErr != nil || shutdownErr != nil || batchErr != nil || config.Mode == workerModeDiscovery && (providerTimeoutErr != nil || discoveryReadinessTimeoutErr != nil) || config.Mode == workerModeRedTeam && redTeamRunnerTimeoutErr != nil || config.Mode == workerModeAttackLabController && attackLabOperationTimeoutErr != nil || !validWorkerRuntimeConfig(config) {
+	if pollErr != nil || leaseErr != nil || shutdownErr != nil || batchErr != nil || config.Mode == workerModeDiscovery && (providerTimeoutErr != nil || discoveryReadinessTimeoutErr != nil) || config.Mode == workerModeRedTeam && redTeamRunnerTimeoutErr != nil || config.Mode == workerModeAttackLabController && attackLabOperationTimeoutErr != nil || config.Mode == workerModeSecurityAgent && (plannerTimeoutErr != nil || plannerTokensErr != nil) || !validWorkerRuntimeConfig(config) {
 		return workerRuntimeConfig{}, errWorkerConfiguration
 	}
 	return config, nil
@@ -283,7 +292,7 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 	case workerModeProjectionRisk:
 		return true
 	case workerModeSecurityAgent:
-		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
+		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && config.SecurityAgentPlannerEndpoint == "https://openrouter.ai/api/v1/chat/completions" && config.SecurityAgentPlannerModel == "openai/gpt-5-mini" && config.SecurityAgentPlannerToken == "/var/run/secrets/zasp-security-agent/openrouter-api-token" && config.SecurityAgentPlannerTimeout >= time.Second && config.SecurityAgentPlannerTimeout <= 30*time.Second && config.SecurityAgentPlannerTokens >= 1 && config.SecurityAgentPlannerTokens <= 4096 && config.SecurityAgentPlannerPolicy == "security-agent-planner-v1" && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
 	case workerModeSecurityAgentAction:
 		return config.LeaseDuration >= 30*time.Second && config.LeaseDuration <= 5*time.Minute && config.BatchSize <= 25 && regexp.MustCompile(`^[a-z][a-z0-9_-]{7,63}$`).MatchString(config.GatewaySigningKeyID) && config.GatewaySigningPrivateFile == "/var/run/secrets/zasp-security-agent-action/gateway-signing-private-key" && config.DiscoveryQueueURL == "" && config.RuntimeQueueURL == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == "" && config.RuntimeRoleARN == "" && config.RuntimeStageRoleARN == ""
 	case workerModePolicyDeployment:

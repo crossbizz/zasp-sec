@@ -13,6 +13,10 @@ func TestProductionSecurityAgentPlannerPinsLeaseFencedFailClosedAuthority(t *tes
 	up := metadata.UpSQL()
 	for _, required := range []string{
 		"production_workflow_compatibility prerequisite rejected",
+		"later_release.\"version\" > 32",
+		"later.\"version\">32",
+		"workflow v32 compatibility evolution failed",
+		"risk v32 compatibility evolution failed",
 		"CREATE TABLE public.zasp_security_agent_planner_receipts",
 		"ENABLE ROW LEVEL SECURITY",
 		"FORCE ROW LEVEL SECURITY",
@@ -38,6 +42,10 @@ func TestProductionSecurityAgentPlannerPinsLeaseFencedFailClosedAuthority(t *tes
 	down := metadata.DownSQL()
 	for _, required := range []string{
 		"planner receipts block rollback",
+		"later_release.\"version\" > 31",
+		"later.\"version\">31",
+		"workflow v31 compatibility restoration failed",
+		"risk v31 compatibility restoration failed",
 		"DROP FUNCTION public.zasp_security_agent_fail_planner",
 		"DROP FUNCTION public.zasp_security_agent_accept_planner_candidate",
 		"DROP FUNCTION public.zasp_security_agent_planner_context",
@@ -58,10 +66,15 @@ func TestProductionSecurityAgentPlannerContextAndCandidateAreStructurallyBounded
 		"'allowed_actions'",
 		"'allowed_targets'",
 		"'untrusted_evidence'",
-		"candidate_value->>'version'<>'1'",
+		"candidate_value->>'version' IS DISTINCT FROM '1'",
 		"jsonb_array_length(candidate_value->'steps')",
 		"candidate_value->'steps'->0->>'action'",
 		"candidate_value->'steps'->0->>'target_id'",
+		"jsonb_typeof(candidate_value->'summary') IS DISTINCT FROM 'string'",
+		"jsonb_typeof(candidate_value->'steps'->0->'action') IS DISTINCT FROM 'string'",
+		"jsonb_typeof(candidate_value->'steps'->0->'target_id') IS DISTINCT FROM 'string'",
+		"candidate_value->'steps'->0->>'action' IS DISTINCT FROM context_value->'allowed_actions'->>0",
+		"candidate_value->'steps'->0->>'target_id' IS DISTINCT FROM context_value->'allowed_targets'->>0",
 		"octet_length(input_digest_value)<>32",
 		"octet_length(output_digest_value)<>32",
 	} {

@@ -144,26 +144,16 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		}
 		return workerRuntimeDependencies{Processor: processor, Ready: repository.Ready, Close: func() error { return nil }}, nil
 	case workerModeSecurityAgent:
-		repository, err := apiserver.NewSecurityAgentWorkerRepository(database)
+		planner, err := newProductionSecurityAgentPlanner(config)
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
-		ready, err := newBoundedCachedWorkerReadiness(repository.Ready, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
+		dependencies, err := composeSecurityAgentWorkerRuntime(config, database, planner)
 		if err != nil {
+			_ = planner.Close()
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
-		processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{
-			Authority: repository, WorkerID: config.WorkerID, LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3,
-			Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: newWorkerLeaseToken,
-			NewProductID: func() (string, error) {
-				value, newErr := domain.NewProductID()
-				return value.String(), newErr
-			},
-		})
-		if err != nil {
-			return workerRuntimeDependencies{}, errRuntimeUnavailable
-		}
-		return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: func() error { return nil }}, nil
+		return dependencies, nil
 	case workerModeSecurityAgentAction:
 		privateKey, err := loadSecurityAgentActionPrivateKey(config.GatewaySigningPrivateFile)
 		if err != nil {
@@ -249,6 +239,32 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		// keeps the workload and public capability honest.
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
+}
+
+func composeSecurityAgentWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, planner securityAgentPlanner) (workerRuntimeDependencies, error) {
+	if !validWorkerRuntimeConfig(config) || config.Mode != workerModeSecurityAgent || database == nil || planner == nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	repository, err := apiserver.NewSecurityAgentWorkerRepository(database)
+	if err != nil || !repository.SecurityAgentPlannerAvailable() {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	ready, err := newBoundedCachedWorkerReadiness(repository.Ready, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{
+		Authority: repository, Planner: planner, WorkerID: config.WorkerID, LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: config.BatchSize, HeartbeatInterval: config.LeaseDuration / 3,
+		Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: newWorkerLeaseToken,
+		NewProductID: func() (string, error) {
+			value, newErr := domain.NewProductID()
+			return value.String(), newErr
+		},
+	})
+	if err != nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: planner.Close}, nil
 }
 
 func composeRuntimeCoordinatorWorkerRuntime(config workerRuntimeConfig, database apiserver.JSONDatabase, runtimeQueue *productionRuntimeQueueDependencies) (workerRuntimeDependencies, error) {

@@ -2501,6 +2501,30 @@ func TestAgentsecMigrateV32LiveFingerprintMatchesPinnedAuthority(t *testing.T) {
 			t.Fatalf("v31 setup step %d: %v", index+1, err)
 		}
 	}
+	metadata := migrations.ProductionSecurityAgentPlanner()
+	probe, err := connection.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := probe.Exec(ctx, metadata.UpSQL()); err != nil {
+		_ = probe.Rollback(ctx)
+		t.Fatal(err)
+	}
+	if _, err := probe.Exec(ctx, `INSERT INTO zasp_schema_versions(version,name,checksum) VALUES($1,$2,$3)`, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+		_ = probe.Rollback(ctx)
+		t.Fatal(err)
+	}
+	var candidateFingerprint string
+	if err := probe.QueryRow(ctx, `SELECT zasp_production_security_agent_planner_live_fingerprint()`).Scan(&candidateFingerprint); err != nil {
+		_ = probe.Rollback(ctx)
+		t.Fatal(err)
+	}
+	if err := probe.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if candidateFingerprint != migrations.ProductionSecurityAgentPlannerSemanticFingerprint() {
+		t.Fatalf("v32 candidate fingerprint=%s", candidateFingerprint)
+	}
 	if err := runner.UpProductionSecurityAgentPlanner(ctx); err != nil {
 		t.Fatalf("v32 up: %v", err)
 	}
@@ -2511,10 +2535,15 @@ func TestAgentsecMigrateV32LiveFingerprintMatchesPinnedAuthority(t *testing.T) {
 	if live != migrations.ProductionSecurityAgentPlannerSemanticFingerprint() {
 		t.Fatalf("v32 live fingerprint = %s, pinned = %s", live, migrations.ProductionSecurityAgentPlannerSemanticFingerprint())
 	}
-	metadata := migrations.ProductionSecurityAgentPlanner()
 	var securityReady, ready bool
 	if err := connection.QueryRow(ctx, `SELECT zasp_production_security_agent_planner_security_ready(),zasp_production_security_agent_planner_readiness($1,$2)`, metadata.Checksum(), migrations.ProductionSecurityAgentPlannerSemanticFingerprint()).Scan(&securityReady, &ready); err != nil || !securityReady || !ready {
 		t.Fatalf("v32 readiness security=%t ready=%t err=%v", securityReady, ready, err)
+	}
+	var workflowMutation json.RawMessage
+	if err := connection.QueryRow(ctx, `SELECT zasp_workflow_mutate('create','policy','policy-v32-compatibility','pid_70000001-0000-4000-8000-000000000001','pid_70000002-0000-4000-8000-000000000002','pid_70000003-0000-4000-8000-000000000003','pid_70000004-0000-4000-8000-000000000004','createPolicy','v32-workflow-write-0001',0,$1::jsonb,$2::jsonb,'pid_70000005-0000-4000-8000-000000000005','pid_70000006-0000-4000-8000-000000000006','')`,
+		`{"body":{"id":"policy-v32-compatibility","name":"V32 compatibility","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"read"}],"action":"monitor","rollout":"draft","failure_mode":"open"},"expected_version":0,"resource_id":""}`,
+		`{"id":"policy-v32-compatibility","name":"V32 compatibility","scope":"environment","trigger":"tool","conditions":[{"field":"action","operator":"equals","value":"read"}],"action":"monitor","rollout":"draft","failure_mode":"open"}`).Scan(&workflowMutation); err != nil || !strings.Contains(string(workflowMutation), `"version": 1`) {
+		t.Fatalf("v32 workflow mutation=%s err=%v", workflowMutation, err)
 	}
 }
 
