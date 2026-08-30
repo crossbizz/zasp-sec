@@ -23,11 +23,11 @@ describe("M8-01a through M8-16 release foundation batch", () => {
     expect(chart).toContain("name: zasp-product");
     for (const value of ["web", "agentsec-api"]) expect(workloads).toContain(`"name" "${value}"`);
     for (const value of ["agentsec-worker", "event-ingest", "runtime-gateway"]) expect(workloads).not.toContain(`"name" "${value}"`);
-    for (const value of ["neo4j", "nango", "otel-collector", "tetragon"]) expect(workloads).not.toContain(`name: ${value}`);
+    for (const value of ["neo4j", "nango", "otel-collector", "tetragon"]) expect(workloads).not.toMatch(new RegExp(`^\\s*name: ${value}\\s*$`, "m"));
     for (const value of ["readinessProbe", "livenessProbe", "terminationGracePeriodSeconds", "preStop", "resources:"]) expect(workloads).toContain(value);
     for (const value of ["ClusterIP", "agentsec-api", "name: web"]) expect(services).toContain(value);
     for (const value of ["agentsec-worker", "event-ingest", "runtime-gateway"]) expect(services).not.toContain(value);
-    for (const value of ["neo4j", "nango", "otel-collector"]) expect(services).not.toContain(`name: ${value}`);
+    for (const value of ["neo4j", "nango", "otel-collector"]) expect(services).not.toMatch(new RegExp(`^\\s*name: ${value}\\s*$`, "m"));
     for (const value of ["PodDisruptionBudget", "default-deny", "api-from-ingress"]) expect(resilience).toContain(value);
     expect(resilience).not.toContain("SecurityGroupPolicy");
     expect(resilience).not.toContain("4317");
