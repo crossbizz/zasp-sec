@@ -11,6 +11,7 @@ import (
 
 type securityAgentProcessorConfig struct {
 	Authority         apiserver.SecurityAgentWorkerAuthority
+	Planner           securityAgentPlanner
 	WorkerID          string
 	LeaseSeconds      int
 	BatchSize         int
@@ -20,14 +21,18 @@ type securityAgentProcessorConfig struct {
 	NewProductID      func() (string, error)
 }
 
-type securityAgentProcessor struct{ config securityAgentProcessorConfig }
+type securityAgentProcessor struct {
+	config           securityAgentProcessorConfig
+	plannerAuthority apiserver.SecurityAgentPlannerAuthority
+}
 
 func newSecurityAgentProcessor(config securityAgentProcessorConfig) (*securityAgentProcessor, error) {
 	leaseDuration := time.Duration(config.LeaseSeconds) * time.Second
-	if config.Authority == nil || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 30 || config.LeaseSeconds > 300 || config.BatchSize < 1 || config.BatchSize > 25 || config.HeartbeatInterval < 10*time.Millisecond || config.HeartbeatInterval > leaseDuration/2 || config.Now == nil || config.NewLeaseToken == nil || config.NewProductID == nil || config.Now().IsZero() || config.Now().Location() != time.UTC {
+	plannerAuthority, ok := config.Authority.(apiserver.SecurityAgentPlannerAuthority)
+	if config.Authority == nil || !ok || !plannerAuthority.SecurityAgentPlannerAvailable() || config.Planner == nil || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 30 || config.LeaseSeconds > 300 || config.BatchSize < 1 || config.BatchSize > 25 || config.HeartbeatInterval < 10*time.Millisecond || config.HeartbeatInterval > leaseDuration/2 || config.Now == nil || config.NewLeaseToken == nil || config.NewProductID == nil || config.Now().IsZero() || config.Now().Location() != time.UTC {
 		return nil, errWorkerConfiguration
 	}
-	return &securityAgentProcessor{config: config}, nil
+	return &securityAgentProcessor{config: config, plannerAuthority: plannerAuthority}, nil
 }
 
 func (processor *securityAgentProcessor) RunOnce(ctx context.Context) error {
@@ -103,12 +108,38 @@ func (processor *securityAgentProcessor) processClaim(ctx context.Context, claim
 		_, err = processor.config.Authority.ExecuteSecurityAgentRun(ctx, claim, processor.config.WorkerID, leaseToken, ids[0], ids[1])
 		return err
 	}
+	contextAuthority, err := processor.plannerAuthority.LoadSecurityAgentPlannerContext(ctx, claim, processor.config.WorkerID, leaseToken)
+	if err != nil {
+		return err
+	}
+	plannerContext := securityAgentPlannerContext{
+		OrganizationID: contextAuthority.OrganizationID, WorkspaceID: contextAuthority.WorkspaceID, EnvironmentID: contextAuthority.EnvironmentID, RunID: contextAuthority.RunID, DefinitionID: contextAuthority.DefinitionID,
+		Purpose: contextAuthority.Purpose, OperatorGoal: contextAuthority.OperatorGoal, CatalogVersion: contextAuthority.CatalogVersion, MaximumSteps: contextAuthority.MaximumSteps,
+		AllowedActions: append([]string(nil), contextAuthority.AllowedActions...), AllowedTargets: append([]string(nil), contextAuthority.AllowedTargets...),
+	}
+	plannerContext.Evidence = make([]securityAgentPlannerEvidence, len(contextAuthority.Evidence))
+	for index, evidence := range contextAuthority.Evidence {
+		plannerContext.Evidence[index] = securityAgentPlannerEvidence{ID: evidence.ID, Kind: evidence.Kind, Version: evidence.Version, Summary: evidence.Summary}
+	}
+	plannerResult := processor.config.Planner.Plan(ctx, plannerContext)
+	if plannerResult.Failure != "" {
+		ids, idErr := processor.newProductIDs(2)
+		if idErr != nil {
+			return idErr
+		}
+		_, failErr := processor.plannerAuthority.FailSecurityAgentPlanner(ctx, claim, processor.config.WorkerID, leaseToken, apiserver.SecurityAgentPlannerFailure{InputDigest: contextAuthority.InputDigest, OutputDigest: plannerResult.OutputDigest, Model: plannerResult.Model, PolicyVersion: plannerResult.PolicyVersion, ErrorCode: string(plannerResult.Failure)}, ids[0], ids[1])
+		return failErr
+	}
+	if len(plannerResult.Candidate.Steps) != 1 {
+		return errWorkerExecution
+	}
 	ids, err := processor.newProductIDs(3)
 	if err != nil {
 		return err
 	}
 	expiresAt := processor.config.Now().UTC().Add(15 * time.Minute).Truncate(time.Microsecond)
-	_, err = processor.config.Authority.PrepareSecurityAgentRun(ctx, claim, processor.config.WorkerID, leaseToken, ids[0], expiresAt, ids[1], ids[2])
+	step := plannerResult.Candidate.Steps[0]
+	_, err = processor.plannerAuthority.AcceptSecurityAgentPlannerCandidate(ctx, claim, processor.config.WorkerID, leaseToken, apiserver.SecurityAgentPlannerSubmission{InputDigest: contextAuthority.InputDigest, OutputDigest: plannerResult.OutputDigest, Model: plannerResult.Model, PolicyVersion: plannerResult.PolicyVersion, Summary: plannerResult.Candidate.Summary, Action: step.Action, TargetID: step.TargetID}, ids[0], expiresAt, ids[1], ids[2])
 	return err
 }
 

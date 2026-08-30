@@ -401,7 +401,7 @@ test("production release renders private Nango dependency plus a fail-closed loc
 test("rendered release rejects an unreviewed job identity", async () => {
   const resources = await renderRelease(release);
   const names = resources.filter(({ kind }) => kind === "Job").map(({ metadata }) => metadata.name).sort();
-  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v31", "nango-migrate", "zasp-canary-secret-sync"]);
+  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v32", "nango-migrate", "zasp-canary-secret-sync"]);
   assert.throws(() => validateRenderedRelease([...resources, {
     apiVersion: "batch/v1",
     kind: "Job",
@@ -482,9 +482,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.deepEqual(one(resources, "Service", "agentsec-api").spec.ports.map(({ name, port }) => [name, port]), [["product", 8080], ["internal", 8081]]);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Ingress").map(({ metadata }) => metadata.name).sort(), ["zasp-product", "zasp-runtime"]);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Service" && ["neo4j", "nango", "otel-collector"].includes(metadata.name) && metadata.annotations?.["service.beta.kubernetes.io/aws-load-balancer-type"]), false);
-  assert.equal(one(resources, "Job", "agentsec-schema-v31").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
-  assert.match(one(resources, "Job", "agentsec-schema-v31").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
-  const migration = one(resources, "Job", "agentsec-schema-v31");
+  assert.equal(one(resources, "Job", "agentsec-schema-v32").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.match(one(resources, "Job", "agentsec-schema-v32").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
+  const migration = one(resources, "Job", "agentsec-schema-v32");
   assert.equal(migration.spec.template.spec.serviceAccountName, "agentsec-migration");
   assert.equal(migration.spec.template.spec.containers[0].env.some(({ valueFrom }) => valueFrom?.secretKeyRef), false);
   assert.equal(migration.spec.template.spec.containers[0].volumeMounts[0].mountPath, "/var/run/secrets/zasp-migration");
@@ -520,13 +520,13 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL: "zasp_security_agent_action_worker_runtime",
     ZASP_POLICY_DEPLOYMENT_DB_PRINCIPAL: "zasp_policy_deployment_worker_runtime",
   });
-  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v31", "-10"]]) {
+  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v32", "-10"]]) {
     const resource = one(resources, kind, name);
     assert.equal(resource.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
     assert.equal(resource.metadata.annotations["helm.sh/hook-weight"], weight);
   }
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "31");
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "31");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "32");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "32");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
   const apiSecretProvider = one(resources, "SecretProviderClass", release.secretProviderClass);
   assert.equal(apiSecretProvider.spec.secretObjects[0].data.length, 9);
@@ -570,10 +570,20 @@ test("release runs the security agent with one exact database authority", async 
     ZASP_LEASE_DURATION: "60s",
     ZASP_BATCH_SIZE: "8",
     ZASP_SHUTDOWN_TIMEOUT: "20s",
+    ZASP_SECURITY_AGENT_PLANNER_ENDPOINT: "https://openrouter.ai/api/v1/chat/completions",
+    ZASP_SECURITY_AGENT_PLANNER_MODEL: "openai/gpt-5-mini",
+    ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE: "/var/run/secrets/zasp-security-agent/openrouter-api-token",
+    ZASP_SECURITY_AGENT_PLANNER_TIMEOUT: "10s",
+    ZASP_SECURITY_AGENT_PLANNER_MAX_TOKENS: "512",
+    ZASP_SECURITY_AGENT_PLANNER_POLICY_VERSION: "security-agent-planner-v1",
   });
   assert.match(container.args[0], /export ZASP_POSTGRES_DSN="\$\(cat \/var\/run\/secrets\/zasp-security-agent\/postgres-dsn\)"/);
   assert.deepEqual(container.volumeMounts, [{ name: "security-agent-secrets", mountPath: "/var/run/secrets/zasp-security-agent", readOnly: true }]);
-  assert.equal(one(resources, "SecretProviderClass", "zasp-production-security-agent-secrets").spec.secretObjects[0].data.length, 1);
+  const providerClass = one(resources, "SecretProviderClass", "zasp-production-security-agent-secrets");
+  assert.equal(providerClass.spec.secretObjects[0].data.length, 1);
+  assert.doesNotMatch(JSON.stringify(providerClass.spec.secretObjects), /openrouter-api-token|ZASP_SECURITY_AGENT_PLANNER_TOKEN/);
+  assert.match(JSON.stringify(providerClass.spec.parameters), /zasp\/production\/openrouter-security-agent-api-key/);
+  assert.match(providerClass.spec.parameters.objects, /objectAlias: openrouter-api-token\n\s+filePermission: "0444"/);
   assert.equal(one(resources, "Service", "agentsec-security-agent").spec.ports[0].port, 8081);
   assert.equal(one(resources, "PodDisruptionBudget", "agentsec-security-agent").spec.minAvailable, 1);
   assert.equal(one(resources, "HorizontalPodAutoscaler", "agentsec-security-agent").spec.maxReplicas, 6);
@@ -583,6 +593,7 @@ test("release runs the security agent with one exact database authority", async 
     to: [{ ipBlock: { cidr: "10.30.0.0/24" } }],
     ports: [{ protocol: "TCP", port: 5432 }],
   }]);
+  assert.deepEqual(one(resources, "NetworkPolicy", "security-agent-planner").spec.egress, release.securityAgentPlanner.egressCIDRs.map((cidr) => ({ to: [{ ipBlock: { cidr } }], ports: [{ protocol: "TCP", port: 443 }] })));
   assert.match(JSON.stringify(one(resources, "PrometheusRule", "zasp-production-slos")), /ZaspSecurityAgentUnavailable.*agentsec-security-agent/);
   assert.doesNotMatch(JSON.stringify(deployment), /ZASP_(?:AWS|DISCOVERY|OUTBOX|OPENSEARCH|NEO4J|CONNECTOR|RUNTIME)_/);
 
@@ -591,6 +602,7 @@ test("release runs the security agent with one exact database authority", async 
   const policy = terraform.slice(policyStart, terraform.indexOf("\nresource ", policyStart + 1));
   assert.match(terraform, /system:serviceaccount:agentsec:zasp-security-agent/);
   assert.match(policy, /postgres-security-agent-worker-dsn/);
+  assert.match(policy, /openrouter-security-agent-api-key/);
   assert.match(policy, /secretsmanager:DescribeSecret.*secretsmanager:GetSecretValue/s);
   assert.match(policy, /kms:EncryptionContext:SecretARN/);
   assert.doesNotMatch(policy, /Resource\s*=\s*"\*"|s3:|sqs:|es:|sts:/);
@@ -1084,7 +1096,7 @@ test("release isolates Attack Lab execution behind a proxy-only Fargate authorit
   assert.equal(trust.metadata.namespace, "zasp-attack-lab");
   assert.match(trust.data["proxy-ca.crt"], /^-----BEGIN CERTIFICATE-----/);
 
-  const migration = one(resources, "Job", "agentsec-schema-v31");
+  const migration = one(resources, "Job", "agentsec-schema-v32");
   assert.equal(envOf(migration).ZASP_ATTACK_LAB_CONTROLLER_DB_PRINCIPAL, "zasp_attack_lab_controller_runtime");
   assert.equal(envOf(migration).ZASP_ATTACK_LAB_OUTBOX_DB_PRINCIPAL, "zasp_attack_lab_outbox_runtime");
   assert.equal(envOf(migration).ZASP_ATTACK_LAB_PROXY_DB_PRINCIPAL, "zasp_attack_lab_proxy_runtime");

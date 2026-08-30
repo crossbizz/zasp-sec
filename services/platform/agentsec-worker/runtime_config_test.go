@@ -133,19 +133,29 @@ func validAttackLabControllerRuntimeEnvironment() map[string]string {
 	}
 }
 
-func TestSecurityAgentWorkerModeRequiresOnlyV18WorkerAuthority(t *testing.T) {
+func TestSecurityAgentWorkerModeRequiresV32PlannerAuthority(t *testing.T) {
 	values := map[string]string{
 		"ZASP_WORKER_MODE": "security-agent", "ZASP_POSTGRES_DSN": "postgres://security_agent@postgres.internal/zasp?sslmode=verify-full",
 		"ZASP_DATABASE_AUTHORITY": "zasp_security_agent_worker", "ZASP_WORKER_ID": "security-agent-worker-01",
 		"ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "60s", "ZASP_BATCH_SIZE": "8", "ZASP_SHUTDOWN_TIMEOUT": "20s",
+		"ZASP_SECURITY_AGENT_PLANNER_ENDPOINT": "https://openrouter.ai/api/v1/chat/completions", "ZASP_SECURITY_AGENT_PLANNER_MODEL": "openai/gpt-5-mini",
+		"ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE": "/var/run/secrets/zasp-security-agent/openrouter-api-token", "ZASP_SECURITY_AGENT_PLANNER_TIMEOUT": "10s",
+		"ZASP_SECURITY_AGENT_PLANNER_MAX_TOKENS": "512", "ZASP_SECURITY_AGENT_PLANNER_POLICY_VERSION": "security-agent-planner-v1",
 	}
 	config, err := loadWorkerRuntimeConfig(mapLookup(values))
-	if err != nil || config.Mode != workerModeSecurityAgent || config.DatabaseAuthority != "zasp_security_agent_worker" {
+	if err != nil || config.Mode != workerModeSecurityAgent || config.DatabaseAuthority != "zasp_security_agent_worker" || config.SecurityAgentPlannerTokens != 512 {
 		t.Fatalf("config=%#v err=%v", config, err)
 	}
-	values["ZASP_DATABASE_AUTHORITY"] = "zasp_discovery_worker"
-	if _, err := loadWorkerRuntimeConfig(mapLookup(values)); !errors.Is(err, errWorkerConfiguration) {
-		t.Fatalf("foreign authority error=%v", err)
+	for key, value := range map[string]string{
+		"ZASP_DATABASE_AUTHORITY": "zasp_discovery_worker", "ZASP_SECURITY_AGENT_PLANNER_ENDPOINT": "https://example.com/api/v1/chat/completions",
+		"ZASP_SECURITY_AGENT_PLANNER_MODEL": "unreviewed/model", "ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE": "/tmp/key",
+		"ZASP_SECURITY_AGENT_PLANNER_TIMEOUT": "31s", "ZASP_SECURITY_AGENT_PLANNER_MAX_TOKENS": "4097", "ZASP_SECURITY_AGENT_PLANNER_POLICY_VERSION": "planner-v2",
+	} {
+		drift := cloneStringMap(values)
+		drift[key] = value
+		if _, err := loadWorkerRuntimeConfig(mapLookup(drift)); !errors.Is(err, errWorkerConfiguration) {
+			t.Fatalf("%s drift accepted: %v", key, err)
+		}
 	}
 }
 

@@ -31,7 +31,7 @@ func TestComposeWorkerRuntimeMountsOnlyProductionReadyModes(t *testing.T) {
 	if err := discoveryDependencies.Close(); err != nil {
 		t.Fatalf("discovery close=%v", err)
 	}
-	securityAgentDependencies, err := composeWorkerRuntime(context.Background(), validSecurityAgentRuntimeConfig(), database)
+	securityAgentDependencies, err := composeSecurityAgentWorkerRuntime(validSecurityAgentRuntimeConfig(), database, successfulSecurityAgentPlanner())
 	if err != nil || securityAgentDependencies.Processor == nil || securityAgentDependencies.Ready == nil || securityAgentDependencies.Close == nil {
 		t.Fatalf("security-agent dependencies=%#v error=%v", securityAgentDependencies, err)
 	}
@@ -629,6 +629,8 @@ func validSecurityAgentRuntimeConfig() workerRuntimeConfig {
 	return workerRuntimeConfig{
 		Mode: workerModeSecurityAgent, PostgresDSN: "postgres://security_agent@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_security_agent_worker", WorkerID: "security-agent-worker-01",
 		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 8, ShutdownTimeout: 20 * time.Second,
+		SecurityAgentPlannerEndpoint: "https://openrouter.ai/api/v1/chat/completions", SecurityAgentPlannerModel: "openai/gpt-5-mini", SecurityAgentPlannerToken: "/var/run/secrets/zasp-security-agent/openrouter-api-token",
+		SecurityAgentPlannerTimeout: 10 * time.Second, SecurityAgentPlannerTokens: 512, SecurityAgentPlannerPolicy: "security-agent-planner-v1",
 	}
 }
 
@@ -770,7 +772,7 @@ func (readyWorkerDatabase) QueryJSON(_ context.Context, statement string, _ ...a
 	if strings.Contains(statement, "jsonb_build_object('ready'") {
 		return json.RawMessage(`{"ready":true}`), nil
 	}
-	if strings.Contains(statement, "zasp_security_agent_temporary_policy_readiness") || strings.Contains(statement, "zasp_security_agent_autonomous_readiness") || strings.Contains(statement, "zasp_security_agent_readiness") || strings.Contains(statement, "zasp_policy_deployment_execution_readiness") {
+	if strings.Contains(statement, "zasp_security_agent_temporary_policy_readiness") || strings.Contains(statement, "zasp_security_agent_autonomous_readiness") || strings.Contains(statement, "zasp_security_agent_readiness") || strings.Contains(statement, "zasp_policy_deployment_execution_readiness") || strings.Contains(statement, "zasp_production_security_agent_planner_readiness") {
 		return json.RawMessage(`{"release":true,"principal":true}`), nil
 	}
 	if strings.Contains(statement, "zasp_runtime_ingest_reconciliation_readiness") || strings.Contains(statement, "zasp_runtime_gateway_reconciliation_readiness") {

@@ -589,6 +589,7 @@ resource "aws_secretsmanager_secret" "product" {
     "postgres-api-dsn",
     "postgres-security-agent-api-dsn",
     "postgres-security-agent-worker-dsn",
+    "openrouter-security-agent-api-key",
     "postgres-security-agent-action-worker-dsn",
     "postgres-policy-deployment-worker-dsn",
     "postgres-worker-dsn",
@@ -1132,12 +1133,12 @@ resource "aws_iam_role_policy" "security_agent_worker" {
   name = "${var.cluster_name}-security-agent-worker-secret"
   role = aws_iam_role.security_agent_worker.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
-    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.product["postgres-security-agent-worker-dsn"].arn },
+    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = [aws_secretsmanager_secret.product["postgres-security-agent-worker-dsn"].arn, aws_secretsmanager_secret.product["openrouter-security-agent-api-key"].arn] },
     {
       Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn
       Condition = { StringEquals = {
         "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
-        "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.product["postgres-security-agent-worker-dsn"].arn
+        "kms:EncryptionContext:SecretARN" = [aws_secretsmanager_secret.product["postgres-security-agent-worker-dsn"].arn, aws_secretsmanager_secret.product["openrouter-security-agent-api-key"].arn]
       } }
     },
   ] })

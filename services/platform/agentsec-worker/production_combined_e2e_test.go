@@ -11,8 +11,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -36,6 +38,164 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 	"github.com/zasp-ai/zasp-sec/services/platform/recovery/neondriver"
 )
+
+type combinedE2EOpenRouterTransport struct {
+	target *url.URL
+	inner  http.RoundTripper
+}
+
+func (transport combinedE2EOpenRouterTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	clone := request.Clone(request.Context())
+	target := *request.URL
+	target.Scheme = transport.target.Scheme
+	target.Host = transport.target.Host
+	clone.URL = &target
+	return transport.inner.RoundTrip(clone)
+}
+
+func newCombinedE2EOpenRouterPlanner(unavailable bool) (*productionSecurityAgentPlanner, func() int, func(), error) {
+	var mu sync.Mutex
+	calls := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		mu.Lock()
+		calls++
+		mu.Unlock()
+		response.Header().Set("Content-Type", "application/json")
+		if unavailable {
+			response.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = io.WriteString(response, `{"error":"unavailable"}`)
+			return
+		}
+		if request.Method != http.MethodPost || request.URL.Path != "/api/v1/chat/completions" || request.Header.Get("Authorization") != "Bearer sk-or-v1-production-e2e-token" || request.Header.Get("Content-Type") != "application/json" || request.Header.Get("X-Zasp-Data-Policy") != "security-agent-planner-v1" {
+			response.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		body, err := io.ReadAll(io.LimitReader(request.Body, 64*1024+1))
+		if err != nil || len(body) > 64*1024 {
+			response.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var providerRequest securityAgentOpenRouterRequest
+		if json.Unmarshal(body, &providerRequest) != nil || len(providerRequest.Messages) != 2 {
+			response.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var plannerContext struct {
+			AllowedActions    []string                       `json:"allowed_actions"`
+			AllowedTargets    []string                       `json:"allowed_targets"`
+			Scope             map[string]string              `json:"scope"`
+			UntrustedEvidence []securityAgentPlannerEvidence `json:"untrusted_evidence"`
+		}
+		if json.Unmarshal([]byte(providerRequest.Messages[1].Content), &plannerContext) != nil || len(plannerContext.AllowedActions) != 1 || len(plannerContext.UntrustedEvidence) != 1 {
+			response.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		}
+		action := plannerContext.AllowedActions[0]
+		targetID := plannerContext.UntrustedEvidence[0].ID
+		if action == "create_temporary_policy" {
+			targetID = plannerContext.Scope["environment_id"]
+		} else if action == "revoke_integration_connection" {
+			for _, candidate := range plannerContext.AllowedTargets {
+				if candidate != plannerContext.Scope["environment_id"] && candidate != plannerContext.UntrustedEvidence[0].ID {
+					targetID = candidate
+					break
+				}
+			}
+		}
+		candidate, _ := json.Marshal(securityAgentPlannerCandidate{Version: 1, Summary: "Bounded production E2E response", Steps: []securityAgentPlannerStep{{Index: 0, Action: action, TargetID: targetID}}})
+		_, _ = response.Write(openRouterPlannerResponse(string(candidate)))
+	}))
+	target, err := url.Parse(server.URL)
+	if err != nil {
+		server.Close()
+		return nil, nil, nil, err
+	}
+	planner, err := newSecurityAgentPlanner(securityAgentPlannerConfig{
+		Endpoint:      "https://openrouter.ai/api/v1/chat/completions",
+		Model:         "openai/gpt-5-mini",
+		Token:         []byte("sk-or-v1-production-e2e-token"),
+		Timeout:       5 * time.Second,
+		MaximumTokens: 512,
+		PolicyVersion: "security-agent-planner-v1",
+		Transport:     combinedE2EOpenRouterTransport{target: target, inner: server.Client().Transport},
+	})
+	if err != nil {
+		server.Close()
+		return nil, nil, nil, err
+	}
+	callCount := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return calls
+	}
+	var closeOnce sync.Once
+	closeEndpoint := func() { closeOnce.Do(func() { _ = planner.Close(); server.Close() }) }
+	return planner, callCount, closeEndpoint, nil
+}
+
+func TestCombinedE2EOpenRouterPlannerUsesProductionHTTPBoundary(t *testing.T) {
+	planner, callCount, closeEndpoint, err := newCombinedE2EOpenRouterPlanner(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(closeEndpoint)
+	result := planner.Plan(context.Background(), testSecurityAgentPlannerContext())
+	if _, ok := any(planner).(*productionSecurityAgentPlanner); !ok || result.Failure != "" || result.Candidate.Version != 1 || callCount() != 1 {
+		t.Fatalf("planner=%T result=%+v calls=%d", planner, result, callCount())
+	}
+}
+
+func TestProductionCombinedE2ESecurityAgentWorker(t *testing.T) {
+	dsn := os.Getenv("ZASP_COMBINED_E2E_SECURITY_AGENT_DSN")
+	if dsn == "" {
+		t.Skip("combined E2E helper")
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	database, err := apiserver.NewPostgresJSONDatabase(&workerPostgresDriver{pool: pool})
+	if err != nil {
+		pool.Close()
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	config := validSecurityAgentRuntimeConfig()
+	config.PostgresDSN = dsn
+	config.WorkerID = "production-e2e-security-agent"
+	config.PollInterval = 100 * time.Millisecond
+	config.LeaseDuration = 30 * time.Second
+	config.ShutdownTimeout = time.Second
+	planner, plannerCalls, closePlanner, err := newCombinedE2EOpenRouterPlanner(os.Getenv("ZASP_COMBINED_E2E_SECURITY_AGENT_PLANNER") == "unavailable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closePlanner()
+	dependencies, err := composeSecurityAgentWorkerRuntime(config, database, planner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.Getenv("ZASP_COMBINED_E2E_SECURITY_AGENT_ONCE") == "true" {
+		if err := dependencies.Ready(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if err := dependencies.Processor.RunOnce(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if plannerCalls() != 1 {
+			t.Fatalf("planner calls=%d", plannerCalls())
+		}
+		if err := dependencies.Close(); err != nil {
+			t.Fatal(err)
+		}
+		t.Log("composed security agent persisted planner-unavailable without an action")
+		return
+	}
+	if err := serveWorkerRuntime(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestProductionCombinedE2EAttackLabWorker(t *testing.T) {
 	controllerDSN := os.Getenv("ZASP_COMBINED_E2E_ATTACK_LAB_CONTROLLER_DSN")

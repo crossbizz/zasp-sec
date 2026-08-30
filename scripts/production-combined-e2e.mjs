@@ -165,8 +165,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, and workflow compatibility releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, and production planner releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -180,6 +180,7 @@ try {
 	console.log("combined E2E: schema 29 production_home_attention verified");
 	console.log("combined E2E: schema 30 production_approval_notification verified");
 	console.log("combined E2E: schema 31 production_workflow_compatibility verified");
+	console.log("combined E2E: schema 32 production_security_agent_planner verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -247,7 +248,6 @@ try {
 	}
   console.log("combined E2E: Go product and internal listeners ready");
 
-  await command("npm", ["run", "build"], { cwd: root, timeout: 120_000 });
   web = startChild(path.join(root, "node_modules", ".bin", "vinext"), ["start", "--port", String(webPort), "--hostname", "127.0.0.1"], { cwd: root });
   await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`, 200);
   console.log("combined E2E: built web server ready");
@@ -705,7 +705,7 @@ try {
   await clickBrowserText(browser.cdp, "Save Security Agent definition");
   await waitForBrowserText(browser.cdp, /Bounded response definition/);
   assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate plan|Start supervised run|Approve|Reject|Cancel run)$/i), false);
-	await exerciseSecurityAgentAutomaticLifecycle(browser.cdp, workerBinary, workerE2EBinary, gatewayE2EBinary, apiBinary, apiEnvironment, healthPort, postgresPort, dsn, publicOrigin, actionPrivateKey);
+	await exerciseSecurityAgentAutomaticLifecycle(browser.cdp, workerE2EBinary, gatewayE2EBinary, apiBinary, apiEnvironment, healthPort, postgresPort, dsn, publicOrigin, actionPrivateKey);
 	console.log("combined E2E: full-document receipt recovery, local integration, and automatic Security Agent authority proven");
 	await exerciseTypedInventoryRetention(publicOrigin, dsn, postgresPort, workerE2EBinary, patHeaders.authorization);
 	await navigateBrowser(browser.cdp, `${publicOrigin}/discovery/assets`);
@@ -1704,7 +1704,7 @@ async function exerciseTask4ProductionWorkerBoundaries(workerBinary, postgresPor
   console.log("combined E2E: real launched discovery and per-kind projection worker boundaries proven; scheduler/risk ready and managed dependencies fail closed");
 }
 
-async function exerciseSecurityAgentAutomaticLifecycle(cdp, workerBinary, workerE2EBinary, gatewayE2EBinary, apiBinary, apiEnvironment, healthPort, postgresPort, dsn, publicOrigin, actionPrivateKey) {
+async function exerciseSecurityAgentAutomaticLifecycle(cdp, workerE2EBinary, gatewayE2EBinary, apiBinary, apiEnvironment, healthPort, postgresPort, dsn, publicOrigin, actionPrivateKey) {
 	const primaryOrganization = "pid_10000001-0000-4000-8000-000000000001";
 	const primaryWorkspace = "pid_10000002-0000-4000-8000-000000000002";
 	const primaryEnvironment = "pid_10000003-0000-4000-8000-000000000003";
@@ -1817,7 +1817,7 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 		ZASP_BATCH_SIZE: "10",
 		ZASP_SHUTDOWN_TIMEOUT: "1s",
 	};
-	let worker = startTask4Worker(workerBinary, securityAgentWorkerEnvironment);
+	let worker = startSecurityAgentE2EWorker(workerE2EBinary, securityAgentWorkerEnvironment);
 	await assertReadyTask4Worker(worker, "security-agent");
 
 	let approvalID = "";
@@ -1889,7 +1889,7 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	await waitForBrowserText(cdp, /approved/);
 	await stopChild(api);
 	api = undefined;
-	worker = startTask4Worker(workerBinary, securityAgentWorkerEnvironment);
+	worker = startSecurityAgentE2EWorker(workerE2EBinary, securityAgentWorkerEnvironment);
 	await assertReadyTask4Worker(worker, "security-agent");
 	let connectorEffectState = "";
 	for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -1944,7 +1944,7 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 		assert.equal(temporaryApprovalResponse?.status, 200, `temporary containment approval rejected: response=${JSON.stringify(temporaryApprovalResponse)} authority=${authority}`);
 	}
 	await waitForBrowserText(cdp, /approved Version 2/);
-	worker = startTask4Worker(workerBinary, securityAgentWorkerEnvironment);
+	worker = startSecurityAgentE2EWorker(workerE2EBinary, securityAgentWorkerEnvironment);
 	await assertReadyTask4Worker(worker, "security-agent");
 	let effectState = "";
 	for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -1996,7 +1996,7 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	await waitForBrowserText(cdp, /TTL 600s/);
 	await clickBrowserText(cdp, "Approve");
 	await waitForBrowserText(cdp, /approved/);
-	worker = startTask4Worker(workerBinary, securityAgentWorkerEnvironment);
+	worker = startSecurityAgentE2EWorker(workerE2EBinary, securityAgentWorkerEnvironment);
 	await assertReadyTask4Worker(worker, "security-agent");
 	let sessionEffectState = "";
 	for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -2035,7 +2035,37 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	const history = await waitForBrowserText(cdp, /Approval history/);
 	assert.match(history, /approved/);
 	assert.doesNotMatch(history, /Foreign autonomous response/);
+
+	const degradedDefinition = "pid_78000040-0000-4000-8000-000000000040";
+	const degradedFinding = "pid_30000140-0000-4000-8000-000000000140";
+	const degradedEvidence = "pid_31000140-0000-4000-8000-000000000140";
+	const policyBefore = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',sequence,encode(envelope_digest,'hex')) FROM zasp_runtime_gateway_policy_bundles WHERE (organization_id,workspace_id,environment_id,device_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}') ORDER BY sequence DESC LIMIT 1;`])).stdout.trim();
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `
+INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status)
+VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${degradedFinding}','posture','planner_degraded','Planner unavailable proof','critical','open');
+INSERT INTO zasp_risk_finding_evidence(organization_id,workspace_id,environment_id,finding_id,position,evidence_id)
+VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${degradedFinding}',1,'${degradedEvidence}');
+INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
+VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${degradedDefinition}','supervised',1,1,
+jsonb_build_object('id','${degradedDefinition}','name','Planner unavailable response','trigger_kind','finding','trigger_source','planner_degraded','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',300,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('update_finding_response'),'verification_kind','finding_state','definition_version',1,'enabled',true),'security-agent-actions-v1');`]);
+	const degraded = await command(workerE2EBinary, ["-test.run=^TestProductionCombinedE2ESecurityAgentWorker$", "-test.v", "-test.count=1"], {
+		timeout: 30_000,
+		env: { ...process.env, ZASP_COMBINED_E2E_SECURITY_AGENT_DSN: securityAgentWorkerEnvironment.ZASP_POSTGRES_DSN, ZASP_COMBINED_E2E_SECURITY_AGENT_PLANNER: "unavailable", ZASP_COMBINED_E2E_SECURITY_AGENT_ONCE: "true" },
+	});
+	assert.match(degraded.stdout, /composed security agent persisted planner-unavailable without an action/);
+	const degradedState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,run.last_error_code,
+		(SELECT count(*) FROM zasp_security_agent_plans plan WHERE (plan.organization_id,plan.workspace_id,plan.environment_id,plan.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)),
+		(SELECT count(*) FROM zasp_security_agent_steps step WHERE (step.organization_id,step.workspace_id,step.environment_id,step.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)),
+		(SELECT count(*) FROM zasp_security_agent_approvals approval WHERE (approval.organization_id,approval.workspace_id,approval.environment_id,approval.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)),
+		(SELECT count(*) FROM zasp_security_agent_effects effect WHERE (effect.organization_id,effect.workspace_id,effect.environment_id,effect.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)),
+		(SELECT count(*) FROM zasp_security_agent_planner_receipts receipt WHERE (receipt.organization_id,receipt.workspace_id,receipt.environment_id,receipt.run_id,receipt.outcome)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id,'planner_unavailable')),
+		(SELECT count(*) FROM zasp_security_agent_audit audit WHERE (audit.organization_id,audit.workspace_id,audit.environment_id,audit.run_id,audit.event_kind)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id,'planner_failed')))
+		FROM zasp_security_agent_runs run WHERE (run.organization_id,run.workspace_id,run.environment_id,run.definition_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${degradedDefinition}');`])).stdout.trim();
+	assert.equal(degradedState, "failed|planner_unavailable|0|0|0|0|1|1", "planner outage created executable authority");
+	const policyAfter = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',sequence,encode(envelope_digest,'hex')) FROM zasp_runtime_gateway_policy_bundles WHERE (organization_id,workspace_id,environment_id,device_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}') ORDER BY sequence DESC LIMIT 1;`])).stdout.trim();
+	assert.equal(policyAfter, policyBefore, "planner outage changed the existing runtime policy authority");
 	console.log("combined E2E: multi-tenant supervised approval, autonomous response, exact-session isolation with unrelated allowance and cleanup, signed temporary policy apply/cleanup, and irreversible connector revocation proven through real production workers");
+	console.log("combined E2E: OpenRouter outage durably recorded planner unavailable, created zero action authority, and preserved the enforced runtime policy");
 }
 
 async function exerciseHomeDailyOperations(cdp, publicOrigin, dsn, approvalID, runID, sensorID) {
@@ -2350,6 +2380,14 @@ function startTask4Worker(workerBinary, environment) {
   const worker = startChild(workerBinary, [], { env: environment });
   task4Workers.push(worker);
   return worker;
+}
+
+function startSecurityAgentE2EWorker(workerE2EBinary, environment) {
+	const worker = startChild(workerE2EBinary, ["-test.run=^TestProductionCombinedE2ESecurityAgentWorker$", "-test.v", "-test.count=1"], {
+		env: { ...environment, ZASP_COMBINED_E2E_SECURITY_AGENT_DSN: environment.ZASP_POSTGRES_DSN },
+	});
+	task4Workers.push(worker);
+	return worker;
 }
 
 async function assertReadyTask4Worker(worker, mode) {
@@ -3417,7 +3455,11 @@ async function waitForBrowserAction(cdp, expression) {
     if (evaluated.result?.value === true) return;
     await delay(25);
   }
-  throw new Error(`browser action target unavailable: ${expression}`);
+	const diagnostic = await cdp.send("Runtime.evaluate", {
+		expression: `({ href: location.href, body: (document.body?.innerText ?? "").slice(0, 4096) })`,
+		returnByValue: true,
+	});
+	throw new Error(`browser action target unavailable: ${expression}; state=${JSON.stringify(diagnostic.result?.value)}`);
 }
 
 async function requestHTTPSJSON(target, options, body) {
@@ -3657,10 +3699,10 @@ async function command(executable, args, options = {}) {
   child.stderr.on("data", (value) => { stderr += value; });
   if (options.input) child.stdin.end(options.input); else child.stdin.end();
   const deadline = setTimeout(() => child.kill("SIGKILL"), options.timeout ?? 30_000);
-  const [status] = await once(child, "exit");
+	const [status, signal] = await once(child, "exit");
   clearTimeout(deadline);
-  const result = { status, stdout, stderr };
-  if (status !== 0 && options.reject !== false) throw new Error(`${path.basename(executable)} failed (${status}): ${stderr || stdout}`);
+	const result = { status, signal, stdout, stderr };
+	if (status !== 0 && options.reject !== false) throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
   return result;
 }
 

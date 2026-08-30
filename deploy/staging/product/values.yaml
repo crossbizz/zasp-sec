@@ -91,6 +91,7 @@ secrets:
   apiPostgresDSNObjectName: ""
   securityAgentAPIPostgresDSNObjectName: ""
   securityAgentWorkerPostgresDSNObjectName: ""
+  securityAgentPlannerTokenObjectName: ""
   securityAgentActionPostgresDSNObjectName: ""
   policyDeploymentPostgresDSNObjectName: ""
   gatewaySigningPrivateKeyObjectName: ""
@@ -278,7 +279,7 @@ runtime:
   projectionRoleArn: ""
   completeRoleArn: ""
 schema:
-  expectedVersion: 31
+  expectedVersion: 32
   migrationTimeout: 10m
 databasePrincipals:
   migration: ""
@@ -421,6 +422,7 @@ monitoring:
 network:
   ingressNamespace: ingress-nginx
   postgresCIDR: ""
+  securityAgentPlannerEgressCIDRs: []
   opensearchCIDR: ""
   neo4jCIDR: ""
   outboxEgressCIDRs: []

@@ -20,8 +20,8 @@ const allowedProductionClasses = new Set([
   "missing",
 ]);
 const expectedClassCounts = new Map([
-  ["production-available", 482],
-  ["component-only", 185],
+  ["production-available", 486],
+  ["component-only", 181],
   ["blocked/external", 61],
   ["missing", 0],
 ]);
@@ -35,7 +35,7 @@ const expectedMilestoneClassCounts = new Map([
   ["M5", new Map([["production-available", 20], ["component-only", 22], ["blocked/external", 0], ["missing", 0]])],
   ["M6", new Map([["production-available", 36], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
   ["M7", new Map([["production-available", 37], ["component-only", 25], ["blocked/external", 0], ["missing", 0]])],
-  ["M7A", new Map([["production-available", 89], ["component-only", 24], ["blocked/external", 0], ["missing", 0]])],
+  ["M7A", new Map([["production-available", 93], ["component-only", 20], ["blocked/external", 0], ["missing", 0]])],
   ["M8", new Map([["production-available", 35], ["component-only", 54], ["blocked/external", 52], ["missing", 0]])],
 ]);
 const productionOwnerTaskIDs = new Set([
