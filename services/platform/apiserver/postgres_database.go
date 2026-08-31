@@ -213,7 +213,7 @@ FROM zasp_schema_metadata AS metadata
 JOIN zasp_schema_versions AS release ON release.version = 27 AND release.name = 'production_recovery'
 WHERE metadata.key = 'production_core_schema' AND metadata.value = 'production-recovery-v1'
   AND zasp_recovery_execution_readiness($1, $2)
-  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 33)`
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 34)`
 
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
 func expectedCoreSchemaFingerprint() string {

@@ -57,7 +57,7 @@ function ProductionRouteSurface({ path, navigate }: { path: string; navigate(pat
   if (path === "/red-team/results") return <ProductionRedTeamView canWrite={session.hasCapability("red-team.write")} onNavigate={navigate} />;
   if (path === "/test/attack-lab") return <ProductionAttackLabView canWrite={session.hasCapability("red-team.write")} />;
   if (path === "/policies") return <ProductionPoliciesView canWrite={session.hasCapability("policies.write")} />;
-  if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} />;
+  if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} />;
   if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" />;

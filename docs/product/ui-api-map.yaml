@@ -240,6 +240,9 @@ screens:
       - id: view_integration_freshness
         operation_id: getIntegrationFreshness
         availability: available
+      - id: view_integration_setup_status
+        operation_id: getIntegrationSetupStatus
+        availability: available
       - id: view_sensors
         operation_id: listSensors
         availability: available

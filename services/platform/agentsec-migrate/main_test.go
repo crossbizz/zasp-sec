@@ -601,21 +601,39 @@ func (runner *scriptedMigrationRunner) DownProductionSecurityAgentAttackPath(con
 	return nil
 }
 
-func TestAgentsecMigrateReachesV33FromV27AndDowngradesFirst(t *testing.T) {
-	up := &scriptedMigrationRunner{version: 27}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "version"}) {
-		t.Fatalf("v27 to v33 = %#v, %v", up.events, err)
+func (runner *scriptedMigrationRunner) UpProductionIntegrationSetup(context.Context) error {
+	runner.events = append(runner.events, "up-production-integration-setup")
+	if runner.errAt == "up-production-integration-setup" {
+		return errors.New("detail")
 	}
-	down := &scriptedMigrationRunner{version: 33}
-	if err := runReleaseMigration(context.Background(), down, []string{"down"}); err != nil || len(down.events) < 8 || down.events[1] != "down-production-security-agent-attack-path" || down.events[2] != "down-production-security-agent-planner" || down.events[3] != "down-production-workflow-compatibility" || down.events[4] != "down-production-approval-notification" || down.events[5] != "down-production-home-attention" || down.events[6] != "down-production-policy-deployment" || down.events[7] != "down-production-recovery" {
-		t.Fatalf("v33 down = %#v, %v", down.events, err)
+	runner.version = 34
+	return nil
+}
+
+func (runner *scriptedMigrationRunner) DownProductionIntegrationSetup(context.Context) error {
+	runner.events = append(runner.events, "down-production-integration-setup")
+	if runner.errAt == "down-production-integration-setup" {
+		return errors.New("detail")
+	}
+	runner.version = 33
+	return nil
+}
+
+func TestAgentsecMigrateReachesV34FromV27AndDowngradesFirst(t *testing.T) {
+	up := &scriptedMigrationRunner{version: 27}
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "version"}) {
+		t.Fatalf("v27 to v34 = %#v, %v", up.events, err)
+	}
+	down := &scriptedMigrationRunner{version: 34}
+	if err := runReleaseMigration(context.Background(), down, []string{"down"}); err != nil || len(down.events) < 9 || down.events[1] != "down-production-integration-setup" || down.events[2] != "down-production-security-agent-attack-path" || down.events[3] != "down-production-security-agent-planner" || down.events[4] != "down-production-workflow-compatibility" || down.events[5] != "down-production-approval-notification" || down.events[6] != "down-production-home-attention" || down.events[7] != "down-production-policy-deployment" || down.events[8] != "down-production-recovery" {
+		t.Fatalf("v34 down = %#v, %v", down.events, err)
 	}
 }
 
-func TestAgentsecMigrateReachesV33FromV17AndDowngradesFirst(t *testing.T) {
+func TestAgentsecMigrateReachesV34FromV17AndDowngradesFirst(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 17}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "version"}) {
-		t.Fatalf("v17 to v33 = %#v, %v", up.events, err)
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "version"}) {
+		t.Fatalf("v17 to v34 = %#v, %v", up.events, err)
 	}
 	down := &scriptedMigrationRunner{version: 24}
 	if err := runReleaseMigration(context.Background(), down, []string{"down"}); err != nil || len(down.events) < 9 || down.events[1] != "down-production-security-agent-session-isolation" || down.events[2] != "down-production-security-agent-connector-revocation" || down.events[3] != "down-production-security-agent-temporary-policy" || down.events[4] != "down-production-security-agent-autonomous-response" || down.events[5] != "down-production-security-agent-controls" || down.events[6] != "down-production-identity-administration" || down.events[7] != "down-production-security-agent-execution" || down.events[8] != "down-production-runtime-ingest-reconciliation" {
@@ -708,6 +726,7 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 		{direction: "up", version: 31, want: []string{"version", "version"}},
 		{direction: "up", version: 32, want: []string{"version", "version"}},
 		{direction: "up", version: 33, want: []string{"version", "version"}},
+		{direction: "up", version: 34, want: []string{"version", "version"}},
 		{direction: "down", version: 26, want: []string{"version", "down-production-attack-lab-execution", "down-production-red-team-execution", "down-production-security-agent-session-isolation", "down-production-security-agent-connector-revocation", "down-production-security-agent-temporary-policy", "down-production-security-agent-autonomous-response", "down-production-security-agent-controls", "down-production-identity-administration", "down-production-security-agent-execution", "down-production-runtime-ingest-reconciliation", "down-production-runtime-gateway-reconciliation", "down-production-runtime-data-plane", "down-production-typed-inventory-cutover", "down-production-discovery-execution", "down-reference-authorization", "down-connector-authorization", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 25, want: []string{"version", "down-production-red-team-execution", "down-production-security-agent-session-isolation", "down-production-security-agent-connector-revocation", "down-production-security-agent-temporary-policy", "down-production-security-agent-autonomous-response", "down-production-security-agent-controls", "down-production-identity-administration", "down-production-security-agent-execution", "down-production-runtime-ingest-reconciliation", "down-production-runtime-gateway-reconciliation", "down-production-runtime-data-plane", "down-production-typed-inventory-cutover", "down-production-discovery-execution", "down-reference-authorization", "down-connector-authorization", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
 		{direction: "down", version: 24, want: []string{"version", "down-production-security-agent-session-isolation", "down-production-security-agent-connector-revocation", "down-production-security-agent-temporary-policy", "down-production-security-agent-autonomous-response", "down-production-security-agent-controls", "down-production-identity-administration", "down-production-security-agent-execution", "down-production-runtime-ingest-reconciliation", "down-production-runtime-gateway-reconciliation", "down-production-runtime-data-plane", "down-production-typed-inventory-cutover", "down-production-discovery-execution", "down-reference-authorization", "down-connector-authorization", "down-production-discovery", "down-production-risk-projection", "down-api-token-reveal-grants", "down-production-administration", "down-receipt-provenance", "down-receipt-safety", "down-receipts", "down-workflows", "down-core", "down-baseline", "version"}},
@@ -805,6 +824,9 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 				if test.version <= 32 {
 					steps = append(steps, "up-production-security-agent-attack-path")
 				}
+				if test.version <= 33 {
+					steps = append(steps, "up-production-integration-setup")
+				}
 				test.want = append(steps, test.want[len(test.want)-1])
 			}
 			runner := &scriptedMigrationRunner{version: test.version}
@@ -825,8 +847,8 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 
 func TestRunReleaseMigrationIncludesDiscoveryExecutionRelease(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 11}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-reference-authorization", "up-production-discovery-execution", "up-production-typed-inventory-cutover", "up-production-runtime-data-plane", "up-production-runtime-gateway-reconciliation", "up-production-runtime-ingest-reconciliation", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "version"}) {
-		t.Fatalf("v11 to v33 = %#v, %v", up.events, err)
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-reference-authorization", "up-production-discovery-execution", "up-production-typed-inventory-cutover", "up-production-runtime-data-plane", "up-production-runtime-gateway-reconciliation", "up-production-runtime-ingest-reconciliation", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "version"}) {
+		t.Fatalf("v11 to v34 = %#v, %v", up.events, err)
 	}
 	down := &scriptedMigrationRunner{version: 24}
 	if err := runReleaseMigration(context.Background(), down, []string{"down"}); err != nil || len(down.events) < 15 || down.events[1] != "down-production-security-agent-session-isolation" || down.events[2] != "down-production-security-agent-connector-revocation" || down.events[3] != "down-production-security-agent-temporary-policy" || down.events[4] != "down-production-security-agent-autonomous-response" || down.events[5] != "down-production-security-agent-controls" || down.events[6] != "down-production-identity-administration" || down.events[7] != "down-production-security-agent-execution" || down.events[8] != "down-production-runtime-ingest-reconciliation" || down.events[9] != "down-production-runtime-gateway-reconciliation" || down.events[10] != "down-production-runtime-data-plane" || down.events[11] != "down-production-typed-inventory-cutover" || down.events[12] != "down-production-discovery-execution" || down.events[13] != "down-reference-authorization" {
@@ -834,10 +856,10 @@ func TestRunReleaseMigrationIncludesDiscoveryExecutionRelease(t *testing.T) {
 	}
 }
 
-func TestAgentsecMigrateCLIReachesV33FromV13AndRollsBackBeforeCutover(t *testing.T) {
+func TestAgentsecMigrateCLIReachesV34FromV13AndRollsBackBeforeCutover(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 13}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-typed-inventory-cutover", "up-production-runtime-data-plane", "up-production-runtime-gateway-reconciliation", "up-production-runtime-ingest-reconciliation", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "version"}) {
-		t.Fatalf("v13 to v33 = %#v, %v", up.events, err)
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-typed-inventory-cutover", "up-production-runtime-data-plane", "up-production-runtime-gateway-reconciliation", "up-production-runtime-ingest-reconciliation", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "version"}) {
+		t.Fatalf("v13 to v34 = %#v, %v", up.events, err)
 	}
 	down := &scriptedMigrationRunner{version: 24}
 	if err := runReleaseMigration(context.Background(), down, []string{"down"}); err != nil || len(down.events) < 13 || down.events[1] != "down-production-security-agent-session-isolation" || down.events[2] != "down-production-security-agent-connector-revocation" || down.events[3] != "down-production-security-agent-temporary-policy" || down.events[4] != "down-production-security-agent-autonomous-response" || down.events[5] != "down-production-security-agent-controls" || down.events[6] != "down-production-identity-administration" || down.events[7] != "down-production-security-agent-execution" || down.events[8] != "down-production-runtime-ingest-reconciliation" || down.events[9] != "down-production-runtime-gateway-reconciliation" || down.events[10] != "down-production-runtime-data-plane" || down.events[11] != "down-production-typed-inventory-cutover" || down.events[12] != "down-production-discovery-execution" {
@@ -1156,8 +1178,11 @@ func TestAgentsecMigrateV14InstallsRollsBackReappliesAndBlocksPostCutoverRollbac
 		version, versionErr := runner.Version(ctx)
 		t.Fatalf("install target at version %d (%v): %v", version, versionErr, err)
 	}
-	if version, versionErr := runner.Version(ctx); versionErr != nil || version != 33 {
+	if version, versionErr := runner.Version(ctx); versionErr != nil || version != 34 {
 		t.Fatalf("installed version = (%d, %v)", version, versionErr)
+	}
+	if err := runner.DownProductionIntegrationSetup(ctx); err != nil {
+		t.Fatalf("v34 pre-cutover down: %v", err)
 	}
 	if err := runner.DownProductionSecurityAgentAttackPath(ctx); err != nil {
 		t.Fatalf("v33 pre-cutover down: %v", err)
@@ -1261,7 +1286,7 @@ func equalMigrationEvents(left, right []string) bool {
 }
 
 func TestRunReleaseMigrationRejectsDriftAndHonorsDeadline(t *testing.T) {
-	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 34}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
+	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 35}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
 		t.Fatalf("drift error = %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1360,7 +1385,7 @@ func TestRegisterReleasePrincipalsRequiresPostRegistrationRuntimeReadiness(t *te
 	}
 }
 
-func TestAgentsecMigrateCLIReachesV33FromEmptyAndV12(t *testing.T) {
+func TestAgentsecMigrateCLIReachesV34FromEmptyAndV12(t *testing.T) {
 	dsn := startMigrationPostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
@@ -1411,7 +1436,7 @@ func TestAgentsecMigrateCLIReachesV33FromEmptyAndV12(t *testing.T) {
 			_ = connection.QueryRow(ctx, `SELECT zasp_red_team_execution_readiness($1,$2)`, migrations.ProductionRedTeamExecution().Checksum(), migrations.ProductionRedTeamExecutionSemanticFingerprint()).Scan(&releaseReady)
 			t.Fatalf("%s at version %d (%v): %v output=%q red_team=(register=%t register_err=%v bindings=%d principals=%t security=%t live=%s expected=%s release=%t)", label, version, versionErr, commandErr, output, registerReady, registerErr, bindings, principalsReady, securityReady, liveFingerprint, migrations.ProductionRedTeamExecutionSemanticFingerprint(), releaseReady)
 		}
-		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 33 {
+		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 34 {
 			t.Fatalf("%s version = (%d, %v)", label, version, versionErr)
 		}
 		var bindings int
@@ -1447,7 +1472,7 @@ func TestAgentsecMigrateCLIReachesV33FromEmptyAndV12(t *testing.T) {
 			t.Fatalf("%s policy deployment principal bindings=%d err=%v", label, policyDeploymentBindings, err)
 		}
 	}
-	runCLI("empty to v33")
+	runCLI("empty to v34")
 	var runtimeReleaseReady bool
 	if err := connection.QueryRow(ctx, `SELECT zasp_recovery_execution_readiness($1,$2)`, migrations.ProductionRecovery().Checksum(), migrations.ProductionRecoverySemanticFingerprint()).Scan(&runtimeReleaseReady); err != nil || !runtimeReleaseReady {
 		t.Fatalf("recovery release ready before down=%v err=%v", runtimeReleaseReady, err)
@@ -2375,6 +2400,9 @@ func TestAgentsecMigrateCLIReachesV33FromEmptyAndV12(t *testing.T) {
 	if _, err := connection.Exec(ctx, `DELETE FROM zasp_red_team_audit;DELETE FROM zasp_red_team_request_receipts;DELETE FROM zasp_red_team_outbox;DELETE FROM zasp_red_team_attempts;DELETE FROM zasp_red_team_runs;DELETE FROM zasp_red_team_definitions`); err != nil {
 		t.Fatalf("red team cleanup: %v", err)
 	}
+	if err := runner.DownProductionIntegrationSetup(ctx); err != nil {
+		t.Fatalf("v34 to v33 fixture: %v", err)
+	}
 	if err := runner.DownProductionSecurityAgentAttackPath(ctx); err != nil {
 		t.Fatalf("v33 to v32 fixture: %v", err)
 	}
@@ -2451,7 +2479,7 @@ func TestAgentsecMigrateCLIReachesV33FromEmptyAndV12(t *testing.T) {
 	if err := runner.DownReferenceAuthorization(ctx); err != nil {
 		t.Fatalf("v12 to v11 fixture: %v", err)
 	}
-	runCLI("v11 to v33")
+	runCLI("v11 to v34")
 }
 
 func TestRunReleaseMigrationRejectsAmbiguousInputsAndStopsOnFailure(t *testing.T) {
@@ -2483,8 +2511,8 @@ func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDri
 		version, versionErr := runner.Version(ctx)
 		t.Fatalf("empty to target at version %d (%v): %v", version, versionErr, err)
 	}
-	if version, err := runner.Version(ctx); err != nil || version != 33 {
-		t.Fatalf("v32 = (%d, %v)", version, err)
+	if version, err := runner.Version(ctx); err != nil || version != 34 {
+		t.Fatalf("v34 = (%d, %v)", version, err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
 		t.Fatalf("v27 retry: %v", err)
@@ -2506,7 +2534,7 @@ func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDri
 	}
 }
 
-func TestAgentsecMigrateV32LiveFingerprintMatchesPinnedAuthority(t *testing.T) {
+func TestAgentsecMigrateV34LiveFingerprintsMatchPinnedAuthority(t *testing.T) {
 	dsn := startMigrationPostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -2615,6 +2643,58 @@ func TestAgentsecMigrateV32LiveFingerprintMatchesPinnedAuthority(t *testing.T) {
 	if err := runner.UpProductionSecurityAgentAttackPath(ctx); err != nil {
 		t.Fatalf("v33 re-up: %v", err)
 	}
+	setup := migrations.ProductionIntegrationSetup()
+	probe, err = connection.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := probe.Exec(ctx, setup.UpSQL()); err != nil {
+		_ = probe.Rollback(ctx)
+		t.Fatal(err)
+	}
+	if _, err := probe.Exec(ctx, `INSERT INTO zasp_schema_versions(version,name,checksum) VALUES($1,$2,$3)`, setup.Version(), setup.Name(), setup.Checksum()); err != nil {
+		_ = probe.Rollback(ctx)
+		t.Fatal(err)
+	}
+	if err := probe.QueryRow(ctx, `SELECT zasp_production_integration_setup_live_fingerprint()`).Scan(&candidateFingerprint); err != nil {
+		_ = probe.Rollback(ctx)
+		t.Fatal(err)
+	}
+	var candidateSecurityReady, candidateReady bool
+	if err := probe.QueryRow(ctx, `SELECT zasp_production_integration_setup_security_ready(),zasp_production_integration_setup_readiness($1,$2)`, setup.Checksum(), migrations.ProductionIntegrationSetupSemanticFingerprint()).Scan(&candidateSecurityReady, &candidateReady); err != nil {
+		_ = probe.Rollback(ctx)
+		t.Fatal(err)
+	}
+	var priorSecurity, compatibilitySecurity, setupFunctionSecurity, apiCredentialSelect, apiSubjectSelect, apiHeartbeatSelect bool
+	if err := probe.QueryRow(ctx, `SELECT zasp_production_security_agent_attack_path_security_ready(),zasp_production_workflow_compatibility_security_ready(),EXISTS(SELECT 1 FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname='zasp_execution_integration_setup_status' AND owner.rolname='zasp_discovery_authority' AND procedure.prosecdef AND COALESCE(procedure.proconfig,'{}') @> ARRAY['search_path=pg_catalog, public'] AND NOT has_function_privilege('public',procedure.oid,'EXECUTE') AND has_function_privilege('zasp_discovery_api',procedure.oid,'EXECUTE') AND NOT has_function_privilege('zasp_discovery_worker',procedure.oid,'EXECUTE') AND NOT has_function_privilege('zasp_security_agent_worker',procedure.oid,'EXECUTE')),has_table_privilege('zasp_discovery_api','public.zasp_connector_credentials','SELECT'),has_table_privilege('zasp_discovery_api','public.zasp_discovery_connection_subjects','SELECT'),has_table_privilege('zasp_discovery_api','public.zasp_sensor_heartbeats','SELECT')`).Scan(&priorSecurity, &compatibilitySecurity, &setupFunctionSecurity, &apiCredentialSelect, &apiSubjectSelect, &apiHeartbeatSelect); err != nil {
+		_ = probe.Rollback(ctx)
+		t.Fatal(err)
+	}
+	if err := probe.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if candidateFingerprint != migrations.ProductionIntegrationSetupSemanticFingerprint() || !candidateSecurityReady || !candidateReady {
+		t.Fatalf("v34 candidate fingerprint=%s security=%t ready=%t prior=%t compatibility=%t function=%t selects=(%t,%t,%t)", candidateFingerprint, candidateSecurityReady, candidateReady, priorSecurity, compatibilitySecurity, setupFunctionSecurity, apiCredentialSelect, apiSubjectSelect, apiHeartbeatSelect)
+	}
+	if err := runner.UpProductionIntegrationSetup(ctx); err != nil {
+		t.Fatalf("v34 up: %v", err)
+	}
+	var setupSecurityReady, setupReady bool
+	if err := connection.QueryRow(ctx, `SELECT zasp_production_integration_setup_security_ready(),zasp_production_integration_setup_readiness($1,$2)`, setup.Checksum(), migrations.ProductionIntegrationSetupSemanticFingerprint()).Scan(&setupSecurityReady, &setupReady); err != nil || !setupSecurityReady || !setupReady {
+		t.Fatalf("v34 readiness security=%t ready=%t err=%v", setupSecurityReady, setupReady, err)
+	}
+	if err := runner.DownProductionIntegrationSetup(ctx); err != nil {
+		t.Fatalf("v34 down: %v", err)
+	}
+	if version, err := runner.Version(ctx); err != nil || version != 33 {
+		t.Fatalf("restored v33 version=%d err=%v", version, err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT zasp_production_security_agent_attack_path_readiness($1,$2)`, attackPath.Checksum(), migrations.ProductionSecurityAgentAttackPathSemanticFingerprint()).Scan(&attackPathReady); err != nil || !attackPathReady {
+		t.Fatalf("restored v33 readiness=%t err=%v", attackPathReady, err)
+	}
+	if err := runner.UpProductionIntegrationSetup(ctx); err != nil {
+		t.Fatalf("v34 re-up: %v", err)
+	}
 }
 
 func TestV6ReceiptlessPATReplayUsesDurableMarkerAndBlocksEveryRollbackWithoutPartialMigration(t *testing.T) {
@@ -2632,6 +2712,9 @@ func TestV6ReceiptlessPATReplayUsesDurableMarkerAndBlocksEveryRollbackWithoutPar
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
 		t.Fatalf("empty to v27: %v", err)
+	}
+	if err := runner.DownProductionIntegrationSetup(ctx); err != nil {
+		t.Fatalf("v34 to v33 fixture: %v", err)
 	}
 	if err := runner.DownProductionSecurityAgentAttackPath(ctx); err != nil {
 		t.Fatalf("v33 to v32 fixture: %v", err)
@@ -3119,6 +3202,9 @@ func migrateToV6(t *testing.T, ctx context.Context, connection *pgx.Conn) *migra
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
 		t.Fatalf("migrate to v6: %v", err)
+	}
+	if err := runner.DownProductionIntegrationSetup(ctx); err != nil {
+		t.Fatalf("v34 to v33 fixture: %v", err)
 	}
 	if err := runner.DownProductionSecurityAgentAttackPath(ctx); err != nil {
 		t.Fatalf("v33 to v32 fixture: %v", err)

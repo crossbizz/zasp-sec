@@ -237,9 +237,9 @@ M3	M3-48c1	Complete	production-available	PROD-current-composition	audited shippe
 M3	M3-48c2	Complete	production-available	T10-product-ui	shipped detail uses scoped product APIs for collected-data capabilities, freshness, bounded sync history, and exact sync detail
 M3	M3-48c3	Complete	production-available	T10-product-ui	shipped capability-gated authorize, manual sync, schedule, delete, and retained-receipt actions pass installed-browser E2E
 M3	M3-48d	Complete	production-available	T10-product-ui	shipped AWS setup uses the live catalog, role and opaque external-ID configuration, connection test, initial sync, coverage, and stable permission remediation
-M3	M3-48e	Complete	component-only	T10-product-ui	audited component-only proof: Kubernetes setup wizard UI
-M3	M3-48f	Complete	component-only	T10-product-ui	audited component-only proof: GitHub setup wizard UI
-M3	M3-48g	Complete	component-only	T10-product-ui	audited component-only proof: launch IdP setup wizard UI
+M3	M3-48e	Complete	production-available	T10-product-ui	shipped Kubernetes setup uses the live tenant-scoped v34 setup-status API, enrollment and Helm guidance, environment runtime sensor coverage, and installed-browser proof
+M3	M3-48f	Complete	production-available	T10-product-ui	shipped GitHub setup uses the live tenant-scoped v34 setup-status API for organization, repository selection, and exact read permissions with installed-browser proof
+M3	M3-48g	Complete	production-available	T10-product-ui	shipped Okta setup uses the live tenant-scoped v34 setup-status API for tenant and exact discovery scopes, remains separate from Zasp sign-in, and passes installed-browser proof
 M3	M3-48h	Complete	component-only	T10-product-ui	audited component-only proof: Generic Webhook setup UI
 M3	M3-48	Complete	production-available	PROD-current-composition	audited shipped composition: Connections UI shell
 M3	M3-49	Complete	production-available	T10-product-ui	production evidence: capability-gated authorize, sync, delete, receipt recovery, history, and freshness actions proven through shipped product APIs in the installed-browser gate

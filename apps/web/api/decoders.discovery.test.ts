@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   decodeIntegrationFreshness,
   decodeIntegrationSchedule,
+  decodeIntegrationSetupStatus,
   decodeIntegrationSync,
   decodeIntegrationSyncPage,
   decodeRecoveryBackup,
@@ -12,6 +13,13 @@ import {
 const integrationID = "pid_20000001-0000-4000-8000-000000000001";
 const syncID = "pid_20000002-0000-4000-8000-000000000002";
 const snapshotID = "pid_20000003-0000-4000-8000-000000000003";
+const setupStatus = {
+  integration_id: integrationID,
+  connector_key: "github",
+  authorization: { state: "verified", scope_kind: "github_organization", scope_label: "acme", repository_selection: "selected", permissions: ["actions:read", "contents:read", "metadata:read"] },
+  runtime_coverage: { state: "not_applicable", reason: "not_applicable", sensor_count: 0, healthy_sensor_count: 0 },
+  updated_at: "2026-08-31T19:00:00Z",
+} as const;
 const recoveryScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
 const backupID = "pid_71000001-0000-4000-8000-000000000001";
 const restoreID = "pid_71000002-0000-4000-8000-000000000002";
@@ -123,6 +131,19 @@ describe("production discovery response decoders", () => {
     expect(decodeIntegrationSyncPage({ items: [sync], page_info: { next_cursor: null, has_more: false } })).toEqual({ items: [sync], page_info: { next_cursor: null, has_more: false } });
     expect(decodeIntegrationSchedule(schedule)).toEqual(schedule);
     expect(decodeIntegrationFreshness(freshness)).toEqual(freshness);
+    expect(decodeIntegrationSetupStatus(setupStatus, integrationID)).toEqual(setupStatus);
+    expect(decodeIntegrationSetupStatus({ ...setupStatus, connector_key: "kubernetes", authorization: { state: "verified", scope_kind: "kubernetes_cluster", scope_label: "production-us-west", repository_selection: null, permissions: [] }, runtime_coverage: { state: "awaiting_heartbeat", reason: "missing_gateway", sensor_count: 3, healthy_sensor_count: 1 } }, integrationID).runtime_coverage.healthy_sensor_count).toBe(1);
+  });
+
+  it.each([
+    ["foreign integration", { ...setupStatus, integration_id: "pid_20000009-0000-4000-8000-000000000009" }],
+    ["credential reference", { ...setupStatus, credential_reference: "ref:github/installation/123" }],
+    ["unsorted permissions", { ...setupStatus, authorization: { ...setupStatus.authorization, permissions: ["metadata:read", "actions:read", "contents:read"] } }],
+    ["GitHub repository scope on Kubernetes", { ...setupStatus, connector_key: "kubernetes", authorization: { ...setupStatus.authorization, scope_kind: "kubernetes_cluster" } }],
+    ["healthy count exceeds total", { ...setupStatus, connector_key: "kubernetes", authorization: { state: "verified", scope_kind: "kubernetes_cluster", scope_label: "production-us-west", repository_selection: null, permissions: [] }, runtime_coverage: { state: "healthy", reason: "verified", sensor_count: 1, healthy_sensor_count: 2 } }],
+    ["invalid coverage pair", { ...setupStatus, connector_key: "kubernetes", authorization: { state: "verified", scope_kind: "kubernetes_cluster", scope_label: "production-us-west", repository_selection: null, permissions: [] }, runtime_coverage: { state: "healthy", reason: "unsupported_kernel", sensor_count: 1, healthy_sensor_count: 1 } }],
+  ])("rejects integration setup drift: %s", (_name, value) => {
+    expect(() => decodeIntegrationSetupStatus(value, integrationID)).toThrow("schema mismatch");
   });
 
   it.each([

@@ -165,8 +165,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, and attack-path trigger releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -182,6 +182,7 @@ try {
 	console.log("combined E2E: schema 31 production_workflow_compatibility verified");
 	console.log("combined E2E: schema 32 production_security_agent_planner verified");
 	console.log("combined E2E: schema 33 production_security_agent_attack_path verified");
+	console.log("combined E2E: schema 34 production_integration_setup verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -586,13 +587,16 @@ try {
   await waitForBrowserText(browser.cdp, /Paged integration 1001/);
   assert.equal(await browserCountAriaPrefix(browser.cdp, "Open "), 1004, "integration UI did not traverse exactly 1001 paged, two revocation, and one Task4 discovery fixture IDs");
   assert.equal(workflowPageRequests.integrations.length, 11, "integration UI pagination requested an extra or missing page");
-  for (const configure of ["Configure Amazon Web Services", "Configure Kubernetes"]) {
+  for (const [configure, steps] of [
+    ["Configure Amazon Web Services", ["Review access", "Configure", "Test connection", "Initial sync", "Review coverage"]],
+    ["Configure Kubernetes", ["Choose coverage", "Authorize cluster", "Enroll Runtime sensor", "Verify heartbeat", "Initial sync", "Review coverage"]],
+  ]) {
     const provider = configure.slice("Configure ".length);
     assert.equal(await browserHasInteractiveText(browser.cdp, new RegExp(`^${configure}$`)), true, `${provider} was absent from the live production catalog`);
     await clickBrowserText(browser.cdp, configure);
     await waitForBrowserText(browser.cdp, /Setup progress/);
     const setup = await browserBodyText(browser.cdp);
-    for (const step of ["Review access", "Configure", "Test connection", "Initial sync", "Review coverage"]) assert.match(setup, new RegExp(step));
+    for (const step of steps) assert.match(setup, new RegExp(step));
     assert.doesNotMatch(setup, /ref:(?:aws|kubernetes)\//);
     await clickBrowserText(browser.cdp, "Cancel");
     await waitForBrowserActive(browser.cdp, configure);
@@ -1323,8 +1327,8 @@ SELECT organization_id,workspace_id,environment_id,id,
  'kubernetes','kubernetes_cluster',CASE id WHEN '${task5KubernetesAIntegrationID}' THEN 'prod.example/cluster-a' WHEN '${task5KubernetesBIntegrationID}' THEN 'prod.example/cluster-a' WHEN '${task5KubernetesPartialIntegrationID}' THEN 'prod.example/cluster-partial' ELSE 'prod.example/cluster-failed' END,1,digest(convert_to(configuration::text,'UTF8'),'sha256'),'reference'
 FROM zasp_integrations WHERE id IN('${task5KubernetesAIntegrationID}','${task5KubernetesBIntegrationID}','${task5KubernetesPartialIntegrationID}','${task5KubernetesFailedIntegrationID}');
 INSERT INTO zasp_connector_credentials(organization_id,workspace_id,environment_id,id,integration_id,provider,credential_class,credential_reference,version,metadata) VALUES
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_75000021-0000-4000-8000-000000000021','${task5GitHubIntegrationID}','github','github_installation_reference','ref:github/installation/424242',1,'{"installation_id":"424242"}'::jsonb),
-('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_76000021-0000-4000-8000-000000000021','${task5OktaIntegrationID}','okta','okta_refresh_reference','ref:okta/refresh/e2e-tenant',1,'{"tenant":"e2e.okta.com"}'::jsonb);
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_75000021-0000-4000-8000-000000000021','${task5GitHubIntegrationID}','github','github_installation_reference','ref:github/installation/424242',1,'{"installation_id":"424242","account_type":"Organization","account_login":"zasp","repository_selection":"selected","permissions":{"actions":"read","contents":"read","metadata":"read"}}'::jsonb),
+('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_76000021-0000-4000-8000-000000000021','${task5OktaIntegrationID}','okta','okta_refresh_reference','ref:okta/refresh/e2e-tenant',1,'{"tenant":"e2e.okta.com","scopes":["offline_access","okta.apps.read","okta.groups.read","okta.users.read"]}'::jsonb);
 SELECT zasp_inventory_backfill_scope('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003');
 SELECT zasp_inventory_cutover_scope('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003');
 SELECT zasp_inventory_backfill_scope('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023');
@@ -1447,6 +1451,27 @@ async function exerciseTypedInventoryDiscoveryLifecycle(publicOrigin, dsn, postg
   }
 
 	const headers = { authorization };
+	await assertIntegrationSetupStatus(publicOrigin, headers, task4DiscoveryIntegrationID, {
+		connector_key: "aws",
+		authorization: { state: "verified", scope_kind: "aws_account", scope_label: "123456789012", repository_selection: null, permissions: [] },
+		runtime_coverage: { state: "not_applicable", reason: "not_applicable", sensor_count: 0, healthy_sensor_count: 0 },
+	});
+	await assertIntegrationSetupStatus(publicOrigin, headers, task5KubernetesAIntegrationID, {
+		connector_key: "kubernetes",
+		authorization: { state: "verified", scope_kind: "kubernetes_cluster", scope_label: "prod.example/cluster-a", repository_selection: null, permissions: [] },
+		runtime_coverage: { state: "not_enrolled", reason: "not_enrolled", sensor_count: 0, healthy_sensor_count: 0 },
+	});
+	await assertIntegrationSetupStatus(publicOrigin, headers, task5GitHubIntegrationID, {
+		connector_key: "github",
+		authorization: { state: "verified", scope_kind: "github_organization", scope_label: "zasp", repository_selection: "selected", permissions: ["actions:read", "contents:read", "metadata:read"] },
+		runtime_coverage: { state: "not_applicable", reason: "not_applicable", sensor_count: 0, healthy_sensor_count: 0 },
+	});
+	await assertIntegrationSetupStatus(publicOrigin, headers, task5OktaIntegrationID, {
+		connector_key: "okta",
+		authorization: { state: "verified", scope_kind: "okta_tenant", scope_label: "e2e.okta.com", repository_selection: null, permissions: ["offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"] },
+		runtime_coverage: { state: "not_applicable", reason: "not_applicable", sensor_count: 0, healthy_sensor_count: 0 },
+	});
+	console.log("combined E2E: multi-tenant AWS, Kubernetes, GitHub, and Okta setup scope remained exact and credential-redacted");
 	const typedState = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',
 		(SELECT count(*) FROM zasp_inventory_entities WHERE state='active' AND product_kind='agent'),
 		(SELECT count(*) FROM zasp_inventory_entities WHERE state='active'),
@@ -1504,6 +1529,18 @@ async function exerciseTypedInventoryDiscoveryLifecycle(publicOrigin, dsn, postg
   assert.equal(completed.length, 4);
   console.log("combined E2E: typed inventory public routes derive only from complete discovery snapshots");
   console.log("combined E2E: typed inventory database forensics proved exact current source/snapshot/evidence bindings");
+}
+
+async function assertIntegrationSetupStatus(publicOrigin, headers, integrationID, expected) {
+	const response = await requestHTTPSJSON(`${publicOrigin}/api/v1/integrations/${integrationID}/setup-status`, { method: "GET", headers });
+	assert.equal(response.status, 200, `integration setup status failed for ${integrationID}: ${JSON.stringify(response)}`);
+	assert.equal(response.headers["cache-control"], "no-store", "integration setup status was cacheable");
+	assert.equal(response.headers.etag, undefined, "integration setup status exposed an unstable ETag");
+	const { integration_id: returnedID, updated_at: updatedAt, ...body } = response.body;
+	assert.equal(returnedID, integrationID, "integration setup status changed integration identity");
+	assert.match(updatedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/, "integration setup status timestamp was not canonical UTC");
+	assert.deepEqual(body, expected, "integration setup status disagreed with exact provider authority");
+	assert.doesNotMatch(JSON.stringify(response.body), /credential_reference|installation_id|refresh_token|client_secret|ref:(?:aws|kubernetes|github|okta)\//i, "integration setup status leaked provider authority");
 }
 
 async function exerciseTypedInventoryRetention(publicOrigin, dsn, postgresPort, workerE2EBinary, authorization) {
@@ -3177,6 +3214,10 @@ async function assertTask6SensorBrowserState(cdp, publicOrigin, dsn) {
   await clickBrowserText(cdp, "Create enrollment");
   await waitForBrowserText(cdp, /Sensor enrollment created\. Copy the token before closing\./);
   await waitForBrowserText(cdp, /Copy this token now/);
+  const helmBoundary = await waitForBrowserText(cdp, /Helm deployment boundary/);
+  assert.equal(helmBoundary.includes("sensorAgent.enabled=true"), true);
+  assert.equal(helmBoundary.includes("sensorAgent.tokenSecretName=<pre-created-secret-name>"), true);
+  assert.doesNotMatch(helmBoundary, /--set sensorAgent\.token=/);
   let firstCredential = await waitForBrowserTextMatch(cdp, sensorCredentialPattern);
   assert.equal(firstCredential.length, 81, "sensor enrollment token did not use the exact v1 wire shape");
 

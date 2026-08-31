@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 143 || len(public) != 143 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 143/143", len(seen), len(public))
+	if len(seen) != 144 || len(public) != 144 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 144/144", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -113,7 +113,7 @@ func TestCoreCompositionHasExactProductionSecuritySurfaceWithoutUnimplementedOve
 			t.Errorf("discovery mutation %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)
 		}
 	}
-	for _, operationID := range []string{"listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "getIntegrationFreshness"} {
+	for _, operationID := range []string{"listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "getIntegrationFreshness", "getIntegrationSetupStatus"} {
 		definition, ok := definitions[operationID]
 		if !ok || definition.Permission != "view" || !equalStrings(definition.Security, []string{"BrowserExpectedScope", "BrowserSession", "ProductAPIToken"}) {
 			t.Errorf("discovery read %q security/permission = %v/%q exists=%v", operationID, definition.Security, definition.Permission, ok)

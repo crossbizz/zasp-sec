@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 func newTestDiscoveryPublicRepository(t *testing.T, database *discoveryCallDatabase) *DiscoveryRepository {
@@ -54,6 +56,52 @@ func TestDiscoveryPublicRepositoryStrictlyReadsSyncHistoryAndFreshness(t *testin
 	freshness, err := repository.GetIntegrationFreshness(context.Background(), identity.Scope, integrationID)
 	if err != nil || freshness.IntegrationID != integrationID || freshness.Version != 4 || freshness.LastGood == nil || freshness.Projections.Risk.State != "current" {
 		t.Fatalf("freshness=%#v err=%v", freshness, err)
+	}
+}
+
+func TestDiscoveryPublicRepositoryStrictlyReadsTenantBoundIntegrationSetupStatus(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_82000001-0000-4000-8000-000000000001"
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestDiscoveryPublicRepository(t, database)
+	database.responses[postgresExecutionPublicIntegrationSetupStatusSQL] = json.RawMessage(`{"integration_id":"` + integrationID + `","connector_key":"github","authorization":{"state":"verified","scope_kind":"github_organization","scope_label":"acme","repository_selection":"selected","permissions":["actions:read","contents:read","metadata:read"]},"runtime_coverage":{"state":"not_applicable","reason":"not_applicable","sensor_count":0,"healthy_sensor_count":0},"updated_at":"2026-08-31T19:00:00Z"}`)
+
+	status, err := repository.GetIntegrationSetupStatus(context.Background(), identity.Scope, integrationID)
+	if err != nil || status.IntegrationID != integrationID || status.ConnectorKey != "github" || status.Authorization.ScopeLabel == nil || *status.Authorization.ScopeLabel != "acme" || status.Authorization.RepositorySelection == nil || *status.Authorization.RepositorySelection != "selected" || len(status.Authorization.Permissions) != 3 || status.RuntimeCoverage.State != "not_applicable" || status.UpdatedAt.Location() != time.UTC {
+		t.Fatalf("status=%#v err=%v", status, err)
+	}
+	wantArgs := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID, migrations.ProductionIntegrationSetup().Checksum(), migrations.ProductionIntegrationSetupSemanticFingerprint()}
+	if database.query != postgresExecutionPublicIntegrationSetupStatusSQL || !reflect.DeepEqual(database.args, wantArgs) {
+		t.Fatalf("query/args=%q/%#v", database.query, database.args)
+	}
+	database.responses[postgresExecutionPublicIntegrationSetupStatusSQL] = json.RawMessage(`{"integration_id":"` + integrationID + `","connector_key":"kubernetes","authorization":{"state":"verified","scope_kind":"kubernetes_cluster","scope_label":"production-us-west","repository_selection":null,"permissions":[]},"runtime_coverage":{"state":"awaiting_heartbeat","reason":"missing_gateway","sensor_count":3,"healthy_sensor_count":1},"updated_at":"2026-08-31T19:00:00Z"}`)
+	status, err = repository.GetIntegrationSetupStatus(context.Background(), identity.Scope, integrationID)
+	if err != nil || status.Authorization.Permissions == nil || len(status.Authorization.Permissions) != 0 || status.RuntimeCoverage.SensorCount != 3 || status.RuntimeCoverage.HealthySensorCount != 1 {
+		t.Fatalf("partial Kubernetes coverage=%#v err=%v", status, err)
+	}
+}
+
+func TestDiscoveryPublicRepositoryRejectsHostileIntegrationSetupStatus(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_82000001-0000-4000-8000-000000000001"
+	foreignID := "pid_82000009-0000-4000-8000-000000000009"
+	database := &discoveryCallDatabase{responses: map[string]json.RawMessage{}}
+	repository := newTestDiscoveryPublicRepository(t, database)
+	base := `{"integration_id":"` + integrationID + `","connector_key":"kubernetes","authorization":{"state":"verified","scope_kind":"kubernetes_cluster","scope_label":"production-us-west","repository_selection":null,"permissions":[]},"runtime_coverage":{"state":"degraded","reason":"unsupported_kernel","sensor_count":2,"healthy_sensor_count":1},"updated_at":"2026-08-31T19:00:00Z"}`
+	for name, payload := range map[string]string{
+		"foreign integration":         strings.Replace(base, integrationID, foreignID, 1),
+		"unknown credential field":    strings.Replace(base, `"permissions":[]`, `"permissions":[],"credential_reference":"ref:kubernetes/secret"`, 1),
+		"github fields on kubernetes": strings.Replace(base, `"repository_selection":null`, `"repository_selection":"all"`, 1),
+		"healthy count exceeds total": strings.Replace(base, `"healthy_sensor_count":1`, `"healthy_sensor_count":3`, 1),
+		"invalid coverage pair":       strings.Replace(base, `"state":"degraded","reason":"unsupported_kernel"`, `"state":"healthy","reason":"unsupported_kernel"`, 1),
+		"unsorted permissions":        strings.Replace(strings.Replace(base, `"connector_key":"kubernetes"`, `"connector_key":"github"`, 1), `"scope_kind":"kubernetes_cluster","scope_label":"production-us-west","repository_selection":null,"permissions":[]`, `"scope_kind":"github_organization","scope_label":"acme","repository_selection":"all","permissions":["metadata:read","actions:read"]`, 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			database.responses[postgresExecutionPublicIntegrationSetupStatusSQL] = json.RawMessage(payload)
+			if _, err := repository.GetIntegrationSetupStatus(context.Background(), identity.Scope, integrationID); !errors.Is(err, ErrRepositoryUnavailable) {
+				t.Fatalf("error=%v payload=%s", err, payload)
+			}
+		})
 	}
 }
 

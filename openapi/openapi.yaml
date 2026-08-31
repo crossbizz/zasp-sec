@@ -1267,6 +1267,24 @@ paths:
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/setup-status:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getIntegrationSetupStatus
+      summary: Get authoritative provider scope and runtime setup coverage
+      description: Returns only tenant-scoped, redacted setup state. Credential references, provider tokens, installation identifiers, and internal worker authority are never returned.
+      responses:
+        '200':
+          description: Authorized integration setup status.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationSetupStatus' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations/{id}/authorize:
     parameters:
       - name: id
@@ -4545,6 +4563,39 @@ components:
         last_good: { oneOf: [{ $ref: '#/components/schemas/IntegrationLastGoodSnapshot' }, { type: 'null' }] }
         latest_sync: { oneOf: [{ $ref: '#/components/schemas/IntegrationSync' }, { type: 'null' }] }
         projections: { $ref: '#/components/schemas/IntegrationProjectionStatuses' }
+        updated_at: { type: string, format: date-time }
+    IntegrationSetupAuthorization:
+      type: object
+      additionalProperties: false
+      required: [state, scope_kind, scope_label, repository_selection, permissions]
+      properties:
+        state: { type: string, enum: [pending, verified, degraded] }
+        scope_kind: { type: string, enum: [none, aws_account, kubernetes_cluster, github_organization, okta_tenant] }
+        scope_label: { oneOf: [{ type: string, minLength: 1, maxLength: 128 }, { type: 'null' }] }
+        repository_selection: { oneOf: [{ type: string, enum: [all, selected] }, { type: 'null' }] }
+        permissions:
+          type: array
+          maxItems: 8
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 64, pattern: '^(?!\s)(?!.*\s$)[a-z0-9._:-]+$' }
+    IntegrationRuntimeCoverage:
+      type: object
+      additionalProperties: false
+      required: [state, reason, sensor_count, healthy_sensor_count]
+      properties:
+        state: { type: string, enum: [not_applicable, not_enrolled, awaiting_heartbeat, healthy, degraded] }
+        reason: { type: string, enum: [not_applicable, not_enrolled, missing_gateway, unsupported_kernel, degraded, verified] }
+        sensor_count: { type: integer, minimum: 0, maximum: 1000000 }
+        healthy_sensor_count: { type: integer, minimum: 0, maximum: 1000000 }
+    IntegrationSetupStatus:
+      type: object
+      additionalProperties: false
+      required: [integration_id, connector_key, authorization, runtime_coverage, updated_at]
+      properties:
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        connector_key: { type: string, enum: [aws, kubernetes, github, okta] }
+        authorization: { $ref: '#/components/schemas/IntegrationSetupAuthorization' }
+        runtime_coverage: { $ref: '#/components/schemas/IntegrationRuntimeCoverage' }
         updated_at: { type: string, format: date-time }
     SensorMode:
       type: string

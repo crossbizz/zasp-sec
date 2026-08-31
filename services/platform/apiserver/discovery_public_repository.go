@@ -8,16 +8,18 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 const (
-	postgresExecutionPublicSyncDetailSQL     = `SELECT zasp_execution_sync_detail($1,$2,$3,$4,$5)`
-	postgresExecutionPublicSyncHistorySQL    = `SELECT zasp_execution_sync_history($1,$2,$3,$4,$5,$6,$7)`
-	postgresExecutionPublicScheduleDetailSQL = `SELECT zasp_execution_schedule_detail($1,$2,$3,$4)`
-	postgresExecutionPublicFreshnessSQL      = `SELECT zasp_execution_last_good_freshness($1,$2,$3,$4)`
-	postgresExecutionPublicRequestSyncSQL    = `SELECT zasp_execution_public_request_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
-	postgresExecutionPublicPutScheduleSQL    = `SELECT zasp_execution_public_put_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
-	postgresExecutionPublicDeleteScheduleSQL = `SELECT zasp_execution_public_delete_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresExecutionPublicSyncDetailSQL             = `SELECT zasp_execution_sync_detail($1,$2,$3,$4,$5)`
+	postgresExecutionPublicSyncHistorySQL            = `SELECT zasp_execution_sync_history($1,$2,$3,$4,$5,$6,$7)`
+	postgresExecutionPublicScheduleDetailSQL         = `SELECT zasp_execution_schedule_detail($1,$2,$3,$4)`
+	postgresExecutionPublicFreshnessSQL              = `SELECT zasp_execution_last_good_freshness($1,$2,$3,$4)`
+	postgresExecutionPublicIntegrationSetupStatusSQL = `SELECT zasp_execution_integration_setup_status($1,$2,$3,$4,$5,$6)`
+	postgresExecutionPublicRequestSyncSQL            = `SELECT zasp_execution_public_request_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
+	postgresExecutionPublicPutScheduleSQL            = `SELECT zasp_execution_public_put_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+	postgresExecutionPublicDeleteScheduleSQL         = `SELECT zasp_execution_public_delete_schedule($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 )
 
 var publicIntegrationSyncFields = []string{"id", "integration_id", "trigger_kind", "status", "attempt", "requested_at", "started_at", "completed_at", "discovered_count", "changed_count", "removed_count", "snapshot_id", "last_error_code", "retry_at"}
@@ -154,6 +156,29 @@ type IntegrationFreshness struct {
 	LatestSync    *IntegrationSync              `json:"latest_sync"`
 	Projections   IntegrationProjectionStatuses `json:"projections"`
 	UpdatedAt     time.Time                     `json:"updated_at"`
+}
+
+type IntegrationSetupAuthorization struct {
+	State               string   `json:"state"`
+	ScopeKind           string   `json:"scope_kind"`
+	ScopeLabel          *string  `json:"scope_label"`
+	RepositorySelection *string  `json:"repository_selection"`
+	Permissions         []string `json:"permissions"`
+}
+
+type IntegrationRuntimeCoverage struct {
+	State              string `json:"state"`
+	Reason             string `json:"reason"`
+	SensorCount        int    `json:"sensor_count"`
+	HealthySensorCount int    `json:"healthy_sensor_count"`
+}
+
+type IntegrationSetupStatus struct {
+	IntegrationID   string                        `json:"integration_id"`
+	ConnectorKey    string                        `json:"connector_key"`
+	Authorization   IntegrationSetupAuthorization `json:"authorization"`
+	RuntimeCoverage IntegrationRuntimeCoverage    `json:"runtime_coverage"`
+	UpdatedAt       time.Time                     `json:"updated_at"`
 }
 
 func (repository *DiscoveryRepository) RequestIntegrationSync(ctx context.Context, identity RequestIdentity, input PublicSyncRequest) (IntegrationSyncMutationResult, error) {
@@ -332,6 +357,24 @@ func (repository *DiscoveryRepository) GetIntegrationFreshness(ctx context.Conte
 	return result, nil
 }
 
+func (repository *DiscoveryRepository) GetIntegrationSetupStatus(ctx context.Context, scope domain.Scope, integrationID string) (IntegrationSetupStatus, error) {
+	if !validDiscoveryPublicRepository(repository, ctx) || scope.Validate() != nil || !validProductID(integrationID) {
+		return IntegrationSetupStatus{}, ErrRepositoryOperation
+	}
+	metadata := migrations.ProductionIntegrationSetup()
+	payload, err := repository.database.QueryJSON(ctx, postgresExecutionPublicIntegrationSetupStatusSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID, metadata.Checksum(), migrations.ProductionIntegrationSetupSemanticFingerprint())
+	if err != nil {
+		return IntegrationSetupStatus{}, discoveryProviderError(err)
+	}
+	var result IntegrationSetupStatus
+	if !exactJSONFields(payload, "authorization", "connector_key", "integration_id", "runtime_coverage", "updated_at") || !exactJSONFields(extractJSONField(payload, "authorization"), "permissions", "repository_selection", "scope_kind", "scope_label", "state") || !exactJSONFields(extractJSONField(payload, "runtime_coverage"), "healthy_sensor_count", "reason", "sensor_count", "state") || decodeStrictDiscovery(payload, &result) != nil || !validPublicIntegrationSetupStatus(result, integrationID) {
+		return IntegrationSetupStatus{}, ErrRepositoryUnavailable
+	}
+	result.Authorization.Permissions = append([]string{}, result.Authorization.Permissions...)
+	result.UpdatedAt = result.UpdatedAt.UTC()
+	return result, nil
+}
+
 func validDiscoveryPublicRepository(repository *DiscoveryRepository, ctx context.Context) bool {
 	return repository != nil && isDiscoveryExecutionSchema(repository.schema) && !nilInterface(repository.database) && ctx != nil && ctx.Err() == nil
 }
@@ -350,6 +393,59 @@ func validPublicScheduleDelete(value PublicScheduleDelete) bool {
 
 func validPublicIdempotency(value string) bool {
 	return len(value) >= 16 && len(value) <= 128 && workflowKeyPattern.MatchString(value)
+}
+
+func validPublicIntegrationSetupStatus(value IntegrationSetupStatus, integrationID string) bool {
+	if value.IntegrationID != integrationID || !stringIn(value.ConnectorKey, "aws", "kubernetes", "github", "okta") || !validPublicTime(value.UpdatedAt) || value.Authorization.Permissions == nil || value.RuntimeCoverage.SensorCount < 0 || value.RuntimeCoverage.SensorCount > 1000000 || value.RuntimeCoverage.HealthySensorCount < 0 || value.RuntimeCoverage.HealthySensorCount > value.RuntimeCoverage.SensorCount {
+		return false
+	}
+	if !validPublicSetupAuthorization(value.ConnectorKey, value.Authorization) {
+		return false
+	}
+	if value.ConnectorKey != "kubernetes" {
+		return value.RuntimeCoverage.State == "not_applicable" && value.RuntimeCoverage.Reason == "not_applicable" && value.RuntimeCoverage.SensorCount == 0 && value.RuntimeCoverage.HealthySensorCount == 0
+	}
+	switch value.RuntimeCoverage.State {
+	case "not_enrolled":
+		return value.RuntimeCoverage.Reason == "not_enrolled" && value.RuntimeCoverage.SensorCount == 0 && value.RuntimeCoverage.HealthySensorCount == 0
+	case "awaiting_heartbeat":
+		return value.RuntimeCoverage.Reason == "missing_gateway" && value.RuntimeCoverage.SensorCount > 0 && value.RuntimeCoverage.HealthySensorCount < value.RuntimeCoverage.SensorCount
+	case "healthy":
+		return value.RuntimeCoverage.Reason == "verified" && value.RuntimeCoverage.SensorCount > 0 && value.RuntimeCoverage.HealthySensorCount == value.RuntimeCoverage.SensorCount
+	case "degraded":
+		return stringIn(value.RuntimeCoverage.Reason, "unsupported_kernel", "degraded") && value.RuntimeCoverage.SensorCount > 0 && value.RuntimeCoverage.HealthySensorCount < value.RuntimeCoverage.SensorCount
+	default:
+		return false
+	}
+}
+
+func validPublicSetupAuthorization(connectorKey string, value IntegrationSetupAuthorization) bool {
+	if !stringIn(value.State, "pending", "verified", "degraded") {
+		return false
+	}
+	if value.State != "verified" {
+		return value.ScopeKind == "none" && value.ScopeLabel == nil && value.RepositorySelection == nil && len(value.Permissions) == 0
+	}
+	if value.ScopeLabel == nil || !printableInventoryString(*value.ScopeLabel, 1, 128, false) {
+		return false
+	}
+	for index, permission := range value.Permissions {
+		if !printableInventoryString(permission, 1, 64, false) || index > 0 && value.Permissions[index-1] >= permission {
+			return false
+		}
+	}
+	switch connectorKey {
+	case "aws":
+		return value.ScopeKind == "aws_account" && value.RepositorySelection == nil && len(value.Permissions) == 0
+	case "kubernetes":
+		return value.ScopeKind == "kubernetes_cluster" && value.RepositorySelection == nil && len(value.Permissions) == 0
+	case "github":
+		return value.ScopeKind == "github_organization" && value.RepositorySelection != nil && stringIn(*value.RepositorySelection, "all", "selected") && reflectStringSlices(value.Permissions, []string{"actions:read", "contents:read", "metadata:read"})
+	case "okta":
+		return value.ScopeKind == "okta_tenant" && value.RepositorySelection == nil && reflectStringSlices(value.Permissions, []string{"offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"})
+	default:
+		return false
+	}
 }
 
 func validPublicMutationIdentity(identity RequestIdentity, auditID, correlationID, receiptID string) bool {

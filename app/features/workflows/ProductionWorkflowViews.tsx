@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { APITransportError } from "../../../apps/web/api/client";
-import type { ConnectorManifest, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationInput, IntegrationSchedule, IntegrationScheduleInput, IntegrationSync, IntegrationUpdateInput, Policy, PolicyRollout, PolicySimulation, RuntimeDecision } from "../../../apps/web/api/generated";
+import type { ConnectorManifest, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationInput, IntegrationSchedule, IntegrationScheduleInput, IntegrationSetupStatus, IntegrationSync, IntegrationUpdateInput, Policy, PolicyRollout, PolicySimulation, RuntimeDecision } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { useOptionalSession, useSession } from "../../auth/SessionProvider";
@@ -110,7 +110,7 @@ export function ProductionPoliciesView({ canWrite }: { canWrite: boolean }) {
   </div>;
 }
 
-export function ProductionIntegrationsView({ canWrite, navigateAuthorization = defaultNavigateAuthorization }: { canWrite: boolean; navigateAuthorization?: (target: string) => void }) {
+export function ProductionIntegrationsView({ canWrite, navigateAuthorization = defaultNavigateAuthorization, navigate = defaultNavigateProduct }: { canWrite: boolean; navigateAuthorization?: (target: string) => void; navigate?: (target: string) => void }) {
   const { client, invalidate } = useAPI();
   const session = useOptionalSession();
   const fresh = session !== null && session.status === "authenticated" && session.isFreshAuthenticated;
@@ -125,6 +125,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [busy, setBusy] = useState(false);
   const [freshness, setFreshness] = useState<DiscoveryLoad<Versioned<IntegrationFreshness>>>({ status: "idle" });
+  const [setupStatus, setSetupStatus] = useState<DiscoveryLoad<IntegrationSetupStatus>>({ status: "idle" });
   const [schedule, setSchedule] = useState<DiscoveryLoad<Versioned<IntegrationSchedule> | null>>({ status: "idle" });
   const [syncs, setSyncs] = useState<DiscoveryLoad<readonly IntegrationSync[]>>({ status: "idle" });
   const [syncDetail, setSyncDetail] = useState<DiscoveryLoad<Versioned<IntegrationSync>>>({ status: "idle" });
@@ -173,6 +174,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
     invalidate(["workflow:integrations"]);
     if (result.kind === "deleted") { discoveryGeneration.current += 1; setSelected(null); setFeedback({ tone: "status", message: `Integration deleted. Audit ${result.receipt.auditID}` }); return; }
     setSelected(result.receipt); setName(result.receipt.value.name); setConfiguration({ ...result.receipt.value.configuration });
+    if (result.kind === "authorized") loadDiscovery(result.receipt.value.id);
     setManifest(null); setFeedback({ tone: "status", message: `Integration ${result.kind}. Audit ${result.receipt.auditID}` });
   };
   const runMutation = (operation: () => Promise<IntegrationMutationResult>) => void run(async () => { applyMutation(await operation()); });
@@ -181,8 +183,9 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   const loadDiscovery = (id: string) => {
     const generation = discoveryGeneration.current + 1;
     discoveryGeneration.current = generation;
-    setFreshness({ status: "loading" }); setSchedule({ status: "loading" }); setSyncs({ status: "loading" }); setSyncDetail({ status: "idle" });
+    setFreshness({ status: "loading" }); setSetupStatus({ status: "loading" }); setSchedule({ status: "loading" }); setSyncs({ status: "loading" }); setSyncDetail({ status: "idle" });
     void api.getIntegrationFreshness(id).then((value) => { if (discoveryGeneration.current === generation) setFreshness({ status: "success", value }); }, () => { if (discoveryGeneration.current === generation) setFreshness({ status: "error" }); });
+    void api.getIntegrationSetupStatus(id).then((value) => { if (discoveryGeneration.current === generation) setSetupStatus({ status: "success", value }); }, () => { if (discoveryGeneration.current === generation) setSetupStatus({ status: "error" }); });
     void api.getIntegrationSchedule(id).then((value) => { if (discoveryGeneration.current === generation) { setSchedule({ status: "success", value }); if (value) setScheduleCadence(String(value.value.cadence_seconds)); } }, () => { if (discoveryGeneration.current === generation) setSchedule({ status: "error" }); });
     void api.listIntegrationSyncs(id).then((value) => { if (discoveryGeneration.current === generation) setSyncs({ status: "success", value }); }, () => { if (discoveryGeneration.current === generation) setSyncs({ status: "error" }); });
   };
@@ -300,7 +303,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   };
   const retryReferenceConflictRefetch = () => pendingReferenceConflict && void run(() => reconcileReferenceConflict(pendingReferenceConflict.integrationID));
   const retryDiscoveryConflictRefetch = () => pendingDiscoveryConflict && void run(() => reconcileDiscoveryConflict(pendingDiscoveryConflict));
-  const closeSelected = () => { discoveryGeneration.current += 1; setSelected(null); setFreshness({ status: "idle" }); setSchedule({ status: "idle" }); setSyncs({ status: "idle" }); setSyncDetail({ status: "idle" }); };
+  const closeSelected = () => { discoveryGeneration.current += 1; setSelected(null); setFreshness({ status: "idle" }); setSetupStatus({ status: "idle" }); setSchedule({ status: "idle" }); setSyncs({ status: "idle" }); setSyncDetail({ status: "idle" }); };
   const visibleSelected = selected ?? pendingRevocation?.receipt ?? null;
   const visibleConfiguration = selected ? configuration : pendingRevocation?.receipt.value.configuration ?? configuration;
   const revocationPending = visibleSelected?.value.status === "revoking" && mutation.isUnresolved && pendingRevocation !== null;
@@ -618,7 +621,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                   ? "Authorization continues on the provider site. Provider credentials are never returned to this browser."
                   : "Provider authorization controls are unavailable for this connector."}
             </p>
-            {selectedManifest && <IntegrationSetupGuide manifest={selectedManifest} integration={visibleSelected.value} freshness={freshness} />}
+            {selectedManifest && <IntegrationSetupGuide manifest={selectedManifest} integration={visibleSelected.value} freshness={freshness} setupStatus={setupStatus} onNavigate={navigate} />}
             {selected && (
               <IntegrationDiscoveryPanel
                 freshness={freshness}
@@ -692,36 +695,66 @@ function isReferenceConnector(value: string): value is "aws" | "kubernetes" {
   return value === "aws" || value === "kubernetes";
 }
 
-function IntegrationSetupGuide({ manifest, integration, freshness }: {
+function IntegrationSetupGuide({ manifest, integration, freshness, setupStatus, onNavigate }: {
   manifest: ConnectorManifest;
   integration?: Integration;
   freshness?: DiscoveryLoad<Versioned<IntegrationFreshness>>;
+  setupStatus?: DiscoveryLoad<IntegrationSetupStatus>;
+  onNavigate?(target: string): void;
 }) {
-  const steps = manifest.key === "generic-webhook"
-    ? ["Configure destination", "Test signed delivery", "Signature status", "Review coverage"]
-    : ["Review access", "Configure", "Test connection", "Initial sync", "Review coverage"];
+  const steps = integrationSetupSteps(manifest.key);
   const freshnessValue = freshness?.status === "success" ? freshness.value?.value : undefined;
-  const activeStep = integration === undefined
-    ? 1
-    : integration.status !== "active"
-      ? 2
-      : freshnessValue?.last_good == null
-        ? 3
-        : Object.values(freshnessValue.projections).some((projection) => projection.state !== "current")
-          ? 4
-          : steps.length;
+  const setupValue = setupStatus?.status === "success" ? setupStatus.value : undefined;
+  const completedSteps = integrationSetupCompletedSteps(manifest.key, integration, setupValue, freshnessValue, steps.length);
   const remediation = integration?.status === "degraded"
     ? integrationSetupRemediation(manifest.key, freshnessValue?.latest_sync?.last_error_code)
     : null;
   return <section aria-label={`${manifest.provider} setup`} className="form-stack">
     <h3>Setup progress</h3>
     <ol className="setup-progress">
-      {steps.map((step, index) => <li key={step}><strong>{step}</strong>{" "}<span>{index < activeStep ? "Complete" : index === activeStep ? "Current" : "Pending"}</span></li>)}
+      {steps.map((step, index) => <li key={step}><strong>{step}</strong>{" "}<span>{index < completedSteps ? "Complete" : index === completedSteps ? "Current" : "Pending"}</span></li>)}
     </ol>
     <p><strong>Connection test</strong> {manifest.test_semantics}</p>
     <p><strong>Collected data</strong>{" "}{manifest.data_types.map(titleCase).join(", ")}</p>
+    {setupStatus?.status === "loading" && <p>Loading authoritative provider scope…</p>}
+    {setupStatus?.status === "error" && <p role="alert">Authoritative provider scope is unavailable. Setup remains incomplete.</p>}
+    {setupValue && <IntegrationSetupAuthority status={setupValue} onNavigate={onNavigate} />}
     {remediation && <p role="alert">{remediation}</p>}
   </section>;
+}
+
+function integrationSetupSteps(connectorKey: string): readonly string[] {
+  if (connectorKey === "kubernetes") return ["Choose coverage", "Authorize cluster", "Enroll Runtime sensor", "Verify heartbeat", "Initial sync", "Review coverage"];
+  if (connectorKey === "github") return ["Review access", "Authorize GitHub organization", "Validate organization and repository scope", "Initial sync", "Review coverage"];
+  if (connectorKey === "okta") return ["Review directory access", "Authorize Okta", "Test directory connection", "Initial sync", "Review coverage"];
+  if (connectorKey === "generic-webhook") return ["Configure destination", "Test signed delivery", "Signature status", "Review coverage"];
+  return ["Review access", "Configure", "Test connection", "Initial sync", "Review coverage"];
+}
+
+function integrationSetupCompletedSteps(connectorKey: string, integration: Integration | undefined, status: IntegrationSetupStatus | undefined, freshness: IntegrationFreshness | undefined, total: number): number {
+  if (integration === undefined) return 0;
+  const authorized = integration.status === "active" && status?.authorization.state === "verified";
+  if (connectorKey === "kubernetes") {
+    if (!authorized) return 1;
+    if (status?.runtime_coverage.state === "not_enrolled") return 2;
+    if (status?.runtime_coverage.state !== "healthy") return 3;
+    if (freshness?.last_good == null) return 4;
+    return Object.values(freshness.projections).every((projection) => projection.state === "current") ? total : 5;
+  }
+  const authorityComplete = connectorKey === "github" || connectorKey === "okta" ? 3 : integration.status === "active" ? 3 : 2;
+  if (!authorized && (connectorKey === "github" || connectorKey === "okta")) return 1;
+  if (freshness?.last_good == null) return authorityComplete;
+  return Object.values(freshness.projections).every((projection) => projection.state === "current") ? total : total - 1;
+}
+
+function IntegrationSetupAuthority({ status, onNavigate }: { status: IntegrationSetupStatus; onNavigate?(target: string): void }) {
+  const authorization = status.authorization;
+  const coverage = status.runtime_coverage;
+  if (authorization.state !== "verified") return <p role="alert">Provider authorization is {authorization.state}. No provider scope is trusted until verification succeeds.</p>;
+  if (status.connector_key === "github") return <div aria-label="GitHub provider scope"><p><strong>Organization scope</strong> {authorization.scope_label}</p><p><strong>Repository scope</strong> {authorization.repository_selection === "all" ? "All repositories" : "Selected repositories"}</p><p><strong>Read-only permissions</strong> {authorization.permissions.join(", ")}</p></div>;
+  if (status.connector_key === "okta") return <div aria-label="Okta provider scope"><p><strong>Okta tenant</strong> {authorization.scope_label}</p><p><strong>Directory scopes</strong> {authorization.permissions.join(", ")}</p><p>This secures your Okta directory integration; it is separate from Zasp sign-in.</p></div>;
+  if (status.connector_key === "kubernetes") return <div aria-label="Kubernetes runtime coverage"><p><strong>Cluster scope</strong> {authorization.scope_label}</p><p><strong>Environment Runtime sensors</strong> {coverage.healthy_sensor_count} of {coverage.sensor_count} healthy</p>{coverage.state === "not_enrolled" && <p role="alert">Runtime coverage is not enrolled. Inventory sync does not include Runtime sensor telemetry.</p>}{coverage.reason === "missing_gateway" && <p role="alert">A Runtime sensor heartbeat is missing. Coverage remains incomplete.</p>}{coverage.reason === "unsupported_kernel" && <p role="alert">The cluster kernel does not provide required BTF support. Coverage remains incomplete.</p>}{coverage.state !== "healthy" && onNavigate && <Button onClick={() => onNavigate("/integrations/sensors")}>Enroll or repair Runtime sensors</Button>}</div>;
+  return <p><strong>AWS account scope</strong> {authorization.scope_label}</p>;
 }
 
 function integrationSetupRemediation(connectorKey: string, errorCode: string | null | undefined): string {
@@ -757,4 +790,9 @@ function isOAuthAuthorizationCandidate(value: Integration, manifest: ConnectorMa
 
 function defaultNavigateAuthorization(target: string): void {
   window.location.assign(target);
+}
+
+function defaultNavigateProduct(target: string): void {
+  window.history.pushState({}, "", target);
+  window.dispatchEvent(new PopStateEvent("popstate"));
 }
