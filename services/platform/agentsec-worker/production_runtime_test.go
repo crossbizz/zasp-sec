@@ -772,7 +772,7 @@ func (readyWorkerDatabase) QueryJSON(_ context.Context, statement string, _ ...a
 	if strings.Contains(statement, "jsonb_build_object('ready'") {
 		return json.RawMessage(`{"ready":true}`), nil
 	}
-	if strings.Contains(statement, "zasp_security_agent_temporary_policy_readiness") || strings.Contains(statement, "zasp_security_agent_autonomous_readiness") || strings.Contains(statement, "zasp_security_agent_readiness") || strings.Contains(statement, "zasp_policy_deployment_execution_readiness") || strings.Contains(statement, "zasp_production_security_agent_planner_readiness") {
+	if strings.Contains(statement, "zasp_security_agent_temporary_policy_readiness") || strings.Contains(statement, "zasp_security_agent_autonomous_readiness") || strings.Contains(statement, "zasp_security_agent_readiness") || strings.Contains(statement, "zasp_policy_deployment_execution_readiness") || strings.Contains(statement, "zasp_production_security_agent_planner_readiness") || strings.Contains(statement, "zasp_production_security_agent_attack_path_readiness") {
 		return json.RawMessage(`{"release":true,"principal":true}`), nil
 	}
 	if strings.Contains(statement, "zasp_runtime_ingest_reconciliation_readiness") || strings.Contains(statement, "zasp_runtime_gateway_reconciliation_readiness") {

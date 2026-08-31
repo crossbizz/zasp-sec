@@ -165,8 +165,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, and production planner releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, and attack-path trigger releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -181,6 +181,7 @@ try {
 	console.log("combined E2E: schema 30 production_approval_notification verified");
 	console.log("combined E2E: schema 31 production_workflow_compatibility verified");
 	console.log("combined E2E: schema 32 production_security_agent_planner verified");
+	console.log("combined E2E: schema 33 production_security_agent_attack_path verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -1711,6 +1712,8 @@ async function exerciseSecurityAgentAutomaticLifecycle(cdp, workerE2EBinary, gat
 	const primaryFinding = "pid_30000102-0000-4000-8000-000000000102";
 	const temporaryFinding = "pid_30000101-0000-4000-8000-000000000101";
 	const temporaryDefinition = "pid_78000010-0000-4000-8000-000000000010";
+	const attackPathDefinition = "pid_78000011-0000-4000-8000-000000000011";
+	const verifiedAttackPath = "pid_40000001-0000-4000-8000-000000000001";
 	const connectorFinding = "pid_30000103-0000-4000-8000-000000000103";
 	const connectorEvidence = "pid_77000001-0000-4000-8000-000000000001";
 	const connectorDefinition = "pid_78000020-0000-4000-8000-000000000020";
@@ -1753,6 +1756,9 @@ jsonb_build_object('id','${foreignDefinition}','name','Foreign autonomous respon
 INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${temporaryDefinition}','supervised',1,1,
 jsonb_build_object('id','${temporaryDefinition}','name','Temporary containment response','trigger_kind','finding','trigger_source','temporary_policy','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',900,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('create_temporary_policy'),'verification_kind','policy_state','definition_version',1,'enabled',true),'security-agent-actions-v1');
+INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
+VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${attackPathDefinition}','supervised',1,1,
+jsonb_build_object('id','${attackPathDefinition}','name','Verified attack path containment','trigger_kind','attack_path','trigger_source','verified','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',900,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('create_temporary_policy'),'verification_kind','policy_state','definition_version',1,'enabled',true),'security-agent-actions-v1');
 INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${sessionDefinition}','supervised',1,1,
 jsonb_build_object('id','${sessionDefinition}','name','Compromised runtime session','trigger_kind','runtime_decision','trigger_source','gateway','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',900,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('isolate_session'),'verification_kind','gateway_decision','definition_version',1,'enabled',true),'security-agent-actions-v1');
@@ -1836,6 +1842,16 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 		await delay(50);
 	}
 	assert.match(approvalID, /^pid_[0-9a-f-]{36}$/, `worker did not prepare supervised authority and execute autonomous authority: state=${automaticState}; output=${worker.output()}`);
+	let attackPathState = "";
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		attackPathState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',count(*),min(run.state),min(receipt.trigger_kind),min(receipt.trigger_id),min(receipt.trigger_version),count(approval.approval_id),bool_and(plan.plan->'evidence_ids'=jsonb_build_array('${verifiedAttackPath}') AND plan.plan->'steps'->0->>'action'='create_temporary_policy' AND plan.plan->'steps'->0->>'target_id'='${primaryEnvironment}')) FROM zasp_security_agent_runs run JOIN zasp_security_agent_trigger_receipts receipt USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_plans plan USING(organization_id,workspace_id,environment_id,run_id) LEFT JOIN zasp_security_agent_approvals approval USING(organization_id,workspace_id,environment_id,run_id) WHERE (run.organization_id,run.workspace_id,run.environment_id,run.definition_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${attackPathDefinition}');`])).stdout.trim();
+		if (attackPathState === `1|waiting_approval|attack_path|${verifiedAttackPath}|1|1|t`) break;
+		await delay(50);
+	}
+	assert.equal(attackPathState, `1|waiting_approval|attack_path|${verifiedAttackPath}|1|1|t`, "verified attack path did not create one exact version-bound supervised plan");
+	await delay(250);
+	const attackPathReplay = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',(SELECT count(*) FROM zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,definition_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${attackPathDefinition}')),(SELECT count(*) FROM zasp_security_agent_trigger_receipts WHERE (organization_id,workspace_id,environment_id,definition_id,trigger_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${attackPathDefinition}','${verifiedAttackPath}')));`])).stdout.trim();
+	assert.equal(attackPathReplay, "1|1", "attack-path scheduler duplicated a durable run or receipt");
 	await exerciseHomeDailyOperations(cdp, publicOrigin, dsn, approvalID, dailyOpsRun, dailyOpsSensor);
 
 	await navigateBrowser(cdp, `${publicOrigin}/protect/approvals`);

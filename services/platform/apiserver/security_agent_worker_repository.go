@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	postgresSecurityAgentWorkerReadyV33SQL     = `SELECT jsonb_build_object('release',zasp_production_security_agent_attack_path_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
 	postgresSecurityAgentWorkerReadyV32SQL     = `SELECT jsonb_build_object('release',zasp_production_security_agent_planner_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
 	postgresSecurityAgentWorkerReadyV28SQL     = `SELECT jsonb_build_object('release',zasp_policy_deployment_execution_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
 	postgresSecurityAgentWorkerReadyV27SQL     = `SELECT jsonb_build_object('release',zasp_recovery_execution_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
@@ -20,6 +21,7 @@ const (
 	postgresSecurityAgentScheduleTriggersSQL   = `SELECT zasp_security_agent_schedule_triggers_v22($1,$2)`
 	postgresSecurityAgentScheduleV23SQL        = `SELECT zasp_security_agent_schedule_triggers_v23($1,$2)`
 	postgresSecurityAgentScheduleV24SQL        = `SELECT zasp_security_agent_schedule_triggers_v24($1,$2)`
+	postgresSecurityAgentScheduleV33SQL        = `SELECT zasp_security_agent_schedule_triggers_v33($1,$2)`
 	postgresSecurityAgentScheduleV21SQL        = `SELECT zasp_security_agent_schedule_triggers_v21($1,$2)`
 	postgresSecurityAgentExpireApprovalsV28SQL = `SELECT zasp_security_agent_expire_approvals_v28($1,$2)`
 	postgresSecurityAgentClaimRunsSQL          = `SELECT zasp_security_agent_claim_runs_v22($1,$2,$3,$4)`
@@ -30,6 +32,7 @@ const (
 	postgresSecurityAgentPrepareRunSQL         = `SELECT zasp_security_agent_prepare_run_v22($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	postgresSecurityAgentPrepareRunV23SQL      = `SELECT zasp_security_agent_prepare_run_v23($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	postgresSecurityAgentPrepareRunV24SQL      = `SELECT zasp_security_agent_prepare_run_v24($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	postgresSecurityAgentPrepareRunV33SQL      = `SELECT zasp_security_agent_prepare_run_v33($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	postgresSecurityAgentPrepareRunV21SQL      = `SELECT zasp_security_agent_prepare_run_v21($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	postgresSecurityAgentExecuteRunSQL         = `SELECT zasp_security_agent_execute_run_v22($1,$2,$3,$4,$5,$6,$7,$8)`
 	postgresSecurityAgentExecuteRunV23SQL      = `SELECT zasp_security_agent_execute_run_v23($1,$2,$3,$4,$5,$6,$7,$8)`
@@ -38,6 +41,9 @@ const (
 	postgresSecurityAgentPlannerContextSQL     = `SELECT zasp_security_agent_planner_context($1,$2,$3,$4,$5,$6)`
 	postgresSecurityAgentAcceptPlannerSQL      = `SELECT zasp_security_agent_accept_planner_candidate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
 	postgresSecurityAgentFailPlannerSQL        = `SELECT zasp_security_agent_fail_planner($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
+	postgresSecurityAgentPlannerContextV33SQL  = `SELECT zasp_security_agent_planner_context_v33($1,$2,$3,$4,$5,$6)`
+	postgresSecurityAgentAcceptPlannerV33SQL   = `SELECT zasp_security_agent_accept_planner_candidate_v33($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
+	postgresSecurityAgentFailPlannerV33SQL     = `SELECT zasp_security_agent_fail_planner_v33($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 )
 
 type SecurityAgentRunClaim struct {
@@ -186,6 +192,7 @@ func NewSecurityAgentWorkerRepository(database JSONDatabase) (*SecurityAgentWork
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	configurations := []SecurityAgentWorkerRepository{
+		{database: database, readySQL: postgresSecurityAgentWorkerReadyV33SQL, checksum: migrations.ProductionSecurityAgentAttackPath().Checksum(), fingerprint: migrations.ProductionSecurityAgentAttackPathSemanticFingerprint(), expireSQL: postgresSecurityAgentExpireApprovalsV28SQL, scheduleSQL: postgresSecurityAgentScheduleV33SQL, claimSQL: postgresSecurityAgentClaimRunsV24SQL, prepareSQL: postgresSecurityAgentPrepareRunV33SQL, executeSQL: postgresSecurityAgentExecuteRunV24SQL, plannerContextSQL: postgresSecurityAgentPlannerContextV33SQL, acceptPlannerSQL: postgresSecurityAgentAcceptPlannerV33SQL, failPlannerSQL: postgresSecurityAgentFailPlannerV33SQL},
 		{database: database, readySQL: postgresSecurityAgentWorkerReadyV32SQL, checksum: migrations.ProductionSecurityAgentPlanner().Checksum(), fingerprint: migrations.ProductionSecurityAgentPlannerSemanticFingerprint(), expireSQL: postgresSecurityAgentExpireApprovalsV28SQL, scheduleSQL: postgresSecurityAgentScheduleV24SQL, claimSQL: postgresSecurityAgentClaimRunsV24SQL, prepareSQL: postgresSecurityAgentPrepareRunV24SQL, executeSQL: postgresSecurityAgentExecuteRunV24SQL, plannerContextSQL: postgresSecurityAgentPlannerContextSQL, acceptPlannerSQL: postgresSecurityAgentAcceptPlannerSQL, failPlannerSQL: postgresSecurityAgentFailPlannerSQL},
 		{database: database, readySQL: postgresSecurityAgentWorkerReadyV28SQL, checksum: migrations.ProductionPolicyDeployment().Checksum(), fingerprint: migrations.ProductionPolicyDeploymentSemanticFingerprint(), expireSQL: postgresSecurityAgentExpireApprovalsV28SQL, scheduleSQL: postgresSecurityAgentScheduleV24SQL, claimSQL: postgresSecurityAgentClaimRunsV24SQL, prepareSQL: postgresSecurityAgentPrepareRunV24SQL, executeSQL: postgresSecurityAgentExecuteRunV24SQL},
 		{database: database, readySQL: postgresSecurityAgentWorkerReadyV27SQL, checksum: migrations.ProductionRecovery().Checksum(), fingerprint: migrations.ProductionRecoverySemanticFingerprint(), scheduleSQL: postgresSecurityAgentScheduleV24SQL, claimSQL: postgresSecurityAgentClaimRunsV24SQL, prepareSQL: postgresSecurityAgentPrepareRunV24SQL, executeSQL: postgresSecurityAgentExecuteRunV24SQL},
@@ -247,7 +254,7 @@ func (repository *SecurityAgentWorkerRepository) LoadSecurityAgentPlannerContext
 	}
 	action := contextValue.AllowedActions[0]
 	target := contextValue.AllowedTargets[0]
-	validActionContext := action == "update_finding_response" && contextValue.Evidence[0].Kind == "finding" && target == claim.TriggerID || action == "create_temporary_policy" && contextValue.Evidence[0].Kind == "finding" && target == claim.EnvironmentID || action == "revoke_integration_connection" && contextValue.Evidence[0].Kind == "finding" || action == "isolate_session" && contextValue.Evidence[0].Kind == "runtime_decision" && target == claim.TriggerID
+	validActionContext := action == "update_finding_response" && contextValue.Evidence[0].Kind == "finding" && target == claim.TriggerID || action == "create_temporary_policy" && (contextValue.Evidence[0].Kind == "finding" || contextValue.Evidence[0].Kind == "attack_path") && target == claim.EnvironmentID || action == "revoke_integration_connection" && contextValue.Evidence[0].Kind == "finding" || action == "isolate_session" && contextValue.Evidence[0].Kind == "runtime_decision" && target == claim.TriggerID
 	if !validActionContext {
 		return SecurityAgentPlannerContext{}, ErrRepositoryUnavailable
 	}

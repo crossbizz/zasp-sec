@@ -43,7 +43,7 @@ API, worker, Red Team worker/adapter, event-ingest, gateway-control, and custome
 runtime-gateway and sensor-agent boundaries. Separate TLS ingress routes the public product and authenticated
 runtime control/data-plane paths while health, readiness, and metrics remain
 private on 8081. Secrets are resolved through secret-manager CSI references,
-schema v31 is a blocking release Job, and the hosted chart renders 32 isolated
+schema v33 is a blocking release Job, and the hosted chart renders 32 isolated
 deployments with default-deny network policy, disruption/spread/drain controls,
 read-only canaries, security headers, SLO alerts, and exact cloud identities.
 The customer-edge profile contains the database-free runtime gateway plus a
@@ -396,11 +396,12 @@ guarded response actions, destination-secret HMAC signing for redacted response
 handoffs, five versioned templates, scoped finding/attack-path/runtime
 matchers, and cooldown deduplication. Provider-backed execution is not claimed.
 
-M7A-38a through M7A-59 are Complete. Canonical trigger sources feed a
-replay-safe dispatcher, the structured planner separates policy and untrusted
-evidence, and deterministic authorization, budgets, queue handling, approval
-resume, execution classification, verification, outcome, and cancellation
-boundaries run locally. Provider-backed execution is not claimed.
+M7A-38a through M7A-59 are Complete. Canonical finding, runtime-decision, and
+version-bound attack-path sources feed the production replay-safe dispatcher.
+The structured planner separates policy and untrusted evidence, and exact
+authorization, budgets, queue handling, supervised approval, execution
+classification, verification, outcome, and cancellation boundaries run through
+the shipped worker. Live external action-provider execution is not claimed.
 
 M7A-60 through M7A-84 are Complete. A redacted audit helper and
 15 generated product operations now expose scoped Security Agent templates,
