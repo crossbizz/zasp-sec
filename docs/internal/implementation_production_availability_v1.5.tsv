@@ -512,13 +512,13 @@ M7A	M7A-32	Complete	production-available	PROD-current-composition	audited shippe
 M7A	M7A-33	Complete	production-available	PROD-current-composition	audited shipped composition: Repeated Policy Violation template
 M7A	M7A-34	Complete	production-available	PROD-current-composition	audited shipped composition: Shadow Agent Triage template
 M7A	M7A-35	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent worker: tenant-scoped finding trigger matcher
-M7A	M7A-36	Complete	component-only	T07-security-agent-authority	audited component-only proof: Trigger matcher: attack path
+M7A	M7A-36	Complete	production-available	T07-security-agent-authority	production-composed v33 tenant-scoped matcher requires exact observed or verified canonical attack-path state
 M7A	M7A-37	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent worker: bounded runtime-decision session matcher
 M7A	M7A-38	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent worker: tenant-scoped trigger fingerprint replay suppression
-M7A	M7A-38a	Complete	component-only	T07-security-agent-authority	audited component-only proof: Security trigger event contract
-M7A	M7A-38b	Complete	component-only	T07-security-agent-authority	audited component-only proof: automatic Security Agent trigger dispatcher
-M7A	M7A-38c	Complete	component-only	T07-security-agent-authority	audited component-only proof: trigger source wiring
-M7A	M7A-38d	Complete	component-only	T07-security-agent-authority	audited component-only proof: automatic trigger E2E
+M7A	M7A-38a	Complete	production-available	T07-security-agent-authority	production-composed v33 scoped attack-path receipt binds exact ID version digest and one durable run
+M7A	M7A-38b	Complete	production-available	T07-security-agent-authority	production-composed v33 tenant-scoped definition-fair scheduler creates at most one eligible path run per definition under kill-switch and concurrency fences
+M7A	M7A-38c	Complete	production-available	T07-security-agent-authority	production-composed v33 scheduler reads canonical path authority and planner revalidates exact path version and state before approval
+M7A	M7A-38d	Complete	production-available	T07-security-agent-authority	production combined E2E migrates v33 and proves one verified path creates one exact version-bound supervised plan with replay suppression
 M7A	M7A-39	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent worker: canonical scoped evidence snapshot and digest
 M7A	M7A-40	Complete	production-available	T07-security-agent-authority	production-composed v32 planner keeps the fixed system authority separate from one bounded tenant-context user message and labels evidence untrusted
 M7A	M7A-41	Complete	production-available	T07-security-agent-authority	production-composed one-call OpenRouter planner pins the security-response purpose, model, schema, token budget, timeout, and no-retry transport

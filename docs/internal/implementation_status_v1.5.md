@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 505 |
-| Component-only | 162 |
+| Production-available | 510 |
+| Component-only | 157 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -152,8 +152,9 @@ production composition, not merely a component proof or external evidence.
   containment cleanup, and connector revocation. The v30 API lifecycle also
   drains one tenant-scoped approval notification at a time through the pinned,
   HMAC-signed Generic Webhook authority with durable deduplication and no raw
-  evidence or secret material. Automatic attack-path triggers and the AI planner
-  boundary remain component-only.
+  evidence or secret material. Release v33 adds tenant-scoped definition-fair automatic attack-path
+  matching, version-bound trigger receipts, planner revalidation, supervised
+  approval, and exact replay suppression through the shipped worker.
 - The supervised-action registry is production-filtered. Its shipped v21-v24
   adapters cover finding response, signed temporary containment with expiry,
   exact-session isolation, and supported connector revocation. Run-test, Attack
@@ -182,9 +183,9 @@ production composition, not merely a component proof or external evidence.
 | M5 | 42 | 20 | 22 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
-| M7A | 113 | 93 | 20 | 0 | 0 |
+| M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **505** | **162** | **61** | **0** |
+| **Total** | **728** | **510** | **157** | **61** | **0** |
 
 ## Prerequisite work
 
