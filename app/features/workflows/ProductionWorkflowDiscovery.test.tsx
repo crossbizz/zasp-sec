@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { APIClient } from "../../../apps/web/api/client";
-import type { Integration, IntegrationFreshness } from "../../../apps/web/api/generated";
+import type { Integration, IntegrationFreshness, IntegrationSetupStatus } from "../../../apps/web/api/generated";
 import { APIProvider } from "../../api/APIProvider";
 import { ProductionIntegrationsView } from "./ProductionWorkflowViews";
 
@@ -16,6 +16,7 @@ const sync = { id: syncID, integration_id: integrationID, trigger_kind: "manual"
 const queued = { ...sync, status: "queued", attempt: 0, started_at: null, completed_at: null, discovered_count: 0, changed_count: 0, removed_count: 0, snapshot_id: null };
 const schedule = { integration_id: integrationID, cadence_seconds: 3600, state: "enabled", time_zone: "UTC", next_run_at: "2026-08-19T01:00:00Z", version: 1, created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:00:01Z" };
 const freshness = { integration_id: integrationID, version: 7, last_good: { snapshot_id: snapshotID, collected_at: "2026-08-19T00:00:02Z", discovered_count: 10, changed_count: 3, removed_count: 1 }, latest_sync: sync, projections: { risk: { state: "current", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: null }, graph: { state: "pending", snapshot_id: snapshotID, completed_at: null, last_error_code: null }, search: { state: "degraded", snapshot_id: snapshotID, completed_at: "2026-08-19T00:00:03Z", last_error_code: "terminal" } }, updated_at: "2026-08-19T00:00:04Z" };
+const setupStatus: IntegrationSetupStatus = { integration_id: integrationID, connector_key: "github", authorization: { state: "verified", scope_kind: "github_organization", scope_label: "acme", repository_selection: "selected", permissions: ["actions:read", "contents:read", "metadata:read"] }, runtime_coverage: { state: "not_applicable", reason: "not_applicable", sensor_count: 0, healthy_sensor_count: 0 }, updated_at: "2026-08-19T00:00:04Z" };
 const receiptHeaders = { ETag: '"1"', "Cache-Control": "no-store", "X-Audit-ID": "pid_30000001-0000-4000-8000-000000000001", "X-Mutation-Receipt-ID": "pid_30000002-0000-4000-8000-000000000002" };
 
 describe("production integration discovery workflows", () => {
@@ -33,6 +34,44 @@ describe("production integration discovery workflows", () => {
     expect(dialog).not.toHaveTextContent(syncID);
     expect(dialog).not.toHaveTextContent(snapshotID);
     expect(dialog).not.toHaveTextContent("retryable");
+  });
+
+  it("renders provider-specific authoritative scope and keeps incomplete Kubernetes runtime coverage actionable", async () => {
+    const user = userEvent.setup();
+    const githubView = renderSurface(discoveryClient());
+    await user.click(await screen.findByRole("button", { name: "Open GitHub" }));
+    const githubDialog = screen.getByRole("dialog", { name: "GitHub" });
+    expect(await within(githubDialog).findByText("acme")).toBeVisible();
+    expect(within(githubDialog).getByText("Selected repositories")).toBeVisible();
+    expect(within(githubDialog).getByText("actions:read, contents:read, metadata:read")).toBeVisible();
+    expect(within(githubDialog).getByText("Validate organization and repository scope").closest("li")).toHaveTextContent("Complete");
+    githubView.unmount();
+
+    const kubernetes: Integration = { ...integration, connector_key: "kubernetes", name: "Production cluster", configuration: { connection_reference: "ref:kubernetes/connection/production-0001" } };
+    const kubernetesManifest = { ...manifest, key: "kubernetes", provider: "Kubernetes", auth_mode: "kubernetes_service_account", setup_schema: [{ key: "connection_reference", label: "Connection reference", type: "reference", required: true, description: "Opaque connection reference" }] };
+    const kubernetesStatus: IntegrationSetupStatus = { ...setupStatus, connector_key: "kubernetes", authorization: { state: "verified", scope_kind: "kubernetes_cluster", scope_label: "production-us-west", repository_selection: null, permissions: [] }, runtime_coverage: { state: "awaiting_heartbeat", reason: "missing_gateway", sensor_count: 3, healthy_sensor_count: 1 } };
+    const navigate = vi.fn();
+    const kubernetesView = renderSurface(discoveryClient({ catalog: kubernetesManifest, integration: kubernetes, setupStatus: kubernetesStatus }), true, navigate);
+    await user.click(await screen.findByRole("button", { name: "Open Production cluster" }));
+    const kubernetesDialog = screen.getByRole("dialog", { name: "Production cluster" });
+    expect(await within(kubernetesDialog).findByText("production-us-west")).toBeVisible();
+    expect(within(kubernetesDialog).getByText("Environment Runtime sensors")).toBeVisible();
+    expect(within(kubernetesDialog).getByText("1 of 3 healthy")).toBeVisible();
+    expect(within(kubernetesDialog).getByRole("alert", { name: "" })).toHaveTextContent("heartbeat is missing");
+    expect(within(kubernetesDialog).getByText("Verify heartbeat").closest("li")).toHaveTextContent("Current");
+    await user.click(within(kubernetesDialog).getByRole("button", { name: "Enroll or repair Runtime sensors" }));
+    expect(navigate).toHaveBeenCalledWith("/integrations/sensors");
+    expect(kubernetesDialog).not.toHaveTextContent("ref:kubernetes/connection/production-0001");
+    kubernetesView.unmount();
+
+    const okta: Integration = { ...integration, connector_key: "okta", name: "Corporate Okta", configuration: { authorization_mode: "oauth_pkce" } };
+    const oktaManifest = { ...manifest, key: "okta", provider: "Okta", auth_mode: "okta_oauth_pkce" };
+    const oktaStatus: IntegrationSetupStatus = { ...setupStatus, connector_key: "okta", authorization: { state: "verified", scope_kind: "okta_tenant", scope_label: "acme.okta.com", repository_selection: null, permissions: ["offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"] } };
+    renderSurface(discoveryClient({ catalog: oktaManifest, integration: okta, setupStatus: oktaStatus }));
+    await user.click(await screen.findByRole("button", { name: "Open Corporate Okta" }));
+    const oktaDialog = screen.getByRole("dialog", { name: "Corporate Okta" });
+    expect(await within(oktaDialog).findByText("acme.okta.com")).toBeVisible();
+    expect(within(oktaDialog).getByText("This secures your Okta directory integration; it is separate from Zasp sign-in.")).toBeVisible();
   });
 
   it("gates manual sync on active first-party inventory authority and write permission", async () => {
@@ -123,11 +162,11 @@ describe("production integration discovery workflows", () => {
   });
 });
 
-function renderSurface(client: APIClient, canWrite = true) {
-  return render(<APIProvider client={client}><ProductionIntegrationsView canWrite={canWrite} /></APIProvider>);
+function renderSurface(client: APIClient, canWrite = true, navigate?: (target: string) => void) {
+  return render(<APIProvider client={client}><ProductionIntegrationsView canWrite={canWrite} navigate={navigate} /></APIProvider>);
 }
 
-function discoveryClient(overrides: { catalog?: typeof manifest; integration?: Integration; freshness?: IntegrationFreshness; POST?: ReturnType<typeof vi.fn>; PUT?: ReturnType<typeof vi.fn>; DELETE?: ReturnType<typeof vi.fn>; details?: Integration[] } = {}): APIClient {
+function discoveryClient(overrides: { catalog?: typeof manifest; integration?: Integration; freshness?: IntegrationFreshness; setupStatus?: IntegrationSetupStatus; POST?: ReturnType<typeof vi.fn>; PUT?: ReturnType<typeof vi.fn>; DELETE?: ReturnType<typeof vi.fn>; details?: Integration[] } = {}): APIClient {
   let detail = 0;
   const currentIntegration = overrides.integration ?? integration;
   const GET = vi.fn(async (path: string) => {
@@ -135,6 +174,7 @@ function discoveryClient(overrides: { catalog?: typeof manifest; integration?: I
     if (path === "/api/v1/integrations") return jsonResult({ items: [currentIntegration], page_info: { next_cursor: null, has_more: false } });
     if (path === "/api/v1/integrations/{id}") return jsonResult(overrides.details?.[Math.min(detail++, overrides.details.length - 1)] ?? currentIntegration, 200, { ETag: detail > 1 ? '"6"' : '"5"' });
     if (path === "/api/v1/integrations/{id}/freshness") return jsonResult(overrides.freshness ?? freshness, 200, { ETag: '"7"', "Cache-Control": "no-store" });
+    if (path === "/api/v1/integrations/{id}/setup-status") return jsonResult(overrides.setupStatus ?? setupStatus, 200, { "Cache-Control": "no-store" });
     if (path === "/api/v1/integrations/{id}/schedule") return jsonResult(schedule, 200, { ETag: '"1"', "Cache-Control": "no-store" });
     if (path === "/api/v1/integrations/{id}/syncs") return jsonResult({ items: [sync], page_info: { next_cursor: null, has_more: false } }, 200, { "Cache-Control": "no-store" });
     if (path === "/api/v1/integrations/{id}/syncs/{syncId}") return jsonResult(sync, 200, { ETag: '"1"', "Cache-Control": "no-store" });

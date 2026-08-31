@@ -944,6 +944,28 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/integrations/{id}/setup-status": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /**
+         * Get authoritative provider scope and runtime setup coverage
+         * @description Returns only tenant-scoped, redacted setup state. Credential references, provider tokens, installation identifiers, and internal worker authority are never returned.
+         */
+        readonly get: operations["getIntegrationSetupStatus"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/integrations/{id}/sync": {
         readonly parameters: {
             readonly query?: never;
@@ -2764,6 +2786,14 @@ export type components = {
             readonly risk: components["schemas"]["IntegrationProjectionStatus"];
             readonly search: components["schemas"]["IntegrationProjectionStatus"];
         };
+        readonly IntegrationRuntimeCoverage: {
+            readonly healthy_sensor_count: number;
+            /** @enum {string} */
+            readonly reason: "not_applicable" | "not_enrolled" | "missing_gateway" | "unsupported_kernel" | "degraded" | "verified";
+            readonly sensor_count: number;
+            /** @enum {string} */
+            readonly state: "not_applicable" | "not_enrolled" | "awaiting_heartbeat" | "healthy" | "degraded";
+        };
         readonly IntegrationSchedule: {
             readonly cadence_seconds: number;
             /** Format: date-time */
@@ -2784,6 +2814,24 @@ export type components = {
         };
         /** @enum {string} */
         readonly IntegrationScheduleState: "enabled" | "disabled" | "deleted";
+        readonly IntegrationSetupAuthorization: {
+            readonly permissions: readonly string[];
+            readonly repository_selection: ("all" | "selected") | null;
+            /** @enum {string} */
+            readonly scope_kind: "none" | "aws_account" | "kubernetes_cluster" | "github_organization" | "okta_tenant";
+            readonly scope_label: string | null;
+            /** @enum {string} */
+            readonly state: "pending" | "verified" | "degraded";
+        };
+        readonly IntegrationSetupStatus: {
+            readonly authorization: components["schemas"]["IntegrationSetupAuthorization"];
+            /** @enum {string} */
+            readonly connector_key: "aws" | "kubernetes" | "github" | "okta";
+            readonly integration_id: components["schemas"]["ProductID"];
+            readonly runtime_coverage: components["schemas"]["IntegrationRuntimeCoverage"];
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
         /** @enum {string} */
         readonly IntegrationStatus: "configured" | "pending_authorization" | "active" | "degraded" | "revoking";
         readonly IntegrationSync: {
@@ -3927,9 +3975,12 @@ export type IntegrationOAuthProviderError = components['schemas']['IntegrationOA
 export type IntegrationPage = components['schemas']['IntegrationPage'];
 export type IntegrationProjectionStatus = components['schemas']['IntegrationProjectionStatus'];
 export type IntegrationProjectionStatuses = components['schemas']['IntegrationProjectionStatuses'];
+export type IntegrationRuntimeCoverage = components['schemas']['IntegrationRuntimeCoverage'];
 export type IntegrationSchedule = components['schemas']['IntegrationSchedule'];
 export type IntegrationScheduleInput = components['schemas']['IntegrationScheduleInput'];
 export type IntegrationScheduleState = components['schemas']['IntegrationScheduleState'];
+export type IntegrationSetupAuthorization = components['schemas']['IntegrationSetupAuthorization'];
+export type IntegrationSetupStatus = components['schemas']['IntegrationSetupStatus'];
 export type IntegrationStatus = components['schemas']['IntegrationStatus'];
 export type IntegrationSync = components['schemas']['IntegrationSync'];
 export type IntegrationSyncPage = components['schemas']['IntegrationSyncPage'];
@@ -6057,6 +6108,35 @@ export interface operations {
             readonly 403: components["responses"]["ProductErrorResponse"];
             readonly 404: components["responses"]["ProductErrorResponse"];
             readonly 409: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getIntegrationSetupStatus: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Authorized integration setup status. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationSetupStatus"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };

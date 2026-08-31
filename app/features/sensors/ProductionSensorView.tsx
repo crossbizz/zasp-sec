@@ -91,7 +91,7 @@ export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }:
 }
 
 function OneTimeCredential({ value }: { value: SensorEnrollment }) {
-  return <div className="credential-once"><strong>Copy this token now</strong><p>This credential is shown once. Zasp cannot recover it after this dialog closes.</p><code>{value.token}</code><p>Expires {value.token_expires_at}</p></div>;
+  return <div className="credential-once"><strong>Copy this token now</strong><p>This credential is shown once. Zasp cannot recover it after this dialog closes.</p><code>{value.token}</code><p>Expires {value.token_expires_at}</p><strong>Helm deployment boundary</strong><p>Create the Kubernetes Secret out of band, then render the customer-edge chart with these values. Never place the token in Helm arguments or release history.</p><code>sensorAgent.enabled=true</code><code>sensorAgent.tokenSecretName=&lt;pre-created-secret-name&gt;</code></div>;
 }
 
 function sensorWithoutToken(value: SensorEnrollment): Sensor {

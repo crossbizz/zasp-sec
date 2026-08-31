@@ -24,7 +24,7 @@ func (surface *discoveryWorkflowSurface) ServeHTTP(writer http.ResponseWriter, r
 		return
 	}
 	switch routed.OperationID {
-	case "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness":
+	case "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "getIntegrationSetupStatus":
 		surface.discovery.ServeHTTP(writer, request)
 	default:
 		surface.workflow.ServeHTTP(writer, request)

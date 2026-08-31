@@ -128,6 +128,8 @@ type releaseMigrationRunner interface {
 	DownProductionSecurityAgentPlanner(context.Context) error
 	UpProductionSecurityAgentAttackPath(context.Context) error
 	DownProductionSecurityAgentAttackPath(context.Context) error
+	UpProductionIntegrationSetup(context.Context) error
+	DownProductionIntegrationSetup(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -463,10 +465,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 33
 		}
-		if version != 33 {
+		if version == 33 {
+			if err := runner.UpProductionIntegrationSetup(ctx); err != nil {
+				return err
+			}
+			version = 34
+		}
+		if version != 34 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 34 {
+			if err := runner.DownProductionIntegrationSetup(ctx); err != nil {
+				return err
+			}
+			version = 33
+		}
 		if version == 33 {
 			if err := runner.DownProductionSecurityAgentAttackPath(ctx); err != nil {
 				return err

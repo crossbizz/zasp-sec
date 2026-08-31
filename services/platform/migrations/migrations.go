@@ -78,6 +78,8 @@ const (
 	productionSecurityAgentPlannerName       = "production_security_agent_planner"
 	productionSecurityAgentAttackPathVersion = int64(33)
 	productionSecurityAgentAttackPathName    = "production_security_agent_attack_path"
+	productionIntegrationSetupVersion        = int64(34)
+	productionIntegrationSetupName           = "production_integration_setup"
 	rollbackTimeout                          = 5 * time.Second
 
 	tableExistsSQL                                     = "SELECT to_regclass('public.zasp_schema_versions') IS NOT NULL"
@@ -105,6 +107,7 @@ const (
 	lockApprovalNotificationSQL                        = `LOCK TABLE "public"."zasp_security_agent_approval_notifications" IN ACCESS EXCLUSIVE MODE`
 	lockSecurityAgentPlannerSQL                        = `LOCK TABLE "public"."zasp_security_agent_definitions", "public"."zasp_security_agent_trigger_receipts", "public"."zasp_security_agent_runs", "public"."zasp_security_agent_plans", "public"."zasp_security_agent_steps", "public"."zasp_security_agent_approvals", "public"."zasp_security_agent_audit" IN ACCESS EXCLUSIVE MODE`
 	lockSecurityAgentAttackPathSQL                     = `LOCK TABLE "public"."zasp_security_agent_definitions", "public"."zasp_security_agent_trigger_receipts", "public"."zasp_security_agent_runs", "public"."zasp_security_agent_plans", "public"."zasp_security_agent_steps", "public"."zasp_security_agent_approvals", "public"."zasp_security_agent_audit", "public"."zasp_risk_attack_paths", "public"."zasp_risk_attack_path_nodes", "public"."zasp_risk_attack_path_evidence" IN ACCESS EXCLUSIVE MODE`
+	lockIntegrationSetupSQL                            = `LOCK TABLE "public"."zasp_integrations", "public"."zasp_integration_connections", "public"."zasp_connector_credentials", "public"."zasp_discovery_connection_subjects", "public"."zasp_sensors", "public"."zasp_sensor_heartbeats" IN ACCESS EXCLUSIVE MODE`
 	lockIdentityAdministrationSQL                      = `LOCK TABLE "public"."zasp_identity_administration_state", "public"."zasp_identity_provider_connections", "public"."zasp_identity_provider_mutations", "public"."zasp_identity_secret_reveal_grants", "public"."zasp_identity_webhook_events", "public"."zasp_identity_member_groups" IN ACCESS EXCLUSIVE MODE`
 	lockSecurityAgentControlsSQL                       = `LOCK TABLE "public"."zasp_security_agent_request_receipts", "public"."zasp_security_agent_kill_switches" IN ACCESS EXCLUSIVE MODE`
 	insertRowSQL                                       = `INSERT INTO "public"."zasp_schema_versions" ("version", "name", "checksum") VALUES ($1, $2, $3)`
@@ -131,6 +134,7 @@ const (
 	productionWorkflowCompatibilityReadinessSQL        = `SELECT zasp_production_workflow_compatibility_readiness($1,$2)`
 	productionSecurityAgentPlannerReadinessSQL         = `SELECT zasp_production_security_agent_planner_readiness($1,$2)`
 	productionSecurityAgentAttackPathReadinessSQL      = `SELECT zasp_production_security_agent_attack_path_readiness($1,$2)`
+	productionIntegrationSetupReadinessSQL             = `SELECT zasp_production_integration_setup_readiness($1,$2)`
 	typedInventoryRollbackAllowedSQL                   = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_inventory_cutover_state" WHERE "phase" = 'cutover')`
 	runtimeDataPlaneRollbackAllowedSQL                 = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_data_plane_state" WHERE "used_at" IS NOT NULL)`
 	runtimeGatewayReconciliationRollbackAllowedSQL     = `SELECT NOT EXISTS (SELECT 1 FROM "public"."zasp_runtime_gateway_reconciliation_state" WHERE "used_at" IS NOT NULL)`
@@ -357,6 +361,12 @@ var productionSecurityAgentAttackPathUpSQL string
 
 //go:embed sql/0033_production_security_agent_attack_path.down.sql
 var productionSecurityAgentAttackPathDownSQL string
+
+//go:embed sql/0034_production_integration_setup.up.sql
+var productionIntegrationSetupUpSQL string
+
+//go:embed sql/0034_production_integration_setup.down.sql
+var productionIntegrationSetupDownSQL string
 
 type Metadata struct {
 	version  int64
@@ -609,6 +619,13 @@ func ProductionSecurityAgentAttackPath() Metadata {
 	return Metadata{version: productionSecurityAgentAttackPathVersion, name: productionSecurityAgentAttackPathName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
 }
 
+func ProductionIntegrationSetup() Metadata {
+	up := strings.TrimSpace(productionIntegrationSetupUpSQL)
+	down := strings.TrimSpace(productionIntegrationSetupDownSQL)
+	digest := sha256.Sum256([]byte(up + "\x00" + down))
+	return Metadata{version: productionIntegrationSetupVersion, name: productionIntegrationSetupName, checksum: hex.EncodeToString(digest[:]), up: up, down: down}
+}
+
 func ProductionWorkflowsSemanticFingerprint() string {
 	const marker = "'production_workflows_fingerprint', '"
 	start := strings.Index(workflowUpSQL, marker)
@@ -747,6 +764,10 @@ func ProductionSecurityAgentAttackPathSemanticFingerprint() string {
 	return semanticFingerprint(productionSecurityAgentAttackPathUpSQL, "production_security_agent_attack_path_fingerprint")
 }
 
+func ProductionIntegrationSetupSemanticFingerprint() string {
+	return semanticFingerprint(productionIntegrationSetupUpSQL, "production_integration_setup_fingerprint")
+}
+
 func semanticFingerprint(source, key string) string {
 	marker := "'" + key + "', '"
 	start := strings.Index(source, marker)
@@ -848,7 +869,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 33 {
+	if count < 1 || count > 34 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -917,6 +938,8 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution(), ProductionRecovery(), ProductionPolicyDeployment(), ProductionHomeAttention(), ProductionApprovalNotification(), ProductionWorkflowCompatibility(), ProductionSecurityAgentPlanner())
 	} else if count == 33 {
 		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution(), ProductionRecovery(), ProductionPolicyDeployment(), ProductionHomeAttention(), ProductionApprovalNotification(), ProductionWorkflowCompatibility(), ProductionSecurityAgentPlanner(), ProductionSecurityAgentAttackPath())
+	} else if count == 34 {
+		metadata = append(metadata, ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution(), ProductionRecovery(), ProductionPolicyDeployment(), ProductionHomeAttention(), ProductionApprovalNotification(), ProductionWorkflowCompatibility(), ProductionSecurityAgentPlanner(), ProductionSecurityAgentAttackPath(), ProductionIntegrationSetup())
 	}
 	for _, expected := range metadata {
 		var version int64
@@ -2972,6 +2995,68 @@ func (runner *Runner) DownProductionSecurityAgentAttackPath(ctx context.Context)
 	})
 }
 
+func (runner *Runner) UpProductionIntegrationSetup(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockIntegrationSetupSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionSecurityAgentAttackPathState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionSecurityAgentAttackPath()
+		if err := requireMigrationReadiness(ctx, transaction, productionSecurityAgentAttackPathReadinessSQL, prior.Checksum(), ProductionSecurityAgentAttackPathSemanticFingerprint()); err != nil {
+			return err
+		}
+		metadata := ProductionIntegrationSetup()
+		if err := transaction.Exec(ctx, metadata.UpSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, insertRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionIntegrationSetupState(ctx, transaction); err != nil {
+			return err
+		}
+		return requireMigrationReadiness(ctx, transaction, productionIntegrationSetupReadinessSQL, metadata.Checksum(), ProductionIntegrationSetupSemanticFingerprint())
+	})
+}
+
+func (runner *Runner) DownProductionIntegrationSetup(ctx context.Context) error {
+	if runner == nil || nilInterface(runner.database) {
+		return ErrInvalidRunner
+	}
+	return runner.withTransaction(ctx, func(ctx context.Context, transaction Transaction) error {
+		for _, statement := range []string{lockIntegrationSetupSQL, lockTableSQL} {
+			if err := transaction.Exec(ctx, statement); err != nil {
+				return fixedDatabaseError(ctx, err)
+			}
+		}
+		if err := readProductionIntegrationSetupState(ctx, transaction); err != nil {
+			return err
+		}
+		metadata := ProductionIntegrationSetup()
+		if err := requireMigrationReadiness(ctx, transaction, productionIntegrationSetupReadinessSQL, metadata.Checksum(), ProductionIntegrationSetupSemanticFingerprint()); err != nil {
+			return err
+		}
+		if err := transaction.Exec(ctx, deleteRowSQL, metadata.Version(), metadata.Name(), metadata.Checksum()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := transaction.Exec(ctx, metadata.DownSQL()); err != nil {
+			return fixedDatabaseError(ctx, err)
+		}
+		if err := readProductionSecurityAgentAttackPathState(ctx, transaction); err != nil {
+			return err
+		}
+		prior := ProductionSecurityAgentAttackPath()
+		return requireMigrationReadiness(ctx, transaction, productionSecurityAgentAttackPathReadinessSQL, prior.Checksum(), ProductionSecurityAgentAttackPathSemanticFingerprint())
+	})
+}
+
 func (runner *Runner) Down(ctx context.Context) error {
 	if runner == nil || nilInterface(runner.database) {
 		return ErrInvalidRunner
@@ -3227,6 +3312,10 @@ func readProductionSecurityAgentPlannerState(ctx context.Context, queryer Querye
 
 func readProductionSecurityAgentAttackPathState(ctx context.Context, queryer Queryer) error {
 	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution(), ProductionRecovery(), ProductionPolicyDeployment(), ProductionHomeAttention(), ProductionApprovalNotification(), ProductionWorkflowCompatibility(), ProductionSecurityAgentPlanner(), ProductionSecurityAgentAttackPath()})
+}
+
+func readProductionIntegrationSetupState(ctx context.Context, queryer Queryer) error {
+	return readExactReleaseState(ctx, queryer, []Metadata{Baseline(), ProductionCore(), ProductionWorkflows(), WorkflowReceipts(), WorkflowReceiptSafety(), WorkflowReceiptProvenance(), ProductionAdministration(), APITokenRevealGrants(), ProductionRiskProjection(), ProductionDiscovery(), ConnectorAuthorization(), ReferenceAuthorization(), ProductionDiscoveryExecution(), ProductionTypedInventoryCutover(), ProductionRuntimeDataPlane(), ProductionRuntimeGatewayReconciliation(), ProductionRuntimeIngestReconciliation(), ProductionSecurityAgentExecution(), ProductionIdentityAdministration(), ProductionSecurityAgentControls(), ProductionSecurityAgentAutonomousResponse(), ProductionSecurityAgentTemporaryPolicy(), ProductionSecurityAgentConnectorRevocation(), ProductionSecurityAgentSessionIsolation(), ProductionRedTeamExecution(), ProductionAttackLabExecution(), ProductionRecovery(), ProductionPolicyDeployment(), ProductionHomeAttention(), ProductionApprovalNotification(), ProductionWorkflowCompatibility(), ProductionSecurityAgentPlanner(), ProductionSecurityAgentAttackPath(), ProductionIntegrationSetup()})
 }
 
 func readExactReleaseState(ctx context.Context, queryer Queryer, expected []Metadata) error {

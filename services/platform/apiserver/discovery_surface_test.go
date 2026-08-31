@@ -21,7 +21,7 @@ func TestDiscoveryWorkflowSurfaceDispatchesOnlyDiscoveryLifecycle(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, operation := range []string{"syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness"} {
+	for _, operation := range []string{"syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "getIntegrationSetupStatus"} {
 		request := httptest.NewRequest(http.MethodGet, "https://app.zasp.test/", nil)
 		request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: operation, PathParameters: map[string]string{}}))
 		response := httptest.NewRecorder()
@@ -34,7 +34,7 @@ func TestDiscoveryWorkflowSurfaceDispatchesOnlyDiscoveryLifecycle(t *testing.T) 
 	request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "listIntegrations", PathParameters: map[string]string{}}))
 	response := httptest.NewRecorder()
 	surface.ServeHTTP(response, request)
-	if response.Code != http.StatusNoContent || discoveryCalls != 7 || workflowCalls != 1 {
+	if response.Code != http.StatusNoContent || discoveryCalls != 8 || workflowCalls != 1 {
 		t.Fatalf("status=%d discovery=%d workflow=%d", response.Code, discoveryCalls, workflowCalls)
 	}
 }

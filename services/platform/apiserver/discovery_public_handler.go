@@ -19,6 +19,7 @@ type DiscoveryPublicReadAuthority interface {
 	ListIntegrationSyncs(context.Context, domain.Scope, string, *time.Time, string, int) (IntegrationSyncPage, error)
 	GetIntegrationSchedule(context.Context, domain.Scope, string) (IntegrationSchedule, error)
 	GetIntegrationFreshness(context.Context, domain.Scope, string) (IntegrationFreshness, error)
+	GetIntegrationSetupStatus(context.Context, domain.Scope, string) (IntegrationSetupStatus, error)
 }
 
 type DiscoveryPublicMutationAuthority interface {
@@ -109,6 +110,12 @@ func (handler *discoveryPublicHTTPHandler) ServeHTTP(writer http.ResponseWriter,
 			return
 		}
 		handler.getFreshness(writer, request, identity, integrationID)
+	case "getIntegrationSetupStatus":
+		if request.Method != http.MethodGet {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		handler.getSetupStatus(writer, request, identity, integrationID)
 	default:
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 	}
@@ -331,6 +338,19 @@ func (handler *discoveryPublicHTTPHandler) getFreshness(writer http.ResponseWrit
 		return
 	}
 	writer.Header().Set("ETag", quoteVersion(result.Version))
+	writeJSONValue(writer, request, http.StatusOK, result, nil)
+}
+
+func (handler *discoveryPublicHTTPHandler) getSetupStatus(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, integrationID string) {
+	if request.URL.RawQuery != "" {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	result, err := handler.repository.GetIntegrationSetupStatus(request.Context(), identity.Scope, integrationID)
+	if err != nil {
+		writeProductionError(writer, request, err)
+		return
+	}
 	writeJSONValue(writer, request, http.StatusOK, result, nil)
 }
 

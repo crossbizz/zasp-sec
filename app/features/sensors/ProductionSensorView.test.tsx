@@ -45,6 +45,10 @@ describe("production sensor management", () => {
     await user.type(screen.getByLabelText("Sensor name"), "production-runtime");
     await user.click(screen.getByRole("button", { name: "Create enrollment" }));
     expect(await screen.findByText(token)).toBeVisible();
+    expect(screen.getByText("Helm deployment boundary")).toBeVisible();
+    expect(screen.getByText("sensorAgent.enabled=true")).toBeVisible();
+    expect(screen.getByText("sensorAgent.tokenSecretName=<pre-created-secret-name>")).toBeVisible();
+    expect(document.body.innerHTML).not.toContain("--set sensorAgent.token=");
     expect(createSensor).toHaveBeenCalledWith({ name: "production-runtime", kind: "tetragon", mode: "metadata_only" }, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^sensor_/) }));
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);

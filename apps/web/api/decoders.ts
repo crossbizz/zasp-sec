@@ -1,4 +1,4 @@
-import type { AgentMutation, AgentSessionPage, AttackLabAttempt, AttackLabPreflight, AttackLabRun, AttackLabRunDetail, AttackLabRunPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
+import type { AgentMutation, AgentSessionPage, AttackLabAttempt, AttackLabPreflight, AttackLabRun, AttackLabRunDetail, AttackLabRunPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSetupStatus, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -315,6 +315,42 @@ export function decodeIntegrationFreshness(value: unknown): IntegrationFreshness
   const projections = exactRecord(record.projections, ["risk", "graph", "search"]);
   for (const key of ["risk", "graph", "search"] as const) decodeIntegrationProjectionStatus(projections[key]);
   return value as IntegrationFreshness;
+}
+
+export function decodeIntegrationSetupStatus(value: unknown, expectedIntegrationID?: string): IntegrationSetupStatus {
+  const record = exactRecord(value, ["integration_id", "connector_key", "authorization", "runtime_coverage", "updated_at"]);
+  productID(record.integration_id); if (expectedIntegrationID !== undefined && record.integration_id !== expectedIntegrationID) fail();
+  enumValue(record.connector_key, ["aws", "kubernetes", "github", "okta"]); dateTime(record.updated_at);
+  const authorization = exactRecord(record.authorization, ["state", "scope_kind", "scope_label", "repository_selection", "permissions"]);
+  enumValue(authorization.state, ["pending", "verified", "degraded"]); enumValue(authorization.scope_kind, ["none", "aws_account", "kubernetes_cluster", "github_organization", "okta_tenant"]);
+  if (authorization.scope_label !== null) printableString(authorization.scope_label, 1, 128);
+  if (authorization.repository_selection !== null) enumValue(authorization.repository_selection, ["all", "selected"]);
+  stringArray(authorization.permissions, 8, 64); const permissions = authorization.permissions as readonly string[];
+  if (permissions.some((permission, index) => !/^[a-z0-9._:-]+$/.test(permission) || index > 0 && permissions[index - 1] >= permission)) fail();
+  if (authorization.state !== "verified") {
+    if (authorization.scope_kind !== "none" || authorization.scope_label !== null || authorization.repository_selection !== null || permissions.length !== 0) fail();
+  } else if (record.connector_key === "aws") {
+    if (authorization.scope_kind !== "aws_account" || authorization.scope_label === null || authorization.repository_selection !== null || permissions.length !== 0) fail();
+  } else if (record.connector_key === "kubernetes") {
+    if (authorization.scope_kind !== "kubernetes_cluster" || authorization.scope_label === null || authorization.repository_selection !== null || permissions.length !== 0) fail();
+  } else if (record.connector_key === "github") {
+    if (authorization.scope_kind !== "github_organization" || authorization.scope_label === null || authorization.repository_selection === null || !sameJSON(permissions, ["actions:read", "contents:read", "metadata:read"])) fail();
+  } else if (authorization.scope_kind !== "okta_tenant" || authorization.scope_label === null || authorization.repository_selection !== null || !sameJSON(permissions, ["offline_access", "okta.apps.read", "okta.groups.read", "okta.users.read"])) fail();
+  const coverage = exactRecord(record.runtime_coverage, ["state", "reason", "sensor_count", "healthy_sensor_count"]);
+  enumValue(coverage.state, ["not_applicable", "not_enrolled", "awaiting_heartbeat", "healthy", "degraded"]); enumValue(coverage.reason, ["not_applicable", "not_enrolled", "missing_gateway", "unsupported_kernel", "degraded", "verified"]);
+  boundedInteger(coverage.sensor_count, 0, 1_000_000); boundedInteger(coverage.healthy_sensor_count, 0, coverage.sensor_count as number);
+  if (record.connector_key !== "kubernetes") {
+    if (coverage.state !== "not_applicable" || coverage.reason !== "not_applicable" || coverage.sensor_count !== 0 || coverage.healthy_sensor_count !== 0) fail();
+  } else if (coverage.state === "not_enrolled") {
+    if (coverage.reason !== "not_enrolled" || coverage.sensor_count !== 0 || coverage.healthy_sensor_count !== 0) fail();
+  } else if (coverage.state === "awaiting_heartbeat") {
+    if (coverage.reason !== "missing_gateway" || coverage.sensor_count === 0 || coverage.healthy_sensor_count === coverage.sensor_count) fail();
+  } else if (coverage.state === "healthy") {
+    if (coverage.reason !== "verified" || coverage.sensor_count === 0 || coverage.healthy_sensor_count !== coverage.sensor_count) fail();
+  } else if (coverage.state === "degraded") {
+    if ((coverage.reason !== "unsupported_kernel" && coverage.reason !== "degraded") || coverage.sensor_count === 0 || coverage.healthy_sensor_count === coverage.sensor_count) fail();
+  } else fail();
+  return value as IntegrationSetupStatus;
 }
 
 function decodeIntegrationProjectionStatus(value: unknown): void {

@@ -8,6 +8,7 @@ import {
   decodeIntegrationFreshness,
   decodeIntegrationPage,
   decodeIntegrationSchedule,
+  decodeIntegrationSetupStatus,
   decodeIntegrationSync,
   decodeIntegrationSyncPage,
   decodePolicy,
@@ -27,6 +28,7 @@ import type {
   IntegrationInput,
   IntegrationSchedule,
   IntegrationScheduleInput,
+  IntegrationSetupStatus,
   IntegrationSync,
   IntegrationUpdateInput,
   Policy,
@@ -287,6 +289,11 @@ export function createIntegrationsAPI(client: APIClient) {
       const freshness = requireNoStoreVersioned(result, decodeIntegrationFreshness);
       if (freshness.value.integration_id !== id || freshness.version !== `"${freshness.value.version}"`) throw new APITransportError("invalid_response", "Integration freshness returned a different resource version");
       return freshness;
+    },
+    async getIntegrationSetupStatus(id: string, signal?: AbortSignal): Promise<IntegrationSetupStatus> {
+      const result = await client.GET("/api/v1/integrations/{id}/setup-status", { params: { path: { id } }, signal });
+      if (result.response.headers.get("Cache-Control") !== "no-store") throw new APITransportError("invalid_response", "Integration setup status was cacheable");
+      return requireAPIData(result, (value) => decodeIntegrationSetupStatus(value, id));
     },
     async getIntegrationSchedule(id: string, signal?: AbortSignal): Promise<Versioned<IntegrationSchedule> | null> {
       try {

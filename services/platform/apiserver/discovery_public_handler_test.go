@@ -20,6 +20,7 @@ type discoveryPublicReadStub struct {
 	page        IntegrationSyncPage
 	schedule    IntegrationSchedule
 	freshness   IntegrationFreshness
+	setupStatus IntegrationSetupStatus
 	beforeTime  *time.Time
 	beforeID    string
 	limit       int
@@ -45,6 +46,10 @@ func (stub *discoveryPublicReadStub) GetIntegrationSchedule(context.Context, dom
 
 func (stub *discoveryPublicReadStub) GetIntegrationFreshness(context.Context, domain.Scope, string) (IntegrationFreshness, error) {
 	return stub.freshness, nil
+}
+
+func (stub *discoveryPublicReadStub) GetIntegrationSetupStatus(context.Context, domain.Scope, string) (IntegrationSetupStatus, error) {
+	return stub.setupStatus, nil
 }
 
 func (stub *discoveryPublicReadStub) RequestIntegrationSync(_ context.Context, _ RequestIdentity, input PublicSyncRequest) (IntegrationSyncMutationResult, error) {
@@ -164,6 +169,28 @@ func TestDiscoveryPublicHandlerReturnsScheduleAndFreshnessVersions(t *testing.T)
 		if response.Code != http.StatusOK || response.Header().Get("ETag") != test.etag {
 			t.Fatalf("%s status=%d headers=%#v body=%s", test.operation, response.Code, response.Header(), response.Body.String())
 		}
+	}
+}
+
+func TestDiscoveryPublicHandlerReturnsStrictIntegrationSetupStatusWithoutCredentialAuthority(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	integrationID := "pid_82000001-0000-4000-8000-000000000001"
+	now := time.Date(2026, 8, 31, 19, 0, 0, 0, time.UTC)
+	scopeLabel := "acme"
+	selection := "selected"
+	stub := &discoveryPublicReadStub{setupStatus: IntegrationSetupStatus{
+		IntegrationID: integrationID, ConnectorKey: "github", UpdatedAt: now,
+		Authorization:   IntegrationSetupAuthorization{State: "verified", ScopeKind: "github_organization", ScopeLabel: &scopeLabel, RepositorySelection: &selection, Permissions: []string{"actions:read", "contents:read", "metadata:read"}},
+		RuntimeCoverage: IntegrationRuntimeCoverage{State: "not_applicable", Reason: "not_applicable"},
+	}}
+	handler, err := NewDiscoveryPublicHTTPHandler(stub, []byte(strings.Repeat("s", 32)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, discoveryPublicRequest(t, identity, http.MethodGet, "/api/v1/integrations/"+integrationID+"/setup-status", "getIntegrationSetupStatus", map[string]string{"id": integrationID}))
+	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" || response.Header().Get("ETag") != "" || strings.Contains(response.Body.String(), "credential") || strings.Contains(response.Body.String(), "installation_id") || !strings.Contains(response.Body.String(), `"scope_label":"acme"`) {
+		t.Fatalf("status=%d headers=%#v body=%s", response.Code, response.Header(), response.Body.String())
 	}
 }
 
