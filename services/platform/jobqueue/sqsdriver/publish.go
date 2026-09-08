@@ -27,13 +27,14 @@ var (
 )
 
 type canonicalEnvelope struct {
-	Version        int             `json:"version"`
-	JobID          string          `json:"job_id"`
-	OrganizationID string          `json:"organization_id"`
-	WorkspaceID    string          `json:"workspace_id"`
-	EnvironmentID  string          `json:"environment_id"`
-	Kind           string          `json:"kind"`
-	Payload        json.RawMessage `json:"payload"`
+	Version         int             `json:"version"`
+	JobID           string          `json:"job_id"`
+	OrganizationID  string          `json:"organization_id"`
+	WorkspaceID     string          `json:"workspace_id"`
+	EnvironmentID   string          `json:"environment_id"`
+	Kind            string          `json:"kind"`
+	Payload         json.RawMessage `json:"payload"`
+	AuthorityDigest string          `json:"authority_digest,omitempty"`
 }
 
 func (driver *Driver) PublishBatch(ctx context.Context, messages []jobqueue.DriverMessage) ([]jobqueue.DriverPublished, error) {
@@ -93,6 +94,12 @@ func parseCanonicalEnvelope(body []byte) (canonicalEnvelope, bool) {
 	}
 	if decoder.Decode(&struct{}{}) == nil {
 		return canonicalEnvelope{}, false
+	}
+	if envelope.AuthorityDigest != "" {
+		digest, err := hex.DecodeString(envelope.AuthorityDigest)
+		if err != nil || len(digest) != sha256.Size || envelope.AuthorityDigest != hex.EncodeToString(digest) || bytes.Equal(digest, make([]byte, sha256.Size)) {
+			return canonicalEnvelope{}, false
+		}
 	}
 	organizationID, organizationErr := domain.ParseProductID(envelope.OrganizationID)
 	workspaceID, workspaceErr := domain.ParseProductID(envelope.WorkspaceID)

@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 513; expected 514/,
+        /production-available count is 514; expected 515/,
       );
     },
   );
@@ -195,17 +195,17 @@ test("rejects a same-owner same-milestone audited class swap", async () => {
   await withLedger(
     (ledger) => ledger
       .replace(
-        "M3\tM3-52a\tComplete\tproduction-available\tT04-discovery-worker",
-        "M3\tM3-52a\tComplete\tcomponent-only\tT04-discovery-worker",
+        "M1\tM1-01e\tComplete\tproduction-available\tT04-discovery-worker",
+        "M1\tM1-01e\tComplete\tcomponent-only\tT04-discovery-worker",
       )
       .replace(
-        "M3\tM3-52d\tComplete\tcomponent-only\tT04-discovery-worker",
-        "M3\tM3-52d\tComplete\tproduction-available\tT04-discovery-worker",
+        "M1\tM1-01b\tComplete\tcomponent-only\tT04-discovery-worker",
+        "M1\tM1-01b\tComplete\tproduction-available\tT04-discovery-worker",
       ),
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production class component-only does not match audited production-available for M3-52a/,
+        /production class component-only does not match audited production-available for M1-01e/,
       );
     },
   );
@@ -336,6 +336,18 @@ test("rejects demotion of the production signed webhook setup task", async () =>
   );
 });
 
+test("rejects demotion of the verified runtime queue/archive/index task", async () => {
+  await withLedger(
+    (ledger) => ledger.replace("M3\tM3-52d\tComplete\tproduction-available", "M3\tM3-52d\tComplete\tcomponent-only"),
+    async (ledgerPath) => {
+      await assert.rejects(
+        () => validateLedger({ ledgerPath, sourcePlanPath }),
+        /production class component-only does not match audited production-available for M3-52d/,
+      );
+    },
+  );
+});
+
 test("rejects a published milestone matrix that drifts from the audited map", async () => {
   await withLedgerAndStatus(
     (ledger) => ledger,
@@ -353,7 +365,7 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => status.replace(
-      "| Production-available | 514 |",
+      "| Production-available | 515 |",
       "| Production-available | 496 |",
     ),
     async ({ ledgerPath, statusPath }) => {

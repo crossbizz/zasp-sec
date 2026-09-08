@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -235,6 +236,56 @@ type productionIngestRepositoryStub struct {
 	finalizeCalls     int
 	reserveErr        error
 	finalizeErr       error
+}
+
+type productionReplayRepository struct {
+	*productionIngestRepositoryStub
+	state    string
+	replayed bool
+}
+
+func (repository *productionReplayRepository) Reserve(ctx context.Context, credential *sensor.TokenCredential, request IngestReserveRequest) (IngestReservation, error) {
+	result, err := repository.productionIngestRepositoryStub.Reserve(ctx, credential, request)
+	result.State, result.Replayed = repository.state, repository.replayed
+	return result, err
+}
+func (repository *productionReplayRepository) Finalize(ctx context.Context, credential *sensor.TokenCredential, request IngestFinalizeRequest) (IngestResult, error) {
+	result, err := repository.productionIngestRepositoryStub.Finalize(ctx, credential, request)
+	result.State, result.Replayed = repository.state, repository.replayed
+	return result, err
+}
+
+func TestProductionIngestReplaysPreviouslyAcceptedBatchAfterProcessing(t *testing.T) {
+	for _, state := range []string{"processing", "succeeded", "failed", "quarantined", "unknown", "invented"} {
+		for _, replayed := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s/replayed=%t", state, replayed), func(t *testing.T) {
+				now := time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
+				repository := &productionReplayRepository{productionIngestRepositoryStub: &productionIngestRepositoryStub{authority: IngestAuthority{Scope: fixtureScope(t, 70), SensorID: fixtureID(t, 73), TokenID: fixtureID(t, 74), TokenGeneration: 2, Source: "tetragon", Mode: "full"}}, state: state, replayed: replayed}
+				artifacts := &productionRawArtifactStub{}
+				handler, err := NewProductionIngestHandler(ProductionIngestConfig{Repository: repository, Artifacts: artifacts, MaximumBytes: 1 << 20, Clock: func() time.Time { return now }})
+				if err != nil {
+					t.Fatal(err)
+				}
+				request := httptest.NewRequest(http.MethodPost, "/internal/v1/runtime/events", bytes.NewReader(productionEventBody(now)))
+				request.Header.Set("Authorization", "Bearer "+productionSensorToken(t))
+				request.Header.Set("Content-Type", "application/json")
+				request.Header.Set("X-Zasp-Runtime-Schema", "runtime-event-v1")
+				request.Header.Set("Idempotency-Key", "runtime-replay-request-0001")
+				response := httptest.NewRecorder()
+				handler.ServeHTTP(response, request)
+				want := http.StatusServiceUnavailable
+				if replayed && state != "unknown" && state != "invented" {
+					want = http.StatusAccepted
+				}
+				if response.Code != want {
+					t.Fatalf("status=%d want=%d body=%s", response.Code, want, response.Body.String())
+				}
+				if want == http.StatusAccepted && (repository.finalizeCalls != 1 || artifacts.putCalls != 1) {
+					t.Fatal("acceptance skipped exact artifact/finalization replay verification")
+				}
+			})
+		}
+	}
 }
 
 func (stub *productionIngestRepositoryStub) Ready(context.Context) error { return nil }

@@ -55,7 +55,7 @@ func (driver *Driver) ConsumeBatchDetailed(ctx context.Context, maximum int) ([]
 	}
 
 	result := make([]ClassifiedDelivery, len(output.Messages))
-	seenJobs := make(map[domain.ProductID]struct{}, len(output.Messages))
+	seenJobs := make(map[domain.ProductID][sha256.Size]byte, len(output.Messages))
 	seenMessages := make(map[string]struct{}, len(output.Messages))
 	seenHandles := make(map[string]struct{}, len(output.Messages))
 	totalBytes := 0
@@ -65,7 +65,7 @@ func (driver *Driver) ConsumeBatchDetailed(ctx context.Context, maximum int) ([]
 			return nil, ErrRetryable
 		}
 		totalBytes += len(delivery.Delivery.Message.Body)
-		if _, duplicate := seenJobs[delivery.Delivery.Message.JobID]; duplicate {
+		if prior, duplicate := seenJobs[delivery.Delivery.Message.JobID]; duplicate && prior != delivery.Delivery.Message.SHA256 {
 			return nil, ErrRetryable
 		}
 		if _, duplicate := seenMessages[delivery.Delivery.MessageID]; duplicate {
@@ -74,7 +74,7 @@ func (driver *Driver) ConsumeBatchDetailed(ctx context.Context, maximum int) ([]
 		if _, duplicate := seenHandles[delivery.Delivery.ReceiptHandle]; duplicate {
 			return nil, ErrRetryable
 		}
-		seenJobs[delivery.Delivery.Message.JobID] = struct{}{}
+		seenJobs[delivery.Delivery.Message.JobID] = delivery.Delivery.Message.SHA256
 		seenMessages[delivery.Delivery.MessageID] = struct{}{}
 		seenHandles[delivery.Delivery.ReceiptHandle] = struct{}{}
 		delivery.ReceiveCount = receiveCount

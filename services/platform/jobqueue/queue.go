@@ -223,7 +223,7 @@ func (queue *Queue) ConsumeBatch(ctx context.Context, maximum int) (deliveries [
 	}
 
 	deliveries = make([]Delivery, len(returned))
-	seenJobs := make(map[domain.ProductID]struct{}, len(returned))
+	seenJobs := make(map[domain.ProductID][sha256.Size]byte, len(returned))
 	seenMessageIDs := make(map[string]struct{}, len(returned))
 	seenHandles := make(map[string]struct{}, len(returned))
 	var aggregate int64
@@ -232,7 +232,7 @@ func (queue *Queue) ConsumeBatch(ctx context.Context, maximum int) (deliveries [
 		if !ok || !providerMessageIDPattern.MatchString(returnedDelivery.MessageID) || len(returnedDelivery.ReceiptHandle) < 1 || len(returnedDelivery.ReceiptHandle) > 8192 || returnedDelivery.ReceiveCount < 1 || returnedDelivery.ReceiveCount > maximumReceiveCount {
 			return nil, ErrConsume
 		}
-		if _, exists := seenJobs[job.JobID]; exists {
+		if prior, exists := seenJobs[job.JobID]; exists && prior != returnedDelivery.Message.SHA256 {
 			return nil, ErrConsume
 		}
 		if _, exists := seenMessageIDs[returnedDelivery.MessageID]; exists {
@@ -241,7 +241,7 @@ func (queue *Queue) ConsumeBatch(ctx context.Context, maximum int) (deliveries [
 		if _, exists := seenHandles[returnedDelivery.ReceiptHandle]; exists {
 			return nil, ErrConsume
 		}
-		seenJobs[job.JobID] = struct{}{}
+		seenJobs[job.JobID] = returnedDelivery.Message.SHA256
 		seenMessageIDs[returnedDelivery.MessageID] = struct{}{}
 		seenHandles[returnedDelivery.ReceiptHandle] = struct{}{}
 		aggregate += int64(len(returnedDelivery.Message.Body))

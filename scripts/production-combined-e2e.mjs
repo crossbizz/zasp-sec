@@ -11,6 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 import { reloadBrowserPage } from "./browser-e2e-helpers.mjs";
+import { createRuntimePipelineDependencies } from "./runtime-pipeline-dependencies.mjs";
 
 const FIXED_NODE_VERSION = "v22.23.1";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -40,6 +41,7 @@ if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined
 
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-"));
 const children = [];
+const runtimePipelineDependencies = createRuntimePipelineDependencies(command);
 let proxy;
 let identity;
 let policyHistory;
@@ -166,8 +168,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -185,9 +187,25 @@ try {
 	console.log("combined E2E: schema 33 production_security_agent_attack_path verified");
 	console.log("combined E2E: schema 34 production_integration_setup verified");
 	console.log("combined E2E: schema 35 production_integration_webhook verified");
+  console.log("combined E2E: schema 36 production_runtime_queue_replay verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
+  await runtimePipelineDependencies.prepare();
+  const [runtimeAWSEndpoint, runtimeSearchEndpoint] = await Promise.all([
+    runtimePipelineDependencies.start("aws"), runtimePipelineDependencies.start("search"),
+  ]);
+  console.log("combined E2E: owned runtime dependencies ready");
+  const runtimePipelineResult = await command(workerE2EBinary, ["-test.run", "^TestProductionCombinedE2ERuntimeQueueIndex$", "-test.v", "-test.timeout", "240s"], {
+    timeout: 250_000,
+    env: { ...process.env, ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN: dsn, ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT: runtimeAWSEndpoint, ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT: runtimeSearchEndpoint },
+  });
+  assert.match(runtimePipelineResult.stdout, /runtime pipeline proof passed:/);
+  assert.match(runtimePipelineResult.stdout, /--- PASS: TestProductionCombinedE2ERuntimeQueueIndex/);
+  assert.doesNotMatch(runtimePipelineResult.stdout, /--- SKIP:/);
+  console.log("combined E2E: local runtime SQS/S3/OpenSearch pipeline passed");
+
+  if (process.env.ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY !== "true") {
   const publicOrigin = `https://${productHostname}:${proxyPort}`;
   identity = await startIdentityServer(identityPort, publicOrigin);
   policyHistory = await startPolicyHistoryServer(policyHistoryPort);
@@ -1103,12 +1121,15 @@ try {
   console.log("combined E2E: live AWS/Kubernetes/GitHub/Okta collection and managed SQS/S3/OpenSearch/Neo4j remain NOT RUN");
 
   console.log("production combined E2E passed: callback/cookie/bootstrap, risk pagination/recovery, administration, PAT/receipt recovery, responsive keyboard focus, durable restart/reload, tenant denial");
+  }
 } finally {
 	await cleanupController.run();
 	cleanupController.dispose();
 }
 
 async function cleanupOwnedResources() {
+  let runtimeCleanupError;
+  try { await runtimePipelineDependencies.close(); } catch (error) { runtimeCleanupError = error; }
   console.log("combined E2E: cleanup browser");
   if (secondBrowserTab) await secondBrowserTab.dispose();
   if (browser) {
@@ -1134,6 +1155,7 @@ async function cleanupOwnedResources() {
   for (const child of children.reverse()) await stopChild(child);
   console.log("combined E2E: cleanup files");
   await rm(temporaryRoot, { recursive: true, force: true });
+  if (runtimeCleanupError) throw runtimeCleanupError;
 }
 
 async function generateHarnessGitHubAppPrivateKey(target) {

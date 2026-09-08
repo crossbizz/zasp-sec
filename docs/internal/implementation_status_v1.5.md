@@ -75,15 +75,16 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 514 |
-| Component-only | 153 |
+| Production-available | 515 |
+| Component-only | 152 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
-Latest verified slice: M3-48h production Generic Webhook configure/test/status.
-The full repository, API race, release-source, and installed-Chrome gates pass.
-Evidence and the main CI record are tracked in
-`docs/internal/2026-09-08-m3-48h-production-webhook.md`.
+Latest verified slice: M3-52d production runtime queue/archive/index E2E.
+Actual local SQS/S3/OpenSearch, replay and empty-DLQ assertions, migration
+rollback/drift, independent review, and the fresh-build installed-Chrome run pass.
+Evidence and release verification are tracked in
+`docs/internal/2026-09-08-m3-52d-runtime-queue-index.md`.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
@@ -118,6 +119,11 @@ production composition, not merely a component proof or external evidence.
   retries preserve one delivery and audit record; a browser reload reads status
   without sending again. Receiver-side verification remains the receiver's
   responsibility, and failed or pending delivery is never marked signed.
+- Schema v36 preserves exact durable authority across physical SQS duplicate
+  publication and recognized ingest-acceptance replay. A combined proof uses
+  registered PostgreSQL principals, actual local SQS/S3/OpenSearch, all five
+  production stage executors, immutable replay, and an empty DLQ. Downstream
+  graph stores are explicit fixtures; managed-cloud evidence is not claimed.
 - `deploy/staging/product/templates` ships the Task 4 discovery and projection
   workloads and the Task 6 sensor/ingest/runtime/gateway plane with isolated
   identities. Live managed providers, OpenSearch, Neo4j, SQS, S3, and KMS
@@ -191,14 +197,14 @@ production composition, not merely a component proof or external evidence.
 | M1 | 68 | 58 | 10 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 69 | 3 | 0 | 0 |
-| M3 | 75 | 72 | 1 | 2 | 0 |
+| M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 20 | 22 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **514** | **153** | **61** | **0** |
+| **Total** | **728** | **515** | **152** | **61** | **0** |
 
 ## Prerequisite work
 
