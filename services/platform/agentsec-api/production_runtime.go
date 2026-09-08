@@ -155,6 +155,15 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 		secretsTransport.CloseIdleConnections()
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
+	webhookTestService, err := apiserver.NewIntegrationWebhookTestService(apiserver.IntegrationWebhookTestServiceConfig{
+		Repository: repository, Secrets: ticketSecrets, Webhook: ticketWebhook, LeaseSeconds: 15,
+		NewDeliveryID: func(scope domain.Scope, integrationID string) (string, error) { return newFindingTicketDeliveryID() },
+		NewLeaseToken: newFindingTicketLeaseToken,
+	})
+	if err != nil {
+		secretsTransport.CloseIdleConnections()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
 	secretStore, err := apiserver.NewDurableOAuthSecretStore(secretsDriver, config.ConnectorSecretPrefix, config.ConnectorKMSKeyARN, config.ProviderTimeout, func() time.Time { return time.Now().UTC() })
 	if err != nil {
 		secretsTransport.CloseIdleConnections()
@@ -273,7 +282,7 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 		}
 		lifecycleWorkers = append(lifecycleWorkers, approvalNotificationReconciler.Run)
 	}
-	cookie := apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}, FindingTickets: ticketService}
+	cookie := apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}, FindingTickets: ticketService, IntegrationWebhookTests: webhookTestService}
 	var handlers apiserver.Dependencies
 	var authenticate apiserver.Authenticator
 	if securityAgentRepository != nil {

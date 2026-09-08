@@ -25,6 +25,7 @@ type findingTicketWebhook struct {
 type ProductionFindingTicketWebhook interface {
 	FindingTicketWebhook
 	ApprovalNotificationWebhook
+	IntegrationWebhookTestWebhook
 }
 
 type findingTicketLookup func(context.Context, string) ([]net.IPAddr, error)
@@ -120,6 +121,46 @@ func (webhook *findingTicketWebhook) DeliverApprovalNotification(ctx context.Con
 	request.Header.Set("User-Agent", "zasp-security-agent-webhook/1")
 	request.Header.Set("X-Zasp-Delivery-ID", deliveryID)
 	request.Header.Set("X-Zasp-Event", "security_agent.approval_required")
+	request.Header.Set("X-Zasp-Payload-Digest", digest)
+	request.Header.Set("X-Zasp-Signature", "sha256="+hex.EncodeToString(mac.Sum(nil)))
+	response, err := webhook.client.Do(request)
+	if err != nil || bounded.Err() != nil || response == nil {
+		closeFindingTicketResponse(response)
+		return ErrRepositoryUnavailable
+	}
+	defer response.Body.Close()
+	body, readErr := io.ReadAll(io.LimitReader(response.Body, 2))
+	if readErr != nil || response.StatusCode != http.StatusNoContent || len(body) != 0 {
+		return ErrRepositoryUnavailable
+	}
+	return nil
+}
+
+func (webhook *findingTicketWebhook) DeliverIntegrationWebhookTest(ctx context.Context, destination, payload, digest, deliveryID string, secret []byte) error {
+	parsed, parseErr := url.Parse(destination)
+	decodedDigest, digestErr := hex.DecodeString(strings.TrimPrefix(digest, "sha256:"))
+	actualDigest := sha256.Sum256([]byte(payload))
+	if webhook == nil || webhook.client == nil || ctx == nil || ctx.Err() != nil || parseErr != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || len(payload) < 2 || len(payload) > 16<<10 || !validProductID(deliveryID) || !findingTicketDigestPattern.MatchString(digest) || digestErr != nil || len(decodedDigest) != sha256.Size || subtle.ConstantTimeCompare(decodedDigest, actualDigest[:]) != 1 || len(secret) < 32 || len(secret) > 4096 {
+		return ErrRepositoryOperation
+	}
+	bounded, cancel := context.WithTimeout(ctx, webhook.timeout)
+	defer cancel()
+	request, err := http.NewRequestWithContext(bounded, http.MethodPost, destination, bytes.NewBufferString(payload))
+	if err != nil {
+		return ErrRepositoryUnavailable
+	}
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write([]byte(payload))
+	request.Close = true
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("User-Agent", "zasp-integration-webhook/1")
+	// Normalize the actual outbound URL before the pinned transport validates it.
+	if request.URL.Path == "" {
+		request.URL.Path = "/"
+	}
+	request.Header.Set("X-Zasp-Delivery-ID", deliveryID)
+	request.Header.Set("X-Zasp-Event", "integration.webhook.test")
 	request.Header.Set("X-Zasp-Payload-Digest", digest)
 	request.Header.Set("X-Zasp-Signature", "sha256="+hex.EncodeToString(mac.Sum(nil)))
 	response, err := webhook.client.Do(request)
@@ -243,3 +284,4 @@ func productionFindingTicketTransport(host, pinnedIP string, timeout time.Durati
 
 var _ FindingTicketWebhook = (*findingTicketWebhook)(nil)
 var _ ApprovalNotificationWebhook = (*findingTicketWebhook)(nil)
+var _ IntegrationWebhookTestWebhook = (*findingTicketWebhook)(nil)

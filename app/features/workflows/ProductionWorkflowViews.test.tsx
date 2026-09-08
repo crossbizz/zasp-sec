@@ -491,6 +491,35 @@ describe("production integration deletion", () => {
     }
   });
 
+	it("tests the saved webhook, retains a lost delivery, and shows durable signature status without discovery claims", async () => {
+		const user = userEvent.setup();
+		const webhook = {...integration,connector_key:"generic-webhook",name:"Webhook",status:"configured",configuration:{destination_url:"https://hooks.example.test/zasp",signing_secret_reference:"secret_ref_webhook_prod"}};
+		const manifest = {...githubManifest,key:"generic-webhook",provider:"Generic Webhook",category:"notification",auth_mode:"signed_webhook",actions:["response_notification","approval_response"],data_types:["response","approval"],setup_schema:[{key:"destination_url",label:"HTTPS destination",type:"uri",required:true,description:"Saved HTTPS endpoint"},{key:"signing_secret_reference",label:"Signing secret",type:"secret_reference",required:true,description:"Product secret reference"}]};
+		const delivery = {integration_id:integration.id,delivery_id:"pid_41000001-0000-4000-8000-000000000001",audit_id:receiptHeaders["X-Audit-ID"],delivery_status:"succeeded",signature_status:"signed",attempted_at:"2026-09-08T00:00:00Z",completed_at:"2026-09-08T00:00:01Z",error_code:""};
+		const GET = vi.fn(async (path:string) => {
+			if (path === "/api/v1/integration-catalog") return jsonResult({items:[manifest]});
+			if (path === "/api/v1/integrations") return jsonResult({items:[webhook],page_info:{next_cursor:null,has_more:false}});
+			if (path === "/api/v1/integrations/{id}") return jsonResult(webhook,200,{ETag:'"3"'});
+			if (path === "/api/v1/integrations/{id}/delivery-status") return productErrorResult(404,"not_found","No current test");
+			throw new Error(`unexpected GET ${path}`);
+		});
+		const POST = vi.fn().mockRejectedValueOnce(new TypeError("lost")).mockRejectedValueOnce(new TypeError("lost")).mockResolvedValue(jsonResult(delivery,200,{"Cache-Control":"no-store","X-Audit-ID":delivery.audit_id}));
+		renderFreshIntegrations({GET,POST} as unknown as APIClient);
+		await user.click(await screen.findByRole("button",{name:"Open Webhook"}));
+		expect(await screen.findByText("No delivery test for the current configuration.")).toBeVisible();
+		expect(screen.queryByRole("region",{name:"Automatic discovery"})).not.toBeInTheDocument();
+		await user.click(screen.getByRole("button",{name:"Test signed delivery"}));
+		const retry = await screen.findByRole("button",{name:"Retry retained integration operation"});
+		expect(screen.getByRole("button",{name:"Test signed delivery"})).toBeDisabled();
+		expect(screen.getByRole("button",{name:"Save changes"})).toBeDisabled();
+		await user.click(retry);
+		expect(await screen.findByText("Signed by Zasp; endpoint accepted the test.")).toBeVisible();
+		expect(screen.getByText(`Delivery ID: ${delivery.delivery_id}`)).toBeVisible();
+		expect(document.body.innerHTML).not.toContain("secret_ref_webhook_prod");
+		expect(POST).toHaveBeenCalledTimes(3); expect(POST.mock.calls[1]).toEqual(POST.mock.calls[0]); expect(POST.mock.calls[2]).toEqual(POST.mock.calls[0]);
+		expect(GET.mock.calls.some(([path]) => /freshness|syncs|schedule|setup-status/.test(path))).toBe(false);
+	});
+
 	it("formats opaque configuration references without rendering their values", async () => {
 		const user = userEvent.setup();
 		const aws: Integration = { ...integration, connector_key: "aws", name: "AWS", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" } };

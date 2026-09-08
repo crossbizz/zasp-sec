@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { APITransportError } from "../../../apps/web/api/client";
+import type { IntegrationWebhookTestStatus } from "../../../apps/web/api/generated";
 import type { ConnectorManifest, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationInput, IntegrationSchedule, IntegrationScheduleInput, IntegrationSetupStatus, IntegrationSync, IntegrationUpdateInput, Policy, PolicyRollout, PolicySimulation, RuntimeDecision } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
@@ -26,10 +27,12 @@ type IntegrationMutationIntent =
   | { kind: "authorize-oauth"; id: string; connectorKey: string }
   | { kind: "authorize-reference"; id: string; version: string; connectorKey: "aws" | "kubernetes" }
   | { kind: "sync"; id: string; version: string }
+  | { kind: "webhook-test"; id: string; version: string }
   | { kind: "put-schedule"; id: string; version: string; value: IntegrationScheduleInput }
   | { kind: "delete-schedule"; id: string; version: string }
   | { kind: "delete"; id: string; version: string };
 type IntegrationMutationResult =
+  | { kind: "webhook-tested"; status: IntegrationWebhookTestStatus }
   | { kind: "created" | "updated" | "authorized"; receipt: WorkflowReceipt<Integration> }
   | { kind: "sync-queued"; receipt: WorkflowReceipt<IntegrationSync> }
   | { kind: "schedule-saved"; receipt: WorkflowReceipt<IntegrationSchedule> }
@@ -126,6 +129,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   const [busy, setBusy] = useState(false);
   const [freshness, setFreshness] = useState<DiscoveryLoad<Versioned<IntegrationFreshness>>>({ status: "idle" });
   const [setupStatus, setSetupStatus] = useState<DiscoveryLoad<IntegrationSetupStatus>>({ status: "idle" });
+  const [webhookStatus, setWebhookStatus] = useState<DiscoveryLoad<IntegrationWebhookTestStatus | null>>({ status: "idle" });
   const [schedule, setSchedule] = useState<DiscoveryLoad<Versioned<IntegrationSchedule> | null>>({ status: "idle" });
   const [syncs, setSyncs] = useState<DiscoveryLoad<readonly IntegrationSync[]>>({ status: "idle" });
   const [syncDetail, setSyncDetail] = useState<DiscoveryLoad<Versioned<IntegrationSync>>>({ status: "idle" });
@@ -157,6 +161,11 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
     } finally { setBusy(false); }
   };
   const applyMutation = (result: IntegrationMutationResult) => {
+    if (result.kind === "webhook-tested") {
+      setWebhookStatus({ status: "success", value: result.status });
+      setFeedback({ tone: result.status.delivery_status === "succeeded" ? "status" : "alert", message: `Webhook test ${result.status.delivery_status}. Audit ${result.status.audit_id}` });
+      return;
+    }
     if (result.kind === "sync-queued") {
       setSyncs({ status: "success", value: [result.receipt.value, ...(syncs.value ?? []).filter((value) => value.id !== result.receipt.value.id)] });
       setFeedback({ tone: "status", message: `Inventory sync queued. Audit ${result.receipt.auditID}` });
@@ -174,22 +183,38 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
     invalidate(["workflow:integrations"]);
     if (result.kind === "deleted") { discoveryGeneration.current += 1; setSelected(null); setFeedback({ tone: "status", message: `Integration deleted. Audit ${result.receipt.auditID}` }); return; }
     setSelected(result.receipt); setName(result.receipt.value.name); setConfiguration({ ...result.receipt.value.configuration });
-    if (result.kind === "authorized") loadDiscovery(result.receipt.value.id);
+    loadDiscovery(result.receipt.value);
     setManifest(null); setFeedback({ tone: "status", message: `Integration ${result.kind}. Audit ${result.receipt.auditID}` });
   };
   const runMutation = (operation: () => Promise<IntegrationMutationResult>) => void run(async () => { applyMutation(await operation()); });
   const choose = (value: ConnectorManifest) => { setManifest(value); setName(value.provider); setConfiguration(Object.fromEntries(value.setup_schema.map((field) => [field.key, ""]))); };
   const create = () => manifest && runMutation(() => mutation.execute({ kind: "create", value: { connector_key: manifest.key, name, configuration } }, async (intent, attempt) => { if (intent.kind !== "create") throw new TypeError("Invalid retained integration intent"); return { kind: "created", receipt: await api.createIntegration(intent.value, attempt) }; }));
-  const loadDiscovery = (id: string) => {
+  const loadDiscovery = (integration: Integration) => {
+    const id = integration.id;
     const generation = discoveryGeneration.current + 1;
     discoveryGeneration.current = generation;
+    setWebhookStatus({ status: "idle" });
+    if (integration.connector_key === "generic-webhook") {
+      setFreshness({ status: "idle" }); setSetupStatus({ status: "idle" }); setSchedule({ status: "idle" }); setSyncs({ status: "idle" }); setSyncDetail({ status: "idle" });
+      setWebhookStatus({ status: "loading" });
+      void api.getIntegrationWebhookStatus(id).then((value) => { if (discoveryGeneration.current === generation) setWebhookStatus({ status: "success", value }); }, () => { if (discoveryGeneration.current === generation) setWebhookStatus({ status: "error" }); });
+      return;
+    }
     setFreshness({ status: "loading" }); setSetupStatus({ status: "loading" }); setSchedule({ status: "loading" }); setSyncs({ status: "loading" }); setSyncDetail({ status: "idle" });
     void api.getIntegrationFreshness(id).then((value) => { if (discoveryGeneration.current === generation) setFreshness({ status: "success", value }); }, () => { if (discoveryGeneration.current === generation) setFreshness({ status: "error" }); });
     void api.getIntegrationSetupStatus(id).then((value) => { if (discoveryGeneration.current === generation) setSetupStatus({ status: "success", value }); }, () => { if (discoveryGeneration.current === generation) setSetupStatus({ status: "error" }); });
     void api.getIntegrationSchedule(id).then((value) => { if (discoveryGeneration.current === generation) { setSchedule({ status: "success", value }); if (value) setScheduleCadence(String(value.value.cadence_seconds)); } }, () => { if (discoveryGeneration.current === generation) setSchedule({ status: "error" }); });
     void api.listIntegrationSyncs(id).then((value) => { if (discoveryGeneration.current === generation) setSyncs({ status: "success", value }); }, () => { if (discoveryGeneration.current === generation) setSyncs({ status: "error" }); });
   };
-  const open = (id: string) => void run(async () => { const value = await api.getIntegration(id); setSelected(value); setName(value.value.name); setConfiguration({ ...value.value.configuration }); loadDiscovery(id); });
+  const open = (id: string) => void run(async () => { const value = await api.getIntegration(id); setSelected(value); setName(value.value.name); setConfiguration({ ...value.value.configuration }); loadDiscovery(value.value); });
+  const testWebhook = () => {
+    if (!selected || selected.value.connector_key !== "generic-webhook") return;
+    discoveryGeneration.current += 1;
+    runMutation(() => mutation.execute({ kind: "webhook-test", id: selected.value.id, version: selected.version }, async (intent, attempt) => {
+      if (intent.kind !== "webhook-test") throw new TypeError("Invalid retained webhook test intent");
+      return { kind: "webhook-tested", status: await api.testIntegrationWebhook(intent.id, intent.version, attempt) };
+    }));
+  };
   const update = () => selected && runMutation(() => mutation.execute({ kind: "update", id: selected.value.id, version: selected.version, value: { name, configuration } }, async (intent, attempt) => { if (intent.kind !== "update") throw new TypeError("Invalid retained integration intent"); return { kind: "updated", receipt: await api.updateIntegration(intent.id, intent.version, intent.value, attempt) }; }));
   const reconcileReferenceConflict = async (integrationID: string) => {
     try {
@@ -621,8 +646,27 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                   ? "Authorization continues on the provider site. Provider credentials are never returned to this browser."
                   : "Provider authorization controls are unavailable for this connector."}
             </p>
-            {selectedManifest && <IntegrationSetupGuide manifest={selectedManifest} integration={visibleSelected.value} freshness={freshness} setupStatus={setupStatus} onNavigate={navigate} />}
-            {selected && (
+            {selectedManifest && <IntegrationSetupGuide manifest={selectedManifest} integration={visibleSelected.value} freshness={freshness} setupStatus={setupStatus} webhookStatus={webhookStatus} onNavigate={navigate} />}
+            {selected?.value.connector_key === "generic-webhook" && <section aria-label="Webhook delivery" className="form-stack">
+              <h3>Webhook delivery</h3>
+              <p>Uses the saved HTTPS destination and signing secret. Save configuration changes before testing. Receivers must verify the HMAC-SHA256 signature and deduplicate the delivery ID.</p>
+              {webhookStatus.status === "loading" && <p>Loading delivery status…</p>}
+              {webhookStatus.status === "error" && <p role="alert">Delivery status is unavailable.</p>}
+              {webhookStatus.status === "success" && !webhookStatus.value && <p>No delivery test for the current configuration.</p>}
+              {webhookStatus.status === "success" && webhookStatus.value && <div>
+                <p>Delivery status: {webhookStatus.value.delivery_status}</p>
+                <p>{webhookStatus.value.signature_status === "signed" ? "Signed by Zasp; endpoint accepted the test." : "Signature and acceptance are unconfirmed."}</p>
+                <p>Delivery ID: {webhookStatus.value.delivery_id}</p>
+                <p>Attempted: {webhookStatus.value.attempted_at}</p>
+                {webhookStatus.value.completed_at && <p>Completed: {webhookStatus.value.completed_at}</p>}
+                {webhookStatus.value.error_code && <p role="alert">Delivery failed. Check the endpoint allowlist, signing secret, and empty HTTP 204 response before testing again.</p>}
+              </div>}
+              <div className="button-row">
+                {canWrite && selectedManifest?.auth_mode === "signed_webhook" && <Button disabled={busy || mutation.isUnresolved || selected.value.status !== "configured"} onClick={testWebhook}>Test signed delivery</Button>}
+                <Button disabled={busy || mutation.isUnresolved} onClick={() => loadDiscovery(selected.value)}>Refresh delivery status</Button>
+              </div>
+            </section>}
+            {selected && selected.value.connector_key !== "generic-webhook" && (
               <IntegrationDiscoveryPanel
                 freshness={freshness}
                 schedule={schedule}
@@ -695,17 +739,20 @@ function isReferenceConnector(value: string): value is "aws" | "kubernetes" {
   return value === "aws" || value === "kubernetes";
 }
 
-function IntegrationSetupGuide({ manifest, integration, freshness, setupStatus, onNavigate }: {
+function IntegrationSetupGuide({ manifest, integration, freshness, setupStatus, webhookStatus, onNavigate }: {
   manifest: ConnectorManifest;
   integration?: Integration;
   freshness?: DiscoveryLoad<Versioned<IntegrationFreshness>>;
   setupStatus?: DiscoveryLoad<IntegrationSetupStatus>;
+  webhookStatus?: DiscoveryLoad<IntegrationWebhookTestStatus | null>;
   onNavigate?(target: string): void;
 }) {
   const steps = integrationSetupSteps(manifest.key);
   const freshnessValue = freshness?.status === "success" ? freshness.value?.value : undefined;
   const setupValue = setupStatus?.status === "success" ? setupStatus.value : undefined;
-  const completedSteps = integrationSetupCompletedSteps(manifest.key, integration, setupValue, freshnessValue, steps.length);
+  const completedSteps = manifest.key === "generic-webhook"
+    ? integration === undefined ? 0 : webhookStatus?.status === "success" && webhookStatus.value?.integration_id === integration.id && webhookStatus.value.delivery_status === "succeeded" ? steps.length : 1
+    : integrationSetupCompletedSteps(manifest.key, integration, setupValue, freshnessValue, steps.length);
   const remediation = integration?.status === "degraded"
     ? integrationSetupRemediation(manifest.key, freshnessValue?.latest_sync?.last_error_code)
     : null;
@@ -727,7 +774,7 @@ function integrationSetupSteps(connectorKey: string): readonly string[] {
   if (connectorKey === "kubernetes") return ["Choose coverage", "Authorize cluster", "Enroll Runtime sensor", "Verify heartbeat", "Initial sync", "Review coverage"];
   if (connectorKey === "github") return ["Review access", "Authorize GitHub organization", "Validate organization and repository scope", "Initial sync", "Review coverage"];
   if (connectorKey === "okta") return ["Review directory access", "Authorize Okta", "Test directory connection", "Initial sync", "Review coverage"];
-  if (connectorKey === "generic-webhook") return ["Configure destination", "Test signed delivery", "Signature status", "Review coverage"];
+  if (connectorKey === "generic-webhook") return ["Configure destination", "Test signed delivery", "Review delivery status"];
   return ["Review access", "Configure", "Test connection", "Initial sync", "Review coverage"];
 }
 

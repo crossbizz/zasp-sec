@@ -7,6 +7,21 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 
+test("Home exposure E2E waits for loaded rows, not the persistent navigation title", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf('await clickBrowserTextContains(cdp, "Critical exposures")');
+  const end = source.indexOf('await clickBrowserTextContains(cdp, "Pending approvals")', start);
+  const flow = source.slice(start, end);
+  assert.match(flow, /await waitForBrowserAction\(cdp,.*Open attack path/);
+  assert.ok(flow.indexOf("await waitForBrowserAction") < flow.indexOf("await browserCountAriaPrefix"));
+  assert.match(flow, /Home critical exposure route had no authoritative path/);
+});
+
+test("webhook browser E2E verifies real persisted outcome across response loss and reload", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  for (const expected of ["integrationWebhookTestRequests", "webhook retry changed its idempotency key", "webhook retry changed its audit record", "webhook failure was not durably retained once", "webhook status reload emitted another delivery", "Signature and acceptance are unconfirmed", "1|failed"]) assert.ok(source.includes(expected));
+});
+
 test("combined production E2E owns every local boundary and fixed assertion", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const recoveryWorkerSource = await readFile(new URL("../services/platform/agentsec-worker/production_combined_e2e_test.go", import.meta.url), "utf8");
@@ -94,7 +109,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
     "Task6 reload and deletion left no enrollment credential in persistent browser state", "zasp_runtime_sensor_heartbeat",
 		"exerciseSecurityAgentAutomaticLifecycle", "production-e2e-security-agent", "multi-tenant supervised approval, autonomous response, exact-session isolation with unrelated allowance and cleanup, signed temporary policy apply/cleanup, and irreversible connector revocation proven", "Verified attack path containment", "verified attack path did not create one exact version-bound supervised plan", "attack-path scheduler duplicated a durable run or receipt", "TestProductionCombinedE2ETemporaryPolicyActionWorker", "Apply temporary containment policy", "Isolate runtime session", "ZASP_COMBINED_E2E_ACTION_SESSION_ID", "ZASP_COMBINED_E2E_ACTION_OTHER_SESSION_ID", "TTL 600s", "zasp_e2e_security_agent_action",
 		"exerciseHomeDailyOperations", "Daily ops stale sensor", "Foreign daily ops stale sensor", "dailyOpsSensorToken", "foreignDailyOpsSensorToken", "Home exposed every daily-ops item", "daily-ops sensor disappeared without exact deleted state", "Home daily-ops routing preserved explicit terminal and degraded authority",
-		"agentsecctl", "schema 27 production_recovery verified", "schema 28 production_policy_deployment verified", "schema 29 production_home_attention verified", "schema 30 production_approval_notification verified", "schema 31 production_workflow_compatibility verified", "schema 32 production_security_agent_planner verified", "schema 33 production_security_agent_attack_path verified", "schema 34 production_integration_setup verified", "ZASP_POLICY_DEPLOYMENT_DB_PRINCIPAL", "ZASP_RECOVERY_WORKER_DB_PRINCIPAL", "ZASP_RECOVERY_OUTBOX_DB_PRINCIPAL",
+		"agentsecctl", "schema 27 production_recovery verified", "schema 28 production_policy_deployment verified", "schema 29 production_home_attention verified", "schema 30 production_approval_notification verified", "schema 31 production_workflow_compatibility verified", "schema 32 production_security_agent_planner verified", "schema 33 production_security_agent_attack_path verified", "schema 34 production_integration_setup verified", "schema 35 production_integration_webhook verified", "ZASP_POLICY_DEPLOYMENT_DB_PRINCIPAL", "ZASP_RECOVERY_WORKER_DB_PRINCIPAL", "ZASP_RECOVERY_OUTBOX_DB_PRINCIPAL",
 		"ZASP_COMBINED_E2E_POLICY_DEPLOYMENT_DSN", "central policy deployment signed temporary gateway policy", "central policy deployment signed session isolation gateway policy",
 		"runProductionRecoveryLifecycle", "TestProductionCombinedE2ERecoveryWorker", "ZASP_COMBINED_E2E_RECOVERY_PHASE",
 		"committed recovery response loss replayed one backup, outbox, audit, and receipt", "signed recovery manifest published last", "cross-tenant recovery read rejected",

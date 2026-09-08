@@ -317,6 +317,22 @@ export function decodeIntegrationFreshness(value: unknown): IntegrationFreshness
   return value as IntegrationFreshness;
 }
 
+export function decodeIntegrationWebhookTestStatus(value: unknown, expectedIntegrationID?: string): import("./generated").IntegrationWebhookTestStatus {
+  const record = exactRecord(value, ["integration_id", "delivery_id", "delivery_status", "signature_status", "attempted_at", "completed_at", "error_code", "audit_id"]);
+  productID(record.integration_id); productID(record.delivery_id); productID(record.audit_id);
+  if (expectedIntegrationID !== undefined && record.integration_id !== expectedIntegrationID) fail();
+  enumValue(record.delivery_status, ["pending", "succeeded", "failed"]);
+  enumValue(record.signature_status, ["signed", "unconfirmed"]);
+  dateTime(record.attempted_at); nullableDateTime(record.completed_at);
+  if (record.delivery_status === "pending") {
+    if (record.signature_status !== "unconfirmed" || record.completed_at !== null || record.error_code !== "") fail();
+  } else {
+    if (record.completed_at === null || Date.parse(record.completed_at as string) < Date.parse(record.attempted_at)) fail();
+    if (record.delivery_status === "succeeded" ? record.signature_status !== "signed" || record.error_code !== "" : record.signature_status !== "unconfirmed" || record.error_code !== "delivery_failed") fail();
+  }
+  return value as import("./generated").IntegrationWebhookTestStatus;
+}
+
 export function decodeIntegrationSetupStatus(value: unknown, expectedIntegrationID?: string): IntegrationSetupStatus {
   const record = exactRecord(value, ["integration_id", "connector_key", "authorization", "runtime_coverage", "updated_at"]);
   productID(record.integration_id); if (expectedIntegrationID !== undefined && record.integration_id !== expectedIntegrationID) fail();

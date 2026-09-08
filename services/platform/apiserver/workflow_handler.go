@@ -44,6 +44,7 @@ type workflowHTTPHandler struct {
 	now          func() time.Time
 	catalog      *platformintegration.Catalog
 	capabilities ConnectorCapabilities
+	webhookTests IntegrationWebhookTester
 }
 
 func newWorkflowHTTPHandler(repository workflowRepository, signingKey []byte, now func() time.Time, configuredCapabilities ...ConnectorCapabilities) (*workflowHTTPHandler, error) {
@@ -64,7 +65,7 @@ func newWorkflowHTTPHandler(repository workflowRepository, signingKey []byte, no
 		}
 		capabilities = configuredCapabilities[0]
 	}
-	catalog, err := platformintegration.NewCatalog(locallyCompleteWorkflowManifests(context.Background(), capabilities))
+	catalog, err := platformintegration.NewCatalog(locallyCompleteWorkflowManifests(context.Background(), capabilities, false))
 	if err != nil {
 		return nil, ErrRepositoryConfiguration
 	}
@@ -86,6 +87,27 @@ func (handler *workflowHTTPHandler) ServeHTTP(writer http.ResponseWriter, reques
 }
 
 func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
+	if routed.OperationID == "getIntegrationWebhookStatus" {
+		if nilInterface(handler.webhookTests) {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		if request.URL.RawQuery != "" {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+		status, err := handler.webhookTests.GetIntegrationWebhookTestStatus(request.Context(), identity.Scope, routed.PathParameters["id"])
+		if err == nil && !validIntegrationWebhookTestStatus(status, routed.PathParameters["id"]) {
+			err = ErrRepositoryUnavailable
+		}
+		if err != nil {
+			writeProductionError(writer, request, err)
+			return
+		}
+		writer.Header().Set("Cache-Control", "no-store")
+		writeJSONValue(writer, request, http.StatusOK, status, nil)
+		return
+	}
 	if routed.OperationID == "listWorkflowMutationReceipts" {
 		handler.readMutationReceipts(writer, request, identity)
 		return
@@ -265,6 +287,10 @@ func (handler *workflowHTTPHandler) decodeWorkflowCursor(value string, scope dom
 }
 
 func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
+	if routed.OperationID == "testIntegrationWebhook" {
+		handler.testIntegrationWebhook(writer, request, identity, routed)
+		return
+	}
 	if routed.OperationID == "acknowledgeWorkflowMutationReceipt" {
 		if decodeEmptyInput(request) != nil {
 			writeProductionError(writer, request, ErrRepositoryOperation)
@@ -329,6 +355,43 @@ func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *
 		return
 	}
 	handler.writeMutationResult(writer, request, identity, routed, idempotencyKey, intent, result, status, responseKind)
+}
+
+func (handler *workflowHTTPHandler) testIntegrationWebhook(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
+	if nilInterface(handler.webhookTests) {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	if request.URL.RawQuery != "" || decodeEmptyInput(request) != nil {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	keys, versions := request.Header.Values("Idempotency-Key"), request.Header.Values("If-Match")
+	if len(keys) != 1 || len(versions) != 1 || !validPublicIdempotency(keys[0]) {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	expected, err := parseVersion(versions[0])
+	if err != nil {
+		writeWorkflowMutationError(writer, request, errPreconditionRequired)
+		return
+	}
+	auditID, err := newWorkflowProductID()
+	if err != nil {
+		writeProductionError(writer, request, ErrRepositoryUnavailable)
+		return
+	}
+	status, err := handler.webhookTests.TestIntegrationWebhook(request.Context(), IntegrationWebhookTestCommand{Identity: identity, IntegrationID: routed.PathParameters["id"], ExpectedVersion: expected, IdempotencyKey: keys[0], AuditID: auditID, CorrelationID: correlationIDFromContext(request.Context())})
+	if err == nil && (!validIntegrationWebhookTestStatus(status, routed.PathParameters["id"]) || status.DeliveryStatus == "pending") {
+		err = ErrRepositoryUnavailable
+	}
+	if err != nil {
+		writeWorkflowMutationError(writer, request, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	writer.Header().Set("X-Audit-ID", status.AuditID)
+	writeJSONValue(writer, request, http.StatusOK, status, nil)
 }
 
 func (handler *workflowHTTPHandler) writeMutationResult(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation, idempotencyKey string, intent json.RawMessage, result WorkflowMutationResult, status int, responseKind string) {
@@ -639,6 +702,9 @@ func (handler *workflowHTTPHandler) integrationBody(request *http.Request, scope
 	if catalog.ValidateSetup(input.ConnectorKey, input.Configuration) != nil {
 		return nil, "", ErrRepositoryOperation
 	}
+	if input.ConnectorKey == "generic-webhook" && !nilInterface(handler.webhookTests) && (!validIntegrationWebhookDestination(input.Configuration["destination_url"]) || !validIntegrationWebhookSecretReference(input.Configuration["signing_secret_reference"])) {
+		return nil, "", ErrRepositoryOperation
+	}
 	if create {
 		id = handler.idempotentProductID(scope, "createIntegration", idempotencyKey)
 	}
@@ -738,10 +804,10 @@ func (handler *workflowHTTPHandler) currentCatalog(ctx context.Context) (*platfo
 	if handler == nil || nilInterface(handler.capabilities) || ctx == nil || ctx.Err() != nil {
 		return nil, ErrRepositoryUnavailable
 	}
-	return platformintegration.NewCatalog(locallyCompleteWorkflowManifests(ctx, handler.capabilities))
+	return platformintegration.NewCatalog(locallyCompleteWorkflowManifests(ctx, handler.capabilities, handler.webhookTests != nil))
 }
 
-func locallyCompleteWorkflowManifests(ctx context.Context, capabilities ConnectorCapabilities) []platformintegration.ConnectorManifest {
+func locallyCompleteWorkflowManifests(ctx context.Context, capabilities ConnectorCapabilities, webhookDeliveryAvailable bool) []platformintegration.ConnectorManifest {
 	values := platformintegration.BuiltinManifests()
 	result := make([]platformintegration.ConnectorManifest, 0, len(values))
 	for _, value := range values {
@@ -750,12 +816,14 @@ func locallyCompleteWorkflowManifests(ctx context.Context, capabilities Connecto
 			continue
 		}
 		if value.Key == "generic-webhook" {
-			value.Description = "Store one scoped HTTPS webhook configuration for a future delivery adapter."
-			value.DataTypes = []string{"configuration"}
-			value.Actions = []string{"store_configuration"}
-			value.AuthMode = "secret_reference"
-			value.AccessGuidance = "Save only an HTTPS destination and an opaque product secret reference."
-			value.TestSemantics = "Validate and durably persist the local configuration without contacting the destination."
+			if !webhookDeliveryAvailable {
+				value.Description = "Store one scoped HTTPS webhook configuration for a future delivery adapter."
+				value.DataTypes = []string{"configuration"}
+				value.Actions = []string{"store_configuration"}
+				value.AuthMode = "secret_reference"
+				value.AccessGuidance = "Save only an HTTPS destination and an opaque product secret reference."
+				value.TestSemantics = "Validate and durably persist the local configuration without contacting the destination."
+			}
 			result = append(result, value)
 		}
 	}

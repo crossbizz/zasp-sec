@@ -165,7 +165,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 512; expected 513/,
+        /production-available count is 513; expected 514/,
       );
     },
   );
@@ -324,6 +324,18 @@ test("rejects demotion of production-composed policy history operations", async 
   }
 });
 
+test("rejects demotion of the production signed webhook setup task", async () => {
+  await withLedger(
+    (ledger) => ledger.replace("M3\tM3-48h\tComplete\tproduction-available", "M3\tM3-48h\tComplete\tcomponent-only"),
+    async (ledgerPath) => {
+      await assert.rejects(
+        () => validateLedger({ ledgerPath, sourcePlanPath }),
+        /production class component-only does not match audited production-available for M3-48h/,
+      );
+    },
+  );
+});
+
 test("rejects a published milestone matrix that drifts from the audited map", async () => {
   await withLedgerAndStatus(
     (ledger) => ledger,
@@ -341,7 +353,7 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => status.replace(
-      "| Production-available | 513 |",
+      "| Production-available | 514 |",
       "| Production-available | 496 |",
     ),
     async ({ ledgerPath, statusPath }) => {

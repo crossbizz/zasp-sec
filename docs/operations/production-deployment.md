@@ -36,6 +36,36 @@ helm template zasp deploy/staging/product --namespace agentsec -f deploy/staging
 helm upgrade --install zasp deploy/staging/product --namespace agentsec --create-namespace --atomic --timeout 15m -f deploy/staging/product/values-saas.yaml -f release-values.yaml
 ```
 
+### Configure Generic Webhook
+
+Apply schema v35 before rolling the product API. Connections accepts one saved
+HTTPS destination with a public hostname, default HTTPS port or explicit 443,
+and no query, fragment, user information, or parent-directory path. Root URLs
+are sent as `/`. Configure the exact approved public destination ranges in
+`ZASP_FINDING_TICKET_EGRESS_CIDRS`; every resolved address must be allowed.
+The sender pins the selected address and verifies TLS for the destination host.
+Redirects and private or non-allowlisted destinations are rejected.
+
+Provision 32–4,096 bytes of signing material in the approved Secrets Manager
+prefix. If `ZASP_CONNECTOR_SECRET_PREFIX` is `zasp/production/connectors/oauth`,
+then `secret_ref_notifications` resolves to
+`zasp/production/connectors/webhook/notifications`. Save only the reference in
+Connections. Never put secret bytes in Helm values, URLs, or action inputs.
+
+Use **Test signed delivery** after saving configuration. The fixed
+`integration.webhook.test` JSON body includes the tenant scope, integration
+version, delivery ID, and timestamp. Verify `X-Zasp-Signature` as
+`sha256=<hex HMAC-SHA256 of the exact request bytes>`, compare it in constant
+time, and deduplicate `X-Zasp-Delivery-ID` before processing. The receiver must
+return HTTP 204 with an empty body. Reject signatures before processing events.
+
+The UI reports `signed` only when Zasp signed the request and the endpoint
+accepted it. This does not prove the receiver verified the signature. Missing
+secrets, timeout, TLS, destination, and response failures remain `unconfirmed`.
+Retry a lost response with its retained key; do not create a new operation.
+Changing integration configuration invalidates the displayed test evidence.
+Migration rollback refuses to drop delivery history once any test is recorded.
+
 ### Configure Red Team
 
 Red Team has three distinct service accounts, PostgreSQL principals, and DSN objects: outbox, Promptfoo worker, and target adapter. Its `agentsec-red-team-tests` queue and DLQ use the isolated Red Team KMS key. Normalized immutable evidence uses the versioned Red Team evidence bucket and the same isolated key. Do not reuse discovery, runtime, API, or migration identities.
@@ -95,7 +125,7 @@ The vendored Tetragon dependency archive must hash to `4935787067939cacfe779366e
 
 Before promotion, require `zasp-tetragon` and `sensor-agent` desired/ready counts to match, both tracing policies present, every `zasp-sensor-node-*` Lease fresh, exactly one unexpired `zasp-sensor-heartbeat-leader`, and the SaaS sensor detail to advance without drop growth. Test leader-pod deletion and node-log rotation. `ZaspSensorAgentNotReady` and `ZaspEdgeDaemonSetUnavailable` must stay clear.
 
-The pre-install/pre-upgrade lifecycle is serialized. The migration service account (-30), secret-provider class (-20), and bounded migration Job (-10) establish exact schema v27 first. Neo4j and OpenSearch init authorities then install their exact constraints, mappings, and immutable markers. Only after every hook succeeds may Helm roll discovery, Red Team, Attack Lab, recovery, projection, gateway-control, ingest, and runtime pipeline Deployments. This ordering works on a fresh install without pre-existing Kubernetes Secrets, but it requires the Secrets Store CSI driver/provider, exact IRSA trusts, VPC CNI strict pod-network enforcement, and reachable private dependency CIDRs. A failed hook or readiness check blocks promotion. Do not bypass, reorder, or reuse an init identity for a runtime worker.
+The pre-install/pre-upgrade lifecycle is serialized. The migration service account (-30), secret-provider class (-20), and bounded migration Job (-10) establish exact schema v35 first. Neo4j and OpenSearch init authorities then install their exact constraints, mappings, and immutable markers. Only after every hook succeeds may Helm roll discovery, Red Team, Attack Lab, recovery, projection, gateway-control, ingest, and runtime pipeline Deployments. This ordering works on a fresh install without pre-existing Kubernetes Secrets, but it requires the Secrets Store CSI driver/provider, exact IRSA trusts, VPC CNI strict pod-network enforcement, and reachable private dependency CIDRs. A failed hook or readiness check blocks promotion. Do not bypass, reorder, or reuse an init identity for a runtime worker.
 
 ## Verify and promote
 

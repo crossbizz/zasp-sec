@@ -58,6 +58,7 @@ const riskRecoverySequence = [];
 const delayedRiskDetailResponses = [];
 const lostFindingResponseKeys = [];
 const findingTicketRequests = [];
+const integrationWebhookTestRequests = [];
 const connectorAuthorizationRequests = [];
 const productAPIRequests = [];
 const policyHistoryRequests = [];
@@ -165,8 +166,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -183,6 +184,7 @@ try {
 	console.log("combined E2E: schema 32 production_security_agent_planner verified");
 	console.log("combined E2E: schema 33 production_security_agent_attack_path verified");
 	console.log("combined E2E: schema 34 production_integration_setup verified");
+	console.log("combined E2E: schema 35 production_integration_webhook verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -702,7 +704,23 @@ try {
   await fillBrowserLabel(browser.cdp, "Signing secret", "secret_ref_combined_e2e");
   await clickBrowserText(browser.cdp, "Save integration");
   await waitForBrowserText(browser.cdp, /Integration created\. Audit pid_/);
+  await waitForBrowserText(browser.cdp, /No delivery test for the current configuration/);
+  await clickBrowserText(browser.cdp, "Test signed delivery");
+  await waitForBrowserText(browser.cdp, /Webhook test failed\. Audit pid_/);
+  await waitForBrowserText(browser.cdp, /Signature and acceptance are unconfirmed/);
+  assert.equal(integrationWebhookTestRequests.length, 2, "webhook lost-response replay was not exercised");
+  assert.equal(new Set(integrationWebhookTestRequests.map((item) => item.idempotencyKey)).size, 1, "webhook retry changed its idempotency key");
+  assert.equal(new Set(integrationWebhookTestRequests.map((item) => item.auditID)).size, 1, "webhook retry changed its audit record");
+  assert.equal(integrationWebhookTestRequests.every((item) => item.body === "{}" && item.ifMatch === '"1"' && item.csrf.length >= 16 && item.status === 200), true, "webhook test lost saved-configuration authority");
+  const webhookDurability = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT count(*) || '|' || min(state) FROM zasp_integration_webhook_tests;"]);
+  assert.equal(webhookDurability.stdout.trim(), "1|failed", "webhook failure was not durably retained once");
   await clickBrowserAria(browser.cdp, "Close");
+  await reloadBrowserPage(browser.cdp);
+  await clickBrowserAria(browser.cdp, "Open Generic Webhook");
+  await waitForBrowserText(browser.cdp, /Delivery status: failed/);
+  assert.equal(integrationWebhookTestRequests.length, 2, "webhook status reload emitted another delivery");
+  await clickBrowserAria(browser.cdp, "Close");
+  console.log("combined E2E: webhook delivery failure remained truthful and durable across lost response and reload");
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/protect/security-agents`);
   await waitForBrowserText(browser.cdp, /Tenant-scoped response definitions/);
@@ -1538,7 +1556,7 @@ async function assertIntegrationSetupStatus(publicOrigin, headers, integrationID
 	assert.equal(response.headers.etag, undefined, "integration setup status exposed an unstable ETag");
 	const { integration_id: returnedID, updated_at: updatedAt, ...body } = response.body;
 	assert.equal(returnedID, integrationID, "integration setup status changed integration identity");
-	assert.match(updatedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/, "integration setup status timestamp was not canonical UTC");
+	assert.match(updatedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/, "integration setup status timestamp was not canonical UTC");
 	assert.deepEqual(body, expected, "integration setup status disagreed with exact provider authority");
 	assert.doesNotMatch(JSON.stringify(response.body), /credential_reference|installation_id|refresh_token|client_secret|ref:(?:aws|kubernetes|github|okta)\//i, "integration setup status leaked provider authority");
 }
@@ -2134,7 +2152,7 @@ async function exerciseHomeDailyOperations(cdp, publicOrigin, dsn, approvalID, r
 	console.log("combined E2E: Home exposed every daily-ops item");
 
 	await clickBrowserTextContains(cdp, "Critical exposures");
-	await waitForBrowserText(cdp, /Attack Paths/);
+	await waitForBrowserAction(cdp, `document.querySelectorAll('[aria-label^="Open attack path "]').length >= 1`);
 	assert.ok(await browserCountAriaPrefix(cdp, "Open attack path") >= 1, "Home critical exposure route had no authoritative path");
 
 	await navigateBrowser(cdp, `${publicOrigin}/`);
@@ -2768,6 +2786,9 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const tokenAcknowledge = request.method === "DELETE" && /^\/api\/v1\/admin\/api-token-reveal-grants\/pid_[0-9a-f-]+$/.test(target.pathname);
 		const integrationDeleteID = request.method === "DELETE" && /^\/api\/v1\/integrations\/pid_[0-9a-f-]+$/.test(target.pathname) ? target.pathname.split("/").at(-1) : undefined;
     const findingTicketRequest = request.method === "POST" && /^\/api\/v1\/findings\/pid_[0-9a-f-]+\/ticket$/.test(target.pathname);
+    const integrationWebhookTest = request.method === "POST" && /^\/api\/v1\/integrations\/pid_[0-9a-f-]+\/test-delivery$/.test(target.pathname)
+      ? { body: "", idempotencyKey: String(request.headers["idempotency-key"] ?? ""), ifMatch: String(request.headers["if-match"] ?? ""), csrf: String(request.headers["x-csrf-token"] ?? ""), status: 0, auditID: "" } : null;
+    if (integrationWebhookTest) request.on("data", (chunk) => { if (integrationWebhookTest.body.length < 1024) integrationWebhookTest.body += chunk; });
 		const recoveryBackupRequest = request.method === "POST" && target.pathname === "/api/v1/recovery/backups";
 		const securityAgentApprovalRequest = request.method === "POST" && /^\/api\/v1\/security-agent-approvals\/pid_[0-9a-f-]+\/decision$/.test(target.pathname);
     const connectorAuthorizationRequest = request.method === "POST" && target.pathname === `/api/v1/integrations/${terminalRevocationIntegrationID}/authorize` && String(request.headers.cookie ?? "").includes("__Host-zasp_session=");
@@ -2852,6 +2873,20 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     };
     delete upstreamHeaders["x-zasp-e2e-tab"];
 		const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
+      if (integrationWebhookTest) {
+        integrationWebhookTest.status = upstreamResponse.statusCode ?? 0;
+        integrationWebhookTest.auditID = String(upstreamResponse.headers["x-audit-id"] ?? "");
+        integrationWebhookTestRequests.push(integrationWebhookTest);
+        const loseResponse = integrationWebhookTestRequests.length === 1 && upstreamResponse.statusCode === 200;
+        if (loseResponse) {
+          upstreamResponse.resume();
+          upstreamResponse.once("end", () => {
+            response.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
+            response.end(JSON.stringify({ code: "dependency_unavailable", message: "Injected webhook response loss after durable completion", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }));
+          });
+          return;
+        }
+      }
 		if (target.pathname.startsWith("/api/v1/recovery/")) recoveryAPIResponses.push({ method: request.method, path: target.pathname, status: upstreamResponse.statusCode ?? 0, contentType: String(upstreamResponse.headers["content-type"] ?? ""), cacheControl: String(upstreamResponse.headers["cache-control"] ?? ""), etag: String(upstreamResponse.headers.etag ?? ""), audit: String(upstreamResponse.headers["x-audit-id"] ?? ""), receipt: String(upstreamResponse.headers["x-mutation-receipt-id"] ?? "") });
 		const securityAgentApprovalResponse = securityAgentApprovalRequest ? { path: target.pathname, status: upstreamResponse.statusCode ?? 0, idempotencyKey: String(request.headers["idempotency-key"] ?? ""), ifMatch: String(request.headers["if-match"] ?? ""), fresh: String(request.headers["x-zasp-fresh-auth"] ?? ""), audit: String(upstreamResponse.headers["x-audit-id"] ?? ""), receipt: String(upstreamResponse.headers["x-mutation-receipt-id"] ?? ""), errorBody: "" } : undefined;
 		if (securityAgentApprovalResponse) securityAgentApprovalResponses.push(securityAgentApprovalResponse);
