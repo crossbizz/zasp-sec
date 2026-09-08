@@ -243,6 +243,12 @@ screens:
       - id: view_integration_setup_status
         operation_id: getIntegrationSetupStatus
         availability: available
+      - id: test_integration_webhook
+        operation_id: testIntegrationWebhook
+        availability: available
+      - id: view_integration_webhook_status
+        operation_id: getIntegrationWebhookStatus
+        availability: available
       - id: view_sensors
         operation_id: listSensors
         availability: available

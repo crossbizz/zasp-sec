@@ -876,6 +876,28 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/integrations/{id}/delivery-status": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        /**
+         * Get the latest test result for the current Generic Webhook configuration
+         * @description Tenant-bound and credential-redacted. A missing integration or an integration with no test for its current version returns not_found. Pending delivery is unconfirmed.
+         */
+        readonly get: operations["getIntegrationWebhookStatus"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/integrations/{id}/freshness": {
         readonly parameters: {
             readonly query?: never;
@@ -1021,6 +1043,28 @@ export type paths = {
         readonly get: operations["getIntegrationSync"];
         readonly put?: never;
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/integrations/{id}/test-delivery": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Test the configured Generic Webhook with a signed fixed event
+         * @description Uses only the saved destination and signing reference at the expected integration version. Exact retries retain the delivery identifier. A signed succeeded result means Zasp signed the request and the endpoint accepted it with an empty 204 response; it does not attest receiver-side signature verification. Receivers must deduplicate by delivery identifier. Browser mutations require same-origin Origin and CSRF headers; API tokens omit both.
+         */
+        readonly post: operations["testIntegrationWebhook"];
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -2863,6 +2907,21 @@ export type components = {
             readonly configuration: components["schemas"]["IntegrationConfiguration"];
             readonly name: string;
         };
+        readonly IntegrationWebhookTestStatus: {
+            /** Format: date-time */
+            readonly attempted_at: string;
+            readonly audit_id: components["schemas"]["ProductID"];
+            /** Format: date-time */
+            readonly completed_at: string | null;
+            readonly delivery_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly delivery_status: "pending" | "succeeded" | "failed";
+            /** @enum {string} */
+            readonly error_code: "" | "delivery_failed";
+            readonly integration_id: components["schemas"]["ProductID"];
+            /** @enum {string} */
+            readonly signature_status: "signed" | "unconfirmed";
+        };
         readonly InventoryDetail: {
             readonly evidence: readonly components["schemas"]["InventoryEvidenceReference"][];
             readonly sources: readonly components["schemas"]["InventorySourceObservation"][];
@@ -3987,6 +4046,7 @@ export type IntegrationSyncPage = components['schemas']['IntegrationSyncPage'];
 export type IntegrationSyncStatus = components['schemas']['IntegrationSyncStatus'];
 export type IntegrationSyncTriggerKind = components['schemas']['IntegrationSyncTriggerKind'];
 export type IntegrationUpdateInput = components['schemas']['IntegrationUpdateInput'];
+export type IntegrationWebhookTestStatus = components['schemas']['IntegrationWebhookTestStatus'];
 export type InventoryDetail = components['schemas']['InventoryDetail'];
 export type InventoryEvidenceReference = components['schemas']['InventoryEvidenceReference'];
 export type InventoryFreshnessState = components['schemas']['InventoryFreshnessState'];
@@ -5919,6 +5979,35 @@ export interface operations {
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };
+    readonly getIntegrationWebhookStatus: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current configuration test status. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationWebhookTestStatus"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
     readonly getIntegrationFreshness: {
         readonly parameters: {
             readonly query?: never;
@@ -6248,6 +6337,50 @@ export interface operations {
             readonly 401: components["responses"]["ProductErrorResponse"];
             readonly 403: components["responses"]["ProductErrorResponse"];
             readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 503: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly testIntegrationWebhook: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Caller-generated key binding an exact workflow mutation and its durable response. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Quoted current durable resource version. */
+                readonly "If-Match": components["parameters"]["ResourceVersion"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+                readonly Origin?: components["parameters"]["BrowserMutationOrigin"];
+                /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The value is bound to the authenticated browser session. */
+                readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
+            };
+            readonly path: {
+                readonly id: components["schemas"]["ProductID"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["EmptyInput"];
+            };
+        };
+        readonly responses: {
+            /** @description Persisted terminal test result or exact replay. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly "X-Audit-ID": components["headers"]["WorkflowAuditID"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["IntegrationWebhookTestStatus"];
+                };
+            };
+            readonly 400: components["responses"]["ProductErrorResponse"];
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
+            readonly 409: components["responses"]["ProductErrorResponse"];
             readonly 503: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };

@@ -130,6 +130,8 @@ type releaseMigrationRunner interface {
 	DownProductionSecurityAgentAttackPath(context.Context) error
 	UpProductionIntegrationSetup(context.Context) error
 	DownProductionIntegrationSetup(context.Context) error
+	UpProductionIntegrationWebhook(context.Context) error
+	DownProductionIntegrationWebhook(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -471,10 +473,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 34
 		}
-		if version != 34 {
+		if version == 34 {
+			if err := runner.UpProductionIntegrationWebhook(ctx); err != nil {
+				return err
+			}
+			version = 35
+		}
+		if version != 35 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 35 {
+			if err := runner.DownProductionIntegrationWebhook(ctx); err != nil {
+				return err
+			}
+			version = 34
+		}
 		if version == 34 {
 			if err := runner.DownProductionIntegrationSetup(ctx); err != nil {
 				return err

@@ -9,6 +9,7 @@ import {
   decodeIntegrationPage,
   decodeIntegrationSchedule,
   decodeIntegrationSetupStatus,
+  decodeIntegrationWebhookTestStatus,
   decodeIntegrationSync,
   decodeIntegrationSyncPage,
   decodePolicy,
@@ -29,6 +30,7 @@ import type {
   IntegrationSchedule,
   IntegrationScheduleInput,
   IntegrationSetupStatus,
+  IntegrationWebhookTestStatus,
   IntegrationSync,
   IntegrationUpdateInput,
   Policy,
@@ -294,6 +296,25 @@ export function createIntegrationsAPI(client: APIClient) {
       const result = await client.GET("/api/v1/integrations/{id}/setup-status", { params: { path: { id } }, signal });
       if (result.response.headers.get("Cache-Control") !== "no-store") throw new APITransportError("invalid_response", "Integration setup status was cacheable");
       return requireAPIData(result, (value) => decodeIntegrationSetupStatus(value, id));
+    },
+    async getIntegrationWebhookStatus(id: string, signal?: AbortSignal): Promise<IntegrationWebhookTestStatus | null> {
+      try {
+        const result = await client.GET("/api/v1/integrations/{id}/delivery-status", { params: { path: { id } }, signal });
+        const status = requireAPIData(result, (value) => decodeIntegrationWebhookTestStatus(value, id));
+        if (result.response.headers.get("Cache-Control") !== "no-store") throw new APITransportError("invalid_response", "Webhook delivery status was cacheable");
+        return status;
+      } catch (error) {
+        if (error instanceof APIProductError && error.status === 404 && error.product.code === "not_found") return null;
+        throw error;
+      }
+    },
+    async testIntegrationWebhook(id: string, version: string, attempt?: WorkflowMutationAttempt): Promise<IntegrationWebhookTestStatus> {
+      return executeWorkflowMutation(async (active) => {
+        const result = await client.POST("/api/v1/integrations/{id}/test-delivery", { params: { path: { id }, header: workflowMutationHeaders(active, version) as { "Idempotency-Key": string; "If-Match": string } }, body: {} });
+        const status = requireAPIData(result, (value) => decodeIntegrationWebhookTestStatus(value, id));
+        if (result.response.status !== 200 || result.response.headers.get("Cache-Control") !== "no-store" || result.response.headers.get("X-Audit-ID") !== status.audit_id || status.delivery_status === "pending") throw new APITransportError("invalid_response", "Webhook test result was not confirmed");
+        return status;
+      }, attempt);
     },
     async getIntegrationSchedule(id: string, signal?: AbortSignal): Promise<Versioned<IntegrationSchedule> | null> {
       try {

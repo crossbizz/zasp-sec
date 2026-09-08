@@ -58,6 +58,7 @@ type CookiePolicy struct {
 	DiscoveryParserVersion string
 	DiscoveryToolVersion   string
 	FindingTickets         FindingTicketCreator
+	IntegrationWebhookTests IntegrationWebhookTester
 }
 
 type sessionRepository interface {
@@ -106,6 +107,7 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 	if err != nil {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
+	workflow.webhookTests = cookie.IntegrationWebhookTests
 	workflowSurface := http.Handler(workflow)
 	if isDiscoveryExecutionSchema(repository.schema) {
 		if !executionVersionPattern.MatchString(cookie.DiscoveryParserVersion) || !executionVersionPattern.MatchString(cookie.DiscoveryToolVersion) {

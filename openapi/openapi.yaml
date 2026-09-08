@@ -1285,6 +1285,53 @@ paths:
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '503': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/test-delivery:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: testIntegrationWebhook
+      summary: Test the configured Generic Webhook with a signed fixed event
+      description: Uses only the saved destination and signing reference at the expected integration version. Exact retries retain the delivery identifier. A signed succeeded result means Zasp signed the request and the endpoint accepted it with an empty 204 response; it does not attest receiver-side signature verification. Receivers must deduplicate by delivery identifier. Browser mutations require same-origin Origin and CSRF headers; API tokens omit both.
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EmptyInput' } } }
+      responses:
+        '200':
+          description: Persisted terminal test result or exact replay.
+          headers:
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            Cache-Control: { schema: { type: string, const: no-store } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationWebhookTestStatus' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/integrations/{id}/delivery-status:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getIntegrationWebhookStatus
+      summary: Get the latest test result for the current Generic Webhook configuration
+      description: Tenant-bound and credential-redacted. A missing integration or an integration with no test for its current version returns not_found. Pending delivery is unconfirmed.
+      responses:
+        '200':
+          description: Current configuration test status.
+          headers: { Cache-Control: { schema: { type: string, const: no-store } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/IntegrationWebhookTestStatus' } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integrations/{id}/authorize:
     parameters:
       - name: id
@@ -4587,6 +4634,19 @@ components:
         reason: { type: string, enum: [not_applicable, not_enrolled, missing_gateway, unsupported_kernel, degraded, verified] }
         sensor_count: { type: integer, minimum: 0, maximum: 1000000 }
         healthy_sensor_count: { type: integer, minimum: 0, maximum: 1000000 }
+    IntegrationWebhookTestStatus:
+      type: object
+      additionalProperties: false
+      required: [integration_id, delivery_id, delivery_status, signature_status, attempted_at, completed_at, error_code, audit_id]
+      properties:
+        integration_id: { $ref: '#/components/schemas/ProductID' }
+        delivery_id: { $ref: '#/components/schemas/ProductID' }
+        delivery_status: { type: string, enum: [pending, succeeded, failed] }
+        signature_status: { type: string, enum: [signed, unconfirmed] }
+        attempted_at: { type: string, format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        error_code: { type: string, enum: ['', delivery_failed] }
+        audit_id: { $ref: '#/components/schemas/ProductID' }
     IntegrationSetupStatus:
       type: object
       additionalProperties: false
