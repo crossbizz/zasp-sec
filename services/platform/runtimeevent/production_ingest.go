@@ -239,7 +239,7 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 		return
 	}
 	result, err := safeProductionFinalize(ctx, handler.config.Repository, credential, IngestFinalizeRequest{BatchID: batchID, JobID: jobID, OutboxID: outboxID, Artifact: artifact})
-	if err != nil || result.BatchID != batchID || result.Generation != reservation.Generation || result.State != "queued" {
+	if err != nil || result.BatchID != batchID || result.Generation != reservation.Generation || !validAcceptedIngestState(result.State, result.Replayed) {
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
 		return
 	}
@@ -327,7 +327,13 @@ func validIngestAuthority(value IngestAuthority) bool {
 }
 
 func validReservation(value IngestReservation, batchID domain.ProductID) bool {
-	return value.BatchID == batchID && value.Generation > 0 && len(value.ArtifactKey) >= 32 && len(value.ArtifactKey) <= 1024 && strings.HasPrefix(value.ArtifactKey, "runtime/v15/") && !strings.Contains(value.ArtifactKey, "..") && value.RequestDigest != [sha256.Size]byte{} && (value.State == "uploading" || value.State == "queued")
+	return value.BatchID == batchID && value.Generation > 0 && len(value.ArtifactKey) >= 32 && len(value.ArtifactKey) <= 1024 && strings.HasPrefix(value.ArtifactKey, "runtime/v15/") && !strings.Contains(value.ArtifactKey, "..") && value.RequestDigest != [sha256.Size]byte{} && (value.State == "uploading" || validAcceptedIngestState(value.State, value.Replayed))
+}
+
+// A replay confirms original acceptance, not successful downstream processing.
+// Unknown uploads still require reconciliation and must not receive acceptance.
+func validAcceptedIngestState(state string, replayed bool) bool {
+	return state == "queued" || replayed && (state == "processing" || state == "succeeded" || state == "failed" || state == "quarantined")
 }
 
 func validRawArtifact(value RawArtifact, scope domain.Scope, key string, digest [sha256.Size]byte, size int64) bool {

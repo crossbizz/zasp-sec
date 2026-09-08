@@ -60,14 +60,15 @@ const (
 type DeliveryDisposition string
 
 const (
-	DeliveryDispositionClaimed     DeliveryDisposition = "claimed"
-	DeliveryDispositionAckPending  DeliveryDisposition = "ack_pending"
-	DeliveryDispositionAckTerminal DeliveryDisposition = "ack_terminal"
-	DeliveryDispositionBusy        DeliveryDisposition = "busy"
-	DeliveryDispositionUnknown     DeliveryDisposition = "unknown"
-	DeliveryDispositionQuarantined DeliveryDisposition = "quarantined"
-	DeliveryDispositionRetryable   DeliveryDisposition = "retryable"
-	DeliveryDispositionAcked       DeliveryDisposition = "acked"
+	DeliveryDispositionClaimed      DeliveryDisposition = "claimed"
+	DeliveryDispositionAckPending   DeliveryDisposition = "ack_pending"
+	DeliveryDispositionAckTerminal  DeliveryDisposition = "ack_terminal"
+	DeliveryDispositionAckDuplicate DeliveryDisposition = "ack_duplicate"
+	DeliveryDispositionBusy         DeliveryDisposition = "busy"
+	DeliveryDispositionUnknown      DeliveryDisposition = "unknown"
+	DeliveryDispositionQuarantined  DeliveryDisposition = "quarantined"
+	DeliveryDispositionRetryable    DeliveryDisposition = "retryable"
+	DeliveryDispositionAcked        DeliveryDisposition = "acked"
 )
 
 type DeliveryOutcome string
@@ -470,7 +471,7 @@ func decodeDeliveryClaim(payload json.RawMessage, request DeliveryClaimRequest, 
 		if wire.LeaseExpiresAt != nil {
 			result.LeaseExpiresAt = wire.LeaseExpiresAt.UTC()
 		}
-	case DeliveryDispositionAckTerminal, DeliveryDispositionUnknown, DeliveryDispositionQuarantined:
+	case DeliveryDispositionAckTerminal, DeliveryDispositionAckDuplicate, DeliveryDispositionUnknown, DeliveryDispositionQuarantined:
 	default:
 		return DeliveryClaim{}, ErrProductionPipeline
 	}

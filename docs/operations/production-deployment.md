@@ -38,7 +38,7 @@ helm upgrade --install zasp deploy/staging/product --namespace agentsec --create
 
 ### Configure Generic Webhook
 
-Apply schema v35 before rolling the product API. Connections accepts one saved
+Apply schema v36 before rolling the product API. Connections accepts one saved
 HTTPS destination with a public hostname, default HTTPS port or explicit 443,
 and no query, fragment, user information, or parent-directory path. Root URLs
 are sent as `/`. Configure the exact approved public destination ranges in
@@ -125,7 +125,7 @@ The vendored Tetragon dependency archive must hash to `4935787067939cacfe779366e
 
 Before promotion, require `zasp-tetragon` and `sensor-agent` desired/ready counts to match, both tracing policies present, every `zasp-sensor-node-*` Lease fresh, exactly one unexpired `zasp-sensor-heartbeat-leader`, and the SaaS sensor detail to advance without drop growth. Test leader-pod deletion and node-log rotation. `ZaspSensorAgentNotReady` and `ZaspEdgeDaemonSetUnavailable` must stay clear.
 
-The pre-install/pre-upgrade lifecycle is serialized. The migration service account (-30), secret-provider class (-20), and bounded migration Job (-10) establish exact schema v35 first. Neo4j and OpenSearch init authorities then install their exact constraints, mappings, and immutable markers. Only after every hook succeeds may Helm roll discovery, Red Team, Attack Lab, recovery, projection, gateway-control, ingest, and runtime pipeline Deployments. This ordering works on a fresh install without pre-existing Kubernetes Secrets, but it requires the Secrets Store CSI driver/provider, exact IRSA trusts, VPC CNI strict pod-network enforcement, and reachable private dependency CIDRs. A failed hook or readiness check blocks promotion. Do not bypass, reorder, or reuse an init identity for a runtime worker.
+The pre-install/pre-upgrade lifecycle is serialized. The migration service account (-30), secret-provider class (-20), and bounded migration Job (-10) establish exact schema v36 first. Neo4j and OpenSearch init authorities then install their exact constraints, mappings, and immutable markers. Only after every hook succeeds may Helm roll discovery, Red Team, Attack Lab, recovery, projection, gateway-control, ingest, and runtime pipeline Deployments. This ordering works on a fresh install without pre-existing Kubernetes Secrets, but it requires the Secrets Store CSI driver/provider, exact IRSA trusts, VPC CNI strict pod-network enforcement, and reachable private dependency CIDRs. A failed hook or readiness check blocks promotion. Do not bypass, reorder, or reuse an init identity for a runtime worker.
 
 ## Verify and promote
 

@@ -201,6 +201,40 @@ test("combined production E2E removes owned processes and temp root on SIGTERM",
   assert.match(output, /combined E2E: cleanup files/);
 });
 
+test("combined runtime proof removes owned containers and processes on real SIGTERM", { timeout: 240_000, skip: process.env.ZASP_RUNTIME_PIPELINE_SIGNAL_TEST !== "true" }, async () => {
+  const listContainers = () => {
+    const result = spawnSync("docker", ["ps", "--all", "--quiet", "--no-trunc", "--filter", "label=zasp.proof=runtime-pipeline"], { encoding: "utf8", timeout: 5000 });
+    assert.equal(result.status, 0);
+    return new Set(result.stdout.trim().split("\n").filter(Boolean));
+  };
+  const beforeContainers = listContainers();
+  const beforeRoots = new Set((await readdir(os.tmpdir())).filter((value) => value.startsWith("zasp-production-e2e-")));
+  const child = spawn(process.execPath, [fileURLToPath(new URL("./production-combined-e2e.mjs", import.meta.url))], { env: { ...process.env, ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY: "true" }, stdio: ["ignore", "pipe", "pipe"] });
+  let output = "";
+  child.stdout.on("data", (value) => { output += value; });
+  child.stderr.on("data", (value) => { output += value; });
+  try {
+    await waitFor(() => output.includes("combined E2E: owned runtime dependencies ready") || child.exitCode !== null, 180_000, () => output);
+    assert.equal(child.exitCode, null, output);
+    const ownedContainers = [...listContainers()].filter((id) => !beforeContainers.has(id));
+    const ownedRoots = (await readdir(os.tmpdir())).filter((value) => value.startsWith("zasp-production-e2e-") && !beforeRoots.has(value));
+    assert.equal(ownedContainers.length, 2);
+    assert.equal(ownedRoots.length, 1);
+    child.kill("SIGTERM");
+    const [status, signal] = await Promise.race([once(child, "exit"), rejectAfter(45_000, () => output)]);
+    assert.equal(status, 143, output);
+    assert.equal(signal, null);
+    for (const id of ownedContainers) assert.equal(listContainers().has(id), false, `owned container survived: ${id}`);
+    assert.equal((await readdir(os.tmpdir())).includes(ownedRoots[0]), false);
+    const processes = spawnSync("ps", ["-axo", "command="], { encoding: "utf8" });
+    assert.equal(processes.status, 0);
+    assert.doesNotMatch(processes.stdout, new RegExp(escapeRegExp(`${os.tmpdir()}/${ownedRoots[0]}`)));
+    assert.match(output, /combined E2E: cleanup files/);
+  } finally {
+    if (child.exitCode === null) child.kill("SIGTERM");
+  }
+});
+
 async function waitFor(predicate, timeout, describe) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {

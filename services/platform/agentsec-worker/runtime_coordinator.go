@@ -110,7 +110,7 @@ func (coordinator *runtimeCoordinator) handleClaim(ctx context.Context, delivery
 	switch claim.Disposition {
 	case runtimeevent.DeliveryDispositionBusy:
 		return nil
-	case runtimeevent.DeliveryDispositionAckTerminal, runtimeevent.DeliveryDispositionQuarantined:
+	case runtimeevent.DeliveryDispositionAckTerminal, runtimeevent.DeliveryDispositionAckDuplicate, runtimeevent.DeliveryDispositionQuarantined:
 		return coordinator.ackQueue(ctx, delivery.Receipt)
 	case runtimeevent.DeliveryDispositionAckPending:
 		return coordinator.authorizeAndAck(ctx, delivery.Receipt, request)

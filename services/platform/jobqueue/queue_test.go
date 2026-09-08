@@ -419,8 +419,12 @@ func TestConsumeRejectsMalformedForeignAndNoncanonicalDeliveries(t *testing.T) {
 		{name: "message id", mutate: func(values []DriverDelivery) []DriverDelivery { values[0].MessageID = ""; return values }},
 		{name: "receipt", mutate: func(values []DriverDelivery) []DriverDelivery { values[0].ReceiptHandle = ""; return values }},
 		{name: "receive count", mutate: func(values []DriverDelivery) []DriverDelivery { values[0].ReceiveCount = 0; return values }},
-		{name: "duplicate job", mutate: func(values []DriverDelivery) []DriverDelivery {
+		{name: "drifted duplicate job", mutate: func(values []DriverDelivery) []DriverDelivery {
 			values[1].Message = cloneDriverMessage(values[0].Message)
+			changed := jobs[0]
+			changed.Payload = []byte(`{"action":"changed"}`)
+			values[1].Message.Body, _ = canonicalBody(changed)
+			values[1].Message.SHA256 = sha256.Sum256(values[1].Message.Body)
 			return values
 		}},
 		{name: "duplicate message", mutate: func(values []DriverDelivery) []DriverDelivery {

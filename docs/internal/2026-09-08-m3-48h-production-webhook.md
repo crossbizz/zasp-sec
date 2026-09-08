@@ -1,6 +1,6 @@
 # M3-48h: production Generic Webhook setup
 
-Status: implementation, independent review, full local release verification, and Chrome E2E complete; main CI pending.
+Status: implementation, independent review, full local release verification, Chrome E2E, and main CI complete.
 
 Scope remains the 728-task v1.5 plan. This slice closes only M3-48h: configure,
 test, and inspect signed Generic Webhook delivery through Connections. It does
@@ -68,7 +68,8 @@ provider/deployment evidence.
   recovery, durable API restart/reload, and a clean browser exception stream.
 - M3-48h is the only production-availability promotion in this slice:
   514 production-available, 153 component-only, 61 blocked/external, 0 missing.
-  Main CI remains pending until the reviewed commit lands.
+  PR #8 merged as `7677cf2fde1a31fcd82a368091b5f1258f0bc3e4` on main.
+  Main CI run `34286579436` passed the runnable UI and production release checks.
 
 ## Release boundary
 

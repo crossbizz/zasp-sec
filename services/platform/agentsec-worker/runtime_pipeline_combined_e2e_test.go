@@ -1,0 +1,623 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/jackc/pgx/v5"
+	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
+	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue/sqsdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent/s3rawstore"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeindex"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
+)
+
+// The harness owns all three disposable services. Cloud role attestation and
+// Neo4j are outside this queue/archive/index proof, not silently mocked as passed.
+func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
+	dsn := os.Getenv("ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN")
+	if dsn == "" {
+		t.Skip("requires disposable combined E2E harness")
+	}
+	parsed, err := url.Parse(dsn)
+	if err != nil || parsed.Scheme != "postgres" || parsed.Hostname() != "127.0.0.1" || parsed.User.Username() != "zasp_e2e" {
+		t.Fatal("disposable database identity rejected")
+	}
+	awsEndpoint := runtimePipelineLoopback(t, os.Getenv("ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT"))
+	searchEndpoint := runtimePipelineLoopback(t, os.Getenv("ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT"))
+	ctx, cancel := context.WithTimeout(context.Background(), 210*time.Second)
+	defer cancel()
+	admin, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer admin.Close(context.Background())
+	runtimePipelineAwaitHTTP(t, ctx, awsEndpoint+"/_localstack/health")
+	runtimePipelineAwaitHTTP(t, ctx, searchEndpoint+"/_cluster/health?wait_for_status=yellow&timeout=1s")
+	creds := aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
+		return aws.Credentials{AccessKeyID: "test", SecretAccessKey: "test"}, nil
+	})
+	client := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	defer client.CloseIdleConnections()
+	base := aws.Config{Region: "us-east-1", Credentials: creds, HTTPClient: client, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
+	s3API := s3.NewFromConfig(base, func(o *s3.Options) { o.BaseEndpoint = &awsEndpoint; o.UsePathStyle = true })
+	sqsAPI := sqs.NewFromConfig(base, func(o *sqs.Options) { o.BaseEndpoint = &awsEndpoint })
+	kmsAPI := kms.NewFromConfig(base, func(o *kms.Options) { o.BaseEndpoint = &awsEndpoint })
+	key, err := kmsAPI.CreateKey(ctx, &kms.CreateKeyInput{Description: aws.String("Disposable runtime pipeline proof")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyARN := aws.ToString(key.KeyMetadata.Arn)
+	const bucket = "zasp-runtime-pipeline-proof"
+	if _, err := s3API.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(bucket)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s3API.PutBucketVersioning(ctx, &s3.PutBucketVersioningInput{Bucket: aws.String(bucket), VersioningConfiguration: &s3types.VersioningConfiguration{Status: s3types.BucketVersioningStatusEnabled}}); err != nil {
+		t.Fatal(err)
+	}
+	dlq, err := sqsAPI.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String("runtime-events-dlq")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	attributes, err := sqsAPI.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{QueueUrl: dlq.QueueUrl, AttributeNames: []sqstypes.QueueAttributeName{sqstypes.QueueAttributeNameQueueArn}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	redrive, _ := json.Marshal(map[string]string{"deadLetterTargetArn": attributes.Attributes["QueueArn"], "maxReceiveCount": "5"})
+	queueInfo, err := sqsAPI.CreateQueue(ctx, &sqs.CreateQueueInput{QueueName: aws.String("runtime-events"), Attributes: map[string]string{"VisibilityTimeout": "30", "RedrivePolicy": string(redrive)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Keep the production queue URL validator unchanged. The SDK's explicit local
+	// endpoint sends real requests to the owned emulator, using this queue identity.
+	driver, err := sqsdriver.New(sqsAPI, sqsdriver.Config{QueueURL: "https://sqs.us-east-1.amazonaws.com/000000000000/runtime-events", VisibilityTimeoutSeconds: 30, MaximumReceiveCount: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	queue, err := jobqueue.New(driver, jobqueue.Config{OperationTimeout: 5 * time.Second, MaximumBatchMessages: 10, MaximumMessageBytes: 262144, MaximumBatchBytes: 1048576})
+	if err != nil {
+		t.Fatal(err)
+	}
+	searchDriver, err := opensearchdriver.New(opensearchdriver.Config{Endpoint: searchEndpoint, Region: "us-east-1", RequestTimeout: 5 * time.Second, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20, AllowTestLoopback: true}, creds, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := searchDriver.InitializeSchema(ctx); err != nil {
+		t.Fatal(err)
+	}
+	defer searchDriver.Close()
+	index, err := runtimeindex.New(searchDriver, runtimeindex.Config{MaximumBatchBytes: 8 << 20, MaximumDocuments: 1000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := s3rawstore.New(s3API, s3rawstore.Config{Bucket: bucket, ExpectedBucketOwner: "000000000000", KMSKeyARN: keyARN, MaximumBytes: 1 << 20, OperationTimeout: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipts, err := newProductionDiscoveryArtifactAuthority(s3API, productionDiscoveryArtifactConfig{Bucket: bucket, ExpectedBucketOwner: "000000000000", KMSKeyARN: keyARN, MaximumBytes: 8 << 20, OperationTimeout: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	database := func(principal string) apiserver.JSONDatabase {
+		copy := *parsed
+		copy.User = url.User(principal)
+		return combinedE2ERecoveryDatabase(t, ctx, copy.String())
+	}
+	scope, err := domain.NewScope(workerID(t, "pid_10000001-0000-4000-8000-000000000001"), workerID(t, "pid_10000022-0000-4000-8000-000000000022"), workerID(t, "pid_10000023-0000-4000-8000-000000000023"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const sensorID = "pid_78000101-0000-4000-8000-000000000101"
+	tokenID := workerID(t, "pid_78000102-0000-4000-8000-000000000102")
+	if _, err := admin.Exec(ctx, `INSERT INTO zasp_sensors(organization_id,workspace_id,environment_id,id,name,kind,state) VALUES($1,$2,$3,$4,'Runtime pipeline proof','tetragon','active')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), sensorID); err != nil {
+		t.Fatal(err)
+	}
+	credential, err := sensor.NewTokenCredential(bytes.Repeat([]byte{0x68}, 16), bytes.Repeat([]byte{0x78}, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer credential.Destroy()
+	locator, err := credential.LocatorDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	salt := bytes.Repeat([]byte{0x82}, 32)
+	tokenHash, err := credential.Hash(sensor.SensorTokenAudienceEventIngest, tokenID, 1, salt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, `SELECT zasp_runtime_issue_sensor_token($1,$2,$3,$4,$5,1,1,$6,$7,$8,transaction_timestamp()+interval '1 day')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), sensorID, tokenID.String(), locator[:], salt, tokenHash[:]); err != nil {
+		t.Fatal(err)
+	}
+	wireToken, err := credential.Wire()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ingestRepository, err := runtimeevent.NewPostgresProductionIngestRepository(database("zasp_e2e_ingest"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ingestRepository.Ready(ctx); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	body := []byte(`{"source":"tetragon","events":[{"event_id":"runtime-pipeline-1","class":"process","action":"exec","workload_id":"runtime-pipeline","event_time":"` + now.Format("2006-01-02T15:04:05.000Z") + `","evidence_id":"pid_78000103-0000-4000-8000-000000000103","content":{"binary":"agent"}}]}`)
+	handler, err := runtimeevent.NewProductionIngestHandler(runtimeevent.ProductionIngestConfig{Repository: ingestRepository, Artifacts: raw, MaximumBytes: 1 << 20, Clock: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ingest := func(foreign bool) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPost, "/internal/v1/runtime/events", bytes.NewReader(body)).WithContext(ctx)
+		request.Header.Set("Authorization", "Bearer "+wireToken)
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("X-Zasp-Runtime-Schema", "runtime-event-v1")
+		request.Header.Set("Idempotency-Key", "runtime-pipeline-proof-0001")
+		if foreign {
+			request.Header.Set("X-Zasp-Organization", "pid_90000001-0000-4000-8000-000000000001")
+		}
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		return response
+	}
+	if denied := ingest(true); denied.Code != http.StatusBadRequest {
+		t.Fatalf("caller tenant override status=%d", denied.Code)
+	}
+	accepted := ingest(false)
+	if accepted.Code != http.StatusAccepted {
+		t.Fatalf("ingest status=%d body=%s", accepted.Code, accepted.Body.String())
+	}
+	var acceptedBatch struct {
+		BatchID string `json:"batch_id"`
+	}
+	if err := json.Unmarshal(accepted.Body.Bytes(), &acceptedBatch); err != nil || acceptedBatch.BatchID == "" {
+		t.Fatal("missing durable batch")
+	}
+	if replay := ingest(false); replay.Code != http.StatusAccepted || replay.Body.String() != accepted.Body.String() {
+		t.Fatalf("ingest replay status=%d body=%s", replay.Code, replay.Body.String())
+	}
+	outboxRepository, err := apiserver.NewRuntimeOutboxRepository(database("zasp_e2e_outbox"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := outboxRepository.Ready(ctx); err != nil {
+		t.Fatalf("runtime outbox readiness: %v", err)
+	}
+	publisher := &runtimePipelinePublisher{queue: queue, t: t}
+	outbox, err := newOutboxProcessor(outboxProcessorConfig{Authority: outboxRepository, Publisher: publisher, Topic: runtimeOutboxTopic, WorkerID: "runtime-proof-outbox", LeaseSeconds: 30, BatchSize: 10, RetrySeconds: 5, NewLeaseToken: newWorkerLeaseToken, Ready: outboxRepository.Ready})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := outbox.RunOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	coordinatorConfig := validRuntimeCoordinatorConfig()
+	observedQueue := &runtimePipelineDeliveryQueue{Queue: queue}
+	coordinator, err := composeRuntimeCoordinatorWorkerRuntime(coordinatorConfig, database("zasp_e2e_coordinator"), &productionRuntimeQueueDependencies{Queue: observedQueue, ready: func(context.Context) error { return nil }, close: func() error { return nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Exercise duplicate liveness before running stages. Only fixture lease clocks
+	// are advanced; production functions perform every claim and transition.
+	deliveryRepository, err := runtimeevent.NewPostgresProductionPipelineRepository(database("zasp_e2e_coordinator"), runtimeevent.ProductionPipelineAuthorityCoordinator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimPhysical := func(worker string) (jobqueue.Receipt, runtimeevent.DeliveryClaimRequest) {
+		deliveries, err := queue.ConsumeBatch(ctx, 1)
+		if err != nil || len(deliveries) != 1 {
+			t.Fatalf("physical delivery missing: %v", err)
+		}
+		delivery := deliveries[0]
+		payload, batchID, ok := decodeRuntimeDeliveryJob(delivery.Job)
+		if !ok {
+			t.Fatal("invalid physical envelope")
+		}
+		token, err := newWorkerLeaseToken()
+		if err != nil {
+			t.Fatal(err)
+		}
+		request := runtimeevent.DeliveryClaimRequest{Scope: delivery.Job.Scope, BatchID: batchID, Generation: payload.Generation, MessageID: delivery.Receipt.MessageKey(), MessageDigest: delivery.Job.AuthorityDigest, ReceiveCount: delivery.ReceiveCount, WorkerID: worker, LeaseToken: token, LeaseSeconds: 30, VisibilitySeconds: 30}
+		claim, err := deliveryRepository.ClaimDelivery(ctx, request)
+		if err != nil || claim.Disposition != runtimeevent.DeliveryDispositionClaimed {
+			t.Fatalf("physical claim=%#v err=%v", claim, err)
+		}
+		return delivery.Receipt, request
+	}
+	originalReceipt, originalRequest := claimPhysical("runtime-proof-original")
+	foreignScope, err := domain.NewScope(workerID(t, "pid_90000001-0000-4000-8000-000000000001"), workerID(t, "pid_90000002-0000-4000-8000-000000000002"), workerID(t, "pid_90000003-0000-4000-8000-000000000003"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreignRequest := originalRequest
+	foreignRequest.Scope = foreignScope
+	if _, err := deliveryRepository.ClaimDelivery(ctx, foreignRequest); err == nil {
+		t.Fatal("cross-tenant physical delivery claimed another tenant's batch")
+	}
+	wrongGeneration := originalRequest
+	wrongGeneration.Generation++
+	if _, err := deliveryRepository.ClaimDelivery(ctx, wrongGeneration); err == nil {
+		t.Fatal("physical delivery claimed a different generation")
+	}
+	if _, err := queue.PublishBatch(ctx, publisher.jobs); err != nil {
+		t.Fatal(err)
+	}
+	awaitAcknowledgements := func(want int64) {
+		t.Helper()
+		// A visibility deadline or successful publish does not guarantee the next
+		// short poll returns every message. Run the normal worker polling loop
+		// until the exact expected provider deletes have actually succeeded.
+		for attempt := 0; attempt < 200 && observedQueue.ackCount.Load() < want; attempt++ {
+			if err := coordinator.Processor.RunOnce(ctx); err != nil {
+				t.Fatalf("coordinator replay: %v", err)
+			}
+			if observedQueue.ackCount.Load() >= want {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				t.Fatal(ctx.Err())
+			case <-time.After(50 * time.Millisecond):
+			}
+		}
+		if observedQueue.ackCount.Load() != want {
+			t.Fatalf("coordinator acknowledged=%d received=%d want=%d", observedQueue.ackCount.Load(), observedQueue.receiveCount.Load(), want)
+		}
+	}
+	awaitAcknowledgements(1)
+	var activeMessage string
+	if err := admin.QueryRow(ctx, `SELECT message_id FROM zasp_runtime_deliveries WHERE batch_id=$1`, acceptedBatch.BatchID).Scan(&activeMessage); err != nil || activeMessage != originalRequest.MessageID {
+		t.Fatal("active duplicate replaced original authority")
+	}
+	fenceStale := func(request runtimeevent.DeliveryClaimRequest) {
+		if _, err := deliveryRepository.HeartbeatDelivery(ctx, request); err == nil {
+			t.Fatal("stale physical owner renewed replacement")
+		}
+		if _, err := deliveryRepository.ReleaseDelivery(ctx, request, runtimeevent.DeliveryOutcomeRetryable, "retryable"); err == nil {
+			t.Fatal("stale physical owner released replacement")
+		}
+		if _, err := deliveryRepository.AcknowledgeDelivery(ctx, request, runtimeQueueAcknowledgementDigest(request.MessageID)); err == nil {
+			t.Fatal("stale physical owner acknowledged replacement")
+		}
+	}
+	if _, err := admin.Exec(ctx, `UPDATE zasp_runtime_deliveries SET lease_expires_at=transaction_timestamp()-interval '1 second' WHERE batch_id=$1`, acceptedBatch.BatchID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := queue.PublishBatch(ctx, publisher.jobs); err != nil {
+		t.Fatal(err)
+	}
+	leaseTakeoverReceipt, leaseTakeoverRequest := claimPhysical("runtime-proof-lease-takeover")
+	fenceStale(originalRequest)
+	if _, err := admin.Exec(ctx, `UPDATE zasp_runtime_deliveries SET visibility_deadline=transaction_timestamp()-interval '1 second' WHERE batch_id=$1`, acceptedBatch.BatchID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := queue.PublishBatch(ctx, publisher.jobs); err != nil {
+		t.Fatal(err)
+	}
+	visibilityReceipt, _ := claimPhysical("runtime-proof-visibility-takeover")
+	fenceStale(leaseTakeoverRequest)
+	if _, err := admin.Exec(ctx, `UPDATE zasp_runtime_deliveries SET lease_expires_at=transaction_timestamp()-interval '1 second' WHERE batch_id=$1`, acceptedBatch.BatchID); err != nil {
+		t.Fatal(err)
+	}
+	if err := queue.ExtendVisibility(ctx, []jobqueue.Receipt{visibilityReceipt}, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	case <-time.After(1100 * time.Millisecond):
+	}
+	coordinatorResult := make(chan error, 1)
+	observedQueue.received.Store(false)
+	go func() {
+		for attempt := 0; attempt < 100; attempt++ {
+			err := coordinator.Processor.RunOnce(ctx)
+			if err != nil || observedQueue.received.Load() {
+				coordinatorResult <- err
+				return
+			}
+			select {
+			case <-ctx.Done():
+				coordinatorResult <- ctx.Err()
+				return
+			case <-time.After(50 * time.Millisecond):
+			}
+		}
+		coordinatorResult <- fmt.Errorf("runtime coordinator received no visible message")
+	}()
+	// No privileged UPDATE completes stages or authorizes queue deletion. Each
+	// stage uses its registered production principal and durable lease transition.
+	archive, err := newRuntimeArchiveExecutor(runtimeArchiveExecutorConfig{API: s3API, Bucket: bucket, ExpectedOwner: "000000000000", KMSKeyARN: keyARN, MaximumBytes: 1 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexExecutor, err := newRuntimeIndexExecutor(runtimeIndexExecutorConfig{Reader: archive, Index: index, Receipts: receipts, ImplementationVersion: "runtime-index-v1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	correlationGraph, projectionGraph := &runtimeCorrelationGraphStoreStub{}, &runtimeCorrelationGraphStoreStub{}
+	correlation, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: archive, Receipts: receipts, Graph: correlationGraph, ImplementationVersion: "runtime-correlation-v1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	projection, err := newRuntimeProjectionExecutor(runtimeProjectionExecutorConfig{Reader: archive, Receipts: receipts, Graph: projectionGraph, ImplementationVersion: "runtime-projection-v1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	complete, err := newRuntimeCompleteExecutor(runtimeCompleteExecutorConfig{Receipts: receipts, ImplementationVersion: "runtime-complete-v1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stage := range []struct {
+		config    workerRuntimeConfig
+		principal string
+		executor  runtimeStageExecutor
+	}{
+		{validRuntimeArchiveConfig(), "zasp_e2e_archive", archive}, {validRuntimeIndexConfig(), "zasp_e2e_index", indexExecutor}, {validRuntimeCorrelationConfig(), "zasp_e2e_correlation", correlation}, {validRuntimeProjectionConfig(), "zasp_e2e_runtime_projection", projection}, {validRuntimeCompleteConfig(), "zasp_e2e_coordinator", complete},
+	} {
+		stageName, _, ok := runtimeStageBinding(stage.config.Mode)
+		if !ok {
+			t.Fatal("invalid stage")
+		}
+		runtime, err := composeRuntimeStageWorkerRuntime(stage.config, database(stage.principal), &productionRuntimeStageDependencies{Stage: stageName, Executor: stage.executor, ready: func(context.Context) error { return nil }, close: func() error { return nil }})
+		if err != nil {
+			t.Fatalf("compose %s: %v", stageName, err)
+		}
+		var state string
+		for attempt := 0; attempt < 100; attempt++ {
+			if err := runtime.Processor.RunOnce(ctx); err != nil {
+				t.Fatalf("execute %s: %v", stageName, err)
+			}
+			if err := admin.QueryRow(ctx, `SELECT state FROM zasp_runtime_stage_work WHERE batch_id=$1 AND stage=$2`, acceptedBatch.BatchID, string(stageName)).Scan(&state); err != nil {
+				t.Fatal(err)
+			}
+			if state == "succeeded" {
+				break
+			}
+			if state != "pending" && state != "leased" {
+				t.Fatalf("stage %s state=%s", stageName, state)
+			}
+			select {
+			case <-ctx.Done():
+				t.Fatal(ctx.Err())
+			case <-time.After(50 * time.Millisecond):
+			}
+		}
+		if state != "succeeded" {
+			select {
+			case coordinatorErr := <-coordinatorResult:
+				t.Fatalf("stage %s did not finish; coordinator=%v received=%t", stageName, coordinatorErr, observedQueue.received.Load())
+			default:
+				t.Fatalf("stage %s did not finish; received=%t", stageName, observedQueue.received.Load())
+			}
+		}
+	}
+	select {
+	case err := <-coordinatorResult:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	for _, receipt := range []jobqueue.Receipt{originalReceipt, leaseTakeoverReceipt} {
+		if err := queue.ExtendVisibility(ctx, []jobqueue.Receipt{receipt}, time.Second); err != nil {
+			t.Fatal(err)
+		}
+	}
+	select {
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	case <-time.After(1100 * time.Millisecond):
+	}
+	awaitAcknowledgements(4)
+	var reference, version, digest, state string
+	var stages, outboxCount int
+	if err := admin.QueryRow(ctx, `SELECT raw_artifact_reference,raw_artifact_version_id,encode(raw_artifact_checksum,'hex'),state,(SELECT count(*) FROM zasp_runtime_stage_work WHERE batch_id=$1 AND state='succeeded'),(SELECT count(*) FROM zasp_discovery_outbox WHERE deterministic_key='runtime:'||$1) FROM zasp_runtime_batch_authorities WHERE batch_id=$1`, acceptedBatch.BatchID).Scan(&reference, &version, &digest, &state, &stages, &outboxCount); err != nil {
+		t.Fatal(err)
+	}
+	object, err := s3API.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(strings.TrimPrefix(reference, "s3://"+bucket+"/")), VersionId: &version, ExpectedBucketOwner: aws.String("000000000000"), ChecksumMode: s3types.ChecksumModeEnabled})
+	if err != nil {
+		t.Fatal(err)
+	}
+	archived, err := io.ReadAll(io.LimitReader(object.Body, 1<<20))
+	object.Body.Close()
+	if err != nil || aws.ToString(object.VersionId) != version {
+		t.Fatal("archive readback mismatch")
+	}
+	decoded, err := runtimeevent.DecodeArchivedBatch(scope, archived)
+	if err != nil || len(decoded.Records) != 1 || decoded.Records[0].SourceEventID != "runtime-pipeline-1" || decoded.Records[0].Scope != scope || len(decoded.Records[0].Content) != 0 {
+		t.Fatal("canonical metadata-only archive lost event identity, scope, or content filtering")
+	}
+	inputDigest := sha256.Sum256(archived)
+	if digest != hex.EncodeToString(inputDigest[:]) || stages != 5 || outboxCount != 1 || state != "succeeded" {
+		t.Fatalf("batch state=%s stages=%d outbox=%d digest=%s", state, stages, outboxCount, digest)
+	}
+	replayIndex, err := index.Apply(ctx, runtimeindex.Batch{Scope: scope, BatchID: workerID(t, acceptedBatch.BatchID), Generation: 1, InputDigest: inputDigest, ArchiveReference: reference, ArchiveVersionID: version, Body: archived})
+	if err != nil || len(replayIndex.DocumentIDs) != 1 || !replayIndex.Replayed {
+		t.Fatalf("index replay=%#v err=%v", replayIndex, err)
+	}
+	readIndex := func() json.RawMessage {
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, searchEndpoint+"/zasp-runtime-events-v1/_doc/"+replayIndex.DocumentIDs[0], nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response, err := client.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		var document struct {
+			Found   bool            `json:"found"`
+			Version int             `json:"_version"`
+			Source  json.RawMessage `json:"_source"`
+		}
+		if response.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&document) != nil || !document.Found || document.Version != 1 {
+			t.Fatal("index readback missing or duplicate version")
+		}
+		var fields map[string]any
+		if json.Unmarshal(document.Source, &fields) != nil {
+			t.Fatal("index source invalid")
+		}
+		for name, want := range map[string]string{"organization_id": scope.OrganizationID().String(), "workspace_id": scope.WorkspaceID().String(), "environment_id": scope.EnvironmentID().String(), "batch_id": acceptedBatch.BatchID, "archive_reference": reference, "archive_version_id": version, "input_digest": digest} {
+			if fields[name] != want {
+				t.Fatalf("index/archive %s mismatch: got=%v want=%s", name, fields[name], want)
+			}
+		}
+		return document.Source
+	}
+	beforeIndex := readIndex()
+	versions := func() int {
+		result, err := s3API.ListObjectVersions(ctx, &s3.ListObjectVersionsInput{Bucket: aws.String(bucket)})
+		if err != nil || aws.ToBool(result.IsTruncated) || len(result.DeleteMarkers) != 0 {
+			t.Fatal("archive versions unavailable")
+		}
+		return len(result.Versions)
+	}
+	beforeVersions := versions()
+	if beforeVersions != 5 {
+		t.Fatalf("expected raw archive and four stage receipts, versions=%d", beforeVersions)
+	}
+	stageSnapshot := func() string {
+		var snapshot string
+		if err := admin.QueryRow(ctx, `SELECT jsonb_agg(to_jsonb(work_row) ORDER BY stage_order)::text FROM zasp_runtime_stage_work work_row WHERE batch_id=$1`, acceptedBatch.BatchID).Scan(&snapshot); err != nil {
+			t.Fatal(err)
+		}
+		return snapshot
+	}
+	beforeStages := stageSnapshot()
+	if len(publisher.jobs) != 1 {
+		t.Fatal("outbox published duplicate jobs")
+	}
+	for replay := 0; replay < 2; replay++ {
+		if _, err := queue.PublishBatch(ctx, publisher.jobs); err != nil {
+			t.Fatalf("SQS redelivery publish: %v", err)
+		}
+		awaitAcknowledgements(int64(5 + replay))
+	}
+	if replay := ingest(false); replay.Code != http.StatusAccepted || replay.Body.String() != accepted.Body.String() {
+		t.Fatalf("terminal ingest replay changed batch: status=%d body=%s", replay.Code, replay.Body.String())
+	}
+	if err := outbox.RunOnce(ctx); err != nil || len(publisher.jobs) != 1 {
+		t.Fatal("terminal ingest replay republished outbox")
+	}
+	if stageSnapshot() != beforeStages || versions() != beforeVersions || !bytes.Equal(beforeIndex, readIndex()) {
+		t.Fatal("SQS redelivery duplicated pipeline effects")
+	}
+	t.Logf("runtime pipeline durable batch=%s archive=%s@%s document=%s", acceptedBatch.BatchID, reference, version, replayIndex.DocumentIDs[0])
+	for _, queueURL := range []*string{queueInfo.QueueUrl, dlq.QueueUrl} {
+		attributes, err := sqsAPI.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{QueueUrl: queueURL, AttributeNames: []sqstypes.QueueAttributeName{sqstypes.QueueAttributeNameApproximateNumberOfMessages, sqstypes.QueueAttributeNameApproximateNumberOfMessagesNotVisible, sqstypes.QueueAttributeNameApproximateNumberOfMessagesDelayed}})
+		if err != nil || len(attributes.Attributes) != 3 {
+			t.Fatal("queue depth unavailable")
+		}
+		for _, count := range attributes.Attributes {
+			if count != "0" {
+				t.Fatalf("queue has visible/inflight/delayed messages: %v; coordinator received=%d acknowledged=%d", attributes.Attributes, observedQueue.receiveCount.Load(), observedQueue.ackCount.Load())
+			}
+		}
+		messages, err := sqsAPI.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{QueueUrl: queueURL, MaxNumberOfMessages: 10, WaitTimeSeconds: 1})
+		if err != nil || len(messages.Messages) != 0 {
+			t.Fatalf("queue not empty: messages=%v err=%v", messages, err)
+		}
+	}
+	if correlationGraph.calls != 1 || projectionGraph.calls != 1 {
+		t.Fatal("unexpected downstream graph fixture calls")
+	}
+	t.Log("runtime pipeline proof passed: production roles, durable ingest/outbox, actual local SQS/S3/OpenSearch, five stage receipts, replay and empty DLQ; Neo4j and cloud IAM NOT RUN")
+}
+
+type runtimePipelinePublisher struct {
+	queue *jobqueue.Queue
+	t     *testing.T
+	jobs  []jobqueue.Job
+}
+
+type runtimePipelineDeliveryQueue struct {
+	*jobqueue.Queue
+	received     atomic.Bool
+	receiveCount atomic.Int64
+	ackCount     atomic.Int64
+}
+
+func (queue *runtimePipelineDeliveryQueue) ConsumeBatch(ctx context.Context, limit int) ([]jobqueue.Delivery, error) {
+	deliveries, err := queue.Queue.ConsumeBatch(ctx, limit)
+	if len(deliveries) > 0 {
+		queue.received.Store(true)
+		queue.receiveCount.Add(int64(len(deliveries)))
+	}
+	return deliveries, err
+}
+
+func (queue *runtimePipelineDeliveryQueue) AcknowledgeBatch(ctx context.Context, receipts []jobqueue.Receipt) error {
+	if err := queue.Queue.AcknowledgeBatch(ctx, receipts); err != nil {
+		return err
+	}
+	queue.ackCount.Add(int64(len(receipts)))
+	return nil
+}
+
+func (p *runtimePipelinePublisher) PublishBatch(ctx context.Context, jobs []jobqueue.Job) (jobqueue.PublishResult, error) {
+	p.jobs = append(p.jobs, jobs...)
+	result, err := p.queue.PublishBatch(ctx, jobs)
+	if err != nil {
+		p.t.Logf("real SQS publish failed: %v", err)
+	}
+	return result, err
+}
+
+func runtimePipelineLoopback(t *testing.T, raw string) string {
+	t.Helper()
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme != "http" || parsed.Hostname() != "127.0.0.1" || parsed.Port() == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		t.Fatal("disposable endpoint rejected")
+	}
+	return raw
+}
+
+func runtimePipelineAwaitHTTP(t *testing.T, ctx context.Context, endpoint string) {
+	t.Helper()
+	client := &http.Client{Timeout: 2 * time.Second, Transport: &http.Transport{Proxy: nil}}
+	defer client.CloseIdleConnections()
+	for attempt := 0; attempt < 90; attempt++ {
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response, err := client.Do(request)
+		if err == nil {
+			response.Body.Close()
+			if response.StatusCode == http.StatusOK {
+				return
+			}
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case <-time.After(time.Second):
+		}
+	}
+	t.Fatal(fmt.Errorf("dependency did not become ready: %s", strings.Split(endpoint, "?")[0]))
+}

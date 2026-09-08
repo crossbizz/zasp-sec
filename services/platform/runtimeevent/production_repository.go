@@ -182,7 +182,7 @@ func (repository *PostgresProductionIngestRepository) Finalize(ctx context.Conte
 	}
 	batchID, parseErr := domain.ParseProductID(wire.BatchID)
 	result := IngestResult{BatchID: batchID, Generation: wire.Generation, State: wire.State, Replayed: wire.Replayed}
-	if parseErr != nil || batchID != request.BatchID || result.Generation < 1 || result.State != "queued" {
+	if parseErr != nil || batchID != request.BatchID || result.Generation < 1 || !validAcceptedIngestState(result.State, result.Replayed) {
 		return IngestResult{}, ErrProductionIngestUnknown
 	}
 	return result, nil
