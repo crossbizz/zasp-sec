@@ -257,6 +257,19 @@ func TestProductionCombinedE2EAttackLabWorker(t *testing.T) {
 		t.Fatal(err)
 	}
 	provider := &combinedE2EAttackLabProvider{runID: runID}
+	if expectCancelled != "true" {
+		proxyDSN := os.Getenv("ZASP_COMBINED_E2E_ATTACK_LAB_PROXY_DSN")
+		if proxyDSN == "" {
+			t.Fatal("combined E2E requires isolated proxy database authority")
+		}
+		proxyRepository, proxyErr := apiserver.NewAttackLabExecutionRepository(combinedE2ERecoveryDatabase(t, ctx, proxyDSN), apiserver.AttackLabExecutionAuthorityProxy)
+		if proxyErr != nil {
+			t.Fatal(proxyErr)
+		}
+		provider.egressProof = func(probeCtx context.Context, request attackLabSandboxRequest) error {
+			return proveCombinedAttackLabEgress(probeCtx, request, proxyRepository)
+		}
+	}
 	controllerConfig, err := loadWorkerRuntimeConfig(mapLookup(validAttackLabControllerRuntimeEnvironment()))
 	if err != nil {
 		t.Fatal(err)
@@ -302,12 +315,14 @@ func TestProductionCombinedE2EAttackLabWorker(t *testing.T) {
 		t.Log("composed Attack Lab outbox and controller acknowledged cancelled run without sandbox side effects")
 	} else {
 		t.Log("composed Attack Lab outbox and controller completed deterministic isolated sandbox evidence")
+		t.Log("worker-issued Attack Lab token, durable proxy authority, TLS canary, undeclared-host and expired-token denial proven")
 	}
 }
 
 type combinedE2EAttackLabProvider struct {
 	runID                         string
 	created, collected, destroyed bool
+	egressProof                   func(context.Context, attackLabSandboxRequest) error
 }
 
 func (*combinedE2EAttackLabProvider) Ready(context.Context) error { return nil }
@@ -331,9 +346,15 @@ func (*combinedE2EAttackLabProvider) Reconcile(context.Context, attackLabSandbox
 	return attackLabSandbox{}, false, errors.New("Attack Lab local reconcile was not expected")
 }
 
-func (provider *combinedE2EAttackLabProvider) Run(_ context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (attackLabSandboxResult, error) {
+func (provider *combinedE2EAttackLabProvider) Run(ctx context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (attackLabSandboxResult, error) {
 	if !provider.created || request.Run.ID != provider.runID || request.Run.Status != "running" || !attackLabWorkerSandboxReferencePattern.MatchString(sandbox.Reference) {
 		return attackLabSandboxResult{}, errors.New("Attack Lab local collection authority drift")
+	}
+	if provider.egressProof == nil {
+		return attackLabSandboxResult{}, errors.New("Attack Lab proxy acceptance is missing")
+	}
+	if err := provider.egressProof(ctx, request); err != nil {
+		return attackLabSandboxResult{}, err
 	}
 	provider.collected = true
 	return attackLabSandboxResult{Verdict: "verified", CriterionObserved: true, CanaryTouched: true, Evidence: []string{

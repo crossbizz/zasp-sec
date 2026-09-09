@@ -826,3 +826,83 @@ console checks. Its external-provider and isolated sandbox fixtures remain
 explicit; no live cloud proof was claimed. Owned browser, process, Docker
 and PostgreSQL resources were cleaned up. The staged scan had six inspected
 CI-ID matches and no high finding. Shipping CI remains pending.
+
+M5-21 implementation `053fac2e` shipped as PR 21 / main `7500d9bc` after
+push CI `34379127396` and PR CI `34379133194` passed, including the actual
+Linux packet and SIGTERM fixtures. Main CI `34380166718` also passed. The
+original direct-denial criterion has independent acceptance. M5-21 is now
+production-available, guarded against silent demotion. Ledger: **536/131/61**.
+
+## M5-22: signed proxy-token production closure
+
+The worker already signs a canonical HMAC capability binding organization,
+workspace, environment, run, exact destination, POST-only method, input
+digest and the durable attempt's deadline. The production proxy verifies
+the signature and then resolves the exact active run through its isolated
+PostgreSQL principal. Review found three remaining production defects:
+stale expiry after blocking resolution, one pgx connection shared across
+concurrent requests/readiness, and missing request/lifetime cancellation.
+
+New regression tests reproduced expired-token and expired-durable-authority
+forwarding after resolution, missing resolver/forward deadlines, and late
+success accepted after authority expiry. The handler now gives all work a
+token deadline, rechecks time after durable resolution, narrows downstream
+credential/DNS/HTTP work to the earlier durable expiry, and rejects late
+success. Signing-key verification and clearing are synchronized. Expiry
+during actual HTTPSForwarder credential retrieval produced zero DNS or
+target transport calls. Concurrent token verification and Close passed the
+race detector.
+
+The production proxy uses a bounded pgxpool (maximum eight, minimum one),
+bounded startup/readiness/query contexts, cancellation tied to service
+lifetime, and HTTP request deadlines with a server BaseContext. Service
+cancellation precedes draining and dependency closure. Real disposable
+PostgreSQL tests passed concurrent queries, saturated-pool deadline,
+blocked-query HTTP timeout and shutdown cancellation. Test binary discovery
+uses bounded pg_config fallback; CI fails if PostgreSQL is unavailable
+instead of silently skipping. No new production dependency was added.
+
+The combined browser proof now calls the actual worker token-construction
+path while its real leased run is active. The actual runner sends that token
+through a real TLS proxy handler and the isolated PostgreSQL repository to
+a controlled TLS canary. Valid scope/run/destination/input succeed. Signed
+undeclared-host and foreign-run variants produce zero downstream calls;
+an expired worker-issued token produces neither downstream nor durable
+resolver calls. The downstream transport and Kubernetes sandbox remain
+explicit local fixtures, not production cloud-credential or networking
+evidence. The complete Chrome run passed and cleaned its resources. The
+final late-success rejection was added after that browser binary was built
+and is covered by its reproduced-failure/corrected-pass regression.
+
+All worker, proxy, runner and capability race suites passed. Independent
+review accepted the corrected diff and reran full proxy library and process
+race suites, including real PostgreSQL tests. Root verification and final
+shipping remain pending; M5-22 is not yet credited.
+
+Final root verification passed all 1,083 frontend tests, tenant/RLS and API
+contracts, types, warning-free lint, six staging gates, 36 release checks,
+production build/import checks and the 728-row ledger. The production
+release gate also passed, as did the 50 runtime/ledger regressions (two
+opt-in skips). CI now requires the complete proxy process/library and
+capability race suites alongside the existing runner and packet checks.
+M5-22 awaits shipping and CI; live-cloud boundaries are unchanged.
+
+### M5-22 initial CI correction
+
+PR 22's first push/PR CI failed before the dedicated proxy gate because a
+production-closure note was entered as an extra historical task after the
+last local full verification. The historical table has zero active tasks;
+the production closure remains pending separately. The exact local existing
+UI/API-map and telemetry tracker tests reproduced the two failures before
+the correction. Removing only the non-source row restores the historical
+contract without granting M5-22 production credit.
+
+Fresh full verification passed after that correction: all 1,083 frontend
+tests, type-checking, lint, six staging checks, 36 release checks, production
+build/source/compiled boundaries, and the 536/131/61 ledger. Independent
+read-only review accepted the correction. Fresh remote CI is pending.
+
+The staged scan's ten medium findings were individually inspected: four CI
+IDs, one synthetic Kubernetes UID suffix, one fixture AWS account number,
+two fixed in-cluster hostnames and two documentation-range network values.
+No high finding or scanner bypass occurred.

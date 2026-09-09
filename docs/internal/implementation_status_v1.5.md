@@ -2,7 +2,7 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
-**Last updated:** September 8, 2026
+**Last updated:** September 9, 2026
 **Execution branch:** `main`
 
 This file preserves the authoritative historical execution evidence for the
@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 535 |
-| Component-only | 132 |
+| Production-available | 536 |
+| Component-only | 131 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -133,9 +133,20 @@ Push CI 34309888042, PR CI 34309939481 and main CI 34310435523 passed; M5-19
 is now production-available. PR 20 shipped M5-20's dedicated test IAM identity,
 actual-Pod identity checks and corrected deployment preflight as main 5289e80f.
 Push CI 34376119528, PR CI 34376124000 and main CI 34377164185 passed after
-independent review; M5-20 is now production-available. M5-21's isolated route
-boundary and direct-denial fixture are under final review and verification.
-M5-22 retains its original open requirements.
+independent review; M5-20 is now production-available. PR 21 shipped M5-21's
+isolated route boundary and direct-denial fixture as main 7500d9bc after
+independent acceptance and push/PR CI; main CI 34380166718 also passed.
+M5-21 is now production-available under its original direct-denial fixture
+criterion, without claiming live AWS attachment or endpoint-policy proof.
+M5-22's signed-token expiry, bounded proxy runtime and durable end-to-end
+acceptance have passed full verification and independent review; shipping
+and CI remain pending. PR 22's initial CI found a production-closure note
+incorrectly entered as a historical task row after the last full local check.
+The note is retained here, outside the historical tables; no source-task
+status or production credit changes. The corrected full verification passed
+with 1,083 frontend tests, release checks, type-checking, lint, production
+build and ledger validation. Independent review accepted the correction;
+fresh remote CI remains pending.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
@@ -250,12 +261,12 @@ production composition, not merely a component proof or external evidence.
 | M2 | 72 | 69 | 3 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
-| M5 | 42 | 40 | 2 | 0 | 0 |
+| M5 | 42 | 41 | 1 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **535** | **132** | **61** | **0** |
+| **Total** | **728** | **536** | **131** | **61** | **0** |
 
 ## Prerequisite work
 

@@ -2332,10 +2332,12 @@ SELECT zasp_attack_lab_register_credential_binding('${organizationID}','${worksp
 			...process.env,
 			ZASP_COMBINED_E2E_ATTACK_LAB_CONTROLLER_DSN: `postgres://zasp_e2e_attack_lab_controller@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_ATTACK_LAB_OUTBOX_DSN: `postgres://zasp_e2e_attack_lab_outbox@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
+			ZASP_COMBINED_E2E_ATTACK_LAB_PROXY_DSN: `postgres://zasp_e2e_attack_lab_proxy@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_ATTACK_LAB_RUN_ID: runID,
 		},
 	});
 	assert.match(worker.stdout, /composed Attack Lab outbox and controller completed deterministic isolated sandbox evidence/);
+	assert.match(worker.stdout, /worker-issued Attack Lab token, durable proxy authority, TLS canary, undeclared-host and expired-token denial proven/);
 	const completed = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',state,verdict,cleanup_state,attempt,(SELECT count(*) FROM zasp_attack_lab_attempts WHERE run_id='${runID}'),(SELECT count(*) FROM zasp_attack_lab_outbox WHERE payload->>'run_id'='${runID}' AND state='published')) FROM zasp_attack_lab_runs WHERE run_id='${runID}';`])).stdout.trim();
 	assert.equal(completed, "complete|verified|complete|1|1|1", "Attack Lab composed workers did not persist one terminal result, cleanup, attempt, and publication");
 
