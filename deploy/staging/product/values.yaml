@@ -244,6 +244,7 @@ redTeam:
   adapterRequestTimeout: 10s
   adapterShutdownTimeout: 15s
 attackLab:
+  runnerTestRoleArn: ""
   awsRegion: ""
   queueURL: ""
   evidenceBucket: ""

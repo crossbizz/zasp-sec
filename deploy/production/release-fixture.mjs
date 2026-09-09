@@ -77,6 +77,7 @@ export const productionReleaseFixture = Object.freeze({
     egressCIDRs: Object.freeze(["10.72.0.0/28"]),
   }),
   attackLab: Object.freeze({
+    runnerTestRoleArn: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test",
     awsRegion: "us-west-2", queueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-attack-lab-jobs",
     evidenceBucket: "zasp-production-attack-lab-evidence", evidenceBucketOwner: "123456789012",
     evidenceKMSKeyArn: "arn:aws:kms:us-west-2:123456789012:key/44444444-4444-4444-8444-444444444444",

@@ -57,7 +57,7 @@ func newProductionAttackLabDependencies(config workerRuntimeConfig) (*production
 	if err != nil {
 		return fail()
 	}
-	kubernetes, err = newProductionAttackLabKubernetesAPI(config.AttackLabKubernetesURL, config.AttackLabKubernetesToken, config.AttackLabKubernetesCA, config.AttackLabSecurityGroup, requestTimeout)
+	kubernetes, err = newProductionAttackLabKubernetesAPI(config.AttackLabKubernetesURL, config.AttackLabKubernetesToken, config.AttackLabKubernetesCA, config.AttackLabSecurityGroup, config.AttackLabRunnerTestRoleARN, requestTimeout)
 	if err != nil {
 		return fail()
 	}
@@ -66,7 +66,7 @@ func newProductionAttackLabDependencies(config workerRuntimeConfig) (*production
 		return fail()
 	}
 	provider, err := newProductionAttackLabKubernetesProvider(productionAttackLabKubernetesProviderConfig{
-		Cluster: kubernetes, Namespace: config.AttackLabNamespace, ServiceAccount: config.AttackLabRunnerService, RunnerImage: config.AttackLabRunnerImage,
+		RunnerTestRoleARN: config.AttackLabRunnerTestRoleARN, Cluster: kubernetes, Namespace: config.AttackLabNamespace, ServiceAccount: config.AttackLabRunnerService, RunnerImage: config.AttackLabRunnerImage,
 		ProxyEndpoint: config.AttackLabProxyEndpoint, ProxyCAFile: config.AttackLabProxyCAFile, SigningKey: signingKey, OperationTimeout: requestTimeout, Now: func() time.Time { return time.Now().UTC() },
 	})
 	clear(signingKey)

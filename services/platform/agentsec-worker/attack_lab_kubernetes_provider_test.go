@@ -18,7 +18,7 @@ func TestProductionAttackLabProviderCreatesCollectsAndDestroysExactOwnedJob(t *t
 		CriterionObserved: true, CanaryTouched: true, GatewayEvidence: "allowed", EgressEvidence: "adapter.customer.example", KubernetesEvidence: "fargate job complete", CloudEvidence: "canary touched",
 	}}
 	provider, err := newProductionAttackLabKubernetesProvider(productionAttackLabKubernetesProviderConfig{
-		Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner",
+		Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner", RunnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test",
 		RunnerImage:   "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64),
 		ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt",
 		SigningKey: []byte("test-only-attack-lab-signing-key-32"), OperationTimeout: 10 * time.Second, Now: func() time.Time { return now },
@@ -87,7 +87,7 @@ func TestProductionAttackLabProviderRejectsProductionDriftBeforeClusterIO(t *tes
 	request.Preflight.Environment = "production"
 	cluster := &recordingAttackLabCluster{}
 	provider, err := newProductionAttackLabKubernetesProvider(productionAttackLabKubernetesProviderConfig{
-		Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner",
+		Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner", RunnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test",
 		RunnerImage:   "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64),
 		ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt",
 		SigningKey: []byte("test-only-attack-lab-signing-key-32"), OperationTimeout: 10 * time.Second, Now: func() time.Time { return now },
@@ -108,7 +108,7 @@ func TestProductionAttackLabProviderEnsuresExpiredProvisioningIntentIdempotently
 	request := productionAttackLabSandboxFixture(t, now.Add(-10*time.Minute))
 	cluster := &recordingAttackLabCluster{uid: "123e4567-e89b-12d3-a456-426614174000"}
 	provider, err := newProductionAttackLabKubernetesProvider(productionAttackLabKubernetesProviderConfig{
-		Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner",
+		Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner", RunnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test",
 		RunnerImage:   "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64),
 		ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt",
 		SigningKey: []byte("test-only-attack-lab-signing-key-32"), OperationTimeout: 10 * time.Second, Now: func() time.Time { return now },
@@ -133,7 +133,7 @@ func TestProductionAttackLabProviderUsesCurrentAttemptStartAfterOlderRetry(t *te
 	request.Run.Attempt = 2
 	cluster := &recordingAttackLabCluster{uid: "123e4567-e89b-12d3-a456-426614174000"}
 	provider, err := newProductionAttackLabKubernetesProvider(productionAttackLabKubernetesProviderConfig{
-		Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner",
+		Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner", RunnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test",
 		RunnerImage:   "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64),
 		ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt",
 		SigningKey: []byte("test-only-attack-lab-signing-key-32"), OperationTimeout: 10 * time.Second, Now: func() time.Time { return now },

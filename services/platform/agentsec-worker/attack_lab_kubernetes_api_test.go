@@ -25,7 +25,7 @@ func TestProductionAttackLabKubernetesAPICreatesExactHardenedJob(t *testing.T) {
 		t.Fatal(err)
 	}
 	job := attackLabKubernetesJob{
-		Namespace: "zasp-attack-lab", Name: "zasp-attack-lab-7e300001000040008000000000000001", ServiceAccount: "agentsec-attack-lab-runner",
+		Namespace: "zasp-attack-lab", Name: "zasp-attack-lab-7e300001000040008000000000000001", ServiceAccount: "agentsec-attack-lab-runner", TestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test",
 		Image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", EgressToken: "signed.capability",
 		OrganizationID: "pid_7d100010-0000-4000-8000-000000000010", WorkspaceID: "pid_7d100011-0000-4000-8000-000000000011", EnvironmentID: "pid_7d100012-0000-4000-8000-000000000012", RunID: "pid_7e300001-0000-4000-8000-000000000001", Destination: "adapter.customer.example",
 		SuccessCriterion: "Observe exact canary touch", ExpectedSideEffects: []string{"one bounded canary mutation"}, InputDigest: strings.Repeat("b", 64), Labels: map[string]string{"zasp.io/execution": "attack-lab", "zasp.io/run-id": "pid_7e300001-0000-4000-8000-000000000001"},
@@ -35,7 +35,7 @@ func TestProductionAttackLabKubernetesAPICreatesExactHardenedJob(t *testing.T) {
 	transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{
 		attackLabKubernetesTestResponse(http.StatusCreated, attackLabKubernetesExactJobResponse(t, job, uid)),
 	}}
-	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", runnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test", client: &http.Client{Transport: transport}}
 	uid, err := api.Create(context.Background(), job)
 	if err != nil || uid != "123e4567-e89b-12d3-a456-426614174000" {
 		t.Fatalf("uid=%q err=%v", uid, err)
@@ -135,7 +135,7 @@ func TestProductionAttackLabProviderCancellationUsesUIDFenceAndIdempotentCleanup
 				t.Fatal(err)
 			}
 			transport := &recordingAttackLabKubernetesTransport{responses: tc.responses}
-			api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+			api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", runnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test", client: &http.Client{Transport: transport}}
 			provider := &productionAttackLabKubernetesProvider{config: productionAttackLabKubernetesProviderConfig{Cluster: api, Namespace: "zasp-attack-lab", OperationTimeout: time.Second}}
 			sandbox := attackLabSandbox{Reference: "k8s://attack-lab/jobs/" + name + "@" + uid}
 			if err := provider.Cancel(context.Background(), sandbox); (err != nil) != tc.wantErr {
@@ -187,7 +187,7 @@ func TestAttackLabCleanupWaitsForOwnedPodsAfterJobIsAbsent(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{attackLabKubernetesTestResponse(http.StatusNotFound, `{"kind":"Status","reason":"NotFound"}`), attackLabKubernetesTestResponse(http.StatusOK, tc.body)}}
-			api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+			api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", runnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test", client: &http.Client{Transport: transport}}
 			ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 			defer cancel()
 			started := time.Now()
@@ -215,7 +215,7 @@ func testAttackLabControllerWaitsForActualPodCleanup(t *testing.T, config attack
 	}
 	owned := `{"apiVersion":"v1","kind":"PodList","items":[{"apiVersion":"v1","kind":"Pod","metadata":{"namespace":"zasp-attack-lab","name":"owned-pod","uid":"123e4567-e89b-12d3-a456-426614174002","labels":{"job-name":"` + name + `"},"ownerReferences":[{"apiVersion":"batch/v1","kind":"Job","name":"` + name + `","uid":"` + uid + `","controller":true}]},"status":{"phase":"Running"}}]}`
 	transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{attackLabKubernetesTestResponse(http.StatusNotFound, `{"kind":"Status","reason":"NotFound"}`), attackLabKubernetesTestResponse(http.StatusOK, owned)}}
-	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", runnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test", client: &http.Client{Transport: transport}}
 	*steps = nil
 	authority.claim.Disposition, authority.claim.Run.Status, authority.cleanupErr = "cleanup", "cleanup", nil
 	provider.sandbox.Reference = "k8s://attack-lab/jobs/" + name + "@" + uid
@@ -250,22 +250,20 @@ func TestProductionAttackLabKubernetesAPIReadinessCollectsAndUIDFencesCleanup(t 
 	}
 	name := "zasp-attack-lab-7e300001000040008000000000000001"
 	uid := "123e4567-e89b-12d3-a456-426614174000"
-	image := "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64)
-	termination := `{"schema_version":"attack-lab-outcome-v1","criterion_observed":true,"canary_touched":true,"gateway_evidence":"proxy authorized one POST","egress_evidence":"destination exact","cloud_evidence":"canary changed"}`
 	transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{
 		attackLabKubernetesTestResponse(http.StatusOK, `{"major":"1","minor":"30"}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"zasp-attack-lab","uid":"223e4567-e89b-12d3-a456-426614174000","labels":{"kubernetes.io/metadata.name":"zasp-attack-lab","zasp.io/execution":"attack-lab"}},"status":{"phase":"Active"}}`),
-		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`),
+		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"},"annotations":{"eks.amazonaws.com/role-arn":"arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"agentsec-attack-lab-proxy-ca","namespace":"zasp-attack-lab","uid":"423e4567-e89b-12d3-a456-426614174000"},"data":{"proxy-ca.crt":`+strconv.Quote(testDiscoveryCACertificatePEM)+`}}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"vpcresources.k8s.aws/v1beta1","kind":"SecurityGroupPolicy","metadata":{"name":"agentsec-attack-lab-egress","namespace":"zasp-attack-lab","uid":"623e4567-e89b-12d3-a456-426614174000"},"spec":{"podSelector":{"matchLabels":{"zasp.io/execution":"attack-lab"}},"securityGroups":{"groupIds":["sg-1234abcd"]}}}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"batch/v1","kind":"Job","metadata":{"name":"`+name+`","namespace":"zasp-attack-lab","uid":"`+uid+`"},"status":{"succeeded":1,"failed":0,"conditions":[{"type":"Complete","status":"True"}]}}`),
-		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"PodList","metadata":{"continue":""},"items":[{"apiVersion":"v1","kind":"Pod","metadata":{"name":"`+name+`-abcde","namespace":"zasp-attack-lab","uid":"523e4567-e89b-12d3-a456-426614174000","labels":{"job-name":"`+name+`","zasp.io/execution":"attack-lab","eks.amazonaws.com/fargate-profile":"agentsec-attack-lab"},"ownerReferences":[{"apiVersion":"batch/v1","kind":"Job","name":"`+name+`","uid":"`+uid+`","controller":true}]},"spec":{"nodeName":"fargate-ip-10-0-1-10","containers":[{"name":"runner","image":"`+image+`"}]},"status":{"phase":"Succeeded","containerStatuses":[{"name":"runner","image":"`+image+`","imageID":"`+image+`","ready":false,"restartCount":0,"state":{"terminated":{"exitCode":0,"reason":"Completed","message":`+strconv.Quote(termination)+`}}}]}}]}`),
+		attackLabKubernetesTestResponse(http.StatusOK, attackLabIdentityPodList(t, func(map[string]any) {})),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"batch/v1","kind":"Job","metadata":{"name":"`+name+`","namespace":"zasp-attack-lab","uid":"`+uid+`"}}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"Status","status":"Success","reason":"Deleted","code":200}`),
 		attackLabKubernetesTestResponse(http.StatusNotFound, `{"apiVersion":"v1","kind":"Status","status":"Failure","reason":"NotFound","code":404}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"PodList","items":[]}`),
 	}}
-	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", runnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test", client: &http.Client{Transport: transport}}
 	if err := api.Ready(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +300,7 @@ func TestProductionAttackLabKubernetesAPIReconcilesExactCreateConflictWithoutDup
 		t.Fatal(err)
 	}
 	job := attackLabKubernetesJob{
-		Namespace: "zasp-attack-lab", Name: "zasp-attack-lab-7e300001000040008000000000000001", ServiceAccount: "agentsec-attack-lab-runner",
+		Namespace: "zasp-attack-lab", Name: "zasp-attack-lab-7e300001000040008000000000000001", ServiceAccount: "agentsec-attack-lab-runner", TestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test",
 		Image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", EgressToken: "signed.capability.production",
 		OrganizationID: "pid_7d100010-0000-4000-8000-000000000010", WorkspaceID: "pid_7d100011-0000-4000-8000-000000000011", EnvironmentID: "pid_7d100012-0000-4000-8000-000000000012", RunID: "pid_7e300001-0000-4000-8000-000000000001", Destination: "adapter.customer.example",
 		SuccessCriterion: "Observe exact canary touch", ExpectedSideEffects: []string{"one bounded canary mutation"}, InputDigest: strings.Repeat("b", 64), Labels: map[string]string{"zasp.io/execution": "attack-lab", "zasp.io/run-id": "pid_7e300001-0000-4000-8000-000000000001"},
@@ -313,7 +311,7 @@ func TestProductionAttackLabKubernetesAPIReconcilesExactCreateConflictWithoutDup
 		attackLabKubernetesTestResponse(http.StatusConflict, `{"apiVersion":"v1","kind":"Status","reason":"AlreadyExists","code":409}`),
 		attackLabKubernetesTestResponse(http.StatusOK, attackLabKubernetesExactJobResponse(t, job, uid)),
 	}}
-	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", runnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test", client: &http.Client{Transport: transport}}
 	got, err := api.Create(context.Background(), job)
 	if err != nil || got != uid || len(transport.requests) != 2 || transport.requests[0].Method != http.MethodPost || transport.requests[1].Method != http.MethodGet {
 		t.Fatalf("uid=%q requests=%d err=%v", got, len(transport.requests), err)
@@ -331,7 +329,7 @@ func TestProductionAttackLabKubernetesAPICreateWrongContentTypeWithDelayedVisibi
 		created,
 		attackLabKubernetesTestResponse(http.StatusNotFound, `{"apiVersion":"v1","kind":"Status","reason":"NotFound","code":404}`),
 	}}
-	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", runnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test", client: &http.Client{Transport: transport}}
 	uid, err := api.Create(context.Background(), attackLabKubernetesTestJob())
 	var failure *attackLabProviderFailure
 	if uid != "" || !errors.As(err, &failure) || failure.code != "outcome_unknown" {
@@ -359,7 +357,7 @@ func TestProductionAttackLabKubernetesAPIRejectsCreateConflictWithDriftedJobSpec
 		attackLabKubernetesTestResponse(http.StatusConflict, `{"apiVersion":"v1","kind":"Status","reason":"AlreadyExists","code":409}`),
 		attackLabKubernetesTestResponse(http.StatusOK, string(raw)),
 	}}
-	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", runnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test", client: &http.Client{Transport: transport}}
 	if uid, err := api.Create(context.Background(), job); err == nil || uid != "" {
 		t.Fatalf("drifted existing job adopted: uid=%q err=%v", uid, err)
 	}
@@ -378,12 +376,12 @@ func TestProductionAttackLabKubernetesAPIReadinessRejectsPrivilegeAndEgressDrift
 		},
 		"foreign security group": {
 			namespace:      `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"zasp-attack-lab","uid":"223e4567-e89b-12d3-a456-426614174000","labels":{"kubernetes.io/metadata.name":"zasp-attack-lab","zasp.io/execution":"attack-lab"}},"status":{"phase":"Active"}}`,
-			serviceAccount: `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`,
+			serviceAccount: `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"},"annotations":{"eks.amazonaws.com/role-arn":"arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`,
 			policy:         `{"apiVersion":"vpcresources.k8s.aws/v1beta1","kind":"SecurityGroupPolicy","metadata":{"name":"agentsec-attack-lab-egress","namespace":"zasp-attack-lab","uid":"623e4567-e89b-12d3-a456-426614174000"},"spec":{"podSelector":{"matchLabels":{"zasp.io/execution":"attack-lab"}},"securityGroups":{"groupIds":["sg-deadbeef"]}}}`,
 		},
 		"foreign namespace label": {
 			namespace:      `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"zasp-attack-lab","uid":"223e4567-e89b-12d3-a456-426614174000","labels":{"kubernetes.io/metadata.name":"zasp-attack-lab","zasp.io/execution":"attack-lab","example.com/admin":"true"}},"status":{"phase":"Active"}}`,
-			serviceAccount: `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`,
+			serviceAccount: `{"apiVersion":"v1","kind":"ServiceAccount","metadata":{"name":"agentsec-attack-lab-runner","namespace":"zasp-attack-lab","uid":"323e4567-e89b-12d3-a456-426614174000","labels":{"zasp.io/execution":"attack-lab"},"annotations":{"eks.amazonaws.com/role-arn":"arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test"}},"automountServiceAccountToken":false,"secrets":[],"imagePullSecrets":[]}`,
 			policy:         `{"apiVersion":"vpcresources.k8s.aws/v1beta1","kind":"SecurityGroupPolicy","metadata":{"name":"agentsec-attack-lab-egress","namespace":"zasp-attack-lab","uid":"623e4567-e89b-12d3-a456-426614174000"},"spec":{"podSelector":{"matchLabels":{"zasp.io/execution":"attack-lab"}},"securityGroups":{"groupIds":["sg-1234abcd"]}}}`,
 		},
 	} {
@@ -399,7 +397,7 @@ func TestProductionAttackLabKubernetesAPIReadinessRejectsPrivilegeAndEgressDrift
 				attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"agentsec-attack-lab-proxy-ca","namespace":"zasp-attack-lab","uid":"423e4567-e89b-12d3-a456-426614174000"},"data":{"proxy-ca.crt":`+strconv.Quote(testDiscoveryCACertificatePEM)+`}}`),
 				attackLabKubernetesTestResponse(http.StatusOK, fixture.policy),
 			}}
-			api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+			api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", runnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test", client: &http.Client{Transport: transport}}
 			if err := api.Ready(context.Background()); err == nil {
 				t.Fatal("privilege or egress drift accepted")
 			}
@@ -409,7 +407,7 @@ func TestProductionAttackLabKubernetesAPIReadinessRejectsPrivilegeAndEgressDrift
 
 func attackLabKubernetesTestJob() attackLabKubernetesJob {
 	return attackLabKubernetesJob{
-		Namespace: "zasp-attack-lab", Name: "zasp-attack-lab-7e300001000040008000000000000001", ServiceAccount: "agentsec-attack-lab-runner",
+		Namespace: "zasp-attack-lab", Name: "zasp-attack-lab-7e300001000040008000000000000001", ServiceAccount: "agentsec-attack-lab-runner", TestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test",
 		Image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", EgressToken: "signed.capability.production",
 		OrganizationID: "pid_7d100010-0000-4000-8000-000000000010", WorkspaceID: "pid_7d100011-0000-4000-8000-000000000011", EnvironmentID: "pid_7d100012-0000-4000-8000-000000000012", RunID: "pid_7e300001-0000-4000-8000-000000000001", Destination: "adapter.customer.example",
 		SuccessCriterion: "Observe exact canary touch", ExpectedSideEffects: []string{"one bounded canary mutation"}, InputDigest: strings.Repeat("b", 64), Labels: map[string]string{"zasp.io/execution": "attack-lab", "zasp.io/run-id": "pid_7e300001-0000-4000-8000-000000000001"},
@@ -434,8 +432,8 @@ func attackLabKubernetesExactJobManifest(job attackLabKubernetesJob, uid string)
 			Template: attackLabKubernetesPodTemplate{Metadata: attackLabKubernetesObjectMeta{Labels: cloneAttackLabLabels(job.Labels)}, Spec: attackLabKubernetesPodSpec{
 				ServiceAccountName: job.ServiceAccount, AutomountServiceAccountToken: false, RestartPolicy: "Never", EnableServiceLinks: false, TerminationGracePeriodSeconds: 5,
 				SecurityContext: attackLabKubernetesPodSecurityContext{RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, FSGroup: 65532, SeccompProfile: attackLabKubernetesSeccompProfile{Type: "RuntimeDefault"}},
-				Containers:      []attackLabKubernetesContainer{{Name: "runner", Image: job.Image, ImagePullPolicy: "IfNotPresent", Command: []string{"/app/agentsec-attack-lab-runner"}, Args: []string{"run"}, Env: attackLabKubernetesJobEnvironment(job, string(expectedSideEffects)), SecurityContext: attackLabKubernetesSecurityContext{AllowPrivilegeEscalation: false, ReadOnlyRootFilesystem: true, RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, Capabilities: attackLabKubernetesCapabilities{Drop: []string{"ALL"}}}, Resources: attackLabKubernetesResources{Requests: attackLabKubernetesResourceValues(job), Limits: attackLabKubernetesResourceValues(job)}, VolumeMounts: []attackLabKubernetesVolumeMount{{Name: "proxy-ca", MountPath: "/var/run/secrets/zasp-attack-lab", ReadOnly: true}}, TerminationMessagePath: "/dev/termination-log", TerminationMessagePolicy: "File"}},
-				Volumes:         []attackLabKubernetesVolume{{Name: "proxy-ca", ConfigMap: &attackLabKubernetesConfigMapVolume{Name: "agentsec-attack-lab-proxy-ca", DefaultMode: 0o444}}},
+				Containers:      []attackLabKubernetesContainer{{Name: "runner", Image: job.Image, ImagePullPolicy: "IfNotPresent", Command: []string{"/app/agentsec-attack-lab-runner"}, Args: []string{"run"}, Env: attackLabKubernetesJobEnvironment(job, string(expectedSideEffects)), SecurityContext: attackLabKubernetesSecurityContext{AllowPrivilegeEscalation: false, ReadOnlyRootFilesystem: true, RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, Capabilities: attackLabKubernetesCapabilities{Drop: []string{"ALL"}}}, Resources: attackLabKubernetesResources{Requests: attackLabKubernetesResourceValues(job), Limits: attackLabKubernetesResourceValues(job)}, VolumeMounts: attackLabRunnerVolumeMounts(), TerminationMessagePath: "/dev/termination-log", TerminationMessagePolicy: "File"}},
+				Volumes:         attackLabRunnerVolumes(),
 			}},
 		},
 	}

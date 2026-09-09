@@ -1715,6 +1715,33 @@ resource "aws_vpc_endpoint" "private_services" {
   private_dns_enabled = true
 }
 
+// Curated sandbox runs have no direct AWS resource permissions. This distinct
+// identity cannot assume product roles, even if an SDK is added to the runner.
+resource "aws_iam_policy" "attack_lab_runner_test_boundary" {
+  name = "${var.cluster_name}-attack-lab-runner-test-boundary"
+  policy = jsonencode({ Version = "2012-10-17", Statement = [{
+    Effect = "Deny", Action = "*", Resource = "*"
+  }] })
+}
+
+resource "aws_iam_role" "attack_lab_runner_test" {
+  name                 = "${var.cluster_name}-attack-lab-runner-test"
+  permissions_boundary = aws_iam_policy.attack_lab_runner_test_boundary.arn
+  assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{
+    Effect = "Allow", Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }, Action = "sts:AssumeRoleWithWebIdentity"
+    Condition = { StringEquals = {
+      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:zasp-attack-lab:agentsec-attack-lab-runner"
+    } }
+  }] })
+}
+
+resource "aws_iam_role_policy" "attack_lab_runner_test" {
+  name   = "${var.cluster_name}-attack-lab-runner-test-deny"
+  role   = aws_iam_role.attack_lab_runner_test.id
+  policy = aws_iam_policy.attack_lab_runner_test_boundary.policy
+}
+
 resource "aws_iam_role" "attack_lab_pod" {
   name = "${var.cluster_name}-attack-lab-pod"
   assume_role_policy = jsonencode({

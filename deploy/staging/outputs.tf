@@ -270,6 +270,7 @@ output "attack_lab_release_authority" {
     evidence_bucket_owner   = var.account_id
     evidence_kms_key_arn    = aws_kms_key.attack_lab.arn
     controller_role_arn     = aws_iam_role.attack_lab["controller"].arn
+    runner_test_role_arn    = aws_iam_role.attack_lab_runner_test.arn
     outbox_role_arn         = aws_iam_role.attack_lab["outbox"].arn
     proxy_role_arn          = aws_iam_role.attack_lab["proxy"].arn
     security_group_id       = aws_security_group.attack_lab.id

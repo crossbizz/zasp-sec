@@ -383,4 +383,8 @@ variable "evidence_retention_days" {
 variable "attack_lab_namespace" {
   type    = string
   default = "zasp-attack-lab"
+  validation {
+    condition     = var.attack_lab_namespace == "zasp-attack-lab"
+    error_message = "Attack Lab identity and scheduling require the isolated zasp-attack-lab namespace."
+  }
 }
