@@ -27,6 +27,7 @@ type attackLabClusterAPI interface {
 }
 
 type attackLabKubernetesJob struct {
+	TestRoleARN                             string
 	Namespace, Name, ServiceAccount, Image  string
 	ProxyEndpoint, ProxyCAFile, EgressToken string
 	OrganizationID, WorkspaceID             string
@@ -47,6 +48,7 @@ type attackLabClusterOutcome struct {
 }
 
 type productionAttackLabKubernetesProviderConfig struct {
+	RunnerTestRoleARN          string
 	Cluster                    attackLabClusterAPI
 	Namespace, ServiceAccount  string
 	RunnerImage                string
@@ -72,7 +74,7 @@ func validProductionAttackLabKubernetesProviderConfig(config productionAttackLab
 	if config.Cluster == nil || config.Namespace != "zasp-attack-lab" || config.ServiceAccount != "agentsec-attack-lab-runner" || config.ProxyEndpoint != "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress" || config.ProxyCAFile != "/var/run/secrets/zasp-attack-lab/proxy-ca.crt" || len(config.SigningKey) < 32 || len(config.SigningKey) > 64 || config.OperationTimeout < time.Second || config.OperationTimeout > 30*time.Second || config.Now == nil {
 		return false
 	}
-	if !regexp.MustCompile(`^[0-9]{12}\.dkr\.ecr\.[a-z]{2}(?:-gov)?-[a-z]+-[0-9]\.amazonaws\.com/zasp/attack-lab-runner@sha256:[a-f0-9]{64}$`).MatchString(config.RunnerImage) {
+	if !validAttackLabTestRole(config.RunnerTestRoleARN, strings.Split(config.RunnerImage, ".")[0]) || !regexp.MustCompile(`^[0-9]{12}\.dkr\.ecr\.[a-z]{2}(?:-gov)?-[a-z]+-[0-9]\.amazonaws\.com/zasp/attack-lab-runner@sha256:[a-f0-9]{64}$`).MatchString(config.RunnerImage) {
 		return false
 	}
 	now := config.Now()
@@ -138,7 +140,7 @@ func (provider *productionAttackLabKubernetesProvider) jobForRequest(request att
 		return attackLabKubernetesJob{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	return attackLabKubernetesJob{
-		Namespace: provider.config.Namespace, Name: name, ServiceAccount: provider.config.ServiceAccount, Image: provider.config.RunnerImage,
+		TestRoleARN: provider.config.RunnerTestRoleARN, Namespace: provider.config.Namespace, Name: name, ServiceAccount: provider.config.ServiceAccount, Image: provider.config.RunnerImage,
 		ProxyEndpoint: provider.config.ProxyEndpoint, ProxyCAFile: provider.config.ProxyCAFile, EgressToken: token,
 		OrganizationID: request.Scope.OrganizationID().String(), WorkspaceID: request.Scope.WorkspaceID().String(), EnvironmentID: request.Scope.EnvironmentID().String(), RunID: request.Run.ID, Destination: request.Run.Destination,
 		SuccessCriterion: request.Preflight.SuccessCriterion, ExpectedSideEffects: append([]string(nil), request.Preflight.ExpectedSideEffects...), InputDigest: hex.EncodeToString(request.InputDigest[:]),

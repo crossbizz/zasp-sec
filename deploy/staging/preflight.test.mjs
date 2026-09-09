@@ -46,7 +46,7 @@ const input = {
     attackLabOutbox: { serviceAccount: "zasp-attack-lab-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-outbox" },
     attackLabController: { serviceAccount: "zasp-attack-lab-controller", roleArn: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-controller" },
     attackLabProxy: { serviceAccount: "zasp-attack-lab-proxy", roleArn: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-proxy" },
-    attackLabRunner: { serviceAccount: "agentsec-attack-lab-runner", roleArn: null },
+    attackLabRunner: { serviceAccount: "agentsec-attack-lab-runner", roleArn: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test" },
     runtimeIngest: { serviceAccount: "zasp-runtime-ingest", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-ingest" },
     gatewayControl: { serviceAccount: "zasp-gateway-control", roleArn: "arn:aws:iam::123456789012:role/zasp-production-gateway-control" },
     runtimeOutbox: { serviceAccount: "zasp-runtime-outbox", roleArn: "arn:aws:iam::123456789012:role/zasp-production-runtime-outbox" },
@@ -70,7 +70,7 @@ const input = {
 test("release preflight validates all eleven images and least-privilege identities", () => {
   const calls = [];
   const value = runPreflight(["--input", "release.json"], { read: () => JSON.stringify(input), spawn: (tool, args, options) => { calls.push({ tool, args, options }); return { status: 0 }; } });
-  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 11, deployments: 32, cloudIdentities: 33 });
+  assert.deepEqual(value, { environment: "production", privateEndpointOnly: true, images: 11, deployments: 32, cloudIdentities: 34 });
   assert.deepEqual(calls.map(({ tool, args }) => ({ tool, args })), [
     { tool: "terraform", args: ["version", "-json"] },
     { tool: "helm", args: ["version", "--short"] },
@@ -79,6 +79,12 @@ test("release preflight validates all eleven images and least-privilege identiti
   ]);
   assert.deepEqual(calls.map(({ tool }) => tool), requiredTools);
   assert.ok(calls.every(({ options }) => options.timeout === 10_000 && Object.keys(options.env).join() === "PATH"));
+});
+
+test("release preflight forbids missing and inherited sandbox roles", () => {
+  for (const roleArn of [null, input.workloadIdentities.discoveryWorker.roleArn]) {
+    assert.throws(() => validateReleaseInput({ ...input, workloadIdentities: { ...input.workloadIdentities, attackLabRunner: { serviceAccount: "agentsec-attack-lab-runner", roleArn } } }), /rejected/);
+  }
 });
 
 test("release preflight rejects public access, mutable images, stale workloads, and shared IAM", () => {

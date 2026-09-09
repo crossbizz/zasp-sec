@@ -26,15 +26,16 @@ var attackLabKubernetesLabelPattern = regexp.MustCompile(`^[a-z0-9](?:[-a-z0-9_.
 var attackLabKubernetesSecurityGroupPattern = regexp.MustCompile(`^sg-[a-f0-9]{8}(?:[a-f0-9]{9})?$`)
 
 type productionAttackLabKubernetesAPI struct {
-	endpoint        string
-	tokenFile       string
-	securityGroupID string
-	client          *http.Client
-	transport       *http.Transport
+	endpoint          string
+	tokenFile         string
+	securityGroupID   string
+	runnerTestRoleARN string
+	client            *http.Client
+	transport         *http.Transport
 }
 
-func newProductionAttackLabKubernetesAPI(endpoint, tokenFile, caFile, securityGroupID string, timeout time.Duration) (*productionAttackLabKubernetesAPI, error) {
-	if endpoint != "https://kubernetes.default.svc" || tokenFile != "/var/run/secrets/kubernetes.io/serviceaccount/token" || caFile != "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt" || !attackLabKubernetesSecurityGroupPattern.MatchString(securityGroupID) || timeout < time.Second || timeout > 30*time.Second {
+func newProductionAttackLabKubernetesAPI(endpoint, tokenFile, caFile, securityGroupID, runnerTestRoleARN string, timeout time.Duration) (*productionAttackLabKubernetesAPI, error) {
+	if !attackLabTestRolePattern.MatchString(runnerTestRoleARN) || endpoint != "https://kubernetes.default.svc" || tokenFile != "/var/run/secrets/kubernetes.io/serviceaccount/token" || caFile != "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt" || !attackLabKubernetesSecurityGroupPattern.MatchString(securityGroupID) || timeout < time.Second || timeout > 30*time.Second {
 		return nil, errRuntimeUnavailable
 	}
 	caBundle, err := os.ReadFile(caFile)
@@ -52,7 +53,7 @@ func newProductionAttackLabKubernetesAPI(endpoint, tokenFile, caFile, securityGr
 		TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots, ServerName: "kubernetes.default.svc"}, TLSHandshakeTimeout: timeout, ResponseHeaderTimeout: timeout, MaxResponseHeaderBytes: 64 << 10,
 	}
 	client := &http.Client{Transport: transport, Timeout: timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirect rejected") }}
-	return &productionAttackLabKubernetesAPI{endpoint: endpoint, tokenFile: tokenFile, securityGroupID: securityGroupID, client: client, transport: transport}, nil
+	return &productionAttackLabKubernetesAPI{endpoint: endpoint, tokenFile: tokenFile, securityGroupID: securityGroupID, runnerTestRoleARN: runnerTestRoleARN, client: client, transport: transport}, nil
 }
 
 func (api *productionAttackLabKubernetesAPI) Close() error {
@@ -166,6 +167,7 @@ type attackLabKubernetesResources struct {
 }
 
 type attackLabKubernetesVolume struct {
+	Projected *attackLabKubernetesProjectedVolume `json:"projected,omitempty"`
 	Name      string                              `json:"name"`
 	ConfigMap *attackLabKubernetesConfigMapVolume `json:"configMap,omitempty"`
 }
@@ -329,7 +331,7 @@ func (api *productionAttackLabKubernetesAPI) Ready(ctx context.Context) error {
 	serviceAccount := checks[2].out.(*attackLabKubernetesServiceAccount)
 	configMap := checks[3].out.(*attackLabKubernetesConfigMap)
 	securityGroupPolicy := checks[4].out.(*attackLabKubernetesSecurityGroupPolicy)
-	if version.Major != "1" || !regexp.MustCompile(`^[0-9]{1,3}[+]?$`).MatchString(version.Minor) || namespace.APIVersion != "v1" || namespace.Kind != "Namespace" || namespace.Metadata.Name != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(namespace.Metadata.UID) || !reflect.DeepEqual(namespace.Metadata.Labels, map[string]string{"kubernetes.io/metadata.name": "zasp-attack-lab", "zasp.io/execution": "attack-lab"}) || namespace.Status.Phase != "Active" || serviceAccount.APIVersion != "v1" || serviceAccount.Kind != "ServiceAccount" || serviceAccount.Metadata.Name != "agentsec-attack-lab-runner" || serviceAccount.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(serviceAccount.Metadata.UID) || !reflect.DeepEqual(serviceAccount.Metadata.Labels, map[string]string{"zasp.io/execution": "attack-lab"}) || len(serviceAccount.Metadata.Annotations) != 0 || serviceAccount.AutomountServiceAccountToken == nil || *serviceAccount.AutomountServiceAccountToken || len(serviceAccount.Secrets) != 0 || len(serviceAccount.ImagePullSecrets) != 0 || configMap.APIVersion != "v1" || configMap.Kind != "ConfigMap" || configMap.Metadata.Name != "agentsec-attack-lab-proxy-ca" || configMap.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(configMap.Metadata.UID) || len(configMap.Data) != 1 || !validDiscoveryCABundle([]byte(configMap.Data["proxy-ca.crt"])) || securityGroupPolicy.APIVersion != "vpcresources.k8s.aws/v1beta1" || securityGroupPolicy.Kind != "SecurityGroupPolicy" || securityGroupPolicy.Metadata.Name != "agentsec-attack-lab-egress" || securityGroupPolicy.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(securityGroupPolicy.Metadata.UID) || len(securityGroupPolicy.Metadata.Annotations) != 0 || !reflect.DeepEqual(securityGroupPolicy.Spec.PodSelector.MatchLabels, map[string]string{"zasp.io/execution": "attack-lab"}) || len(securityGroupPolicy.Spec.PodSelector.MatchExpressions) != 0 || !reflect.DeepEqual(securityGroupPolicy.Spec.SecurityGroups.GroupIDs, []string{api.securityGroupID}) {
+	if version.Major != "1" || !regexp.MustCompile(`^[0-9]{1,3}[+]?$`).MatchString(version.Minor) || namespace.APIVersion != "v1" || namespace.Kind != "Namespace" || namespace.Metadata.Name != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(namespace.Metadata.UID) || !reflect.DeepEqual(namespace.Metadata.Labels, map[string]string{"kubernetes.io/metadata.name": "zasp-attack-lab", "zasp.io/execution": "attack-lab"}) || namespace.Status.Phase != "Active" || serviceAccount.APIVersion != "v1" || serviceAccount.Kind != "ServiceAccount" || serviceAccount.Metadata.Name != "agentsec-attack-lab-runner" || serviceAccount.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(serviceAccount.Metadata.UID) || !reflect.DeepEqual(serviceAccount.Metadata.Labels, map[string]string{"zasp.io/execution": "attack-lab"}) || !attackLabTestRolePattern.MatchString(api.runnerTestRoleARN) || !reflect.DeepEqual(serviceAccount.Metadata.Annotations, map[string]string{"eks.amazonaws.com/role-arn": api.runnerTestRoleARN}) || serviceAccount.AutomountServiceAccountToken == nil || *serviceAccount.AutomountServiceAccountToken || len(serviceAccount.Secrets) != 0 || len(serviceAccount.ImagePullSecrets) != 0 || configMap.APIVersion != "v1" || configMap.Kind != "ConfigMap" || configMap.Metadata.Name != "agentsec-attack-lab-proxy-ca" || configMap.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(configMap.Metadata.UID) || len(configMap.Data) != 1 || !validDiscoveryCABundle([]byte(configMap.Data["proxy-ca.crt"])) || securityGroupPolicy.APIVersion != "vpcresources.k8s.aws/v1beta1" || securityGroupPolicy.Kind != "SecurityGroupPolicy" || securityGroupPolicy.Metadata.Name != "agentsec-attack-lab-egress" || securityGroupPolicy.Metadata.Namespace != "zasp-attack-lab" || !attackLabKubernetesUIDPattern.MatchString(securityGroupPolicy.Metadata.UID) || len(securityGroupPolicy.Metadata.Annotations) != 0 || !reflect.DeepEqual(securityGroupPolicy.Spec.PodSelector.MatchLabels, map[string]string{"zasp.io/execution": "attack-lab"}) || len(securityGroupPolicy.Spec.PodSelector.MatchExpressions) != 0 || !reflect.DeepEqual(securityGroupPolicy.Spec.SecurityGroups.GroupIDs, []string{api.securityGroupID}) {
 		return errRuntimeUnavailable
 	}
 	return nil
@@ -404,10 +406,13 @@ func (api *productionAttackLabKubernetesAPI) collectCompletedPod(ctx context.Con
 		return attackLabClusterOutcome{}, &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
 	pod := list.Items[0]
-	if pod.APIVersion != "v1" || pod.Kind != "Pod" || pod.Metadata.Namespace != namespace || !attackLabKubernetesUIDPattern.MatchString(pod.Metadata.UID) || pod.Metadata.Labels["job-name"] != name || pod.Metadata.Labels["zasp.io/execution"] != "attack-lab" || pod.Metadata.Labels["eks.amazonaws.com/fargate-profile"] != "agentsec-attack-lab" || !strings.HasPrefix(pod.Spec.NodeName, "fargate-") || len(pod.Metadata.OwnerReferences) != 1 || pod.Metadata.OwnerReferences[0] != (attackLabKubernetesOwnerReference{APIVersion: "batch/v1", Kind: "Job", Name: name, UID: uid, Controller: true}) || len(pod.Spec.Containers) != 1 || pod.Spec.Containers[0].Name != "runner" || len(pod.Status.ContainerStatuses) != 1 {
+	if pod.APIVersion != "v1" || pod.Kind != "Pod" || pod.Metadata.Namespace != namespace || !attackLabKubernetesUIDPattern.MatchString(pod.Metadata.UID) || pod.Metadata.Labels["job-name"] != name || pod.Metadata.Labels["zasp.io/execution"] != "attack-lab" || pod.Metadata.Labels["eks.amazonaws.com/fargate-profile"] != "attack-lab" || !strings.HasPrefix(pod.Spec.NodeName, "fargate-") || len(pod.Metadata.OwnerReferences) != 1 || pod.Metadata.OwnerReferences[0] != (attackLabKubernetesOwnerReference{APIVersion: "batch/v1", Kind: "Job", Name: name, UID: uid, Controller: true}) || len(pod.Spec.Containers) != 1 || pod.Spec.Containers[0].Name != "runner" || len(pod.Status.ContainerStatuses) != 1 {
 		return attackLabClusterOutcome{}, &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
 	container := pod.Status.ContainerStatuses[0]
+	if !validAttackLabObservedPodIdentity(body, api.runnerTestRoleARN) {
+		return attackLabClusterOutcome{}, &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+	}
 	wantImage := pod.Spec.Containers[0].Image
 	if pod.Status.Phase != "Succeeded" || container.Name != "runner" || container.Image != wantImage || container.ImageID != wantImage || container.Ready || container.RestartCount != 0 || container.State.Terminated == nil || container.State.Terminated.ExitCode != 0 || container.State.Terminated.Reason != "Completed" || !regexp.MustCompile(`@sha256:[a-f0-9]{64}$`).MatchString(wantImage) {
 		return attackLabClusterOutcome{}, &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
@@ -521,7 +526,7 @@ func attackLabKubernetesJobCompletion(job attackLabKubernetesJobRead) (bool, boo
 }
 
 func (api *productionAttackLabKubernetesAPI) Create(ctx context.Context, job attackLabKubernetesJob) (string, error) {
-	if api == nil || ctx == nil || ctx.Err() != nil || !validAttackLabKubernetesAPIJob(job) {
+	if api == nil || ctx == nil || ctx.Err() != nil || !validAttackLabKubernetesAPIJob(job) || job.TestRoleARN != api.runnerTestRoleARN {
 		return "", &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	expectedSideEffects, err := json.Marshal(job.ExpectedSideEffects)
@@ -552,9 +557,9 @@ func (api *productionAttackLabKubernetesAPI) Create(ctx context.Context, job att
 						Env:             attackLabKubernetesJobEnvironment(job, string(expectedSideEffects)),
 						SecurityContext: attackLabKubernetesSecurityContext{AllowPrivilegeEscalation: false, ReadOnlyRootFilesystem: true, RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, Capabilities: attackLabKubernetesCapabilities{Drop: []string{"ALL"}}},
 						Resources:       attackLabKubernetesResources{Requests: attackLabKubernetesResourceValues(job), Limits: attackLabKubernetesResourceValues(job)},
-						VolumeMounts:    []attackLabKubernetesVolumeMount{{Name: "proxy-ca", MountPath: "/var/run/secrets/zasp-attack-lab", ReadOnly: true}}, TerminationMessagePath: "/dev/termination-log", TerminationMessagePolicy: "File",
+						VolumeMounts:    attackLabRunnerVolumeMounts(), TerminationMessagePath: "/dev/termination-log", TerminationMessagePolicy: "File",
 					}},
-					Volumes: []attackLabKubernetesVolume{{Name: "proxy-ca", ConfigMap: &attackLabKubernetesConfigMapVolume{Name: "agentsec-attack-lab-proxy-ca", DefaultMode: 0o444}}},
+					Volumes: attackLabRunnerVolumes(),
 				},
 			},
 		},
@@ -589,7 +594,7 @@ func (api *productionAttackLabKubernetesAPI) Create(ctx context.Context, job att
 }
 
 func (api *productionAttackLabKubernetesAPI) Reconcile(ctx context.Context, job attackLabKubernetesJob) (string, bool, error) {
-	if api == nil || ctx == nil || ctx.Err() != nil || !validAttackLabKubernetesAPIJob(job) {
+	if api == nil || ctx == nil || ctx.Err() != nil || !validAttackLabKubernetesAPIJob(job) || job.TestRoleARN != api.runnerTestRoleARN {
 		return "", false, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	path := fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs/%s", job.Namespace, job.Name)
@@ -620,12 +625,12 @@ func validExactAttackLabKubernetesJob(actual attackLabKubernetesJobManifest, job
 	}
 	pod := actual.Spec.Template.Spec
 	wantPodSecurity := attackLabKubernetesPodSecurityContext{RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, FSGroup: 65532, SeccompProfile: attackLabKubernetesSeccompProfile{Type: "RuntimeDefault"}}
-	if pod.ServiceAccountName != job.ServiceAccount || pod.ServiceAccount != "" && pod.ServiceAccount != job.ServiceAccount || pod.AutomountServiceAccountToken || pod.RestartPolicy != "Never" || pod.EnableServiceLinks || pod.TerminationGracePeriodSeconds != 5 || pod.HostNetwork || pod.HostPID || pod.HostIPC || pod.SchedulerName != "" && pod.SchedulerName != "default-scheduler" || pod.SecurityContext != wantPodSecurity || len(pod.Containers) != 1 || len(pod.Volumes) != 1 {
+	if pod.ServiceAccountName != job.ServiceAccount || pod.ServiceAccount != "" && pod.ServiceAccount != job.ServiceAccount || pod.AutomountServiceAccountToken || pod.RestartPolicy != "Never" || pod.EnableServiceLinks || pod.TerminationGracePeriodSeconds != 5 || pod.HostNetwork || pod.HostPID || pod.HostIPC || pod.SchedulerName != "" && pod.SchedulerName != "default-scheduler" || pod.SecurityContext != wantPodSecurity || len(pod.Containers) != 1 || len(pod.Volumes) != 2 {
 		return false
 	}
-	wantContainer := attackLabKubernetesContainer{Name: "runner", Image: job.Image, ImagePullPolicy: "IfNotPresent", Command: []string{"/app/agentsec-attack-lab-runner"}, Args: []string{"run"}, Env: attackLabKubernetesJobEnvironment(job, string(expectedSideEffects)), SecurityContext: attackLabKubernetesSecurityContext{AllowPrivilegeEscalation: false, ReadOnlyRootFilesystem: true, RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, Capabilities: attackLabKubernetesCapabilities{Drop: []string{"ALL"}}}, Resources: attackLabKubernetesResources{Requests: attackLabKubernetesResourceValues(job), Limits: attackLabKubernetesResourceValues(job)}, VolumeMounts: []attackLabKubernetesVolumeMount{{Name: "proxy-ca", MountPath: "/var/run/secrets/zasp-attack-lab", ReadOnly: true}}, TerminationMessagePath: "/dev/termination-log", TerminationMessagePolicy: "File"}
-	wantVolume := attackLabKubernetesVolume{Name: "proxy-ca", ConfigMap: &attackLabKubernetesConfigMapVolume{Name: "agentsec-attack-lab-proxy-ca", DefaultMode: 0o444}}
-	return reflect.DeepEqual(pod.Containers[0], wantContainer) && reflect.DeepEqual(pod.Volumes[0], wantVolume)
+	wantContainer := attackLabKubernetesContainer{Name: "runner", Image: job.Image, ImagePullPolicy: "IfNotPresent", Command: []string{"/app/agentsec-attack-lab-runner"}, Args: []string{"run"}, Env: attackLabKubernetesJobEnvironment(job, string(expectedSideEffects)), SecurityContext: attackLabKubernetesSecurityContext{AllowPrivilegeEscalation: false, ReadOnlyRootFilesystem: true, RunAsNonRoot: true, RunAsUser: 65532, RunAsGroup: 65532, Capabilities: attackLabKubernetesCapabilities{Drop: []string{"ALL"}}}, Resources: attackLabKubernetesResources{Requests: attackLabKubernetesResourceValues(job), Limits: attackLabKubernetesResourceValues(job)}, VolumeMounts: attackLabRunnerVolumeMounts(), TerminationMessagePath: "/dev/termination-log", TerminationMessagePolicy: "File"}
+	wantVolumes := attackLabRunnerVolumes()
+	return reflect.DeepEqual(pod.Containers[0], wantContainer) && reflect.DeepEqual(pod.Volumes, wantVolumes)
 }
 
 func validAttackLabKubernetesJobLabels(actual, required map[string]string, uid, name string) bool {
@@ -690,7 +695,7 @@ func decodeAttackLabKubernetesJob(raw []byte, destination *attackLabKubernetesJo
 		return false
 	}
 	volumes, ok := attackLabKubernetesJSONArray(pod["volumes"])
-	if !ok || len(volumes) != 1 {
+	if !ok || len(volumes) != 2 {
 		return false
 	}
 	volume, ok := attackLabKubernetesJSONObject(volumes[0])
@@ -698,7 +703,27 @@ func decodeAttackLabKubernetesJob(raw []byte, destination *attackLabKubernetesJo
 		return false
 	}
 	configMap, ok := attackLabKubernetesJSONObject(volume["configMap"])
-	return ok && attackLabKubernetesExactKeys(configMap, "defaultMode", "name") && attackLabKubernetesRequiredKeys(configMap, "defaultMode", "name")
+	if !ok || !attackLabKubernetesExactKeys(configMap, "defaultMode", "name") || !attackLabKubernetesRequiredKeys(configMap, "defaultMode", "name") {
+		return false
+	}
+	identity, ok := attackLabKubernetesJSONObject(volumes[1])
+	if !ok || !attackLabKubernetesExactKeys(identity, "name", "projected") || !attackLabKubernetesRequiredKeys(identity, "name", "projected") {
+		return false
+	}
+	projected, ok := attackLabKubernetesJSONObject(identity["projected"])
+	if !ok || !attackLabKubernetesExactKeys(projected, "defaultMode", "sources") || !attackLabKubernetesRequiredKeys(projected, "defaultMode", "sources") {
+		return false
+	}
+	sources, ok := attackLabKubernetesJSONArray(projected["sources"])
+	if !ok || len(sources) != 1 {
+		return false
+	}
+	source, ok := attackLabKubernetesJSONObject(sources[0])
+	if !ok || !attackLabKubernetesExactKeys(source, "serviceAccountToken") || !attackLabKubernetesRequiredKeys(source, "serviceAccountToken") {
+		return false
+	}
+	token, ok := attackLabKubernetesJSONObject(source["serviceAccountToken"])
+	return ok && attackLabKubernetesExactKeys(token, "audience", "expirationSeconds", "path") && attackLabKubernetesRequiredKeys(token, "audience", "expirationSeconds", "path")
 }
 
 func validAttackLabKubernetesContainerJSON(raw json.RawMessage) bool {
@@ -729,11 +754,16 @@ func validAttackLabKubernetesContainerJSON(raw json.RawMessage) bool {
 		}
 	}
 	mounts, ok := attackLabKubernetesJSONArray(container["volumeMounts"])
-	if !ok || len(mounts) != 1 {
+	if !ok || len(mounts) != 2 {
 		return false
 	}
-	mount, ok := attackLabKubernetesJSONObject(mounts[0])
-	return ok && attackLabKubernetesExactKeys(mount, "mountPath", "name", "readOnly") && attackLabKubernetesRequiredKeys(mount, "mountPath", "name", "readOnly")
+	for _, raw := range mounts {
+		mount, valid := attackLabKubernetesJSONObject(raw)
+		if !valid || !attackLabKubernetesExactKeys(mount, "mountPath", "name", "readOnly") || !attackLabKubernetesRequiredKeys(mount, "mountPath", "name", "readOnly") {
+			return false
+		}
+	}
+	return true
 }
 
 func attackLabKubernetesJSONObject(raw json.RawMessage) (map[string]json.RawMessage, bool) {
@@ -833,7 +863,7 @@ func attackLabKubernetesStatusError(status int, ambiguous string) error {
 }
 
 func validAttackLabKubernetesAPIJob(job attackLabKubernetesJob) bool {
-	if job.Namespace != "zasp-attack-lab" || job.ServiceAccount != "agentsec-attack-lab-runner" || job.ProxyEndpoint != "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress" || job.ProxyCAFile != "/var/run/secrets/zasp-attack-lab/proxy-ca.crt" || job.AllowsDirectEgress || job.ActiveDeadlineSeconds != 300 || job.ActiveDeadlineSeconds != job.Limits.TimeoutSeconds || job.Limits.CPU != "500m" || job.Limits.Memory != "1Gi" || job.Limits.EphemeralStorage != "2Gi" || !regexp.MustCompile(`^zasp-attack-lab-[a-f0-9]{32}$`).MatchString(job.Name) || !regexp.MustCompile(`^[0-9]{12}\.dkr\.ecr\.[a-z]{2}(?:-gov)?-[a-z]+-[0-9]\.amazonaws\.com/zasp/attack-lab-runner@sha256:[a-f0-9]{64}$`).MatchString(job.Image) || !validDiscoveryOpaqueSecret([]byte(job.EgressToken), 16, 4096) || !validAttackLabWorkerDestination(job.Destination) || len(job.InputDigest) != 64 || !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(job.InputDigest) || !validAttackLabProviderText(job.SuccessCriterion, 512) || len(job.ExpectedSideEffects) < 1 || len(job.ExpectedSideEffects) > 16 || len(job.Labels) != 2 || job.Labels["zasp.io/execution"] != "attack-lab" || job.Labels["zasp.io/run-id"] != job.RunID {
+	if !validAttackLabTestRole(job.TestRoleARN, strings.Split(job.Image, ".")[0]) || job.Namespace != "zasp-attack-lab" || job.ServiceAccount != "agentsec-attack-lab-runner" || job.ProxyEndpoint != "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress" || job.ProxyCAFile != "/var/run/secrets/zasp-attack-lab/proxy-ca.crt" || job.AllowsDirectEgress || job.ActiveDeadlineSeconds != 300 || job.ActiveDeadlineSeconds != job.Limits.TimeoutSeconds || job.Limits.CPU != "500m" || job.Limits.Memory != "1Gi" || job.Limits.EphemeralStorage != "2Gi" || !regexp.MustCompile(`^zasp-attack-lab-[a-f0-9]{32}$`).MatchString(job.Name) || !regexp.MustCompile(`^[0-9]{12}\.dkr\.ecr\.[a-z]{2}(?:-gov)?-[a-z]+-[0-9]\.amazonaws\.com/zasp/attack-lab-runner@sha256:[a-f0-9]{64}$`).MatchString(job.Image) || !validDiscoveryOpaqueSecret([]byte(job.EgressToken), 16, 4096) || !validAttackLabWorkerDestination(job.Destination) || len(job.InputDigest) != 64 || !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(job.InputDigest) || !validAttackLabProviderText(job.SuccessCriterion, 512) || len(job.ExpectedSideEffects) < 1 || len(job.ExpectedSideEffects) > 16 || len(job.Labels) != 2 || job.Labels["zasp.io/execution"] != "attack-lab" || job.Labels["zasp.io/run-id"] != job.RunID {
 		return false
 	}
 	for key, value := range job.Labels {
@@ -855,7 +885,7 @@ func validAttackLabKubernetesAPIJob(job attackLabKubernetesJob) bool {
 }
 
 func attackLabKubernetesJobEnvironment(job attackLabKubernetesJob, sideEffects string) []attackLabKubernetesEnv {
-	return []attackLabKubernetesEnv{
+	return append([]attackLabKubernetesEnv{
 		{Name: "ZASP_ATTACK_LAB_ORGANIZATION_ID", Value: job.OrganizationID},
 		{Name: "ZASP_ATTACK_LAB_WORKSPACE_ID", Value: job.WorkspaceID},
 		{Name: "ZASP_ATTACK_LAB_ENVIRONMENT_ID", Value: job.EnvironmentID},
@@ -869,7 +899,7 @@ func attackLabKubernetesJobEnvironment(job attackLabKubernetesJob, sideEffects s
 		{Name: "ZASP_ATTACK_LAB_EGRESS_TOKEN", Value: job.EgressToken},
 		{Name: "ZASP_ATTACK_LAB_REQUEST_TIMEOUT", Value: "30s"},
 		{Name: "ZASP_ATTACK_LAB_TERMINATION_PATH", Value: "/dev/termination-log"},
-	}
+	}, attackLabRunnerIdentityEnvironment(job)...)
 }
 
 func attackLabKubernetesResourceValues(job attackLabKubernetesJob) map[string]string {

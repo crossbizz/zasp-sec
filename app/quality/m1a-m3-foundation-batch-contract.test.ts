@@ -4,7 +4,19 @@ import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "../..");
 
+function hasWildcardAction(source: string): boolean {
+  return /Action\s*=\s*"\*"/.test(source.replaceAll('Effect = "Deny", Action = "*", Resource = "*"', ""));
+}
+
 describe("M1A and M3 foundation batch", () => {
+  it("permits the exact deny-all statement but rejects wildcard grants", () => {
+    expect(hasWildcardAction('Effect = "Deny", Action = "*", Resource = "*"')).toBe(false);
+    for (const source of [
+      'Effect = "Allow", Action = "*", Resource = "*"',
+      'Action = "*", Resource = "*"',
+      'Effect = "Deny", Action = "*", Resource = "*"\nEffect = "Allow", Action = "*", Resource = "*"',
+    ]) expect(hasWildcardAction(source)).toBe(true);
+  });
   it("defines the exact private staging Terraform resources and outputs", async () => {
     const [versions, main, outputs] = await Promise.all([
       readFile(resolve(root, "deploy/staging/versions.tf"), "utf8"),
@@ -27,7 +39,7 @@ describe("M1A and M3 foundation batch", () => {
     expect(main).toContain("node_to_node_encryption");
     expect(main).toContain("redrive_policy");
     expect(main).toContain("StringEquals");
-    expect(main).not.toMatch(/Action\s*=\s*"\*"/);
+    expect(hasWildcardAction(main)).toBe(false);
     expect(main).not.toMatch(/iam:(?:Create|Delete|Put|Update)|ec2:(?:Create|Delete|Modify)|secretsmanager:PutSecretValue/);
     expect(main).not.toContain('Action    = "es:ESHttp*"');
     expect(main).not.toContain('resource "aws_iam_role" "product"');

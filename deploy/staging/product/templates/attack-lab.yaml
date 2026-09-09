@@ -12,6 +12,8 @@ metadata:
   name: agentsec-attack-lab-runner
   namespace: zasp-attack-lab
   labels: { zasp.io/execution: attack-lab }
+  annotations:
+    eks.amazonaws.com/role-arn: {{ required "attackLab.runnerTestRoleArn is required" .Values.attackLab.runnerTestRoleArn | quote }}
 automountServiceAccountToken: false
 ---
 {{- range $account := list .Values.serviceAccounts.attackLabController .Values.serviceAccounts.attackLabOutbox .Values.serviceAccounts.attackLabProxy }}
@@ -274,6 +276,7 @@ spec:
             - { name: ZASP_ATTACK_LAB_WEB_IDENTITY_TOKEN_FILE, value: {{ .Values.attackLab.webIdentityTokenFile | quote }} }
             - { name: ZASP_ATTACK_LAB_NAMESPACE, value: zasp-attack-lab }
             - { name: ZASP_ATTACK_LAB_RUNNER_SERVICE_ACCOUNT, value: agentsec-attack-lab-runner }
+            - { name: ZASP_ATTACK_LAB_RUNNER_TEST_ROLE_ARN, value: {{ .Values.attackLab.runnerTestRoleArn | quote }} }
             - { name: ZASP_ATTACK_LAB_RUNNER_IMAGE, value: {{ required "global.productImages.attackLabRunner is required" .Values.global.productImages.attackLabRunner | quote }} }
             - { name: ZASP_ATTACK_LAB_SECURITY_GROUP_ID, value: {{ .Values.attackLab.securityGroupID | quote }} }
             - { name: ZASP_ATTACK_LAB_KUBERNETES_ENDPOINT, value: https://kubernetes.default.svc }

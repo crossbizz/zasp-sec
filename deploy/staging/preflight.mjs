@@ -32,7 +32,7 @@ const identityContract = Object.freeze({
   attackLabOutbox: Object.freeze({ serviceAccount: "zasp-attack-lab-outbox", role: "attack-lab-outbox", deployment: true }),
   attackLabController: Object.freeze({ serviceAccount: "zasp-attack-lab-controller", role: "attack-lab-controller", deployment: true }),
   attackLabProxy: Object.freeze({ serviceAccount: "zasp-attack-lab-proxy", role: "attack-lab-proxy", deployment: true }),
-  attackLabRunner: Object.freeze({ serviceAccount: "agentsec-attack-lab-runner", role: null, deployment: false }),
+  attackLabRunner: Object.freeze({ serviceAccount: "agentsec-attack-lab-runner", role: "attack-lab-runner-test", deployment: false }),
   projectionRisk: Object.freeze({ serviceAccount: "zasp-projection-risk", role: "projection-risk", deployment: true }),
   projectionGraph: Object.freeze({ serviceAccount: "zasp-projection-graph", role: "projection-graph", deployment: true }),
   projectionSearch: Object.freeze({ serviceAccount: "zasp-projection-search", role: "projection-search", deployment: true }),

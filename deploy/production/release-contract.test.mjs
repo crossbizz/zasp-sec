@@ -10,6 +10,32 @@ import { customerEdgeReleaseFixture as edgeRelease, productionReleaseFixture as 
 
 const exec = promisify(execFile);
 
+test("Attack Lab release requires a separate same-account test role", async () => {
+  for (const runnerTestRoleArn of [undefined, release.attackLab.controllerRoleArn, release.discovery.roleArn, "arn:aws:iam::210987654321:role/zasp-production-attack-lab-runner-test"]) {
+    const attackLab = { ...release.attackLab, runnerTestRoleArn };
+    if (runnerTestRoleArn === undefined) delete attackLab.runnerTestRoleArn;
+    await assert.rejects(renderRelease({ ...release, attackLab }), /release rejected/);
+  }
+});
+
+test("Attack Lab test IAM identity trusts only its run service account and denies cloud permissions", async () => {
+  const terraform = await readFile(new URL("../staging/main.tf", import.meta.url), "utf8");
+  const block = (kind, name) => terraform.match(new RegExp(`resource "${kind}" "${name}" \\{[\\s\\S]*?(?=\\nresource |$)`))?.[0] ?? "";
+  const role = block("aws_iam_role", "attack_lab_runner_test");
+  assert.match(role, /name\s*=\s*"\$\{var\.cluster_name\}-attack-lab-runner-test"/);
+  assert.match(role, /permissions_boundary\s*=\s*aws_iam_policy\.attack_lab_runner_test_boundary\.arn/);
+  assert.match(role, /Federated = aws_iam_openid_connect_provider\.eks\.arn/);
+  assert.match(role, /Action = "sts:AssumeRoleWithWebIdentity"/);
+  assert.match(role, /StringEquals[\s\S]*:aud" = "sts\.amazonaws\.com"[\s\S]*:sub" = "system:serviceaccount:zasp-attack-lab:agentsec-attack-lab-runner"/);
+  assert.doesNotMatch(role, /StringLike|AssumeRole"|Principal\s*=\s*"\*"|discovery-worker|attack-lab-controller/);
+  const boundary = block("aws_iam_policy", "attack_lab_runner_test_boundary");
+  assert.match(boundary, /Effect = "Deny", Action = "\*", Resource = "\*"/);
+  assert.doesNotMatch(boundary, /Allow/);
+  const policy = block("aws_iam_role_policy", "attack_lab_runner_test");
+  assert.match(policy, /role\s*=\s*aws_iam_role\.attack_lab_runner_test\.id/);
+  assert.match(policy, /policy\s*=\s*aws_iam_policy\.attack_lab_runner_test_boundary\.policy/);
+});
+
 test("production container builds are exact, non-root, health-bound, and secret-free", async () => {
   const builds = await inspectContainerBuilds();
   assert.deepEqual(builds.map(({ name, user, port }) => ({ name, user, port })), [
@@ -1042,6 +1068,7 @@ test("release isolates Attack Lab execution behind a proxy-only Fargate authorit
   assert.equal(controllerEnv.ZASP_ATTACK_LAB_QUEUE_URL, release.attackLab.queueURL);
   assert.equal(controllerEnv.ZASP_ATTACK_LAB_NAMESPACE, "zasp-attack-lab");
   assert.equal(controllerEnv.ZASP_ATTACK_LAB_RUNNER_IMAGE, release.images.attackLabRunner);
+  assert.equal(controllerEnv.ZASP_ATTACK_LAB_RUNNER_TEST_ROLE_ARN, release.attackLab.runnerTestRoleArn);
   assert.equal(controllerEnv.ZASP_ATTACK_LAB_SECURITY_GROUP_ID, release.attackLab.securityGroupID);
   assert.equal(controllerEnv.ZASP_ATTACK_LAB_PROXY_ENDPOINT, "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress");
   assert.equal(controller.spec.template.spec.automountServiceAccountToken, false);
@@ -1050,7 +1077,7 @@ test("release isolates Attack Lab execution behind a proxy-only Fargate authorit
   const runnerAccount = one(resources, "ServiceAccount", "agentsec-attack-lab-runner");
   assert.equal(runnerAccount.metadata.namespace, "zasp-attack-lab");
   assert.deepEqual(runnerAccount.metadata.labels, { "zasp.io/execution": "attack-lab" });
-  assert.equal(runnerAccount.metadata.annotations, undefined);
+  assert.deepEqual(runnerAccount.metadata.annotations, { "eks.amazonaws.com/role-arn": release.attackLab.runnerTestRoleArn });
   assert.equal(runnerAccount.automountServiceAccountToken, false);
   assert.equal(one(resources, "Namespace", "zasp-attack-lab").metadata.labels["zasp.io/execution"], "attack-lab");
 

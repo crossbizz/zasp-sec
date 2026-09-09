@@ -650,3 +650,107 @@ main CI passed. The pre-push scan's 15 medium matches were individually
 inspected: six CI IDs, six synthetic Kubernetes UID suffixes, two fixed
 in-cluster fixture hostnames and one synthetic fixture-token suffix. No high
 finding or scanner bypass occurred. M5-19 shipping and CI remain pending.
+
+PR 19 shipped timeout commit `90e80f23` after push CI 34309888042 and
+PR CI 34309939481 passed. It merged as main
+`be4db822d4a6818ba750f5635e717ea9c19b49f8`; main CI 34310435523 passed.
+M5-19 now has production credit. The authoritative ledger has 534
+production-available, 133 component-only and 61 blocked/external rows.
+
+## M5-20 dedicated sandbox test identity
+
+The controller now requires a same-account runner-test role distinct from its
+own role. Release rendering passes that exact reference to the controller and
+dedicated sandbox service account. Readiness rejects missing/foreign/product
+roles, extra identity annotations, automounted API credentials and secret
+references. Job create/reconcile cannot select a different configured role.
+
+Terraform creates a separate runner-test role with exact EKS OIDC provider,
+STS audience and isolated service-account subject. Its explicit deny-all
+policy and permissions boundary grant no AWS resource permissions or role
+chaining. The current curated runner reaches approved targets through the
+product egress proxy; it has no approved direct AWS actions. This identity is
+separate from the Fargate infrastructure execution role. AWS documents that
+the infrastructure role is not inherited by containers in its
+[pod execution role reference](https://docs.aws.amazon.com/eks/latest/userguide/pod-execution-role.html).
+
+The Job specifies its own STS-only, 600-second projected token, read-only
+0440 mount, exact test-role environment and disabled metadata fallback.
+All required web-identity, region and regional-STS keys and the token volume
+are already present. The official
+[AWS webhook implementation](https://github.com/aws/amazon-eks-pod-identity-webhook/blob/master/pkg/handler/handler.go)
+preserves these existing keys and volume. The runner rejects product roles,
+static/session credentials, credential profiles, container credential
+endpoints and moved token paths before starting. No AWS API invocation is
+needed or claimed by this proxy-only runner.
+
+Review during implementation found that completed-Pod collection had checked
+image/ownership without checking actual identity. It now validates the actual
+Pod service account, explicit disabled automount, exact token volumes/mounts,
+AWS environment and absence of injected credentials or extra containers.
+The observed Fargate profile name was also corrected to the provisioned
+`attack-lab` profile; the previous `agentsec-attack-lab` check rejected the
+correct profile. Its exact fixture failed before the correction and passed
+afterward.
+
+Red tests reproduced missing/inherited/foreign-role configuration, absent
+Terraform identity, seven accepted hostile Pod identities and seven accepted
+runner startup credential drifts. Green coverage includes those cases,
+service-account readiness mutations, no-I/O rejection of another test role,
+and manifest mutations for role, audience, lifetime, path, permissions and
+mount ownership. Full worker, runner and runner-library race suites passed
+in 8.099, 2.571 and 2.281 seconds. The four focused Attack Lab release tests
+passed. Terraform validation passed after installing the exact locked,
+HashiCorp-signed providers with backend disabled and lockfile read-only.
+No Terraform apply or live IAM/Fargate proof occurred. M5-20 remains
+component-only pending independent acceptance, final checks and shipping CI.
+
+Independent Superpowers review found no M5-20 acceptance blocker and separately
+passed focused worker/runner identity tests under the race detector. The full
+Chrome product check passed again, including actual pinned red-team runtime,
+versioned evidence, sandbox UI, discovery, security, recovery, administration,
+reload and cross-tenant denials. Its sandbox is still an explicit local
+provider fixture; actual Kubernetes identity behavior is covered by the
+separate HTTP fixtures. Browser exception/console checks and owned-resource
+cleanup passed. Final full verification and release checks are running.
+
+The first full verification stopped at an older foundation test that rejected
+every wildcard Action, including explicit Deny. Its corrected check exempts
+only the exact deny-all statement and retains rejection of wildcard Allow,
+missing Effect and mixed deny/allow input. The new regression reproduced the
+false rejection before the correction. The release source gate and 50-test
+runtime/Node/ledger command passed, with two opt-in interruption tests skipped.
+
+Read-only review of the next task found that M5-21 still needs a constrained
+S3 infrastructure exception and a connected network-denial fixture with a
+reachable positive control. The current regional S3 prefix-list allowance
+is broader than image pulls; test-role IAM denial does not block anonymous
+or presigned traffic. M0-19's existing proof has different networking and
+cannot be reused unchanged as M5-21 evidence. These remain open; M5-20's
+identity tests do not claim proxy-only enforcement or live networking proof.
+
+Corrected full verification passed all 1,083 frontend tests, tenant/race and
+API contracts, types, warning-free lint, 34 release checks, production build,
+38-file source and 7-client/8-server compiled import checks, and the 728-row
+ledger. Independent final review passed all four corrected foundation tests
+and all 23 ledger tests and accepted the delta. The staged scan's 55 medium
+matches were individually inspected: six CI IDs, 11 synthetic Kubernetes UID
+suffixes, 35 fixture AWS account numbers and three fixed in-cluster hostnames.
+No high finding or scanner bypass occurred. M5-20 shipping and CI are pending.
+
+After identity commit `782e625e` was pushed, the next deployment-path audit
+found two older preflight/evidence validators still expecting no runner role.
+Their updated positive fixtures reproduced rejection; the missing-role
+preflight fixture also reproduced incorrect acceptance. Both validators now
+require the exact test role. The staging evidence validator's stale migration
+job name was brought to the shipped schema39 name. Missing/product runner
+roles still reject, and the gate tests are now part of root verification.
+This correction is included before M5-20 receives production credit.
+
+The preflight correction passed all six Node gate tests and independent
+review. Adding the gate command exposed three additional exact-command
+assertions in OpenAPI/workflow tests; these now include the new check while
+retaining every existing verification command. All 17 focused quality tests
+passed, followed by the complete root verification, including 1,083 frontend
+tests, the newly wired staging gates, 34 release checks, production build and
+the 534/133/61 ledger. No product UI or runtime changed in this correction.

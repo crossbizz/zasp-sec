@@ -122,7 +122,7 @@ func TestAttackLabResumedAttemptKeepsAbsoluteDeadline(t *testing.T) {
 	started := now.Add(-299500 * time.Millisecond)
 	request.Run.StartedAt, request.Run.AttemptStartedAt = &started, &started
 	cluster := &attackLabDeadlineCluster{recordingAttackLabCluster: &recordingAttackLabCluster{outcome: attackLabClusterOutcome{GatewayEvidence: "no result", EgressEvidence: "bounded", KubernetesEvidence: "completed", CloudEvidence: "unchanged"}}}
-	provider, err := newProductionAttackLabKubernetesProvider(productionAttackLabKubernetesProviderConfig{Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner", RunnerImage: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", SigningKey: []byte("test-only-attack-lab-signing-key-32"), OperationTimeout: time.Second, Now: func() time.Time { return now }})
+	provider, err := newProductionAttackLabKubernetesProvider(productionAttackLabKubernetesProviderConfig{Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner", RunnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test", RunnerImage: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", SigningKey: []byte("test-only-attack-lab-signing-key-32"), OperationTimeout: time.Second, Now: func() time.Time { return now }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestAttackLabTimeoutCheckpointsBoundedEvidenceBeforeCleanupAndResumes(t *te
 		attackLabKubernetesTestResponse(http.StatusServiceUnavailable, `{"kind":"Status","reason":"Unavailable"}`),
 	}}
 	cluster := timeoutTestKubernetesAPI(t, transport)
-	provider, err := newProductionAttackLabKubernetesProvider(productionAttackLabKubernetesProviderConfig{Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner", RunnerImage: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", SigningKey: []byte("test-only-attack-lab-signing-key-32"), OperationTimeout: time.Second, Now: func() time.Time { return now }})
+	provider, err := newProductionAttackLabKubernetesProvider(productionAttackLabKubernetesProviderConfig{Cluster: cluster, Namespace: "zasp-attack-lab", ServiceAccount: "agentsec-attack-lab-runner", RunnerTestRoleARN: "arn:aws:iam::123456789012:role/zasp-production-attack-lab-runner-test", RunnerImage: "123456789012.dkr.ecr.us-west-2.amazonaws.com/zasp/attack-lab-runner@sha256:" + strings.Repeat("a", 64), ProxyEndpoint: "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", ProxyCAFile: "/var/run/secrets/zasp-attack-lab/proxy-ca.crt", SigningKey: []byte("test-only-attack-lab-signing-key-32"), OperationTimeout: time.Second, Now: func() time.Time { return now }})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -165,14 +165,14 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 532; expected 533/,
+        /production-available count is 533; expected 534/,
       );
     },
   );
 });
 
 test("artifact, outcome and Fargate-create acceptance cannot silently lose production credit", async () => {
-  for (const id of ["M5-02", "M5-14", "M5-18", "M5-16", "M5-17"]) {
+  for (const id of ["M5-02", "M5-14", "M5-18", "M5-16", "M5-17", "M5-19"]) {
     await withLedger((ledger) => {
       const expected = `M5\t${id}\tComplete\tproduction-available\t`;
       assert.ok(ledger.includes(expected), `${id} acceptance was not recorded`);
@@ -385,7 +385,7 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => status.replace(
-      "| Production-available | 533 |",
+      "| Production-available | 534 |",
       "| Production-available | 496 |",
     ),
     async ({ ledgerPath, statusPath }) => {

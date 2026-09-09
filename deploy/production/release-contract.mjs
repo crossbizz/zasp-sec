@@ -27,7 +27,7 @@ const projectionGraphKeys = Object.freeze(["awsRegion", "endpoint", "endpointCID
 const outboxKeys = Object.freeze(["awsRegion", "queueURL", "roleArn", "webIdentityTokenFile", "egressCIDRs"]);
 const recoveryKeys = Object.freeze(["canaryEnabled", "awsRegion", "backupQueueURL", "restoreQueueURL", "evidenceBucket", "evidenceBucketOwner", "evidenceKMSKeyArn", "signingKMSKeyArn", "backupOutboxRoleArn", "restoreOutboxRoleArn", "backupRoleArn", "restoreRoleArn", "webIdentityTokenFile", "neonProjectID", "neonBranchID", "neonSecretReference", "kubernetesEndpoint", "runnerImage", "runnerServiceAccount", "egressCIDRs", "neonEgressCIDRs", "kubernetesAPICIDRs"]);
 const redTeamKeys = Object.freeze(["awsRegion", "queueURL", "evidenceBucket", "evidenceBucketOwner", "evidenceKMSKeyArn", "outboxRoleArn", "workerRoleArn", "adapterRoleArn", "webIdentityTokenFile", "runnerTimeout", "targetEndpoint", "targetAllowedCIDRs", "readinessCredentialReference", "egressCIDRs"]);
-const attackLabKeys = Object.freeze(["awsRegion", "queueURL", "evidenceBucket", "evidenceBucketOwner", "evidenceKMSKeyArn", "controllerRoleArn", "outboxRoleArn", "proxyRoleArn", "webIdentityTokenFile", "securityGroupID", "proxySecurityGroupID", "targetAllowedCIDRs", "egressCIDRs", "kubernetesAPICIDRs", "readinessCredentialReference", "operationTimeout", "proxyRequestTimeout", "proxyShutdownTimeout", "proxyCABundleBase64"]);
+const attackLabKeys = Object.freeze(["runnerTestRoleArn", "awsRegion", "queueURL", "evidenceBucket", "evidenceBucketOwner", "evidenceKMSKeyArn", "controllerRoleArn", "outboxRoleArn", "proxyRoleArn", "webIdentityTokenFile", "securityGroupID", "proxySecurityGroupID", "targetAllowedCIDRs", "egressCIDRs", "kubernetesAPICIDRs", "readinessCredentialReference", "operationTimeout", "proxyRequestTimeout", "proxyShutdownTimeout", "proxyCABundleBase64"]);
 const runtimeKeys = Object.freeze([
   "awsRegion", "queueURL", "rawBucket", "rawBucketOwner", "rawKMSKeyArn", "openSearchEndpoint", "openSearchIndex", "webIdentityTokenFile",
   "eventIngestRoleArn", "gatewayControlRoleArn", "outboxRoleArn", "coordinatorRoleArn", "archiveRoleArn", "indexRoleArn", "correlationRoleArn", "projectionRoleArn", "completeRoleArn", "egressCIDRs",
@@ -267,6 +267,7 @@ export async function renderRelease(value) {
     ["attackLab.evidenceBucketOwner", value.attackLab.evidenceBucketOwner],
     ["attackLab.evidenceKMSKeyArn", value.attackLab.evidenceKMSKeyArn],
     ["attackLab.controllerRoleArn", value.attackLab.controllerRoleArn],
+    ["attackLab.runnerTestRoleArn", value.attackLab.runnerTestRoleArn],
     ["attackLab.outboxRoleArn", value.attackLab.outboxRoleArn],
     ["attackLab.proxyRoleArn", value.attackLab.proxyRoleArn],
     ["attackLab.webIdentityTokenFile", value.attackLab.webIdentityTokenFile],
@@ -470,7 +471,7 @@ function validRelease(value) {
   if (!value.attackLab || typeof value.attackLab !== "object" || Array.isArray(value.attackLab) || Object.keys(value.attackLab).sort().join("\0") !== [...attackLabKeys].sort().join("\0")) return false;
   const attackLabQueue = /^https:\/\/sqs\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/([0-9]{12})\/agentsec-attack-lab-jobs$/.exec(value.attackLab.queueURL);
   const attackLabKMS = /^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(value.attackLab.evidenceKMSKeyArn);
-  const attackLabRoles = ["controller", "outbox", "proxy"].map((name) => new RegExp(`^arn:aws:iam::([0-9]{12}):role/zasp-production-attack-lab-${name}$`).exec(value.attackLab[`${name}RoleArn`]));
+  const attackLabRoles = ["controller", "outbox", "proxy", "runner-test"].map((name) => new RegExp(`^arn:aws:iam::([0-9]{12}):role/zasp-production-attack-lab-${name}$`).exec(value.attackLab[name === "runner-test" ? "runnerTestRoleArn" : `${name}RoleArn`]));
   const attackLabRunnerImage = /^([0-9]{12})\.dkr\.ecr\.([a-z]{2}(?:-gov)?-[a-z]+-[0-9])\.amazonaws\.com\/zasp\/attack-lab-runner@sha256:[0-9a-f]{64}$/.exec(value.images.attackLabRunner);
   if (!attackLabQueue || !attackLabKMS || !attackLabRunnerImage || attackLabRoles.some((role) => !role) || attackLabRoles.some((role) => role[1] !== discoveryRole[1]) || attackLabQueue[2] !== discoveryRole[1] || attackLabKMS[2] !== discoveryRole[1] || attackLabRunnerImage[1] !== discoveryRole[1]) return false;
   if (value.attackLab.awsRegion !== attackLabQueue[1] || value.attackLab.awsRegion !== attackLabKMS[1] || value.attackLab.awsRegion !== attackLabRunnerImage[2] || value.attackLab.evidenceBucketOwner !== discoveryRole[1] || !namePattern.test(value.attackLab.evidenceBucket) || value.attackLab.webIdentityTokenFile !== "/var/run/secrets/eks.amazonaws.com/serviceaccount/token") return false;
@@ -567,7 +568,7 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["zasp-attack-lab-controller", "attack-lab-controller"],
     ["zasp-attack-lab-outbox", "attack-lab-outbox"],
     ["zasp-attack-lab-proxy", "attack-lab-proxy"],
-    ["agentsec-attack-lab-runner", null],
+    ["agentsec-attack-lab-runner", "attack-lab-runner-test"],
     ["zasp-projection-risk", "projection-risk"],
     ["zasp-projection-graph", "projection-graph"],
     ["zasp-projection-search", "projection-search"],
