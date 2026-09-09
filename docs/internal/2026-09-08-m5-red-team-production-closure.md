@@ -737,3 +737,20 @@ and all 23 ledger tests and accepted the delta. The staged scan's 55 medium
 matches were individually inspected: six CI IDs, 11 synthetic Kubernetes UID
 suffixes, 35 fixture AWS account numbers and three fixed in-cluster hostnames.
 No high finding or scanner bypass occurred. M5-20 shipping and CI are pending.
+
+After identity commit `782e625e` was pushed, the next deployment-path audit
+found two older preflight/evidence validators still expecting no runner role.
+Their updated positive fixtures reproduced rejection; the missing-role
+preflight fixture also reproduced incorrect acceptance. Both validators now
+require the exact test role. The staging evidence validator's stale migration
+job name was brought to the shipped schema39 name. Missing/product runner
+roles still reject, and the gate tests are now part of root verification.
+This correction is included before M5-20 receives production credit.
+
+The preflight correction passed all six Node gate tests and independent
+review. Adding the gate command exposed three additional exact-command
+assertions in OpenAPI/workflow tests; these now include the new check while
+retaining every existing verification command. All 17 focused quality tests
+passed, followed by the complete root verification, including 1,083 frontend
+tests, the newly wired staging gates, 34 release checks, production build and
+the 534/133/61 ledger. No product UI or runtime changed in this correction.

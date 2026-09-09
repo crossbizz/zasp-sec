@@ -83,6 +83,7 @@ function assertRunnableUiWorkflow(
     "npm run lint",
     "npm run production:imports:test",
     "npm run production:imports:source",
+    "npm run staging:gate:test",
     "npm run production:release:test",
     "npm run build",
     "npm run production:imports:compiled",
