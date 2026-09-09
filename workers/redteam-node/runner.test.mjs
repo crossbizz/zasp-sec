@@ -49,9 +49,11 @@ test("runner rejects arbitrary categories, endpoints, and mismatched provider re
 });
 
 test("promptfoo child receives only the pinned internal CA and bounded runtime authority", () => {
-  const environment = promptfooChildEnvironment("/tmp/run", "t".repeat(64), "/var/run/secrets/zasp-red-team/adapter-ca.crt");
+  const environment = promptfooChildEnvironment("/tmp/run", "t".repeat(64), "/var/run/secrets/zasp-red-team/adapter-ca.crt", "a".repeat(32));
+	assert.equal(environment.ZASP_RED_TEAM_RUN_LEASE,"a".repeat(32));
   assert.equal(environment.NODE_EXTRA_CA_CERTS, "/var/run/secrets/zasp-red-team/adapter-ca.crt");
   assert.equal(environment.ZASP_RED_TEAM_ADAPTER_TOKEN, "t".repeat(64));
-  assert.deepEqual(Object.keys(environment).sort(), ["HOME", "NODE_EXTRA_CA_CERTS", "PROMPTFOO_CACHE_ENABLED", "PROMPTFOO_CONFIG_DIR", "PROMPTFOO_DISABLE_ERROR_LOG", "PROMPTFOO_DISABLE_REMOTE_GENERATION", "PROMPTFOO_DISABLE_TELEMETRY", "PROMPTFOO_DISABLE_UPDATE", "ZASP_RED_TEAM_ADAPTER_TOKEN"].sort());
+  assert.deepEqual(Object.keys(environment).sort(), ["HOME", "NODE_EXTRA_CA_CERTS", "PROMPTFOO_CACHE_ENABLED", "PROMPTFOO_CONFIG_DIR", "PROMPTFOO_DISABLE_ERROR_LOG", "PROMPTFOO_DISABLE_REMOTE_GENERATION", "PROMPTFOO_DISABLE_TELEMETRY", "PROMPTFOO_DISABLE_UPDATE", "ZASP_RED_TEAM_ADAPTER_TOKEN", "ZASP_RED_TEAM_RUN_LEASE"].sort());
+	for(const lease of [undefined,"","a".repeat(31),"A".repeat(32),"a".repeat(33)]) assert.throws(()=>promptfooChildEnvironment("/tmp/run","t".repeat(64),"/tmp/ca.crt",lease));
   assert.throws(() => promptfooChildEnvironment("/tmp/run", "t".repeat(64), "relative-ca.crt"));
 });

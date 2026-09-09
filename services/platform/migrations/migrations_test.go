@@ -581,7 +581,7 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "security agent session isolation", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSecurityAgentSessionIsolation...)...), want: 24},
 		{name: "red team execution", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughRedTeam...)...), want: 25},
 		{name: "attack lab execution", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughAttackLab...)...), want: 26},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(38)}}}, wantErr: ErrInvalidState},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(39)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}

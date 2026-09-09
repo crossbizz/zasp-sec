@@ -279,7 +279,7 @@ runtime:
   projectionRoleArn: ""
   completeRoleArn: ""
 schema:
-  expectedVersion: 37
+  expectedVersion: 38
   migrationTimeout: 10m
 databasePrincipals:
   migration: ""

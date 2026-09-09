@@ -41,6 +41,7 @@ export function buildPromptfooConfiguration(input, targetEndpoint) {
           "X-Zasp-Workspace-ID": input.workspace_id,
           "X-Zasp-Environment-ID": input.environment_id,
           "X-Zasp-Run-ID": input.run_id,
+          "X-Zasp-Run-Lease": "{{env.ZASP_RED_TEAM_RUN_LEASE}}",
         },
         body: { target_id: input.target_id, target_kind: input.target_kind, category: "{{category}}", input: "{{prompt}}" },
         transformResponse: "json.output",
@@ -93,7 +94,8 @@ async function run(inputPath, outputPath) {
   const promptfoo = process.env.ZASP_PROMPTFOO_BIN;
   const tokenFile = process.env.ZASP_RED_TEAM_ADAPTER_TOKEN_FILE;
   const targetCAFile = process.env.ZASP_RED_TEAM_TARGET_CA_FILE;
-  if (promptfoo !== "/app/node_modules/.bin/promptfoo" || typeof tokenFile !== "string" || resolve(tokenFile) !== tokenFile || typeof targetCAFile !== "string" || resolve(targetCAFile) !== targetCAFile) invalid();
+  const runLease = process.env.ZASP_RED_TEAM_RUN_LEASE;
+  if (promptfoo !== "/app/dist/src/entrypoint.js" || typeof tokenFile !== "string" || resolve(tokenFile) !== tokenFile || typeof targetCAFile !== "string" || resolve(targetCAFile) !== targetCAFile) invalid();
   const token = (await boundedRead(tokenFile, 16_384)).toString("utf8");
   if (token.length < 64 || token.trim() !== token || /[\s\0]/.test(token)) invalid();
   const configurationPath = resolve(dirname(inputPath), "promptfooconfig.json");
@@ -101,9 +103,9 @@ async function run(inputPath, outputPath) {
   const configuration = buildPromptfooConfiguration(input, targetEndpoint);
   await writeFile(configurationPath, JSON.stringify(configuration), { flag: "wx", mode: 0o600 });
   await chmod(configurationPath, 0o400);
-  const child = spawn(promptfoo, ["eval", "-c", configurationPath, "--no-cache", "--no-table", "--no-write", "-o", rawPath], {
+  const child = spawn(process.execPath, [promptfoo, "eval", "-c", configurationPath, "--no-cache", "--no-table", "--no-write", "-o", rawPath], {
     cwd: dirname(inputPath),
-    env: promptfooChildEnvironment(dirname(inputPath), token, targetCAFile),
+    env: promptfooChildEnvironment(dirname(inputPath), token, targetCAFile, runLease),
     stdio: "ignore",
   });
   const exitCode = await new Promise((resolveExit, rejectExit) => {
@@ -111,7 +113,9 @@ async function run(inputPath, outputPath) {
     child.once("exit", (code, signal) => resolveExit(signal === null ? code : -1));
   });
   let normalized;
-  if (exitCode === 0) {
+  // The pinned CLI writes completed failing evaluations before returning 100.
+  // Native output still must pass the same strict identity/result validation.
+  if (exitCode === 0 || exitCode === 100) {
     const raw = await boundedRead(rawPath, 8 << 20);
     normalized = normalizePromptfooResult(input, parseUniqueJson(raw.toString("utf8"), 8 << 20));
   } else {
@@ -122,7 +126,8 @@ async function run(inputPath, outputPath) {
   await rm(configurationPath, { force: true });
 }
 
-export function promptfooChildEnvironment(home, token, targetCAFile) {
+export function promptfooChildEnvironment(home, token, targetCAFile, runLease) {
+  if (typeof runLease !== "string" || !/^[a-f0-9]{32}$/.test(runLease)) invalid();
   if (typeof home !== "string" || resolve(home) !== home || typeof targetCAFile !== "string" || resolve(targetCAFile) !== targetCAFile || typeof token !== "string" || token.length < 64 || token.length > 16_384 || token.trim() !== token || /[\s\0]/.test(token)) invalid();
   return {
     HOME: home,
@@ -134,6 +139,7 @@ export function promptfooChildEnvironment(home, token, targetCAFile) {
     PROMPTFOO_DISABLE_TELEMETRY: "1",
     PROMPTFOO_DISABLE_UPDATE: "1",
     ZASP_RED_TEAM_ADAPTER_TOKEN: token,
+    ZASP_RED_TEAM_RUN_LEASE: runLease,
   };
 }
 

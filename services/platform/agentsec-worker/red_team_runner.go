@@ -21,6 +21,7 @@ import (
 
 var redTeamTargetEndpointPattern = regexp.MustCompile(`^https://agentsec-red-team-adapter(?:\.[a-z0-9-]{1,63}){1,4}\.svc\.cluster\.local/v1/evaluate$`)
 var redTeamAdapterTokenPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
+var redTeamRunLeasePattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 
 type redTeamCommand interface {
 	Run(context.Context, string, []string, []string, string) error
@@ -82,7 +83,7 @@ func (productionRedTeamCommand) Run(ctx context.Context, executable string, argu
 }
 
 func newProductionRedTeamRunner(config productionRedTeamRunnerConfig) (*productionRedTeamRunner, error) {
-	if nilWorkerDependency(config.Artifacts) || nilWorkerDependency(config.Command) || config.NodePath != "/usr/local/bin/node" || config.ScriptPath != "/app/redteam-runner.mjs" || config.PromptfooPath != "/app/node_modules/.bin/promptfoo" || !redTeamTargetEndpointPattern.MatchString(config.TargetEndpoint) || !filepath.IsAbs(config.TargetTokenFile) || !filepath.IsAbs(config.TargetCAFile) || !filepath.IsAbs(config.TempRoot) || config.Timeout < 30*time.Second || config.Timeout > 15*time.Minute || config.Clock == nil {
+	if nilWorkerDependency(config.Artifacts) || nilWorkerDependency(config.Command) || config.NodePath != "/usr/local/bin/node" || config.ScriptPath != "/app/redteam-runner.mjs" || config.PromptfooPath != "/app/dist/src/entrypoint.js" || !redTeamTargetEndpointPattern.MatchString(config.TargetEndpoint) || !filepath.IsAbs(config.TargetTokenFile) || !filepath.IsAbs(config.TargetCAFile) || !filepath.IsAbs(config.TempRoot) || config.Timeout < 30*time.Second || config.Timeout > 15*time.Minute || config.Clock == nil {
 		return nil, errRuntimeUnavailable
 	}
 	now := config.Clock()
@@ -115,6 +116,7 @@ func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamE
 	}
 	bounded, cancel := context.WithTimeout(ctx, runner.config.Timeout)
 	environment := []string{"HOME=" + workspace, "ZASP_PROMPTFOO_BIN=" + runner.config.PromptfooPath, "ZASP_RED_TEAM_TARGET_ENDPOINT=" + runner.config.TargetEndpoint, "ZASP_RED_TEAM_ADAPTER_TOKEN_FILE=" + runner.config.TargetTokenFile, "ZASP_RED_TEAM_TARGET_CA_FILE=" + runner.config.TargetCAFile}
+	environment = append(environment, "ZASP_RED_TEAM_RUN_LEASE="+request.LeaseToken)
 	commandErr := runner.config.Command.Run(bounded, runner.config.NodePath, []string{runner.config.ScriptPath, "run", inputPath, outputPath}, environment, workspace)
 	boundedErr := bounded.Err()
 	cancel()
@@ -150,6 +152,9 @@ func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamE
 }
 
 func validProductionRedTeamRequest(request redTeamExecutionRequest) bool {
+	if !redTeamRunLeasePattern.MatchString(request.LeaseToken) {
+		return false
+	}
 	if request.Scope.Validate() != nil || request.InputDigest == [sha256.Size]byte{} || request.Run.ID == "" || request.Run.Status != "leased" || request.Run.Attempt < 1 || request.Run.Attempt > 5 || request.Run.DefinitionID != request.Definition.ID || request.Run.DefinitionVersion != request.Definition.Version || request.Definition.Version < 1 || !stringInWorker(request.Definition.TargetKind, "agent_endpoint", "mcp_server", "coding_agent") || len(request.Definition.Categories) < 1 || len(request.Definition.Categories) > 16 || !stringInWorker(request.Definition.Safety.Environment, "development", "test", "staging") || !stringInWorker(request.Definition.Safety.CredentialClass, "read_only", "test_write") {
 		return false
 	}

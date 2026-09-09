@@ -28,7 +28,7 @@ func TestProductionRedTeamRunnerInvokesFixedAdapterAndPersistsOnlyNormalizedEvid
 	caFile := writeRedTeamTestCA(t, root)
 	store := &redTeamArtifactStoreStub{}
 	command := redTeamCommandFunc(func(_ context.Context, executable string, arguments, environment []string, directory string) error {
-		if executable != "/usr/local/bin/node" || len(arguments) != 4 || arguments[0] != "/app/redteam-runner.mjs" || arguments[1] != "run" || filepath.Dir(arguments[2]) != directory || filepath.Dir(arguments[3]) != directory || !containsWorkerString(environment, "ZASP_RED_TEAM_ADAPTER_TOKEN_FILE="+tokenFile) || !containsWorkerString(environment, "ZASP_RED_TEAM_TARGET_CA_FILE="+caFile) {
+		if executable != "/usr/local/bin/node" || len(arguments) != 4 || arguments[0] != "/app/redteam-runner.mjs" || arguments[1] != "run" || filepath.Dir(arguments[2]) != directory || filepath.Dir(arguments[3]) != directory || !containsWorkerString(environment, "ZASP_RED_TEAM_ADAPTER_TOKEN_FILE="+tokenFile) || !containsWorkerString(environment, "ZASP_RED_TEAM_TARGET_CA_FILE="+caFile) || !containsWorkerString(environment, "ZASP_RED_TEAM_RUN_LEASE="+strings.Repeat("a", 32)) {
 			t.Fatalf("command executable=%q args=%#v env=%#v dir=%q", executable, arguments, environment, directory)
 		}
 		inputBytes, err := os.ReadFile(arguments[2])
@@ -36,6 +36,9 @@ func TestProductionRedTeamRunnerInvokesFixedAdapterAndPersistsOnlyNormalizedEvid
 			return err
 		}
 		var input redTeamRunnerInput
+		if strings.Contains(string(inputBytes), strings.Repeat("a", 32)) || strings.Contains(string(inputBytes), "lease") {
+			t.Fatal("lease leaked into persisted runner input")
+		}
 		if err := json.Unmarshal(inputBytes, &input); err != nil {
 			return err
 		}
@@ -46,7 +49,7 @@ func TestProductionRedTeamRunnerInvokesFixedAdapterAndPersistsOnlyNormalizedEvid
 		}
 		return os.WriteFile(arguments[3], bytes, 0o600)
 	})
-	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{Artifacts: store, Command: command, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/node_modules/.bin/promptfoo", TargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", TargetTokenFile: tokenFile, TargetCAFile: caFile, TempRoot: root, Timeout: time.Minute, Clock: func() time.Time { return time.Now().UTC() }})
+	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{Artifacts: store, Command: command, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/dist/src/entrypoint.js", TargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", TargetTokenFile: tokenFile, TargetCAFile: caFile, TempRoot: root, Timeout: time.Minute, Clock: func() time.Time { return time.Now().UTC() }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,11 +57,11 @@ func TestProductionRedTeamRunnerInvokesFixedAdapterAndPersistsOnlyNormalizedEvid
 	runID := mustProductID(t, "pid_99400001-0000-4000-8000-000000000001")
 	definitionID := "pid_99400002-0000-4000-8000-000000000002"
 	digest := sha256.Sum256([]byte("runner-input"))
-	result, err := runner.Run(context.Background(), redTeamExecutionRequest{Scope: scope, Run: apiserver.RedTeamRun{ID: runID.String(), DefinitionID: definitionID, DefinitionVersion: 1, Status: "leased", Attempt: 1, QueuedAt: time.Now().UTC()}, Definition: apiserver.RedTeamDefinition{ID: definitionID, Version: 1, TargetID: "pid_99400003-0000-4000-8000-000000000003", TargetKind: "agent_endpoint", Categories: []string{"prompt_injection"}, Safety: apiserver.RedTeamSafety{Environment: "test", CredentialClass: "read_only", ExpectedSideEffects: []string{"bounded"}}}, InputDigest: digest})
+	result, err := runner.Run(context.Background(), redTeamExecutionRequest{LeaseToken: strings.Repeat("a", 32), Scope: scope, Run: apiserver.RedTeamRun{ID: runID.String(), DefinitionID: definitionID, DefinitionVersion: 1, Status: "leased", Attempt: 1, QueuedAt: time.Now().UTC()}, Definition: apiserver.RedTeamDefinition{ID: definitionID, Version: 1, TargetID: "pid_99400003-0000-4000-8000-000000000003", TargetKind: "agent_endpoint", Categories: []string{"prompt_injection"}, Safety: apiserver.RedTeamSafety{Environment: "test", CredentialClass: "read_only", ExpectedSideEffects: []string{"bounded"}}}, InputDigest: digest})
 	if err != nil || result.Verdict != "pass" || result.EvidenceReference == "" || result.EvidenceKey == "" || result.EvidenceVersionID != "version-red-team-1" || len(store.puts) != 1 {
 		t.Fatalf("result=%#v err=%v puts=%#v", result, err, store.puts)
 	}
-	if strings.Contains(string(store.puts[0].Body), strings.Repeat("t", 32)) || !strings.Contains(string(store.puts[0].Body), `"schema_version":"red-team-evidence-v1"`) {
+	if strings.Contains(string(store.puts[0].Body), strings.Repeat("a", 32)) || strings.Contains(string(store.puts[0].Body), strings.Repeat("t", 32)) || !strings.Contains(string(store.puts[0].Body), `"schema_version":"red-team-evidence-v1"`) {
 		t.Fatalf("stored body=%q", store.puts[0].Body)
 	}
 }

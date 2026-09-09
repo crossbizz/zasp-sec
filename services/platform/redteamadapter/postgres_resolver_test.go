@@ -38,11 +38,11 @@ func TestPostgresResolverChecksExactReleaseAndResolvesTenantFreshBinding(t *test
 	if err := resolver.Ready(context.Background()); err != nil {
 		t.Fatalf("Ready() error = %v", err)
 	}
-	binding, err := resolver.ResolveTarget(context.Background(), testScope(t), testTargetID, "agent_endpoint")
+	binding, err := resolver.ResolveTarget(context.Background(), TargetResolution{Scope: testScope(t), TargetID: testTargetID, TargetKind: "agent_endpoint", RunID: testRunID, LeaseToken: strings.Repeat("a", 32), Category: "prompt_injection"})
 	if err != nil || binding.Version != 7 || binding.TargetID != testTargetID {
 		t.Fatalf("binding=%#v err=%v", binding, err)
 	}
-	if !reflect.DeepEqual(database.statements, []string{postgresTargetAdapterReadinessSQL, postgresResolveTargetSQL}) || !reflect.DeepEqual(database.arguments[0], []any{checksum, fingerprint}) || !reflect.DeepEqual(database.arguments[1], []any{testOrganizationID, testWorkspaceID, testEnvironmentID, testTargetID, "agent_endpoint"}) {
+	if !reflect.DeepEqual(database.statements, []string{postgresTargetAdapterReadinessSQL, postgresResolveTargetSQL}) || !reflect.DeepEqual(database.arguments[0], []any{checksum, fingerprint}) || !reflect.DeepEqual(database.arguments[1], []any{testOrganizationID, testWorkspaceID, testEnvironmentID, testTargetID, "agent_endpoint", testRunID, strings.Repeat("a", 32), "prompt_injection"}) {
 		t.Fatalf("calls = %#v %#v", database.statements, database.arguments)
 	}
 }
@@ -65,7 +65,7 @@ func TestPostgresResolverRejectsReleaseDriftAndCrossTargetOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if binding, err := resolver.ResolveTarget(context.Background(), testScope(t), testTargetID, "agent_endpoint"); !errors.Is(err, ErrAdapter) || binding != (TargetBinding{}) {
+	if binding, err := resolver.ResolveTarget(context.Background(), TargetResolution{Scope: testScope(t), TargetID: testTargetID, TargetKind: "agent_endpoint", RunID: testRunID, LeaseToken: strings.Repeat("a", 32), Category: "prompt_injection"}); !errors.Is(err, ErrAdapter) || binding != (TargetBinding{}) {
 		t.Fatalf("binding=%#v err=%v", binding, err)
 	}
 }

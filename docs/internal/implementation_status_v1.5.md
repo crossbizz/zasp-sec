@@ -90,6 +90,11 @@ Current production closure: M5 Red Team admission, request recovery, and
 execution authority. No M5 rows have been promoted. The verified fixes,
 remaining gaps, and release evidence are tracked in
 `docs/internal/2026-09-08-m5-red-team-production-closure.md`.
+The admission/API slice is on main with passing main CI. The next runtime
+slice covers live invocation leases, terminal cleanup, the pinned Promptfoo
+process, and bounded adapter concurrency. Local full verification, independent
+review, release-source gates, and the fresh Chrome combined run pass; remote CI
+and main publication for this slice remain pending.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
