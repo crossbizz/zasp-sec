@@ -33,10 +33,40 @@ type attackLabExecutionAuthority interface {
 
 type attackLabSandboxProvider interface {
 	Ready(context.Context) error
+	Capabilities(context.Context) (attackLabSandboxCapabilities, error)
 	Create(context.Context, attackLabSandboxRequest) (attackLabSandbox, error)
 	Reconcile(context.Context, attackLabSandboxRequest) (attackLabSandbox, bool, error)
-	Collect(context.Context, attackLabSandboxRequest, attackLabSandbox) (attackLabSandboxResult, error)
+	Run(context.Context, attackLabSandboxRequest, attackLabSandbox) (attackLabSandboxResult, error)
+	Cancel(context.Context, attackLabSandbox) error
 	Destroy(context.Context, attackLabSandbox) error
+}
+
+// Capabilities describe the provider contract, not proof of a particular pod's
+// isolation. Ready and the Kubernetes result checks establish runtime evidence.
+type attackLabSandboxCapabilities struct {
+	Isolation                              string
+	AllowsDirectEgress, UIDFencedLifecycle bool
+	Limits                                 apiserver.AttackLabSandboxLimits
+}
+
+func productionAttackLabSandboxCapabilities() attackLabSandboxCapabilities {
+	return attackLabSandboxCapabilities{Isolation: "eks-fargate-pod", UIDFencedLifecycle: true, Limits: apiserver.AttackLabSandboxLimits{CPU: "500m", Memory: "1Gi", EphemeralStorage: "2Gi", TimeoutSeconds: 300}}
+}
+
+func readyAttackLabSandboxProvider(ctx context.Context, provider attackLabSandboxProvider) (resultErr error) {
+	defer func() {
+		if recover() != nil {
+			resultErr = errRuntimeUnavailable
+		}
+	}()
+	if ctx == nil || ctx.Err() != nil || provider == nil {
+		return errRuntimeUnavailable
+	}
+	capabilities, err := provider.Capabilities(ctx)
+	if err != nil || capabilities != productionAttackLabSandboxCapabilities() || provider.Ready(ctx) != nil {
+		return errRuntimeUnavailable
+	}
+	return nil
 }
 
 type attackLabEvidenceWriter interface {
@@ -112,7 +142,7 @@ func newAttackLabProcessor(config attackLabProcessorConfig) (*attackLabProcessor
 }
 
 func (processor *attackLabProcessor) RunOnce(ctx context.Context) error {
-	if processor == nil || ctx == nil || ctx.Err() != nil || processor.config.Authority.Ready(ctx) != nil || processor.config.Provider.Ready(ctx) != nil {
+	if processor == nil || ctx == nil || ctx.Err() != nil || processor.config.Authority.Ready(ctx) != nil || readyAttackLabSandboxProvider(ctx, processor.config.Provider) != nil {
 		return errWorkerExecution
 	}
 	deliveries, err := processor.config.Queue.ConsumeBatch(ctx, processor.config.BatchSize)
@@ -247,7 +277,7 @@ func (processor *attackLabProcessor) runClaim(ctx context.Context, delivery jobq
 	}
 	result, collectErr := cancelledAttackLabResult(), error(nil)
 	if !cancelRequested.Load() && !request.Run.CancelRequested {
-		result, collectErr = callAttackLabCollect(processor.config.Provider, workCtx, request, sandbox)
+		result, collectErr = callAttackLabRun(processor.config.Provider, workCtx, request, sandbox)
 	}
 	if leaseLost.Load() {
 		stopHeartbeat()
@@ -295,7 +325,7 @@ func (processor *attackLabProcessor) runClaim(ctx context.Context, delivery jobq
 		stopHeartbeat()
 		return errWorkerExecution
 	}
-	return processor.destroyAndFinish(ctx, delivery, claim, token, sandbox, stopHeartbeat)
+	return processor.destroyAndFinish(ctx, delivery, claim, token, sandbox, cleanupInput.ErrorCode == "cancelled", stopHeartbeat)
 }
 
 func (processor *attackLabProcessor) resumeCleanup(ctx context.Context, delivery jobqueue.Delivery, claim apiserver.AttackLabRunClaim, token string, sandbox attackLabSandbox, leaseLost func() bool, stopHeartbeat func()) error {
@@ -303,11 +333,18 @@ func (processor *attackLabProcessor) resumeCleanup(ctx context.Context, delivery
 		stopHeartbeat()
 		return errWorkerExecution
 	}
-	return processor.destroyAndFinish(ctx, delivery, claim, token, sandbox, stopHeartbeat)
+	return processor.destroyAndFinish(ctx, delivery, claim, token, sandbox, claim.Checkpoint.ErrorCode == "cancelled", stopHeartbeat)
 }
 
-func (processor *attackLabProcessor) destroyAndFinish(ctx context.Context, delivery jobqueue.Delivery, claim apiserver.AttackLabRunClaim, token string, sandbox attackLabSandbox, stopHeartbeat func()) error {
+func (processor *attackLabProcessor) destroyAndFinish(ctx context.Context, delivery jobqueue.Delivery, claim apiserver.AttackLabRunClaim, token string, sandbox attackLabSandbox, cancelRequested bool, stopHeartbeat func()) error {
 	finalizeCtx, cancelFinalize := processor.finalizeContext(ctx)
+	// Both entry paths have a durable cleanup checkpoint. Never terminate from
+	// an in-memory cancellation flag before that intent has been retained.
+	if cancelRequested && callAttackLabCancel(processor.config.Provider, finalizeCtx, sandbox) != nil {
+		cancelFinalize()
+		stopHeartbeat()
+		return errWorkerExecution
+	}
 	destroyErr := callAttackLabDestroy(processor.config.Provider, finalizeCtx, sandbox)
 	if destroyErr != nil {
 		cancelFinalize()
@@ -506,13 +543,13 @@ func settleAttackLabReconcile(provider attackLabSandboxProvider, ctx context.Con
 	return attackLabSandbox{}, false, errWorkerExecution
 }
 
-func callAttackLabCollect(provider attackLabSandboxProvider, ctx context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (result attackLabSandboxResult, resultErr error) {
+func callAttackLabRun(provider attackLabSandboxProvider, ctx context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (result attackLabSandboxResult, resultErr error) {
 	defer func() {
 		if recover() != nil {
 			result, resultErr = attackLabSandboxResult{}, &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 		}
 	}()
-	return provider.Collect(ctx, request, sandbox)
+	return provider.Run(ctx, request, sandbox)
 }
 
 func callAttackLabDestroy(provider attackLabSandboxProvider, ctx context.Context, sandbox attackLabSandbox) (resultErr error) {
@@ -522,6 +559,15 @@ func callAttackLabDestroy(provider attackLabSandboxProvider, ctx context.Context
 		}
 	}()
 	return provider.Destroy(ctx, sandbox)
+}
+
+func callAttackLabCancel(provider attackLabSandboxProvider, ctx context.Context, sandbox attackLabSandbox) (resultErr error) {
+	defer func() {
+		if recover() != nil {
+			resultErr = errWorkerExecution
+		}
+	}()
+	return provider.Cancel(ctx, sandbox)
 }
 
 var _ workerProcessor = (*attackLabProcessor)(nil)

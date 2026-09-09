@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -105,6 +106,143 @@ func TestProductionAttackLabKubernetesAPICreatesExactHardenedJob(t *testing.T) {
 	}
 }
 
+func TestProductionAttackLabProviderCancellationUsesUIDFenceAndIdempotentCleanup(t *testing.T) {
+	const name = "zasp-attack-lab-7e300001000040008000000000000001"
+	const uid = "123e4567-e89b-12d3-a456-426614174000"
+	job := func(value string) string {
+		return `{"apiVersion":"batch/v1","kind":"Job","metadata":{"name":"` + name + `","namespace":"zasp-attack-lab","uid":"` + value + `"}}`
+	}
+	notFound := func() *http.Response {
+		return attackLabKubernetesTestResponse(http.StatusNotFound, `{"kind":"Status","reason":"NotFound","code":404}`)
+	}
+	absentPods := func() *http.Response {
+		return attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"PodList","items":[]}`)
+	}
+	for _, tc := range []struct {
+		name         string
+		responses    []*http.Response
+		wantErr      bool
+		wantRequests int
+	}{
+		{"owned", []*http.Response{attackLabKubernetesTestResponse(http.StatusOK, job(uid)), attackLabKubernetesTestResponse(http.StatusOK, `{"kind":"Status","status":"Success","code":200}`), notFound(), absentPods(), notFound(), absentPods()}, false, 6},
+		{"already absent", []*http.Response{notFound(), absentPods(), notFound(), absentPods()}, false, 4},
+		{"foreign UID", []*http.Response{attackLabKubernetesTestResponse(http.StatusOK, job("123e4567-e89b-12d3-a456-426614174001"))}, true, 1},
+		{"uncertain termination", []*http.Response{attackLabKubernetesTestResponse(http.StatusOK, job(uid)), attackLabKubernetesTestResponse(http.StatusServiceUnavailable, `{"kind":"Status","reason":"Unavailable","code":503}`)}, true, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tokenPath := filepath.Join(t.TempDir(), "token")
+			if err := os.WriteFile(tokenPath, []byte("header.payload.signature-with-bounded-production-length-1234567890"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			transport := &recordingAttackLabKubernetesTransport{responses: tc.responses}
+			api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+			provider := &productionAttackLabKubernetesProvider{config: productionAttackLabKubernetesProviderConfig{Cluster: api, Namespace: "zasp-attack-lab", OperationTimeout: time.Second}}
+			sandbox := attackLabSandbox{Reference: "k8s://attack-lab/jobs/" + name + "@" + uid}
+			if err := provider.Cancel(context.Background(), sandbox); (err != nil) != tc.wantErr {
+				t.Fatalf("cancellation err=%v", err)
+			}
+			if !tc.wantErr {
+				if err := provider.Destroy(context.Background(), sandbox); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if len(transport.requests) != tc.wantRequests {
+				t.Fatalf("requests=%d", len(transport.requests))
+			}
+			for _, request := range transport.requests {
+				if request.URL.Path == "/api/v1/namespaces/zasp-attack-lab/pods" {
+					if request.Method != http.MethodGet || request.URL.Query().Get("labelSelector") != "job-name="+name {
+						t.Fatal("cleanup dependent scope drifted")
+					}
+					continue
+				}
+				if request.URL.Path != "/apis/batch/v1/namespaces/zasp-attack-lab/jobs/"+name {
+					t.Fatal("cleanup target drifted")
+				}
+				if request.Method == http.MethodDelete {
+					var options attackLabKubernetesDeleteOptions
+					if !decodeExactAttackLabKubernetesJSON(request.body, &options) || options.Preconditions.UID != uid || options.PropagationPolicy != "Foreground" {
+						t.Fatal("cancellation lost UID precondition")
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestAttackLabCleanupWaitsForOwnedPodsAfterJobIsAbsent(t *testing.T) {
+	const name = "zasp-attack-lab-7e300001000040008000000000000001"
+	const uid = "123e4567-e89b-12d3-a456-426614174000"
+	tokenPath := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(tokenPath, []byte("header.payload.signature-with-bounded-production-length-1234567890"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	owned := `{"apiVersion":"v1","kind":"PodList","items":[{"apiVersion":"v1","kind":"Pod","metadata":{"namespace":"zasp-attack-lab","name":"owned-pod","uid":"123e4567-e89b-12d3-a456-426614174002","labels":{"job-name":"` + name + `"},"ownerReferences":[{"apiVersion":"batch/v1","kind":"Job","name":"` + name + `","uid":"` + uid + `","controller":true}]},"status":{"phase":"Running"}}]}`
+	for _, tc := range []struct{ name, body string }{
+		{"owned pod remains", owned},
+		{"foreign owner", strings.Replace(owned, uid, "123e4567-e89b-12d3-a456-426614174009", 1)},
+		{"missing list", `{"apiVersion":"v1","kind":"PodList"}`},
+		{"null list", `{"apiVersion":"v1","kind":"PodList","items":null}`},
+		{"truncated page", `{"apiVersion":"v1","kind":"PodList","metadata":{"continue":"next-page"},"items":[]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{attackLabKubernetesTestResponse(http.StatusNotFound, `{"kind":"Status","reason":"NotFound"}`), attackLabKubernetesTestResponse(http.StatusOK, tc.body)}}
+			api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+			ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+			defer cancel()
+			started := time.Now()
+			if err := api.Destroy(ctx, "zasp-attack-lab", name, uid); err == nil {
+				t.Fatal("job absence falsely established dependent cleanup")
+			}
+			if time.Since(started) > time.Second || len(transport.requests) != 2 {
+				t.Fatal("cleanup was not bounded or never inspected dependents")
+			}
+			request := transport.requests[1]
+			if request.Method != http.MethodGet || request.URL.Path != "/api/v1/namespaces/zasp-attack-lab/pods" || request.URL.Query().Get("labelSelector") != "job-name="+name {
+				t.Fatal("dependent inspection scope drifted")
+			}
+		})
+	}
+}
+
+func testAttackLabControllerWaitsForActualPodCleanup(t *testing.T, config attackLabProcessorConfig, authority *recordingAttackLabAuthority, provider *contractCancellationProvider, steps *[]string) {
+	t.Helper()
+	const name = "zasp-attack-lab-7e300001000040008000000000000001"
+	const uid = "123e4567-e89b-12d3-a456-426614174000"
+	tokenPath := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(tokenPath, []byte("header.payload.signature-with-bounded-production-length-1234567890"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	owned := `{"apiVersion":"v1","kind":"PodList","items":[{"apiVersion":"v1","kind":"Pod","metadata":{"namespace":"zasp-attack-lab","name":"owned-pod","uid":"123e4567-e89b-12d3-a456-426614174002","labels":{"job-name":"` + name + `"},"ownerReferences":[{"apiVersion":"batch/v1","kind":"Job","name":"` + name + `","uid":"` + uid + `","controller":true}]},"status":{"phase":"Running"}}]}`
+	transport := &recordingAttackLabKubernetesTransport{responses: []*http.Response{attackLabKubernetesTestResponse(http.StatusNotFound, `{"kind":"Status","reason":"NotFound"}`), attackLabKubernetesTestResponse(http.StatusOK, owned)}}
+	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
+	*steps = nil
+	authority.claim.Disposition, authority.claim.Run.Status, authority.cleanupErr = "cleanup", "cleanup", nil
+	provider.sandbox.Reference = "k8s://attack-lab/jobs/" + name + "@" + uid
+	authority.claim.Checkpoint.SandboxReference = provider.sandbox.Reference
+	provider.cancel = func(ctx context.Context, sandbox attackLabSandbox) error {
+		bounded, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+		defer cancel()
+		return api.Destroy(bounded, "zasp-attack-lab", name, uid)
+	}
+	processor, err := newAttackLabProcessor(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if processor.RunOnce(context.Background()) == nil || fmt.Sprint(*steps) != "[consume claim cancel]" || len(transport.requests) != 2 {
+		t.Fatalf("live owned Pod permitted Finish/ACK: %v", *steps)
+	}
+	*steps = nil
+	transport.responses = []*http.Response{attackLabKubernetesTestResponse(http.StatusNotFound, `{"kind":"Status","reason":"NotFound"}`), attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"PodList","items":[]}`)}
+	resumed, err := newAttackLabProcessor(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resumed.RunOnce(context.Background()); err != nil || fmt.Sprint(*steps) != "[consume claim cancel destroy finish-cleanup ack]" {
+		t.Fatalf("confirmed pod cleanup did not finish: err=%v steps=%v", err, *steps)
+	}
+}
+
 func TestProductionAttackLabKubernetesAPIReadinessCollectsAndUIDFencesCleanup(t *testing.T) {
 	tokenPath := filepath.Join(t.TempDir(), "token")
 	if err := os.WriteFile(tokenPath, []byte("header.payload.signature-with-bounded-production-length-1234567890"), 0o600); err != nil {
@@ -125,6 +263,7 @@ func TestProductionAttackLabKubernetesAPIReadinessCollectsAndUIDFencesCleanup(t 
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"batch/v1","kind":"Job","metadata":{"name":"`+name+`","namespace":"zasp-attack-lab","uid":"`+uid+`"}}`),
 		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"Status","status":"Success","reason":"Deleted","code":200}`),
 		attackLabKubernetesTestResponse(http.StatusNotFound, `{"apiVersion":"v1","kind":"Status","status":"Failure","reason":"NotFound","code":404}`),
+		attackLabKubernetesTestResponse(http.StatusOK, `{"apiVersion":"v1","kind":"PodList","items":[]}`),
 	}}
 	api := &productionAttackLabKubernetesAPI{endpoint: "https://kubernetes.default.svc", tokenFile: tokenPath, securityGroupID: "sg-1234abcd", client: &http.Client{Transport: transport}}
 	if err := api.Ready(context.Background()); err != nil {
@@ -140,7 +279,7 @@ func TestProductionAttackLabKubernetesAPIReadinessCollectsAndUIDFencesCleanup(t 
 	if err := api.Destroy(context.Background(), "zasp-attack-lab", name, uid); err != nil {
 		t.Fatal(err)
 	}
-	if len(transport.requests) != 10 {
+	if len(transport.requests) != 11 {
 		t.Fatalf("requests=%d", len(transport.requests))
 	}
 	deleteRequest := transport.requests[8]
@@ -152,7 +291,7 @@ func TestProductionAttackLabKubernetesAPIReadinessCollectsAndUIDFencesCleanup(t 
 		GracePeriodSeconds                  int64
 		Preconditions                       struct{ UID string }
 	}
-	if !decodeExactAttackLabKubernetesJSON(deleteRequest.body, &options) || options.APIVersion != "v1" || options.Kind != "DeleteOptions" || options.PropagationPolicy != "Background" || options.GracePeriodSeconds != 0 || options.Preconditions.UID != uid {
+	if !decodeExactAttackLabKubernetesJSON(deleteRequest.body, &options) || options.APIVersion != "v1" || options.Kind != "DeleteOptions" || options.PropagationPolicy != "Foreground" || options.GracePeriodSeconds != 0 || options.Preconditions.UID != uid {
 		t.Fatal("cleanup UID fence drifted")
 	}
 }

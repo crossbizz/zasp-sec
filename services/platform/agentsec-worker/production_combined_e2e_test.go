@@ -311,6 +311,9 @@ type combinedE2EAttackLabProvider struct {
 }
 
 func (*combinedE2EAttackLabProvider) Ready(context.Context) error { return nil }
+func (*combinedE2EAttackLabProvider) Capabilities(context.Context) (attackLabSandboxCapabilities, error) {
+	return productionAttackLabSandboxCapabilities(), nil
+}
 
 func (provider *combinedE2EAttackLabProvider) Create(_ context.Context, request attackLabSandboxRequest) (attackLabSandbox, error) {
 	if request.Run.ID != provider.runID || request.Run.Status != "leased" || request.Run.Environment == "production" || request.Preflight.Destination != request.Run.Destination || request.Preflight.SuccessCriterion == "" {
@@ -328,7 +331,7 @@ func (*combinedE2EAttackLabProvider) Reconcile(context.Context, attackLabSandbox
 	return attackLabSandbox{}, false, errors.New("Attack Lab local reconcile was not expected")
 }
 
-func (provider *combinedE2EAttackLabProvider) Collect(_ context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (attackLabSandboxResult, error) {
+func (provider *combinedE2EAttackLabProvider) Run(_ context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (attackLabSandboxResult, error) {
 	if !provider.created || request.Run.ID != provider.runID || request.Run.Status != "running" || !attackLabWorkerSandboxReferencePattern.MatchString(sandbox.Reference) {
 		return attackLabSandboxResult{}, errors.New("Attack Lab local collection authority drift")
 	}
@@ -344,6 +347,9 @@ func (provider *combinedE2EAttackLabProvider) Destroy(_ context.Context, sandbox
 	}
 	provider.destroyed = true
 	return nil
+}
+func (provider *combinedE2EAttackLabProvider) Cancel(ctx context.Context, sandbox attackLabSandbox) error {
+	return provider.Destroy(ctx, sandbox)
 }
 
 func TestProductionCombinedE2ERecoveryWorker(t *testing.T) {

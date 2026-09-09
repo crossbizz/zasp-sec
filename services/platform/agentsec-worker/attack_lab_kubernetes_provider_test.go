@@ -26,6 +26,10 @@ func TestProductionAttackLabProviderCreatesCollectsAndDestroysExactOwnedJob(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
+	capabilities, err := provider.Capabilities(context.Background())
+	if err != nil || capabilities != productionAttackLabSandboxCapabilities() {
+		t.Fatal("production capability contract drifted")
+	}
 	sandbox, err := provider.Create(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
@@ -41,9 +45,18 @@ func TestProductionAttackLabProviderCreatesCollectsAndDestroysExactOwnedJob(t *t
 	if err := verifyAttackLabEgressToken(provider.config.SigningKey, job.EgressToken, request.Scope, request.Run.ID, request.Run.Destination, "POST", now.Add(time.Minute)); err != nil {
 		t.Fatalf("token verification=%v", err)
 	}
-	result, err := provider.Collect(context.Background(), request, sandbox)
+	result, err := provider.Run(context.Background(), request, sandbox)
 	if err != nil || result.Verdict != "verified" || !result.CriterionObserved || !result.CanaryTouched || len(result.Evidence) != 5 || result.Evidence[3] != "kubernetes:fargate job complete" {
 		t.Fatalf("result=%#v err=%v", result, err)
+	}
+	if repeated, err := provider.Run(context.Background(), request, sandbox); err != nil || repeated.Verdict != result.Verdict || cluster.createCalls != 1 {
+		t.Fatalf("Run recreated execution: calls=%d err=%v", cluster.createCalls, err)
+	}
+	if err := provider.Cancel(context.Background(), sandbox); err != nil {
+		t.Fatal(err)
+	}
+	if err := provider.Destroy(context.Background(), sandbox); err != nil {
+		t.Fatal(err)
 	}
 	if err := provider.Destroy(context.Background(), sandbox); err != nil {
 		t.Fatal(err)

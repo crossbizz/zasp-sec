@@ -42,7 +42,7 @@ func TestAttackLabProcessorCreatesCollectsCheckpointsDestroysFinishesThenAcknowl
 	if err := processor.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce error=%v steps=%v", err, steps)
 	}
-	want := []string{"consume", "claim", "provisioning", "create", "running", "collect", "evidence", "begin-cleanup", "destroy", "finish-cleanup", "ack"}
+	want := []string{"consume", "claim", "provisioning", "create", "running", "run", "evidence", "begin-cleanup", "destroy", "finish-cleanup", "ack"}
 	if got := fmt.Sprint(steps); got != fmt.Sprint(want) {
 		t.Fatalf("steps=%v want=%v", steps, want)
 	}
@@ -126,7 +126,7 @@ func TestAttackLabProcessorCancellationAfterSandboxPersistsEvidenceBeforeCleanup
 	if err := processor.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce error=%v steps=%v", err, steps)
 	}
-	want := []string{"consume", "claim", "provisioning", "create", "running", "collect", "evidence", "begin-cleanup", "destroy", "finish-cleanup", "ack"}
+	want := []string{"consume", "claim", "provisioning", "create", "running", "run", "evidence", "begin-cleanup", "cancel", "destroy", "finish-cleanup", "ack"}
 	if got := fmt.Sprint(steps); got != fmt.Sprint(want) {
 		t.Fatalf("steps=%v want=%v", steps, want)
 	}
@@ -157,7 +157,7 @@ func TestAttackLabProcessorReconcilesLostCreateResponseBeforeCancellationCleanup
 	if err := processor.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce error=%v steps=%v", err, steps)
 	}
-	want := []string{"consume", "claim", "provisioning", "create", "reconcile", "reconcile", "running", "evidence", "begin-cleanup", "destroy", "finish-cleanup", "ack"}
+	want := []string{"consume", "claim", "provisioning", "create", "reconcile", "reconcile", "running", "evidence", "begin-cleanup", "cancel", "destroy", "finish-cleanup", "ack"}
 	if fmt.Sprint(steps) != fmt.Sprint(want) || provider.reconcileContextErr != nil || authority.cleanup.ErrorCode != "cancelled" {
 		t.Fatalf("steps=%v reconcile_ctx=%v cleanup=%#v", steps, provider.reconcileContextErr, authority.cleanup)
 	}
@@ -238,7 +238,7 @@ func TestAttackLabProcessorEvidenceFailureStillCheckpointsAndDestroysSandbox(t *
 	if err := processor.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce error=%v steps=%v", err, steps)
 	}
-	want := []string{"consume", "claim", "provisioning", "create", "running", "collect", "evidence", "begin-cleanup", "destroy", "finish-cleanup", "ack"}
+	want := []string{"consume", "claim", "provisioning", "create", "running", "run", "evidence", "begin-cleanup", "destroy", "finish-cleanup", "ack"}
 	if got := fmt.Sprint(steps); got != fmt.Sprint(want) {
 		t.Fatalf("steps=%v want=%v", steps, want)
 	}
@@ -308,6 +308,7 @@ type recordingAttackLabAuthority struct {
 	heartbeat       apiserver.AttackLabRunHeartbeat
 	cleanup         apiserver.AttackLabCleanupInput
 	retryTransition apiserver.AttackLabRunTransition
+	cleanupErr      error
 }
 
 func (*recordingAttackLabAuthority) Ready(context.Context) error { return nil }
@@ -339,6 +340,9 @@ func (authority *recordingAttackLabAuthority) MarkAttackLabRunning(_ context.Con
 }
 func (authority *recordingAttackLabAuthority) BeginAttackLabCleanup(_ context.Context, _ domain.Scope, input apiserver.AttackLabCleanupInput) (apiserver.AttackLabRunTransition, error) {
 	*authority.steps = append(*authority.steps, "begin-cleanup")
+	if authority.cleanupErr != nil {
+		return apiserver.AttackLabRunTransition{}, authority.cleanupErr
+	}
 	authority.cleanup = input
 	run := authority.claim.Run
 	run.Status, run.CleanupState = "cleanup", "in_progress"
@@ -385,6 +389,9 @@ type recordingAttackLabProvider struct {
 }
 
 func (*recordingAttackLabProvider) Ready(context.Context) error { return nil }
+func (*recordingAttackLabProvider) Capabilities(context.Context) (attackLabSandboxCapabilities, error) {
+	return productionAttackLabSandboxCapabilities(), nil
+}
 func (provider *recordingAttackLabProvider) Create(ctx context.Context, _ attackLabSandboxRequest) (attackLabSandbox, error) {
 	*provider.steps = append(*provider.steps, "create")
 	if provider.createWaitForCancel {
@@ -403,8 +410,8 @@ func (provider *recordingAttackLabProvider) Reconcile(ctx context.Context, _ att
 	found := provider.reconcileFound || provider.sandbox.Reference != ""
 	return provider.sandbox, found, provider.reconcileErr
 }
-func (provider *recordingAttackLabProvider) Collect(ctx context.Context, _ attackLabSandboxRequest, _ attackLabSandbox) (attackLabSandboxResult, error) {
-	*provider.steps = append(*provider.steps, "collect")
+func (provider *recordingAttackLabProvider) Run(ctx context.Context, _ attackLabSandboxRequest, _ attackLabSandbox) (attackLabSandboxResult, error) {
+	*provider.steps = append(*provider.steps, "run")
 	if provider.blockCollectUntilCancel {
 		<-ctx.Done()
 		return attackLabSandboxResult{}, ctx.Err()
@@ -413,6 +420,10 @@ func (provider *recordingAttackLabProvider) Collect(ctx context.Context, _ attac
 }
 func (provider *recordingAttackLabProvider) Destroy(context.Context, attackLabSandbox) error {
 	*provider.steps = append(*provider.steps, "destroy")
+	return nil
+}
+func (provider *recordingAttackLabProvider) Cancel(context.Context, attackLabSandbox) error {
+	*provider.steps = append(*provider.steps, "cancel")
 	return nil
 }
 

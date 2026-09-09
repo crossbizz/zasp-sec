@@ -519,3 +519,73 @@ rows. The runtime/Node/ledger CI regression command passed 50 tests with two
 opt-in interruption cases skipped. Independent final review passed all 30
 import/ledger tests. The pre-push scan's six medium matches were inspected and
 all were documented CI run IDs; there were no high findings or bypass.
+
+PR 17 shipped outcome commit `03c1db9d` after push CI 34307535807 and
+PR CI 34307549558 passed. It merged as main
+`4aa5888651f1051241049761ac2a62b8e71974fe`. Main CI 34308044218 is pending;
+M5-16 has not yet received production credit.
+
+## M5-17 production sandbox lifecycle contract
+
+The production provider now exposes Create, Run, Cancel, Destroy and typed
+Capabilities, plus the retained reconciliation operation. Create schedules
+the exact owned Job. Run observes it without creating another execution.
+Capabilities declare EKS Fargate pod isolation, proxy-only egress, UID-fenced
+lifecycle operations, and the exact CPU/memory/storage/timeout bounds. These
+declarations are not evidence that a particular pod achieved isolation;
+cluster readiness and exact pod/profile checks remain separate. Unsupported
+capabilities fail before consuming or claiming queue work.
+
+Cancellation is called only after a durable cleanup checkpoint, or while
+resuming an existing cancelled checkpoint. An uncertain cancellation response
+retains that checkpoint and cannot destroy, finish or acknowledge the run.
+Restart resumes termination and final cleanup without creating or running
+another sandbox. A failed checkpoint commit performs no destructive provider
+I/O. Readiness and lifecycle panics remain bounded failures.
+
+Independent review found a real termination gap in the existing Kubernetes
+cleanup: background Job deletion could return Job404 while owned pods still
+ran. This is consistent with Kubernetes' documented
+[background garbage collection](https://kubernetes.io/docs/concepts/architecture/garbage-collection/).
+The correction uses foreground deletion with the exact UID precondition,
+then verifies dependent-pod absence even when the Job was already missing.
+The exact namespace/job selector must return an explicit non-null, unpaginated
+PodList. Owned pods keep cleanup pending. Foreign or malformed ownership
+fails closed, with no destructive pod requests. Only an empty list permits
+completion. Thus foreground deletion alone is not treated as sufficient proof.
+
+Tests were observed failing for missing lifecycle capabilities, missing
+checkpointed cancellation, premature acknowledgement after cancellation
+failure, and all five Job404/pod-list regressions. They pass after the changes.
+The real Kubernetes API transport fixture is also exercised through the
+controller cancellation boundary: a live owned pod forbids finish/ACK, then
+restart after confirmed absence permits idempotent completion. Tests cover
+foreign UID denial, uncertain deletion, repeated Destroy and repeated Run
+without another Create. The full worker race suite passed in 7.983 seconds.
+Independent re-review reran the focused race suite and accepted M5-17's
+original contract and fake-provider criterion, contingent on remaining
+verification, shipping and CI. No live Fargate isolation claim is made.
+
+Main CI 34308044218 passed for PR 17. M5-16 now has production credit,
+bringing the ledger to 532 production-available, 135 component-only and 61
+blocked/external tasks. Its anti-demotion regression failed before the ledger
+update and passes afterward. M5-17 remains component-only until its own ship
+and CI closure.
+
+The fresh-build full Chrome journey passed with the updated provider contract:
+production Attack Lab approval, composed controller/outbox, evidence, cleanup,
+rerun, cancellation and reload; red-team pinned-engine artifacts and safe
+handoff; all discovery, security, recovery, administration and restart checks.
+Console/exception checks and owned process/container cleanup passed. This
+journey still uses its explicitly identified local sandbox/provider fixture;
+the real Kubernetes API cleanup behavior is covered by the separate hostile
+transport/controller tests above, not a live Fargate deployment.
+
+Final full verification passed all 1,082 frontend tests, tenant/race and API
+contracts, types, warning-free lint, release rendering, production build,
+source/compiled import checks and the 728-row ledger. The separate release
+source gate passed. The runtime/Node/ledger command passed 50 tests with two
+explicit opt-in interruption tests skipped. The pre-push scan's 19 medium
+matches were inspected individually: seven CI IDs, eight synthetic Kubernetes
+UIDs, three fixture-token suffixes and one synthetic product ID. No high
+finding or scanner bypass occurred. Push/PR/main CI remains to be recorded.
