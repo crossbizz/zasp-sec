@@ -589,3 +589,64 @@ explicit opt-in interruption tests skipped. The pre-push scan's 19 medium
 matches were inspected individually: seven CI IDs, eight synthetic Kubernetes
 UIDs, three fixture-token suffixes and one synthetic product ID. No high
 finding or scanner bypass occurred. Push/PR/main CI remains to be recorded.
+
+PR 18 shipped sandbox contract commit `da9aeaef` after push CI 34308745174
+and PR CI 34308747843 passed. It merged as main
+`11305902ab8f2a2481fbfbcaadac25d762caf5ee`. Main CI 34309274962 passed.
+M5-17 now has production credit under its original fixture criterion. The
+ledger has 533 production-available, 134 component-only and 61 blocked/external
+rows, with no missing rows. This does not attest live Fargate isolation.
+
+## M5-19 absolute sandbox timeout and retained reason
+
+Production collection now uses the remaining time from the durable attempt
+start plus its approved 300-second limit. A resumed attempt cannot obtain
+another five-minute budget. An already-expired attempt performs no collection,
+and a result returned after the deadline cannot become a security verdict.
+The existing production manifest tests retain exact CPU, memory, ephemeral
+storage and active-deadline bounds.
+
+Only an exact namespace/name/UID Job reporting Failed=True with
+Reason=DeadlineExceeded, or expiration of the approved collection budget,
+establishes the fixed timeout explanation. Contradictory completion, caller
+cancellation/deadline and HTTP transport timeout do not. Both Job polling and
+completed-Job dependent-evidence retrieval apply the same distinction. A
+private typed marker preserves the cause through provider normalization;
+the public result remains inconclusive with error_code=outcome_unknown.
+Its bounded Kubernetes evidence says the approved attempt deadline elapsed
+and sandbox cleanup is required. No raw provider message is retained, and
+the result does not claim the sandbox stopped exactly at the deadline.
+
+Tests reproduced the reset budget, absent timeout explanation, rejected
+subsecond remainder and completed-Job evidence-read gap before each fix.
+They now cover exact Kubernetes deadline, foreign ownership, contradictory
+completion, local budget expiry, caller and HTTP timeout distinctions,
+500-millisecond resumed remainder, late success and expiry with no I/O.
+The production Kubernetes HTTP path is exercised through the controller:
+bounded timeout evidence is retained before cleanup, uncertain deletion
+cannot finish/ACK, and restart resumes cleanup without rerunning evaluation.
+
+The corrected full worker race suite passed in 8.275 seconds. Independent
+Superpowers re-review passed the timeout/deadline race tests and accepted
+M5-19's original limits/timeout fixture criterion, contingent on final
+verification, shipping and CI. M5-19 remains component-only. This is not a
+live Fargate execution or exact-deadline termination claim.
+
+The full Chrome product check passed again, including actual pinned red-team
+execution, versioned input/result evidence, sandbox UI, reload, discovery,
+security, recovery and administration. Browser exception/console checks and
+owned-resource cleanup passed. Its sandbox remains an identified local
+fixture. The final completed-Job error-branch correction was separately
+verified by its new regression and the full worker race suite.
+
+Final full verification and the separate release source gate passed after
+that correction. Production build and compiled import checks passed; the
+ledger still contained 728 rows. No live cloud or deployment gate is claimed.
+
+The final runtime/Node/ledger regression command passed 50 tests with two
+explicit opt-in interruption tests skipped. Independent final review accepted
+the code and reconciled the 533/134/61 ledger, promoting only M5-17 after its
+main CI passed. The pre-push scan's 15 medium matches were individually
+inspected: six CI IDs, six synthetic Kubernetes UID suffixes, two fixed
+in-cluster fixture hostnames and one synthetic fixture-token suffix. No high
+finding or scanner bypass occurred. M5-19 shipping and CI remain pending.

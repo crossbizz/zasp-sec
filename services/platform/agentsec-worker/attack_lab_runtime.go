@@ -98,6 +98,11 @@ type attackLabEvidenceArtifact struct {
 type attackLabProviderFailure struct {
 	code       string
 	retryAfter time.Duration
+	timedOut   bool
+}
+
+func attackLabDeadlineFailure() *attackLabProviderFailure {
+	return &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second, timedOut: true}
 }
 
 func (failure *attackLabProviderFailure) Error() string { return "attack lab provider failed" }
@@ -480,11 +485,15 @@ func cancelledAttackLabResult() attackLabSandboxResult {
 
 func failedAttackLabResult(err error) attackLabSandboxResult {
 	code := "outcome_unknown"
+	kubernetesEvidence := "kubernetes:execution incomplete"
 	var failure *attackLabProviderFailure
 	if errors.As(err, &failure) && stringInWorker(failure.code, "denied", "malformed", "outcome_unknown", "exhausted") {
 		code = failure.code
+		if failure.code == "outcome_unknown" && failure.timedOut {
+			kubernetesEvidence = "kubernetes:approved attempt deadline elapsed; sandbox cleanup required"
+		}
 	}
-	return attackLabSandboxResult{Verdict: "inconclusive", ErrorCode: code, Evidence: []string{"semantic:criterion unavailable", "gateway:execution unavailable", "egress:no undeclared egress observed", "kubernetes:execution incomplete", "cloud:canary outcome unavailable"}}
+	return attackLabSandboxResult{Verdict: "inconclusive", ErrorCode: code, Evidence: []string{"semantic:criterion unavailable", "gateway:execution unavailable", "egress:no undeclared egress observed", kubernetesEvidence, "cloud:canary outcome unavailable"}}
 }
 
 func unambiguousAttackLabCreateFailure(err error) bool {

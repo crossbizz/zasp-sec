@@ -149,7 +149,7 @@ func (provider *productionAttackLabKubernetesProvider) jobForRequest(request att
 // Create schedules the Job. Run observes that owned execution; it never creates
 // a second Job or grants new execution authority.
 func (provider *productionAttackLabKubernetesProvider) Run(ctx context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (attackLabSandboxResult, error) {
-	if provider == nil || ctx == nil || ctx.Err() != nil || !validProductionAttackLabSandboxRequest(request, provider.config.Now()) {
+	if provider == nil || ctx == nil || ctx.Err() != nil || provider.config.Now == nil || !validProductionAttackLabSandboxReconcileRequest(request) {
 		return attackLabSandboxResult{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	name, uid, ok := attackLabSandboxIdentity(sandbox.Reference)
@@ -157,9 +157,24 @@ func (provider *productionAttackLabKubernetesProvider) Run(ctx context.Context, 
 	if !ok || !nameOK || name != wantName {
 		return attackLabSandboxResult{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
-	outcome, err := provider.config.Cluster.Collect(ctx, provider.config.Namespace, name, uid, time.Duration(request.Run.Limits.TimeoutSeconds)*time.Second)
+	now := provider.config.Now()
+	if now.IsZero() || now.Location() != time.UTC || now.Before(*request.Run.AttemptStartedAt) {
+		return attackLabSandboxResult{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
+	}
+	deadline := request.Run.AttemptStartedAt.Add(time.Duration(request.Run.Limits.TimeoutSeconds) * time.Second)
+	remaining := deadline.Sub(now)
+	if remaining <= 0 {
+		return attackLabSandboxResult{}, attackLabDeadlineFailure()
+	}
+	outcome, err := provider.config.Cluster.Collect(ctx, provider.config.Namespace, name, uid, remaining)
 	if err != nil {
 		return attackLabSandboxResult{}, productionAttackLabProviderError(err, "outcome_unknown")
+	}
+	if ctx.Err() != nil {
+		return attackLabSandboxResult{}, &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+	}
+	if !provider.config.Now().Before(deadline) {
+		return attackLabSandboxResult{}, attackLabDeadlineFailure()
 	}
 	if !validAttackLabClusterOutcome(outcome) {
 		return attackLabSandboxResult{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}

@@ -432,10 +432,12 @@ type recordingAttackLabEvidenceWriter struct {
 	artifact               attackLabEvidenceArtifact
 	rejectCancelledContext bool
 	err                    error
+	result                 attackLabSandboxResult
 }
 
-func (writer *recordingAttackLabEvidenceWriter) Write(ctx context.Context, _ attackLabSandboxRequest, _ attackLabSandbox, _ attackLabSandboxResult) (attackLabEvidenceArtifact, error) {
+func (writer *recordingAttackLabEvidenceWriter) Write(ctx context.Context, _ attackLabSandboxRequest, _ attackLabSandbox, result attackLabSandboxResult) (attackLabEvidenceArtifact, error) {
 	*writer.steps = append(*writer.steps, "evidence")
+	writer.result = result
 	if writer.rejectCancelledContext && ctx.Err() != nil {
 		return attackLabEvidenceArtifact{}, ctx.Err()
 	}
