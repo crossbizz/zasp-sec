@@ -3,6 +3,8 @@ import { APITransportError, requireAPIData } from "../../../apps/web/api/client"
 import { decodeAttackLabPreflight, decodeAttackLabRun, decodeAttackLabRunDetail, decodeAttackLabRunPage, decodeInventoryPage, decodeTestDefinition, decodeTestDefinitionPage, decodeTestRun, decodeTestRunDetail, decodeTestRunPage } from "../../../apps/web/api/decoders";
 import type { AttackLabPreflight, AttackLabRun, AttackLabRunDetail, InventorySummary, TestDefinition, TestDefinitionInput, TestDefinitionUpdateInput, TestRun, TestRunDetail } from "../../../apps/web/api/generated";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
+import { decodeCapabilityPage, decodeInventoryDetail } from "../../../apps/web/api/decoders";
+import { recommendRedTeamPacks, type RedTeamPackRecommendation } from "./recommendations";
 
 const quotedVersion = /^"[1-9][0-9]{0,5}"$/;
 const productID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -10,8 +12,10 @@ const idempotencyKey = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 
 type APIResult = { data?: unknown; error?: unknown; response: Response };
 type MutationAttempt = Readonly<{ idempotencyKey: string }>;
+export type RedTeamRecommendations = Readonly<{targetID:string;freshUntil:string;items:readonly RedTeamPackRecommendation[]}>;
 
 export type ProductionRedTeamAPI = Readonly<{
+  getTargetRecommendations(id:string,kind:"agent"|"tool",signal?:AbortSignal):Promise<RedTeamRecommendations>;
   listDefinitions(signal?: AbortSignal): Promise<readonly TestDefinition[]>;
   getDefinition(id: string, signal?: AbortSignal): Promise<TestDefinition>;
   createDefinition(input: TestDefinitionInput, attempt: MutationAttempt, signal?: AbortSignal): Promise<TestDefinition>;
@@ -33,6 +37,14 @@ export function createProductionRedTeamAPI(client: APIClient, expectedScope?: st
   if (expectedScope !== undefined && (expectedScope.split("/").length !== 3 || !expectedScope.split("/").every((part) => productID.test(part)))) throw new APITransportError("invalid_configuration", "Invalid Red Team request scope");
   const scopeHeaders = expectedScope === undefined ? undefined : { "X-Zasp-Expected-Scope": expectedScope };
   return {
+    async getTargetRecommendations(id, kind, signal) {
+      requireRedTeamID(id);
+      if(kind!=="agent" && kind!=="tool") throw new APITransportError("invalid_configuration", "Unsupported recommendation target");
+      const detail=requireAPIData(await client.GET(kind==="agent"?"/api/v1/agents/{id}":"/api/v1/tools/{id}",{params:{path:{id}},headers:scopeHeaders,signal}),decodeInventoryDetail);
+      if(detail.summary.id!==id || detail.summary.kind!==kind) invalidRedTeamResponse();
+      const capabilities=kind==="agent"?(await loadAllCursorPages(cursor=>Promise.resolve(client.GET("/api/v1/agents/{id}/capabilities",{params:{path:{id},query:{cursor,limit:100}},headers:scopeHeaders,signal})).then(result=>requireAPIData(result,decodeCapabilityPage)),{maximumItems:10_000,maximumPages:100})).items:[];
+      return {targetID:id,freshUntil:detail.summary.fresh_until,items:recommendRedTeamPacks(detail.summary,capabilities,Date.now())};
+    },
     async listDefinitions(signal) { return loadRootCursorPages((cursor) => client.GET("/api/v1/tests", { params: { query: { cursor, limit: 100 } }, headers: scopeHeaders, signal }), decodeTestDefinitionPage); },
     async getDefinition(id, signal) {
       requireRedTeamID(id);

@@ -210,5 +210,40 @@ Fresh `npm run verify` passed: 186 frontend files / 1,044 tests, contracts,
 tenancy/race checks, type-check, lint, build, source/compiled import checks,
 release rendering, and the 728-row ledger. The release-source gate passed.
 Independent review approved this bounded recovery slice and separately reran
-all 60 focused tests. Remote push/PR/main CI remain pending for this slice.
+all 60 focused tests. The slice is merged via PR 12: implementation
+`46c0551b8870cf33c0f656d1363c6ff7b4da4f17`, main
+`a17171f4df78be70fc34fe4d37b13dee913d5f9f`. Push CI 34297746379 and PR CI
+34297776266 passed. Main CI 34298409019 is in progress. The six medium push-scan
+matches were three synthetic product-ID fragments and three CI IDs; no high
+finding was reported, and the hook was not bypassed.
 This is not a Red Team worker/Promptfoo/S3 composition claim or an M5 promotion.
+
+## Capability recommendations in progress
+
+The production create flow now reads exact-target inventory detail and paged
+agent capabilities through scoped product APIs. It recommends only relevant
+reachable, nonblocked boundaries with explanations and evidence IDs. Names and
+tags do not establish capabilities; data-read access does not establish data
+classification. Direct tool targets use their own discovery evidence and never
+send a tool ID to an agent endpoint. Missing, stale, foreign, or unavailable
+authority does not produce a confirmed recommendation. Selection is explicit
+and remains separate from execution admission.
+
+Seven selector and six API tests passed after the missing production behavior
+was reproduced failing. The initial installed-Chrome combined proof passed
+agent identity-boundary and direct-tool recommendations, explicit selection,
+safety fields, and zero created definitions/runs. Review found that an open
+wizard could outlive its evidence expiry. A clock-advance test reproduced that
+failure; the API now retains target identity and expiry, the UI refreshes when
+evidence expires, and Apply rechecks both. Automatic expiry and late old-target
+response tests pass. Independent review reran all 30 selector/API/UI tests and
+approved this bounded slice. Fresh full verification passed: 188 frontend
+files / 1,062 tests, contracts, tenant/race checks, types, warning-free lint,
+build, exact source/compiled imports, release rendering, and all 728 ledger
+rows. The release-source gate passed. The latest fresh Chrome run passed the
+new recommendation journey and all prior lifecycle checks, including cleanup.
+A final lint-only retry-reference extraction was covered by full verification.
+Task-level review found the original M5-03 deliverable and verification covered;
+its ledger promotion waits for this change to ship with passing remote CI.
+M5-15 and worker/Promptfoo/S3 completion remain separate. No task promotion is
+claimed yet.

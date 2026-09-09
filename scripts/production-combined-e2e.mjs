@@ -533,6 +533,7 @@ try {
 	const redTeamState = await waitForBrowserText(browser.cdp, /No Red Team tests in this scope/);
 	assert.match(redTeamState, /No Red Team runs in this scope/);
 	console.log("combined E2E: tenant-scoped Red Team route loaded through isolated Security Agent API authority");
+	await exerciseRedTeamRecommendations(browser.cdp, dsn);
 
 	const hiddenRequestStart = productAPIRequests.length;
 	for (const hiddenPath of ["/reports", "/guardrails/dashboard", "/prompt-hardening"]) {
@@ -2216,6 +2217,33 @@ async function exerciseHomeDailyOperations(cdp, publicOrigin, dsn, approvalID, r
 	assert.equal(after.status, 200);
 	for (const field of ["high_risk_paths", "pending_approvals", "needs_human_runs"]) assert.equal(after.body[field], before.body[field], `unrelated sensor action silently cleared ${field}`);
 	console.log("combined E2E: Home daily-ops routing preserved explicit terminal and degraded authority");
+}
+
+async function exerciseRedTeamRecommendations(cdp, dsn) {
+  const principal="pid_10000004-0000-4000-8000-000000000004";
+  const organization="pid_10000001-0000-4000-8000-000000000001", workspace="pid_10000002-0000-4000-8000-000000000002", environment="pid_10000003-0000-4000-8000-000000000003";
+  const scope=`organization_id='${organization}' AND workspace_id='${workspace}' AND environment_id='${environment}'`;
+  const setPermission=async grant=>command(path.join(postgresBin,"psql"),[dsn,"-v","ON_ERROR_STOP=1","-c",`UPDATE zasp_authorized_scopes SET permissions=${grant?"permissions || '[\"run_tests\"]'::jsonb":"permissions - 'run_tests'"} WHERE principal_id='${principal}' AND ${scope}; UPDATE zasp_product_sessions SET permissions=${grant?"permissions || '[\"run_tests\"]'::jsonb":"permissions - 'run_tests'"} WHERE principal_id='${principal}' AND ${scope} AND revoked_at IS NULL;`]);
+  const original=(await command(path.join(postgresBin,"psql"),[dsn,"-At","-c",`SELECT permissions ? 'run_tests' FROM zasp_authorized_scopes WHERE principal_id='${principal}' AND ${scope};`])).stdout.trim();
+  assert.equal(original,"f","recommendation fixture permission ownership changed");
+  await setPermission(true);
+  try {
+    await reloadBrowser(cdp);await waitForBrowserText(cdp,/No Red Team tests in this scope/);
+    await clickBrowserText(cdp,"Create test");
+    await selectBrowserOption(cdp,"Fresh discovered target","Support agent");
+    const recommendations=await waitForBrowserText(cdp,/Discovered identity or administrative authority warrants authorization-boundary testing/);
+    assert.match(recommendations,/Safe environment/);assert.match(recommendations,/Credential class/);
+    await clickBrowserText(cdp,"Use recommended categories");
+    await waitForBrowserAction(cdp,`Array.from(document.querySelectorAll('label')).some(label=>label.textContent.trim()==='Authorization bypass' && label.querySelector('input')?.checked===true)`);
+    await selectBrowserOption(cdp,"Fresh discovered target","Automation repository");
+    await waitForBrowserText(cdp,/This freshly discovered tool is a direct tool-security test target/);
+    await clickBrowserText(cdp,"Use recommended categories");
+    await waitForBrowserAction(cdp,`Array.from(document.querySelectorAll('fieldset input:checked')).length===1 && Array.from(document.querySelectorAll('label')).some(label=>label.textContent.trim()==='Tool abuse' && label.querySelector('input')?.checked===true)`);
+    await clickBrowserText(cdp,"Cancel");
+    const counts=(await command(path.join(postgresBin,"psql"),[dsn,"-At","-c",`SELECT (SELECT count(*) FROM zasp_red_team_definitions WHERE ${scope}) || '|' || (SELECT count(*) FROM zasp_red_team_runs WHERE ${scope});`])).stdout.trim();
+    assert.equal(counts,"0|0","recommendation selection created execution authority");
+    console.log("combined E2E: discovered agent/tool recommendations, explanations, explicit selection and safety fields proven with zero queued authority");
+  } finally { await setPermission(false);await reloadBrowser(cdp);await waitForBrowserText(cdp,/No Red Team tests in this scope/); }
 }
 
 async function exerciseProductionAttackLabLifecycle(cdp, workerE2EBinary, postgresPort, dsn, publicOrigin) {
