@@ -162,6 +162,11 @@ The production projector is not connected to the console session event table;
 the UI lacks the required structured filters and paginated runtime timeline.
 The restoration sequence and evidence are tracked in
 `docs/internal/2026-09-09-m7-runtime-session-production-closure.md`.
+PR 23's runtime persistence foundation is merged as 7144e713; push, PR and main
+CI passed. Migration 41 summary/read APIs are being verified next. Their
+PostgreSQL concurrency, scoped HTTP and full Chrome/runtime tests pass, but
+this entry does not restore task credit before ship CI. The total remains
+531 production-available, 136 component-only and 61 external gates.
 
 ## Production-availability audit basis
 

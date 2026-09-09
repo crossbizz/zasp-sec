@@ -1840,7 +1840,7 @@ export type paths = {
             readonly query?: never;
             readonly header?: never;
             readonly path: {
-                readonly id: components["schemas"]["SessionID"];
+                readonly id: components["schemas"]["SessionInvestigationID"];
             };
             readonly cookie?: never;
         };
@@ -1860,7 +1860,7 @@ export type paths = {
             readonly query?: never;
             readonly header?: never;
             readonly path: {
-                readonly id: components["schemas"]["SessionID"];
+                readonly id: components["schemas"]["SessionInvestigationID"];
             };
             readonly cookie?: never;
         };
@@ -2588,6 +2588,14 @@ export type components = {
             readonly required: boolean;
             readonly type: string;
         };
+        readonly ConsoleSessionEventPage: {
+            readonly items: readonly components["schemas"]["SessionEvent"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly ConsoleSessionPage: {
+            readonly items: readonly components["schemas"]["Session"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
         /** @description Opaque canonical base64url cursor without padding. */
         readonly Cursor: string;
         readonly DataControls: {
@@ -3278,6 +3286,57 @@ export type components = {
         readonly RuntimeDecisionPage: {
             readonly items: readonly components["schemas"]["RuntimeDecision"][];
         };
+        /** @description Summary derived from committed correlated events. Unattributed is a collection, not an inferred session. A null agent means unknown or multiple agents; a null principal means unknown. Counts preserve per-event attribution confidence. */
+        readonly RuntimeSession: {
+            readonly agent_id: string | null;
+            readonly confidence_counts: {
+                readonly exact: number;
+                readonly probable: number;
+                readonly strong: number;
+                readonly unattributed: number;
+            };
+            readonly environment_id: components["schemas"]["ProductID"];
+            readonly event_count: number;
+            /** Format: date-time */
+            readonly first_event_at: string;
+            readonly id: components["schemas"]["RuntimeSessionID"];
+            /** @enum {string} */
+            readonly kind: "runtime" | "unattributed";
+            /** Format: date-time */
+            readonly last_event_at: string;
+            readonly principal_id: string | null;
+            /** Format: date-time */
+            readonly projected_at: string;
+            readonly workspace_id: components["schemas"]["ProductID"];
+        };
+        readonly RuntimeSessionEvent: {
+            /** @enum {string} */
+            readonly action: "invoke" | "exec" | "exit" | "read" | "write" | "connect" | "accept";
+            readonly agent_id: string | null;
+            /** Format: date-time */
+            readonly at: string;
+            /** @enum {string} */
+            readonly class: "tool" | "runtime" | "network" | "file";
+            /** @enum {string} */
+            readonly confidence: "exact" | "strong" | "probable" | "unattributed";
+            readonly evidence_id: components["schemas"]["ProductID"];
+            readonly id: components["schemas"]["ProductID"];
+            readonly label: string;
+            /** Format: date-time */
+            readonly projected_at: string;
+            readonly session_id: string | null;
+            /** @enum {string} */
+            readonly source: "otlp" | "tetragon";
+        };
+        readonly RuntimeSessionEventPage: {
+            readonly items: readonly components["schemas"]["RuntimeSessionEvent"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
+        readonly RuntimeSessionID: components["schemas"]["ProductID"] | "unattributed";
+        readonly RuntimeSessionPage: {
+            readonly items: readonly components["schemas"]["RuntimeSession"][];
+            readonly page_info: components["schemas"]["PageInfo"];
+        };
         readonly SafetyMetadata: {
             /** @enum {string} */
             readonly credential_class: "read_only" | "test_write";
@@ -3658,15 +3717,11 @@ export type components = {
             readonly session_id: components["schemas"]["SessionID"];
             readonly source: string;
         };
-        readonly SessionEventPage: {
-            readonly items: readonly components["schemas"]["SessionEvent"][];
-            readonly page_info: components["schemas"]["PageInfo"];
-        };
+        readonly SessionEventPage: components["schemas"]["ConsoleSessionEventPage"] | components["schemas"]["RuntimeSessionEventPage"];
         readonly SessionID: string;
-        readonly SessionPage: {
-            readonly items: readonly components["schemas"]["Session"][];
-            readonly page_info: components["schemas"]["PageInfo"];
-        };
+        /** @description A console login ID, a correlated runtime session ID, or the explicitly unattributed evidence collection. */
+        readonly SessionInvestigationID: components["schemas"]["SessionID"] | components["schemas"]["RuntimeSessionID"];
+        readonly SessionPage: components["schemas"]["ConsoleSessionPage"] | components["schemas"]["RuntimeSessionPage"];
         readonly SessionScope: {
             readonly environment_id: components["schemas"]["ProductID"];
             readonly label: string;
@@ -4003,6 +4058,8 @@ export type ConnectionStatus = components['schemas']['ConnectionStatus'];
 export type ConnectionTest = components['schemas']['ConnectionTest'];
 export type ConnectorManifest = components['schemas']['ConnectorManifest'];
 export type ConnectorSetupField = components['schemas']['ConnectorSetupField'];
+export type ConsoleSessionEventPage = components['schemas']['ConsoleSessionEventPage'];
+export type ConsoleSessionPage = components['schemas']['ConsoleSessionPage'];
 export type Cursor = components['schemas']['Cursor'];
 export type DataControls = components['schemas']['DataControls'];
 export type DataControlsInput = components['schemas']['DataControlsInput'];
@@ -4105,6 +4162,11 @@ export type RelationshipPage = components['schemas']['RelationshipPage'];
 export type RiskFactor = components['schemas']['RiskFactor'];
 export type RuntimeDecision = components['schemas']['RuntimeDecision'];
 export type RuntimeDecisionPage = components['schemas']['RuntimeDecisionPage'];
+export type RuntimeSession = components['schemas']['RuntimeSession'];
+export type RuntimeSessionEvent = components['schemas']['RuntimeSessionEvent'];
+export type RuntimeSessionEventPage = components['schemas']['RuntimeSessionEventPage'];
+export type RuntimeSessionId = components['schemas']['RuntimeSessionID'];
+export type RuntimeSessionPage = components['schemas']['RuntimeSessionPage'];
 export type SafetyMetadata = components['schemas']['SafetyMetadata'];
 export type ScimConnection = components['schemas']['SCIMConnection'];
 export type ScimConnectionCredential = components['schemas']['SCIMConnectionCredential'];
@@ -4158,6 +4220,7 @@ export type SessionCallbackResult = components['schemas']['SessionCallbackResult
 export type SessionEvent = components['schemas']['SessionEvent'];
 export type SessionEventPage = components['schemas']['SessionEventPage'];
 export type SessionId = components['schemas']['SessionID'];
+export type SessionInvestigationId = components['schemas']['SessionInvestigationID'];
 export type SessionPage = components['schemas']['SessionPage'];
 export type SessionScope = components['schemas']['SessionScope'];
 export type SessionScopePage = components['schemas']['SessionScopePage'];
@@ -8013,6 +8076,8 @@ export interface operations {
                 /** @description Opaque cursor returned by the preceding page. */
                 readonly cursor?: components["parameters"]["PageCursor"];
                 readonly from?: string;
+                /** @description Console login sessions by default; runtime selects committed runtime investigations, including the explicitly unattributed collection. Runtime principal filters are not supported yet. */
+                readonly kind?: "console" | "runtime";
                 /** @description Maximum number of records to return. */
                 readonly limit?: components["parameters"]["PageLimit"];
                 readonly principal_id?: components["schemas"]["ProductID"];
@@ -8042,20 +8107,20 @@ export interface operations {
             readonly query?: never;
             readonly header?: never;
             readonly path: {
-                readonly id: components["schemas"]["SessionID"];
+                readonly id: components["schemas"]["SessionInvestigationID"];
             };
             readonly cookie?: never;
         };
         readonly requestBody?: never;
         readonly responses: {
-            /** @description Authorized session. */
+            /** @description Authorized console session or runtime investigation. Only console sessions have a revocation version and ETag. */
             readonly 200: {
                 headers: {
                     readonly ETag: components["headers"]["WorkflowETag"];
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["Session"];
+                    readonly "application/json": components["schemas"]["Session"] | components["schemas"]["RuntimeSession"];
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
@@ -8099,7 +8164,7 @@ export interface operations {
             };
             readonly header?: never;
             readonly path: {
-                readonly id: components["schemas"]["SessionID"];
+                readonly id: components["schemas"]["SessionInvestigationID"];
             };
             readonly cookie?: never;
         };

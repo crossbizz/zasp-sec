@@ -2248,6 +2248,7 @@ paths:
           BrowserExpectedScope: []
       summary: List authorized projected sessions with structured filters
       parameters:
+        - { name: kind, in: query, required: false, description: 'Console login sessions by default; runtime selects committed runtime investigations, including the explicitly unattributed collection. Runtime principal filters are not supported yet.', schema: { type: string, enum: [console, runtime], default: console } }
         - { name: agent_id, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 128 } }
         - { name: principal_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
         - { name: from, in: query, required: false, schema: { type: string, format: date-time } }
@@ -2260,7 +2261,7 @@ paths:
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/sessions/{id}:
     parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/SessionID' } }
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/SessionInvestigationID' } }
     get:
       operationId: getSession
       security:
@@ -2268,7 +2269,7 @@ paths:
           BrowserExpectedScope: []
       summary: Get one authorized projected session
       responses:
-        '200': { description: Authorized session., headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+        '200': { description: 'Authorized console session or runtime investigation. Only console sessions have a revocation version and ETag.', headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }, content: { application/json: { schema: { oneOf: [ { $ref: '#/components/schemas/Session' }, { $ref: '#/components/schemas/RuntimeSession' } ] } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
     delete:
@@ -2278,6 +2279,7 @@ paths:
           BrowserExpectedScope: []
       summary: Atomically revoke one authorized session
       parameters:
+        - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/SessionID' } }
         - $ref: '#/components/parameters/CSRFToken'
         - $ref: '#/components/parameters/ResourceVersion'
       responses:
@@ -2286,7 +2288,7 @@ paths:
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/sessions/{id}/events:
     parameters:
-      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/SessionID' } }
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/SessionInvestigationID' } }
     get:
       operationId: listSessionEvents
       security:
@@ -3527,6 +3529,56 @@ components:
       properties:
         decision: { type: string, enum: [approved, rejected, cancelled] }
     SessionID: { type: string, minLength: 9, maxLength: 128, pattern: '^session-[a-z0-9][a-z0-9-]*$' }
+    SessionInvestigationID:
+      description: A console login ID, a correlated runtime session ID, or the explicitly unattributed evidence collection.
+      anyOf:
+        - { $ref: '#/components/schemas/SessionID' }
+        - { $ref: '#/components/schemas/RuntimeSessionID' }
+    RuntimeSessionID:
+      anyOf:
+        - { $ref: '#/components/schemas/ProductID' }
+        - { type: string, enum: [unattributed] }
+    RuntimeSession:
+      type: object
+      additionalProperties: false
+      description: 'Summary derived from committed correlated events. Unattributed is a collection, not an inferred session. A null agent means unknown or multiple agents; a null principal means unknown. Counts preserve per-event attribution confidence.'
+      required: [id, kind, workspace_id, environment_id, agent_id, principal_id, first_event_at, last_event_at, projected_at, event_count, confidence_counts]
+      properties:
+        id: { $ref: '#/components/schemas/RuntimeSessionID' }
+        kind: { type: string, enum: [runtime, unattributed] }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        agent_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
+        principal_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
+        first_event_at: { type: string, format: date-time }
+        last_event_at: { type: string, format: date-time }
+        projected_at: { type: string, format: date-time }
+        event_count: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        confidence_counts:
+          type: object
+          additionalProperties: false
+          required: [exact, strong, probable, unattributed]
+          properties:
+            exact: { type: integer, minimum: 0, maximum: 9007199254740991 }
+            strong: { type: integer, minimum: 0, maximum: 9007199254740991 }
+            probable: { type: integer, minimum: 0, maximum: 9007199254740991 }
+            unattributed: { type: integer, minimum: 0, maximum: 9007199254740991 }
+    RuntimeSessionEvent:
+      type: object
+      additionalProperties: false
+      required: [id, session_id, agent_id, class, action, label, evidence_id, source, confidence, at, projected_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        session_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
+        agent_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
+        class: { type: string, enum: [tool, runtime, network, file] }
+        action: { type: string, enum: [invoke, exec, exit, read, write, connect, accept] }
+        label: { type: string, minLength: 1, maxLength: 256 }
+        evidence_id: { $ref: '#/components/schemas/ProductID' }
+        source: { type: string, enum: [otlp, tetragon] }
+        confidence: { type: string, enum: [exact, strong, probable, unattributed] }
+        at: { type: string, format: date-time }
+        projected_at: { type: string, format: date-time }
     ComplianceExportID: { type: string, minLength: 8, maxLength: 128, pattern: '^export-[a-z0-9][a-z0-9-]*$' }
     SessionEvent:
       type: object
@@ -3556,8 +3608,12 @@ components:
         expires_at: { type: string, format: date-time }
         version: { type: integer, minimum: 1 }
         events: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/SessionEvent' } }
-    SessionPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Session' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
-    SessionEventPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SessionEvent' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
+    ConsoleSessionPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Session' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
+    ConsoleSessionEventPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SessionEvent' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
+    RuntimeSessionPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/RuntimeSession' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
+    RuntimeSessionEventPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/RuntimeSessionEvent' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
+    SessionPage: { anyOf: [ { $ref: '#/components/schemas/ConsoleSessionPage' }, { $ref: '#/components/schemas/RuntimeSessionPage' } ] }
+    SessionEventPage: { anyOf: [ { $ref: '#/components/schemas/ConsoleSessionEventPage' }, { $ref: '#/components/schemas/RuntimeSessionEventPage' } ] }
     ComplianceControl:
       type: object
       additionalProperties: false
