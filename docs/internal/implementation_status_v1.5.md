@@ -99,12 +99,15 @@ The UI recovery slice now passes independent review, 1,044 frontend tests,
 full local verification, release-source gates, and fresh Chrome committed-response
 loss/reload/scope-retry/cancellation proof. It retains principal-and-tenant-scoped
 requests, pins request scope, prevents duplicates, and denies stale writes.
-It is merged via PR 12 with both pre-merge CI runs passing; main CI is running.
+It is merged via PR 12 with both pre-merge CI runs and main CI passing.
 Capability-derived pack recommendations and their evidence-expiry boundary now
 pass independent review, all 1,062 frontend tests, full local verification,
 release-source gates, and fresh Chrome verification. M5-03 task-level acceptance
-is reviewed; its promotion waits for shipment and remote CI. No M5 task is
-promoted by these bounded slices yet.
+is reviewed. PR 13 merged with both pre-merge checks passing, but main CI found
+an existing test asserting URL normalization before its passive effect finished.
+The synchronization correction passes independent review and all 30 application
+tests. Promotion waits for the correction to ship and main CI to pass. No M5
+task is promoted by these bounded slices yet.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.

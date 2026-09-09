@@ -213,7 +213,7 @@ Independent review approved this bounded recovery slice and separately reran
 all 60 focused tests. The slice is merged via PR 12: implementation
 `46c0551b8870cf33c0f656d1363c6ff7b4da4f17`, main
 `a17171f4df78be70fc34fe4d37b13dee913d5f9f`. Push CI 34297746379 and PR CI
-34297776266 passed. Main CI 34298409019 is in progress. The six medium push-scan
+34297776266 and main CI 34298409019 passed. The six medium push-scan
 matches were three synthetic product-ID fragments and three CI IDs; no high
 finding was reported, and the hook was not bypassed.
 This is not a Red Team worker/Promptfoo/S3 composition claim or an M5 promotion.
@@ -247,3 +247,16 @@ Task-level review found the original M5-03 deliverable and verification covered;
 its ledger promotion waits for this change to ship with passing remote CI.
 M5-15 and worker/Promptfoo/S3 completion remain separate. No task promotion is
 claimed yet.
+
+PR 13 merged implementation `75e0838b2d234df6f02a432d93fdbf9110105dd4`
+as main `e573e987db1b3bb71613a9a4199947e0f5f218cb`. Push CI 34298883240
+and PR CI 34298942610 passed. Main CI 34299688370 failed one existing
+`ZaspApp.test.tsx` URL assertion: the heading rendered before the passive
+route-normalization effect replaced `/inventory/tools` with `/`. The test now
+awaits that exact URL assertion; it still requires zero product fetches and
+exactly one bootstrap request. No product code or authorization checks changed.
+Independent review approved the synchronization correction and independently
+reran all 30 application tests successfully. Fresh full `npm run verify` passed
+all 1,062 frontend tests, contracts, race/tenant checks, types, lint, build,
+source/compiled imports, release checks, and the 728-row ledger. M5-03 stays component-only until
+the correction ships and main verification passes.
