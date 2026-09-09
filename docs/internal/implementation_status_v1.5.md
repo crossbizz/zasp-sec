@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 531 |
-| Component-only | 136 |
+| Production-available | 535 |
+| Component-only | 132 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -163,10 +163,12 @@ the UI lacks the required structured filters and paginated runtime timeline.
 The restoration sequence and evidence are tracked in
 `docs/internal/2026-09-09-m7-runtime-session-production-closure.md`.
 PR 23's runtime persistence foundation is merged as 7144e713; push, PR and main
-CI passed. Migration 41 summary/read APIs are being verified next. Their
-PostgreSQL concurrency, scoped HTTP and full Chrome/runtime tests pass, but
-this entry does not restore task credit before ship CI. The total remains
-531 production-available, 136 component-only and 61 external gates.
+CI passed. PR 24 shipped migration 41 summaries and runtime read APIs as
+main 4bf800f4. Push CI 34391545741, PR CI 34391587105 and main CI 34392565900
+passed after independent original-task acceptance, PostgreSQL concurrency,
+scoped HTTP and full Chrome/runtime proof. M7-01 through M7-04 are restored.
+The total is 535 production-available, 132 component-only and 61 external gates.
+M7-05, M7-06 and M7-07a remain component-only pending their own acceptance.
 
 ## Production-availability audit basis
 
@@ -280,10 +282,10 @@ this entry does not restore task credit before ship CI. The total remains
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
-| M7 | 62 | 31 | 31 | 0 | 0 |
+| M7 | 62 | 35 | 27 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **531** | **136** | **61** | **0** |
+| **Total** | **728** | **535** | **132** | **61** | **0** |
 
 ## Prerequisite work
 

@@ -178,3 +178,61 @@ as individually eligible after shipping CI passes. This pending-ship entry
 does not yet restore their credit. M7-05, M7-06 and M7-07a remain component-only;
 all structured search fields and the runtime-session UI still require their
 own acceptance. The existing console-session UI remained runnable throughout.
+
+### Shipped acceptance
+
+PR 24 shipped implementation af31c6c9 and merged as main 4bf800f4 on September
+9, 2026. Push CI 34391545741, PR CI 34391587105 and main CI 34392565900 all
+passed. The previously conditional independent acceptance now restores exactly
+M7-01, M7-02, M7-03 and M7-04. Current authoritative totals are 535
+production-available, 132 component-only and 61 blocked/external, with all 728
+original IDs retained. Historical Complete/Blocked counts are unchanged.
+This is shipped source-path and composed local proof, not live cloud evidence.
+
+### Structured-search foundation, not M7-05 acceptance
+
+The next slice carries bounded observed metadata through the production sensor
+normalizer, ingestion and canonical archive. Tetragon supplies process, file and
+network-resource digests only. OTLP may carry observed principal/credential
+product references, domain/resource digests and allow/monitor/block decisions.
+These are observations, not authenticated ownership or correlation assertions.
+No credential secret is accepted. Hashes reduce retained raw content but aren't
+encryption or anonymization. Empty metadata preserves legacy archive bytes;
+metadata-only mode still removes content payloads.
+
+Source regression tests first failed when supported metadata was rejected,
+then passed after the bounded schema was added. A separate valid process-exit
+fixture exposed the existing transport check rejecting content-free exits.
+The check now permits empty content while retaining source/class/action, size,
+time, identity and metadata validation. The reviewer accepted this correction.
+
+The new sessionsearch component emits only fixed, tenant-scoped exact-term
+filters and a bounded investigation-ID composite aggregation. Process/file/
+domain/resource selectors use the same domain-separated digests as ingestion.
+Raw query/DSL, invalid references, time bounds and unbounded pagination fail
+closed. All requested filters match the same event occurrence.
+
+Search documents are derived by checking a committed receipt digest, decoding
+its exact archive and reproducing the original projection. They retain unknown
+agent/session attribution, expose absent legacy selectors honestly and never
+index provider content. Independent review found a cross-batch replay conflict
+in the proposed scope/event key. A new regression reproduced it before changing
+the key to scope/batch/generation/event occurrence identity. Identical receipt
+replay remains byte-identical; valid cross-batch occurrences retain separate
+provenance. OpenSearch doc_count must not become a canonical session event count.
+Session counts and read authorization remain PostgreSQL-owned.
+
+This does not modify the existing immutable runtime index or supply a production
+search endpoint. The new index/driver, durable indexing/backfill authority,
+worker and API composition, search freshness, and runtime UI are still pending.
+M7-05, M7-06 and M7-07a retain component-only status. The foundation race suites
+and full verification passed, including 1,108 frontend tests, type/lint,
+release checks, production build/import checks and all 728 ledger entries.
+
+The fresh Chrome/runtime proof also passed: owned PostgreSQL, SQS, S3 and
+OpenSearch, worker-written session reads, scoped discovery, Red Team, Attack
+Lab, administration, restart/reload and clean-console checks. All owned
+resources were cleaned up. This preserves the stated local-fixture boundaries.
+The replay correction passed independent re-review and race tests; an added
+semantic fixture proves that observed principal/credential/decision selectors
+do not upgrade a Probable correlation to an attributed session.

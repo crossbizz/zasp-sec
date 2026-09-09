@@ -16,6 +16,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/observability"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimemetadata"
 	"github.com/zasp-ai/zasp-sec/services/platform/securityevent"
 )
 
@@ -31,45 +32,48 @@ var (
 const timestampLayout = "2006-01-02T15:04:05.000Z"
 
 type Record struct {
-	ID            domain.ProductID
-	Scope         domain.Scope
-	Event         securityevent.SecurityEvent
-	Source        string
-	SourceEventID string
-	Class         string
-	Action        string
-	WorkloadID    string
-	AgentID       domain.ProductID
-	SessionID     domain.ProductID
-	TaskID        string
-	ToolID        string
-	SandboxID     string
-	ContainerID   string
-	CgroupID      string
-	ProcessID     string
-	TraceID       string
-	SpanID        string
-	EventTime     time.Time
-	Content       map[string]string
+	SearchMetadata runtimemetadata.Fields
+	ID             domain.ProductID
+	Scope          domain.Scope
+	Event          securityevent.SecurityEvent
+	Source         string
+	SourceEventID  string
+	Class          string
+	Action         string
+	WorkloadID     string
+	AgentID        domain.ProductID
+	SessionID      domain.ProductID
+	TaskID         string
+	ToolID         string
+	SandboxID      string
+	ContainerID    string
+	CgroupID       string
+	ProcessID      string
+	TraceID        string
+	SpanID         string
+	EventTime      time.Time
+	Content        map[string]string
 }
 
 type TetragonInput struct {
-	Scope         domain.Scope
-	SourceEventID string
-	Kind          string
-	Action        string
-	WorkloadID    string
-	EventTime     time.Time
-	EvidenceID    domain.ProductID
-	Content       map[string]string
+	SearchMetadata runtimemetadata.Fields
+	Scope          domain.Scope
+	SourceEventID  string
+	Kind           string
+	Action         string
+	WorkloadID     string
+	EventTime      time.Time
+	EvidenceID     domain.ProductID
+	Content        map[string]string
 }
 
 type OTLPInput struct {
-	Scope      domain.Scope
-	EventTime  time.Time
-	EvidenceID domain.ProductID
-	Attributes map[string]string
-	Content    map[string]string
+	SearchMetadata runtimemetadata.Fields
+	Scope          domain.Scope
+	EventTime      time.Time
+	EvidenceID     domain.ProductID
+	Attributes     map[string]string
+	Content        map[string]string
 }
 
 func AdaptTetragon(input TetragonInput) (Record, error) {
@@ -79,17 +83,22 @@ func AdaptTetragon(input TetragonInput) (Record, error) {
 		"network": {"connect": true, "accept": true},
 	}
 	if input.Scope.Validate() != nil || !allowed[input.Kind][input.Action] || !bounded(input.SourceEventID, 256) ||
-		!bounded(input.WorkloadID, 256) || !canonicalTime(input.EventTime) || input.EvidenceID.IsZero() || !validContent(input.Content) {
+		!bounded(input.WorkloadID, 256) || !canonicalTime(input.EventTime) || input.EvidenceID.IsZero() || !validContent(input.Content) || !input.SearchMetadata.Valid("tetragon") {
 		return Record{}, ErrInput
 	}
 	trace := digestHex("trace\x00" + input.SourceEventID)[:32]
 	span := digestHex("span\x00" + input.SourceEventID)[:16]
-	return buildRecord(input.Scope, "tetragon", input.SourceEventID, input.Kind, input.Action, input.WorkloadID,
+	record, err := buildRecord(input.Scope, "tetragon", input.SourceEventID, input.Kind, input.Action, input.WorkloadID,
 		domain.ProductID{}, domain.ProductID{}, "", "", "", "", "", "", trace, span, input.EventTime, input.EvidenceID, input.Content)
+	if err != nil {
+		return Record{}, err
+	}
+	record.SearchMetadata = input.SearchMetadata
+	return record, err
 }
 
 func AdaptOTLP(input OTLPInput) (Record, error) {
-	if input.Scope.Validate() != nil || !canonicalTime(input.EventTime) || input.EvidenceID.IsZero() || !validContent(input.Content) || len(input.Attributes) != 10 {
+	if input.Scope.Validate() != nil || !canonicalTime(input.EventTime) || input.EvidenceID.IsZero() || !validContent(input.Content) || len(input.Attributes) != 10 || !input.SearchMetadata.Valid("otlp") {
 		return Record{}, ErrInput
 	}
 	expected := []string{"event.id", "event.class", "event.action", "agent.id", "session.id", "task.id", "tool.id", "sandbox.id", "trace.id", "span.id"}
@@ -104,9 +113,14 @@ func AdaptOTLP(input OTLPInput) (Record, error) {
 		!bounded(input.Attributes["event.id"], 256) || !bounded(input.Attributes["task.id"], 256) || !bounded(input.Attributes["tool.id"], 256) || !bounded(input.Attributes["sandbox.id"], 256) {
 		return Record{}, ErrInput
 	}
-	return buildRecord(input.Scope, "otlp", input.Attributes["event.id"], "tool", "invoke", "", agentID, sessionID,
+	record, err := buildRecord(input.Scope, "otlp", input.Attributes["event.id"], "tool", "invoke", "", agentID, sessionID,
 		input.Attributes["task.id"], input.Attributes["tool.id"], input.Attributes["sandbox.id"], "", "", "",
 		input.Attributes["trace.id"], input.Attributes["span.id"], input.EventTime, input.EvidenceID, input.Content)
+	if err != nil {
+		return Record{}, err
+	}
+	record.SearchMetadata = input.SearchMetadata
+	return record, err
 }
 
 func buildRecord(scope domain.Scope, source, sourceEventID, class, action, workload string, agentID, sessionID domain.ProductID,
@@ -281,25 +295,26 @@ func compress(payload []byte) ([]byte, error) {
 }
 
 type wireRecord struct {
-	ID            string            `json:"id"`
-	Source        string            `json:"source"`
-	SourceEventID string            `json:"source_event_id"`
-	Class         string            `json:"class"`
-	Action        string            `json:"action"`
-	WorkloadID    string            `json:"workload_id,omitempty"`
-	AgentID       string            `json:"agent_id,omitempty"`
-	SessionID     string            `json:"session_id,omitempty"`
-	TaskID        string            `json:"task_id,omitempty"`
-	ToolID        string            `json:"tool_id,omitempty"`
-	SandboxID     string            `json:"sandbox_id,omitempty"`
-	TraceID       string            `json:"trace_id"`
-	SpanID        string            `json:"span_id"`
-	EventTime     string            `json:"event_time"`
-	Content       map[string]string `json:"content"`
+	SearchMetadata runtimemetadata.Fields `json:"search_metadata,omitzero"`
+	ID             string                 `json:"id"`
+	Source         string                 `json:"source"`
+	SourceEventID  string                 `json:"source_event_id"`
+	Class          string                 `json:"class"`
+	Action         string                 `json:"action"`
+	WorkloadID     string                 `json:"workload_id,omitempty"`
+	AgentID        string                 `json:"agent_id,omitempty"`
+	SessionID      string                 `json:"session_id,omitempty"`
+	TaskID         string                 `json:"task_id,omitempty"`
+	ToolID         string                 `json:"tool_id,omitempty"`
+	SandboxID      string                 `json:"sandbox_id,omitempty"`
+	TraceID        string                 `json:"trace_id"`
+	SpanID         string                 `json:"span_id"`
+	EventTime      string                 `json:"event_time"`
+	Content        map[string]string      `json:"content"`
 }
 
 func toWire(record Record) wireRecord {
-	return wireRecord{ID: record.ID.String(), Source: record.Source, SourceEventID: record.SourceEventID, Class: record.Class, Action: record.Action,
+	return wireRecord{SearchMetadata: record.SearchMetadata, ID: record.ID.String(), Source: record.Source, SourceEventID: record.SourceEventID, Class: record.Class, Action: record.Action,
 		WorkloadID: record.WorkloadID, AgentID: record.AgentID.String(), SessionID: record.SessionID.String(), TaskID: record.TaskID, ToolID: record.ToolID,
 		SandboxID: record.SandboxID, TraceID: record.TraceID, SpanID: record.SpanID, EventTime: record.EventTime.Format(timestampLayout), Content: cloneContent(record.Content)}
 }
@@ -530,7 +545,7 @@ func validRecord(record Record) bool {
 
 func validRecordEnvelope(record Record) bool {
 	if record.ID.IsZero() || record.Scope.Validate() != nil || record.Event.Validate() != nil || !canonicalTime(record.EventTime) ||
-		!bounded(record.SourceEventID, 256) || !validContent(record.Content) || record.Event.Time != record.EventTime || record.Event.Scope != record.Scope {
+		!bounded(record.SourceEventID, 256) || !validContent(record.Content) || !record.SearchMetadata.Valid(record.Source) || record.Event.Time != record.EventTime || record.Event.Scope != record.Scope {
 		return false
 	}
 	expectedSource := securityevent.SourceOTLP

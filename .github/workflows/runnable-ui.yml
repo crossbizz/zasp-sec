@@ -47,6 +47,7 @@ jobs:
         run: |
           test -x "$(pg_config --bindir)/initdb"
           go test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent
+          go test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...
           go test -C services/platform -race -count=1 ./apiserver -run '^TestRuntimeSession'
       - name: Verify bounded Attack Lab network enforcement
         run: |

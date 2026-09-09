@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimemetadata"
 )
 
 const maximumIngestBytes = 1024 * 1024
@@ -143,14 +144,15 @@ type ingestInput struct {
 }
 
 type ingestEvent struct {
-	EventID    string            `json:"event_id"`
-	Class      string            `json:"class"`
-	Action     string            `json:"action"`
-	WorkloadID string            `json:"workload_id"`
-	EventTime  string            `json:"event_time"`
-	EvidenceID string            `json:"evidence_id"`
-	Attributes map[string]string `json:"attributes,omitempty"`
-	Content    map[string]string `json:"content,omitempty"`
+	SearchMetadata runtimemetadata.Fields `json:"search_metadata,omitzero"`
+	EventID        string                 `json:"event_id"`
+	Class          string                 `json:"class"`
+	Action         string                 `json:"action"`
+	WorkloadID     string                 `json:"workload_id"`
+	EventTime      string                 `json:"event_time"`
+	EvidenceID     string                 `json:"evidence_id"`
+	Attributes     map[string]string      `json:"attributes,omitempty"`
+	Content        map[string]string      `json:"content,omitempty"`
 }
 
 func (event ingestEvent) toRecord(scope domain.Scope, source string) (Record, error) {
@@ -163,12 +165,12 @@ func (event ingestEvent) toRecord(scope domain.Scope, source string) (Record, er
 		if len(event.Attributes) != 0 {
 			return Record{}, ErrIngest
 		}
-		return AdaptTetragon(TetragonInput{Scope: scope, SourceEventID: event.EventID, Kind: event.Class, Action: event.Action, WorkloadID: event.WorkloadID, EventTime: when, EvidenceID: evidenceID, Content: event.Content})
+		return AdaptTetragon(TetragonInput{SearchMetadata: event.SearchMetadata, Scope: scope, SourceEventID: event.EventID, Kind: event.Class, Action: event.Action, WorkloadID: event.WorkloadID, EventTime: when, EvidenceID: evidenceID, Content: event.Content})
 	}
 	if event.EventID != "" || event.Class != "" || event.Action != "" || event.WorkloadID != "" {
 		return Record{}, ErrIngest
 	}
-	return AdaptOTLP(OTLPInput{Scope: scope, EventTime: when, EvidenceID: evidenceID, Attributes: event.Attributes, Content: event.Content})
+	return AdaptOTLP(OTLPInput{SearchMetadata: event.SearchMetadata, Scope: scope, EventTime: when, EvidenceID: evidenceID, Attributes: event.Attributes, Content: event.Content})
 }
 
 func scopeFromHeaders(request *http.Request) (domain.Scope, error) {
