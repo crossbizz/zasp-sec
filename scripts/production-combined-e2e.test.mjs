@@ -203,6 +203,13 @@ test("owned cleanup is idempotent", async () => {
 	}
 });
 
+test("PostgreSQL tool discovery does not depend on a macOS installation path", async () => {
+  const source=await readFile(new URL("./production-combined-e2e.mjs",import.meta.url),"utf8");
+  assert.ok(/execFileSync\("pg_config", \["--bindir"\]/.test(source));
+  assert.ok(/path\.isAbsolute\(postgresBin\)/.test(source));
+  assert.ok(!/const postgresBin = "\/opt\/homebrew/.test(source));
+});
+
 test("combined production E2E removes owned processes and temp root on SIGTERM", { timeout: 60_000 }, async () => {
   const before = new Set((await readdir(os.tmpdir())).filter((value) => value.startsWith("zasp-production-e2e-")));
   const child = spawn(process.execPath, [fileURLToPath(new URL("./production-combined-e2e.mjs", import.meta.url))], { stdio: ["ignore", "pipe", "pipe"] });

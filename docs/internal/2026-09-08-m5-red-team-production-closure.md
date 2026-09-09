@@ -344,3 +344,26 @@ The release-source gate passed. The focused Node/runtime/ledger suite passed
 interruption test separately executed and passed as recorded above. Latest
 Linux cancellation and completion-race subprocess tests passed three repeated
 executions in the pinned image. Remote push/PR/main CI remains to be recorded.
+
+PR 15 push CI 34302662350 passed full application verification, then its new
+regression step exposed a harness portability defect: the ordinary SIGTERM
+test tried `/opt/homebrew/bin/initdb` on Linux. PostgreSQL tools now come from
+bounded `pg_config --bindir` discovery, validated before temporary resources are
+created. The source regression and actual local SIGTERM cleanup passed, and
+independent review approved the fix. This changes PostgreSQL discovery only;
+the full Chrome harness still requires the documented local browser setup.
+
+The original M5-05 through M5-12 handler acceptance gaps now have one explicit
+matrix covering all eight operations. Each case exercises the production
+handler plus PostgresRepository with only the SQL transport replaced. Browser
+and PAT cases assert exact successful JSON/status, tenant-scoped SQL operation,
+ETag, audit and receipt boundaries, plus exact stable product-error JSON with
+no mutation authority. The matrix passed under the Go race detector and an
+independent reviewer reran it and approved each task separately. It is now a
+required CI command. This is not a live database or middleware authentication
+proof. Task promotions wait for the tests to ship with passing verification.
+Fresh full verification after the portability correction passed, including
+1,063 frontend tests and the production build. The exact latest CI command and
+workflow contract also passed locally. The first push scan's 20 medium matches
+were inspected: synthetic IDs/DSNs, CI IDs, and explicit local Docker/Kubernetes
+hostnames; there were no high findings and no scanner bypass.

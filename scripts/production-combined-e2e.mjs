@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createHash, createHmac, generateKeyPairSync } from "node:crypto";
 import { once } from "node:events";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -17,7 +17,8 @@ import { createRedTeamRuntimeProof } from "./red-team-runtime-proof.mjs";
 const FIXED_NODE_VERSION = "v22.23.1";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const platform = path.join(root, "services", "platform");
-const postgresBin = "/opt/homebrew/bin";
+const postgresBin = execFileSync("pg_config", ["--bindir"], { encoding: "utf8", timeout: 5_000, maxBuffer: 4_096 }).trim();
+assert.ok(path.isAbsolute(postgresBin) && !/[\r\n\0]/.test(postgresBin), "PostgreSQL binary directory rejected");
 const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const productHostname = "zasp.production-e2e.test";
 const recoveryHostname = "zasp.production-e2e.localhost";
