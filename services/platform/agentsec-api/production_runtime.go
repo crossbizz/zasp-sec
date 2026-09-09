@@ -114,7 +114,17 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 		}
 	}
 	tracedProvider := &tracedCallbackProvider{next: provider, metrics: metrics, exporter: exporter}
-	repository, err := apiserver.NewPostgresRepository(tracedDatabase)
+	policyHistory, err := newProductionPolicyHistory(config)
+	if err != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	searchResourcesOwned := true
+	defer func() {
+		if searchResourcesOwned {
+			_ = policyHistory.Close()
+		}
+	}()
+	repository, err := apiserver.NewPostgresRepositoryWithRuntimeSessionSearch(tracedDatabase, policyHistory.sessionSearch)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -293,11 +303,8 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	policyHistory, err := newProductionPolicyHistory(config)
-	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
-	}
 	connectorResources = append(connectorResources, policyHistory)
+	searchResourcesOwned = false // The existing connector-resource cleanup now owns it.
 	policyDecisions, err := apiserver.NewPolicyDecisionRepository(tracedDatabase)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable

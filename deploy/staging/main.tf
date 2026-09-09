@@ -1026,12 +1026,17 @@ resource "aws_iam_role_policy" "api_connectors" {
         Resource = [
           "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_mapping",
           "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_doc/_zasp_schema_v1",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_mapping",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1",
         ]
       },
       {
-        Effect   = "Allow"
-        Action   = ["es:ESHttpPost"]
-        Resource = "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_search"
+        Effect = "Allow"
+        Action = ["es:ESHttpPost"]
+        Resource = [
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_search",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_search",
+        ]
       },
       {
         Effect   = "Allow"

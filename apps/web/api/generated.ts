@@ -3336,6 +3336,24 @@ export type components = {
         readonly RuntimeSessionPage: {
             readonly items: readonly components["schemas"]["RuntimeSession"][];
             readonly page_info: components["schemas"]["PageInfo"];
+            readonly search?: components["schemas"]["RuntimeSessionSearchStatus"];
+        };
+        /** @description Durable scoped indexing checkpoints, checked after current-principal authorization. Current means no known pending or quarantined batches, not OpenSearch health, an atomic search snapshot, full telemetry coverage, or complete selector metadata. Capped counters are lower bounds. Search provider failures return an error, never an empty successful page. */
+        readonly RuntimeSessionSearchStatus: {
+            /** Format: date-time */
+            readonly checked_at: string;
+            /** Format: date-time */
+            readonly last_indexed_at: string | null;
+            /** Format: date-time */
+            readonly oldest_pending_at: string | null;
+            readonly pending_batches: number;
+            readonly pending_batches_capped: boolean;
+            readonly quarantined_batches: number;
+            readonly quarantined_batches_capped: boolean;
+            /** @enum {string} */
+            readonly selector_coverage: "observed_only";
+            /** @enum {string} */
+            readonly state: "empty" | "catching_up" | "blocked" | "current";
         };
         readonly SafetyMetadata: {
             /** @enum {string} */
@@ -4167,6 +4185,7 @@ export type RuntimeSessionEvent = components['schemas']['RuntimeSessionEvent'];
 export type RuntimeSessionEventPage = components['schemas']['RuntimeSessionEventPage'];
 export type RuntimeSessionId = components['schemas']['RuntimeSessionID'];
 export type RuntimeSessionPage = components['schemas']['RuntimeSessionPage'];
+export type RuntimeSessionSearchStatus = components['schemas']['RuntimeSessionSearchStatus'];
 export type SafetyMetadata = components['schemas']['SafetyMetadata'];
 export type ScimConnection = components['schemas']['SCIMConnection'];
 export type ScimConnectionCredential = components['schemas']['SCIMConnectionCredential'];
@@ -8073,15 +8092,29 @@ export interface operations {
         readonly parameters: {
             readonly query?: {
                 readonly agent_id?: string;
+                /** @description Runtime only. Observed credential reference, never secret material. */
+                readonly credential_id?: components["schemas"]["ProductID"];
                 /** @description Opaque cursor returned by the preceding page. */
                 readonly cursor?: components["parameters"]["PageCursor"];
+                /** @description Runtime only. Observed policy decision. */
+                readonly decision?: "allow" | "monitor" | "block";
+                /** @description Runtime only. Normalized lowercase ASCII domain, hashed before search. */
+                readonly domain?: string;
+                /** @description Runtime only. Exact observed file selector, hashed before search. */
+                readonly file?: string;
                 readonly from?: string;
-                /** @description Console login sessions by default; runtime selects committed runtime investigations, including the explicitly unattributed collection. Runtime principal filters are not supported yet. */
+                /** @description Console login sessions by default. Runtime searches committed runtime investigations, including the explicitly unattributed collection. All supplied runtime selectors must match the same observed event; missing metadata does not match. Results contain whole-investigation canonical counts, not matching-event counts. Pagination is scoped and principal-bound, not a snapshot. Arbitrary query strings and OpenSearch DSL are rejected. */
                 readonly kind?: "console" | "runtime";
                 /** @description Maximum number of records to return. */
                 readonly limit?: components["parameters"]["PageLimit"];
                 readonly principal_id?: components["schemas"]["ProductID"];
+                /** @description Runtime only. Exact observed process selector, hashed before search. */
+                readonly process?: string;
+                /** @description Runtime only. Exact observed resource selector, hashed before search. */
+                readonly resource?: string;
                 readonly to?: string;
+                /** @description Runtime only. Exact observed tool identifier. */
+                readonly tool?: string;
             };
             readonly header?: never;
             readonly path?: never;

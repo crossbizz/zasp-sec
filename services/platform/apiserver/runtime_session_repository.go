@@ -20,6 +20,16 @@ func (repository *PostgresRepository) readRuntimeSession(ctx context.Context, id
 	args := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String()}
 	switch operation {
 	case "listSessions":
+		if repository.runtimeSessionSearch != nil {
+			return repository.searchRuntimeSessions(ctx, identity, parameters)
+		}
+		for key := range parameters {
+			switch key {
+			case "kind", "limit", "cursor_binding", "after_id", "after_parent_id", "after_time", "agent_id", "principal_id", "from", "to":
+			default:
+				return nil, ErrRepositoryOperation
+			}
+		}
 		if parameters["kind"] != "runtime" || parameters["principal_id"] != "" || parameters["agent_id"] != "" && !validAdministrationProductID(parameters["agent_id"]) {
 			return nil, ErrRepositoryOperation
 		}

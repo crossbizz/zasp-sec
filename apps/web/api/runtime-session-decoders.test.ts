@@ -8,6 +8,25 @@ const last = "2026-09-09T10:00:01Z";
 const summary = { id, kind: "runtime", workspace_id: id, environment_id: id, agent_id: agent, principal_id: null, first_event_at: first, last_event_at: last, projected_at: last, event_count: 2, confidence_counts: { exact: 1, strong: 1, probable: 0, unattributed: 0 } };
 const event = { id, session_id: id, agent_id: agent, class: "runtime", action: "exec", label: "Process executed", evidence_id: id, source: "tetragon", confidence: "exact", at: first, projected_at: last };
 const page = (items: unknown[]) => ({ items, page_info: { next_cursor: null, has_more: false } });
+const search = { state: "current", pending_batches: 0, pending_batches_capped: false, quarantined_batches: 0, quarantined_batches_capped: false, last_indexed_at: first, oldest_pending_at: null, checked_at: last, selector_coverage: "observed_only" };
+
+describe("runtime session search checkpoint boundary", () => {
+  it("preserves checkpoint status for results and empty matches", () => {
+    for (const items of [[], [summary]]) expect(decodeRuntimeSessionPage({ ...page(items), search })).toEqual({ ...page(items), search });
+    const backlog = { ...search, state: "catching_up", pending_batches: 1000, pending_batches_capped: true, oldest_pending_at: first };
+    expect(decodeRuntimeSessionPage({ ...page([]), search: backlog })).toEqual({ ...page([]), search: backlog });
+  });
+  it.each([
+    null, { ...search, state: "healthy" }, { ...search, pending_batches: 1 },
+    { ...search, pending_batches_capped: true }, { ...search, pending_batches_capped: null },
+    { ...search, pending_batches: 1001 }, { ...search, pending_batches: -1 },
+    { ...search, last_indexed_at: null }, { ...search, last_indexed_at: "2026-09-10T00:00:00Z" },
+    { ...search, oldest_pending_at: first }, { ...search, selector_coverage: "complete" },
+    { ...search, checked_at: null }, { ...search, secret: "not-allowed" },
+  ])("rejects invalid or overstated checkpoint status %j", (status) => {
+    expect(() => decodeRuntimeSessionPage({ ...page([]), search: status })).toThrow("schema mismatch");
+  });
+});
 
 describe("runtime investigation response boundary", () => {
   it("accepts durable summaries, multiple-agent uncertainty and explicit unknown collections", () => {

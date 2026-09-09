@@ -391,3 +391,65 @@ The release-source gate passed. Terraform format/validate and an offline plan
 passed without apply or live IAM attestation. Staged secret scanning found no
 secrets; three privacy-scanner matches were verified CI run IDs. Shipping CI is
 pending. M7-05, M7-06 and M7-07a remain component-only.
+
+PR 27 shipped f622283f as main 885d0ff0. Push CI 34415255545, PR CI 34415268146
+and main CI 34416118644 passed. The ledger remains 535 production-available,
+132 component-only and 61 external gates.
+
+### Authorized structured-search API, implementation in progress
+
+Migration 43 adds scoped, current-principal search preflight and batched canonical
+hydration without direct API table grants. Backlog queries use three partial
+scope indexes, bounded 1,001-row probes with explicit capped counters, and one
+newest checkpoint lookup. Empty candidates still require fresh authorization and
+return backlog/quarantine state. Missing candidates fail instead of being silently
+dropped from pagination. Source summaries own event counts and unknown identity.
+The migration retains canonical evidence and indexing work on downgrade.
+
+The real PostgreSQL foundation test passed in 5.291 seconds, and independent
+review reran it in 4.917 seconds. Release CLI and migration race suites passed
+after registering version 43. API repository tests cover preflight denial,
+revocation during search, empty-result reauthorization, fixed provider failures,
+scope/ID/count drift, and unsupported filters before I/O. Null capped/confidence
+fields first reproduced false acceptance and now fail validation.
+
+Checkpoint state is not search-provider health, unseen-event completeness,
+complete selector metadata, or a consistent cross-store snapshot. The production
+API now composes the dedicated index with current-principal preflight and
+canonical hydration. API IAM adds only fixed session mapping/marker GET and
+search POST resources. It receives no indexing or schema-mutation permission.
+The OpenAPI contract and generated client publish all ten structured selectors
+and optional, strictly decoded checkpoint status. The runtime list response is
+not cached. Its opaque cursor binds the principal, scope and complete query.
+
+Independent review found a no-index compatibility path that silently ignored
+new selectors. Nine regression cases reproduced unfiltered success before the
+fix. That fallback now rejects unrecognized selector keys before database I/O.
+The focused repository race suite passed in 2.014 seconds, including malformed
+candidate pages and authorized empty results that retain checkpoint status.
+
+The expanded real PostgreSQL test passed in 6.107 seconds. It proves schema 43
+API startup, unknown-44 denial, 101-candidate hydration versus 102 rejection,
+and exact/capped counts at 1,000/1,001 for both pending and quarantined work.
+Boundary data is explicitly synthetic and rolled back, with constraints and
+triggers intact. It is not archive, worker or provider acceptance evidence.
+The generated-client decoder selection passed 39 tests and the OpenAPI identity
+contracts passed four. Full verification passed 191 files / 1,128 frontend
+tests, type-checking, lint, release contracts, production build/import checks
+and all 728 ledger rows.
+
+Terraform formatting, validation and the offline plan passed without apply.
+The composed browser harness now routes only the three fixed session-read
+endpoints to its owned real OpenSearch and checks worker-written matching,
+canonical counts, missing metadata, checkpoint status and provider failure.
+The fresh full Chrome/runtime run passed those checks plus discovery,
+administration, runtime security, Red Team, Attack Lab, restart/reload and
+tenant denial. Owned services were cleaned up. The release-source gate passed.
+Independent re-review reran focused races in 7.342 seconds and found no remaining
+blocker. It assessed the exact original M7-05 deliverable and verification
+criterion as satisfied, conditional on final verification and shipping/main CI.
+The full API race suite passed in 299.208 seconds. Final harness/release/ledger
+contracts passed 75 tests, with two explicitly gated cleanup tests skipped.
+Staged secret scanning passed; three privacy findings were verified CI run IDs,
+not phone numbers. Shipping CI is pending. M7-05, M7-06 and M7-07a receive no new
+production credit yet; the UI work is next.

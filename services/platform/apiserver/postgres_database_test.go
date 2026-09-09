@@ -35,7 +35,7 @@ func TestPostgresSchemaReadinessRequiresExactWorkflowRelease(t *testing.T) {
 	if !strings.Contains(postgresTypedInventorySchemaVersionSQL, "release.version = 14") || !strings.Contains(postgresTypedInventorySchemaVersionSQL, "release.name = 'typed_inventory_cutover'") || !strings.Contains(postgresTypedInventorySchemaVersionSQL, "zasp_inventory_readiness($1, $2)") {
 		t.Fatalf("v14 schema readiness query does not require typed inventory readiness: %s", postgresTypedInventorySchemaVersionSQL)
 	}
-	if !strings.Contains(postgresProductionRecoverySchemaVersionSQL, "release.version = 27") || !strings.Contains(postgresProductionRecoverySchemaVersionSQL, "release.name = 'production_recovery'") || !strings.Contains(postgresProductionRecoverySchemaVersionSQL, "zasp_recovery_execution_readiness($1, $2)") || !strings.Contains(postgresProductionRecoverySchemaVersionSQL, "newer.version > 42") || strings.Contains(postgresProductionRecoverySchemaVersionSQL, "newer.version > 41") {
+	if !strings.Contains(postgresProductionRecoverySchemaVersionSQL, "release.version = 27") || !strings.Contains(postgresProductionRecoverySchemaVersionSQL, "release.name = 'production_recovery'") || !strings.Contains(postgresProductionRecoverySchemaVersionSQL, "zasp_recovery_execution_readiness($1, $2)") || !strings.Contains(postgresProductionRecoverySchemaVersionSQL, "newer.version > 43") || strings.Contains(postgresProductionRecoverySchemaVersionSQL, "newer.version > 42") {
 		t.Fatalf("v27 schema readiness query does not require production recovery readiness: %s", postgresProductionRecoverySchemaVersionSQL)
 	}
 	for _, release := range []struct{ statement, version, name, readiness string }{

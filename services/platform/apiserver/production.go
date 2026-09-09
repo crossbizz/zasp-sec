@@ -499,6 +499,9 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 			for _, key := range []string{"agent_id", "principal_id", "from", "to"} {
 				allowed[key] = 256
 			}
+			for key, maximum := range map[string]int{"tool": 256, "process": 4096, "file": 4096, "domain": 253, "credential_id": 40, "resource": 4096, "decision": 16} {
+				allowed[key] = maximum
+			}
 		}
 		query, ok := exactWorkflowQuery(request.URL.RawQuery, allowed)
 		if !ok {
@@ -529,9 +532,13 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 			parameters["workspace_id"] = workspace
 		}
 		if routed.OperationID == "listSessions" {
-			if !handler.validateSessionFilters(query, parameters) {
+			if !handler.validateSessionFilters(query, parameters, identity.Scope) {
 				writeProductionError(writer, request, ErrRepositoryOperation)
 				return
+			}
+			if parameters["kind"] == "runtime" {
+				digest := sha256.Sum256([]byte("runtime-session-search.v1\x00" + parameters["cursor_binding"] + "\x00" + identity.PrincipalID.String()))
+				parameters["cursor_binding"] = base64.RawURLEncoding.EncodeToString(digest[:])
 			}
 		}
 		if cursor := query.Get("cursor"); cursor != "" {
@@ -883,7 +890,8 @@ func administrationPagedOperation(operation string) bool {
 
 func (handler *identityHTTPHandler) writeAdministrationPage(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, operation string, parameters map[string]string, payload json.RawMessage) {
 	var page struct {
-		Items []json.RawMessage `json:"items"`
+		Items  []json.RawMessage `json:"items"`
+		Search json.RawMessage   `json:"search"`
 	}
 	limit := adminLimit(parameters)
 	if json.Unmarshal(payload, &page) != nil || len(page.Items) > limit+1 {
@@ -906,7 +914,19 @@ func (handler *identityHTTPHandler) writeAdministrationPage(writer http.Response
 	if operation == "listAPITokenRevealGrants" {
 		writer.Header().Set("Cache-Control", "no-store")
 	}
-	writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": page.Items, "page_info": map[string]any{"next_cursor": cursor, "has_more": hasMore}}, nil)
+	response := map[string]any{"items": page.Items, "page_info": map[string]any{"next_cursor": cursor, "has_more": hasMore}}
+	if len(page.Search) > 0 {
+		status, err := decodeRuntimeSearchStatus(page.Search, time.Now().Add(-30*time.Second))
+		if err != nil || operation != "listSessions" || parameters["kind"] != "runtime" {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		response["search"] = status
+	}
+	if operation == "listSessions" && parameters["kind"] == "runtime" {
+		writer.Header().Set("Cache-Control", "no-store")
+	}
+	writeJSONValue(writer, request, http.StatusOK, response, nil)
 }
 
 func (handler *identityHTTPHandler) encodeAdministrationCursor(identity RequestIdentity, operation, queryDigest string, position administrationCursor) string {
@@ -1035,7 +1055,7 @@ func administrationCursorBinding(query url.Values) string {
 	return base64.RawURLEncoding.EncodeToString(digest[:])
 }
 
-func (handler *identityHTTPHandler) validateSessionFilters(query url.Values, parameters map[string]string) bool {
+func (handler *identityHTTPHandler) validateSessionFilters(query url.Values, parameters map[string]string, scope domain.Scope) bool {
 	parameters["kind"] = query.Get("kind")
 	if parameters["kind"] == "" {
 		parameters["kind"] = "console"
@@ -1049,8 +1069,16 @@ func (handler *identityHTTPHandler) validateSessionFilters(query url.Values, par
 	if principal := parameters["principal_id"]; principal != "" && !validAdministrationProductID(principal) {
 		return false
 	}
-	if parameters["kind"] == "runtime" && (parameters["principal_id"] != "" || parameters["agent_id"] != "" && !validAdministrationProductID(parameters["agent_id"])) {
+	if parameters["kind"] == "runtime" && parameters["agent_id"] != "" && !validAdministrationProductID(parameters["agent_id"]) {
 		return false
+	}
+	for _, key := range []string{"tool", "process", "file", "domain", "credential_id", "resource", "decision"} {
+		if _, present := query[key]; present {
+			if parameters["kind"] != "runtime" {
+				return false
+			}
+			parameters[key] = query.Get(key)
+		}
 	}
 	var from, to time.Time
 	for _, key := range []string{"from", "to"} {
@@ -1069,7 +1097,14 @@ func (handler *identityHTTPHandler) validateSessionFilters(query url.Values, par
 			to = parsed
 		}
 	}
-	return from.IsZero() || to.IsZero() || !from.After(to)
+	if !from.IsZero() && !to.IsZero() && from.After(to) {
+		return false
+	}
+	if parameters["kind"] == "runtime" {
+		_, _, err := runtimeSessionQueryFilters(scope, parameters)
+		return err == nil
+	}
+	return true
 }
 
 func (handler *identityHTTPHandler) serveLocalAdministration(writer http.ResponseWriter, request *http.Request, routed RoutedOperation) bool {

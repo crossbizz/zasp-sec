@@ -10,6 +10,22 @@ import { customerEdgeReleaseFixture as edgeRelease, productionReleaseFixture as 
 
 const exec = promisify(execFile);
 
+test("production API composes the dedicated session search repository", async () => {
+  const composition = await readFile(new URL("../../services/platform/agentsec-api/production_runtime.go", import.meta.url), "utf8");
+  const authority = await readFile(new URL("../../services/platform/agentsec-api/policy_production.go", import.meta.url), "utf8");
+  assert.ok(composition.includes("apiserver.NewPostgresRepositoryWithRuntimeSessionSearch(tracedDatabase, policyHistory.sessionSearch)"));
+  assert.ok(authority.includes("runtimeopensearch.NewSessionIndex("));
+  assert.ok(authority.includes("history.sessionSearch.Close()"));
+});
+
+test("session query API IAM grants only fixed read endpoints", async () => {
+  const terraform = await readFile(new URL("../staging/main.tf", import.meta.url), "utf8");
+  const policy = terraform.match(/resource "aws_iam_role_policy" "api_connectors" \{[\s\S]*?(?=\nresource |$)/)?.[0] ?? "";
+  const paths = [...policy.matchAll(/\/zasp-runtime-sessions-v1\/([^"\s]+)/g)].map(match => match[1]).sort();
+  assert.deepEqual(paths, ["_doc/_zasp_session_schema_v1", "_mapping", "_search"]);
+  assert.doesNotMatch(policy, /ESHttpPut|ESHttpDelete|ESHttpPatch|sessions-v1\/\*/);
+});
+
 test("runtime session search bootstrap and worker IAM have separate fixed paths", async () => {
   const terraform = await readFile(new URL("../staging/main.tf", import.meta.url), "utf8");
   const block = (name) => terraform.match(new RegExp(`resource "aws_iam_role_policy" "${name}" \\{[\\s\\S]*?(?=\\nresource |$)`))?.[0] ?? "";
