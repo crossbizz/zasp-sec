@@ -96,7 +96,7 @@ func newProductionAttackLabDependencies(config workerRuntimeConfig) (*production
 }
 
 func (dependencies *productionAttackLabDependencies) Ready(ctx context.Context) error {
-	if dependencies == nil || dependencies.ready == nil {
+	if dependencies == nil || dependencies.ready == nil || readyAttackLabSandboxProvider(ctx, dependencies.Provider) != nil {
 		return errRuntimeUnavailable
 	}
 	return dependencies.ready(ctx)

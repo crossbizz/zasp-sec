@@ -406,13 +406,13 @@ func (api *productionAttackLabKubernetesAPI) Destroy(ctx context.Context, namesp
 		return err
 	}
 	if status == http.StatusNotFound {
-		return nil
+		return api.waitForAttackLabPodsAbsent(ctx, namespace, name, uid)
 	}
 	var job attackLabKubernetesJobRead
 	if status != http.StatusOK || !decodeAttackLabKubernetesJSON(body, &job) || job.APIVersion != "batch/v1" || job.Kind != "Job" || job.Metadata.Name != name || job.Metadata.Namespace != namespace || job.Metadata.UID != uid {
 		return &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
-	options := attackLabKubernetesDeleteOptions{APIVersion: "v1", Kind: "DeleteOptions", GracePeriodSeconds: 0, PropagationPolicy: "Background"}
+	options := attackLabKubernetesDeleteOptions{APIVersion: "v1", Kind: "DeleteOptions", GracePeriodSeconds: 0, PropagationPolicy: "Foreground"}
 	options.Preconditions.UID = uid
 	requestBody, marshalErr := json.Marshal(options)
 	if marshalErr != nil {
@@ -431,10 +431,48 @@ func (api *productionAttackLabKubernetesAPI) Destroy(ctx context.Context, namesp
 			return err
 		}
 		if status == http.StatusNotFound {
-			return nil
+			return api.waitForAttackLabPodsAbsent(ctx, namespace, name, uid)
 		}
 		if status != http.StatusOK {
 			return attackLabKubernetesStatusError(status, "outcome_unknown")
+		}
+		timer := time.NewTimer(250 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+		case <-timer.C:
+		}
+	}
+}
+
+// A missing Job is not proof that its dependent pods have disappeared. This
+// check also covers retries after a previous controller deleted the Job.
+func (api *productionAttackLabKubernetesAPI) waitForAttackLabPodsAbsent(ctx context.Context, namespace, name, uid string) error {
+	query := url.Values{"labelSelector": []string{"job-name=" + name}}.Encode()
+	for {
+		body, status, err := api.do(ctx, http.MethodGet, fmt.Sprintf("/api/v1/namespaces/%s/pods?%s", namespace, query), nil)
+		if err != nil {
+			return err
+		}
+		var list struct {
+			APIVersion string `json:"apiVersion"`
+			Kind       string `json:"kind"`
+			Metadata   struct {
+				Continue string `json:"continue"`
+			} `json:"metadata"`
+			Items *[]attackLabKubernetesPod `json:"items"`
+		}
+		if status != http.StatusOK || !decodeAttackLabKubernetesJSON(body, &list) || list.APIVersion != "v1" || list.Kind != "PodList" || list.Metadata.Continue != "" || list.Items == nil {
+			return &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+		}
+		if len(*list.Items) == 0 {
+			return nil
+		}
+		for _, pod := range *list.Items {
+			if pod.APIVersion != "v1" || pod.Kind != "Pod" || pod.Metadata.Namespace != namespace || !attackLabKubernetesUIDPattern.MatchString(pod.Metadata.UID) || pod.Metadata.Labels["job-name"] != name || len(pod.Metadata.OwnerReferences) != 1 || pod.Metadata.OwnerReferences[0] != (attackLabKubernetesOwnerReference{APIVersion: "batch/v1", Kind: "Job", Name: name, UID: uid, Controller: true}) {
+				return &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+			}
 		}
 		timer := time.NewTimer(250 * time.Millisecond)
 		select {

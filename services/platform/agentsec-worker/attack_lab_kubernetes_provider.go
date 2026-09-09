@@ -86,6 +86,13 @@ func (provider *productionAttackLabKubernetesProvider) Ready(ctx context.Context
 	return nil
 }
 
+func (provider *productionAttackLabKubernetesProvider) Capabilities(ctx context.Context) (attackLabSandboxCapabilities, error) {
+	if provider == nil || ctx == nil || ctx.Err() != nil || !validProductionAttackLabKubernetesProviderConfig(provider.config) {
+		return attackLabSandboxCapabilities{}, errRuntimeUnavailable
+	}
+	return productionAttackLabSandboxCapabilities(), nil
+}
+
 func (provider *productionAttackLabKubernetesProvider) Create(ctx context.Context, request attackLabSandboxRequest) (attackLabSandbox, error) {
 	if provider == nil || ctx == nil || ctx.Err() != nil || !validProductionAttackLabSandboxRequest(request, provider.config.Now()) {
 		return attackLabSandbox{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
@@ -139,7 +146,9 @@ func (provider *productionAttackLabKubernetesProvider) jobForRequest(request att
 	}, nil
 }
 
-func (provider *productionAttackLabKubernetesProvider) Collect(ctx context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (attackLabSandboxResult, error) {
+// Create schedules the Job. Run observes that owned execution; it never creates
+// a second Job or grants new execution authority.
+func (provider *productionAttackLabKubernetesProvider) Run(ctx context.Context, request attackLabSandboxRequest, sandbox attackLabSandbox) (attackLabSandboxResult, error) {
 	if provider == nil || ctx == nil || ctx.Err() != nil || !validProductionAttackLabSandboxRequest(request, provider.config.Now()) {
 		return attackLabSandboxResult{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
@@ -167,6 +176,12 @@ func (provider *productionAttackLabKubernetesProvider) Collect(ctx context.Conte
 		result.Verdict, result.ErrorCode = "inconclusive", "outcome_unknown"
 	}
 	return result, nil
+}
+
+// Cancellation uses the same exact-UID termination boundary as final cleanup.
+// The controller must persist cleanup intent before calling either operation.
+func (provider *productionAttackLabKubernetesProvider) Cancel(ctx context.Context, sandbox attackLabSandbox) error {
+	return provider.Destroy(ctx, sandbox)
 }
 
 func (provider *productionAttackLabKubernetesProvider) Destroy(ctx context.Context, sandbox attackLabSandbox) error {
