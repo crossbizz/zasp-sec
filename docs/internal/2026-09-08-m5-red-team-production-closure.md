@@ -754,3 +754,75 @@ retaining every existing verification command. All 17 focused quality tests
 passed, followed by the complete root verification, including 1,083 frontend
 tests, the newly wired staging gates, 34 release checks, production build and
 the 534/133/61 ledger. No product UI or runtime changed in this correction.
+
+PR 20 shipped identity commits `782e625e` and `4f6497d3` as main `5289e80f`.
+Corrected push CI `34376119528`, PR CI `34376124000` and main CI `34377164185`
+all passed. The follow-up scan had five inspected medium fixture-account
+matches and no high finding. M5-20 is now production-available, with a
+regression rejecting silent demotion. Ledger: **535/132/61**, all 728 rows.
+
+## M5-21: bounded sandbox egress
+
+The prior regional S3 allowance shared the product's unrestricted gateway
+endpoint. A denied test IAM role cannot stop anonymous or presigned S3
+traffic. Runners now use two dedicated private subnets and an isolated route
+table with no NAT/Internet route. Their S3 endpoint permits only GetObject
+on the regional ECR starport image-layer bucket. The product endpoint is
+unchanged. Source: [AWS ECR endpoint guidance](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html)
+and [gateway endpoint routing](https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html).
+
+Terraform and the executable Linux fixture share six protocol/port rules.
+Tests also bind exact proxy, ECR, S3 and control-plane/DNS destination
+references and reject extra runner egress. The original production
+SecurityGroupPolicy and strict CNI configuration remain in place. Explicit
+subnet overrides must be inside the VPC and disjoint from product and other
+runner subnets. Terraform validation, an offline plan, and five Terraform
+plan tests passed, including overlap/outside rejection. Nothing was applied.
+
+The test-first contract check failed before Terraform consumed the shared
+rules, then passed after wiring. The owned Linux packet fixture passed twice:
+proxy and infrastructure allowed, direct destination and wrong proxy port
+denied, four kernel-dropped packets, UID 65532, zero probe capabilities, and
+independent reachable nonce controls before and after. The contract hash was
+`ef0aa90d2e3618cf39d285ae1b695b281cd4a63afd7144550ec3189c1ed3a2a5`.
+Independent review caught untracked uncertain creates. Pre-registered names
+and exact ownership reconciliation now cover lost network/container create
+responses. Actual SIGTERM-after-allocation acceptance passed and confirmed
+all owned resources were removed. Its first cleanup assertion used an
+invalid Docker listing command; the corrected container/network listing
+passed. No false cleanup pass was retained.
+
+A connected runner deployment audit found that Lstat rejected Kubernetes'
+atomic ConfigMap CA projection. The production regression reproduced that
+failure. The reader now uses os.OpenRoot confinement, supporting relative
+projected links while rejecting absolute, escaping and dangling links and
+retaining certificate, size and inode checks. Runner/library race tests
+passed. Independent review accepted cleanup, exact SG assertions and this
+CA correction, rerunning three fixture tests, two release tests and both
+runner/library race suites successfully.
+
+This is fixture-level M5-21 evidence, not live AWS SG attachment, endpoint
+policy enforcement, Fargate scheduling or ECR image pulls. DNS and required
+infrastructure endpoints remain explicit exceptions. A live profile upgrade
+requires draining owned runs before replacement and cloud verification
+before consumption resumes. See `proofs/attack-lab-egress/README.md` for the
+boundary, reproduction and inspected proof-only dependency licenses.
+
+Initial root verification passed 1,082 frontend tests and failed the single
+exact workflow-step inventory because the new mandatory network CI step
+increased it from ten to eleven. The corrected inventory retains every
+existing gate and adds the exact new command. Final verification and
+shipping are pending; M5-21 and M5-22 remain uncredited.
+
+Corrected root verification passed all 1,083 frontend tests, tenant/RLS race
+checks, API contracts, types, warning-free lint, six staging gate tests,
+36 release checks, production build, both import graphs and the 535/132/61
+ledger. The production release gate and complete worker race suite passed,
+as did the 50 runtime/ledger regressions (two opt-in skips). Linux fixture
+go vet passed. Full Chrome combined acceptance passed discovery, typed
+inventory, sensor controls, multi-tenant security actions, pinned Red Team
+runtime, Attack Lab, recovery, administration, restart/reload and clean
+console checks. Its external-provider and isolated sandbox fixtures remain
+explicit; no live cloud proof was claimed. Owned browser, process, Docker
+and PostgreSQL resources were cleaned up. The staged scan had six inspected
+CI-ID matches and no high finding. Shipping CI remains pending.
