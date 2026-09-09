@@ -12,6 +12,15 @@ test("session indexing composition requires schema42 and production checkpoint p
   assert.ok(source.includes("schema 42 production_runtime_session_search verified"));
   assert.ok(source.includes("production session indexing outbox proven: completion transaction, registered index worker"));
 });
+
+test("runtime query composition requires schema43 and real indexed HTTP search", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  for (const marker of ["43|production_runtime_session_query", "schema 43 production_runtime_session_query verified", "startPolicyHistoryServer(policyHistoryPort, runtimeSearchEndpoint)", "worker-indexed runtime search API proven: structured matching, canonical counts, observed-only checkpoints and provider failure"])
+    assert.ok(source.includes(marker), marker);
+  assert.ok(source.includes('"/zasp-runtime-sessions-v1/_mapping"'));
+  assert.ok(source.includes('"/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1"'));
+  assert.ok(source.includes('"/zasp-runtime-sessions-v1/_search"'));
+});
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 

@@ -86,6 +86,7 @@ type PostgresRepository struct {
 	schema                 string
 	connectorWorkflows     bool
 	securityAgentExecution bool
+	runtimeSessionSearch   RuntimeSessionSearchIndex
 }
 
 func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {

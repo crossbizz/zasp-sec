@@ -2248,9 +2248,16 @@ paths:
           BrowserExpectedScope: []
       summary: List authorized projected sessions with structured filters
       parameters:
-        - { name: kind, in: query, required: false, description: 'Console login sessions by default; runtime selects committed runtime investigations, including the explicitly unattributed collection. Runtime principal filters are not supported yet.', schema: { type: string, enum: [console, runtime], default: console } }
+        - { name: kind, in: query, required: false, description: 'Console login sessions by default. Runtime searches committed runtime investigations, including the explicitly unattributed collection. All supplied runtime selectors must match the same observed event; missing metadata does not match. Results contain whole-investigation canonical counts, not matching-event counts. Pagination is scoped and principal-bound, not a snapshot. Arbitrary query strings and OpenSearch DSL are rejected.', schema: { type: string, enum: [console, runtime], default: console } }
         - { name: agent_id, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 128 } }
         - { name: principal_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: tool, in: query, required: false, description: 'Runtime only. Exact observed tool identifier.', schema: { type: string, minLength: 1, maxLength: 256 } }
+        - { name: process, in: query, required: false, description: 'Runtime only. Exact observed process selector, hashed before search.', schema: { type: string, minLength: 1, maxLength: 4096 } }
+        - { name: file, in: query, required: false, description: 'Runtime only. Exact observed file selector, hashed before search.', schema: { type: string, minLength: 1, maxLength: 4096 } }
+        - { name: domain, in: query, required: false, description: 'Runtime only. Normalized lowercase ASCII domain, hashed before search.', schema: { type: string, minLength: 1, maxLength: 253 } }
+        - { name: credential_id, in: query, required: false, description: 'Runtime only. Observed credential reference, never secret material.', schema: { $ref: '#/components/schemas/ProductID' } }
+        - { name: resource, in: query, required: false, description: 'Runtime only. Exact observed resource selector, hashed before search.', schema: { type: string, minLength: 1, maxLength: 4096 } }
+        - { name: decision, in: query, required: false, description: 'Runtime only. Observed policy decision.', schema: { type: string, enum: [allow, monitor, block] } }
         - { name: from, in: query, required: false, schema: { type: string, format: date-time } }
         - { name: to, in: query, required: false, schema: { type: string, format: date-time } }
         - $ref: '#/components/parameters/PageCursor'
@@ -3610,7 +3617,22 @@ components:
         events: { type: array, maxItems: 1000, items: { $ref: '#/components/schemas/SessionEvent' } }
     ConsoleSessionPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Session' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
     ConsoleSessionEventPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SessionEvent' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
-    RuntimeSessionPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/RuntimeSession' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
+    RuntimeSessionSearchStatus:
+      type: object
+      additionalProperties: false
+      description: 'Durable scoped indexing checkpoints, checked after current-principal authorization. Current means no known pending or quarantined batches, not OpenSearch health, an atomic search snapshot, full telemetry coverage, or complete selector metadata. Capped counters are lower bounds. Search provider failures return an error, never an empty successful page.'
+      required: [state, pending_batches, pending_batches_capped, quarantined_batches, quarantined_batches_capped, last_indexed_at, oldest_pending_at, checked_at, selector_coverage]
+      properties:
+        state: { type: string, enum: [empty, catching_up, blocked, current] }
+        pending_batches: { type: integer, minimum: 0, maximum: 1000 }
+        pending_batches_capped: { type: boolean }
+        quarantined_batches: { type: integer, minimum: 0, maximum: 1000 }
+        quarantined_batches_capped: { type: boolean }
+        last_indexed_at: { type: [string, 'null'], format: date-time }
+        oldest_pending_at: { type: [string, 'null'], format: date-time }
+        checked_at: { type: string, format: date-time }
+        selector_coverage: { type: string, enum: [observed_only] }
+    RuntimeSessionPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/RuntimeSession' } }, page_info: { $ref: '#/components/schemas/PageInfo' }, search: { $ref: '#/components/schemas/RuntimeSessionSearchStatus' } } }
     RuntimeSessionEventPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/RuntimeSessionEvent' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
     SessionPage: { anyOf: [ { $ref: '#/components/schemas/ConsoleSessionPage' }, { $ref: '#/components/schemas/RuntimeSessionPage' } ] }
     SessionEventPage: { anyOf: [ { $ref: '#/components/schemas/ConsoleSessionEventPage' }, { $ref: '#/components/schemas/RuntimeSessionEventPage' } ] }

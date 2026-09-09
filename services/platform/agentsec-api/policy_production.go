@@ -17,10 +17,11 @@ import (
 )
 
 type productionPolicyHistory struct {
-	history     *opensearchhistory.Driver
-	schema      *runtimeopensearch.Driver
-	transport   *http.Transport
-	credentials aws.CredentialsProvider
+	history       *opensearchhistory.Driver
+	schema        *runtimeopensearch.Driver
+	sessionSearch *runtimeopensearch.SessionIndex
+	transport     *http.Transport
+	credentials   aws.CredentialsProvider
 }
 
 func newProductionPolicyHistory(config RuntimeConfig) (*productionPolicyHistory, error) {
@@ -54,7 +55,14 @@ func newProductionPolicyHistory(config RuntimeConfig) (*productionPolicyHistory,
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	return &productionPolicyHistory{history: history, schema: schema, transport: transport, credentials: credentials}, nil
+	sessionSearch, err := runtimeopensearch.NewSessionIndex(runtimeopensearch.Config{Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumRequestBytes: 64 << 10, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}, credentials, v4.NewSigner(), clock)
+	if err != nil {
+		_ = history.Close()
+		schema.Close()
+		transport.CloseIdleConnections()
+		return nil, errRuntimeUnavailable
+	}
+	return &productionPolicyHistory{history: history, schema: schema, sessionSearch: sessionSearch, transport: transport, credentials: credentials}, nil
 }
 
 func (history *productionPolicyHistory) SearchPolicyActions(ctx context.Context, scope domain.Scope, trigger string, limit int) ([]platformpolicy.ActionContext, error) {
@@ -84,6 +92,9 @@ func (history *productionPolicyHistory) Close() error {
 	}
 	if history.schema != nil {
 		history.schema.Close()
+	}
+	if history.sessionSearch != nil {
+		history.sessionSearch.Close()
 	}
 	if history.transport != nil {
 		history.transport.CloseIdleConnections()

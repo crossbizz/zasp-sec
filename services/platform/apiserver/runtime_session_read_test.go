@@ -86,7 +86,7 @@ func TestRuntimeSessionReadHandlerAcceptsExplicitKindAndRejectsUnsupportedFilter
 		{"kind=console&limit=25", 200, 1},
 		{"kind=invalid", 400, 0},
 		{"kind=runtime&agent_id=product-console", 400, 0},
-		{"kind=runtime&principal_id=" + identity.PrincipalID.String(), 400, 0},
+		{"kind=runtime&principal_id=" + identity.PrincipalID.String(), 200, 1},
 		{"kind=runtime&query=%7B%22match_all%22%3A%7B%7D%7D", 400, 0},
 	} {
 		r := &runtimeSessionReadRecorder{payload: json.RawMessage(`{"items":[]}`)}

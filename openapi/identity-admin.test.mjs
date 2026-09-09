@@ -6,6 +6,21 @@ import { load, JSON_SCHEMA } from "js-yaml";
 
 const root = resolve(import.meta.dirname, "..");
 
+test("runtime session search publishes closed selectors and checkpoint freshness", async () => {
+  const document = load(await readFile(resolve(root, "openapi/openapi.yaml"), "utf8"), { schema: JSON_SCHEMA });
+  const parameters = document.paths["/api/v1/sessions"].get.parameters;
+  assert.deepEqual(parameters.filter(value => value.name).map(value => value.name).sort(), ["agent_id", "credential_id", "decision", "domain", "file", "from", "kind", "principal_id", "process", "resource", "to", "tool"]);
+  const schemas = document.components.schemas;
+  assert.equal(schemas.RuntimeSessionPage.properties.search.$ref, "#/components/schemas/RuntimeSessionSearchStatus");
+  const status = schemas.RuntimeSessionSearchStatus;
+  assert.equal(status.additionalProperties, false);
+  assert.deepEqual(status.properties.state.enum, ["empty", "catching_up", "blocked", "current"]);
+  assert.deepEqual(status.properties.selector_coverage.enum, ["observed_only"]);
+  assert.equal(status.properties.pending_batches.maximum, 1000);
+  assert.equal(status.properties.quarantined_batches.maximum, 1000);
+  assert.equal(status.required.length, 9);
+});
+
 test("runtime session reads preserve operation IDs and console-only revocation", async () => {
   const document = load(await readFile(resolve(root, "openapi/openapi.yaml"), "utf8"), { schema: JSON_SCHEMA });
   const paths = document.paths, schemas = document.components.schemas;

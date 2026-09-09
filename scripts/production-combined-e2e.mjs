@@ -49,6 +49,7 @@ let redTeamRuntimeConfiguration;
 let proxy;
 let identity;
 let policyHistory;
+let failNextRuntimeSessionSearch = false;
 let api;
 let postgres;
 let web;
@@ -174,8 +175,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts\n40|production_runtime_sessions\n41|production_runtime_session_reads\n42|production_runtime_session_search", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts\n40|production_runtime_sessions\n41|production_runtime_session_reads\n42|production_runtime_session_search\n43|production_runtime_session_query", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -198,6 +199,7 @@ try {
   console.log("combined E2E: schema 40 production_runtime_sessions verified");
 	console.log("combined E2E: schema 41 production_runtime_session_reads verified");
 	console.log("combined E2E: schema 42 production_runtime_session_search verified");
+  console.log("combined E2E: schema 43 production_runtime_session_query verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -229,7 +231,7 @@ try {
   if (process.env.ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY !== "true") {
   const publicOrigin = `https://${productHostname}:${proxyPort}`;
   identity = await startIdentityServer(identityPort, publicOrigin);
-  policyHistory = await startPolicyHistoryServer(policyHistoryPort);
+  policyHistory = await startPolicyHistoryServer(policyHistoryPort, runtimeSearchEndpoint);
   const apiEnvironment = {
     ...process.env,
     HOSTNAME: "agentsec-api-production-e2e",
@@ -2274,6 +2276,26 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
     assert.equal(summary.event_count, 1);
     assert.deepEqual(summary.confidence_counts, { exact: 0, strong: 0, probable: 0, unattributed: 1 });
     assert.equal(Object.hasOwn(summary, "expires_at"), false);
+    assert.equal(page.body.search.state, "current");
+    assert.equal(page.body.search.pending_batches, 0);
+    assert.equal(page.body.search.quarantined_batches, 0);
+    assert.equal(page.body.search.selector_coverage, "observed_only");
+    assert.ok(Date.parse(page.body.search.last_indexed_at) <= Date.parse(page.body.search.checked_at));
+    const matching = await read("/api/v1/sessions?kind=runtime&process=%2Fusr%2Fbin%2Fagent&limit=1");
+    assert.equal(matching.status, 200);
+    assert.deepEqual(matching.body.items, [summary]);
+    for (const filter of ["process=%2Fusr%2Fbin%2Fother", "process=%2Fusr%2Fbin%2Fagent&decision=block", "principal_id=pid_99000001-0000-4000-8000-000000000001"]) {
+      const unmatched = await read(`/api/v1/sessions?kind=runtime&${filter}`);
+      assert.equal(unmatched.status, 200);
+      assert.deepEqual(unmatched.body.items, []);
+      assert.equal(unmatched.body.search.state, "current", "empty matches concealed checkpoint status");
+    }
+    failNextRuntimeSessionSearch = true;
+    const unavailable = await read("/api/v1/sessions?kind=runtime");
+    assert.equal(unavailable.status, 503, "provider failure became an empty success");
+    assert.equal(Object.hasOwn(unavailable.body, "items"), false);
+    assert.equal((await read("/api/v1/sessions?kind=runtime")).status, 200);
+    console.log("combined E2E: worker-indexed runtime search API proven: structured matching, canonical counts, observed-only checkpoints and provider failure");
     const detail = await read("/api/v1/sessions/unattributed");
     assert.equal(detail.status, 200);
     assert.deepEqual(detail.body, summary);
@@ -2984,7 +3006,7 @@ async function startIdentityServer(port, publicOrigin) {
   return server;
 }
 
-async function startPolicyHistoryServer(port) {
+async function startPolicyHistoryServer(port, runtimeSearchEndpoint) {
 	const schemaSource = await readFile(path.join(platform, "runtimeindex", "opensearchdriver", "schema.go"), "utf8");
 	const schemaMatch = schemaSource.match(/indexSchemaJSON = `([^`]+)`/);
 	assert.ok(schemaMatch, "runtime index schema fixture missing");
@@ -3000,6 +3022,26 @@ async function startPolicyHistoryServer(port) {
 			response.end('{"message":"unsigned"}');
 			return;
 		}
+    // Only these fixed session read routes reach the owned real engine. The
+    // unrelated policy-history fixture below remains synthetic.
+    const sessionRead = request.method === "GET" && ["/zasp-runtime-sessions-v1/_mapping", "/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1"].includes(target.pathname)
+      || request.method === "POST" && target.pathname === "/zasp-runtime-sessions-v1/_search";
+    if (sessionRead) {
+      if (failNextRuntimeSessionSearch && request.method === "POST") {
+        failNextRuntimeSessionSearch = false;
+        response.writeHead(503, { "content-type": "application/json" });
+        response.end('{"error":"owned search outage fixture"}');
+        return;
+      }
+      const upstream = http.request(new URL(target.pathname + target.search, runtimeSearchEndpoint), { method: request.method, headers: { "content-type": "application/json" }, timeout: 10_000 }, (reply) => {
+        response.writeHead(reply.statusCode ?? 502, { "content-type": "application/json" });
+        reply.pipe(response);
+      });
+      upstream.on("timeout", () => upstream.destroy(new Error("owned session search timed out")));
+      upstream.on("error", () => { if (!response.headersSent) response.writeHead(502); response.end(); });
+      request.pipe(upstream);
+      return;
+    }
 		if (request.method === "GET" && target.pathname === "/zasp-runtime-events-v1/_mapping") {
 			response.writeHead(200, { "content-type": "application/json" });
 			response.end(JSON.stringify({ "zasp-runtime-events-v1": mapping }));

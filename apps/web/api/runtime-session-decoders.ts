@@ -38,7 +38,9 @@ export function decodeRuntimeSessionEvent(value: unknown): RuntimeSessionEvent {
 }
 
 export function decodeRuntimeSessionPage(value: unknown): RuntimeSessionPage {
-  const items = page(value).map(decodeRuntimeSession);
+  const withSearch = value !== null && typeof value === "object" && Object.hasOwn(value, "search");
+  const items = page(value, withSearch).map(decodeRuntimeSession);
+  if (withSearch) searchStatus((value as Record<string, unknown>).search);
   for (let index = 1; index < items.length; index += 1) if (items[index - 1].id >= items[index].id) bad();
   return value as RuntimeSessionPage;
 }
@@ -58,8 +60,8 @@ export function decodeRuntimeSessionEventPage(value: unknown): RuntimeSessionEve
   return value as RuntimeSessionEventPage;
 }
 
-function page(value: unknown): unknown[] {
-  const record = exact(value, ["items", "page_info"]);
+function page(value: unknown, withSearch = false): unknown[] {
+  const record = exact(value, withSearch ? ["items", "page_info", "search"] : ["items", "page_info"]);
   if (!Array.isArray(record.items) || record.items.length > 100) bad();
   const info = exact(record.page_info, ["next_cursor", "has_more"]);
   if (info.has_more === true) {
@@ -67,6 +69,23 @@ function page(value: unknown): unknown[] {
     if (typeof info.next_cursor !== "string" || !/^[A-Za-z0-9_-]{2,512}$/.test(info.next_cursor) || record.items.length === 0) bad();
   } else if (info.has_more !== false || info.next_cursor !== null) bad();
   return record.items;
+}
+
+function searchStatus(value: unknown): void {
+  const record = exact(value, ["state", "pending_batches", "pending_batches_capped", "quarantined_batches", "quarantined_batches_capped", "last_indexed_at", "oldest_pending_at", "checked_at", "selector_coverage"]);
+  for (const key of ["pending_batches", "quarantined_batches"]) {
+    count(record[key], 0);
+    if ((record[key] as number) > 1000 || typeof record[`${key}_capped`] !== "boolean" || record[`${key}_capped`] && record[key] !== 1000) bad();
+  }
+  if (record.selector_coverage !== "observed_only") bad();
+  const checked = instant(record.checked_at);
+  for (const key of ["last_indexed_at", "oldest_pending_at"]) if (record[key] !== null && instant(record[key]) > checked) bad();
+  const pending = record.pending_batches as number, quarantined = record.quarantined_batches as number;
+  if ((pending > 0) !== (record.oldest_pending_at !== null)) bad();
+  // Checkpoints describe known durable work, never provider health or complete
+  // observation coverage. Do not silently upgrade catching_up/blocked to current.
+  const state = quarantined > 0 ? "blocked" : pending > 0 ? "catching_up" : record.last_indexed_at === null ? "empty" : "current";
+  if (record.state !== state) bad();
 }
 
 function exact(value: unknown, keys: readonly string[]): Record<string, unknown> {
