@@ -75,19 +75,20 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 515 |
-| Component-only | 152 |
+| Production-available | 518 |
+| Component-only | 149 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
-Latest verified slice: M3-52d production runtime queue/archive/index E2E.
+Previous verified slice: M3-52d production runtime queue/archive/index E2E.
 Actual local SQS/S3/OpenSearch, replay and empty-DLQ assertions, migration
 rollback/drift, independent review, and the fresh-build installed-Chrome run pass.
 Evidence and release verification are tracked in
 `docs/internal/2026-09-08-m3-52d-runtime-queue-index.md`.
 
 Current production closure: M5 Red Team admission, request recovery, and
-execution authority. No M5 rows have been promoted. The verified fixes,
+execution authority. M5-01, M5-03, and M5-04 now pass individual original-scope
+acceptance review and are production-available. The verified fixes,
 remaining gaps, and release evidence are tracked in
 `docs/internal/2026-09-08-m5-red-team-production-closure.md`.
 The admission/API slice is on main with passing main CI. The next runtime
@@ -105,9 +106,12 @@ pass independent review, all 1,062 frontend tests, full local verification,
 release-source gates, and fresh Chrome verification. M5-03 task-level acceptance
 is reviewed. PR 13 merged with both pre-merge checks passing, but main CI found
 an existing test asserting URL normalization before its passive effect finished.
-The synchronization correction passes independent review and all 30 application
-tests. Promotion waits for the correction to ship and main CI to pass. No M5
-task is promoted by these bounded slices yet.
+The synchronization correction is merged via PR 14; both pre-merge checks and
+main CI 34300722566 passed. This closes M5-01 (production domain), M5-03
+(explained relevant recommendations), and M5-04 (authoritative safety preflight).
+M5-05 through M5-12 still need operation-specific stable-error handler assertions.
+The composed queue/engine/adapter/evidence proof and cancellation cleanup are
+under verification; no other M5 row is promoted from them.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
@@ -222,12 +226,12 @@ production composition, not merely a component proof or external evidence.
 | M2 | 72 | 69 | 3 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
-| M5 | 42 | 20 | 22 | 0 | 0 |
+| M5 | 42 | 23 | 19 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **515** | **152** | **61** | **0** |
+| **Total** | **728** | **518** | **149** | **61** | **0** |
 
 ## Prerequisite work
 

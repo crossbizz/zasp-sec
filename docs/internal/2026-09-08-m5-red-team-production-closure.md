@@ -1,6 +1,8 @@
 # M5 Red Team production closure
 
-Status: audit and implementation in progress. No M5 promotions yet.
+Status: audit and implementation in progress. M5-01, M5-03, and M5-04 promoted
+after individual acceptance review and passing main CI; all other open tasks
+retain their existing classifications.
 
 The original M5-01 through M5-22 requirements remain in scope. Existing
 production routes and worker adapters are not sufficient evidence for the
@@ -258,5 +260,87 @@ exactly one bootstrap request. No product code or authorization checks changed.
 Independent review approved the synchronization correction and independently
 reran all 30 application tests successfully. Fresh full `npm run verify` passed
 all 1,062 frontend tests, contracts, race/tenant checks, types, lint, build,
-source/compiled imports, release checks, and the 728-row ledger. M5-03 stays component-only until
-the correction ships and main verification passes.
+source/compiled imports, release checks, and the 728-row ledger.
+
+PR 14 merged correction `932a09b505e09b2f83a81171dd54c4a2083db17c` as
+main `06210ff446a634bcf578c862da003b46708c37d2`. Push CI 34300181142,
+PR CI 34300212338, and main CI 34300722566 passed. All five medium push-scan
+matches were CI run IDs, not personal data; there were no high findings.
+
+## Individual task acceptance
+
+M5-01 is production-available: `apiserver/red_team_repository.go` defines the
+production definition/run/attempt types and safety metadata; the published
+OpenAPI schemas distinguish `engine_error`, `pass`, and `fail`.
+M5-03 is production-available based on the selector/API/UI and fresh Chrome
+proof above. M5-04 is production-available: the real PostgreSQL authoritative
+environment/credential tests reject unsafe fixtures before queueing, and the
+mounted definition view displays persisted expected side effects. Independent
+review checked each original deliverable separately. Totals are now 518
+production-available, 149 component-only, 61 blocked/external, zero missing.
+
+M5-05 through M5-12 stay component-only. Production routes and several success
+cases exist, but each operation still needs the original required handler
+success plus stable product-error assertions. The legacy MemoryStore handler
+suite does not close that production verification gap. M5-02 and M5-14 still
+need the input/raw-artifact reference and policy-redaction acceptance audit.
+These classifications are not a whole-M5 completion or live-cloud readiness claim.
+
+## Composed Red Team runtime and cancellation proof
+
+The opt-in combined proof now starts the actual production outbox and Red Team
+worker compositions against disposable PostgreSQL and local SQS/S3/KMS services.
+A real browser creates and queues the definition/run. The worker invokes the
+production Go launcher, Node adapter, pinned Promptfoo image, and lease-bound
+Go HTTPS target adapter. The image runs as production UID/GID 1000 with a
+read-only root, dropped capabilities, bounded resources, and exact production
+secret paths. Only the customer target invocation is a deterministic fixture;
+cloud role attestation and customer HTTPS execution are not claimed.
+
+The fresh full Chrome proof passed. Actual duplicate SQS publication produced
+one attempt and one target invocation. The completed run had no active lease.
+The exact versioned evidence object matched PostgreSQL size/checksum and KMS
+bindings, contained normalized verdicts, and excluded the secret fixture,
+adapter token, and lease. Both queue and DLQ had zero visible, in-flight, and
+delayed messages, confirmed by empty receives. Reload showed the durable result
+and Verify safely eligibility. The separate real-SIGTERM harness test passed:
+its exact owned runtime container, processes, and temporary root were removed.
+That interruption test establishes container cleanup, not that Promptfoo had
+already started when the signal arrived.
+
+A real descendant-heartbeat test first failed because CommandContext killed
+only the launcher. The Linux supervisor now owns a dedicated process group,
+observes termination with WNOWAIT, and sends all group signals before reaping
+the leader. This pins the process identity against PID/PGID reuse. Loss of wait
+ownership never permits another signal; reconciliation cannot block the failed
+operation. Unsupported operating systems fail closed. Node cancellation kills
+and reaps its Promptfoo child without writing a completed result. Actual pinned
+image checks passed for protected, unsafe, engine-error, and cancellation
+outcomes. Linux subprocess tests cover graceful and stubborn descendants plus
+completion/cancellation races. Independent review approved the bounded runtime
+slice and independently reran 15 Node/runtime-helper tests. A regression
+assertion reproduced and then rejected signaling after lost wait ownership.
+
+This proof still stores normalized output, not the original required input/raw
+artifact bundle. M5-02 and M5-14 remain component-only. It is not a live AWS,
+customer credential, deployed image, or whole-M5 acceptance claim. CI now runs
+the runtime-helper, Node cancellation, combined-proof contract, and ledger
+regression suites on every push and pull request.
+
+The syscall supervisor directly uses the existing checksum-pinned `x/sys`
+v0.44.0 module. The direct dependency ledger now records its inspected
+BSD-3-Clause license and exact version/owner/runtime metadata; no module version
+or checksum changed. This license was already accepted by the production
+release scanner. The dependency policy tests reject metadata drift, and the
+independent reviewer reran all 81 dependency tests successfully. The workflow
+contract was updated for the extra CI step and now checks its valid baseline
+before hostile workflow mutations.
+
+Fresh full `npm run verify` passed all 1,063 frontend tests, contract and
+tenant/race checks, types, warning-free lint, the production build, exact
+source/compiled import checks, release rendering, and all 728 ledger rows.
+The release-source gate passed. The focused Node/runtime/ledger suite passed
+45 tests; two opt-in interruption tests were skipped there, with the Red Team
+interruption test separately executed and passed as recorded above. Latest
+Linux cancellation and completion-race subprocess tests passed three repeated
+executions in the pinned image. Remote push/PR/main CI remains to be recorded.

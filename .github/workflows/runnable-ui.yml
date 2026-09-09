@@ -37,5 +37,7 @@ jobs:
         run: npm run implementation:status:check
       - name: Verify runnable UI
         run: npm run verify
+      - name: Verify Red Team runtime and ledger regressions
+        run: node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs
       - name: Verify production release sources
         run: npm run production:release:gate

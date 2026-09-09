@@ -101,6 +101,7 @@ const policyDependencies = [
 const platformDependencies = [
   ["github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
   ["github.com/neo4j/neo4j-go-driver/v6", "v6.2.0", "Apache-2.0"],
+  ["golang.org/x/sys", "v0.44.0", "BSD-3-Clause"],
   ["gopkg.in/yaml.v3", "v3.0.1", "MIT"],
 ].map(([name, version, license]) => ({
   ecosystem: "go",
@@ -208,7 +209,7 @@ function lockFixture() {
     schema_version: 1,
     policy: {
       approved_owners: ["identity-platform", "platform-data", "web-platform"],
-      allowed_licenses: ["Apache-2.0", "ISC", "MIT"],
+      allowed_licenses: ["Apache-2.0", "BSD-3-Clause", "ISC", "MIT"],
       prohibited_licenses: [
         "AGPL-3.0-only",
         "GPL-2.0-only",
@@ -349,7 +350,7 @@ function validate(lock = lockFixture(), files = filesFixture()) {
 }
 
 test("accepts the exact reviewed product runtime inventory", () => {
-  assert.deepEqual(validate(), { manifests: 13, dependencies: 34 });
+  assert.deepEqual(validate(), { manifests: 13, dependencies: 35 });
 });
 
 test("binds exact hash-locked isolated Cartography and Prowler runtimes", async (t) => {
@@ -381,6 +382,17 @@ test("binds exact hash-locked isolated Cartography and Prowler runtimes", async 
       const files = filesFixture();
       mutate(files);
       assert.throws(() => validate(lockFixture(), files));
+    });
+  }
+});
+
+test("binds the exact Linux supervisor syscall dependency", async (t) => {
+  validate(lockFixture(), filesFixture());
+  for (const [field, value] of [["version", "v0.43.0"], ["license", "MIT"], ["owner", "web-platform"], ["scope", "development"]]) {
+    await t.test(field, () => {
+      const lock=lockFixture();
+      lock.dependencies.find(entry=>entry.manifest==="services/platform/go.mod" && entry.name==="golang.org/x/sys")[field]=value;
+      assert.throws(()=>validate(lock));
     });
   }
 });
@@ -603,11 +615,11 @@ test("tracks direct Go and Python requirements while ignoring development and in
   );
   lock.dependencies.sort((left, right) => `${left.manifest}:${left.name}`.localeCompare(`${right.manifest}:${right.name}`));
 
-  assert.deepEqual(validate(lock, files), { manifests: 13, dependencies: 36 });
+  assert.deepEqual(validate(lock, files), { manifests: 13, dependencies: 37 });
 });
 
 test("accepts only exact repository-owned module requirements and replacements outside the third-party lock", async (t) => {
-  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 13, dependencies: 34 });
+  assert.deepEqual(validate(lockFixture(), filesFixture()), { manifests: 13, dependencies: 35 });
 
   for (const [name, mutate] of [
     ["missing health replacement", (files) => {

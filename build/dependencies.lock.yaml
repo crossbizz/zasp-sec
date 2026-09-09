@@ -6,6 +6,7 @@ policy:
     - web-platform
   allowed_licenses:
     - Apache-2.0
+    - BSD-3-Clause
     - ISC
     - MIT
   prohibited_licenses:
@@ -248,6 +249,14 @@ dependencies:
     name: github.com/open-policy-agent/opa
     version: v1.17.0
     license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/platform/go.mod
+    name: golang.org/x/sys
+    version: v0.44.0
+    license: BSD-3-Clause
     owner: platform-data
     scope: runtime
     review: approved
