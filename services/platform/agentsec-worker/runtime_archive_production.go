@@ -16,12 +16,14 @@ import (
 )
 
 type productionRuntimeStageDependencies struct {
-	Stage     runtimeevent.RuntimeStage
-	Executor  runtimeStageExecutor
-	ready     func(context.Context) error
-	close     func() error
-	closeOnce sync.Once
-	closeErr  error
+	Stage        runtimeevent.RuntimeStage
+	Executor     runtimeStageExecutor
+	Sessions     runtimeSessionSearchWork
+	SessionReady func(context.Context) error
+	ready        func(context.Context) error
+	close        func() error
+	closeOnce    sync.Once
+	closeErr     error
 }
 
 func newProductionRuntimeArchive(ctx context.Context, config workerRuntimeConfig) (*productionRuntimeStageDependencies, error) {

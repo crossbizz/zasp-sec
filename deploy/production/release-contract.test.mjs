@@ -10,6 +10,29 @@ import { customerEdgeReleaseFixture as edgeRelease, productionReleaseFixture as 
 
 const exec = promisify(execFile);
 
+test("runtime session search bootstrap and worker IAM have separate fixed paths", async () => {
+  const terraform = await readFile(new URL("../staging/main.tf", import.meta.url), "utf8");
+  const block = (name) => terraform.match(new RegExp(`resource "aws_iam_role_policy" "${name}" \\{[\\s\\S]*?(?=\\nresource |$)`))?.[0] ?? "";
+  const init = block("projection_search_init");
+  assert.match(block("runtime"), /Action\s*=\s*compact\(\["s3:GetObject", "s3:GetObjectVersion", each\.key == "archive" \? null : "s3:PutObject"\]\)/);
+  for (const index of ["zasp-inventory-v1", "zasp-runtime-events-v1", "zasp-runtime-sessions-v1"]) {
+    assert.ok(init.includes(`/${index}/_mapping`), `${index} mapping read`);
+    assert.ok(init.includes(`/${index}"`), `${index} create`);
+  }
+  assert.ok(init.includes("/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1"));
+  assert.doesNotMatch(init, /es:ESHttpPost|es:ESHttpDelete|_bulk|_mget|_refresh|_search"/);
+  const sessionBlocks = [...block("runtime").matchAll(/each\.key == "index" \? jsonencode\(\{[\s\S]*?\}\) : null/g)].map(match=>match[0]).filter(value=>value.includes("zasp-runtime-sessions-v1"));
+  assert.equal(sessionBlocks.length, 2);
+  const get = sessionBlocks.find(value=>value.includes('["es:ESHttpGet"]'));
+  const post = sessionBlocks.find(value=>value.includes('["es:ESHttpPost"]'));
+  assert.ok(get && post);
+  for (const path of ["_mapping", "_doc/_zasp_session_schema_v1"]) assert.ok(get.includes(`/zasp-runtime-sessions-v1/${path}`));
+  for (const path of ["_bulk", "_mget", "_refresh"]) assert.ok(post.includes(`/zasp-runtime-sessions-v1/${path}`));
+  for (const statement of sessionBlocks) assert.doesNotMatch(statement, /ESHttpPut|ESHttpDelete|sessions-v1\/\*|sessions-v1"/);
+  const source = await readFile(new URL("../../services/platform/agentsec-worker/projection_init.go", import.meta.url), "utf8");
+  assert.match(source, /initializeProductionSearchSchemas\(bounded, driver, raw, sessions\)/);
+});
+
 test("Attack Lab release requires a separate same-account test role", async () => {
   for (const runnerTestRoleArn of [undefined, release.attackLab.controllerRoleArn, release.discovery.roleArn, "arn:aws:iam::210987654321:role/zasp-production-attack-lab-runner-test"]) {
     const attackLab = { ...release.attackLab, runnerTestRoleArn };

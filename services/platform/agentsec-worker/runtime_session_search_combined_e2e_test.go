@@ -7,21 +7,34 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/jackc/pgx/v5"
+	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 	"github.com/zasp-ai/zasp-sec/services/platform/sessionsearch"
 )
 
-// This fixture checks the real index driver against worker-committed evidence.
-// It is not yet a production outbox/worker or search-API composition claim.
-func proveRuntimeSessionSearchIndex(t *testing.T, ctx context.Context, admin *pgx.Conn, scope domain.Scope, batchID domain.ProductID, archive []byte, endpoint string, credentials aws.CredentialsProvider, receipts artifactstore.ObjectReferencingArtifactStore) {
+type sessionSearchProofDatabase struct {
+	apiserver.JSONDatabase
+	test *testing.T
+}
+
+func (database *sessionSearchProofDatabase) QueryJSON(ctx context.Context, statement string, args ...any) (json.RawMessage, error) {
+	body, err := database.JSONDatabase.QueryJSON(ctx, statement, args...)
+	if strings.Contains(statement, "session_search") {
+		database.test.Logf("owned session search DB query=%s response_bytes=%d err=%v", statement, len(body), err)
+	}
+	return body, err
+}
+
+// This fixture executes the production processor using its registered index
+// principal. Receipt/outbox rows come from actual worker completion, not seeding.
+func proveRuntimeSessionSearchIndex(t *testing.T, ctx context.Context, admin *pgx.Conn, scope domain.Scope, batchID domain.ProductID, archive []byte, index *opensearchdriver.SessionIndex, processor workerProcessor, receipts artifactstore.ObjectReferencingArtifactStore) {
 	t.Helper()
 	var reference, version string
 	var digest []byte
@@ -46,15 +59,24 @@ func proveRuntimeSessionSearchIndex(t *testing.T, ctx context.Context, admin *pg
 	defer clear(artifact.Body)
 	binding := sessionsearch.ReceiptBinding{Scope: scope, BatchID: batchID, Generation: generation}
 	copy(binding.ReceiptDigest[:], digest)
-	index, err := opensearchdriver.NewSessionIndex(opensearchdriver.Config{Endpoint: endpoint, Region: "us-east-1", RequestTimeout: 5 * time.Second, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20, AllowTestLoopback: true}, credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
-	if err != nil {
-		t.Fatal(err)
+	var state string
+	var attempt int
+	if err := admin.QueryRow(ctx, `SELECT state,attempt FROM zasp_runtime_session_search_outbox WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND batch_id=$4 AND batch_generation=$5`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), batchID.String(), generation).Scan(&state, &attempt); err != nil || state != "pending" || attempt != 0 {
+		t.Fatalf("committed search outbox missing: state=%s attempt=%d err=%v", state, attempt, err)
 	}
-	defer index.Close()
-	if err := index.InitializeSchema(ctx); err != nil {
-		t.Fatalf("session search schema: %v", err)
+	if processor == nil {
+		t.Fatal("production session indexing processor missing")
 	}
-	configureOwnedSingleNodeSessionIndex(t, ctx, endpoint)
+	for replay := 0; replay < 2; replay++ {
+		if err := processor.RunOnce(ctx); err != nil {
+			t.Fatalf("production session index processor: %v", err)
+		}
+	}
+	var checkpointDigest []byte
+	var indexedAt *time.Time
+	if err := admin.QueryRow(ctx, `SELECT state,attempt,receipt_digest,indexed_at FROM zasp_runtime_session_search_outbox WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND batch_id=$4 AND batch_generation=$5`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), batchID.String(), generation).Scan(&state, &attempt, &checkpointDigest, &indexedAt); err != nil || state != "indexed" || attempt != 1 || indexedAt == nil || !bytes.Equal(checkpointDigest, digest) {
+		t.Fatalf("search checkpoint was not fenced: state=%s attempt=%d err=%v", state, attempt, err)
+	}
 	for replay := 0; replay < 2; replay++ {
 		result, err := index.Apply(ctx, binding, artifact.Body, archive)
 		if err != nil || result.Scope != scope || result.BatchID != batchID || result.Generation != generation || result.ReceiptDigest != binding.ReceiptDigest || len(result.DocumentIDs) != 1 {
@@ -81,7 +103,8 @@ func proveRuntimeSessionSearchIndex(t *testing.T, ctx context.Context, admin *pg
 	if _, err := index.Search(ctx, scope, sessionsearch.Filters{RawQuery: `{"match_all":{}}`}, "", 25); err == nil {
 		t.Fatal("raw DSL admitted")
 	}
-	t.Log("runtime session search index proven: committed PG receipt, exact S3 archive, real OpenSearch, immutable replay, structured process filter, pagination and scope denial; production indexing worker/API remain pending")
+	t.Log("runtime session search index proven: committed PG receipt, exact S3 archive, real OpenSearch, immutable replay, structured process filter, pagination and scope denial; search API remains pending")
+	t.Log("production session indexing outbox proven: completion transaction, registered index worker, exact receipt/archive read, live lease renewal, indexed checkpoint and idle replay without duplicate claims")
 	proveRuntimeStructuredSearchSelectors(t, ctx, index)
 }
 

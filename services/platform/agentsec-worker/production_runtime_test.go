@@ -258,7 +258,9 @@ func TestComposeRuntimeIndexBindsExactStageRepositoryAndExecutor(t *testing.T) {
 	executor := runtimeStageExecutorFunc(func(context.Context, runtimeevent.StageLease) (runtimeStageEffect, error) {
 		return runtimeStageEffect{}, errRuntimeStageRetryable
 	})
-	dependencies, err := composeRuntimeStageWorkerRuntime(config, readyWorkerDatabase{}, &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageIndex, Executor: executor, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil }})
+	dependencies, err := composeRuntimeStageWorkerRuntime(config, readyWorkerDatabase{}, &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageIndex, Executor: executor, Sessions: sessionSearchExecuteFunc(func(context.Context, runtimeSessionSearchLease) ([]string, error) {
+		return nil, errRuntimeStageRetryable
+	}), SessionReady: func(context.Context) error { return nil }, ready: func(context.Context) error { return nil }, close: func() error { closed = true; return nil }})
 	if err != nil || dependencies.Processor == nil || dependencies.Ready == nil || dependencies.Close == nil {
 		t.Fatalf("dependencies=%#v err=%v", dependencies, err)
 	}

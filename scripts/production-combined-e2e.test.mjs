@@ -5,6 +5,13 @@ import { readFile, readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+
+test("session indexing composition requires schema42 and production checkpoint proof", async()=>{
+  const source=await readFile(new URL("./production-combined-e2e.mjs",import.meta.url),"utf8");
+  assert.ok(source.includes("42|production_runtime_session_search"));
+  assert.ok(source.includes("schema 42 production_runtime_session_search verified"));
+  assert.ok(source.includes("production session indexing outbox proven: completion transaction, registered index worker"));
+});
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 
@@ -29,7 +36,7 @@ test("session search proof requires committed evidence and real-engine filter co
   const matrix = await readFile(new URL("../services/platform/agentsec-worker/runtime_session_search_filters_e2e_test.go", import.meta.url), "utf8");
   for (const marker of ["runtime session search index proven:", "real OpenSearch selector matrix passed:"]) assert.ok(source.includes(`assert.match(runtimePipelineResult.stdout, /${marker}`), marker);
   assert.ok(worker.includes("proveRuntimeSessionSearchIndex(t, ctx, admin, scope,"));
-  for (const text of ["receipt.receipt_digest=project.result_digest", "complete.state='succeeded'", "receipts.Get(ctx, locator)", "index.Apply(ctx, binding, artifact.Body, archive)", "proveRuntimeStructuredSearchSelectors(t, ctx, index)", "number_of_replicas", "production indexing worker/API remain pending"]) assert.ok(proof.includes(text), text);
+  for (const text of ["receipt.receipt_digest=project.result_digest", "complete.state='succeeded'", "receipts.Get(ctx, locator)", "index.Apply(ctx, binding, artifact.Body, archive)", "proveRuntimeStructuredSearchSelectors(t, ctx, index)", "number_of_replicas", "search API remains pending"]) assert.ok(proof.includes(text), text);
   assert.doesNotMatch(proof, /(?:INSERT INTO|UPDATE|DELETE FROM) zasp_runtime_session/);
   for (const text of ["selectors incorrectly joined different events within one session", "composite pagination incomplete", "foreign positive control absent", "when.Add(time.Nanosecond)", "synthetic component fixtures only"]) assert.ok(matrix.includes(text), text);
 });

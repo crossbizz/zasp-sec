@@ -114,11 +114,18 @@ func TestRouterProvidesValidatedSessionIDPathParameters(t *testing.T) {
 			if response.Code != http.StatusOK || !called {
 				t.Fatalf("valid SessionID response = (%d, called=%v)", response.Code, called)
 			}
-			called = false
-			response = httptest.NewRecorder()
-			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/sessions/pid_20000001-0000-4000-8000-000000000001", nil))
-			if response.Code != http.StatusNotFound || called {
-				t.Fatalf("invalid SessionID response = (%d, called=%v)", response.Code, called)
+			for _, id := range []string{"pid_20000001-0000-4000-8000-000000000001", "unattributed", "pid_invalid", "not-a-session"} {
+				called = false
+				response = httptest.NewRecorder()
+				router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/sessions/"+id, nil))
+				accepted := operationID != "revokeSession" && (id == "unattributed" || id == "pid_20000001-0000-4000-8000-000000000001")
+				want := http.StatusNotFound
+				if accepted {
+					want = http.StatusOK
+				}
+				if response.Code != want || called != accepted {
+					t.Fatalf("SessionID %q response = (%d, called=%v), want (%d, called=%v)", id, response.Code, called, want, accepted)
+				}
 			}
 		})
 	}

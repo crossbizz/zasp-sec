@@ -304,3 +304,90 @@ replica-fixture and closed-query termination handling corrections. The harness
 now requires both dedicated search proof markers and includes a regression
 against removing them. Final-tree verification and shipping CI remain pending;
 this evidence does not promote M7-05 or claim production search composition.
+
+The final PR 26 tree passed full verification: 191 frontend files and 1,114
+tests, type/lint, release contracts, production build/import and all 728 ledger
+entries. The real pipeline rerun and independent review passed. Implementation
+bcf938a3 shipped in PR 26 as main 82dfc922. Push CI 34410423363, PR CI
+34410427513 and main CI 34411177421 passed. Counts remain 535 production-available,
+132 component-only and 61 blocked/external.
+
+### Durable session indexing, release verification in progress
+
+Migration 42, `production_runtime_session_search`, derives an indexing outbox
+from committed projection receipts. Backfill and the receipt-insert trigger
+share the completion transaction. Canonical evidence isn't removed or rewritten.
+The queue has forced tenant RLS and no direct worker/API table permissions.
+Only the registered index-worker principal can claim, renew and finish bounded
+attempts. Checkpoints bind scope, batch, generation, receipt SHA, ordered document
+IDs, worker, lease token and attempt. Exact lost-ack retries reconcile; foreign,
+expired and stale authority fails. Exhausted work is retained in quarantine.
+
+Independent review found a lock-wait expiry defect. A real PostgreSQL test first
+reproduced a finish call accepting a lease after waiting past its deadline.
+Finish and heartbeat now sample the clock after their row lock. Grant deadlines
+are also sampled after acquisition. The corrected test and independent rerun
+passed. Added real-engine checks cover simultaneous claims, retry delay,
+quarantine, attempt exhaustion and refusal to downgrade an active lease.
+
+The existing production index-worker composition now consumes this separate
+queue, verifies the exact versioned S3 receipt/archive against PostgreSQL
+authority, reproduces the document IDs, and finishes only after exact immutable
+OpenSearch readback and refresh. Periodic and final lease renewal fence completion.
+Cancellation, unknown writes and lost acknowledgements don't become successes.
+
+Review also found a shared readiness gate could stop healthy raw indexing when
+session indexing was unavailable. Two failing regressions now pass with separate
+processor gates; combined health still reports the failure. The owned pipeline
+caught a SQL boolean/JSON adapter mismatch. Readiness now returns JSONB, and an
+idle claim is explicit JSON null, distinct from a missing/error response.
+
+The schema-init job initializes the three fixed inventory/raw/session indexes;
+unit tests cover order, readback and failure short-circuiting. Its IAM allows
+only fixed create/marker/mapping paths. The session worker has separate fixed
+read and bulk/readback/refresh paths without session schema-write permission.
+Review caught missing `s3:GetObjectVersion`; the existing runtime object prefix
+now permits pinned-version reads. A regression failed before that IAM correction
+and passed afterward. These are source/contract checks, not live AWS attestation.
+
+The schema-42 owned PostgreSQL/SQS/S3/OpenSearch pipeline passed using actual
+production worker composition, completion-triggered outbox authority, live lease
+renewal, indexed checkpoint and idle replay without another claim. All ten
+structured selectors, same-event conjunction, canonical occurrence grouping,
+pagination and foreign-tenant controls passed. The single-node replica and
+synthetic-selector limitations above still apply. Owned resources were cleaned
+up. The three-index bootstrap orchestration has unit proof; the local harness
+initializes the raw/session drivers directly and doesn't attest the AWS init job.
+
+Harness/release/ledger checks passed 72 tests with two explicitly gated cleanup
+tests skipped. Full UI/build verification, full Chrome proof, final review and
+shipping CI are still pending for this outbox slice. No M7-05 credit: production
+search API authorization/hydration, backlog freshness and UI acceptance remain.
+
+The first full Chrome run stopped before API startup because the shared API
+schema query still rejected versions above 41. A new real API-role repository
+startup/readiness regression reproduced that failure. The query now admits
+verified schema 42 while retaining its exact readiness function and rejecting
+an unknown schema 43. The corrected focused race suite passed in 8.274 seconds.
+The broad API suite also found an older router test still rejecting runtime
+product IDs on reads. Its corrected matrix accepts valid runtime IDs and the
+unattributed collection for read operations, rejects malformed IDs, and continues
+to reject runtime targets for console-session revocation. Router code is unchanged.
+The migration-version fixture now covers valid 42 and future-version 43 denial.
+All owned resources from the failed Chrome run were cleaned up. Full final-tree
+verification and Chrome are being rerun; nothing from this slice has been pushed.
+
+The corrected final tree passed full verification with 191 frontend files and
+1,114 tests, type/lint, release contracts, production build/import and ledger
+validation. The complete API race suite passed in 316.098 seconds. Migration,
+worker, session-search and index race suites passed; the complete migration CLI
+suite had also passed. Independent re-review accepted the API/routing corrections
+and reran the focused real PostgreSQL tests successfully.
+
+The fresh Chrome/runtime rerun passed against schema 42: worker-written runtime
+sessions, scoped discovery, administration, Red Team, Attack Lab, restart/reload,
+tenant denial and clean-console checks. All owned resources were cleaned up.
+The release-source gate passed. Terraform format/validate and an offline plan
+passed without apply or live IAM attestation. Staged secret scanning found no
+secrets; three privacy-scanner matches were verified CI run IDs. Shipping CI is
+pending. M7-05, M7-06 and M7-07a remain component-only.

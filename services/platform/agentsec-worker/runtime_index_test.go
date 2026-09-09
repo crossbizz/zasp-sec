@@ -82,10 +82,12 @@ type runtimeArchivedReaderStub struct {
 	body  []byte
 	err   error
 	calls int
+	lease runtimeevent.StageLease
 }
 
-func (stub *runtimeArchivedReaderStub) Read(context.Context, runtimeevent.StageLease) ([]byte, error) {
+func (stub *runtimeArchivedReaderStub) Read(_ context.Context, lease runtimeevent.StageLease) ([]byte, error) {
 	stub.calls++
+	stub.lease = lease
 	return bytes.Clone(stub.body), stub.err
 }
 

@@ -904,7 +904,7 @@ resource "aws_iam_role_policy" "runtime" {
       }) : null,
       contains(["ingest", "archive", "index", "correlation", "projection", "complete"], each.key) ? jsonencode({
         Effect   = "Allow"
-        Action   = compact(["s3:GetObject", each.key == "archive" ? null : "s3:PutObject"])
+        Action   = compact(["s3:GetObject", "s3:GetObjectVersion", each.key == "archive" ? null : "s3:PutObject"])
         Resource = "${aws_s3_bucket.runtime_raw.arn}/runtime/v15/*"
       }) : null,
       contains(["ingest", "archive", "index", "correlation", "projection", "complete"], each.key) ? jsonencode({
@@ -925,6 +925,23 @@ resource "aws_iam_role_policy" "runtime" {
         Effect   = "Allow"
         Action   = ["es:ESHttpGet", "es:ESHttpPost", "es:ESHttpPut"]
         Resource = "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/*"
+      }) : null,
+      each.key == "index" ? jsonencode({
+        Effect = "Allow"
+        Action = ["es:ESHttpGet"]
+        Resource = [
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_mapping",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1",
+        ]
+      }) : null,
+      each.key == "index" ? jsonencode({
+        Effect = "Allow"
+        Action = ["es:ESHttpPost"]
+        Resource = [
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_bulk",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_mget",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_refresh",
+        ]
       }) : null,
       contains(["correlation", "projection"], each.key) ? jsonencode({
         Effect   = "Allow"
@@ -1670,10 +1687,18 @@ resource "aws_iam_role_policy" "projection_search_init" {
     { Effect = "Allow", Action = ["es:ESHttpGet"], Resource = [
       "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_mapping",
       "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_doc/_zasp_schema_v1",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_mapping",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_doc/_zasp_schema_v1",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_mapping",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1",
     ] },
     { Effect = "Allow", Action = ["es:ESHttpPut"], Resource = [
       "${aws_opensearch_domain.events.arn}/zasp-inventory-v1",
       "${aws_opensearch_domain.events.arn}/zasp-inventory-v1/_doc/_zasp_schema_v1",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_doc/_zasp_schema_v1",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1",
     ] },
     { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },
   ] })
