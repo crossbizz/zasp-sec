@@ -2,7 +2,7 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
-**Last updated:** September 8, 2026
+**Last updated:** September 9, 2026
 **Execution branch:** `main`
 
 This file preserves the authoritative historical execution evidence for the
@@ -140,7 +140,13 @@ M5-21 is now production-available under its original direct-denial fixture
 criterion, without claiming live AWS attachment or endpoint-policy proof.
 M5-22's signed-token expiry, bounded proxy runtime and durable end-to-end
 acceptance have passed full verification and independent review; shipping
-and CI remain pending.
+and CI remain pending. PR 22's initial CI found a production-closure note
+incorrectly entered as a historical task row after the last full local check.
+The note is retained here, outside the historical tables; no source-task
+status or production credit changes. The corrected full verification passed
+with 1,083 frontend tests, release checks, type-checking, lint, production
+build and ledger validation. Independent review accepted the correction;
+fresh remote CI remains pending.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
@@ -292,7 +298,6 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 
 | Task | Started | Current work |
 | --- | --- | --- |
-| Production closure: M5-22 | September 9, 2026 | Verify and ship signed proxy-token expiry, bounded concurrency/shutdown and real PostgreSQL authorization acceptance. Production credit remains withheld. |
 
 ## Complete
 

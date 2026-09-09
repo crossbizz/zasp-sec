@@ -887,6 +887,21 @@ opt-in skips). CI now requires the complete proxy process/library and
 capability race suites alongside the existing runner and packet checks.
 M5-22 awaits shipping and CI; live-cloud boundaries are unchanged.
 
+### M5-22 initial CI correction
+
+PR 22's first push/PR CI failed before the dedicated proxy gate because a
+production-closure note was entered as an extra historical task after the
+last local full verification. The historical table has zero active tasks;
+the production closure remains pending separately. The exact local existing
+UI/API-map and telemetry tracker tests reproduced the two failures before
+the correction. Removing only the non-source row restores the historical
+contract without granting M5-22 production credit.
+
+Fresh full verification passed after that correction: all 1,083 frontend
+tests, type-checking, lint, six staging checks, 36 release checks, production
+build/source/compiled boundaries, and the 536/131/61 ledger. Independent
+read-only review accepted the correction. Fresh remote CI is pending.
+
 The staged scan's ten medium findings were individually inspected: four CI
 IDs, one synthetic Kubernetes UID suffix, one fixture AWS account number,
 two fixed in-cluster hostnames and two documentation-range network values.
