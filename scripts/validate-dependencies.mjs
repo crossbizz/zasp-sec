@@ -55,7 +55,7 @@ const internalModules = new Map([
 ]);
 
 const approvedOwners = ["identity-platform", "platform-data", "web-platform"];
-const allowedLicenses = ["Apache-2.0", "ISC", "MIT"];
+const allowedLicenses = ["Apache-2.0", "BSD-3-Clause", "ISC", "MIT"];
 const prohibitedLicenses = [
   "AGPL-3.0-only",
   "GPL-2.0-only",
@@ -140,6 +140,7 @@ for (const [manifest, name, version] of [
   });
 }
 for (const [manifest, name, version, license] of [
+  ["services/platform/go.mod", "golang.org/x/sys", "v0.44.0", "BSD-3-Clause"],
   ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2", "v1.43.7", "Apache-2.0"],
   ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6", "Apache-2.0"],
   ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2", "Apache-2.0"],

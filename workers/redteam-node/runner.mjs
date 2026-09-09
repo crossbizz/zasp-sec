@@ -108,10 +108,7 @@ async function run(inputPath, outputPath) {
     env: promptfooChildEnvironment(dirname(inputPath), token, targetCAFile, runLease),
     stdio: "ignore",
   });
-  const exitCode = await new Promise((resolveExit, rejectExit) => {
-    child.once("error", rejectExit);
-    child.once("exit", (code, signal) => resolveExit(signal === null ? code : -1));
-  });
+  const exitCode = await waitForPromptfooProcess(child);
   let normalized;
   // The pinned CLI writes completed failing evaluations before returning 100.
   // Native output still must pass the same strict identity/result validation.
@@ -124,6 +121,30 @@ async function run(inputPath, outputPath) {
   await writeFile(outputPath, JSON.stringify(normalized), { flag: "wx", mode: 0o600 });
   await rm(rawPath, { force: true });
   await rm(configurationPath, { force: true });
+}
+
+export async function waitForPromptfooProcess(child, signals = process) {
+  let interrupted = false;
+  const stop = () => { interrupted = true; child.kill("SIGKILL"); };
+  let onExit, onError;
+  const exited = new Promise((resolveExit, rejectExit) => {
+    onError = rejectExit;
+    onExit = (code, signal) => resolveExit(signal === null ? code : -1);
+    child.once("error", onError);
+    child.once("exit", onExit);
+  });
+  signals.on("SIGTERM", stop);
+  signals.on("SIGINT", stop);
+  try {
+    const code = await exited;
+    if (interrupted) throw new Error("red team engine interrupted");
+    return code;
+  } finally {
+    signals.off("SIGTERM", stop);
+    signals.off("SIGINT", stop);
+    child.off("error", onError);
+    child.off("exit", onExit);
+  }
 }
 
 export function promptfooChildEnvironment(home, token, targetCAFile, runLease) {

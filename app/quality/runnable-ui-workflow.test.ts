@@ -101,7 +101,7 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["continue-on-error"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(9);
+  expect(verificationSteps).toHaveLength(10);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
@@ -111,6 +111,7 @@ function assertRunnableUiWorkflow(
     "go install github.com/zricethezav/gitleaks/v8@v8.30.1",
     "npm run implementation:status:check",
     "npm run verify",
+    "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n",
     "npm run production:release:gate",
   ]);
   expect(verificationSteps[0]?.with).toEqual({ "fetch-depth": 0 });
@@ -147,6 +148,7 @@ function validWorkflow(): Workflow {
           { run: "go install github.com/zricethezav/gitleaks/v8@v8.30.1" },
           { run: "npm run implementation:status:check" },
           { run: "npm run verify" },
+          { run: "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n" },
           { run: "npm run production:release:gate" },
         ],
       },
@@ -155,6 +157,9 @@ function validWorkflow(): Workflow {
 }
 
 describe("runnable UI GitHub Actions gate", () => {
+  it("accepts the baseline before testing hostile workflow mutations", async () => {
+    assertRunnableUiWorkflow(validWorkflow(), await readPackageManifest());
+  });
   const invalidWorkflowCases: Array<{
     description: string;
     workflow: Workflow;

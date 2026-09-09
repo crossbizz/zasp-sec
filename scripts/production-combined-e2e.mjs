@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createHash, createHmac, generateKeyPairSync } from "node:crypto";
 import { once } from "node:events";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -12,11 +12,13 @@ import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 import { reloadBrowserPage } from "./browser-e2e-helpers.mjs";
 import { createRuntimePipelineDependencies } from "./runtime-pipeline-dependencies.mjs";
+import { createRedTeamRuntimeProof } from "./red-team-runtime-proof.mjs";
 
 const FIXED_NODE_VERSION = "v22.23.1";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const platform = path.join(root, "services", "platform");
-const postgresBin = "/opt/homebrew/bin";
+const postgresBin = execFileSync("pg_config", ["--bindir"], { encoding: "utf8", timeout: 5_000, maxBuffer: 4_096 }).trim();
+assert.ok(path.isAbsolute(postgresBin) && !/[\r\n\0]/.test(postgresBin), "PostgreSQL binary directory rejected");
 const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const productHostname = "zasp.production-e2e.test";
 const recoveryHostname = "zasp.production-e2e.localhost";
@@ -42,6 +44,8 @@ if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-"));
 const children = [];
 const runtimePipelineDependencies = createRuntimePipelineDependencies(command);
+const redTeamRuntimeProof = createRedTeamRuntimeProof(command);
+let redTeamRuntimeConfiguration;
 let proxy;
 let identity;
 let policyHistory;
@@ -199,6 +203,12 @@ try {
     runtimePipelineDependencies.start("aws"), runtimePipelineDependencies.start("search"),
   ]);
   console.log("combined E2E: owned runtime dependencies ready");
+  if (process.env.ZASP_COMBINED_E2E_RED_TEAM_RUNTIME === "true") {
+    const architecture = await redTeamRuntimeProof.prepare();
+    const binary = path.join(temporaryRoot, "red-team-worker.test");
+    await command("go", ["test", "-c", "-o", binary, "./agentsec-worker"], { cwd: platform, timeout: 120_000, env: { ...process.env, CGO_ENABLED: "0", GOOS: "linux", GOARCH: architecture } });
+    redTeamRuntimeConfiguration = { binary, runner: path.join(root, "workers/redteam-node/runner.mjs"), dsn, awsEndpoint: runtimeAWSEndpoint };
+  }
   const runtimePipelineResult = await command(workerE2EBinary, ["-test.run", "^TestProductionCombinedE2ERuntimeQueueIndex$", "-test.v", "-test.timeout", "240s"], {
     timeout: 250_000,
     env: { ...process.env, ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN: dsn, ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT: runtimeAWSEndpoint, ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT: runtimeSearchEndpoint },
@@ -1133,6 +1143,7 @@ try {
 
 async function cleanupOwnedResources() {
   let runtimeCleanupError;
+  try { await redTeamRuntimeProof.close(); } catch (error) { runtimeCleanupError = error; }
   try { await runtimePipelineDependencies.close(); } catch (error) { runtimeCleanupError = error; }
   console.log("combined E2E: cleanup browser");
   if (secondBrowserTab) await secondBrowserTab.dispose();
@@ -2371,19 +2382,51 @@ SELECT zasp_attack_lab_register_credential_binding('${organizationID}','${worksp
 	assert.match(reloaded, /cancelled/);
 	assert.doesNotMatch(reloaded, /ref:red-team|lease_token|controller_id|credential_binding/i);
 	await exerciseRedTeamRetainedRun(cdp, dsn, publicOrigin);
+	if (redTeamRuntimeConfiguration) await exerciseRedTeamRuntime(cdp, dsn);
 	await selectBrowserOption(cdp, "Authorized scope", "Production");
 	await waitForBrowserSelectedOption(cdp, "Authorized scope", "Production");
 	console.log("combined E2E: production Attack Lab preflight, explicit approval, composed outbox/controller, isolated evidence, cleanup, rerun, cancellation, and reload proven");
 }
 
+async function exerciseRedTeamRuntime(cdp, dsn) {
+  await clickBrowserText(cdp, "Create test");
+  await fillBrowserLabel(cdp, "Test name", "Runtime pipeline proof");
+  await selectBrowserOption(cdp, "Fresh discovered target", "Attack Lab staging agent");
+  await clickBrowserText(cdp, "Save test");
+  await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Run Runtime pipeline proof"]')?.disabled === false`);
+  const definitionID = (await command(path.join(postgresBin,"psql"),[dsn,"-At","-c",`SELECT definition_id FROM zasp_red_team_definitions WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000022-0000-4000-8000-000000000022' AND environment_id='pid_10000023-0000-4000-8000-000000000023' AND name='Runtime pipeline proof';`])).stdout.trim();
+  assert.match(definitionID, /^pid_[0-9a-f-]{36}$/);
+  await clickBrowserAria(cdp, "Run Runtime pipeline proof");
+  await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Run Runtime pipeline proof"]')?.disabled === false`);
+  const runID = (await command(path.join(postgresBin,"psql"),[dsn,"-At","-c",`SELECT run_id FROM zasp_red_team_runs WHERE definition_id='${definitionID}' AND state='queued' AND attempt=0;`])).stdout.trim();
+  assert.match(runID, /^pid_[0-9a-f-]{36}$/);
+  console.log("combined E2E: browser-created Red Team definition and run ready for pinned runtime");
+  try {
+    const result = await redTeamRuntimeProof.run({ ...redTeamRuntimeConfiguration, runID });
+    assert.match(result.stdout, /red team runtime proof passed:/);
+    assert.match(result.stdout, /--- PASS: TestProductionCombinedE2ERedTeamRuntime/);
+    assert.match(result.stdout, /--- PASS: TestProductionRedTeamCommandCancellationStopsDescendant/);
+    assert.match(result.stdout, /--- PASS: TestProductionRedTeamCommandCompletionAndCancellationRace/);
+    assert.doesNotMatch(result.stdout, /--- SKIP:/);
+  } finally { await redTeamRuntimeProof.close(); }
+  await reloadBrowser(cdp);
+  await waitForBrowserText(cdp, /Runtime pipeline proof/);
+  await clickBrowserAria(cdp, `Open run ${runID}`);
+  const detail = await waitForBrowserText(cdp, /prompt_injection: unsafe behavior observed/);
+  assert.match(detail, /1 of|0 of/); assert.match(detail, /fail/); assert.match(detail, /Verify safely/);
+  assert.doesNotMatch(detail, /proof-secret-fixture|ref:red-team|lease_token|ZASP_RED_TEAM_PROMPT_INJECTION/);
+  await clickBrowserAria(cdp, "Close");
+  console.log("combined E2E: real Red Team outbox/SQS, pinned engine, lease-bound Go adapter, KMS evidence and reloaded browser result proven; customer invocation fixture only");
+}
+
 async function exerciseRedTeamRetainedRun(cdp, dsn, publicOrigin) {
   const expectedScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000022-0000-4000-8000-000000000022/pid_10000023-0000-4000-8000-000000000023";
   await navigateBrowser(cdp, `${publicOrigin}/red-team/results`);
+  await waitForBrowserText(cdp, /Attack Lab prompt safety/);
   for (const pathname of ["/api/v1/tests", "/api/v1/test-runs", "/api/v1/agents", "/api/v1/tools"]) {
     const diagnostic = await browserFetchJSON(cdp, pathname, { "X-Zasp-Expected-Scope":expectedScope });
     assert.equal(diagnostic.status, 200, `Red Team authoritative read unavailable: ${pathname}`);
   }
-  await waitForBrowserText(cdp, /Attack Lab prompt safety/);
   loseNextRedTeamRunResponse = true;
   await clickBrowserAria(cdp, "Run Attack Lab prompt safety");
   await waitForBrowserText(cdp, /Retry retained operation/);

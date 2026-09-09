@@ -3,6 +3,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { readFile, readdir } from "node:fs/promises";
 import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
@@ -30,6 +31,18 @@ test("Red Team response recovery proves committed authority without duplicate wo
 test("recommendation browser proof uses discovered targets without granting execution",async()=>{
   const source=await readFile(new URL("./production-combined-e2e.mjs",import.meta.url),"utf8");
   for(const expected of ["exerciseRedTeamRecommendations", "Support agent", "Automation repository", "Use recommended categories", "recommendation selection created execution authority", "recommendation fixture permission ownership changed", "finally { await setPermission(false)", "Discovered identity or administrative authority warrants authorization-boundary testing"])assert.ok(source.includes(expected),expected);
+});
+
+test("Red Team runtime proof preserves real composition and exact evidence claims", async()=>{
+  const source=await readFile(new URL("./production-combined-e2e.mjs",import.meta.url),"utf8");
+  const worker=await readFile(new URL("../services/platform/agentsec-worker/red_team_runtime_combined_e2e_test.go",import.meta.url),"utf8");
+  const start=source.indexOf("async function exerciseRedTeamRuntime");
+  const flow=source.slice(start,source.indexOf("async function exerciseRedTeamRetainedRun",start));
+  for(const text of ["Save test","Run Runtime pipeline proof","redTeamRuntimeProof.run","--- PASS: TestProductionCombinedE2ERedTeamRuntime","assert.doesNotMatch(result.stdout, /--- SKIP:/)","await reloadBrowser","Verify safely","customer invocation fixture only"])assert.ok(flow.includes(text),text);
+  for(const text of ["composeRedTeamWorkerRuntime(","composeRedTeamOutboxWorkerRuntime(","productionRedTeamCommand{}","redteamadapter.NewPostgresResolver(","redteamadapter.NewHandler(","outbox.Ready(ctx)","worker.Ready(ctx)","outbox.Processor.RunOnce(ctx)","worker.Processor.RunOnce(ctx)","p.queue.PublishBatch(ctx, jobs)","attempts != 1","fixture.calls.Load() != 1","!leaseCleared","s3API.GetObject(","!bytes.Equal(checksum, digest[:])","aws.ToString(object.VersionId) != version","object.ServerSideEncryption != s3types.ServerSideEncryptionAwsKms","aws.ToString(object.SSEKMSKeyId) != keyARN","customer invocation fixture only"])assert.ok(worker.includes(text),text);
+  assert.equal(worker.match(/p\.queue\.PublishBatch\(ctx, jobs\)/g)?.length,2,"duplicate delivery must be physically published");
+  assert.doesNotMatch(worker,/zasp_red_team_(?:finish_run|claim_run|acknowledge_outbox)\s*\(/);
+  assert.doesNotMatch(worker,/newRedTeam(?:Processor|OutboxProcessor)\(/);
 });
 
 test("combined production E2E owns every local boundary and fixed assertion", async () => {
@@ -190,6 +203,13 @@ test("owned cleanup is idempotent", async () => {
 	}
 });
 
+test("PostgreSQL tool discovery does not depend on a macOS installation path", async () => {
+  const source=await readFile(new URL("./production-combined-e2e.mjs",import.meta.url),"utf8");
+  assert.ok(/execFileSync\("pg_config", \["--bindir"\]/.test(source));
+  assert.ok(/path\.isAbsolute\(postgresBin\)/.test(source));
+  assert.ok(!/const postgresBin = "\/opt\/homebrew/.test(source));
+});
+
 test("combined production E2E removes owned processes and temp root on SIGTERM", { timeout: 60_000 }, async () => {
   const before = new Set((await readdir(os.tmpdir())).filter((value) => value.startsWith("zasp-production-e2e-")));
   const child = spawn(process.execPath, [fileURLToPath(new URL("./production-combined-e2e.mjs", import.meta.url))], { stdio: ["ignore", "pipe", "pipe"] });
@@ -243,6 +263,39 @@ test("combined runtime proof removes owned containers and processes on real SIGT
   } finally {
     if (child.exitCode === null) child.kill("SIGTERM");
   }
+});
+
+test("composed Red Team runtime removes its owned container on real SIGTERM", { timeout:420_000, skip:process.env.ZASP_RED_TEAM_RUNTIME_SIGNAL_TEST!=="true" }, async()=>{
+  const beforeRoots=new Set((await readdir(os.tmpdir())).filter(value=>value.startsWith("zasp-production-e2e-")));
+  const child=spawn(process.execPath,[fileURLToPath(new URL("./production-combined-e2e.mjs",import.meta.url))],{env:{...process.env,ZASP_COMBINED_E2E_RED_TEAM_RUNTIME:"true"},stdio:["ignore","pipe","pipe"]});
+  let output="";child.stdout.on("data",value=>{output+=value;});child.stderr.on("data",value=>{output+=value;});
+  try{
+    await waitFor(()=>output.includes("browser-created Red Team definition and run ready for pinned runtime") || child.exitCode!==null,360_000,()=>output);
+    assert.equal(child.exitCode,null,output);
+    const roots=(await readdir(os.tmpdir())).filter(value=>value.startsWith("zasp-production-e2e-")&&!beforeRoots.has(value));
+    assert.equal(roots.length,1);
+    const ownedRoot=path.join(os.tmpdir(),roots[0]);
+    let ownedID;
+    await waitFor(()=>{
+      const result=spawnSync("docker",["ps","--all","--quiet","--no-trunc","--filter","label=zasp.proof=red-team-runtime"],{encoding:"utf8",timeout:3000});
+      assert.equal(result.status,0);
+      for(const id of result.stdout.trim().split("\n").filter(Boolean)){
+        const inspect=spawnSync("docker",["inspect",id],{encoding:"utf8",timeout:3000});
+        if(inspect.status!==0)continue;
+        const record=JSON.parse(inspect.stdout)[0];
+        if(record.Mounts?.some(mount=>mount.Source===path.join(ownedRoot,"red-team-worker.test"))&&record.State?.Running){ownedID=id;return true;}
+      }
+      return false;
+    },15_000,()=>output);
+    child.kill("SIGTERM");
+    const [status,signal]=await Promise.race([once(child,"exit"),rejectAfter(45_000,()=>output)]);
+    assert.equal(status,143,output);assert.equal(signal,null);
+    const remaining=spawnSync("docker",["inspect",ownedID],{encoding:"utf8",timeout:3000});
+    assert.notEqual(remaining.status,0);assert.match(remaining.stderr,/No such (object|container)/i);
+    assert.equal((await readdir(os.tmpdir())).includes(roots[0]),false);
+    const processes=spawnSync("ps",["-axo","command="],{encoding:"utf8"});assert.equal(processes.status,0);assert.doesNotMatch(processes.stdout,new RegExp(escapeRegExp(ownedRoot)));
+    assert.match(output,/combined E2E: cleanup files/);
+  }finally{if(child.exitCode===null&&child.signalCode===null){child.kill("SIGTERM");await Promise.race([once(child,"exit"),rejectAfter(45_000,()=>output)]);}}
 });
 
 async function waitFor(predicate, timeout, describe) {

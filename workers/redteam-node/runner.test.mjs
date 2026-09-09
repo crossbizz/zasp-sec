@@ -1,7 +1,32 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { EventEmitter } from "node:events";
 
-import { buildPromptfooConfiguration, normalizePromptfooResult, parseUniqueJson, promptfooChildEnvironment } from "./runner.mjs";
+import { buildPromptfooConfiguration, normalizePromptfooResult, parseUniqueJson, promptfooChildEnvironment, waitForPromptfooProcess } from "./runner.mjs";
+
+test("launcher cancellation kills and reaps its engine before rejecting",async()=>{
+  for(const signal of ["SIGINT","SIGTERM"]){
+    const child=new EventEmitter(),signals=new EventEmitter(),kills=[];
+    child.kill=value=>{kills.push(value);return true;};
+    let settled=false;
+    const pending=waitForPromptfooProcess(child,signals);
+    const rejected=assert.rejects(pending,/interrupted/).then(()=>{settled=true;});
+    signals.emit(signal);await Promise.resolve();
+    assert.deepEqual(kills,["SIGKILL"]);assert.equal(settled,false,"launcher returned before engine exit");
+    child.emit("exit",null,"SIGKILL");await rejected;
+    assert.equal(signals.listenerCount("SIGTERM"),0);assert.equal(signals.listenerCount("SIGINT"),0);
+  }
+});
+test("completed engine preserves its exact exit code and removes signal listeners",async()=>{
+  const child=new EventEmitter(),signals=new EventEmitter();child.kill=()=>assert.fail("completed engine was killed");
+  const pending=waitForPromptfooProcess(child,signals);child.emit("exit",100,null);
+  assert.equal(await pending,100);assert.equal(signals.listenerCount("SIGTERM"),0);assert.equal(child.listenerCount("error"),0);
+});
+test("engine spawn error rejects without leaving cancellation listeners",async()=>{
+  const child=new EventEmitter(),signals=new EventEmitter();child.kill=()=>true;
+  const pending=waitForPromptfooProcess(child,signals);child.emit("error",new Error("owned fixture spawn failed"));
+  await assert.rejects(pending,/spawn failed/);assert.equal(signals.listenerCount("SIGINT"),0);assert.equal(child.listenerCount("exit"),0);
+});
 
 const input = Object.freeze({
   schema_version: "red-team-runner-input-v1",

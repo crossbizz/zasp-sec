@@ -49,7 +49,7 @@ test("actual pinned Promptfoo image distinguishes pass, security failure, and en
     // These are disposable test-only TLS keys, mounted read-only in an offline container.
     await chmod(temporary,0o755);await chmod(path.join(temporary,"key.pem"),0o444);await chmod(path.join(temporary,"cert.pem"),0o444);
     if(cleaning) throw new Error("proof cancelled");
-    creating = command("docker", ["create","--name",name,"--label",`io.zasp.red-team-image-proof=${owner}`,"--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","128","--memory","1g","--cpus","2","--tmpfs","/tmp:rw,nosuid,nodev,size=256m,mode=1777","--add-host","agentsec-red-team-adapter.zasp.svc.cluster.local:127.0.0.1","--mount",`type=bind,src=${path.join(root,"workers/redteam-node")},dst=/proof,readonly`,"--mount",`type=bind,src=${temporary},dst=/proof-credentials,readonly`,"--env","ZASP_RED_TEAM_IMAGE_PROOF=true","--env",`ZASP_IMAGE_PROMPTFOO_PATH=${promptfooPath}`,"--entrypoint","/usr/local/bin/node",image,"/proof/image-proof.mjs"]);
+    creating = command("docker", ["create","--name",name,"--label",`io.zasp.red-team-image-proof=${owner}`,"--user","1000:1000","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","128","--memory","1g","--cpus","2","--tmpfs","/tmp:rw,nosuid,nodev,size=256m,mode=1777","--add-host","agentsec-red-team-adapter.zasp.svc.cluster.local:127.0.0.1","--mount",`type=bind,src=${path.join(root,"workers/redteam-node")},dst=/proof,readonly`,"--mount",`type=bind,src=${temporary},dst=/proof-credentials,readonly`,"--env","ZASP_RED_TEAM_IMAGE_PROOF=true","--env",`ZASP_IMAGE_PROMPTFOO_PATH=${promptfooPath}`,"--entrypoint","/usr/local/bin/node",image,"/proof/image-proof.mjs"]);
     const created = await creating;
     assert.equal(created.code,0,created.output);
     assert.match(created.output.trim(),/^[a-f0-9]{64}$/);
@@ -57,6 +57,7 @@ test("actual pinned Promptfoo image distinguishes pass, security failure, and en
     const result = await command("docker",["start","--attach",name],200_000);
     assert.equal(result.code,0,result.output);
     for(const verdict of ["pass","fail","engine_error"]) assert.ok(result.output.includes(`actual pinned Promptfoo: ${verdict} verified`));
+    assert.ok(result.output.includes("actual pinned Promptfoo: cancellation reaped engine with no completed output"));
     process.stdout.write(result.output);
   } finally {
     try {await cleanup.run();} finally {cleanup.dispose();}

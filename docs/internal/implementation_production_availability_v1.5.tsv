@@ -333,10 +333,10 @@ M4	M4-59c	Complete	production-available	T05-inventory-cutover	production evidenc
 M4	M4-59d	Complete	production-available	T05-inventory-cutover	production evidence: canonical Prowler finding derives a bounded evidence-state attack path and ranked break options in production PostgreSQL at 18d4e9d
 M4	M4-59e	Complete	production-available	T05-inventory-cutover	production evidence: mounted ProductionRiskView renders Why, Evidence, Path, Fix, and Verify from authorized product APIs with path navigation at 2b768d6
 M4	M4-59	Complete	production-available	T05-inventory-cutover	installed-Chrome v16 M4 gate proves tenant-scoped inventory, findings, paths, response-loss ticket retry, same-tab reload persistence, zero duplicate webhook delivery, and clean browser state
-M5	M5-01	Complete	component-only	T12-red-team	audited component-only proof: test domain
+M5	M5-01	Complete	production-available	T12-red-team	production TestDefinition/TestRun/TestAttempt and published OpenAPI distinguish engine_error from pass/fail; individual acceptance review and main CI 34300722566 pass; evidence 2026-09-08-m5-red-team-production-closure.md
 M5	M5-02	Complete	component-only	T12-red-team	audited component-only proof: Promptfoo adapter
-M5	M5-03	Complete	component-only	T12-red-team	audited component-only proof: curated pack selector
-M5	M5-04	Complete	component-only	T12-red-team	audited component-only proof: test safety preflight
+M5	M5-03	Complete	production-available	T12-red-team	mounted create wizard derives explained recommendations from fresh exact-target product APIs and rejects expired evidence; selector/API/UI/Chrome proof plus individual review and main CI 34300722566 pass
+M5	M5-04	Complete	production-available	T12-red-team	schema37 authoritative environment and registered credential admission rejects unsafe creation/queue/claim; actual PostgreSQL denial tests and mounted expected-side-effects UI; individual review and main CI 34300722566 pass
 M5	M5-05	Complete	component-only	T12-red-team	audited component-only proof: API listTests
 M5	M5-06	Complete	component-only	T12-red-team	audited component-only proof: API createTest
 M5	M5-07	Complete	component-only	T12-red-team	audited component-only proof: API getTest

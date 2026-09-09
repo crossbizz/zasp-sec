@@ -2,11 +2,13 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import https from "node:https";
 import { buildPromptfooConfiguration } from "./runner.mjs";
 
 assert.equal(process.env.ZASP_RED_TEAM_IMAGE_PROOF, "true");
+assert.equal(process.getuid(),1000);
+assert.equal(process.getgid(),1000);
 const input = {
   schema_version: "red-team-runner-input-v1",
   organization_id: "pid_99300001-0000-4000-8000-000000000001",
@@ -43,6 +45,7 @@ const server = https.createServer({key: await readFile("/proof-credentials/key.p
     assert.ok(curated);
     assert.deepEqual(value, {target_id: input.target_id, target_kind: input.target_kind, category: curated.vars.category, input: curated.vars.prompt});
     requests.push(value.category);
+    if(mode==="cancel")return;
     response.writeHead(mode === "engine_error" ? 503 : 200, {"content-type":"application/json"});
     response.end(JSON.stringify({output: mode === "fail" ? curated.assert[0].value : "Protected boundary"}));
   } catch {
@@ -78,6 +81,29 @@ try {
     assert.doesNotMatch(JSON.stringify(output), /isolated-image-proof-token|ZASP_RED_TEAM_|Protected boundary|credential_reference/);
     process.stdout.write(`actual pinned Promptfoo: ${verdict} verified\n`);
   }
+  mode="cancel";requests=[];
+  const directory="/tmp/red-team-image-cancel";
+  await mkdir(directory,{mode:0o700});
+  await writeFile(`${directory}/input.json`,JSON.stringify(input),{mode:0o600});
+  await writeFile(`${directory}/token`,token,{mode:0o600});
+  const launcher=spawn(process.execPath,["/proof/runner.mjs","run",`${directory}/input.json`,`${directory}/output.json`],{
+    env:{HOME:directory,ZASP_PROMPTFOO_BIN:process.env.ZASP_IMAGE_PROMPTFOO_PATH,ZASP_RED_TEAM_TARGET_ENDPOINT:endpoint,ZASP_RED_TEAM_ADAPTER_TOKEN_FILE:`${directory}/token`,ZASP_RED_TEAM_TARGET_CA_FILE:"/proof-credentials/cert.pem",ZASP_RED_TEAM_RUN_LEASE:lease},stdio:"ignore",
+  });
+  const exited=once(launcher,"exit");
+  try {
+    const until=Date.now()+45_000;
+    while(requests.length===0){assert.ok(Date.now()<until,"pinned engine did not reach the owned adapter");assert.equal(launcher.exitCode,null);await new Promise(resolve=>setTimeout(resolve,10));}
+    const descendants=(await readFile(`/proc/${launcher.pid}/task/${launcher.pid}/children`,"utf8")).trim().split(/\s+/).filter(Boolean);
+    assert.equal(descendants.length,1,"expected exactly one owned engine process");
+    assert.match(descendants[0],/^[1-9][0-9]*$/);
+    launcher.kill("SIGTERM");
+    let deadline;
+    const [code,signal]=await Promise.race([exited,new Promise((_,reject)=>{deadline=setTimeout(()=>reject(new Error("launcher did not reap engine within deadline")),3000);})]).finally(()=>clearTimeout(deadline));
+    assert.notEqual(code,0);assert.equal(signal,null,"launcher did not handle cancellation");
+    await assert.rejects(stat(`/proc/${descendants[0]}`),error=>error.code==="ENOENT","cancelled engine was not reaped");
+    await assert.rejects(stat(`${directory}/output.json`),error=>error.code==="ENOENT","cancelled engine published a completed result");
+    process.stdout.write("actual pinned Promptfoo: cancellation reaped engine with no completed output\n");
+  }finally{if(launcher.exitCode===null&&launcher.signalCode===null){launcher.kill("SIGKILL");await exited;}}
 } finally {
   server.closeAllConnections();
   await new Promise((resolve) => server.close(resolve));
