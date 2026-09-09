@@ -236,3 +236,11 @@ resources were cleaned up. This preserves the stated local-fixture boundaries.
 The replay correction passed independent re-review and race tests; an added
 semantic fixture proves that observed principal/credential/decision selectors
 do not upgrade a Probable correlation to an attributed session.
+
+PR 25 initially failed push CI 34394771791 and PR CI 34394828007 because the
+new runtime search Go suites were added to the workflow after local full
+verification without updating its exact contract fixture. The application
+tests otherwise passed. The correction updates both contract expectations and
+adds six negative cases preventing omission of any new package. Final-tree
+full verification must pass before the correction is pushed; no merge or
+additional task credit is permitted from the failed runs.

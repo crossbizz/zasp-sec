@@ -114,7 +114,7 @@ function assertRunnableUiWorkflow(
     "npm run verify",
     "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n",
     "npm run production:release:gate",
-    "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestRuntimeSession'\n",
+    "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestRuntimeSession'\n",
     "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n",
   ]);
   expect(verificationSteps[0]?.with).toEqual({ "fetch-depth": 0 });
@@ -153,7 +153,7 @@ function validWorkflow(): Workflow {
           { run: "npm run verify" },
           { run: "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n" },
           { run: "npm run production:release:gate" },
-          { run: "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestRuntimeSession'\n" },
+          { run: "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestRuntimeSession'\n" },
           { run: "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n" },
         ],
       },
@@ -254,6 +254,16 @@ describe("runnable UI GitHub Actions gate", () => {
   ];
 
   it.each(invalidWorkflowCases)("rejects $description", async ({ workflow }) => {
+    const packageManifest = await readPackageManifest();
+    expect(() => assertRunnableUiWorkflow(workflow, packageManifest)).toThrow();
+  });
+
+  it.each(["./runtimemetadata", "./sensoradapter", "./sessionsearch", "./runtimeprojection", "./runtimecorrelation", "./runtimeindex/..."])("rejects omission of runtime search verification for %s", async (target) => {
+    const workflow = validWorkflow();
+    const step = workflow.jobs?.verify?.steps?.find((value) => value.run?.includes("./sessionsearch"));
+    expect(step?.run).toContain(target);
+    if (!step?.run) throw new Error("runtime verification fixture is missing");
+    step.run = step.run.replace(` ${target}`, "");
     const packageManifest = await readPackageManifest();
     expect(() => assertRunnableUiWorkflow(workflow, packageManifest)).toThrow();
   });
