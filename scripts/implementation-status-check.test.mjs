@@ -59,8 +59,20 @@ function rows(ledger) {
 
 test("runtime session tasks cannot inherit console-login or fixture-only production credit", async () => {
   const ledger = await readFile(canonicalLedgerPath, "utf8");
-  for (const id of ["M7-01", "M7-02", "M7-03", "M7-04", "M7-06", "M7-07a"]) {
+  for (const id of ["M7-05", "M7-06", "M7-07a"]) {
     assert.ok(ledger.includes(`M7\t${id}\tComplete\tcomponent-only\tT14-data-workflows\t`), `${id} must await original runtime-session acceptance`);
+  }
+});
+
+test("shipped runtime session acceptance cannot silently lose production credit", async () => {
+  for (const id of ["M7-01", "M7-02", "M7-03", "M7-04"]) {
+    await withLedger((ledger) => {
+      const expected = `M7\t${id}\tComplete\tproduction-available\t`;
+      assert.ok(ledger.includes(expected), `${id} acceptance was not recorded`);
+      return ledger.replace(expected, `M7\t${id}\tComplete\tcomponent-only\t`);
+    }, async (ledgerPath) => {
+      await assert.rejects(() => validateLedger({ ledgerPath, sourcePlanPath }), /audited production-available/);
+    });
   }
 });
 
@@ -172,7 +184,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 530; expected 531/,
+        /production-available count is 534; expected 535/,
       );
     },
   );
@@ -392,7 +404,7 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => status.replace(
-      "| Production-available | 531 |",
+      "| Production-available | 535 |",
       "| Production-available | 496 |",
     ),
     async ({ ledgerPath, statusPath }) => {

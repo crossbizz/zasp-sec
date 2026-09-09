@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -23,6 +24,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimemetadata"
 	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
 )
 
@@ -48,13 +50,14 @@ var (
 )
 
 type RuntimeEvent struct {
-	EventID    string            `json:"event_id"`
-	Class      string            `json:"class"`
-	Action     string            `json:"action"`
-	WorkloadID string            `json:"workload_id"`
-	EventTime  string            `json:"event_time"`
-	EvidenceID string            `json:"evidence_id"`
-	Content    map[string]string `json:"content,omitempty"`
+	SearchMetadata runtimemetadata.Fields `json:"search_metadata,omitzero"`
+	EventID        string                 `json:"event_id"`
+	Class          string                 `json:"class"`
+	Action         string                 `json:"action"`
+	WorkloadID     string                 `json:"workload_id"`
+	EventTime      string                 `json:"event_time"`
+	EvidenceID     string                 `json:"evidence_id"`
+	Content        map[string]string      `json:"content,omitempty"`
 }
 
 type Heartbeat struct {
@@ -244,6 +247,20 @@ func normalizeProviderRoot(line []byte, root providerRoot) (RuntimeEvent, error)
 	if !validProcessIdentity(process) {
 		return RuntimeEvent{}, ErrAdapter
 	}
+	searchMetadata := runtimemetadata.Fields{}
+	searchMetadata.ProcessDigest, err = runtimemetadata.DigestSelector("process", process.Binary)
+	if err != nil {
+		return RuntimeEvent{}, ErrAdapter
+	}
+	if class == "file" {
+		searchMetadata.FileDigest, err = runtimemetadata.DigestSelector("file", root.ProcessKprobe.Args[0].File.Path)
+	} else if class == "network" {
+		socket := root.ProcessKprobe.Args[0].Sock
+		searchMetadata.ResourceDigest, err = runtimemetadata.DigestSelector("resource", "tcp://"+net.JoinHostPort(socket.Daddr, strconv.Itoa(int(socket.Dport))))
+	}
+	if err != nil || !searchMetadata.Valid("tetragon") {
+		return RuntimeEvent{}, ErrAdapter
+	}
 	workloadDigest := sha256.Sum256([]byte(strings.Join([]string{"zasp-tetragon-workload-v1", root.ClusterName, root.NodeName, process.Pod.Namespace, process.Pod.UID, process.Pod.Container.ID}, "\x00")))
 	lineDigest := sha256.Sum256(append([]byte("zasp-tetragon-event-v1\x00"), line...))
 	evidence, err := productIDFromDigest(lineDigest)
@@ -251,7 +268,8 @@ func normalizeProviderRoot(line []byte, root providerRoot) (RuntimeEvent, error)
 		return RuntimeEvent{}, ErrAdapter
 	}
 	return RuntimeEvent{
-		EventID: "tetragon:" + hex.EncodeToString(lineDigest[:]), Class: class, Action: action,
+		SearchMetadata: searchMetadata,
+		EventID:        "tetragon:" + hex.EncodeToString(lineDigest[:]), Class: class, Action: action,
 		WorkloadID: "k8s:" + hex.EncodeToString(workloadDigest[:]), EventTime: root.Time,
 		EvidenceID: evidence.String(), Content: content,
 	}, nil
@@ -625,6 +643,9 @@ func validHeartbeat(value Heartbeat) bool {
 }
 
 func validRuntimeEvent(value RuntimeEvent, now time.Time) bool {
+	if !value.SearchMetadata.Valid("tetragon") {
+		return false
+	}
 	when, err := time.Parse(timestampLayout, value.EventTime)
 	if err != nil || when.Format(timestampLayout) != value.EventTime || when.Before(now.Add(-24*time.Hour)) || when.After(now.Add(5*time.Minute)) || !strings.HasPrefix(value.EventID, "tetragon:") || len(value.EventID) != 73 || len(value.WorkloadID) != 68 || !strings.HasPrefix(value.WorkloadID, "k8s:") {
 		return false
@@ -633,7 +654,7 @@ func validRuntimeEvent(value RuntimeEvent, now time.Time) bool {
 		return false
 	}
 	allowed := map[string]map[string]bool{"process": {"exec": true, "exit": true}, "file": {"read": true, "write": true}, "network": {"connect": true, "accept": true}}
-	if !allowed[value.Class][value.Action] || len(value.Content) == 0 || len(value.Content) > 8 {
+	if !allowed[value.Class][value.Action] || len(value.Content) > 8 {
 		return false
 	}
 	for key, item := range value.Content {
