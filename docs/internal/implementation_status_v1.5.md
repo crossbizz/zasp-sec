@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 536 |
-| Component-only | 131 |
+| Production-available | 531 |
+| Component-only | 136 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -146,10 +146,22 @@ The note is retained here, outside the historical tables; no source-task
 status or production credit changes. The corrected full verification passed
 with 1,083 frontend tests, release checks, type-checking, lint, production
 build and ledger validation. Independent review accepted the correction;
-fresh remote CI remains pending.
+fresh push CI 34381982069 and PR CI 34381987213 passed. PR 22 merged as
+55e819eb; main CI 34383062122 passed. M5-22 is now production-available,
+closing all 42 original M5 tasks at the source-reachable production acceptance
+level. This does not attest live cloud deployment or customer operation.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
+
+September 9 runtime-session audit: original M7-01 through M7-07a acceptance
+does not follow from the console-login administration implementation. M7-01,
+M7-02, M7-03, M7-04, M7-06 and M7-07a are corrected to component-only after
+independent review. M7-05 was already withheld. Historical counts do not change.
+The production projector is not connected to the console session event table;
+the UI lacks the required structured filters and paginated runtime timeline.
+The restoration sequence and evidence are tracked in
+`docs/internal/2026-09-09-m7-runtime-session-production-closure.md`.
 
 ## Production-availability audit basis
 
@@ -261,12 +273,12 @@ production composition, not merely a component proof or external evidence.
 | M2 | 72 | 69 | 3 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
-| M5 | 42 | 41 | 1 | 0 | 0 |
+| M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
-| M7 | 62 | 37 | 25 | 0 | 0 |
+| M7 | 62 | 31 | 31 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **536** | **131** | **61** | **0** |
+| **Total** | **728** | **531** | **136** | **61** | **0** |
 
 ## Prerequisite work
 

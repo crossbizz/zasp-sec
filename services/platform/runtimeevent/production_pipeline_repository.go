@@ -26,6 +26,7 @@ const (
 	productionPipelineClaimStageSQL        = `SELECT zasp_runtime_claim_stage($1,$2,$3,$4)`
 	productionPipelineHeartbeatStageSQL    = `SELECT zasp_runtime_heartbeat_stage($1,$2,$3,$4,$5,$6,$7,$8)`
 	productionPipelineFinishStageSQL       = `SELECT zasp_runtime_finish_stage($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`
+	productionPipelineFinishSessionSQL     = `SELECT zasp_runtime_finish_session_projection($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`
 )
 
 var (
@@ -144,16 +145,17 @@ const (
 )
 
 type StageFinishRequest struct {
-	Lease           StageLease
-	WorkerID        string
-	LeaseToken      string
-	Outcome         StageOutcome
-	EffectDigest    [sha256.Size]byte
-	ResultReference string
-	ResultVersionID string
-	ResultDigest    [sha256.Size]byte
-	ErrorClass      string
-	RetryAfter      time.Duration
+	Lease             StageLease
+	WorkerID          string
+	LeaseToken        string
+	Outcome           StageOutcome
+	EffectDigest      [sha256.Size]byte
+	ResultReference   string
+	ResultVersionID   string
+	ResultDigest      [sha256.Size]byte
+	ErrorClass        string
+	RetryAfter        time.Duration
+	ProjectionReceipt string
 }
 
 type StageFinishResult struct {
@@ -208,6 +210,23 @@ func (repository *PostgresProductionPipelineRepository) Ready(ctx context.Contex
 	result.Ready = false
 	metadata = migrations.ProductionRuntimeIngestReconciliation()
 	payload, err = safeProductionQuery(repository.database, ctx, productionPipelineReadySQL, metadata.Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint(), string(repository.authority))
+	if err != nil || strictProductionJSON(payload, &result) != nil || !result.Ready {
+		return ErrProductionPipelineUnavailable
+	}
+	return nil
+}
+
+// ReadySessionProjection gates completion on durable session projection authority.
+// Older schemas cannot complete successfully and must not pass this check.
+func (repository *PostgresProductionPipelineRepository) ReadySessionProjection(ctx context.Context) error {
+	if !validProductionPipelineRepository(repository, ctx) || repository.authority != ProductionPipelineAuthorityCoordinator {
+		return ErrProductionPipelineUnavailable
+	}
+	var result struct {
+		Ready bool `json:"ready"`
+	}
+	metadata := migrations.ProductionRuntimeSessions()
+	payload, err := safeProductionQuery(repository.database, ctx, `SELECT jsonb_build_object('ready',zasp_production_runtime_sessions_readiness($1,$2) AND zasp_runtime_principal_ready($3))`, metadata.Checksum(), migrations.ProductionRuntimeSessionsSemanticFingerprint(), string(repository.authority))
 	if err != nil || strictProductionJSON(payload, &result) != nil || !result.Ready {
 		return ErrProductionPipelineUnavailable
 	}
@@ -338,7 +357,13 @@ func (repository *PostgresProductionPipelineRepository) FinishStage(ctx context.
 	if request.Outcome == StageOutcomeRetryable {
 		retrySeconds = int(request.RetryAfter / time.Second)
 	}
-	payload, err := safeProductionQuery(repository.database, ctx, productionPipelineFinishStageSQL, scopeArguments(request.Lease.Scope, request.Lease.BatchID, request.Lease.Generation, request.WorkerID, request.LeaseToken, request.Lease.Attempt, request.Lease.InputDigest[:], request.Lease.ImplementationVersion, string(request.Outcome), effect, nullableString(request.ResultReference), nullableString(request.ResultVersionID), resultDigest, nullableString(request.ErrorClass), retrySeconds)...)
+	statement := productionPipelineFinishStageSQL
+	arguments := scopeArguments(request.Lease.Scope, request.Lease.BatchID, request.Lease.Generation, request.WorkerID, request.LeaseToken, request.Lease.Attempt, request.Lease.InputDigest[:], request.Lease.ImplementationVersion, string(request.Outcome), effect, nullableString(request.ResultReference), nullableString(request.ResultVersionID), resultDigest, nullableString(request.ErrorClass), retrySeconds)
+	if request.Lease.Stage == RuntimeStageComplete && request.Outcome == StageOutcomeSucceeded {
+		statement = productionPipelineFinishSessionSQL
+		arguments = append(arguments, []byte(request.ProjectionReceipt))
+	}
+	payload, err := safeProductionQuery(repository.database, ctx, statement, arguments...)
 	if err != nil {
 		return StageFinishResult{}, ErrProductionPipelineUnknown
 	}
@@ -395,6 +420,13 @@ func validStageLease(lease StageLease, expected RuntimeStage, now time.Time) boo
 
 func validStageFinishRequest(request StageFinishRequest, expected RuntimeStage, now time.Time) bool {
 	if !validStageLease(request.Lease, expected, now) || !validWorkerLease(request.WorkerID, request.LeaseToken) {
+		return false
+	}
+	if expected == RuntimeStageComplete && request.Outcome == StageOutcomeSucceeded {
+		if len(request.ProjectionReceipt) < 2 || len(request.ProjectionReceipt) > 4<<20 || !utf8.ValidString(request.ProjectionReceipt) || !strings.HasPrefix(request.ProjectionReceipt, "{") || !json.Valid([]byte(request.ProjectionReceipt)) {
+			return false
+		}
+	} else if request.ProjectionReceipt != "" {
 		return false
 	}
 	switch request.Outcome {

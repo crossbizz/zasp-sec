@@ -57,6 +57,13 @@ function rows(ledger) {
   return ledger.trimEnd().split("\n");
 }
 
+test("runtime session tasks cannot inherit console-login or fixture-only production credit", async () => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  for (const id of ["M7-01", "M7-02", "M7-03", "M7-04", "M7-06", "M7-07a"]) {
+    assert.ok(ledger.includes(`M7\t${id}\tComplete\tcomponent-only\tT14-data-workflows\t`), `${id} must await original runtime-session acceptance`);
+  }
+});
+
 test("rejects a ledger missing a source-plan task", async () => {
   await withLedger(
     (ledger) => rows(ledger).filter((_, index) => index !== 1).join("\n") + "\n",
@@ -165,14 +172,14 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 535; expected 536/,
+        /production-available count is 530; expected 531/,
       );
     },
   );
 });
 
 test("artifact, outcome and Fargate-create acceptance cannot silently lose production credit", async () => {
-  for (const id of ["M5-02", "M5-14", "M5-18", "M5-16", "M5-17", "M5-19", "M5-20", "M5-21"]) {
+  for (const id of ["M5-02", "M5-14", "M5-18", "M5-16", "M5-17", "M5-19", "M5-20", "M5-21", "M5-22"]) {
     await withLedger((ledger) => {
       const expected = `M5\t${id}\tComplete\tproduction-available\t`;
       assert.ok(ledger.includes(expected), `${id} acceptance was not recorded`);
@@ -385,7 +392,7 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => status.replace(
-      "| Production-available | 536 |",
+      "| Production-available | 531 |",
       "| Production-available | 496 |",
     ),
     async ({ ledgerPath, statusPath }) => {

@@ -24,10 +24,11 @@ type runtimeStageAuthority interface {
 }
 
 type runtimeStageEffect struct {
-	EffectDigest    [sha256.Size]byte
-	ResultReference string
-	ResultVersionID string
-	ResultDigest    [sha256.Size]byte
+	EffectDigest      [sha256.Size]byte
+	ResultReference   string
+	ResultVersionID   string
+	ResultDigest      [sha256.Size]byte
+	ProjectionReceipt string
 }
 
 type runtimeStageExecutor interface {
@@ -155,6 +156,7 @@ func (processor *runtimeStageProcessor) finishRequest(lease runtimeevent.StageLe
 	switch {
 	case executeErr == nil && validRuntimeStageEffect(effect):
 		request.Outcome, request.EffectDigest, request.ResultReference, request.ResultVersionID, request.ResultDigest = runtimeevent.StageOutcomeSucceeded, effect.EffectDigest, effect.ResultReference, effect.ResultVersionID, effect.ResultDigest
+		request.ProjectionReceipt = effect.ProjectionReceipt
 	case errors.Is(executeErr, errRuntimeStageRetryable):
 		request.Outcome, request.ErrorClass, request.RetryAfter = runtimeevent.StageOutcomeRetryable, "retryable", time.Duration(processor.config.RetrySeconds)*time.Second
 	case errors.Is(executeErr, errRuntimeStageDenied):

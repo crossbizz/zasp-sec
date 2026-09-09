@@ -26,7 +26,7 @@ func (runner *scriptedMigrationRunner) DownProductionRedTeamSafety(context.Conte
 
 func TestAgentsecMigrateRedTeamSafetyRelease(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 36}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || up.version != 39 || !equalMigrationEvents(up.events, []string{"version", "up-production-red-team-safety", "up-production-red-team-invocation", "up-production-red-team-artifacts", "version"}) {
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || up.version != 40 || !equalMigrationEvents(up.events, []string{"version", "up-production-red-team-safety", "up-production-red-team-invocation", "up-production-red-team-artifacts", "up-production-runtime-sessions", "version"}) {
 		t.Fatalf("up=%v version=%d err=%v", up.events, up.version, err)
 	}
 	down := &scriptedMigrationRunner{version: 37, errAt: "down-production-runtime-queue-replay"}

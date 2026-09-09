@@ -902,6 +902,14 @@ tests, type-checking, lint, six staging checks, 36 release checks, production
 build/source/compiled boundaries, and the 536/131/61 ledger. Independent
 read-only review accepted the correction. Fresh remote CI is pending.
 
+### M5-22 shipped acceptance
+
+Corrected push CI 34381982069 and PR CI 34381987213 passed. PR 22 merged as
+55e819eb7344308bc9209f5d3583559c1a346d9e; main CI 34383062122 passed. M5-22
+is now production-available, closing all 42 original M5 tasks at their reviewed
+source-reachable production acceptance level. Live AWS attachment, deployed
+customer operation and the externally gated milestone checks remain distinct.
+
 The staged scan's ten medium findings were individually inspected: four CI
 IDs, one synthetic Kubernetes UID suffix, one fixture AWS account number,
 two fixed in-cluster hostnames and two documentation-range network values.

@@ -869,7 +869,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 39 {
+	if count < 1 || count > 40 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -953,8 +953,11 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if count >= 38 {
 		metadata = append(metadata, ProductionRedTeamInvocation())
 	}
-	if count == 39 {
+	if count >= 39 {
 		metadata = append(metadata, ProductionRedTeamArtifacts())
+	}
+	if count == 40 {
+		metadata = append(metadata, ProductionRuntimeSessions())
 	}
 	for _, expected := range metadata {
 		var version int64

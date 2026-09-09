@@ -174,8 +174,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39,40) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts\n40|production_runtime_sessions", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -195,6 +195,7 @@ try {
 	console.log("combined E2E: schema 35 production_integration_webhook verified");
   console.log("combined E2E: schema 37 production_red_team_safety verified");
   console.log("combined E2E: schema 39 production_red_team_artifacts verified");
+  console.log("combined E2E: schema 40 production_runtime_sessions verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -214,6 +215,7 @@ try {
     env: { ...process.env, ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN: dsn, ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT: runtimeAWSEndpoint, ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT: runtimeSearchEndpoint },
   });
   assert.match(runtimePipelineResult.stdout, /runtime pipeline proof passed:/);
+  assert.match(runtimePipelineResult.stdout, /runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /--- PASS: TestProductionCombinedE2ERuntimeQueueIndex/);
   assert.doesNotMatch(runtimePipelineResult.stdout, /--- SKIP:/);
   console.log("combined E2E: local runtime SQS/S3/OpenSearch pipeline passed");

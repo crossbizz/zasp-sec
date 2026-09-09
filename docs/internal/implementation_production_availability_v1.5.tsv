@@ -354,7 +354,7 @@ M5	M5-18	Complete	production-available	T12-red-team	Shipped production Kubernete
 M5	M5-19	Complete	production-available	T12-red-team	PR19 absolute durable-attempt timeout without resumed budget reset; exact Job deadline and local-budget evidence distinct from caller/transport timeout; bounded retained reason before UID cleanup and restart without rerun; resource-limit fixtures, independent acceptance and main CI34310435523 passed; docs/internal/2026-09-08-m5-red-team-production-closure.md
 M5	M5-20	Complete	production-available	T12-red-team	PR20 dedicated exact service-account test IAM role with deny-all boundary; actual Pod identity and ambient-credential rejection; corrected deployment preflight; independent review and main CI34377164185 passed; docs/internal/2026-09-08-m5-red-team-production-closure.md
 M5	M5-21	Complete	production-available	T12-red-team	PR21 exact sandbox SG and isolated subnet/image-layer endpoint routing; shared-contract Linux packet denial with independent controls and kernel counters; owned interrupted cleanup; confined ConfigMap CA; independent acceptance and main CI34380166718 passed; docs/internal/2026-09-08-m5-red-team-production-closure.md
-M5	M5-22	Complete	component-only	T12-red-team	audited component-only proof: Attack Lab egress proxy token
+M5	M5-22	Complete	production-available	T12-red-team	PR 22 main 55e819eb and main CI 34383062122 passed; real worker-issued signed token, tenant/run PostgreSQL authority, TLS canary, undeclared-host/expired-token denial, bounded proxy concurrency/shutdown
 M5	M5-23a	Complete	production-available	T13-attack-lab	production evidence: exact active tenant target preflight; composed API/worker/browser E2E
 M5	M5-23b	Complete	production-available	T13-attack-lab	production evidence: versioned read-only credential binding; composed API/worker/browser E2E
 M5	M5-23c	Complete	production-available	T13-attack-lab	production evidence: exact destination and single-host egress authority; composed API/worker/browser E2E
@@ -411,13 +411,13 @@ M6	M6-31c	Complete	production-available	T06-runtime-data-plane	production eviden
 M6	M6-31d	Complete	production-available	T06-runtime-data-plane	production evidence: re-test records the exact blocked capability event, retains reachability, and survives reload
 M6	M6-31e	Complete	production-available	T06-runtime-data-plane	production cached-outage gate: signed Block decision survives offline restart, persists exact decision evidence and bounded lost-response replay, rejects wall-clock rollback, drains under monotonic authority, and quarantines out-of-window evidence without falsifying timestamps
 M6	M6-31	Complete	production-available	T06-runtime-data-plane	production evidence: full create, simulate, monitor, enforce, retest, cleanup, cached-outage, restart, and browser reload gate passes against disposable schema-v28 PostgreSQL
-M7	M7-01	Complete	production-available	PROD-current-composition	audited shipped composition: session projection
-M7	M7-02	Complete	production-available	PROD-current-composition	audited shipped composition: API listSessions
-M7	M7-03	Complete	production-available	PROD-current-composition	audited shipped composition: API getSession
-M7	M7-04	Complete	production-available	PROD-current-composition	audited shipped composition: API listSessionEvents
+M7	M7-01	Complete	component-only	T14-data-workflows	2026-09-09 independent audit: console-login or fixture-only behavior lacks original runtime-session acceptance; session projection
+M7	M7-02	Complete	component-only	T14-data-workflows	2026-09-09 independent audit: console-login or fixture-only behavior lacks original runtime-session acceptance; API listSessions
+M7	M7-03	Complete	component-only	T14-data-workflows	2026-09-09 independent audit: console-login or fixture-only behavior lacks original runtime-session acceptance; API getSession
+M7	M7-04	Complete	component-only	T14-data-workflows	2026-09-09 independent audit: console-login or fixture-only behavior lacks original runtime-session acceptance; API listSessionEvents
 M7	M7-05	Complete	component-only	T14-data-workflows	audited component-only proof: session search filters
-M7	M7-06	Complete	production-available	PROD-current-composition	audited shipped composition: Sessions list UI
-M7	M7-07a	Complete	production-available	PROD-current-composition	audited shipped composition: Session timeline shell
+M7	M7-06	Complete	component-only	T14-data-workflows	2026-09-09 independent audit: console-login or fixture-only behavior lacks original runtime-session acceptance; Sessions list UI
+M7	M7-07a	Complete	component-only	T14-data-workflows	2026-09-09 independent audit: console-login or fixture-only behavior lacks original runtime-session acceptance; Session timeline shell
 M7	M7-07b	Complete	production-available	PROD-current-composition	audited shipped composition: Session event row
 M7	M7-07c	Complete	production-available	PROD-current-composition	audited shipped composition: Session confidence/source
 M7	M7-07	Complete	production-available	PROD-current-composition	audited shipped composition: Session detail UI
