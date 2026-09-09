@@ -334,7 +334,7 @@ M4	M4-59d	Complete	production-available	T05-inventory-cutover	production evidenc
 M4	M4-59e	Complete	production-available	T05-inventory-cutover	production evidence: mounted ProductionRiskView renders Why, Evidence, Path, Fix, and Verify from authorized product APIs with path navigation at 2b768d6
 M4	M4-59	Complete	production-available	T05-inventory-cutover	installed-Chrome v16 M4 gate proves tenant-scoped inventory, findings, paths, response-loss ticket retry, same-tab reload persistence, zero duplicate webhook delivery, and clean browser state
 M5	M5-01	Complete	production-available	T12-red-team	production TestDefinition/TestRun/TestAttempt and published OpenAPI distinguish engine_error from pass/fail; individual acceptance review and main CI 34300722566 pass; evidence 2026-09-08-m5-red-team-production-closure.md
-M5	M5-02	Complete	component-only	T12-red-team	audited component-only proof: Promptfoo adapter
+M5	M5-02	Complete	production-available	T12-red-team	PR16 schema39 pinned engine normalizes objective, immutable input receipt, behavior, verdict and evidence; durable PostgreSQL/S3 and reloaded browser proof; independent acceptance; main CI34306928829 passed; docs/internal/2026-09-08-m5-red-team-production-closure.md
 M5	M5-03	Complete	production-available	T12-red-team	mounted create wizard derives explained recommendations from fresh exact-target product APIs and rejects expired evidence; selector/API/UI/Chrome proof plus individual review and main CI 34300722566 pass
 M5	M5-04	Complete	production-available	T12-red-team	schema37 authoritative environment and registered credential admission rejects unsafe creation/queue/claim; actual PostgreSQL denial tests and mounted expected-side-effects UI; individual review and main CI 34300722566 pass
 M5	M5-05	Complete	production-available	T12-red-team	audited production listTests: browser/PAT success and stable error matrix; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
@@ -346,11 +346,11 @@ M5	M5-10	Complete	production-available	T12-red-team	audited production listTestR
 M5	M5-11	Complete	production-available	T12-red-team	audited production getTestRun: browser/PAT success and stable error matrix plus browser result reload; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
 M5	M5-12	Complete	production-available	T12-red-team	audited production cancelTestRun: browser/PAT success, receipt/audit and stable error matrix, lease invalidation; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
 M5	M5-13	Complete	production-available	T12-red-team	audited composed PostgreSQL/outbox/SQS/pinned-engine/lease-adapter worker: physical duplicate delivery, one attempt/invocation, empty queue/DLQ and normalized evidence; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
-M5	M5-14	Complete	component-only	T12-red-team	audited component-only proof: test evidence artifacts
+M5	M5-14	Complete	production-available	T12-red-team	PR16 exact S3 input/native artifact bundle with policy-redacted secret fixture and normalized PostgreSQL attempt; version/SHA/size/KMS plus byte-identical reconstruction; independent acceptance; main CI34306928829 passed; docs/internal/2026-09-08-m5-red-team-production-closure.md
 M5	M5-15	Complete	production-available	T12-red-team	audited browser product API list/new-test flow with evidence-derived recommendations, selection, safety and queueing; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
 M5	M5-16	Complete	component-only	T12-red-team	audited component-only proof: red team result UI
 M5	M5-17	Complete	component-only	T12-red-team	audited component-only proof: SandboxProvider contract
-M5	M5-18	Complete	component-only	T12-red-team	audited component-only proof: Fargate provider create
+M5	M5-18	Complete	production-available	T12-red-team	Shipped production Kubernetes provider fixture proves exact run-scoped Job, Fargate profile labels and UID-fenced cleanup ownership; worker race suite and independent task acceptance passed; main CI34306928829 passed; live Fargate scheduling not claimed; docs/internal/2026-09-08-m5-red-team-production-closure.md
 M5	M5-19	Complete	component-only	T12-red-team	audited component-only proof: Fargate resource limits
 M5	M5-20	Complete	component-only	T12-red-team	audited component-only proof: Fargate service account
 M5	M5-21	Complete	component-only	T12-red-team	audited component-only proof: Fargate SG policy

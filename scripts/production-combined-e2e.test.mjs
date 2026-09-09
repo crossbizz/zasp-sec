@@ -45,6 +45,13 @@ test("Red Team runtime proof preserves real composition and exact evidence claim
   assert.doesNotMatch(worker,/newRedTeam(?:Processor|OutboxProcessor)\(/);
 });
 
+test("Red Team outcome browser proof reaches safety review without granting execution", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function exerciseRedTeamRuntime");
+  const flow = source.slice(start, source.indexOf("async function exerciseRedTeamRetainedRun", start));
+  for (const expected of ["Unsafe behavior observed", "Cancelled", "Verify safely in Attack Lab", "Review safety decision", "Approve exact safety decision", "outcome navigation granted Attack Lab execution", "readAttackLabAuthority", "source_run_id", "Safety approval"]) assert.ok(flow.includes(expected), expected);
+});
+
 test("combined production E2E owns every local boundary and fixed assertion", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const recoveryWorkerSource = await readFile(new URL("../services/platform/agentsec-worker/production_combined_e2e_test.go", import.meta.url), "utf8");
