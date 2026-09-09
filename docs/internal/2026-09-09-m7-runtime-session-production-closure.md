@@ -99,7 +99,18 @@ Final local verification passed after the API and CI corrections:
   review reproduced the initial mismatch and verified the correction.
 
 Superpowers review found no remaining blocker in the persistence slice.
-Push, PR and main CI are still pending; local checks are not substituted for CI.
+The first push CI 34386033723 and PR CI 34386102164 failed in the full-history
+secret scan. A redacted local reproduction isolated one newly committed fixed
+hexadecimal lease token in the in-memory repository fixture. It is not a
+provisioned credential. The pre-commit history scan had not included that new
+commit. Following the existing repository policy, the correction ignores only
+the exact commit/path/rule/line fingerprint, with no broad path or rule waiver.
+The code and UI are unchanged. Corrected CI and main merge remain pending;
+local checks are not substituted for CI.
+Independent review confirmed the synthetic-only scope and exact fingerprint
+exception. The full 1,347-commit history scan now passes without a finding.
+The corrected full verification run also passed, including 1,083 frontend
+tests, all 36 release checks, UI build/import checks and the authoritative ledger.
 
 The ledger regression first failed on M7-01's inherited production credit.
 No M7 task is promoted by this persistence slice: summary APIs, structured
