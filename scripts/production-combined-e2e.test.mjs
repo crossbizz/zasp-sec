@@ -22,6 +22,18 @@ test("runtime session browser proof reads worker-written evidence without seedin
   assert.ok(flow.includes("scope = staging"), "positive browser reads must use the worker's actual Staging scope");
 });
 
+test("session search proof requires committed evidence and real-engine filter completeness", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");
+  const proof = await readFile(new URL("../services/platform/agentsec-worker/runtime_session_search_combined_e2e_test.go", import.meta.url), "utf8");
+  const matrix = await readFile(new URL("../services/platform/agentsec-worker/runtime_session_search_filters_e2e_test.go", import.meta.url), "utf8");
+  for (const marker of ["runtime session search index proven:", "real OpenSearch selector matrix passed:"]) assert.ok(source.includes(`assert.match(runtimePipelineResult.stdout, /${marker}`), marker);
+  assert.ok(worker.includes("proveRuntimeSessionSearchIndex(t, ctx, admin, scope,"));
+  for (const text of ["receipt.receipt_digest=project.result_digest", "complete.state='succeeded'", "receipts.Get(ctx, locator)", "index.Apply(ctx, binding, artifact.Body, archive)", "proveRuntimeStructuredSearchSelectors(t, ctx, index)", "number_of_replicas", "production indexing worker/API remain pending"]) assert.ok(proof.includes(text), text);
+  assert.doesNotMatch(proof, /(?:INSERT INTO|UPDATE|DELETE FROM) zasp_runtime_session/);
+  for (const text of ["selectors incorrectly joined different events within one session", "composite pagination incomplete", "foreign positive control absent", "when.Add(time.Nanosecond)", "synthetic component fixtures only"]) assert.ok(matrix.includes(text), text);
+});
+
 test("Home exposure E2E waits for loaded rows, not the persistent navigation title", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const start = source.indexOf('await clickBrowserTextContains(cdp, "Critical exposures")');

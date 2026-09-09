@@ -76,7 +76,7 @@ func TestStructuredSessionQueryBindsEverySelectorToOneTenantEvent(t *testing.T) 
 			t.Fatalf("%s not exact: %q", field, terms[field])
 		}
 	}
-	if len(query.Query.Bool.Filter) != 14 || !bytes.Contains(body, []byte(`"gte":"2026-09-09T10:00:00Z"`)) || !bytes.Contains(body, []byte(`"lte":"2026-09-09T11:00:00Z"`)) {
+	if len(query.Query.Bool.Filter) != 14 || !bytes.Contains(body, []byte(`"gte":"2026-09-09T10:00:00.000Z"`)) || !bytes.Contains(body, []byte(`"lte":"2026-09-09T11:00:00.000Z"`)) {
 		t.Fatalf("missing canonical time filter: %s", body)
 	}
 	for _, raw := range []string{input.Process, input.File, input.Domain, input.Resource} {
@@ -110,5 +110,13 @@ func TestStructuredSessionQueryRejectsDSLAndInvalidBoundaries(t *testing.T) {
 	}
 	if _, err := BuildQuery(domain.Scope{}, Filters{}, "", 26); !errors.Is(err, ErrQuery) {
 		t.Fatal("unscoped query admitted")
+	}
+}
+
+func TestSessionQueryTimeBoundsDoNotIncludeEventsBeforeSubmillisecondLowerBound(t *testing.T) {
+	now := time.Date(2026, 9, 9, 10, 0, 0, 0, time.UTC)
+	body, err := BuildQuery(searchScope(t), Filters{From: now.Add(time.Nanosecond), To: now.Add(time.Millisecond + time.Nanosecond)}, "", 25)
+	if err != nil || !bytes.Contains(body, []byte(`"gte":"2026-09-09T10:00:00.001Z"`)) || !bytes.Contains(body, []byte(`"lte":"2026-09-09T10:00:00.001Z"`)) {
+		t.Fatalf("millisecond index broadened precise range: %s %v", body, err)
 	}
 }

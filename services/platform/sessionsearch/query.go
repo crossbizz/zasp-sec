@@ -75,10 +75,19 @@ func BuildQuery(scope domain.Scope, filters Filters, after string, limit int) ([
 	term("decision", filters.Decision)
 	dateRange := object{}
 	if !filters.From.IsZero() {
-		dateRange["gte"] = filters.From.Format(time.RFC3339Nano)
+		// Archived runtime events and this index have millisecond precision.
+		// Round the inclusive lower bound up, never down into excluded events.
+		lower := filters.From.Truncate(time.Millisecond)
+		if !lower.Equal(filters.From) {
+			lower = lower.Add(time.Millisecond)
+		}
+		if lower.Year() > 9999 {
+			return nil, ErrQuery
+		}
+		dateRange["gte"] = lower.Format("2006-01-02T15:04:05.000Z")
 	}
 	if !filters.To.IsZero() {
-		dateRange["lte"] = filters.To.Format(time.RFC3339Nano)
+		dateRange["lte"] = filters.To.Truncate(time.Millisecond).Format("2006-01-02T15:04:05.000Z")
 	}
 	if len(dateRange) != 0 {
 		clauses = append(clauses, object{"range": object{"event_time": dateRange}})

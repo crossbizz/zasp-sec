@@ -33,6 +33,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent/s3rawstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeindex"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimemetadata"
 	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
 )
 
@@ -165,7 +166,11 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Now().UTC().Truncate(time.Millisecond)
-	body := []byte(`{"source":"tetragon","events":[{"event_id":"runtime-pipeline-1","class":"process","action":"exec","workload_id":"runtime-pipeline","event_time":"` + now.Format("2006-01-02T15:04:05.000Z") + `","evidence_id":"pid_78000103-0000-4000-8000-000000000103","content":{"binary":"agent"}}]}`)
+	processDigest, err := runtimemetadata.DigestSelector("process", "/usr/bin/agent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := []byte(`{"source":"tetragon","events":[{"event_id":"runtime-pipeline-1","class":"process","action":"exec","workload_id":"runtime-pipeline","event_time":"` + now.Format("2006-01-02T15:04:05.000Z") + `","evidence_id":"pid_78000103-0000-4000-8000-000000000103","content":{"binary":"agent"},"search_metadata":{"process_digest":"` + processDigest + `"}}]}`)
 	handler, err := runtimeevent.NewProductionIngestHandler(runtimeevent.ProductionIngestConfig{Repository: ingestRepository, Artifacts: raw, MaximumBytes: 1 << 20, Clock: func() time.Time { return now }})
 	if err != nil {
 		t.Fatal(err)
@@ -542,6 +547,7 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_projection_receipts receipt JOIN zasp_runtime_stage_work stage USING(organization_id,workspace_id,environment_id,batch_id,batch_generation) WHERE receipt.batch_id=$1 AND stage.stage='project' AND receipt.receipt_digest=stage.result_digest AND cardinality(receipt.event_ids)=1`, acceptedBatch.BatchID).Scan(&receiptCount); err != nil || receiptCount != 1 {
 		t.Fatalf("projection receipt not bound to predecessor: count=%d error=%v", receiptCount, err)
 	}
+	proveRuntimeSessionSearchIndex(t, ctx, admin, scope, workerID(t, acceptedBatch.BatchID), archived, searchEndpoint, creds, receipts)
 	beforeSessions := sessionSnapshot()
 	if len(publisher.jobs) != 1 {
 		t.Fatal("outbox published duplicate jobs")
