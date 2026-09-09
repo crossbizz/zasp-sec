@@ -30,6 +30,7 @@ type redTeamRunner interface {
 }
 
 type redTeamExecutionRequest struct {
+	LeaseToken  string
 	Scope       domain.Scope
 	Run         apiserver.RedTeamRun
 	Definition  apiserver.RedTeamDefinition
@@ -128,7 +129,7 @@ func (processor *redTeamProcessor) process(ctx context.Context, delivery jobqueu
 	if payload.DefinitionID != claim.Definition.ID || payload.DefinitionVersion != claim.Definition.Version || claim.Run.ID != runID || claim.Run.DefinitionID != payload.DefinitionID || claim.Run.DefinitionVersion != payload.DefinitionVersion || claim.InputDigest != delivery.Job.AuthorityDigest {
 		return errWorkerExecution
 	}
-	request := redTeamExecutionRequest{Scope: delivery.Job.Scope, Run: claim.Run, Definition: claim.Definition, InputDigest: claim.InputDigest}
+	request := redTeamExecutionRequest{Scope: delivery.Job.Scope, Run: claim.Run, Definition: claim.Definition, InputDigest: claim.InputDigest, LeaseToken: token}
 	return processor.runLeased(ctx, delivery, request, token)
 }
 

@@ -20,6 +20,7 @@ var (
 	ErrAdapter            = errors.New("red team target adapter rejected")
 	credentialReferenceRE = regexp.MustCompile(`^ref:red-team/[a-z][a-z0-9_-]{7,127}$`)
 	hostnameRE            = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9.-]{1,251}[a-z0-9])$`)
+	runLeaseRE            = regexp.MustCompile(`^[a-f0-9]{32}$`)
 )
 
 type Config struct {
@@ -44,7 +45,13 @@ type Invocation struct {
 }
 
 type TargetResolver interface {
-	ResolveTarget(context.Context, domain.Scope, string, string) (TargetBinding, error)
+	ResolveTarget(context.Context, TargetResolution) (TargetBinding, error)
+}
+
+// TargetResolution carries the live worker authority, never target credentials.
+type TargetResolution struct {
+	Scope                                             domain.Scope
+	RunID, LeaseToken, TargetID, TargetKind, Category string
 }
 
 type TargetInvoker interface {
@@ -106,7 +113,8 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	scope, runID, ok := requestScope(request)
-	if !ok {
+	lease, leaseOK := exactHeader(request, "X-Zasp-Run-Lease")
+	if !ok || !leaseOK || !runLeaseRE.MatchString(lease) {
 		writeError(writer, status)
 		return
 	}
@@ -124,7 +132,7 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	status = http.StatusServiceUnavailable
-	binding, err := handler.resolver.ResolveTarget(request.Context(), scope, input.TargetID, input.TargetKind)
+	binding, err := handler.resolver.ResolveTarget(request.Context(), TargetResolution{Scope: scope, RunID: runID, LeaseToken: lease, TargetID: input.TargetID, TargetKind: input.TargetKind, Category: input.Category})
 	if err != nil || !validBinding(binding) || binding.TargetID != input.TargetID || binding.TargetKind != input.TargetKind {
 		writeError(writer, status)
 		return

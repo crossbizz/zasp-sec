@@ -46,7 +46,7 @@ func newProductionRedTeamDependencies(config workerRuntimeConfig) (*productionRe
 		return fail()
 	}
 	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{
-		Artifacts: artifacts, Command: productionRedTeamCommand{}, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/node_modules/.bin/promptfoo",
+		Artifacts: artifacts, Command: productionRedTeamCommand{}, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/dist/src/entrypoint.js",
 		TargetEndpoint: config.RedTeamTargetEndpoint, TargetTokenFile: config.RedTeamTargetTokenFile, TargetCAFile: config.RedTeamTargetCAFile, TempRoot: "/tmp", Timeout: config.RedTeamRunnerTimeout, Clock: func() time.Time { return time.Now().UTC() },
 	})
 	if err != nil {
