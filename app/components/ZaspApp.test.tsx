@@ -456,7 +456,7 @@ describe("Zasp application", () => {
 		});
 		render(<ZaspApp client={client} />);
 		expect(await screen.findByRole("heading", { name: "No product capabilities" })).toBeVisible();
-		expect(window.location.pathname).toBe("/");
+		await waitFor(() => expect(window.location.pathname).toBe("/"));
 		expect(requests).toEqual(["/api/v1/session/bootstrap"]);
 	});
 });
