@@ -111,7 +111,9 @@ PostgreSQL, child processes, and the temporary root all removed.
 - Fresh `npm run verify` passes: 184 Vitest files / 987 tests, type-check,
   lint, API contracts, tenant checks, release tests, source/compiled production
   import checks, production build, and all 728 ledger rows.
-- Branch/main CI: pending after push; no remote CI pass claimed yet.
+- PR #9 push CI `34290207246` and PR CI `34290244285` both passed.
+  It merged to main as `c082b80cf5612bd201cdd3104433c6fc954d8745`.
+  Main CI `34290871149` passed, including runnable UI and release-source gates.
 
 ## Limits
 

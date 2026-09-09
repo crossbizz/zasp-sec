@@ -86,6 +86,11 @@ rollback/drift, independent review, and the fresh-build installed-Chrome run pas
 Evidence and release verification are tracked in
 `docs/internal/2026-09-08-m3-52d-runtime-queue-index.md`.
 
+Current production closure: M5 Red Team admission, request recovery, and
+execution authority. No M5 rows have been promoted. The verified fixes,
+remaining gaps, and release evidence are tracked in
+`docs/internal/2026-09-08-m5-red-team-production-closure.md`.
+
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
 

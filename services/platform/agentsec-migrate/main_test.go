@@ -621,7 +621,7 @@ func (runner *scriptedMigrationRunner) DownProductionIntegrationSetup(context.Co
 
 func TestAgentsecMigrateReachesV34FromV27AndDowngradesFirst(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 27}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "up-production-integration-webhook", "up-production-runtime-queue-replay", "version"}) {
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "up-production-integration-webhook", "up-production-runtime-queue-replay", "up-production-red-team-safety", "version"}) {
 		t.Fatalf("v27 to v34 = %#v, %v", up.events, err)
 	}
 	down := &scriptedMigrationRunner{version: 34}
@@ -659,7 +659,7 @@ func (runner *scriptedMigrationRunner) DownProductionRuntimeQueueReplay(context.
 
 func TestAgentsecMigrateReachesV36AndDowngradesRuntimeReplayFirst(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 35}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-runtime-queue-replay", "version"}) {
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-runtime-queue-replay", "up-production-red-team-safety", "version"}) {
 		t.Fatalf("up=%v err=%v", up.events, err)
 	}
 	down := &scriptedMigrationRunner{version: 36, errAt: "down-production-integration-webhook"}
@@ -679,7 +679,7 @@ func (runner *scriptedMigrationRunner) DownProductionIntegrationWebhook(context.
 
 func TestAgentsecMigrateReachesV35AndDowngradesWebhookFirst(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 34}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-integration-webhook", "up-production-runtime-queue-replay", "version"}) {
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-integration-webhook", "up-production-runtime-queue-replay", "up-production-red-team-safety", "version"}) {
 		t.Fatalf("up=%v err=%v", up.events, err)
 	}
 	down := &scriptedMigrationRunner{version: 35, errAt: "down-production-integration-setup"}
@@ -690,7 +690,7 @@ func TestAgentsecMigrateReachesV35AndDowngradesWebhookFirst(t *testing.T) {
 
 func TestAgentsecMigrateReachesV34FromV17AndDowngradesFirst(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 17}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "up-production-integration-webhook", "up-production-runtime-queue-replay", "version"}) {
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "up-production-integration-webhook", "up-production-runtime-queue-replay", "up-production-red-team-safety", "version"}) {
 		t.Fatalf("v17 to v34 = %#v, %v", up.events, err)
 	}
 	down := &scriptedMigrationRunner{version: 24}
@@ -891,6 +891,9 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 				if test.version <= 35 {
 					steps = append(steps, "up-production-runtime-queue-replay")
 				}
+				if test.version <= 36 {
+					steps = append(steps, "up-production-red-team-safety")
+				}
 				test.want = append(steps, test.want[len(test.want)-1])
 			}
 			runner := &scriptedMigrationRunner{version: test.version}
@@ -911,7 +914,7 @@ func TestRunReleaseMigrationReachesExactTargetStateIdempotently(t *testing.T) {
 
 func TestRunReleaseMigrationIncludesDiscoveryExecutionRelease(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 11}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-reference-authorization", "up-production-discovery-execution", "up-production-typed-inventory-cutover", "up-production-runtime-data-plane", "up-production-runtime-gateway-reconciliation", "up-production-runtime-ingest-reconciliation", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "up-production-integration-webhook", "up-production-runtime-queue-replay", "version"}) {
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-reference-authorization", "up-production-discovery-execution", "up-production-typed-inventory-cutover", "up-production-runtime-data-plane", "up-production-runtime-gateway-reconciliation", "up-production-runtime-ingest-reconciliation", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "up-production-integration-webhook", "up-production-runtime-queue-replay", "up-production-red-team-safety", "version"}) {
 		t.Fatalf("v11 to v34 = %#v, %v", up.events, err)
 	}
 	down := &scriptedMigrationRunner{version: 24}
@@ -922,7 +925,7 @@ func TestRunReleaseMigrationIncludesDiscoveryExecutionRelease(t *testing.T) {
 
 func TestAgentsecMigrateCLIReachesV34FromV13AndRollsBackBeforeCutover(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 13}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-typed-inventory-cutover", "up-production-runtime-data-plane", "up-production-runtime-gateway-reconciliation", "up-production-runtime-ingest-reconciliation", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "up-production-integration-webhook", "up-production-runtime-queue-replay", "version"}) {
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || !equalMigrationEvents(up.events, []string{"version", "up-production-typed-inventory-cutover", "up-production-runtime-data-plane", "up-production-runtime-gateway-reconciliation", "up-production-runtime-ingest-reconciliation", "up-production-security-agent-execution", "up-production-identity-administration", "up-production-security-agent-controls", "up-production-security-agent-autonomous-response", "up-production-security-agent-temporary-policy", "up-production-security-agent-connector-revocation", "up-production-security-agent-session-isolation", "up-production-red-team-execution", "up-production-attack-lab-execution", "up-production-recovery", "up-production-policy-deployment", "up-production-home-attention", "up-production-approval-notification", "up-production-workflow-compatibility", "up-production-security-agent-planner", "up-production-security-agent-attack-path", "up-production-integration-setup", "up-production-integration-webhook", "up-production-runtime-queue-replay", "up-production-red-team-safety", "version"}) {
 		t.Fatalf("v13 to v34 = %#v, %v", up.events, err)
 	}
 	down := &scriptedMigrationRunner{version: 24}
@@ -1242,8 +1245,11 @@ func TestAgentsecMigrateV14InstallsRollsBackReappliesAndBlocksPostCutoverRollbac
 		version, versionErr := runner.Version(ctx)
 		t.Fatalf("install target at version %d (%v): %v", version, versionErr, err)
 	}
-	if version, versionErr := runner.Version(ctx); versionErr != nil || version != 36 {
+	if version, versionErr := runner.Version(ctx); versionErr != nil || version != 37 {
 		t.Fatalf("installed version = (%d, %v)", version, versionErr)
+	}
+	if err := runner.DownProductionRedTeamSafety(ctx); err != nil {
+		t.Fatal(err)
 	}
 	if err := runner.DownProductionRuntimeQueueReplay(ctx); err != nil {
 		t.Fatal(err)
@@ -1356,7 +1362,7 @@ func equalMigrationEvents(left, right []string) bool {
 }
 
 func TestRunReleaseMigrationRejectsDriftAndHonorsDeadline(t *testing.T) {
-	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 37}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
+	if err := runReleaseMigration(context.Background(), &scriptedMigrationRunner{version: 38}, []string{"up"}); !errors.Is(err, migrations.ErrInvalidState) {
 		t.Fatalf("drift error = %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1506,7 +1512,7 @@ func TestAgentsecMigrateCLIReachesV34FromEmptyAndV12(t *testing.T) {
 			_ = connection.QueryRow(ctx, `SELECT zasp_red_team_execution_readiness($1,$2)`, migrations.ProductionRedTeamExecution().Checksum(), migrations.ProductionRedTeamExecutionSemanticFingerprint()).Scan(&releaseReady)
 			t.Fatalf("%s at version %d (%v): %v output=%q red_team=(register=%t register_err=%v bindings=%d principals=%t security=%t live=%s expected=%s release=%t)", label, version, versionErr, commandErr, output, registerReady, registerErr, bindings, principalsReady, securityReady, liveFingerprint, migrations.ProductionRedTeamExecutionSemanticFingerprint(), releaseReady)
 		}
-		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 36 {
+		if version, versionErr := runner.Version(ctx); versionErr != nil || version != 37 {
 			t.Fatalf("%s version = (%d, %v)", label, version, versionErr)
 		}
 		var bindings int
@@ -1651,6 +1657,14 @@ func TestAgentsecMigrateCLIReachesV34FromEmptyAndV12(t *testing.T) {
 		t.Fatalf("set red team non-UTC session: %v", err)
 	}
 	var definitionJSON []byte
+	// The Red Team admission gate now requires operator-registered credentials.
+	bindingID := "pid_7a000016-0000-4000-8000-000000000016"
+	bindingDigest := bytes.Repeat([]byte{0x2a}, 32)
+	bindingValidUntil := time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)
+	var bindingJSON []byte
+	if err := connection.QueryRow(ctx, `SELECT zasp_attack_lab_register_credential_binding($1,$2,$3,$4,$5,'ref:red-team/target-0001','read_only',1,$6,$7)`, organizationID, workspaceID, environmentID, bindingID, targetID, bindingDigest, bindingValidUntil).Scan(&bindingJSON); err != nil {
+		t.Fatal(err)
+	}
 	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_red_team_create_definition($1,$2,$3,$4,'red-team-create-0001',$5,'Staging prompt safety',$6,'agent_endpoint','["prompt_injection"]'::jsonb,'{"environment":"staging","credential_class":"read_only","expected_side_effects":["audit event"]}'::jsonb,$7)`, organizationID, workspaceID, environmentID, actorID, definitionID, targetID, correlationID).Scan(&definitionJSON); err != nil || !bytes.Contains(definitionJSON, []byte(`"version": 1`)) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("red team create=%s err=%v", definitionJSON, err)
@@ -1725,6 +1739,9 @@ func TestAgentsecMigrateCLIReachesV34FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatal("cross-tenant red team run was visible")
 	}
+	if _, err := connection.Exec(ctx, `UPDATE zasp_attack_lab_credential_bindings SET state='revoked' WHERE binding_id=$1`, bindingID); err != nil {
+		t.Fatal(err)
+	}
 	if err := redTeamAPI.QueryRow(ctx, `SELECT zasp_attack_lab_create_run($1,$2,$3,$4,'attack-lab-missing-binding',$5,$6,$7,$8)`, organizationID, workspaceID, environmentID, actorID, "pid_7a000015-0000-4000-8000-000000000015", runID, bytes.Repeat([]byte{0x99}, 32), correlationID).Scan(&detailJSON); err == nil {
 		redTeamAPI.Close(context.Background())
 		t.Fatal("attack lab accepted a target without an active credential binding")
@@ -1733,10 +1750,9 @@ func TestAgentsecMigrateCLIReachesV34FromEmptyAndV12(t *testing.T) {
 		redTeamAPI.Close(context.Background())
 		t.Fatal("attack lab preflight accepted a target without an active credential binding")
 	}
-	bindingID := "pid_7a000016-0000-4000-8000-000000000016"
-	bindingDigest := bytes.Repeat([]byte{0x2a}, 32)
-	bindingValidUntil := time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)
-	var bindingJSON []byte
+	if _, err := connection.Exec(ctx, `UPDATE zasp_attack_lab_credential_bindings SET state='active' WHERE binding_id=$1`, bindingID); err != nil {
+		t.Fatal(err)
+	}
 	if err := connection.QueryRow(ctx, `SELECT zasp_attack_lab_register_credential_binding($1,$2,$3,$4,$5,'ref:red-team/target-0001','read_only',1,$6,$7)`, organizationID, workspaceID, environmentID, bindingID, targetID, bindingDigest, bindingValidUntil).Scan(&bindingJSON); err != nil || !bytes.Contains(bindingJSON, []byte(`"state": "active"`)) {
 		redTeamAPI.Close(context.Background())
 		t.Fatalf("attack lab credential binding registration=%s err=%v", bindingJSON, err)
@@ -2470,6 +2486,9 @@ func TestAgentsecMigrateCLIReachesV34FromEmptyAndV12(t *testing.T) {
 	if _, err := connection.Exec(ctx, `DELETE FROM zasp_red_team_audit;DELETE FROM zasp_red_team_request_receipts;DELETE FROM zasp_red_team_outbox;DELETE FROM zasp_red_team_attempts;DELETE FROM zasp_red_team_runs;DELETE FROM zasp_red_team_definitions`); err != nil {
 		t.Fatalf("red team cleanup: %v", err)
 	}
+	if err := runner.DownProductionRedTeamSafety(ctx); err != nil {
+		t.Fatal(err)
+	}
 	if err := runner.DownProductionRuntimeQueueReplay(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -2587,7 +2606,7 @@ func TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDri
 		version, versionErr := runner.Version(ctx)
 		t.Fatalf("empty to target at version %d (%v): %v", version, versionErr, err)
 	}
-	if version, err := runner.Version(ctx); err != nil || version != 36 {
+	if version, err := runner.Version(ctx); err != nil || version != 37 {
 		t.Fatalf("v34 = (%d, %v)", version, err)
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
@@ -2788,6 +2807,9 @@ func TestV6ReceiptlessPATReplayUsesDurableMarkerAndBlocksEveryRollbackWithoutPar
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
 		t.Fatalf("empty to v27: %v", err)
+	}
+	if err := runner.DownProductionRedTeamSafety(ctx); err != nil {
+		t.Fatal(err)
 	}
 	if err := runner.DownProductionRuntimeQueueReplay(ctx); err != nil {
 		t.Fatal(err)
@@ -3284,6 +3306,9 @@ func migrateToV6(t *testing.T, ctx context.Context, connection *pgx.Conn) *migra
 	}
 	if err := runReleaseMigration(ctx, runner, []string{"up"}); err != nil {
 		t.Fatalf("migrate to v6: %v", err)
+	}
+	if err := runner.DownProductionRedTeamSafety(ctx); err != nil {
+		t.Fatal(err)
 	}
 	if err := runner.DownProductionRuntimeQueueReplay(ctx); err != nil {
 		t.Fatal(err)

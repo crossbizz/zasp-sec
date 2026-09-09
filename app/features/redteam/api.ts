@@ -32,20 +32,42 @@ export type ProductionRedTeamAPI = Readonly<{
 export function createProductionRedTeamAPI(client: APIClient): ProductionRedTeamAPI {
   return {
     async listDefinitions(signal) { return loadRootCursorPages((cursor) => client.GET("/api/v1/tests", { params: { query: { cursor, limit: 100 } }, signal }), decodeTestDefinitionPage); },
-    async getDefinition(id, signal) { return requireVersioned(await client.GET("/api/v1/tests/{id}", { params: { path: { id } }, signal }), decodeTestDefinition); },
+    async getDefinition(id, signal) {
+      requireRedTeamID(id);
+      const value = requireVersioned(await client.GET("/api/v1/tests/{id}", { params: { path: { id } }, signal }), decodeTestDefinition);
+      if (value.id !== id) invalidRedTeamResponse();
+      return value;
+    },
     async createDefinition(input, attempt, signal) {
-      requireMutationAttempt(attempt); const result = await client.POST("/api/v1/tests", { params: { header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"0"', "X-CSRF-Token": "" } }, body: input, signal }); return requireMutation(result, decodeTestDefinition);
+      requireRedTeamID(input.id); requireRedTeamID(input.target_id); requireMutationAttempt(attempt);
+      const result = await client.POST("/api/v1/tests", { params: { header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"0"', "X-CSRF-Token": "" } }, body: input, signal });
+      return requireDefinitionIntent(requireMutation(result, decodeTestDefinition), input.id, 1, { ...input, enabled: true });
     },
     async updateDefinition(id, version, input, attempt, signal) {
-      requireVersion(version); requireMutationAttempt(attempt); const result = await client.PATCH("/api/v1/tests/{id}", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, body: input, signal }); return requireMutation(result, decodeTestDefinition);
+      requireRedTeamID(id); requireRedTeamID(input.target_id); requireVersion(version); requireMutationAttempt(attempt);
+      const result = await client.PATCH("/api/v1/tests/{id}", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, body: input, signal });
+      return requireDefinitionIntent(requireMutation(result, decodeTestDefinition), id, version + 1, input);
     },
     async runDefinition(id, version, runID, attempt, signal) {
-      requireVersion(version); if (!productID.test(runID)) throw new APITransportError("invalid_configuration", "Invalid red team run identity"); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/tests/{id}/runs", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, body: { run_id: runID }, signal }); return requireMutation(result, decodeTestRun);
+      requireRedTeamID(id); requireRedTeamID(runID); requireVersion(version); requireMutationAttempt(attempt);
+      const result = await client.POST("/api/v1/tests/{id}/runs", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, body: { run_id: runID }, signal });
+      const value = requireMutation(result, decodeTestRun);
+      if (value.id !== runID || value.definition_id !== id || value.definition_version !== version || value.version !== 1 || value.status !== "queued" || value.attempt !== 0 || value.cancel_requested) invalidRedTeamResponse();
+      return value;
     },
     async listRuns(signal) { return loadRootCursorPages((cursor) => client.GET("/api/v1/test-runs", { params: { query: { cursor, limit: 100 } }, signal }), decodeTestRunPage); },
-    async getRun(id, signal) { return requireVersioned(await client.GET("/api/v1/test-runs/{id}", { params: { path: { id } }, signal }), decodeTestRunDetail); },
+    async getRun(id, signal) {
+      requireRedTeamID(id);
+      const value = requireVersioned(await client.GET("/api/v1/test-runs/{id}", { params: { path: { id } }, signal }), decodeTestRunDetail);
+      if (value.id !== id) invalidRedTeamResponse();
+      return value;
+    },
     async cancelRun(id, version, attempt, signal) {
-      requireVersion(version); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/test-runs/{id}/cancel", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, signal }); return requireMutation(result, decodeTestRun);
+      requireRedTeamID(id); requireVersion(version); requireMutationAttempt(attempt);
+      const result = await client.POST("/api/v1/test-runs/{id}/cancel", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, signal });
+      const value = requireMutation(result, decodeTestRun);
+      if (value.id !== id || value.version !== version + 1 || !value.cancel_requested && value.status !== "cancelled") invalidRedTeamResponse();
+      return value;
     },
     async preflightAttackLab(sourceRunID, signal) {
       requireProductID(sourceRunID); const value = requireAPIData(await client.GET("/api/v1/attack-lab/preflight", { params: { query: { source_run_id: sourceRunID } }, signal }), decodeAttackLabPreflight); if (value.source_run_id !== sourceRunID) invalidAttackLabResponse(); return value;
@@ -89,6 +111,15 @@ function requireMutation<T extends { readonly version: number }>(result: APIResu
 }
 
 function requireVersion(value: number): void { if (!Number.isSafeInteger(value) || value < 1 || value > 1_000_000) throw new APITransportError("invalid_configuration", "Invalid red team version"); }
+function requireDefinitionIntent(value: TestDefinition, id: string, version: number, input: TestDefinitionUpdateInput): TestDefinition {
+  if (value.id !== id || value.version !== version || value.name !== input.name || value.target_id !== input.target_id || value.target_kind !== input.target_kind || value.enabled !== input.enabled || !sameStringSet(value.categories, input.categories) || value.safety.environment !== input.safety.environment || value.safety.credential_class !== input.safety.credential_class || !sameStringSet(value.safety.expected_side_effects, input.safety.expected_side_effects)) invalidRedTeamResponse();
+  return value;
+}
+function sameStringSet(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && new Set(left).size === left.length && new Set(right).size === right.length && left.every((item) => right.includes(item));
+}
+function requireRedTeamID(value: string): void { if (!productID.test(value)) throw new APITransportError("invalid_configuration", "Invalid Red Team resource identity"); }
+function invalidRedTeamResponse(): never { throw new APITransportError("invalid_response", "Red Team response contradicted its request authority"); }
 function requireMutationAttempt(value: MutationAttempt): void { if (!idempotencyKey.test(value.idempotencyKey)) throw new APITransportError("invalid_configuration", "Invalid red team idempotency key"); }
 function requireProductID(value: string): void { if (!productID.test(value)) invalidAttackLabConfiguration(); }
 function invalidAttackLabConfiguration(): never { throw new APITransportError("invalid_configuration", "Invalid Attack Lab request configuration"); }
