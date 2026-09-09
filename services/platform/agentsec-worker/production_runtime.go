@@ -309,6 +309,9 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 		if repository.Ready(ctx) != nil || stage.Ready(ctx) != nil {
 			return errRuntimeUnavailable
 		}
+		if wantStage == runtimeevent.RuntimeStageComplete && repository.ReadySessionProjection(ctx) != nil {
+			return errRuntimeUnavailable
+		}
 		return nil
 	}
 	ready, err := newBoundedCachedWorkerReadiness(check, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))

@@ -54,6 +54,7 @@ func (executor *runtimeCompleteExecutor) Execute(ctx context.Context, lease runt
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
 	projectionReceipt, err := runtimeprojection.DecodeReceipt(artifact.Body)
+	projectionBody := string(artifact.Body)
 	clear(artifact.Body)
 	if err != nil || projectionReceipt.Scope != lease.Scope || projectionReceipt.BatchID != lease.BatchID || projectionReceipt.Generation != lease.Generation || projectionReceipt.EffectDigest != lease.InputDigest || projectionReceipt.ImplementationVersion != "runtime-projection-v1" {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
@@ -75,7 +76,7 @@ func (executor *runtimeCompleteExecutor) Execute(ctx context.Context, lease runt
 	if err != nil || resultReference == "" {
 		return runtimeStageEffect{}, errWorkerExecution
 	}
-	return runtimeStageEffect{EffectDigest: projectionReceipt.EffectDigest, ResultReference: resultReference, ResultVersionID: stored.VersionID, ResultDigest: receiptDigest}, nil
+	return runtimeStageEffect{EffectDigest: projectionReceipt.EffectDigest, ResultReference: resultReference, ResultVersionID: stored.VersionID, ResultDigest: receiptDigest, ProjectionReceipt: projectionBody}, nil
 }
 
 var _ runtimeStageExecutor = (*runtimeCompleteExecutor)(nil)

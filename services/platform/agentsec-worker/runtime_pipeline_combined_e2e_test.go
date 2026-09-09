@@ -509,6 +509,28 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 		return snapshot
 	}
 	beforeStages := stageSnapshot()
+	// Read only. Every row was written by the production completion worker from
+	// its verified S3 projection receipt, never by a session seed fixture.
+	sessionSnapshot := func() string {
+		var snapshot string
+		if err := admin.QueryRow(ctx, `SELECT jsonb_build_object('events',(SELECT jsonb_agg(to_jsonb(event) ORDER BY event.event_time,event.event_id) FROM zasp_runtime_session_events event WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3),'receipts',(SELECT jsonb_agg(to_jsonb(receipt) ORDER BY receipt.batch_generation) FROM zasp_runtime_session_projection_receipts receipt WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND batch_id=$4))::text`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), acceptedBatch.BatchID).Scan(&snapshot); err != nil {
+			t.Fatal(err)
+		}
+		return snapshot
+	}
+	var eventCount, receiptCount int
+	var confidence string
+	var sessionID, agentID *string
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&eventCount); err != nil || eventCount != 1 {
+		t.Fatalf("durable runtime event count=%d error=%v", eventCount, err)
+	}
+	if err := admin.QueryRow(ctx, `SELECT confidence,session_id,agent_id FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&confidence, &sessionID, &agentID); err != nil || confidence != "unattributed" || sessionID != nil || agentID != nil {
+		t.Fatalf("unknown runtime attribution changed: confidence=%s error=%v", confidence, err)
+	}
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_projection_receipts receipt JOIN zasp_runtime_stage_work stage USING(organization_id,workspace_id,environment_id,batch_id,batch_generation) WHERE receipt.batch_id=$1 AND stage.stage='project' AND receipt.receipt_digest=stage.result_digest AND cardinality(receipt.event_ids)=1`, acceptedBatch.BatchID).Scan(&receiptCount); err != nil || receiptCount != 1 {
+		t.Fatalf("projection receipt not bound to predecessor: count=%d error=%v", receiptCount, err)
+	}
+	beforeSessions := sessionSnapshot()
 	if len(publisher.jobs) != 1 {
 		t.Fatal("outbox published duplicate jobs")
 	}
@@ -527,6 +549,10 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	if stageSnapshot() != beforeStages || versions() != beforeVersions || !bytes.Equal(beforeIndex, readIndex()) {
 		t.Fatal("SQS redelivery duplicated pipeline effects")
 	}
+	if sessionSnapshot() != beforeSessions {
+		t.Fatal("SQS redelivery changed runtime session projection or confidence")
+	}
+	t.Log("runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay")
 	t.Logf("runtime pipeline durable batch=%s archive=%s@%s document=%s", acceptedBatch.BatchID, reference, version, replayIndex.DocumentIDs[0])
 	for _, queueURL := range []*string{queueInfo.QueueUrl, dlq.QueueUrl} {
 		attributes, err := sqsAPI.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{QueueUrl: queueURL, AttributeNames: []sqstypes.QueueAttributeName{sqstypes.QueueAttributeNameApproximateNumberOfMessages, sqstypes.QueueAttributeNameApproximateNumberOfMessagesNotVisible, sqstypes.QueueAttributeNameApproximateNumberOfMessagesDelayed}})

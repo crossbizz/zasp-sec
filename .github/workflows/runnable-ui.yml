@@ -43,6 +43,11 @@ jobs:
           go test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'
       - name: Verify production release sources
         run: npm run production:release:gate
+      - name: Verify durable runtime session projection
+        run: |
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent
+          go test -C services/platform -race -count=1 ./apiserver -run '^TestRuntimeSession'
       - name: Verify bounded Attack Lab network enforcement
         run: |
           go test -C proofs/attack-lab-egress -race -count=1 ./...
