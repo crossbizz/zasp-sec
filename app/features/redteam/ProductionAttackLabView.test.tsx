@@ -20,6 +20,7 @@ const complete: AttackLabRunDetail = { ...queued, version: 4, status: "complete"
 
 function api(overrides: Partial<ProductionRedTeamAPI> = {}): ProductionRedTeamAPI {
   return {
+    getTargetRecommendations: async () => ({targetID,freshUntil:"2099-01-01T00:00:00Z",items:[]}),
     listDefinitions: async () => [], getDefinition: async () => { throw new Error("unused"); }, createDefinition: async () => { throw new Error("unused"); }, updateDefinition: async () => { throw new Error("unused"); }, runDefinition: async () => { throw new Error("unused"); }, listRuns: async () => [sourceRun], getRun: async () => { throw new Error("unused"); }, cancelRun: async () => { throw new Error("unused"); },
     preflightAttackLab: async () => preflight, listAttackLabRuns: async () => [queued], getAttackLabRun: async () => complete, createAttackLabRun: async () => queued, cancelAttackLabRun: async () => ({ ...queued, version: 2, status: "cancelled", cancel_requested: true, cleanup_state: "complete", completed_at: "2026-08-28T10:01:00Z", error_code: "cancelled" }), rerunAttackLabRun: async () => queued,
     listTargets: async () => [], ...overrides,

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { APIProvider, useAPI } from "../../api/APIProvider";
 import { APIProductError } from "../../../apps/web/api/client";
 import { ProductionRedTeamView } from "./ProductionRedTeamView";
-import type { ProductionRedTeamAPI } from "./api";
+import type { ProductionRedTeamAPI, RedTeamRecommendations } from "./api";
 
 const definitionID = "pid_92000001-0000-4000-8000-000000000001";
 const targetID = "pid_92000002-0000-4000-8000-000000000002";
@@ -15,9 +15,11 @@ const scopeKey = "pid_92100001-0000-4000-8000-000000000001/pid_92100002-0000-400
 beforeEach(() => window.sessionStorage.clear());
 const definition = { id: definitionID, version: 2, name: "Staging agent safety", target_id: targetID, target_kind: "agent_endpoint" as const, categories: ["prompt_injection" as const], safety: { environment: "staging" as const, credential_class: "read_only" as const, expected_side_effects: ["bounded evaluation"] }, enabled: true, created_at: "2026-08-24T10:00:00Z", updated_at: "2026-08-24T10:01:00Z" };
 const run = { id: runID, version: 1, definition_id: definitionID, definition_version: 2, status: "queued" as const, attempt: 0, cancel_requested: false, queued_at: "2026-08-24T10:02:00Z" };
+function recommendationSet(items:RedTeamRecommendations["items"],id=targetID):RedTeamRecommendations {return {targetID:id,freshUntil:"2099-01-01T00:00:00Z",items};}
 
 function api(overrides: Partial<ProductionRedTeamAPI> = {}): ProductionRedTeamAPI {
   return {
+    getTargetRecommendations: async () => recommendationSet([]),
     listDefinitions: async () => [definition], getDefinition: async () => definition, createDefinition: async (input) => ({ ...definition, ...input, version: 1, enabled: true }), updateDefinition: async (_id, _version, input) => ({ ...definition, ...input, version: 3 }), runDefinition: async () => run, listRuns: async () => [run], getRun: async () => ({ ...run, attempts: [] }), cancelRun: async () => ({ ...run, version: 2, status: "cancelled", cancel_requested: true, completed_at: "2026-08-24T10:03:00Z", error_code: "cancelled" }), preflightAttackLab: async () => { throw new Error("unused"); }, listAttackLabRuns: async () => [], getAttackLabRun: async () => { throw new Error("unused"); }, createAttackLabRun: async () => { throw new Error("unused"); }, cancelAttackLabRun: async () => { throw new Error("unused"); }, rerunAttackLabRun: async () => { throw new Error("unused"); }, listTargets: async () => [{ id: targetID, name: "customer-agent", kind: "agent", owner: "platform", team: "agents", tags: [], evidence_id: "pid_92000004-0000-4000-8000-000000000004", confidence_basis_points: 9500, first_seen: "2026-08-24T09:00:00Z", last_seen: "2026-08-24T10:00:00Z", observed_at: "2026-08-24T10:00:00Z", fresh_until: "2026-08-24T11:00:00Z", freshness_state: "fresh", version: 1 }], ...overrides,
   };
 }
@@ -33,6 +35,64 @@ function QueryScope({ children }: { children: ReactNode }) {
 }
 
 describe("production red team view", () => {
+  it("automatically removes current recommendations when evidence expires",async()=>{
+    vi.useFakeTimers();
+    try {
+      const value={...recommendationSet([{category:"data_leakage",explanation:"Briefly current data.",evidenceIDs:[targetID]}]),freshUntil:new Date(Date.now()+1000).toISOString()};
+      const getTargetRecommendations=vi.fn().mockResolvedValueOnce(value).mockRejectedValueOnce(new Error("expired"));
+      view(api({getTargetRecommendations}));await act(async()=>{});
+      await act(async()=>{fireEvent.click(screen.getByRole("button",{name:"Create test"}));});
+      expect(screen.getByRole("button",{name:"Use recommended categories"})).toBeInTheDocument();
+      await act(async()=>{vi.advanceTimersByTime(1001);});
+      expect(getTargetRecommendations).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole("button",{name:"Use recommended categories"})).not.toBeInTheDocument();
+      expect(screen.getByText("Capability recommendations are unavailable. No recommended pack is confirmed.")).toBeInTheDocument();
+    } finally {vi.useRealTimers();}
+  });
+  it("refuses an expired recommendation when the browser clock advances before Apply",async()=>{
+    const original=Date.now();const clock=vi.spyOn(Date,"now").mockReturnValue(original);
+    try {
+      const values=recommendationSet([{category:"data_leakage",explanation:"Expiring data boundary.",evidenceIDs:[targetID]}]);
+      const getTargetRecommendations=vi.fn().mockResolvedValueOnce(values).mockRejectedValueOnce(new Error("stale"));
+      view(api({getTargetRecommendations}));const user=userEvent.setup();
+      await user.click(await screen.findByRole("button",{name:"Create test"}));
+      const apply=await screen.findByRole("button",{name:"Use recommended categories"});
+      clock.mockReturnValue(Date.parse("2100-01-01T00:00:00Z"));
+      await user.click(apply);
+      expect(screen.getByLabelText("Data leakage")).not.toBeChecked();
+      await waitFor(()=>expect(getTargetRecommendations).toHaveBeenCalledTimes(2));
+    } finally {clock.mockRestore();}
+  });
+  it("aborts old-target recommendations and ignores a late result after target selection changes",async()=>{
+    let finish!:(value:readonly {category:"data_leakage";explanation:string;evidenceIDs:readonly string[]}[])=>void;
+    const getTargetRecommendations=vi.fn().mockImplementationOnce(()=>new Promise(resolve=>{finish=values=>resolve(recommendationSet(values));})).mockResolvedValueOnce(recommendationSet([{category:"tool_abuse",explanation:"Current tool boundary.",evidenceIDs:[targetID]}],"pid_92000005-0000-4000-8000-000000000005"));
+    const targets=await api().listTargets();const other="pid_92000005-0000-4000-8000-000000000005";
+    view(api({getTargetRecommendations,listTargets:async()=>[...targets,{...targets[0],id:other,name:"Other tool",kind:"tool"}]}));const user=userEvent.setup();
+    await user.click(await screen.findByRole("button",{name:"Create test"}));await waitFor(()=>expect(getTargetRecommendations).toHaveBeenCalledTimes(1));
+    await user.selectOptions(screen.getByLabelText("Fresh discovered target"),other);
+    expect(await screen.findByText("Current tool boundary.")).toBeInTheDocument();expect(getTargetRecommendations.mock.calls[0][2].aborted).toBe(true);
+    await act(async()=>{finish([{category:"data_leakage",explanation:"Stale prior target.",evidenceIDs:[targetID]}]);});
+    expect(screen.queryByText("Stale prior target.")).not.toBeInTheDocument();
+  });
+  it("shows capability-backed recommendations and applies only the explicit recommended pack",async()=>{
+    const getTargetRecommendations=vi.fn().mockResolvedValue(recommendationSet([{category:"data_leakage",explanation:"Discovered data read boundary.",evidenceIDs:[targetID]}]));
+    const createDefinition=vi.fn(api().createDefinition);
+    view(api({getTargetRecommendations,createDefinition}));const user=userEvent.setup();
+    await user.click(await screen.findByRole("button",{name:"Create test"}));
+    await user.click(await screen.findByRole("button",{name:"Use recommended categories"}));
+    expect(screen.getByText("Discovered data read boundary.")).toBeInTheDocument();
+    expect(getTargetRecommendations).toHaveBeenCalledWith(targetID,"agent",expect.any(AbortSignal));
+    expect(screen.getByLabelText("Data leakage")).toBeChecked();expect(screen.getByLabelText("Prompt injection")).not.toBeChecked();
+    expect(screen.getByLabelText("Safe environment")).toHaveValue("staging");
+    await user.click(screen.getByRole("button",{name:"Save test"}));
+    expect(createDefinition.mock.calls[0][0].categories).toEqual(["data_leakage"]);
+  });
+  it("reports unavailable recommendations without claiming a recommended or safe pack",async()=>{
+    view(api({getTargetRecommendations:async()=>{throw new Error("unavailable");}}));
+    await userEvent.setup().click(await screen.findByRole("button",{name:"Create test"}));
+    expect(await screen.findByText("Capability recommendations are unavailable. No recommended pack is confirmed.")).toBeInTheDocument();
+    expect(screen.queryByRole("button",{name:"Use recommended categories"})).not.toBeInTheDocument();
+  });
   it("refreshes a rejected version before allowing another write and closes stale detail", async () => {
     let finish!: (value: typeof definition[]) => void;
     const listDefinitions = vi.fn().mockResolvedValueOnce([definition]).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
