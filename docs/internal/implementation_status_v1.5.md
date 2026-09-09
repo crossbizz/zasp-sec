@@ -93,8 +93,13 @@ remaining gaps, and release evidence are tracked in
 The admission/API slice is on main with passing main CI. The next runtime
 slice covers live invocation leases, terminal cleanup, the pinned Promptfoo
 process, and bounded adapter concurrency. Local full verification, independent
-review, release-source gates, and the fresh Chrome combined run pass; remote CI
-and main publication for this slice remain pending.
+review, release-source gates, and the fresh Chrome combined run pass. The runtime
+slice is merged to main via PR 11; both pre-merge CI runs and main CI pass.
+The UI recovery slice now passes independent review, 1,044 frontend tests,
+full local verification, release-source gates, and fresh Chrome committed-response
+loss/reload/scope-retry/cancellation proof. It retains principal-and-tenant-scoped
+requests, pins request scope, prevents duplicates, and denies stale writes.
+Remote CI and merge are pending; no M5 task is promoted by this slice.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.

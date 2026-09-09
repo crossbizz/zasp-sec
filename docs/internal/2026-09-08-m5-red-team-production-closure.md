@@ -104,7 +104,7 @@ eight medium matches: four synthetic product-ID fragments classified as card
 numbers and four GitHub CI-run-ID mentions classified as phone numbers. Inspection
 confirmed those false positives; no high finding was reported.
 
-The current unmerged migration 38, `production_red_team_invocation`, requires
+Migration 38, `production_red_team_invocation`, requires
 exact tenant scope, run, live lease, category, current definition version,
 enabled target, non-production environment, active matching credential, and
 current discovery provenance before resolving an endpoint. The old five-argument
@@ -164,3 +164,51 @@ ZASP_PROMPTFOO_IMAGE_TEST=true node --test workers/redteam-node/runner.test.mjs 
 
 It requires Docker and the exact digest-pinned image. Without the explicit flag,
 the image test is skipped; a skipped image test is not execution evidence.
+
+The runtime slice is merged in [PR 11](https://github.com/crossbizz/zasp-sec/pull/11),
+implementation `3bd7be0227e158a8236c5c09c74165bfbea920e8`, main
+`87bdba15c35011966bd7a2cfc706eda71d27f126`. Push CI 34295449725, PR CI
+34295474737, and main CI 34296047515 passed. The push scan had 12 medium
+matches: three CI IDs, four synthetic product-ID fragments, and five occurrences
+of the fixed test-service hostname. Inspection confirmed those intended test
+and evidence values; there was no high finding.
+
+## Retained UI request closure
+
+New regressions reproduced two run requests from one synchronous double-click,
+missing retained retry after an ambiguous response, stale data with writes still
+enabled, and a request following a changed session scope. The current UI slice
+retains one validated request and idempotency key before I/O, keyed by principal
+plus organization/workspace/environment. It freezes the request, requires
+explicit retry, aborts on unmount or lost authority, and verifies local checkpoint
+acknowledgement. It does not retain API credentials, worker leases, native output,
+or response receipts. The API explicitly pins the captured tenant scope.
+
+All 60 focused API, UI, and controller tests pass. Independent review identified
+two additional regressions: a first authoritative version conflict permanently
+locked writes, and delayed rejection cleanup could delete a replaced checkpoint.
+Both were reproduced failing, fixed, and independently re-reviewed with all 60
+tests passing. Only a known first-response version conflict releases its request;
+ambiguous or idempotency conflicts retain the original request. Cleanup verifies
+exact stored ownership and current authority, and fails closed on storage failure.
+The UI closes stale details and locks writes through authoritative refresh.
+
+The fresh browser proof exposed an incomplete legacy Attack Lab target fixture:
+tests/runs/tools returned 200, but agents returned 503 because its winning
+source/snapshot/evidence links were missing. Explicit joined fixture provenance
+now satisfies the unchanged production validation. The next run reached exact-scope
+retry; its wait was corrected to require the confirmed unlocked state, not the
+temporary disappearance of Retry while submitting. The fresh full Chrome run
+then passed, including cleanup. A real API 202 was consumed before injecting
+503 response loss. Reload and a Production-to-Staging scope round trip retained
+the exact request body, idempotency key, version, and scope. PostgreSQL proved
+one queued run, zero attempts, one audit, one receipt, and one outbox record
+before and after retry; cancellation produced one cancelled run with two audit
+and receipt records and still one outbox. Confirmed recovery left no checkpoint.
+
+Fresh `npm run verify` passed: 186 frontend files / 1,044 tests, contracts,
+tenancy/race checks, type-check, lint, build, source/compiled import checks,
+release rendering, and the 728-row ledger. The release-source gate passed.
+Independent review approved this bounded recovery slice and separately reran
+all 60 focused tests. Remote push/PR/main CI remain pending for this slice.
+This is not a Red Team worker/Promptfoo/S3 composition claim or an M5 promotion.

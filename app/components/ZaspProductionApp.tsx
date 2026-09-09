@@ -54,7 +54,7 @@ function ProductionRouteSurface({ path, navigate }: { path: string; navigate(pat
   const { client } = useAPI();
   if (session.status !== "authenticated") return null;
   if (path === "/violations" || path === "/exposure/attack-paths") return <ProductionRiskView path={path} canWrite={session.hasCapability("findings.write")} onNavigate={navigate} />;
-  if (path === "/red-team/results") return <ProductionRedTeamView canWrite={session.hasCapability("red-team.write")} onNavigate={navigate} />;
+  if (path === "/red-team/results") return <ProductionRedTeamView scopeKey={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("red-team.write")} onNavigate={navigate} />;
   if (path === "/test/attack-lab") return <ProductionAttackLabView canWrite={session.hasCapability("red-team.write")} />;
   if (path === "/policies") return <ProductionPoliciesView canWrite={session.hasCapability("policies.write")} />;
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;

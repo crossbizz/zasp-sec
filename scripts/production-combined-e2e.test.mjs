@@ -22,6 +22,11 @@ test("webhook browser E2E verifies real persisted outcome across response loss a
   for (const expected of ["integrationWebhookTestRequests", "webhook retry changed its idempotency key", "webhook retry changed its audit record", "webhook failure was not durably retained once", "webhook status reload emitted another delivery", "Signature and acceptance are unconfirmed", "1|failed"]) assert.ok(source.includes(expected));
 });
 
+test("Red Team response recovery proves committed authority without duplicate work", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  for (const expected of ["exerciseRedTeamRetainedRun", "response loss was not injected after a real committed run", "reload automatically submitted an unresolved run", "another tenant scope exposed the retained run", "retained replay duplicated durable run authority", "1|queued|0|1|1|1|1", "1|cancelled|0|1|2|2|1", "request.body, redTeamRunRequests[0].body", "request.idempotencyKey, redTeamRunRequests[0].idempotencyKey", "request.expectedScope, expectedScope", "confirmed Red Team operation left a browser checkpoint"]) assert.ok(source.includes(expected), expected);
+});
+
 test("combined production E2E owns every local boundary and fixed assertion", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const recoveryWorkerSource = await readFile(new URL("../services/platform/agentsec-worker/production_combined_e2e_test.go", import.meta.url), "utf8");
