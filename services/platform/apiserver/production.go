@@ -47,17 +47,17 @@ type SessionGrant struct {
 }
 
 type CookiePolicy struct {
-	Secure                 bool
-	WorkflowSigningKey     []byte
-	TokenRevealKey         []byte
-	Clock                  func() time.Time
-	BuildVersion           string
-	DeploymentMode         string
-	OrganizationID         string
-	ConnectorCapabilities  ConnectorCapabilities
-	DiscoveryParserVersion string
-	DiscoveryToolVersion   string
-	FindingTickets         FindingTicketCreator
+	Secure                  bool
+	WorkflowSigningKey      []byte
+	TokenRevealKey          []byte
+	Clock                   func() time.Time
+	BuildVersion            string
+	DeploymentMode          string
+	OrganizationID          string
+	ConnectorCapabilities   ConnectorCapabilities
+	DiscoveryParserVersion  string
+	DiscoveryToolVersion    string
+	FindingTickets          FindingTicketCreator
 	IntegrationWebhookTests IntegrationWebhookTester
 }
 
@@ -495,6 +495,7 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 			allowed["workspace_id"] = 40
 		}
 		if routed.OperationID == "listSessions" {
+			allowed["kind"] = 16
 			for _, key := range []string{"agent_id", "principal_id", "from", "to"} {
 				allowed[key] = 256
 			}
@@ -511,6 +512,10 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 		}
 		parameters["limit"] = strconv.Itoa(limit)
 		parameters["cursor_binding"] = administrationCursorBinding(query)
+		if routed.OperationID == "listSessionEvents" {
+			digest := sha256.Sum256([]byte(parameters["cursor_binding"] + "\x00" + parameters["id"]))
+			parameters["cursor_binding"] = base64.RawURLEncoding.EncodeToString(digest[:])
+		}
 		if routed.OperationID == "listEnvironments" {
 			workspace := query.Get("workspace_id")
 			if !validAdministrationProductID(workspace) {
@@ -1031,10 +1036,20 @@ func administrationCursorBinding(query url.Values) string {
 }
 
 func (handler *identityHTTPHandler) validateSessionFilters(query url.Values, parameters map[string]string) bool {
+	parameters["kind"] = query.Get("kind")
+	if parameters["kind"] == "" {
+		parameters["kind"] = "console"
+	}
+	if parameters["kind"] != "console" && parameters["kind"] != "runtime" {
+		return false
+	}
 	for _, key := range []string{"agent_id", "principal_id"} {
 		parameters[key] = query.Get(key)
 	}
 	if principal := parameters["principal_id"]; principal != "" && !validAdministrationProductID(principal) {
+		return false
+	}
+	if parameters["kind"] == "runtime" && (parameters["principal_id"] != "" || parameters["agent_id"] != "" && !validAdministrationProductID(parameters["agent_id"])) {
 		return false
 	}
 	var from, to time.Time

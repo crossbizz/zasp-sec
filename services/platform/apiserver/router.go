@@ -262,6 +262,9 @@ func validRouteParameters(operationID string, parameters map[string]string) bool
 			continue
 		}
 		if name == "id" && (operationID == "getSession" || operationID == "listSessionEvents" || operationID == "revokeSession") {
+			if operationID != "revokeSession" && runtimeSessionTarget(value) {
+				continue
+			}
 			if len(value) > 128 || !sessionIDPattern.MatchString(value) {
 				return false
 			}

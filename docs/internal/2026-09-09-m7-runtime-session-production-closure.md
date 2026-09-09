@@ -105,8 +105,9 @@ hexadecimal lease token in the in-memory repository fixture. It is not a
 provisioned credential. The pre-commit history scan had not included that new
 commit. Following the existing repository policy, the correction ignores only
 the exact commit/path/rule/line fingerprint, with no broad path or rule waiver.
-The code and UI are unchanged. Corrected CI and main merge remain pending;
-local checks are not substituted for CI.
+The code and UI are unchanged. Corrected push CI 34387513826 and PR CI
+34387517605 passed. PR 23 merged as 7144e713 on September 9; main CI
+34388500569 also passed. Local checks are not substituted for CI.
 Independent review confirmed the synthetic-only scope and exact fingerprint
 exception. The full 1,347-commit history scan now passes without a finding.
 The corrected full verification run also passed, including 1,083 frontend
@@ -121,3 +122,59 @@ M5 tasks are now production-available under their individual acceptance criteria
 The corrected current ledger is 531 production-available, 136 component-only
 and 61 external gates. No live-cloud deployment,
 customer collection, or launch-readiness claim is made here.
+
+## Runtime summary and API implementation
+
+Migration 41 adds scoped summaries derived from committed runtime events.
+Backfill and trigger installation share a write-exclusion transaction. Live
+inserts update counts and confidence atomically, replay leaves summaries
+unchanged, event updates are rejected, and deletion rebuilds the remaining
+summary. Rollback removes only the derived layer, preserving source events.
+The semantic fingerprint is
+`f7ab24a108da3edb743e164646f0db64119dd505f50723cde3a4635565b96d4f`.
+
+The original listSessions, getSession and listSessionEvents operations now
+have a runtime read path. Console behavior remains the default compatibility
+path; callers select kind=runtime for runtime collections. Product IDs address
+correlated sessions. The literal unattributed identifies a labeled collection,
+not an inferred session. Unknown agent/principal values remain null. Runtime
+IDs cannot revoke console sessions. Event cursors bind scope, principal,
+filters and the exact investigation path. SQL rechecks the current identity
+membership and investigate_sessions permission under the registered API role.
+
+Real PostgreSQL tests pass for backfill, completion replay, restricted-role
+reads, canonical HTTP pagination, cross-scope/missing stable errors and
+deprovisioning. Observed database lock waits prove insert/insert and both
+insert/delete interleavings; summaries match independent source aggregates.
+Tests also cover immutable updates and deleting the last unknown event.
+The CLI/migrations/runtime-event race suites passed, including old release
+rollback/reapply paths. OpenAPI and generated clients preserve console-only
+revocation and expose separate runtime DTOs; strict decoders reject
+inconsistent counts, forged attribution and event order/schema drift.
+
+Independent Superpowers review found no blocker in this slice and reran its
+PostgreSQL/API and decoder suites. Full verification caught an ES target
+incompatibility in BigInt literal syntax; the implementation now uses BigInt
+construction and focused type/lint checks pass.
+
+Final local verification passed: 1,108 frontend tests in 191 files, type/lint,
+six staging and 36 release checks, production build/import checks and ledger
+validation. The scoped PostgreSQL/API race suite passed, including negative
+RLS/ACL/trigger-drift readiness and membership-role downgrade despite stale
+requested permissions. The complete Chrome/runtime harness passed, with a
+clean browser console and owned-resource cleanup.
+
+The first browser attempt queried Production although the real worker writes
+Staging; its empty response correctly preserved isolation. The second passed
+the read/isolation checks but incorrectly expected a raw scope-permission edit
+to revoke a role-derived permission. The final proof uses the worker's actual
+Staging evidence, denies reads from Production, and changes the exact owned
+membership to read_only_viewer against the still-live browser cookie. It
+expects 403 and restores the original security_admin role and Production scope
+in finally. No event rows were inserted or moved by the browser proof.
+
+Independent Superpowers review accepted each original M7-01/02/03/04 criterion
+as individually eligible after shipping CI passes. This pending-ship entry
+does not yet restore their credit. M7-05, M7-06 and M7-07a remain component-only;
+all structured search fields and the runtime-session UI still require their
+own acceptance. The existing console-session UI remained runnable throughout.

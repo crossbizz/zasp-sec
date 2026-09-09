@@ -105,10 +105,22 @@ func (repository *PostgresRepository) ReadAdministration(ctx context.Context, id
 	case "listAuditEvents":
 		return repository.database.QueryJSON(ctx, postgresListAuditEventsSQL, identity.Scope.OrganizationID().String(), optionalAdministrationTime(parameters["after_time"]), parameters["after_id"], adminLimit(parameters)+1)
 	case "listSessions":
+		if parameters["kind"] == "runtime" {
+			return repository.readRuntimeSession(ctx, identity, operation, parameters)
+		}
+		if parameters["kind"] != "" && parameters["kind"] != "console" {
+			return nil, ErrRepositoryOperation
+		}
 		return repository.database.QueryJSON(ctx, postgresListSessionsSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), parameters["after_id"], adminLimit(parameters)+1, parameters["principal_id"], parameters["agent_id"], optionalAdministrationTime(parameters["from"]), optionalAdministrationTime(parameters["to"]))
 	case "getSession":
+		if runtimeSessionTarget(parameters["id"]) {
+			return repository.readRuntimeSession(ctx, identity, operation, parameters)
+		}
 		return repository.database.QueryJSON(ctx, postgresGetSessionSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), parameters["id"])
 	case "listSessionEvents":
+		if runtimeSessionTarget(parameters["id"]) {
+			return repository.readRuntimeSession(ctx, identity, operation, parameters)
+		}
 		return repository.database.QueryJSON(ctx, postgresListSessionEventsSQL, identity.Scope.OrganizationID().String(), parameters["id"], identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), optionalAdministrationTime(parameters["after_time"]), parameters["after_id"], adminLimit(parameters)+1)
 	case "listComplianceControls":
 		return repository.database.QueryJSON(ctx, postgresListComplianceControlsSQL, identity.Scope.OrganizationID().String(), parameters["after_id"], adminLimit(parameters)+1)

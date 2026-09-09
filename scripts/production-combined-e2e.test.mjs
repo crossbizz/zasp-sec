@@ -8,6 +8,20 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 
+test("runtime session browser proof reads worker-written evidence without seeding sessions", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");
+  const start = source.indexOf("async function exerciseRuntimeSessionReads");
+  const flow = source.slice(start, source.indexOf("async function exerciseRedTeamRecommendations", start));
+  assert.ok(start > 0);
+  for (const text of ["await exerciseRuntimeSessionReads(browser.cdp, dsn)", "runtime session summaries proven: completion-triggered unknown collection, byte-stable replay"]) assert.ok(source.includes(text), text);
+  for (const text of ["another scope exposed runtime investigation", "summary.agent_id, null", "summary.principal_id, null", "summary.kind, \"unattributed\"", "revoked investigation permission retained runtime API access", "runtime session fixture permission ownership changed"]) assert.ok(flow.includes(text), text);
+  assert.doesNotMatch(flow, /(?:INSERT INTO|UPDATE|DELETE FROM) zasp_runtime_session/);
+  assert.doesNotMatch(worker, /(?:INSERT INTO|UPDATE|DELETE FROM) zasp_runtime_session/);
+  assert.ok(worker.includes("SQS redelivery changed runtime session summaries"));
+  assert.ok(flow.includes("scope = staging"), "positive browser reads must use the worker's actual Staging scope");
+});
+
 test("Home exposure E2E waits for loaded rows, not the persistent navigation title", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const start = source.indexOf('await clickBrowserTextContains(cdp, "Critical exposures")');

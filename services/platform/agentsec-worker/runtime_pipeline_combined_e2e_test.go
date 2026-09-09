@@ -519,6 +519,18 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 		return snapshot
 	}
 	var eventCount, receiptCount int
+	var summaryCount int
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_summaries WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id='unattributed' AND event_count=1 AND unattributed_count=1 AND exact_count=0 AND strong_count=0 AND probable_count=0 AND minimum_agent_id IS NULL AND maximum_agent_id IS NULL`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&summaryCount); err != nil || summaryCount != 1 {
+		t.Fatalf("worker-written runtime summary count=%d error=%v", summaryCount, err)
+	}
+	summarySnapshot := func() string {
+		var snapshot string
+		if err := admin.QueryRow(ctx, `SELECT COALESCE(jsonb_agg(to_jsonb(summary) ORDER BY id),'[]'::jsonb)::text FROM zasp_runtime_session_summaries summary WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&snapshot); err != nil {
+			t.Fatal(err)
+		}
+		return snapshot
+	}
+	beforeSummaries := summarySnapshot()
 	var confidence string
 	var sessionID, agentID *string
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&eventCount); err != nil || eventCount != 1 {
@@ -552,6 +564,10 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	if sessionSnapshot() != beforeSessions {
 		t.Fatal("SQS redelivery changed runtime session projection or confidence")
 	}
+	if summarySnapshot() != beforeSummaries {
+		t.Fatal("SQS redelivery changed runtime session summaries")
+	}
+	t.Log("runtime session summaries proven: completion-triggered unknown collection, byte-stable replay")
 	t.Log("runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay")
 	t.Logf("runtime pipeline durable batch=%s archive=%s@%s document=%s", acceptedBatch.BatchID, reference, version, replayIndex.DocumentIDs[0])
 	for _, queueURL := range []*string{queueInfo.QueueUrl, dlq.QueueUrl} {

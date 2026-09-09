@@ -6,6 +6,24 @@ import { load, JSON_SCHEMA } from "js-yaml";
 
 const root = resolve(import.meta.dirname, "..");
 
+test("runtime session reads preserve operation IDs and console-only revocation", async () => {
+  const document = load(await readFile(resolve(root, "openapi/openapi.yaml"), "utf8"), { schema: JSON_SCHEMA });
+  const paths = document.paths, schemas = document.components.schemas;
+  assert.equal(paths["/api/v1/sessions"].get.operationId, "listSessions");
+  assert.deepEqual(paths["/api/v1/sessions"].get.parameters.find((value) => value.name === "kind")?.schema.enum, ["console", "runtime"]);
+  assert.equal(paths["/api/v1/sessions/{id}"].parameters[0].schema.$ref, "#/components/schemas/SessionInvestigationID");
+  assert.equal(paths["/api/v1/sessions/{id}"].delete.parameters.find((value) => value.name === "id")?.schema.$ref, "#/components/schemas/SessionID");
+  assert.equal(paths["/api/v1/sessions/{id}/events"].parameters[0].schema.$ref, "#/components/schemas/SessionInvestigationID");
+  assert.deepEqual(schemas.RuntimeSession.properties.kind.enum, ["runtime", "unattributed"]);
+  assert.deepEqual(schemas.RuntimeSession.properties.agent_id.type, ['string', 'null']);
+  assert.deepEqual(schemas.RuntimeSessionEvent.properties.session_id.type, ['string', 'null']);
+  assert.deepEqual(schemas.RuntimeSessionEvent.properties.agent_id.type, ['string', 'null']);
+  assert.equal(schemas.RuntimeSession.properties.events, undefined);
+  assert.equal(schemas.RuntimeSession.properties.expires_at, undefined);
+  assert.equal(schemas.RuntimeSession.properties.state, undefined);
+  assert.deepEqual(schemas.SessionPage.anyOf.map((value) => value.$ref), ["#/components/schemas/ConsoleSessionPage", "#/components/schemas/RuntimeSessionPage"]);
+});
+
 const expectedOperations = new Map([
   ["getOrganization", ["/api/v1/organization", "get"]],
   ["listWorkspaces", ["/api/v1/workspaces", "get"]],

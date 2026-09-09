@@ -1,0 +1,52 @@
+import { describe, expect, it } from "vitest";
+import { decodeRuntimeSession, decodeRuntimeSessionEventPage, decodeRuntimeSessionPage } from "./runtime-session-decoders";
+
+const id = "pid_10000001-0000-4000-8000-000000000001";
+const agent = "pid_10000002-0000-4000-8000-000000000002";
+const first = "2026-09-09T10:00:00Z";
+const last = "2026-09-09T10:00:01Z";
+const summary = { id, kind: "runtime", workspace_id: id, environment_id: id, agent_id: agent, principal_id: null, first_event_at: first, last_event_at: last, projected_at: last, event_count: 2, confidence_counts: { exact: 1, strong: 1, probable: 0, unattributed: 0 } };
+const event = { id, session_id: id, agent_id: agent, class: "runtime", action: "exec", label: "Process executed", evidence_id: id, source: "tetragon", confidence: "exact", at: first, projected_at: last };
+const page = (items: unknown[]) => ({ items, page_info: { next_cursor: null, has_more: false } });
+
+describe("runtime investigation response boundary", () => {
+  it("accepts durable summaries, multiple-agent uncertainty and explicit unknown collections", () => {
+    expect(decodeRuntimeSession(summary)).toEqual(summary);
+    expect(decodeRuntimeSession({ ...summary, agent_id: null }).agent_id).toBeNull();
+    const unknown = { ...summary, id: "unattributed", kind: "unattributed", agent_id: null, event_count: 2, confidence_counts: { exact: 0, strong: 0, probable: 1, unattributed: 1 } };
+    expect(decodeRuntimeSessionPage(page([unknown])).items[0]).toEqual(unknown);
+    expect(decodeRuntimeSessionEventPage(page([{ ...event, session_id: null, agent_id: null, confidence: "probable" }])).items[0].session_id).toBeNull();
+  });
+  it.each([
+    { kind: "console" }, { id: "unattributed" }, { first_event_at: last, last_event_at: first },
+    { event_count: 3 }, { event_count: 1.5 }, { event_count: Number.MAX_SAFE_INTEGER + 1 },
+    { confidence_counts: { exact: 1, strong: 0, probable: 1, unattributed: 0 } },
+    { principal_id: "unknown" }, { events: [] }, { state: "active" }, { projected_at: "yesterday" },
+  ])("rejects summary drift %j", (override) => {
+    expect(() => decodeRuntimeSession({ ...summary, ...override })).toThrow("schema mismatch");
+  });
+  it.each([
+    { confidence: "exact", session_id: null }, { confidence: "strong", agent_id: null },
+    { confidence: "probable" }, { confidence: "unattributed" }, { confidence: "certain" },
+    { source: "fixture" }, { class: "credential" }, { class: "network", action: "exec" },
+    { session_id: "unattributed" }, { evidence_id: "" }, { provider_secret: "not-allowed" },
+  ])("rejects event attribution or schema drift %j", (override) => {
+    expect(() => decodeRuntimeSessionEventPage(page([{ ...event, ...override }]))).toThrow("schema mismatch");
+  });
+  it("rejects reordered, duplicate, mixed-session and invalid cursor pages", () => {
+    const later = { ...event, id: agent, at: last };
+    expect(decodeRuntimeSessionEventPage(page([event, later])).items).toHaveLength(2);
+    for (const items of [[later, event], [event, event], [event, { ...later, session_id: agent }]]) {
+      expect(() => decodeRuntimeSessionEventPage(page(items))).toThrow("schema mismatch");
+    }
+    expect(() => decodeRuntimeSessionPage({ items: [], page_info: { next_cursor: null, has_more: true } })).toThrow("schema mismatch");
+    expect(() => decodeRuntimeSessionPage(page([summary, summary]))).toThrow("schema mismatch");
+  });
+  it("preserves sub-millisecond canonical ordering and rejects normalized invalid dates", () => {
+    const earlier = { ...event, id: agent, at: "2026-09-09T10:00:00.000001Z" };
+    const later = { ...event, at: "2026-09-09T10:00:00.000002Z" };
+    expect(decodeRuntimeSessionEventPage(page([earlier, later])).items).toHaveLength(2);
+    expect(() => decodeRuntimeSessionEventPage(page([later, earlier]))).toThrow("schema mismatch");
+    expect(() => decodeRuntimeSessionEventPage(page([{ ...event, at: "2026-02-30T10:00:00Z" }]))).toThrow("schema mismatch");
+  });
+});

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { APITransportError, requireAPIData, type APIClient } from "../../../apps/web/api/client";
-import type { ComplianceControlPage, ComplianceEvidencePage, DataControls, SessionEventPage, SessionPage } from "../../../apps/web/api/generated";
+import type { ComplianceControlPage, ComplianceEvidencePage, DataControls, ConsoleSessionEventPage as SessionEventPage, ConsoleSessionPage as SessionPage } from "../../../apps/web/api/generated";
 import { decodeComplianceControlPage, decodeComplianceEvidencePage, decodeDataControls, decodeSessionEventPage, decodeSessionPage } from "../../../apps/web/api/administration-decoders";
 import { loadAllCursorPages } from "../../../apps/web/api/pagination";
 import { useOptionalSession } from "../../auth/SessionProvider";

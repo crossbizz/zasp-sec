@@ -174,8 +174,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39,40) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts\n40|production_runtime_sessions", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts\n40|production_runtime_sessions\n41|production_runtime_session_reads", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -196,6 +196,7 @@ try {
   console.log("combined E2E: schema 37 production_red_team_safety verified");
   console.log("combined E2E: schema 39 production_red_team_artifacts verified");
   console.log("combined E2E: schema 40 production_runtime_sessions verified");
+  console.log("combined E2E: schema 41 production_runtime_session_reads verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -216,6 +217,7 @@ try {
   });
   assert.match(runtimePipelineResult.stdout, /runtime pipeline proof passed:/);
   assert.match(runtimePipelineResult.stdout, /runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay/);
+  assert.match(runtimePipelineResult.stdout, /runtime session summaries proven: completion-triggered unknown collection, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /--- PASS: TestProductionCombinedE2ERuntimeQueueIndex/);
   assert.doesNotMatch(runtimePipelineResult.stdout, /--- SKIP:/);
   console.log("combined E2E: local runtime SQS/S3/OpenSearch pipeline passed");
@@ -545,6 +547,7 @@ try {
 	const redTeamState = await waitForBrowserText(browser.cdp, /No Red Team tests in this scope/);
 	assert.match(redTeamState, /No Red Team runs in this scope/);
 	console.log("combined E2E: tenant-scoped Red Team route loaded through isolated Security Agent API authority");
+	await exerciseRuntimeSessionReads(browser.cdp, dsn);
 	await exerciseRedTeamRecommendations(browser.cdp, dsn);
 
 	const hiddenRequestStart = productAPIRequests.length;
@@ -2230,6 +2233,78 @@ async function exerciseHomeDailyOperations(cdp, publicOrigin, dsn, approvalID, r
 	assert.equal(after.status, 200);
 	for (const field of ["high_risk_paths", "pending_approvals", "needs_human_runs"]) assert.equal(after.body[field], before.body[field], `unrelated sensor action silently cleared ${field}`);
 	console.log("combined E2E: Home daily-ops routing preserved explicit terminal and degraded authority");
+}
+
+async function exerciseRuntimeSessionReads(cdp, dsn) {
+  const principal = "pid_10000004-0000-4000-8000-000000000004";
+  const organization = "pid_10000001-0000-4000-8000-000000000001";
+  const production = organization + "/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+  const staging = organization + "/pid_10000022-0000-4000-8000-000000000022/pid_10000023-0000-4000-8000-000000000023";
+  const scopePredicate = "(workspace_id,environment_id) IN (('pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003'),('pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023'))";
+  const predicate = `principal_id='${principal}' AND organization_id='${organization}' AND ${scopePredicate}`;
+  const original = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',role,(SELECT count(*) FROM zasp_authorized_scopes WHERE ${predicate}),(SELECT count(*) FROM zasp_identity_member_groups WHERE principal_id='${principal}' AND organization_id='${organization}')) FROM zasp_identity_memberships WHERE principal_id='${principal}' AND organization_id='${organization}' AND active;`])).stdout.trim();
+  assert.equal(original, "security_admin|2|0", "runtime session fixture permission ownership changed");
+  // Effective permissions come from the membership role, not a raw scope JSON
+  // edit. Exercise fresh authorization against a still-live browser session.
+  const setReadOnly = async (readOnly) => {
+    await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_identity_memberships SET role='${readOnly ? "read_only_viewer" : "security_admin"}' WHERE principal_id='${principal}' AND organization_id='${organization}' AND active;`]);
+  };
+  // The real runtime pipeline fixture writes Staging. Never move or seed its
+  // evidence to satisfy a browser assertion in another tenant scope.
+  const read = (target, scope = staging) => browserFetchJSON(cdp, target, { "X-Zasp-Expected-Scope": scope });
+  try {
+    await reloadBrowser(cdp);
+    await waitForBrowserScope(cdp, production);
+    await selectBrowserOption(cdp, "Authorized scope", "Staging");
+    await waitForBrowserSelectedOption(cdp, "Authorized scope", "Staging");
+    await waitForBrowserScope(cdp, staging);
+    const page = await read("/api/v1/sessions?kind=runtime&limit=1");
+    assert.equal(page.status, 200);
+    assert.equal(page.body.items.length, 1);
+    assert.deepEqual(page.body.page_info, { next_cursor: null, has_more: false });
+    const summary = page.body.items[0];
+    assert.equal(summary.id, "unattributed");
+    assert.equal(summary.kind, "unattributed");
+    assert.equal(summary.agent_id, null);
+    assert.equal(summary.principal_id, null);
+    assert.equal(summary.event_count, 1);
+    assert.deepEqual(summary.confidence_counts, { exact: 0, strong: 0, probable: 0, unattributed: 1 });
+    assert.equal(Object.hasOwn(summary, "expires_at"), false);
+    const detail = await read("/api/v1/sessions/unattributed");
+    assert.equal(detail.status, 200);
+    assert.deepEqual(detail.body, summary);
+    const events = await read("/api/v1/sessions/unattributed/events?limit=1");
+    assert.equal(events.status, 200);
+    assert.equal(events.body.items.length, 1);
+    assert.equal(events.body.items[0].session_id, null);
+    assert.equal(events.body.items[0].agent_id, null);
+    assert.equal(events.body.items[0].confidence, "unattributed");
+    assert.equal(events.body.items[0].source, "tetragon");
+    assert.equal(events.body.items[0].class, "runtime");
+    const rejected = await read("/api/v1/sessions?kind=runtime&query=%7B%22match_all%22%3A%7B%7D%7D");
+    assert.equal(rejected.status, 400);
+    await selectBrowserOption(cdp, "Authorized scope", "Production");
+    await waitForBrowserSelectedOption(cdp, "Authorized scope", "Production");
+    await waitForBrowserScope(cdp, production);
+    const empty = await read("/api/v1/sessions?kind=runtime", production);
+    assert.equal(empty.status, 200);
+    assert.deepEqual(empty.body.items, []);
+    for (const target of ["/api/v1/sessions/unattributed", "/api/v1/sessions/unattributed/events"]) {
+      const denied = await read(target, production);
+      assert.equal(denied.status, 404, "another scope exposed runtime investigation");
+      assert.equal(denied.body.code, "not_found");
+    }
+    console.log("combined E2E: worker-written runtime session list/detail/events, explicit unknown attribution, structured-query rejection and scope isolation proven");
+    await setReadOnly(true);
+    const revoked = await read("/api/v1/sessions?kind=runtime", production);
+    assert.equal(revoked.status, 403, "revoked investigation permission retained runtime API access");
+  } finally {
+    await setReadOnly(false);
+    await selectBrowserOption(cdp, "Authorized scope", "Production");
+    await waitForBrowserSelectedOption(cdp, "Authorized scope", "Production");
+    await reloadBrowser(cdp);
+    await waitForBrowserText(cdp, /No Red Team tests in this scope/);
+  }
 }
 
 async function exerciseRedTeamRecommendations(cdp, dsn) {
