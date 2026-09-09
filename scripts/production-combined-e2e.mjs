@@ -2411,6 +2411,7 @@ async function exerciseRedTeamRuntime(cdp, dsn) {
   } finally { await redTeamRuntimeProof.close(); }
   await reloadBrowser(cdp);
   await waitForBrowserText(cdp, /Runtime pipeline proof/);
+  await waitForBrowserAction(cdp, `document.querySelector('section[aria-label="Unsafe behavior observed"] [aria-label="Open run ${runID}"]') !== null && document.querySelector('section[aria-label="Cancelled"]') !== null`);
   await clickBrowserAria(cdp, `Open run ${runID}`);
   const detail = await waitForBrowserText(cdp, /prompt_injection: unsafe behavior observed/);
   assert.match(detail, /1 of|0 of/); assert.match(detail, /fail/); assert.match(detail, /Verify safely/);
@@ -2418,7 +2419,16 @@ async function exerciseRedTeamRuntime(cdp, dsn) {
   assert.ok(detail.includes(inputReceipt.reference) && detail.includes(inputReceipt.version_id) && detail.includes(inputReceipt.sha256) && detail.includes(`${inputReceipt.size_bytes} bytes`), "reloaded product UI lost immutable input receipt");
   assert.ok(!detail.includes("Input artifact unavailable"), "new runtime attempt displayed as legacy");
   assert.doesNotMatch(detail, /proof-secret-fixture|ref:red-team|lease_token|ZASP_RED_TEAM_PROMPT_INJECTION/);
-  await clickBrowserAria(cdp, "Close");
+  const readAttackLabAuthority = async () => (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',(SELECT count(*) FROM zasp_attack_lab_runs WHERE source_run_id='${runID}'),(SELECT count(*) FROM zasp_attack_lab_outbox));`])).stdout.trim();
+  const authorityBefore = await readAttackLabAuthority();
+  assert.match(authorityBefore, /^0\|[0-9]+$/);
+  await clickBrowserText(cdp, "Verify safely in Attack Lab");
+  await waitForBrowserAction(cdp, `location.pathname === '/test/attack-lab'`);
+  await waitForBrowserText(cdp, /Safety approval/);
+  await selectBrowserOption(cdp, "Failed Red Team run", runID);
+  await clickBrowserText(cdp, "Review safety decision");
+  await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Approve exact safety decision"]')?.checked === false && Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Run Attack Lab')?.disabled === true`);
+  assert.equal(await readAttackLabAuthority(), authorityBefore, "outcome navigation granted Attack Lab execution");
   console.log("combined E2E: real Red Team outbox/SQS, pinned engine, lease-bound Go adapter, KMS evidence and reloaded browser result proven; customer invocation fixture only");
 }
 

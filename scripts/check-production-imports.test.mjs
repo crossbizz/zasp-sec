@@ -114,15 +114,17 @@ test("source graph accepts only the exact production red-team surface", async ()
     "app/features/redteam/ProductionRedTeamView.tsx": 'export { getRuns as ProductionRedTeamView } from "./api";',
 		"app/features/redteam/ProductionAttackLabView.tsx": 'export { getRuns as ProductionAttackLabView } from "./api";',
     "app/features/redteam/api.ts": 'export { getRuns } from "./recommendations";',
-    "app/features/redteam/recommendations.ts": "export const getRuns = 1;",
+    "app/features/redteam/recommendations.ts": 'export { getRuns } from "./outcomes";',
+    "app/features/redteam/outcomes.ts": "export const getRuns = 1;",
   });
   const result = await checkSourceGraph({ root: production });
   assert.ok(result.files.includes("app/features/redteam/ProductionRedTeamView.tsx"));
 	assert.ok(result.files.includes("app/features/redteam/ProductionAttackLabView.tsx"));
   assert.ok(result.files.includes("app/features/redteam/api.ts"));
   assert.ok(result.files.includes("app/features/redteam/recommendations.ts"));
+  assert.ok(result.files.includes("app/features/redteam/outcomes.ts"));
 
-  for (const target of ["AttackLabView.tsx", "RedTeamViews.tsx", "fixture-api.ts"]) {
+  for (const target of ["AttackLabView.tsx", "RedTeamViews.tsx", "fixture-api.ts", "outcomes.test.ts", "outcomes-demo.ts"]) {
     const unapproved = await fixture({
       "app/page.tsx": `export { View } from "./features/redteam/${target.replace(/\.[^.]+$/, "")}";`,
       "app/[...path]/page.tsx": "export {};",

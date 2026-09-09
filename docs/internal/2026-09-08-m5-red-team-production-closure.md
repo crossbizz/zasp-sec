@@ -463,3 +463,59 @@ source/compiled import checks and all 728 ledger rows. The separate production
 release-source gate passed. The focused Node/runtime/ledger suite passed 48
 tests with two opt-in interruption tests skipped, and the API acceptance/input
 reference race tests passed. Remote push/PR/main checks remain pending.
+
+PR 16 merged artifact commit `ca26f084f4ddb671617c4ff2f598dfb1ae59fe6e`
+as main `99bb766feaef6b5cee4528cd5421e20a9a3c211f`. Push CI
+34306374745 and PR CI 34306402626 passed. The full API race suite also
+passed locally in 314 seconds, and a second complete schema39 Chrome/runtime
+journey passed, including temporary-policy enforcement, durable redacted
+artifacts, reload and owned cleanup. The pre-push scan's 20 medium matches
+were individually inspected: synthetic IDs, CI run IDs and an explicit local
+Kubernetes hostname. There were no high findings and no bypass.
+
+Main CI 34306928829 passed. With the shipped evidence and independent
+task-level acceptance, M5-02, M5-14 and M5-18 are now production-available.
+The ledger records 531 production-available, 136 component-only and 61
+blocked/external tasks, totaling all 728. M5-18's credit remains limited to
+its original production-provider fixture criterion, not live Fargate proof.
+
+## M5-16 security-outcome results
+
+The production results view now groups runs into unsafe behavior observed,
+curated checks passed, evaluation errors, in progress, and cancelled. Pending
+or cancelled states cannot become a completed security outcome even if a
+malformed fixture supplies a failing verdict. A passed pack does not claim
+coverage beyond its selected categories. Evaluation errors establish no
+security verdict.
+
+Verify safely is available only for a completed failing evaluation with an
+attempt, completion time and evidence reference, without cancellation. It
+navigates to the existing Attack Lab safety review, not execution approval.
+The browser proof selects the exact source run, obtains a fresh server safety
+decision, checks that approval remains unchecked and Run remains disabled,
+and compares durable run/outbox counts before and after navigation.
+
+Outcome unit tests and rendered UI tests were observed failing before the
+implementation, then passed all 22 focused tests. The browser source-contract
+test likewise failed before its new assertions and passed afterward.
+Independent Superpowers review reran all 22 tests and found no blocker.
+M5-16 remains component-only until full verification, browser proof, shipping
+and required CI pass.
+
+The full fresh-build Chrome journey passed, including outcome grouping,
+exact-source fresh safety review with zero new execution authority, all
+existing product journeys, clean console/exception streams and owned cleanup.
+All 1,082 frontend tests passed. Full verification then caught the new pure
+outcome module missing from the exact production-import allowlist. A regression
+reproduced that rejection, then passed with only that exact source added;
+demo siblings and outcome test modules remain rejected. All seven import
+contract tests and the 38-file source graph pass. The release-source gate
+also passed. Full verification is being rerun after this integration correction.
+
+The corrected full verification passed: 190 frontend files and 1,082 tests,
+tenant/race and API contracts, types, warning-free lint, all release rendering,
+production build, source and compiled import boundaries, and all 728 ledger
+rows. The runtime/Node/ledger CI regression command passed 50 tests with two
+opt-in interruption cases skipped. Independent final review passed all 30
+import/ledger tests. The pre-push scan's six medium matches were inspected and
+all were documented CI run IDs; there were no high findings or bypass.

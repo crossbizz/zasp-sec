@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 528 |
-| Component-only | 139 |
+| Production-available | 531 |
+| Component-only | 136 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -116,7 +116,13 @@ invocation, durable normalized evidence, and empty-queue checks. M5-15 passes
 the browser list/new-test flow with explained recommendations and safety gates.
 Independent review accepted all ten tasks separately. PR 15 shipped these
 checks; push CI 34303330721, PR CI 34303333610, and main CI 34303890095 passed.
-M5-02 and M5-14 remain component-only pending durable input/raw-artifact closure.
+PR 16 shipped durable input receipts and policy-redacted native evidence with
+schema39 and exact S3/PostgreSQL/browser readback. Push CI 34306374745, PR CI
+34306402626 and main CI 34306928829 passed. Independent original-task review
+accepted M5-02 and M5-14, plus M5-18's shipped run-scoped Job/profile/cleanup
+fixture. These three tasks are now production-available. This does not attest
+live Fargate scheduling. M5-16 outcome grouping is under final verification;
+M5-17, M5-19, M5-20, M5-21 and M5-22 retain their original open requirements.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
@@ -231,12 +237,12 @@ production composition, not merely a component proof or external evidence.
 | M2 | 72 | 69 | 3 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
-| M5 | 42 | 33 | 9 | 0 | 0 |
+| M5 | 42 | 36 | 6 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **528** | **139** | **61** | **0** |
+| **Total** | **728** | **531** | **136** | **61** | **0** |
 
 ## Prerequisite work
 

@@ -10,6 +10,7 @@ const allowedExactSources = new Set([
 	"app/features/redteam/ProductionRedTeamView.tsx",
 	"app/features/redteam/redTeamMutationRecovery.ts",
 	"app/features/redteam/recommendations.ts",
+	"app/features/redteam/outcomes.ts",
 	"app/features/redteam/api.ts",
   "app/features/sensors/ProductionSensorView.tsx",
   "app/features/sensors/api.ts",

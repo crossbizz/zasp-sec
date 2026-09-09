@@ -1,5 +1,5 @@
 import { StrictMode, useEffect, type ReactNode } from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -24,8 +24,8 @@ function api(overrides: Partial<ProductionRedTeamAPI> = {}): ProductionRedTeamAP
   };
 }
 
-function view(value: ProductionRedTeamAPI, canWrite = true, scope = scopeKey) {
-  return render(<APIProvider><QueryScope><ProductionRedTeamView scopeKey={scope} api={value} canWrite={canWrite} onNavigate={() => undefined} /></QueryScope></APIProvider>);
+function view(value: ProductionRedTeamAPI, canWrite = true, scope = scopeKey, onNavigate: (path: string) => void = () => undefined) {
+  return render(<APIProvider><QueryScope><ProductionRedTeamView scopeKey={scope} api={value} canWrite={canWrite} onNavigate={onNavigate} /></QueryScope></APIProvider>);
 }
 
 function QueryScope({ children }: { children: ReactNode }) {
@@ -35,6 +35,27 @@ function QueryScope({ children }: { children: ReactNode }) {
 }
 
 describe("production red team view", () => {
+  it("groups results by security outcome and links only unsafe completed runs to safety review", async () => {
+    const failed = { ...run, status: "complete" as const, version: 3, attempt: 1, verdict: "fail" as const, started_at: "2026-08-24T10:02:01Z", completed_at: "2026-08-24T10:02:05Z", evidence_reference: "s3://zasp-evidence/result" };
+    const protectedRun = { ...failed, id: "pid_92000005-0000-4000-8000-000000000005", verdict: "pass" as const };
+    const errorRun = { ...failed, id: "pid_92000006-0000-4000-8000-000000000006", verdict: "engine_error" as const, error_code: "outcome_unknown" as const };
+    const pending = { ...run, id: "pid_92000007-0000-4000-8000-000000000007" };
+    const onNavigate = vi.fn();
+    const value = api({ listRuns: async () => [protectedRun, pending, failed, errorRun], getRun: async id => ({ ...([failed, protectedRun, errorRun].find(item => item.id === id) ?? pending), attempts: [] }) });
+    view(value, true, scopeKey, onNavigate); const user = userEvent.setup();
+    const unsafe = await screen.findByRole("region", { name: "Unsafe behavior observed" });
+    expect(within(unsafe).getByRole("button", { name: `Open run ${failed.id}` })).toBeVisible();
+    expect(within(screen.getByRole("region", { name: "Curated checks passed" })).getByRole("button", { name: `Open run ${protectedRun.id}` })).toBeVisible();
+    expect(within(screen.getByRole("region", { name: "Evaluation errors" })).getByRole("button", { name: `Open run ${errorRun.id}` })).toBeVisible();
+    expect(within(screen.getByRole("region", { name: "In progress" })).getByRole("button", { name: `Open run ${pending.id}` })).toBeVisible();
+    await user.click(within(unsafe).getByRole("button", { name: `Open run ${failed.id}` }));
+    await user.click(await screen.findByRole("button", { name: "Verify safely in Attack Lab" }));
+    expect(onNavigate).toHaveBeenCalledWith("/test/attack-lab");
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("button", { name: `Open run ${errorRun.id}` }));
+    await screen.findByRole("dialog", { name: "Red team run" });
+    expect(screen.queryByRole("button", { name: "Verify safely in Attack Lab" })).not.toBeInTheDocument();
+  });
   it("shows durable input metadata and identifies legacy evidence", async () => {
     const input = { reference: "s3://zasp-evidence/exact-input", version_id: "input-version-7", sha256: "b".repeat(64), size_bytes: 512 };
     const legacyAttempt = { attempt: 1, verdict: "pass" as const, objective: "Evaluate bounded input", behavior: "Target refused", evidence: ["Protected"], evidence_reference: "s3://zasp-evidence/result", completed_at: "2026-09-09T02:00:00Z" };
