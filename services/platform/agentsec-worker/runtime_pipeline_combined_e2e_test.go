@@ -107,10 +107,19 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer searchDriver.Close()
 	if err := searchDriver.InitializeSchema(ctx); err != nil {
 		t.Fatal(err)
 	}
-	defer searchDriver.Close()
+	sessionIndex, err := opensearchdriver.NewSessionIndex(opensearchdriver.Config{Endpoint: searchEndpoint, Region: "us-east-1", RequestTimeout: 5 * time.Second, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20, AllowTestLoopback: true}, creds, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sessionIndex.Close()
+	if err := sessionIndex.InitializeSchema(ctx); err != nil {
+		t.Fatal(err)
+	}
+	configureOwnedSingleNodeSessionIndex(t, ctx, searchEndpoint)
 	index, err := runtimeindex.New(searchDriver, runtimeindex.Config{MaximumBatchBytes: 8 << 20, MaximumDocuments: 1000})
 	if err != nil {
 		t.Fatal(err)
@@ -363,6 +372,11 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sessionExecutor, err := newRuntimeSessionSearchExecutor(archive, receipts, sessionIndex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sessionWorker workerProcessor
 	correlationGraph, projectionGraph := &runtimeCorrelationGraphStoreStub{}, &runtimeCorrelationGraphStoreStub{}
 	correlation, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: archive, Receipts: receipts, Graph: correlationGraph, ImplementationVersion: "runtime-correlation-v1"})
 	if err != nil {
@@ -387,9 +401,24 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 		if !ok {
 			t.Fatal("invalid stage")
 		}
-		runtime, err := composeRuntimeStageWorkerRuntime(stage.config, database(stage.principal), &productionRuntimeStageDependencies{Stage: stageName, Executor: stage.executor, ready: func(context.Context) error { return nil }, close: func() error { return nil }})
+		tracedExecutor := runtimeStageExecutorFunc(func(ctx context.Context, lease runtimeevent.StageLease) (runtimeStageEffect, error) {
+			effect, err := stage.executor.Execute(ctx, lease)
+			if err != nil {
+				t.Logf("owned raw-stage executor %s failed: %v", stageName, err)
+			}
+			return effect, err
+		})
+		stageDependencies := &productionRuntimeStageDependencies{Stage: stageName, Executor: tracedExecutor, ready: func(context.Context) error { return nil }, close: func() error { return nil }}
+		if stageName == runtimeevent.RuntimeStageIndex {
+			stageDependencies.Sessions = sessionExecutor
+			stageDependencies.SessionReady = sessionIndex.Ready
+		}
+		runtime, err := composeRuntimeStageWorkerRuntime(stage.config, &sessionSearchProofDatabase{JSONDatabase: database(stage.principal), test: t}, stageDependencies)
 		if err != nil {
 			t.Fatalf("compose %s: %v", stageName, err)
+		}
+		if stageName == runtimeevent.RuntimeStageIndex {
+			sessionWorker = runtime.Processor
 		}
 		var state string
 		for attempt := 0; attempt < 100; attempt++ {
@@ -547,7 +576,7 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_projection_receipts receipt JOIN zasp_runtime_stage_work stage USING(organization_id,workspace_id,environment_id,batch_id,batch_generation) WHERE receipt.batch_id=$1 AND stage.stage='project' AND receipt.receipt_digest=stage.result_digest AND cardinality(receipt.event_ids)=1`, acceptedBatch.BatchID).Scan(&receiptCount); err != nil || receiptCount != 1 {
 		t.Fatalf("projection receipt not bound to predecessor: count=%d error=%v", receiptCount, err)
 	}
-	proveRuntimeSessionSearchIndex(t, ctx, admin, scope, workerID(t, acceptedBatch.BatchID), archived, searchEndpoint, creds, receipts)
+	proveRuntimeSessionSearchIndex(t, ctx, admin, scope, workerID(t, acceptedBatch.BatchID), archived, sessionIndex, sessionWorker, receipts)
 	beforeSessions := sessionSnapshot()
 	if len(publisher.jobs) != 1 {
 		t.Fatal("outbox published duplicate jobs")

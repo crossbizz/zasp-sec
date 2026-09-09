@@ -63,6 +63,19 @@ func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig) 
 		return nil, errRuntimeUnavailable
 	}
 	cloud := productionDiscoveryCloudConfig{Region: config.AWSRegion, RoleARN: config.RuntimeStageRoleARN, TokenFile: config.RuntimeStageTokenFile, SecretRoot: "runtime/index", Timeout: requestTimeout, Clock: func() time.Time { return time.Now().UTC() }}
+	sessionIndex, err := runtimeopensearch.NewSessionIndex(runtimeopensearch.Config{Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20}, credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
+	if err != nil {
+		driver.Close()
+		transport.CloseIdleConnections()
+		return nil, errRuntimeUnavailable
+	}
+	sessions, err := newRuntimeSessionSearchExecutor(reader, receipts, sessionIndex)
+	if err != nil {
+		sessionIndex.Close()
+		driver.Close()
+		transport.CloseIdleConnections()
+		return nil, errRuntimeUnavailable
+	}
 	artifacts := productionDiscoveryArtifactConfig{Bucket: config.EvidenceBucket, ExpectedBucketOwner: config.EvidenceOwner, KMSKeyARN: config.EvidenceKMSKeyARN, OperationTimeout: requestTimeout, MaximumBytes: 64 << 20}
 	ready := func(readyCtx context.Context) error {
 		if readyCtx == nil || readyCtx.Err() != nil {
@@ -74,9 +87,10 @@ func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig) 
 		return nil
 	}
 	if err := ready(ctx); err != nil {
+		sessionIndex.Close()
 		driver.Close()
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	return &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageIndex, Executor: executor, ready: ready, close: func() error { driver.Close(); transport.CloseIdleConnections(); return nil }}, nil
+	return &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageIndex, Executor: executor, Sessions: sessions, SessionReady: sessionIndex.Ready, ready: ready, close: func() error { sessionIndex.Close(); driver.Close(); transport.CloseIdleConnections(); return nil }}, nil
 }

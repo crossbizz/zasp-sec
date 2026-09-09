@@ -550,6 +550,7 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 	throughSecurityAgentSessionIsolation := append(append([]Metadata(nil), throughSecurityAgentConnectorRevocation...), securityAgentSessionIsolation)
 	throughRedTeam := append(append([]Metadata(nil), throughSecurityAgentSessionIsolation...), redTeam)
 	throughAttackLab := append(append([]Metadata(nil), throughRedTeam...), attackLab)
+	throughSessionSearch := append(append([]Metadata(nil), throughAttackLab...), ProductionRecovery(), ProductionPolicyDeployment(), ProductionHomeAttention(), ProductionApprovalNotification(), ProductionWorkflowCompatibility(), ProductionSecurityAgentPlanner(), ProductionSecurityAgentAttackPath(), ProductionIntegrationSetup(), ProductionIntegrationWebhook(), ProductionRuntimeQueueReplay(), ProductionRedTeamSafety(), ProductionRedTeamInvocation(), ProductionRedTeamArtifacts(), ProductionRuntimeSessions(), ProductionRuntimeSessionReads(), ProductionRuntimeSessionSearch())
 	for _, test := range []struct {
 		name    string
 		rows    []Row
@@ -581,7 +582,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "security agent session isolation", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSecurityAgentSessionIsolation...)...), want: 24},
 		{name: "red team execution", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughRedTeam...)...), want: 25},
 		{name: "attack lab execution", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughAttackLab...)...), want: 26},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(42)}}}, wantErr: ErrInvalidState},
+		{name: "runtime session search", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSessionSearch...)...), want: 42},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(43)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}

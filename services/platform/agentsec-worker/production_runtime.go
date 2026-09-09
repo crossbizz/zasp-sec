@@ -301,9 +301,19 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 	if !validWorkerRuntimeConfig(config) || database == nil || stage == nil || stage.Executor == nil || stage.ready == nil || stage.close == nil || !ok || stage.Stage != wantStage {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
+	if wantStage == runtimeevent.RuntimeStageIndex && (nilWorkerDependency(stage.Sessions) || stage.SessionReady == nil) || wantStage != runtimeevent.RuntimeStageIndex && (!nilWorkerDependency(stage.Sessions) || stage.SessionReady != nil) {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
 	repository, err := runtimeevent.NewPostgresProductionPipelineRepository(database, authority)
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	var sessionAuthority *postgresRuntimeSessionSearchAuthority
+	if wantStage == runtimeevent.RuntimeStageIndex {
+		sessionAuthority, err = newPostgresRuntimeSessionSearchAuthority(database)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
 	}
 	check := func(ctx context.Context) error {
 		if repository.Ready(ctx) != nil || stage.Ready(ctx) != nil {
@@ -322,7 +332,26 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: ready}, Ready: ready, Close: stage.Close}, nil
+	var combined workerProcessor = readinessGatedWorkerProcessor{delegate: processor, ready: ready}
+	healthReady := ready
+	if sessionAuthority != nil {
+		sessions, err := newRuntimeSessionSearchProcessor(runtimeSessionSearchProcessorConfig{Authority: sessionAuthority, Executor: stage.Sessions, WorkerID: config.WorkerID, LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: min(config.BatchSize, 10), HeartbeatInterval: config.LeaseDuration / 3, RetrySeconds: int(config.LeaseDuration / time.Second), NewLeaseToken: newWorkerLeaseToken})
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		sessionReady, err := newBoundedCachedWorkerReadiness(func(ctx context.Context) error {
+			if stage.SessionReady(ctx) != nil || sessionAuthority.Ready(ctx) != nil {
+				return errRuntimeUnavailable
+			}
+			return nil
+		}, minDuration(config.LeaseDuration/3, 5*time.Second), workerReadinessCacheTTL(config.PollInterval))
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		combined = runtimeIndexAndSessionProcessor{raw: combined, sessions: readinessGatedWorkerProcessor{delegate: sessions, ready: sessionReady}}
+		healthReady = func(ctx context.Context) error { return errors.Join(ready(ctx), sessionReady(ctx)) }
+	}
+	return workerRuntimeDependencies{Processor: combined, Ready: healthReady, Close: stage.Close}, nil
 }
 
 func runtimeStageBinding(mode workerMode) (runtimeevent.RuntimeStage, runtimeevent.ProductionPipelineAuthority, bool) {

@@ -5,6 +5,14 @@
 **Last updated:** September 9, 2026
 **Execution branch:** `main`
 
+Current unshipped slice: migration 42 and the production session-search indexing
+worker. Its owned PostgreSQL/SQS/S3/OpenSearch pipeline, full API race suite,
+UI/build verification, release-source gate and fresh Chrome end-to-end run pass.
+Shipping CI is pending. M7-05 remains component-only
+until its search API, authorization, canonical hydration and freshness criteria
+pass. Detailed evidence is in
+`docs/internal/2026-09-09-m7-runtime-session-production-closure.md`.
+
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production
 availability is separately authoritative in

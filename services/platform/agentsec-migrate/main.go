@@ -144,6 +144,8 @@ type releaseMigrationRunner interface {
 	DownProductionRuntimeSessions(context.Context) error
 	UpProductionRuntimeSessionReads(context.Context) error
 	DownProductionRuntimeSessionReads(context.Context) error
+	UpProductionRuntimeSessionSearch(context.Context) error
+	DownProductionRuntimeSessionSearch(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -527,10 +529,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 41
 		}
-		if version != 41 {
+		if version == 41 {
+			if err := runner.UpProductionRuntimeSessionSearch(ctx); err != nil {
+				return err
+			}
+			version = 42
+		}
+		if version != 42 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 42 {
+			if err := runner.DownProductionRuntimeSessionSearch(ctx); err != nil {
+				return err
+			}
+			version = 41
+		}
 		if version == 41 {
 			if err := runner.DownProductionRuntimeSessionReads(ctx); err != nil {
 				return err
