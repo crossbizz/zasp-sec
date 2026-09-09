@@ -28,6 +28,12 @@ function apiReturning<T extends { readonly version: number }>(body: T, status = 
 }
 
 describe("production Red Team request-bound API", () => {
+	it("pins retained transport to its original tenant instead of a changed session scope", async () => {
+		let captured = "";
+		const client = createAPIClient({ getExpectedScope: () => `${otherID}/${targetID}/${runID}`, fetch: async (request) => { captured = request.headers.get("X-Zasp-Expected-Scope") ?? ""; return new Response(JSON.stringify(definition), { headers: { "Content-Type":"application/json", "Cache-Control":"no-store", ETag:'"1"' } }); } });
+		await createProductionRedTeamAPI(client, scope).getDefinition(definitionID);
+		expect(captured).toBe(scope);
+	});
   const operations: { name: string; body: TestDefinition | TestRun | (TestRun & { attempts: readonly [] }); call(api: ProductionRedTeamAPI): Promise<unknown> }[] = [
     { name: "definition read", body: definition, call: (api) => api.getDefinition(definitionID) },
     { name: "definition create", body: definition, call: (api) => api.createDefinition(input, attempt) },

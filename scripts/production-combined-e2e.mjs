@@ -61,6 +61,8 @@ const delayedRiskDetailResponses = [];
 const lostFindingResponseKeys = [];
 const findingTicketRequests = [];
 const integrationWebhookTestRequests = [];
+const redTeamRunRequests = [];
+let loseNextRedTeamRunResponse = false;
 const connectorAuthorizationRequests = [];
 const productAPIRequests = [];
 const policyHistoryRequests = [];
@@ -2222,6 +2224,10 @@ async function exerciseProductionAttackLabLifecycle(cdp, workerE2EBinary, postgr
 	const environmentID = "pid_10000023-0000-4000-8000-000000000023";
 	const actorID = "pid_10000004-0000-4000-8000-000000000004";
 	const credentialReference = "ref:red-team/target_e2e_0001";
+	const integrationID = "pid_7f300010-0000-4000-8000-000000000010";
+	const syncID = "pid_7f300011-0000-4000-8000-000000000011";
+	const snapshotID = "pid_7f300012-0000-4000-8000-000000000012";
+	const evidenceID = "pid_7f300013-0000-4000-8000-000000000013";
 	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `
 UPDATE zasp_authorized_scopes SET permissions='["view","manage_workflows","manage_findings","manage_identity","run_tests"]'::jsonb
  WHERE principal_id='${actorID}' AND organization_id='${organizationID}' AND (workspace_id,environment_id) IN
@@ -2232,6 +2238,19 @@ INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,
 VALUES('${organizationID}','${workspaceID}','${environmentID}','${attackLabTargetID}','agent_endpoint','Attack Lab staging agent','active',transaction_timestamp(),transaction_timestamp(),'agent',transaction_timestamp(),transaction_timestamp()+interval '1 hour',
  jsonb_build_object('red_team',jsonb_build_object('enabled',true,'endpoint','https://adapter.customer.example/v1/evaluate','credential_reference','${credentialReference}','target_kinds',jsonb_build_array('agent_endpoint'))))
 ON CONFLICT(organization_id,workspace_id,environment_id,id) DO UPDATE SET state='active',observed_at=transaction_timestamp(),fresh_until=transaction_timestamp()+interval '1 hour',winning_attributes=excluded.winning_attributes;
+-- Explicit provenance fixture, not a claim of provider discovery or Red Team execution.
+INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,configuration,state)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${integrationID}','kubernetes','1.0.0','Red Team browser proof','{}','active');
+INSERT INTO zasp_discovery_syncs(organization_id,workspace_id,environment_id,id,integration_id,idempotency_key,request_digest,trigger_kind,principal_id,parser_version,tool_version)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${syncID}','${integrationID}','red-team-browser-fixture',decode(repeat('ab',32),'hex'),'manual','${actorID}','parser_v1','tool_v1');
+INSERT INTO zasp_discovery_snapshots(organization_id,workspace_id,environment_id,id,integration_id,sync_id,generation,source,manifest_reference,manifest_checksum,state,candidate_digest,apply_result,complete,is_last_good,collected_at,committed_at)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${snapshotID}','${integrationID}','${syncID}',1,'kubernetes','s3://zasp-production-e2e-evidence/red-team/manifest.json',decode(repeat('ab',32),'hex'),'complete',decode(repeat('ab',32),'hex'),'{}',true,true,transaction_timestamp(),transaction_timestamp());
+UPDATE zasp_inventory_entities SET confidence_basis_points=9500,winning_evidence_id='${evidenceID}',winning_snapshot_id='${snapshotID}',winning_generation=1,projection_version=1,winning_integration_id='${integrationID}',winning_provider='kubernetes',winning_source='kubernetes',winning_source_native_id='red-team-browser-agent',winning_identity_rule=1,winning_source_projection=1
+WHERE (organization_id,workspace_id,environment_id,id)=('${organizationID}','${workspaceID}','${environmentID}','${attackLabTargetID}');
+INSERT INTO zasp_inventory_evidence(organization_id,workspace_id,environment_id,id,integration_id,snapshot_id,entity_id,object_reference,checksum,media_type,schema_version,parser_version,collected_at,source,generation,artifact_reference,artifact_key,artifact_version_id,size_bytes,tool_version)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${evidenceID}','${integrationID}','${snapshotID}','${attackLabTargetID}','s3://zasp-production-e2e-evidence/red-team/page.json',decode(repeat('ab',32),'hex'),'application/json','raw_v1','parser_v1',transaction_timestamp(),'kubernetes',1,'pid_7f300014-0000-4000-8000-000000000014','red-team/page.json','version-1',128,'tool_v1');
+INSERT INTO zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,source,entity_id,source_native_id,snapshot_id,source_state,attributes,first_seen_at,last_seen_at,provider,source_kind,display_name,stable_fields,identity_namespace,product_kind,generation,content_digest,evidence_id,confidence_basis_points,observed_at,fresh_until,identity_rule_version,identity_priority,source_projection_version)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${integrationID}','kubernetes','${attackLabTargetID}','red-team-browser-agent','${snapshotID}','present','{}',transaction_timestamp(),transaction_timestamp(),'kubernetes','kubernetes_agent','Attack Lab staging agent','{}','kubernetes_agent','agent',1,decode(repeat('ab',32),'hex'),'${evidenceID}',9500,transaction_timestamp(),transaction_timestamp()+interval '1 hour',1,80,1);
 INSERT INTO zasp_red_team_definitions(organization_id,workspace_id,environment_id,definition_id,version,name,target_id,target_kind,categories,safety,enabled,created_by)
 VALUES('${organizationID}','${workspaceID}','${environmentID}','${attackLabDefinitionID}',1,'Attack Lab prompt safety','${attackLabTargetID}','agent_endpoint','["prompt_injection"]'::jsonb,'{"environment":"staging","credential_class":"read_only","expected_side_effects":["bounded canary evaluation"]}'::jsonb,true,'${actorID}')
 ON CONFLICT DO NOTHING;
@@ -2323,9 +2342,58 @@ SELECT zasp_attack_lab_register_credential_binding('${organizationID}','${worksp
 	assert.match(reloaded, /verified/);
 	assert.match(reloaded, /cancelled/);
 	assert.doesNotMatch(reloaded, /ref:red-team|lease_token|controller_id|credential_binding/i);
+	await exerciseRedTeamRetainedRun(cdp, dsn, publicOrigin);
 	await selectBrowserOption(cdp, "Authorized scope", "Production");
 	await waitForBrowserSelectedOption(cdp, "Authorized scope", "Production");
 	console.log("combined E2E: production Attack Lab preflight, explicit approval, composed outbox/controller, isolated evidence, cleanup, rerun, cancellation, and reload proven");
+}
+
+async function exerciseRedTeamRetainedRun(cdp, dsn, publicOrigin) {
+  const expectedScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000022-0000-4000-8000-000000000022/pid_10000023-0000-4000-8000-000000000023";
+  await navigateBrowser(cdp, `${publicOrigin}/red-team/results`);
+  for (const pathname of ["/api/v1/tests", "/api/v1/test-runs", "/api/v1/agents", "/api/v1/tools"]) {
+    const diagnostic = await browserFetchJSON(cdp, pathname, { "X-Zasp-Expected-Scope":expectedScope });
+    assert.equal(diagnostic.status, 200, `Red Team authoritative read unavailable: ${pathname}`);
+  }
+  await waitForBrowserText(cdp, /Attack Lab prompt safety/);
+  loseNextRedTeamRunResponse = true;
+  await clickBrowserAria(cdp, "Run Attack Lab prompt safety");
+  await waitForBrowserText(cdp, /Retry retained operation/);
+  assert.equal(redTeamRunRequests.length, 1);
+  assert.equal(redTeamRunRequests[0].status, 202, "response loss was not injected after a real committed run");
+  const runID = JSON.parse(redTeamRunRequests[0].body).run_id;
+  assert.match(runID, /^pid_[0-9a-f-]{36}$/);
+  const stateSQL = `SELECT concat_ws('|',count(*),min(state),min(attempt),min(definition_version),(SELECT count(*) FROM zasp_red_team_audit WHERE resource_id='${runID}'),(SELECT count(*) FROM zasp_red_team_request_receipts WHERE resource_id='${runID}'),(SELECT count(*) FROM zasp_red_team_outbox WHERE payload->>'run_id'='${runID}')) FROM zasp_red_team_runs WHERE run_id='${runID}';`;
+  const readState = async () => (await command(path.join(postgresBin, "psql"), [dsn,"-At","-c",stateSQL])).stdout.trim();
+  assert.equal(await readState(), "1|queued|0|1|1|1|1");
+  await reloadBrowser(cdp);
+  await waitForBrowserText(cdp, /Retry retained operation/);
+  assert.equal(redTeamRunRequests.length, 1, "reload automatically submitted an unresolved run");
+  await selectBrowserOption(cdp, "Authorized scope", "Production");
+  await waitForBrowserSelectedOption(cdp, "Authorized scope", "Production");
+  await waitForBrowserText(cdp, /No Red Team tests in this scope/);
+  assert.equal(await browserHasInteractiveText(cdp, /^Retry retained operation$/), false, "another tenant scope exposed the retained run");
+  await selectBrowserOption(cdp, "Authorized scope", "Staging");
+  await waitForBrowserSelectedOption(cdp, "Authorized scope", "Staging");
+  await waitForBrowserText(cdp, /Retry retained operation/);
+  await clickBrowserText(cdp, "Retry retained operation");
+  await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Run Attack Lab prompt safety"]')?.disabled === false && !Array.from(document.querySelectorAll("button")).some(button => button.textContent.trim() === "Retry retained operation")`);
+  assert.equal(redTeamRunRequests.length, 2);
+  for (const request of redTeamRunRequests) {
+    assert.equal(request.status, 202); assert.equal(request.expectedScope, expectedScope);
+    assert.equal(request.ifMatch, '"1"'); assert.equal(request.body, redTeamRunRequests[0].body);
+    assert.equal(request.idempotencyKey, redTeamRunRequests[0].idempotencyKey);
+  }
+  assert.equal(await readState(), "1|queued|0|1|1|1|1", "retained replay duplicated durable run authority");
+  await clickBrowserAria(cdp, `Open run ${runID}`);
+  await clickBrowserText(cdp, "Cancel run");
+  await waitForBrowserText(cdp, /cancelled/);
+  assert.equal(await readState(), "1|cancelled|0|1|2|2|1", "queued cancellation did not retain exact durable evidence");
+  await reloadBrowser(cdp);
+  await waitForBrowserText(cdp, new RegExp(runID));
+  const retained = await cdp.send("Runtime.evaluate", { expression: `Object.keys(sessionStorage).filter(key => key.startsWith("zasp:red-team:request:v1:"))`, returnByValue:true });
+  assert.deepEqual(retained.result?.value, [], "confirmed Red Team operation left a browser checkpoint");
+  console.log("combined E2E: real Red Team run response loss, reload, exact-scope retry, single queue authority, and cancellation proven");
 }
 
 async function runProductionRecoveryLifecycle(cdp, agentsecctl, workerE2EBinary, postgresPort, dsn, publicOrigin, certificate, credentialFile, expectedScope) {
@@ -2812,6 +2880,9 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const integrationWebhookTest = request.method === "POST" && /^\/api\/v1\/integrations\/pid_[0-9a-f-]+\/test-delivery$/.test(target.pathname)
       ? { body: "", idempotencyKey: String(request.headers["idempotency-key"] ?? ""), ifMatch: String(request.headers["if-match"] ?? ""), csrf: String(request.headers["x-csrf-token"] ?? ""), status: 0, auditID: "" } : null;
     if (integrationWebhookTest) request.on("data", (chunk) => { if (integrationWebhookTest.body.length < 1024) integrationWebhookTest.body += chunk; });
+    const redTeamRunRequest = request.method === "POST" && target.pathname === `/api/v1/tests/${attackLabDefinitionID}/runs`
+      ? { body: "", idempotencyKey: String(request.headers["idempotency-key"] ?? ""), ifMatch: String(request.headers["if-match"] ?? ""), expectedScope: String(request.headers["x-zasp-expected-scope"] ?? ""), status: 0 } : null;
+    if (redTeamRunRequest) request.on("data", (chunk) => { if (redTeamRunRequest.body.length < 4096) redTeamRunRequest.body += chunk; });
 		const recoveryBackupRequest = request.method === "POST" && target.pathname === "/api/v1/recovery/backups";
 		const securityAgentApprovalRequest = request.method === "POST" && /^\/api\/v1\/security-agent-approvals\/pid_[0-9a-f-]+\/decision$/.test(target.pathname);
     const connectorAuthorizationRequest = request.method === "POST" && target.pathname === `/api/v1/integrations/${terminalRevocationIntegrationID}/authorize` && String(request.headers.cookie ?? "").includes("__Host-zasp_session=");
@@ -2896,6 +2967,19 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     };
     delete upstreamHeaders["x-zasp-e2e-tab"];
 		const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
+      if (redTeamRunRequest) {
+        redTeamRunRequest.status = upstreamResponse.statusCode ?? 0;
+        redTeamRunRequests.push(redTeamRunRequest);
+        if (loseNextRedTeamRunResponse && upstreamResponse.statusCode === 202) {
+          loseNextRedTeamRunResponse = false;
+          upstreamResponse.resume();
+          upstreamResponse.once("end", () => {
+            response.writeHead(503, { "content-type": "application/json", "cache-control": "no-store" });
+            response.end(JSON.stringify({ code: "dependency_unavailable", message: "Injected Red Team response loss after commit", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }));
+          });
+          return;
+        }
+      }
       if (integrationWebhookTest) {
         integrationWebhookTest.status = upstreamResponse.statusCode ?? 0;
         integrationWebhookTest.auditID = String(upstreamResponse.headers["x-audit-id"] ?? "");

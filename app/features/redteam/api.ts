@@ -29,64 +29,66 @@ export type ProductionRedTeamAPI = Readonly<{
   listTargets(signal?: AbortSignal): Promise<readonly InventorySummary[]>;
 }>;
 
-export function createProductionRedTeamAPI(client: APIClient): ProductionRedTeamAPI {
+export function createProductionRedTeamAPI(client: APIClient, expectedScope?: string): ProductionRedTeamAPI {
+  if (expectedScope !== undefined && (expectedScope.split("/").length !== 3 || !expectedScope.split("/").every((part) => productID.test(part)))) throw new APITransportError("invalid_configuration", "Invalid Red Team request scope");
+  const scopeHeaders = expectedScope === undefined ? undefined : { "X-Zasp-Expected-Scope": expectedScope };
   return {
-    async listDefinitions(signal) { return loadRootCursorPages((cursor) => client.GET("/api/v1/tests", { params: { query: { cursor, limit: 100 } }, signal }), decodeTestDefinitionPage); },
+    async listDefinitions(signal) { return loadRootCursorPages((cursor) => client.GET("/api/v1/tests", { params: { query: { cursor, limit: 100 } }, headers: scopeHeaders, signal }), decodeTestDefinitionPage); },
     async getDefinition(id, signal) {
       requireRedTeamID(id);
-      const value = requireVersioned(await client.GET("/api/v1/tests/{id}", { params: { path: { id } }, signal }), decodeTestDefinition);
+      const value = requireVersioned(await client.GET("/api/v1/tests/{id}", { params: { path: { id } }, headers: scopeHeaders, signal }), decodeTestDefinition);
       if (value.id !== id) invalidRedTeamResponse();
       return value;
     },
     async createDefinition(input, attempt, signal) {
       requireRedTeamID(input.id); requireRedTeamID(input.target_id); requireMutationAttempt(attempt);
-      const result = await client.POST("/api/v1/tests", { params: { header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"0"', "X-CSRF-Token": "" } }, body: input, signal });
+      const result = await client.POST("/api/v1/tests", { params: { header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"0"', "X-CSRF-Token": "" } }, body: input, headers: scopeHeaders, signal });
       return requireDefinitionIntent(requireMutation(result, decodeTestDefinition), input.id, 1, { ...input, enabled: true });
     },
     async updateDefinition(id, version, input, attempt, signal) {
       requireRedTeamID(id); requireRedTeamID(input.target_id); requireVersion(version); requireMutationAttempt(attempt);
-      const result = await client.PATCH("/api/v1/tests/{id}", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, body: input, signal });
+      const result = await client.PATCH("/api/v1/tests/{id}", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, body: input, headers: scopeHeaders, signal });
       return requireDefinitionIntent(requireMutation(result, decodeTestDefinition), id, version + 1, input);
     },
     async runDefinition(id, version, runID, attempt, signal) {
       requireRedTeamID(id); requireRedTeamID(runID); requireVersion(version); requireMutationAttempt(attempt);
-      const result = await client.POST("/api/v1/tests/{id}/runs", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, body: { run_id: runID }, signal });
+      const result = await client.POST("/api/v1/tests/{id}/runs", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, body: { run_id: runID }, headers: scopeHeaders, signal });
       const value = requireMutation(result, decodeTestRun);
       if (value.id !== runID || value.definition_id !== id || value.definition_version !== version || value.version !== 1 || value.status !== "queued" || value.attempt !== 0 || value.cancel_requested) invalidRedTeamResponse();
       return value;
     },
-    async listRuns(signal) { return loadRootCursorPages((cursor) => client.GET("/api/v1/test-runs", { params: { query: { cursor, limit: 100 } }, signal }), decodeTestRunPage); },
+    async listRuns(signal) { return loadRootCursorPages((cursor) => client.GET("/api/v1/test-runs", { params: { query: { cursor, limit: 100 } }, headers: scopeHeaders, signal }), decodeTestRunPage); },
     async getRun(id, signal) {
       requireRedTeamID(id);
-      const value = requireVersioned(await client.GET("/api/v1/test-runs/{id}", { params: { path: { id } }, signal }), decodeTestRunDetail);
+      const value = requireVersioned(await client.GET("/api/v1/test-runs/{id}", { params: { path: { id } }, headers: scopeHeaders, signal }), decodeTestRunDetail);
       if (value.id !== id) invalidRedTeamResponse();
       return value;
     },
     async cancelRun(id, version, attempt, signal) {
       requireRedTeamID(id); requireVersion(version); requireMutationAttempt(attempt);
-      const result = await client.POST("/api/v1/test-runs/{id}/cancel", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, signal });
+      const result = await client.POST("/api/v1/test-runs/{id}/cancel", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, headers: scopeHeaders, signal });
       const value = requireMutation(result, decodeTestRun);
       if (value.id !== id || value.version !== version + 1 || !value.cancel_requested && value.status !== "cancelled") invalidRedTeamResponse();
       return value;
     },
     async preflightAttackLab(sourceRunID, signal) {
-      requireProductID(sourceRunID); const value = requireAPIData(await client.GET("/api/v1/attack-lab/preflight", { params: { query: { source_run_id: sourceRunID } }, signal }), decodeAttackLabPreflight); if (value.source_run_id !== sourceRunID) invalidAttackLabResponse(); return value;
+      requireProductID(sourceRunID); const value = requireAPIData(await client.GET("/api/v1/attack-lab/preflight", { params: { query: { source_run_id: sourceRunID } }, headers: scopeHeaders, signal }), decodeAttackLabPreflight); if (value.source_run_id !== sourceRunID) invalidAttackLabResponse(); return value;
     },
-    async listAttackLabRuns(signal) { return loadRootCursorPages((cursor) => client.GET("/api/v1/attack-lab/runs", { params: { query: { cursor, limit: 100 } }, signal }), decodeAttackLabRunPage); },
-    async getAttackLabRun(id, signal) { requireProductID(id); const value = requireVersioned(await client.GET("/api/v1/attack-lab/runs/{id}", { params: { path: { id } }, signal }), decodeAttackLabRunDetail); if (value.id !== id) invalidAttackLabResponse(); return value; },
+    async listAttackLabRuns(signal) { return loadRootCursorPages((cursor) => client.GET("/api/v1/attack-lab/runs", { params: { query: { cursor, limit: 100 } }, headers: scopeHeaders, signal }), decodeAttackLabRunPage); },
+    async getAttackLabRun(id, signal) { requireProductID(id); const value = requireVersioned(await client.GET("/api/v1/attack-lab/runs/{id}", { params: { path: { id } }, headers: scopeHeaders, signal }), decodeAttackLabRunDetail); if (value.id !== id) invalidAttackLabResponse(); return value; },
     async createAttackLabRun(preflight, runID, attempt, signal) {
-      const sourceRunID = preflight.source_run_id; requireProductID(sourceRunID); requireProductID(runID); if (sourceRunID === runID || !/^[0-9a-f]{64}$/.test(preflight.decision_digest) || /^0{64}$/.test(preflight.decision_digest)) invalidAttackLabConfiguration(); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/attack-lab/runs", { params: { header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"0"', "X-CSRF-Token": "" } }, body: { run_id: runID, source_run_id: sourceRunID, decision_digest: preflight.decision_digest, approved: true }, signal }); const value = requireMutation(result, decodeAttackLabRun); if (value.id !== runID || value.source_run_id !== sourceRunID || value.version !== 1 || value.status !== "queued" || value.attempt !== 0) invalidAttackLabResponse(); return value;
+      const sourceRunID = preflight.source_run_id; requireProductID(sourceRunID); requireProductID(runID); if (sourceRunID === runID || !/^[0-9a-f]{64}$/.test(preflight.decision_digest) || /^0{64}$/.test(preflight.decision_digest)) invalidAttackLabConfiguration(); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/attack-lab/runs", { params: { header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"0"', "X-CSRF-Token": "" } }, body: { run_id: runID, source_run_id: sourceRunID, decision_digest: preflight.decision_digest, approved: true }, headers: scopeHeaders, signal }); const value = requireMutation(result, decodeAttackLabRun); if (value.id !== runID || value.source_run_id !== sourceRunID || value.version !== 1 || value.status !== "queued" || value.attempt !== 0) invalidAttackLabResponse(); return value;
     },
     async cancelAttackLabRun(id, version, attempt, signal) {
-      requireProductID(id); requireVersion(version); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/attack-lab/runs/{id}/cancel", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, signal }); const value = requireMutation(result, decodeAttackLabRun); if (value.id !== id || value.version !== version + 1 || !value.cancel_requested && value.status !== "cancelled") invalidAttackLabResponse(); return value;
+      requireProductID(id); requireVersion(version); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/attack-lab/runs/{id}/cancel", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, headers: scopeHeaders, signal }); const value = requireMutation(result, decodeAttackLabRun); if (value.id !== id || value.version !== version + 1 || !value.cancel_requested && value.status !== "cancelled") invalidAttackLabResponse(); return value;
     },
     async rerunAttackLabRun(sourceRunID, version, runID, attempt, signal) {
-      requireProductID(sourceRunID); requireProductID(runID); if (sourceRunID === runID) invalidAttackLabConfiguration(); requireVersion(version); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/attack-lab/runs/{id}/rerun", { params: { path: { id: sourceRunID }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, body: { run_id: runID }, signal }); const value = requireMutation(result, decodeAttackLabRun); if (value.id !== runID || value.version !== 1 || value.status !== "queued" || value.attempt !== 0) invalidAttackLabResponse(); return value;
+      requireProductID(sourceRunID); requireProductID(runID); if (sourceRunID === runID) invalidAttackLabConfiguration(); requireVersion(version); requireMutationAttempt(attempt); const result = await client.POST("/api/v1/attack-lab/runs/{id}/rerun", { params: { path: { id: sourceRunID }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": `"${version}"`, "X-CSRF-Token": "" } }, body: { run_id: runID }, headers: scopeHeaders, signal }); const value = requireMutation(result, decodeAttackLabRun); if (value.id !== runID || value.version !== 1 || value.status !== "queued" || value.attempt !== 0) invalidAttackLabResponse(); return value;
     },
     async listTargets(signal) {
       const [agents, tools] = await Promise.all([
-        loadAllCursorPages((cursor) => Promise.resolve(client.GET("/api/v1/agents", { params: { query: { cursor, limit: 100 } }, signal })).then((result) => requireAPIData(result, decodeInventoryPage)), { maximumItems: 10_000, maximumPages: 100 }),
-        loadAllCursorPages((cursor) => Promise.resolve(client.GET("/api/v1/tools", { params: { query: { cursor, limit: 100 } }, signal })).then((result) => requireAPIData(result, decodeInventoryPage)), { maximumItems: 10_000, maximumPages: 100 }),
+        loadAllCursorPages((cursor) => Promise.resolve(client.GET("/api/v1/agents", { params: { query: { cursor, limit: 100 } }, headers: scopeHeaders, signal })).then((result) => requireAPIData(result, decodeInventoryPage)), { maximumItems: 10_000, maximumPages: 100 }),
+        loadAllCursorPages((cursor) => Promise.resolve(client.GET("/api/v1/tools", { params: { query: { cursor, limit: 100 } }, headers: scopeHeaders, signal })).then((result) => requireAPIData(result, decodeInventoryPage)), { maximumItems: 10_000, maximumPages: 100 }),
       ]);
       return [...agents.items, ...tools.items].sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
     },

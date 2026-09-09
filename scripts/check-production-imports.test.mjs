@@ -60,6 +60,15 @@ test("source graph permits only the exact scoped retry-recovery storage boundari
   const recoveryResult = await checkSourceGraph({ root: recovery });
   assert.ok(recoveryResult.files.includes("app/features/recovery/RecoveryOperationsView.tsx"));
 
+  const redTeam = await fixture({
+    "app/page.tsx": 'export { ProductionRedTeamView } from "./features/redteam/ProductionRedTeamView";',
+    "app/[...path]/page.tsx": "export {};",
+    "app/features/redteam/ProductionRedTeamView.tsx": 'export const ProductionRedTeamView = window.sessionStorage.getItem("zasp:red-team:request:v1:principal/scope"); export { recover } from "./redTeamMutationRecovery";',
+    "app/features/redteam/redTeamMutationRecovery.ts": 'export const recover = 1;',
+  });
+  const redTeamResult = await checkSourceGraph({ root: redTeam });
+  assert.ok(redTeamResult.files.includes("app/features/redteam/redTeamMutationRecovery.ts"));
+
   for (const [entry, source] of [
     ["app/features/risk/OtherRiskView.tsx", 'export const View = window.sessionStorage.getItem("state");'],
     ["app/features/recovery/OtherRecoveryView.tsx", 'export const View = window.sessionStorage.getItem("state");'],
