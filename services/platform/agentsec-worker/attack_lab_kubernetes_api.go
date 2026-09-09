@@ -241,6 +241,7 @@ type attackLabKubernetesJobRead struct {
 		Conditions []struct {
 			Type   string `json:"type"`
 			Status string `json:"status"`
+			Reason string `json:"reason"`
 		} `json:"conditions"`
 	} `json:"status"`
 }
@@ -335,7 +336,7 @@ func (api *productionAttackLabKubernetesAPI) Ready(ctx context.Context) error {
 }
 
 func (api *productionAttackLabKubernetesAPI) Collect(ctx context.Context, namespace, name, uid string, timeout time.Duration) (attackLabClusterOutcome, error) {
-	if api == nil || ctx == nil || ctx.Err() != nil || namespace != "zasp-attack-lab" || !regexp.MustCompile(`^zasp-attack-lab-[a-f0-9]{32}$`).MatchString(name) || !attackLabKubernetesUIDPattern.MatchString(uid) || timeout < time.Second || timeout > 5*time.Minute {
+	if api == nil || ctx == nil || ctx.Err() != nil || namespace != "zasp-attack-lab" || !regexp.MustCompile(`^zasp-attack-lab-[a-f0-9]{32}$`).MatchString(name) || !attackLabKubernetesUIDPattern.MatchString(uid) || timeout <= 0 || timeout > 5*time.Minute {
 		return attackLabClusterOutcome{}, &attackLabProviderFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	bounded, cancel := context.WithTimeout(ctx, timeout)
@@ -344,6 +345,9 @@ func (api *productionAttackLabKubernetesAPI) Collect(ctx context.Context, namesp
 	for {
 		body, status, err := api.do(bounded, http.MethodGet, jobPath, nil)
 		if err != nil {
+			if errors.Is(bounded.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
+				return attackLabClusterOutcome{}, attackLabDeadlineFailure()
+			}
 			return attackLabClusterOutcome{}, err
 		}
 		if status != http.StatusOK {
@@ -355,15 +359,34 @@ func (api *productionAttackLabKubernetesAPI) Collect(ctx context.Context, namesp
 		}
 		complete, failed := attackLabKubernetesJobCompletion(job)
 		if failed {
+			hasDeadline, hasCompletion := false, job.Status.Succeeded != 0
+			for _, condition := range job.Status.Conditions {
+				if condition.Type == "Complete" && condition.Status == "True" {
+					hasCompletion = true
+				}
+				if condition.Type == "Failed" && condition.Status == "True" && condition.Reason == "DeadlineExceeded" {
+					hasDeadline = true
+				}
+			}
+			if hasDeadline && !hasCompletion && job.Status.Failed >= 0 {
+				return attackLabClusterOutcome{}, attackLabDeadlineFailure()
+			}
 			return attackLabClusterOutcome{}, &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 		}
 		if complete {
-			return api.collectCompletedPod(bounded, namespace, name, uid)
+			outcome, collectErr := api.collectCompletedPod(bounded, namespace, name, uid)
+			if collectErr != nil && errors.Is(bounded.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
+				return attackLabClusterOutcome{}, attackLabDeadlineFailure()
+			}
+			return outcome, collectErr
 		}
 		timer := time.NewTimer(2 * time.Second)
 		select {
 		case <-bounded.Done():
 			timer.Stop()
+			if errors.Is(bounded.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
+				return attackLabClusterOutcome{}, attackLabDeadlineFailure()
+			}
 			return attackLabClusterOutcome{}, &attackLabProviderFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 		case <-timer.C:
 		}

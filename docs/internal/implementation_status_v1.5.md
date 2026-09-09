@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 532 |
-| Component-only | 135 |
+| Production-available | 533 |
+| Component-only | 134 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -124,9 +124,13 @@ fixture. These three tasks are now production-available. This does not attest
 live Fargate scheduling. PR 17 shipped M5-16 outcome grouping and safe review
 eligibility after independent acceptance and full Chrome verification. Push CI
 34307535807, PR CI 34307549558 and main CI 34308044218 passed; M5-16 is now
-production-available. M5-17's production lifecycle contract and dependent-pod
-cleanup correction are under final verification. M5-19, M5-20, M5-21 and M5-22
-retain their original open requirements.
+production-available. PR 18 shipped M5-17's production lifecycle contract and
+dependent-pod cleanup correction as main 11305902 after independent acceptance.
+Push CI 34308745174, PR CI 34308747843 and main CI 34309274962 passed; M5-17
+is now production-available. M5-19's absolute timeout and bounded explanation
+passed independent review, full verification and Chrome checks, but remain
+component-only pending shipping and CI. M5-20, M5-21 and M5-22 retain their
+original open requirements.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
@@ -241,12 +245,12 @@ production composition, not merely a component proof or external evidence.
 | M2 | 72 | 69 | 3 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
-| M5 | 42 | 37 | 5 | 0 | 0 |
+| M5 | 42 | 38 | 4 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **532** | **135** | **61** | **0** |
+| **Total** | **728** | **533** | **134** | **61** | **0** |
 
 ## Prerequisite work
 
