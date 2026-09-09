@@ -218,6 +218,8 @@ try {
   assert.match(runtimePipelineResult.stdout, /runtime pipeline proof passed:/);
   assert.match(runtimePipelineResult.stdout, /runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /runtime session summaries proven: completion-triggered unknown collection, byte-stable replay/);
+  assert.match(runtimePipelineResult.stdout, /runtime session search index proven: committed PG receipt, exact S3 archive, real OpenSearch, immutable replay, structured process filter, pagination and scope denial/);
+  assert.match(runtimePipelineResult.stdout, /real OpenSearch selector matrix passed: all ten structured filter kinds, same-event conjunction, millisecond bounds, cross-batch deduplication, two-page completeness and foreign-tenant positive\/negative controls; synthetic component fixtures only/);
   assert.match(runtimePipelineResult.stdout, /--- PASS: TestProductionCombinedE2ERuntimeQueueIndex/);
   assert.doesNotMatch(runtimePipelineResult.stdout, /--- SKIP:/);
   console.log("combined E2E: local runtime SQS/S3/OpenSearch pipeline passed");

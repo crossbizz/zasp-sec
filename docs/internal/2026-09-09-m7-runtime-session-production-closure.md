@@ -244,3 +244,63 @@ tests otherwise passed. The correction updates both contract expectations and
 adds six negative cases preventing omission of any new package. Final-tree
 full verification must pass before the correction is pushed; no merge or
 additional task credit is permitted from the failed runs.
+
+The corrected final tree passed full verification with 1,114 frontend tests,
+all 15 workflow-contract tests, type/lint, release checks, build/import checks
+and ledger validation. Independent review accepted the correction. PR 25
+shipped implementation 61fd1876 and correction 8c040966 as main 81258ec4.
+Push CI 34397443735, PR CI 34397448795 and main CI 34398331273 passed.
+The production count remains 535, with 132 component-only and 61 external gates.
+
+### Dedicated session-search index, verification in progress
+
+The next component uses a separate immutable `zasp-runtime-sessions-v1` mapping
+and marker. It shares the bounded SigV4 transport but cannot alter the existing
+raw-event index or accept an arbitrary index/DSL. Writes use immutable batch
+occurrences and complete only after exact source readback and explicit refresh.
+Unknown acknowledgements are reconciled without immediately repeating writes.
+Missing required fields, source drift and refresh failure do not produce a
+successful write receipt. An isolated missing-metadata-version regression
+failed before canonical source-shape validation was added.
+
+Reads require exact schema readiness, three-field tenant scope, closed filters,
+bounded composite pagination, successful shards and no timeout. Raw failures
+are not exposed as provider messages or empty result sets. Canonical event
+counts and current-principal authorization remain PostgreSQL-owned. Time
+bounds are rounded inward to the archive/index millisecond resolution, with
+an inclusive lower bound rounded up and upper bound rounded down. This avoids
+including an event before a submillisecond lower bound and matches the fixed
+[OpenSearch date format](https://docs.opensearch.org/latest/mappings/supported-field-types/date/).
+
+The first real driver proof failed refresh because the owned single-node
+OpenSearch fixture had one unassigned default replica. The second observed
+`total=2, successful=1, failed=0`, then explicitly configured only the disposable
+session index with zero replicas. Production refresh validation was not relaxed;
+this is not replica or HA evidence. Exact writes and replay then passed.
+
+The next failure was strict response decoding: OpenSearch 3.8 emitted a
+`terminated_early` flag for the size-zero hit collector. An isolated owned
+service reproduced the full response. The
+[3.8 hit collector](https://github.com/opensearch-project/OpenSearch/blob/3.8.0/server/src/main/java/org/opensearch/search/query/TopDocsCollectorContext.java)
+uses non-forced termination when hit counting is disabled, while
+[QueryPhase](https://github.com/opensearch-project/OpenSearch/blob/3.8.0/server/src/main/java/org/opensearch/search/query/QueryPhase.java)
+composes aggregation collection separately. The closed request explicitly sets
+`terminate_after=0`, accepts this typed flag, and still rejects timeouts and
+failed/incomplete shards. The running real-engine matrix checks all ten filter
+kinds, same-event conjunction, cross-batch deduplication, complete pagination
+and positive/negative tenant controls rather than relying on response shape alone.
+
+The worker-committed proof reads real completed PostgreSQL receipt authority
+and its exact S3 artifact. Additional semantic filter fixtures are synthetic,
+isolated from every product tenant and explicitly not provider/identity
+attestation. A durable production indexing outbox/worker, backfill/freshness,
+read API composition and investigation UI remain pending. M7-05 is not credited.
+
+The complete Chrome/runtime rerun passed, including the real-engine selector
+matrix, worker-committed receipt indexing, existing discovery/security flows,
+restart/reload, tenant denial and clean-console checks. All owned resources
+were cleaned up. Independent re-review accepted the source-shape, time-bound,
+replica-fixture and closed-query termination handling corrections. The harness
+now requires both dedicated search proof markers and includes a regression
+against removing them. Final-tree verification and shipping CI remain pending;
+this evidence does not promote M7-05 or claim production search composition.
