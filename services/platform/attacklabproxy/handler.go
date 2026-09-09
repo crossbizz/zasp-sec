@@ -11,6 +11,7 @@ import (
 	"mime"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -79,6 +80,8 @@ type Forwarder interface {
 }
 
 type Handler struct {
+	keyMu     sync.RWMutex
+	closed    bool
 	config    Config
 	resolver  EgressResolver
 	forwarder Forwarder
@@ -105,11 +108,22 @@ func (handler *Handler) ServeHTTP(response http.ResponseWriter, request *http.Re
 		return
 	}
 	now := handler.config.Clock()
+	handler.keyMu.RLock()
+	if handler.closed {
+		handler.keyMu.RUnlock()
+		writeProxyError(response, http.StatusForbidden)
+		return
+	}
 	grant, err := attacklab.VerifyEgressCapability(handler.config.SigningKey, strings.TrimPrefix(authorization, "Bearer "), now)
+	handler.keyMu.RUnlock()
 	if err != nil {
 		writeProxyError(response, http.StatusForbidden)
 		return
 	}
+	// Token expiry bounds all work, including a blocked durable resolver.
+	capabilityCtx, cancelCapability := context.WithTimeout(request.Context(), grant.ExpiresAt.Sub(now))
+	defer cancelCapability()
+	request = request.WithContext(capabilityCtx)
 	body, err := io.ReadAll(io.LimitReader(request.Body, handler.config.MaximumRequestBytes+1))
 	if err != nil || int64(len(body)) > handler.config.MaximumRequestBytes {
 		writeProxyError(response, http.StatusRequestEntityTooLarge)
@@ -128,12 +142,18 @@ func (handler *Handler) ServeHTTP(response http.ResponseWriter, request *http.Re
 	}
 	defer clear(forwardBody)
 	authority, resolveErr := handler.resolver.ResolveAttackLabEgress(request.Context(), grant.Scope, grant.RunID, grant.Destination)
-	if resolveErr != nil || !authorityMatchesGrant(authority, grant, now) {
+	current := handler.config.Clock()
+	if resolveErr != nil || request.Context().Err() != nil || current.Before(now) || !grant.ExpiresAt.After(current) || !authorityMatchesGrant(authority, grant, current) {
 		writeProxyError(response, http.StatusForbidden)
 		return
 	}
-	result, forwardErr := handler.forwarder.Forward(request.Context(), ForwardRequest{Destination: grant.Destination, CredentialReference: authority.CredentialReference, RunID: grant.RunID, Method: http.MethodPost, Path: input.Path, ContentType: input.ContentType, Body: append([]byte(nil), forwardBody...)})
-	if forwardErr != nil || !validForwardResult(result, handler.config.MaximumResponseBytes) {
+	// Durable lease authority can expire before the signed capability. Credential
+	// retrieval, DNS and HTTP must share that shorter remaining budget.
+	forwardCtx, cancelForward := context.WithTimeout(request.Context(), authority.ExpiresAt.Sub(current))
+	defer cancelForward()
+	result, forwardErr := handler.forwarder.Forward(forwardCtx, ForwardRequest{Destination: grant.Destination, CredentialReference: authority.CredentialReference, RunID: grant.RunID, Method: http.MethodPost, Path: input.Path, ContentType: input.ContentType, Body: append([]byte(nil), forwardBody...)})
+	completed := handler.config.Clock()
+	if forwardErr != nil || forwardCtx.Err() != nil || completed.Before(current) || !authority.ExpiresAt.After(completed) || !grant.ExpiresAt.After(completed) || !validForwardResult(result, handler.config.MaximumResponseBytes) {
 		writeProxyError(response, http.StatusBadGateway)
 		return
 	}
@@ -176,6 +196,9 @@ func validProxyText(value string, maximum int) bool {
 
 func (handler *Handler) Close() {
 	if handler != nil {
+		handler.keyMu.Lock()
+		defer handler.keyMu.Unlock()
+		handler.closed = true
 		clear(handler.config.SigningKey)
 	}
 }

@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 535 |
-| Component-only | 132 |
+| Production-available | 536 |
+| Component-only | 131 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -133,9 +133,14 @@ Push CI 34309888042, PR CI 34309939481 and main CI 34310435523 passed; M5-19
 is now production-available. PR 20 shipped M5-20's dedicated test IAM identity,
 actual-Pod identity checks and corrected deployment preflight as main 5289e80f.
 Push CI 34376119528, PR CI 34376124000 and main CI 34377164185 passed after
-independent review; M5-20 is now production-available. M5-21's isolated route
-boundary and direct-denial fixture are under final review and verification.
-M5-22 retains its original open requirements.
+independent review; M5-20 is now production-available. PR 21 shipped M5-21's
+isolated route boundary and direct-denial fixture as main 7500d9bc after
+independent acceptance and push/PR CI; main CI 34380166718 also passed.
+M5-21 is now production-available under its original direct-denial fixture
+criterion, without claiming live AWS attachment or endpoint-policy proof.
+M5-22's signed-token expiry, bounded proxy runtime and durable end-to-end
+acceptance have passed full verification and independent review; shipping
+and CI remain pending.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
@@ -250,12 +255,12 @@ production composition, not merely a component proof or external evidence.
 | M2 | 72 | 69 | 3 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
-| M5 | 42 | 40 | 2 | 0 | 0 |
+| M5 | 42 | 41 | 1 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **535** | **132** | **61** | **0** |
+| **Total** | **728** | **536** | **131** | **61** | **0** |
 
 ## Prerequisite work
 
@@ -287,6 +292,7 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 
 | Task | Started | Current work |
 | --- | --- | --- |
+| Production closure: M5-22 | September 9, 2026 | Verify and ship signed proxy-token expiry, bounded concurrency/shutdown and real PostgreSQL authorization acceptance. Production credit remains withheld. |
 
 ## Complete
 

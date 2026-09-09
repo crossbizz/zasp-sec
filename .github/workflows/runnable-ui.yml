@@ -46,7 +46,7 @@ jobs:
       - name: Verify bounded Attack Lab network enforcement
         run: |
           go test -C proofs/attack-lab-egress -race -count=1 ./...
-          go test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner
+          go test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab
           node --test proofs/attack-lab-egress/run.test.mjs
           node proofs/attack-lab-egress/run.mjs
           ZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs
