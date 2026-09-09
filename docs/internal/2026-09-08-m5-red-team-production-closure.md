@@ -367,3 +367,99 @@ Fresh full verification after the portability correction passed, including
 workflow contract also passed locally. The first push scan's 20 medium matches
 were inspected: synthetic IDs/DSNs, CI IDs, and explicit local Docker/Kubernetes
 hostnames; there were no high findings and no scanner bypass.
+
+PR 15 merged runtime commit `f3a93f2a13acd9e068d8911c222c8fc8826485ae`
+and portability/API-acceptance commit `15175edf8753e6b96d09b29fbba414fe0cc3bf91`
+as main `3854ee5f1fc7b4f900e28fb1c63746ad3dd83019`. Corrected push CI
+34303330721 and PR CI 34303333610 passed, including Linux cleanup and the
+eight-operation API matrix. The correction push had two inspected medium
+matches: a CI ID and a synthetic product ID; no high finding. Main CI
+34303890095 passed. Input/raw-artifact work continues separately and is
+not included in this merge. Independent task-level review accepted M5-05
+through M5-12, M5-13, and M5-15. The authoritative ledger now records 528
+production-available, 139 component-only, and 61 blocked/external tasks.
+M5-02 and M5-14 have not been promoted.
+
+## Durable input and native evidence, schema 39
+
+The artifact slice uploads the exact typed runner input before invoking the
+target. Its separate immutable S3 receipt contains the tenant-scoped object,
+version, SHA-256 and size. The result object is a versioned evidence bundle
+containing that receipt, the normalized summary, and the native Promptfoo
+result structure under `red-team-artifact-redaction-v1`.
+
+The policy retains only pinned engine metadata, curated prompt/category,
+provider label, pass/fail and HTTP status. Response bodies and grader reasons
+are replaced with `[REDACTED]`; arbitrary fields, headers, provider configuration,
+secret-key fields and runtime credentials are excluded. This is policy-redacted
+native evidence, not an unfiltered transcript. Both native and normalized
+results must agree with the exact run/input/category authority. Missing boolean
+results were reproduced as incorrectly accepted, then rejected by required
+fields and hostile tests. S3 receipt tests reject wrong scope, identity, size,
+checksum, version, bucket syntax and object path.
+
+Schema 39 stores the input receipt on the immutable attempt. New completion
+requires it atomically with the existing tenant/live-lease/digest authority.
+The old completion signature denies execution and its private implementation
+cannot be called by the worker. Legacy attempts honestly omit the new field.
+Rollback refuses to discard retained receipts; empty rollback and reapply
+restore the exact prior fingerprint. The new semantic fingerprint is
+`945775780a1752765398d6da17ce9aaf75c2fec8877d20c14c871020bfb0039c`.
+
+The worker requires this exact release before processing. CLI/catalog, API
+compatibility ceiling, deployment job/schema expectations and the combined
+harness target 39. The public contract and generated client expose the optional
+receipt. Strict browser decoding rejects malformed and cross-scope input
+references. The result drawer shows object/version/checksum/size, or explicitly
+identifies legacy attempts without an input artifact.
+
+Actual PostgreSQL race tests pass for exact down/reapply, fingerprint/permission
+drift, wrong tenant/run/worker/token/digest/input scope, expired lease, wrong
+principal, private-helper denial, retained receipt and guarded rollback. Public
+readback uses the registered API principal and production repository constructor.
+Independent review reran and approved the corrected PostgreSQL proof. Initial
+readback used an incomplete test principal setup; production authorization was
+not weakened to make that test pass.
+
+The actual pinned Promptfoo image passed all ten engine/artifact/runner checks,
+including protected, unsafe, engine-error and cancellation outcomes. Worker
+and adapter race suites passed. Release rendering passed 32 tests after exact
+schema-job assertions were advanced to 39. Types and warning-free lint pass.
+The schema39 full browser/runtime proof passed. The browser created a test and
+queued its run; the actual composed outbox/SQS/worker/pinned-engine/Go-adapter
+path retained exactly one attempt and invocation under physical duplicate
+delivery. Both input and result S3 objects matched their exact version,
+checksum, size and KMS binding. The result bundle was independently rebuilt
+from its durable input, normalized summary and redacted native structure, and
+matched byte-for-byte. PostgreSQL and the reloaded browser retained the exact
+input receipt. Queue and DLQ were empty. Browser exception/console checks and
+owned resource cleanup passed.
+
+The first schema39 full journey stopped earlier at temporary-policy deployment
+pending. A bounded policy-database error trace was added to the harness. The
+same full journey then passed without changing product policy behavior; the
+earlier failure's cause is not confirmed and no fix is claimed for it. Full
+verification is being rerun. This section does not yet promote M5-02 or M5-14.
+
+Independent original-task review accepted M5-02 and M5-14 as eligible once this
+slice ships and required CI passes. It also accepted M5-18's original
+fixture-level criterion from the already shipped production Kubernetes
+provider: run-scoped jobs, Fargate profile selection and cleanup ownership.
+That does not attest live Fargate scheduling. The worker race suite reran the
+production Kubernetes manifest and UID-fenced cleanup tests successfully.
+
+The next M5 gaps remain explicit: M5-16 needs result grouping by security
+outcome; M5-17 needs the production provider's capabilities/isolation contract
+mapped and tested; M5-19 needs a production timeout/cleanup fixture. M5-20 still
+requires the original dedicated test IAM role reference, without inheriting
+the product worker role. M5-21 needs a direct undeclared-egress denial fixture,
+and M5-22 needs an undeclared-host request against the production proxy with
+zero forwarding. None of these requirements has been removed or credited
+from local policy-library tests alone.
+
+Fresh full `npm run verify` passed all 1,078 frontend tests, contract/tenant/race
+checks, types, warning-free lint, release rendering, production build,
+source/compiled import checks and all 728 ledger rows. The separate production
+release-source gate passed. The focused Node/runtime/ledger suite passed 48
+tests with two opt-in interruption tests skipped, and the API acceptance/input
+reference race tests passed. Remote push/PR/main checks remain pending.

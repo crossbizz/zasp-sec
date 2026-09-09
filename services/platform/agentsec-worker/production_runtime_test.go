@@ -104,6 +104,26 @@ func TestComposeRedTeamRuntimesBindSeparateV25Authorities(t *testing.T) {
 	}
 }
 
+func TestComposeRedTeamWorkerRejectsMissingArtifactRelease(t *testing.T) {
+	database := redTeamMissingArtifactReleaseDatabase{}
+	dependencies, err := composeRedTeamWorkerRuntime(validRedTeamRuntimeConfig(), database, &productionRedTeamDependencies{Queue: &recordingDiscoveryQueue{}, Runner: &recordingRedTeamRunner{}, ready: func(context.Context) error { return nil }, close: func() error { return nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := dependencies.Ready(context.Background()); err == nil {
+		t.Fatal("worker ready without durable input schema")
+	}
+}
+
+type redTeamMissingArtifactReleaseDatabase struct{ readyWorkerDatabase }
+
+func (database redTeamMissingArtifactReleaseDatabase) QueryJSON(ctx context.Context, statement string, args ...any) (json.RawMessage, error) {
+	if strings.Contains(statement, "zasp_production_red_team_artifacts_readiness") {
+		return nil, errors.New("release missing")
+	}
+	return database.readyWorkerDatabase.QueryJSON(ctx, statement, args...)
+}
+
 func TestComposeAttackLabOutboxBindsV26AuthorityAndPublisher(t *testing.T) {
 	config := validAttackLabOutboxRuntimeConfig()
 	dependencies, err := composeAttackLabOutboxWorkerRuntime(config, readyWorkerDatabase{}, &recordingOutboxPublisher{}, readyOutboxDependency)

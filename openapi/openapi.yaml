@@ -4984,11 +4984,21 @@ components:
         verdict: { type: string, enum: [pass, fail, engine_error] }
         error_code: { type: string, enum: [retryable, rate_limited, denied, malformed, outcome_unknown, cancelled, exhausted] }
         evidence_reference: { type: string, minLength: 1, maxLength: 1024 }
+    TestInputArtifact:
+      type: object
+      additionalProperties: false
+      required: [reference, version_id, sha256, size_bytes]
+      properties:
+        reference: { type: string, minLength: 8, maxLength: 1024, pattern: '^s3://' }
+        version_id: { type: string, minLength: 1, maxLength: 512 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size_bytes: { type: integer, minimum: 1, maximum: 65536 }
     TestAttempt:
       type: object
       additionalProperties: false
       required: [attempt, verdict, objective, behavior, evidence, evidence_reference, completed_at]
       properties:
+        input_artifact: { $ref: '#/components/schemas/TestInputArtifact' }
         attempt: { type: integer, minimum: 1, maximum: 5 }
         verdict: { type: string, enum: [pass, fail, engine_error] }
         objective: { type: string, minLength: 1, maxLength: 512 }

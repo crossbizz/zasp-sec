@@ -38,6 +38,7 @@ type redTeamExecutionRequest struct {
 }
 
 type redTeamExecutionResult struct {
+	InputArtifact                                     *apiserver.RedTeamArtifactReference
 	Verdict                                           string
 	Objective, Behavior, ErrorCode                    string
 	Evidence                                          []string
@@ -169,6 +170,9 @@ func (processor *redTeamProcessor) runLeased(ctx context.Context, delivery jobqu
 		}
 	}()
 	result, runErr := callRedTeamRunner(processor.config.Runner, workCtx, request)
+	if runErr == nil && result.InputArtifact == nil {
+		runErr = &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
+	}
 	if leaseLost.Load() {
 		cancelWork()
 		<-heartbeatDone
@@ -209,6 +213,8 @@ func (processor *redTeamProcessor) runLeased(ctx context.Context, delivery jobqu
 		return nil
 	}
 	completion := apiserver.RedTeamRunCompletion{RunID: request.Run.ID, Worker: processor.config.WorkerID, LeaseToken: token, InputDigest: request.InputDigest, Verdict: result.Verdict, Objective: result.Objective, Behavior: result.Behavior, ErrorCode: result.ErrorCode, Evidence: append([]string(nil), result.Evidence...), EvidenceReference: result.EvidenceReference, EvidenceKey: result.EvidenceKey, EvidenceVersionID: result.EvidenceVersionID, EvidenceChecksum: append([]byte(nil), result.EvidenceChecksum...), EvidenceSizeBytes: result.EvidenceSizeBytes}
+	inputArtifact := *result.InputArtifact
+	completion.InputArtifact = &inputArtifact
 	finished, err := processor.config.Authority.FinishRedTeamRun(finalizeCtx, delivery.Job.Scope, completion)
 	cancelWork()
 	<-heartbeatDone

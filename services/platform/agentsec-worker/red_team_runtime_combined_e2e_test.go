@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"io"
@@ -242,13 +243,56 @@ func TestProductionCombinedE2ERedTeamRuntime(t *testing.T) {
 	if size != int64(len(body)) || !bytes.Equal(checksum, digest[:]) || aws.ToString(object.VersionId) != version || object.ServerSideEncryption != s3types.ServerSideEncryptionAwsKms || aws.ToString(object.SSEKMSKeyId) != keyARN {
 		t.Fatal("durable S3 version/checksum/KMS binding differs from PostgreSQL")
 	}
-	var evidence redTeamRunnerOutput
-	if json.Unmarshal(body, &evidence) != nil || evidence.RunID != runID || evidence.Verdict != "fail" || evidence.EngineVersion != "0.121.19" || len(evidence.Evidence) != 1 || evidence.Evidence[0] != "prompt_injection: unsafe behavior observed" {
-		t.Fatalf("unexpected normalized evidence: %s", body)
+	var bundle struct {
+		SchemaVersion  string                              `json:"schema_version"`
+		InputArtifact  *apiserver.RedTeamArtifactReference `json:"input_artifact"`
+		Summary        redTeamRunnerOutput                 `json:"summary"`
+		NativeArtifact redTeamNativeArtifact               `json:"native_artifact"`
 	}
-	for _, secret := range []string{string(token), "proof-secret-fixture", "ZASP_RED_TEAM_PROMPT_INJECTION", "lease_token", "ref:red-team/"} {
+	if decodeStrictWorkerJSON(body, &bundle) != nil || bundle.SchemaVersion != "red-team-evidence-bundle-v1" || bundle.InputArtifact == nil {
+		t.Fatal("missing durable input/native evidence bundle")
+	}
+	evidence := bundle.Summary
+	if evidence.RunID != runID || evidence.Verdict != "fail" || evidence.EngineVersion != "0.121.19" || len(evidence.Evidence) != 1 || evidence.Evidence[0] != "prompt_injection: unsafe behavior observed" {
+		t.Fatal("unexpected normalized evidence")
+	}
+	var receiptBytes json.RawMessage
+	if err := admin.QueryRow(ctx, `SELECT input_artifact FROM zasp_red_team_attempts WHERE run_id=$1`, runID).Scan(&receiptBytes); err != nil {
+		t.Fatal(err)
+	}
+	var receipt apiserver.RedTeamArtifactReference
+	if json.Unmarshal(receiptBytes, &receipt) != nil || receipt != *bundle.InputArtifact {
+		t.Fatal("PostgreSQL input receipt differs from S3 evidence")
+	}
+	inputKey := strings.TrimPrefix(receipt.Reference, "s3://"+bucket+"/")
+	if inputKey == receipt.Reference || inputKey == objectKey || !strings.HasPrefix(inputKey, objectKey[:strings.LastIndex(objectKey, "/")+1]) {
+		t.Fatal("input artifact scope mismatch")
+	}
+	inputObject, err := s3API.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(inputKey), VersionId: aws.String(receipt.VersionID), ExpectedBucketOwner: aws.String("000000000000")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inputBody, err := io.ReadAll(io.LimitReader(inputObject.Body, 65537))
+	inputObject.Body.Close()
+	inputHash := sha256.Sum256(inputBody)
+	if err != nil || receipt.SizeBytes != int64(len(inputBody)) || receipt.SHA256 != hex.EncodeToString(inputHash[:]) || aws.ToString(inputObject.VersionId) != receipt.VersionID || inputObject.ServerSideEncryption != s3types.ServerSideEncryptionAwsKms || aws.ToString(inputObject.SSEKMSKeyId) != keyARN {
+		t.Fatal("input version/checksum/size/KMS mismatch")
+	}
+	var input redTeamRunnerInput
+	if decodeStrictWorkerJSON(inputBody, &input) != nil || input.SchemaVersion != "red-team-runner-input-v1" || input.RunID != runID || input.InputDigest != evidence.InputDigest {
+		t.Fatal("exact runtime input not retained")
+	}
+	nativeBytes, _ := json.Marshal(bundle.NativeArtifact)
+	verified, err := buildRedTeamEvidenceBundle(input, evidence, &receipt, nativeBytes)
+	if err != nil || !bytes.Equal(verified, body) {
+		t.Fatal("native engine result does not verify against durable input and summary")
+	}
+	for _, secret := range []string{string(token), "proof-secret-fixture", "lease_token", "ref:red-team/"} {
 		if bytes.Contains(body, []byte(secret)) {
 			t.Fatal("private adapter output leaked into evidence")
+		}
+		if bytes.Contains(inputBody, []byte(secret)) {
+			t.Fatal("private adapter authority leaked into input")
 		}
 	}
 	for _, queueURL := range []*string{queueInfo.QueueUrl, dlq.QueueUrl} {
@@ -261,7 +305,7 @@ func TestProductionCombinedE2ERedTeamRuntime(t *testing.T) {
 			t.Fatalf("queue/DLQ empty receive failed: %v %v", empty, err)
 		}
 	}
-	t.Log("red team runtime proof passed: browser queue, real outbox/SQS duplicate ACK, pinned Promptfoo, TLS Go adapter with live PostgreSQL lease, one fail attempt, versioned KMS evidence; customer invocation fixture only")
+	t.Log("red team runtime proof passed: browser queue, real outbox/SQS duplicate ACK, pinned Promptfoo, TLS Go adapter with live PostgreSQL lease, one fail attempt, versioned KMS input/native evidence with PostgreSQL receipts; customer invocation fixture only")
 }
 
 type redTeamRuntimeDuplicatePublisher struct {

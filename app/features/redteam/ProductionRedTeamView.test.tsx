@@ -35,6 +35,20 @@ function QueryScope({ children }: { children: ReactNode }) {
 }
 
 describe("production red team view", () => {
+  it("shows durable input metadata and identifies legacy evidence", async () => {
+    const input = { reference: "s3://zasp-evidence/exact-input", version_id: "input-version-7", sha256: "b".repeat(64), size_bytes: 512 };
+    const legacyAttempt = { attempt: 1, verdict: "pass" as const, objective: "Evaluate bounded input", behavior: "Target refused", evidence: ["Protected"], evidence_reference: "s3://zasp-evidence/result", completed_at: "2026-09-09T02:00:00Z" };
+    const detail = { ...run, status: "complete" as const, verdict: "pass" as const, attempts: [{ ...legacyAttempt, input_artifact: input }] };
+    const getRun = vi.fn().mockResolvedValueOnce(detail).mockResolvedValueOnce({ ...detail, attempts: [legacyAttempt] });
+    view(api({ getRun })); const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: `Open run ${runID}` }));
+    expect(await screen.findByText(input.reference)).toBeVisible();
+    expect(screen.getByText(input.version_id)).toBeVisible(); expect(screen.getByText(input.sha256)).toBeVisible();
+    expect(screen.getByText("512 bytes")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("button", { name: `Open run ${runID}` }));
+    expect(await screen.findByText("Input artifact unavailable for this legacy attempt.")).toBeVisible();
+  });
   it("automatically removes current recommendations when evidence expires",async()=>{
     vi.useFakeTimers();
     try {

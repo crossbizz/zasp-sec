@@ -29,6 +29,7 @@ func TestRedTeamProcessorRunsLeaseFencedTestPersistsEvidenceThenAcknowledges(t *
 	queue := &recordingDiscoveryQueue{deliveries: []jobqueue.Delivery{{Job: jobqueue.Job{Scope: scope, JobID: runID, Kind: "red-team", Payload: payload, AuthorityDigest: inputDigest}}}, steps: &steps}
 	key := "organizations/" + scope.OrganizationID().String() + "/workspaces/" + scope.WorkspaceID().String() + "/environments/" + scope.EnvironmentID().String() + "/artifacts/" + runID.String()
 	runner := &recordingRedTeamRunner{steps: &steps, result: redTeamExecutionResult{Verdict: "pass", Objective: "Reject prompt injection", Behavior: "The target refused the unsafe instruction.", Evidence: []string{"bounded refusal observed"}, EvidenceReference: "s3://zasp-evidence/" + key, EvidenceKey: key, EvidenceVersionID: "version-1", EvidenceChecksum: bytes.Repeat([]byte{0xdd}, 32), EvidenceSizeBytes: 128}}
+	runner.result.InputArtifact = &apiserver.RedTeamArtifactReference{Reference: "s3://zasp-evidence/" + strings.TrimSuffix(key, runID.String()) + "pid_99200004-0000-4000-8000-000000000004", VersionID: "input-version-1", SHA256: strings.Repeat("a", 64), SizeBytes: 512}
 	processor, err := newRedTeamProcessor(redTeamProcessorConfig{Authority: authority, Queue: queue, Runner: runner, WorkerID: "red-team-worker-01", LeaseSeconds: 60, BatchSize: 1, HeartbeatInterval: 10 * time.Millisecond, Now: func() time.Time { return time.Now().UTC() }, NewLeaseToken: func() (string, error) { return strings.Repeat("a", 32), nil }})
 	if err != nil {
 		t.Fatal(err)
@@ -41,6 +42,9 @@ func TestRedTeamProcessorRunsLeaseFencedTestPersistsEvidenceThenAcknowledges(t *
 	}
 	if authority.completion.RunID != runID.String() || authority.completion.InputDigest != inputDigest || authority.completion.EvidenceReference != runner.result.EvidenceReference {
 		t.Fatalf("completion=%#v", authority.completion)
+	}
+	if authority.completion.InputArtifact == nil || *authority.completion.InputArtifact != *runner.result.InputArtifact {
+		t.Fatal("worker lost immutable input artifact binding")
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
@@ -21,6 +22,7 @@ import (
 var redTeamTargetEndpointPattern = regexp.MustCompile(`^https://agentsec-red-team-adapter(?:\.[a-z0-9-]{1,63}){1,4}\.svc\.cluster\.local/v1/evaluate$`)
 var redTeamAdapterTokenPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
 var redTeamRunLeasePattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
+var redTeamArtifactBucketPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
 
 type redTeamCommand interface {
 	Run(context.Context, string, []string, []string, string) error
@@ -103,6 +105,24 @@ func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamE
 	if writeRedTeamFile(inputPath, inputBytes) != nil {
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
+	inputID, err := domain.NewProductID()
+	if err != nil {
+		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+	}
+	inputReference, err := domain.NewEvidenceRef(inputID)
+	if err != nil {
+		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+	}
+	inputArtifact, err := runner.config.Artifacts.Put(ctx, artifactstore.PutRequest{Locator: artifactstore.Locator{Scope: request.Scope, Reference: inputReference}, MediaType: "application/json", Body: bytes.Clone(inputBytes)})
+	if err != nil || !validRedTeamPersistedArtifact(inputArtifact, request.Scope, inputReference, inputBytes) {
+		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+	}
+	inputObjectReference, err := runner.config.Artifacts.ObjectReference(inputArtifact.Locator)
+	inputKey := "organizations/" + request.Scope.OrganizationID().String() + "/workspaces/" + request.Scope.WorkspaceID().String() + "/environments/" + request.Scope.EnvironmentID().String() + "/artifacts/" + inputID.String()
+	if err != nil || !validRedTeamArtifactObjectReference(inputObjectReference, inputKey) {
+		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
+	}
+	inputReceipt := &apiserver.RedTeamArtifactReference{Reference: inputObjectReference, VersionID: inputArtifact.VersionID, SHA256: hex.EncodeToString(inputArtifact.SHA256[:]), SizeBytes: inputArtifact.Size}
 	bounded, cancel := context.WithTimeout(ctx, runner.config.Timeout)
 	environment := []string{"HOME=" + workspace, "ZASP_PROMPTFOO_BIN=" + runner.config.PromptfooPath, "ZASP_RED_TEAM_TARGET_ENDPOINT=" + runner.config.TargetEndpoint, "ZASP_RED_TEAM_ADAPTER_TOKEN_FILE=" + runner.config.TargetTokenFile, "ZASP_RED_TEAM_TARGET_CA_FILE=" + runner.config.TargetCAFile}
 	environment = append(environment, "ZASP_RED_TEAM_RUN_LEASE="+request.LeaseToken)
@@ -120,24 +140,53 @@ func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamE
 	if decodeStrictWorkerJSON(outputBytes, &output) != nil || !validRedTeamRunnerOutput(input, output) {
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
+	nativeBytes, err := readRedTeamOutput(filepath.Join(workspace, "artifact.json"))
+	if err != nil {
+		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
+	}
+	artifactBytes, err := buildRedTeamEvidenceBundle(input, output, inputReceipt, nativeBytes)
+	if err != nil {
+		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
+	}
 	runID, parseErr := domain.ParseProductID(request.Run.ID)
 	reference, referenceErr := domain.NewEvidenceRef(runID)
 	if parseErr != nil || referenceErr != nil {
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
-	artifact, err := runner.config.Artifacts.Put(ctx, artifactstore.PutRequest{Locator: artifactstore.Locator{Scope: request.Scope, Reference: reference}, MediaType: "application/json", Body: bytes.Clone(outputBytes)})
+	artifact, err := runner.config.Artifacts.Put(ctx, artifactstore.PutRequest{Locator: artifactstore.Locator{Scope: request.Scope, Reference: reference}, MediaType: "application/json", Body: bytes.Clone(artifactBytes)})
 	if err != nil {
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
 	objectReference, err := runner.config.Artifacts.ObjectReference(artifact.Locator)
-	if err != nil || artifact.Size != int64(len(outputBytes)) || artifact.SHA256 != sha256.Sum256(outputBytes) {
+	outputKey := "organizations/" + request.Scope.OrganizationID().String() + "/workspaces/" + request.Scope.WorkspaceID().String() + "/environments/" + request.Scope.EnvironmentID().String() + "/artifacts/" + request.Run.ID
+	if err != nil || !validRedTeamPersistedArtifact(artifact, request.Scope, reference, artifactBytes) || !validRedTeamArtifactObjectReference(objectReference, outputKey) {
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
 	errorCode := ""
 	if output.ErrorCode != nil {
 		errorCode = *output.ErrorCode
 	}
-	return redTeamExecutionResult{Verdict: output.Verdict, Objective: output.Objective, Behavior: output.Behavior, ErrorCode: errorCode, Evidence: append([]string(nil), output.Evidence...), EvidenceReference: objectReference, EvidenceKey: "organizations/" + request.Scope.OrganizationID().String() + "/workspaces/" + request.Scope.WorkspaceID().String() + "/environments/" + request.Scope.EnvironmentID().String() + "/artifacts/" + request.Run.ID, EvidenceVersionID: artifact.VersionID, EvidenceChecksum: append([]byte(nil), artifact.SHA256[:]...), EvidenceSizeBytes: artifact.Size}, nil
+	return redTeamExecutionResult{InputArtifact: inputReceipt, Verdict: output.Verdict, Objective: output.Objective, Behavior: output.Behavior, ErrorCode: errorCode, Evidence: append([]string(nil), output.Evidence...), EvidenceReference: objectReference, EvidenceKey: "organizations/" + request.Scope.OrganizationID().String() + "/workspaces/" + request.Scope.WorkspaceID().String() + "/environments/" + request.Scope.EnvironmentID().String() + "/artifacts/" + request.Run.ID, EvidenceVersionID: artifact.VersionID, EvidenceChecksum: append([]byte(nil), artifact.SHA256[:]...), EvidenceSizeBytes: artifact.Size}, nil
+}
+
+func validRedTeamPersistedArtifact(artifact artifactstore.Artifact, scope domain.Scope, reference domain.EvidenceRef, body []byte) bool {
+	if artifact.Scope != scope || artifact.Reference != reference || artifact.Size != int64(len(body)) || artifact.SHA256 != sha256.Sum256(body) || len(artifact.VersionID) < 1 || len(artifact.VersionID) > 512 {
+		return false
+	}
+	for _, character := range artifact.VersionID {
+		if character <= 32 || character >= 127 {
+			return false
+		}
+	}
+	return true
+}
+
+func validRedTeamArtifactObjectReference(value, key string) bool {
+	if len(value) > 1024 || !strings.HasPrefix(value, "s3://") {
+		return false
+	}
+	bucket, actualKey, ok := strings.Cut(strings.TrimPrefix(value, "s3://"), "/")
+	return ok && actualKey == key && redTeamArtifactBucketPattern.MatchString(bucket) && !strings.Contains(bucket, "..") && !strings.Contains(bucket, ".-") && !strings.Contains(bucket, "-.")
 }
 
 func validProductionRedTeamRequest(request redTeamExecutionRequest) bool {

@@ -85,15 +85,23 @@ type RedTeamRun struct {
 	EvidenceReference string     `json:"evidence_reference,omitempty"`
 }
 
+type RedTeamArtifactReference struct {
+	Reference string `json:"reference"`
+	VersionID string `json:"version_id"`
+	SHA256    string `json:"sha256"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
 type RedTeamAttempt struct {
-	Attempt           int       `json:"attempt"`
-	Verdict           string    `json:"verdict"`
-	Objective         string    `json:"objective"`
-	Behavior          string    `json:"behavior"`
-	ErrorCode         string    `json:"error_code,omitempty"`
-	Evidence          []string  `json:"evidence"`
-	EvidenceReference string    `json:"evidence_reference"`
-	CompletedAt       time.Time `json:"completed_at"`
+	Attempt           int                       `json:"attempt"`
+	Verdict           string                    `json:"verdict"`
+	Objective         string                    `json:"objective"`
+	Behavior          string                    `json:"behavior"`
+	ErrorCode         string                    `json:"error_code,omitempty"`
+	Evidence          []string                  `json:"evidence"`
+	EvidenceReference string                    `json:"evidence_reference"`
+	InputArtifact     *RedTeamArtifactReference `json:"input_artifact,omitempty"`
+	CompletedAt       time.Time                 `json:"completed_at"`
 }
 
 type RedTeamRunDetail struct {
@@ -270,6 +278,9 @@ func (repository *PostgresRepository) GetRedTeamRun(ctx context.Context, identit
 	}
 	priorAttempt := 0
 	for _, attempt := range result.Attempts {
+		if attempt.InputArtifact != nil && !validRedTeamInputArtifact(identity.Scope, attempt.InputArtifact) {
+			return RedTeamRunDetail{}, ErrRepositoryUnavailable
+		}
 		if !validRedTeamAttempt(attempt) || attempt.Attempt <= priorAttempt || attempt.Attempt > result.Attempt || attempt.EvidenceReference != result.EvidenceReference {
 			return RedTeamRunDetail{}, ErrRepositoryUnavailable
 		}

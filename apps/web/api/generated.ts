@@ -3780,6 +3780,7 @@ export type components = {
             readonly error_code?: string;
             readonly evidence: readonly string[];
             readonly evidence_reference: string;
+            readonly input_artifact?: components["schemas"]["TestInputArtifact"];
             readonly objective: string;
             /** @enum {string} */
             readonly verdict: "pass" | "fail" | "engine_error";
@@ -3820,6 +3821,12 @@ export type components = {
             readonly target_id: components["schemas"]["ProductID"];
             /** @enum {string} */
             readonly target_kind: "agent_endpoint" | "mcp_server" | "coding_agent";
+        };
+        readonly TestInputArtifact: {
+            readonly reference: string;
+            readonly sha256: string;
+            readonly size_bytes: number;
+            readonly version_id: string;
         };
         readonly TestRun: {
             readonly attempt: number;
@@ -4174,6 +4181,7 @@ export type TestDefinition = components['schemas']['TestDefinition'];
 export type TestDefinitionInput = components['schemas']['TestDefinitionInput'];
 export type TestDefinitionPage = components['schemas']['TestDefinitionPage'];
 export type TestDefinitionUpdateInput = components['schemas']['TestDefinitionUpdateInput'];
+export type TestInputArtifact = components['schemas']['TestInputArtifact'];
 export type TestRun = components['schemas']['TestRun'];
 export type TestRunDetail = components['schemas']['TestRunDetail'];
 export type TestRunInput = components['schemas']['TestRunInput'];

@@ -1078,7 +1078,8 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	policyDatabase, err := apiserver.NewPostgresJSONDatabase(&workerPostgresDriver{pool: policyPool})
+	policyPostgresTrace := &combinedE2EPostgresTrace{}
+	policyDatabase, err := apiserver.NewPostgresJSONDatabase(&combinedE2EPostgresDriver{delegate: &workerPostgresDriver{pool: policyPool}, trace: policyPostgresTrace})
 	if err != nil {
 		policyPool.Close()
 		t.Fatal(err)
@@ -1119,7 +1120,7 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	deploymentErr := <-deploymentDone
 	closeErr := deployed.Close()
 	if actionErr != nil || deploymentErr != nil || closeErr != nil {
-		t.Fatalf("action=%v deployment=%v close=%v; database trace=%s; postgres trace=%s", actionErr, deploymentErr, closeErr, tracedDatabase.Trace(), postgresTrace.String())
+		t.Fatalf("action=%v deployment=%v close=%v; database trace=%s; postgres trace=%s; deployment postgres trace=%s", actionErr, deploymentErr, closeErr, tracedDatabase.Trace(), postgresTrace.String(), policyPostgresTrace.String())
 	}
 
 	gatewayPool, err := pgxpool.New(ctx, os.Getenv("ZASP_COMBINED_E2E_GATEWAY_DSN"))

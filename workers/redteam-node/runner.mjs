@@ -85,6 +85,34 @@ export function normalizePromptfooResult(input, document) {
   });
 }
 
+export function buildRedTeamNativeArtifact(input, document) {
+  // Validate engine/category/verdict identity before retaining any native fields.
+  normalizePromptfooResult(input, document);
+  return {
+    schema_version: "red-team-native-artifact-v1",
+    redaction_policy: "red-team-artifact-redaction-v1",
+    run_id: input.run_id,
+    input_digest: input.input_digest,
+    native_output: {
+      metadata: { promptfooVersion: document.metadata.promptfooVersion },
+      results: {
+        version: document.results.version,
+        results: document.results.results.map((result) => {
+          const status = result.response?.metadata?.http?.status;
+          return {
+            success: result.success,
+            provider: { label: result.provider.label },
+            vars: { category: result.vars.category, prompt: result.vars.prompt },
+            testCase: { metadata: { category: result.testCase.metadata.category } },
+            response: { output: "[REDACTED]", metadata: { http: { status: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null } } },
+            gradingResult: { pass: result.gradingResult.pass, reason: "[REDACTED]" },
+          };
+        }),
+      },
+    },
+  };
+}
+
 async function run(inputPath, outputPath) {
   if (typeof inputPath !== "string" || resolve(inputPath) !== inputPath || typeof outputPath !== "string" || resolve(outputPath) !== outputPath || dirname(inputPath) !== dirname(outputPath) || inputPath === outputPath) invalid();
   const inputBytes = await boundedRead(inputPath, 65_536);
@@ -110,14 +138,18 @@ async function run(inputPath, outputPath) {
   });
   const exitCode = await waitForPromptfooProcess(child);
   let normalized;
+  let nativeArtifact = { schema_version: "red-team-native-artifact-v1", redaction_policy: "red-team-artifact-redaction-v1", run_id: input.run_id, input_digest: input.input_digest, native_output: null };
   // The pinned CLI writes completed failing evaluations before returning 100.
   // Native output still must pass the same strict identity/result validation.
   if (exitCode === 0 || exitCode === 100) {
     const raw = await boundedRead(rawPath, 8 << 20);
-    normalized = normalizePromptfooResult(input, parseUniqueJson(raw.toString("utf8"), 8 << 20));
+    const document = parseUniqueJson(raw.toString("utf8"), 8 << 20);
+    normalized = normalizePromptfooResult(input, document);
+    nativeArtifact = buildRedTeamNativeArtifact(input, document);
   } else {
     normalized = Object.freeze({ schema_version: "red-team-evidence-v1", engine: "promptfoo", engine_version: "0.121.19", run_id: input.run_id, input_digest: input.input_digest, objective: `Evaluate curated categories: ${input.categories.join(", ")}`, behavior: "The bounded Promptfoo engine did not complete the evaluation.", verdict: "engine_error", error_code: "outcome_unknown", evidence: ["Promptfoo execution did not complete"] });
   }
+  await writeFile(resolve(dirname(inputPath), "artifact.json"), JSON.stringify(nativeArtifact), { flag: "wx", mode: 0o600 });
   await writeFile(outputPath, JSON.stringify(normalized), { flag: "wx", mode: 0o600 });
   await rm(rawPath, { force: true });
   await rm(configurationPath, { force: true });

@@ -554,7 +554,17 @@ export function decodeTestRun(value: unknown): TestRun {
 }
 
 export function decodeTestAttempt(value: unknown): TestAttempt {
-  const record = exactRecord(value, ["attempt", "verdict", "objective", "behavior", "evidence", "evidence_reference", "completed_at"], ["error_code"]); boundedInteger(record.attempt, 1, 5); enumValue(record.verdict, ["pass", "fail", "engine_error"]); printableString(record.objective, 1, 512); printableString(record.behavior, 1, 2048); printableString(record.evidence_reference, 1, 1024); dateTime(record.completed_at); const evidence = array(record.evidence, 64); for (const item of evidence) printableString(item, 1, 512);
+  const record = exactRecord(value, ["attempt", "verdict", "objective", "behavior", "evidence", "evidence_reference", "completed_at"], ["error_code", "input_artifact"]); boundedInteger(record.attempt, 1, 5); enumValue(record.verdict, ["pass", "fail", "engine_error"]); printableString(record.objective, 1, 512); printableString(record.behavior, 1, 2048); printableString(record.evidence_reference, 1, 1024); dateTime(record.completed_at); const evidence = array(record.evidence, 64); for (const item of evidence) printableString(item, 1, 512);
+  if (record.input_artifact !== undefined) {
+    const input = exactRecord(record.input_artifact, ["reference", "version_id", "sha256", "size_bytes"]);
+    printableString(input.reference, 8, 1024); printableString(input.version_id, 1, 512); boundedInteger(input.size_bytes, 1, 65536);
+    if (/\s/u.test(input.version_id as string) || typeof input.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(input.sha256) || /^0{64}$/.test(input.sha256)) fail();
+    const parts = (input.reference as string).split("/");
+    if (parts.length !== 11 || parts[0] !== "s3:" || parts[1] !== "" || !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(parts[2]) || /\.\.|\.-|-\./.test(parts[2]) || parts[3] !== "organizations" || parts[5] !== "workspaces" || parts[7] !== "environments" || parts[9] !== "artifacts") fail();
+    for (const index of [4, 6, 8, 10]) productID(parts[index]);
+    const evidenceParts = (record.evidence_reference as string).split("/");
+    if (evidenceParts.length !== 11 || parts.slice(3, 10).join("/") !== evidenceParts.slice(3, 10).join("/") || input.reference === record.evidence_reference) fail();
+  }
   if (record.verdict === "engine_error") { enumValue(record.error_code, ["denied", "malformed", "outcome_unknown", "exhausted"]); if (evidence.length !== 1) fail(); } else if (record.error_code !== undefined || evidence.length < 1) fail();
   return value as TestAttempt;
 }

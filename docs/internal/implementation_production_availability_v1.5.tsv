@@ -337,17 +337,17 @@ M5	M5-01	Complete	production-available	T12-red-team	production TestDefinition/Te
 M5	M5-02	Complete	component-only	T12-red-team	audited component-only proof: Promptfoo adapter
 M5	M5-03	Complete	production-available	T12-red-team	mounted create wizard derives explained recommendations from fresh exact-target product APIs and rejects expired evidence; selector/API/UI/Chrome proof plus individual review and main CI 34300722566 pass
 M5	M5-04	Complete	production-available	T12-red-team	schema37 authoritative environment and registered credential admission rejects unsafe creation/queue/claim; actual PostgreSQL denial tests and mounted expected-side-effects UI; individual review and main CI 34300722566 pass
-M5	M5-05	Complete	component-only	T12-red-team	audited component-only proof: API listTests
-M5	M5-06	Complete	component-only	T12-red-team	audited component-only proof: API createTest
-M5	M5-07	Complete	component-only	T12-red-team	audited component-only proof: API getTest
-M5	M5-08	Complete	component-only	T12-red-team	audited component-only proof: API updateTest
-M5	M5-09	Complete	component-only	T12-red-team	audited component-only proof: API runTest
-M5	M5-10	Complete	component-only	T12-red-team	audited component-only proof: API listTestRuns
-M5	M5-11	Complete	component-only	T12-red-team	audited component-only proof: API getTestRun
-M5	M5-12	Complete	component-only	T12-red-team	audited component-only proof: API cancelTestRun
-M5	M5-13	Complete	component-only	T12-red-team	audited component-only proof: test worker queue
+M5	M5-05	Complete	production-available	T12-red-team	audited production listTests: browser/PAT success and stable error matrix; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
+M5	M5-06	Complete	production-available	T12-red-team	audited production createTest: browser/PAT success, receipt/audit and stable error matrix; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
+M5	M5-07	Complete	production-available	T12-red-team	audited production getTest: browser/PAT success and stable error matrix; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
+M5	M5-08	Complete	production-available	T12-red-team	audited production updateTest: browser/PAT success, ETag/receipt/audit and stable error matrix; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
+M5	M5-09	Complete	production-available	T12-red-team	audited production runTest: browser/PAT success and stable error matrix, committed-response recovery, exact queue authority; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
+M5	M5-10	Complete	production-available	T12-red-team	audited production listTestRuns: browser/PAT success and stable error matrix; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
+M5	M5-11	Complete	production-available	T12-red-team	audited production getTestRun: browser/PAT success and stable error matrix plus browser result reload; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
+M5	M5-12	Complete	production-available	T12-red-team	audited production cancelTestRun: browser/PAT success, receipt/audit and stable error matrix, lease invalidation; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
+M5	M5-13	Complete	production-available	T12-red-team	audited composed PostgreSQL/outbox/SQS/pinned-engine/lease-adapter worker: physical duplicate delivery, one attempt/invocation, empty queue/DLQ and normalized evidence; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
 M5	M5-14	Complete	component-only	T12-red-team	audited component-only proof: test evidence artifacts
-M5	M5-15	Complete	component-only	T12-red-team	audited component-only proof: red team UI list/new
+M5	M5-15	Complete	production-available	T12-red-team	audited browser product API list/new-test flow with evidence-derived recommendations, selection, safety and queueing; PR 15 main CI 34303890095; docs/internal/2026-09-08-m5-red-team-production-closure.md
 M5	M5-16	Complete	component-only	T12-red-team	audited component-only proof: red team result UI
 M5	M5-17	Complete	component-only	T12-red-team	audited component-only proof: SandboxProvider contract
 M5	M5-18	Complete	component-only	T12-red-team	audited component-only proof: Fargate provider create

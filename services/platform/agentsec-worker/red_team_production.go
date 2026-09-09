@@ -92,7 +92,7 @@ func composeRedTeamWorkerRuntime(config workerRuntimeConfig, database apiserver.
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	check := func(ctx context.Context) error {
-		if repository.Ready(ctx) != nil || dependencies.Ready(ctx) != nil {
+		if repository.ReadyArtifacts(ctx) != nil || dependencies.Ready(ctx) != nil {
 			return errRuntimeUnavailable
 		}
 		return nil
