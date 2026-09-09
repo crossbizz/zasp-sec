@@ -20,8 +20,8 @@ const allowedProductionClasses = new Set([
   "missing",
 ]);
 const expectedClassCounts = new Map([
-  ["production-available", 518],
-  ["component-only", 149],
+  ["production-available", 528],
+  ["component-only", 139],
   ["blocked/external", 61],
   ["missing", 0],
 ]);
@@ -32,7 +32,7 @@ const expectedMilestoneClassCounts = new Map([
   ["M2", new Map([["production-available", 69], ["component-only", 3], ["blocked/external", 0], ["missing", 0]])],
   ["M3", new Map([["production-available", 73], ["component-only", 0], ["blocked/external", 2], ["missing", 0]])],
   ["M4", new Map([["production-available", 82], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
-  ["M5", new Map([["production-available", 23], ["component-only", 19], ["blocked/external", 0], ["missing", 0]])],
+  ["M5", new Map([["production-available", 33], ["component-only", 9], ["blocked/external", 0], ["missing", 0]])],
   ["M6", new Map([["production-available", 36], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
   ["M7", new Map([["production-available", 37], ["component-only", 25], ["blocked/external", 0], ["missing", 0]])],
   ["M7A", new Map([["production-available", 98], ["component-only", 15], ["blocked/external", 0], ["missing", 0]])],
@@ -65,6 +65,7 @@ const auditedProductionClassOwners = new Set([
 ]);
 const auditedProductionAvailableIDs = new Set([
   "M5-01", "M5-03", "M5-04",
+  "M5-05", "M5-06", "M5-07", "M5-08", "M5-09", "M5-10", "M5-11", "M5-12", "M5-13", "M5-15",
   "M3-48h", "M3-52d",
   "M0-12", "M0-13", "M0-17",
   "M1-01a", "M1-01e", "M1-01f", "M1-12", "M1-13", "M1-14", "M1-15", "M1-16", "M1-22", "M1-28c", "M1-28d", "M1-32", "M1-33",

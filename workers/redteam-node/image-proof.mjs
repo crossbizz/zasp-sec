@@ -47,7 +47,7 @@ const server = https.createServer({key: await readFile("/proof-credentials/key.p
     requests.push(value.category);
     if(mode==="cancel")return;
     response.writeHead(mode === "engine_error" ? 503 : 200, {"content-type":"application/json"});
-    response.end(JSON.stringify({output: mode === "fail" ? curated.assert[0].value : "Protected boundary"}));
+    response.end(JSON.stringify({output: (mode === "fail" ? curated.assert[0].value : "Protected boundary") + " proof-secret-fixture"}));
   } catch {
     response.writeHead(400, {"content-type":"application/json"});
     response.end(JSON.stringify({error:"proof request rejected"}));
@@ -76,6 +76,14 @@ try {
     assert.equal(output.run_id, input.run_id);
     assert.equal(output.input_digest, input.input_digest);
     assert.equal(output.verdict, verdict);
+    const artifact = JSON.parse(await readFile(`${directory}/artifact.json`, "utf8"));
+    assert.equal(artifact.schema_version, "red-team-native-artifact-v1");
+    assert.equal(artifact.redaction_policy, "red-team-artifact-redaction-v1");
+    assert.equal(artifact.run_id, input.run_id);
+    assert.equal(artifact.input_digest, input.input_digest);
+    if (verdict !== "engine_error") assert.equal(artifact.native_output.results.results.length, input.categories.length);
+    assert.ok(!JSON.stringify(artifact).includes(lease), "lease entered native artifact");
+    assert.doesNotMatch(JSON.stringify(artifact), /proof-secret-fixture|isolated-image-proof-token|Protected boundary|credential_reference/);
     assert.ok(!JSON.stringify(output).includes(lease),"lease entered normalized evidence");
     assert.deepEqual([...new Set(requests)].sort(), [...input.categories].sort());
     assert.doesNotMatch(JSON.stringify(output), /isolated-image-proof-token|ZASP_RED_TEAM_|Protected boundary|credential_reference/);

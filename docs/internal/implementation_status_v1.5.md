@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 518 |
-| Component-only | 149 |
+| Production-available | 528 |
+| Component-only | 139 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -109,9 +109,14 @@ an existing test asserting URL normalization before its passive effect finished.
 The synchronization correction is merged via PR 14; both pre-merge checks and
 main CI 34300722566 passed. This closes M5-01 (production domain), M5-03
 (explained relevant recommendations), and M5-04 (authoritative safety preflight).
-M5-05 through M5-12 still need operation-specific stable-error handler assertions.
-The composed queue/engine/adapter/evidence proof and cancellation cleanup are
-under verification; no other M5 row is promoted from them.
+M5-05 through M5-12 now pass operation-specific success/stable-error handler
+assertions for browser and PAT requests. M5-13 passes actual composed
+queue/engine/adapter execution, physical duplicate delivery, one attempt and
+invocation, durable normalized evidence, and empty-queue checks. M5-15 passes
+the browser list/new-test flow with explained recommendations and safety gates.
+Independent review accepted all ten tasks separately. PR 15 shipped these
+checks; push CI 34303330721, PR CI 34303333610, and main CI 34303890095 passed.
+M5-02 and M5-14 remain component-only pending durable input/raw-artifact closure.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
@@ -226,12 +231,12 @@ production composition, not merely a component proof or external evidence.
 | M2 | 72 | 69 | 3 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
-| M5 | 42 | 23 | 19 | 0 | 0 |
+| M5 | 42 | 33 | 9 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **518** | **149** | **61** | **0** |
+| **Total** | **728** | **528** | **139** | **61** | **0** |
 
 ## Prerequisite work
 

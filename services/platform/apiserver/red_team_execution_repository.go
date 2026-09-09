@@ -20,16 +20,17 @@ const (
 	RedTeamExecutionAuthorityOutbox = "zasp_red_team_outbox_worker"
 	RedTeamOutboxTopic              = "test-jobs"
 
-	postgresRedTeamPrincipalReadySQL   = `SELECT to_jsonb(zasp_red_team_principal_ready($1))`
-	postgresRedTeamClaimOutboxSQL      = `SELECT zasp_red_team_claim_outbox($1,$2,$3,$4)`
-	postgresRedTeamHeartbeatOutboxSQL  = `SELECT to_jsonb(zasp_red_team_heartbeat_outbox($1,$2,$3,$4,$5,$6,$7))`
-	postgresRedTeamAckOutboxSQL        = `SELECT to_jsonb(zasp_red_team_ack_outbox($1,$2,$3,$4,$5,$6,$7))`
-	postgresRedTeamRetryOutboxSQL      = `SELECT to_jsonb(zasp_red_team_retry_outbox($1,$2,$3,$4,$5,$6,$7))`
-	postgresRedTeamClaimRunSQL         = `SELECT zasp_red_team_claim_run($1,$2,$3,$4,$5,$6,$7)`
-	postgresRedTeamHeartbeatRunSQL     = `SELECT zasp_red_team_heartbeat_run($1,$2,$3,$4,$5,$6,$7)`
-	postgresRedTeamFinishRunSQL        = `SELECT zasp_red_team_finish_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,$16,$17)`
-	postgresRedTeamRetryRunSQL         = `SELECT zasp_red_team_retry_run($1,$2,$3,$4,$5,$6,$7,$8,$9)`
-	postgresRedTeamCancelClaimedRunSQL = `SELECT zasp_red_team_cancel_claimed_run($1,$2,$3,$4,$5,$6,$7)`
+	postgresRedTeamPrincipalReadySQL     = `SELECT to_jsonb(zasp_red_team_principal_ready($1))`
+	postgresRedTeamClaimOutboxSQL        = `SELECT zasp_red_team_claim_outbox($1,$2,$3,$4)`
+	postgresRedTeamHeartbeatOutboxSQL    = `SELECT to_jsonb(zasp_red_team_heartbeat_outbox($1,$2,$3,$4,$5,$6,$7))`
+	postgresRedTeamAckOutboxSQL          = `SELECT to_jsonb(zasp_red_team_ack_outbox($1,$2,$3,$4,$5,$6,$7))`
+	postgresRedTeamRetryOutboxSQL        = `SELECT to_jsonb(zasp_red_team_retry_outbox($1,$2,$3,$4,$5,$6,$7))`
+	postgresRedTeamClaimRunSQL           = `SELECT zasp_red_team_claim_run($1,$2,$3,$4,$5,$6,$7)`
+	postgresRedTeamHeartbeatRunSQL       = `SELECT zasp_red_team_heartbeat_run($1,$2,$3,$4,$5,$6,$7)`
+	postgresRedTeamFinishRunSQL          = `SELECT zasp_red_team_finish_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,$16,$17)`
+	postgresRedTeamFinishRunArtifactsSQL = `SELECT zasp_red_team_finish_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,$16,$17,$18::jsonb)`
+	postgresRedTeamRetryRunSQL           = `SELECT zasp_red_team_retry_run($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	postgresRedTeamCancelClaimedRunSQL   = `SELECT zasp_red_team_cancel_claimed_run($1,$2,$3,$4,$5,$6,$7)`
 )
 
 var (
@@ -68,6 +69,7 @@ type RedTeamRunHeartbeat struct {
 }
 
 type RedTeamRunCompletion struct {
+	InputArtifact                                     *RedTeamArtifactReference
 	RunID, Worker, LeaseToken                         string
 	InputDigest                                       [sha256.Size]byte
 	Verdict, Objective, Behavior, ErrorCode           string
@@ -107,6 +109,19 @@ func (repository *RedTeamExecutionRepository) Ready(ctx context.Context) error {
 	}
 	payload, err = repository.database.QueryJSON(ctx, postgresRedTeamPrincipalReadySQL, repository.authority)
 	ready = false
+	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
+		return ErrRepositoryUnavailable
+	}
+	return nil
+}
+
+func (repository *RedTeamExecutionRepository) ReadyArtifacts(ctx context.Context) error {
+	if repository.Ready(ctx) != nil {
+		return ErrRepositoryUnavailable
+	}
+	metadata := migrations.ProductionRedTeamArtifacts()
+	payload, err := repository.database.QueryJSON(ctx, `SELECT to_jsonb(zasp_production_red_team_artifacts_readiness($1,$2))`, metadata.Checksum(), migrations.ProductionRedTeamArtifactsSemanticFingerprint())
+	var ready bool
 	if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
 		return ErrRepositoryUnavailable
 	}
@@ -248,7 +263,17 @@ func (repository *RedTeamExecutionRepository) FinishRedTeamRun(ctx context.Conte
 	if input.ErrorCode != "" {
 		errorCode = input.ErrorCode
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRedTeamFinishRunSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.RunID, input.Worker, input.LeaseToken, input.InputDigest[:], input.Verdict, input.Objective, input.Behavior, errorCode, evidence, input.EvidenceReference, input.EvidenceKey, input.EvidenceVersionID, input.EvidenceChecksum, input.EvidenceSizeBytes)
+	statement := postgresRedTeamFinishRunSQL
+	arguments := []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.RunID, input.Worker, input.LeaseToken, input.InputDigest[:], input.Verdict, input.Objective, input.Behavior, errorCode, evidence, input.EvidenceReference, input.EvidenceKey, input.EvidenceVersionID, input.EvidenceChecksum, input.EvidenceSizeBytes}
+	if input.InputArtifact != nil {
+		encoded, err := json.Marshal(input.InputArtifact)
+		if err != nil {
+			return RedTeamRun{}, ErrRepositoryOperation
+		}
+		statement = postgresRedTeamFinishRunArtifactsSQL
+		arguments = append(arguments, encoded)
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	return decodeRedTeamWorkerRun(payload, err, input.RunID, "complete")
 }
 
@@ -302,6 +327,9 @@ func decodeRedTeamBoolean(payload json.RawMessage, providerErr error) (bool, err
 }
 
 func validRedTeamCompletion(scope domain.Scope, input RedTeamRunCompletion) bool {
+	if input.InputArtifact != nil && (!validRedTeamInputArtifact(scope, input.InputArtifact) || input.InputArtifact.Reference == input.EvidenceReference) {
+		return false
+	}
 	if input.InputDigest == [sha256.Size]byte{} || !stringIn(input.Verdict, "pass", "fail", "engine_error") || input.Verdict != "engine_error" && input.ErrorCode != "" || input.Verdict == "engine_error" && !stringIn(input.ErrorCode, "denied", "malformed", "outcome_unknown", "exhausted") || !validRedTeamBoundedText(input.Objective, 512) || !validRedTeamBoundedText(input.Behavior, 2048) || len(input.Evidence) > 64 || !validS3ObjectReference(input.EvidenceReference) || !strings.HasSuffix(input.EvidenceReference, "/"+input.EvidenceKey) || len(input.EvidenceVersionID) < 1 || len(input.EvidenceVersionID) > 512 || strings.ContainsAny(input.EvidenceVersionID, " \t\r\n\x00") || len(input.EvidenceChecksum) != sha256.Size || bytes.Equal(input.EvidenceChecksum, make([]byte, sha256.Size)) || input.EvidenceSizeBytes < 1 || input.EvidenceSizeBytes > 64<<20 {
 		return false
 	}
@@ -315,6 +343,15 @@ func validRedTeamCompletion(scope domain.Scope, input RedTeamRunCompletion) bool
 		}
 	}
 	return true
+}
+
+func validRedTeamInputArtifact(scope domain.Scope, value *RedTeamArtifactReference) bool {
+	if value == nil || scope.Validate() != nil || !validS3ObjectReference(value.Reference) || len(value.VersionID) < 1 || len(value.VersionID) > 512 || strings.ContainsAny(value.VersionID, " \t\r\n\x00") || !validAttackLabDigest(value.SHA256) || value.SizeBytes < 1 || value.SizeBytes > 65536 {
+		return false
+	}
+	parts := strings.SplitN(value.Reference, "/", 4)
+	prefix := "organizations/" + scope.OrganizationID().String() + "/workspaces/" + scope.WorkspaceID().String() + "/environments/" + scope.EnvironmentID().String() + "/artifacts/"
+	return len(parts) == 4 && strings.HasPrefix(parts[3], prefix) && validProductID(strings.TrimPrefix(parts[3], prefix))
 }
 
 func validRedTeamBoundedText(value string, maximum int) bool {

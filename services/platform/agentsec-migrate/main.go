@@ -138,6 +138,8 @@ type releaseMigrationRunner interface {
 	DownProductionRedTeamSafety(context.Context) error
 	UpProductionRedTeamInvocation(context.Context) error
 	DownProductionRedTeamInvocation(context.Context) error
+	UpProductionRedTeamArtifacts(context.Context) error
+	DownProductionRedTeamArtifacts(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -503,10 +505,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 38
 		}
-		if version != 38 {
+		if version == 38 {
+			if err := runner.UpProductionRedTeamArtifacts(ctx); err != nil {
+				return err
+			}
+			version = 39
+		}
+		if version != 39 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 39 {
+			if err := runner.DownProductionRedTeamArtifacts(ctx); err != nil {
+				return err
+			}
+			version = 38
+		}
 		if version == 38 {
 			if err := runner.DownProductionRedTeamInvocation(ctx); err != nil {
 				return err
