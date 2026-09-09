@@ -43,6 +43,20 @@ variable "tags" {
   default     = {}
 }
 
+variable "attack_lab_subnet_cidrs" {
+  description = "Optional two isolated IPv4 subnet CIDRs. Defaults to VPC /20-sized slots 2 and 3 for a /16 VPC; overlap is rejected."
+  type        = list(string)
+  default     = null
+  validation {
+    condition = var.attack_lab_subnet_cidrs == null ? true : (
+      length(var.attack_lab_subnet_cidrs) == 2 &&
+      length(distinct(var.attack_lab_subnet_cidrs)) == 2 &&
+      alltrue([for cidr in var.attack_lab_subnet_cidrs : can(cidrnetmask(cidr))])
+    )
+    error_message = "Supply exactly two distinct IPv4 subnet CIDRs, or null for derived isolated subnets."
+  }
+}
+
 variable "account_id" {
   description = "Twelve-digit staging account ID used to bind global resource names and policies."
   type        = string

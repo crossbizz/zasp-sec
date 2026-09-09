@@ -1,0 +1,21 @@
+{
+  "schema_version": "attack-lab-egress-v1",
+  "rules": {
+    "proxy": { "protocol": "tcp", "port": 8443 },
+    "ecr": { "protocol": "tcp", "port": 443 },
+    "s3": { "protocol": "tcp", "port": 443 },
+    "control_plane": { "protocol": "tcp", "port": 443 },
+    "dns_udp": { "protocol": "udp", "port": 53 },
+    "dns_tcp": { "protocol": "tcp", "port": 53 }
+  },
+  "image_layer_policy": {
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Sid": "ImageLayersOnly",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:${partition}:s3:::prod-${region}-starport-layer-bucket/*"
+    }]
+  }
+}

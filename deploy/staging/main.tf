@@ -17,6 +17,14 @@ provider "aws" {
 }
 
 locals {
+  attack_lab_network      = jsondecode(templatefile("${path.module}/attack-lab-egress-contract.json", { partition = local.partition, region = var.region }))
+  attack_lab_subnet_cidrs = coalesce(var.attack_lab_subnet_cidrs, [for index in range(2) : cidrsubnet(var.vpc_cidr, 4, index + 2)])
+  attack_lab_ipv4_bounds = {
+    for cidr in distinct(concat([var.vpc_cidr], var.private_subnet_cidrs, local.attack_lab_subnet_cidrs)) : cidr => {
+      first = sum([for index, octet in split(".", cidrhost(cidr, 0)) : tonumber(octet) * pow(256, 3 - index)])
+      last  = sum([for index, octet in split(".", cidrhost(cidr, -1)) : tonumber(octet) * pow(256, 3 - index)])
+    }
+  }
   database_principals = {
     migration                    = var.database_principals.migration
     api                          = var.database_principals.api
@@ -199,6 +207,47 @@ resource "aws_subnet" "private" {
     "kubernetes.io/role/internal-elb"           = "1"
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
+}
+
+resource "aws_subnet" "attack_lab" {
+  count                   = 2
+  vpc_id                  = aws_vpc.staging.id
+  cidr_block              = local.attack_lab_subnet_cidrs[count.index]
+  availability_zone       = var.availability_zones[count.index]
+  map_public_ip_on_launch = false
+  tags = {
+    Name                                        = "${var.cluster_name}-attack-lab-${count.index + 1}"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "zasp.io/execution"                         = "attack-lab"
+  }
+  lifecycle {
+    precondition {
+      condition = (
+        local.attack_lab_ipv4_bounds[local.attack_lab_subnet_cidrs[count.index]].first >= local.attack_lab_ipv4_bounds[var.vpc_cidr].first &&
+        local.attack_lab_ipv4_bounds[local.attack_lab_subnet_cidrs[count.index]].last <= local.attack_lab_ipv4_bounds[var.vpc_cidr].last &&
+        alltrue([for cidr in var.private_subnet_cidrs :
+          local.attack_lab_ipv4_bounds[local.attack_lab_subnet_cidrs[count.index]].last < local.attack_lab_ipv4_bounds[cidr].first ||
+          local.attack_lab_ipv4_bounds[local.attack_lab_subnet_cidrs[count.index]].first > local.attack_lab_ipv4_bounds[cidr].last
+        ]) &&
+        alltrue([for index, cidr in local.attack_lab_subnet_cidrs : index == count.index ||
+          local.attack_lab_ipv4_bounds[local.attack_lab_subnet_cidrs[count.index]].last < local.attack_lab_ipv4_bounds[cidr].first ||
+          local.attack_lab_ipv4_bounds[local.attack_lab_subnet_cidrs[count.index]].first > local.attack_lab_ipv4_bounds[cidr].last
+        ])
+      )
+      error_message = "Attack Lab requires two VPC-contained subnets disjoint from each other and product subnets."
+    }
+  }
+}
+
+resource "aws_route_table" "attack_lab" {
+  vpc_id = aws_vpc.staging.id
+  tags   = { Name = "${var.cluster_name}-attack-lab-isolated" }
+}
+
+resource "aws_route_table_association" "attack_lab" {
+  count          = 2
+  subnet_id      = aws_subnet.attack_lab[count.index].id
+  route_table_id = aws_route_table.attack_lab.id
 }
 
 resource "aws_iam_role" "eks_cluster" {
@@ -1702,6 +1751,14 @@ resource "aws_vpc_endpoint" "s3" {
   route_table_ids   = [aws_vpc.staging.main_route_table_id]
 }
 
+resource "aws_vpc_endpoint" "attack_lab_s3" {
+  vpc_id            = aws_vpc.staging.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.attack_lab.id]
+  policy            = jsonencode(local.attack_lab_network.image_layer_policy)
+}
+
 resource "aws_vpc_endpoint" "private_services" {
   for_each          = toset(["ecr.api", "ecr.dkr", "kms", "logs", "secretsmanager", "sqs", "sts"])
   vpc_id            = aws_vpc.staging.id
@@ -1765,7 +1822,7 @@ resource "aws_eks_fargate_profile" "attack_lab" {
   cluster_name           = aws_eks_cluster.staging.name
   fargate_profile_name   = "attack-lab"
   pod_execution_role_arn = aws_iam_role.attack_lab_pod.arn
-  subnet_ids             = aws_subnet.private[*].id
+  subnet_ids             = aws_subnet.attack_lab[*].id
   selector {
     namespace = var.attack_lab_namespace
     labels    = { "zasp.io/execution" = "attack-lab" }
@@ -1774,6 +1831,8 @@ resource "aws_eks_fargate_profile" "attack_lab" {
     aws_eks_addon.vpc_cni,
     aws_iam_role_policy_attachment.eks_vpc_resource_controller,
     aws_iam_role_policy_attachment.attack_lab_pod,
+    aws_route_table_association.attack_lab,
+    aws_vpc_endpoint.attack_lab_s3,
   ]
 }
 
@@ -1800,33 +1859,33 @@ resource "aws_vpc_security_group_ingress_rule" "attack_lab_ecr_runner" {
 resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_proxy" {
   security_group_id            = aws_security_group.attack_lab.id
   referenced_security_group_id = aws_security_group.attack_lab_proxy.id
-  ip_protocol                  = "tcp"
-  from_port                    = 8443
-  to_port                      = 8443
+  ip_protocol                  = local.attack_lab_network.rules.proxy.protocol
+  from_port                    = local.attack_lab_network.rules.proxy.port
+  to_port                      = local.attack_lab_network.rules.proxy.port
 }
 
 resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_ecr" {
   security_group_id            = aws_security_group.attack_lab.id
   referenced_security_group_id = aws_security_group.attack_lab_ecr_endpoints.id
-  ip_protocol                  = "tcp"
-  from_port                    = 443
-  to_port                      = 443
+  ip_protocol                  = local.attack_lab_network.rules.ecr.protocol
+  from_port                    = local.attack_lab_network.rules.ecr.port
+  to_port                      = local.attack_lab_network.rules.ecr.port
 }
 
 resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_s3" {
   security_group_id = aws_security_group.attack_lab.id
-  prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id
-  ip_protocol       = "tcp"
-  from_port         = 443
-  to_port           = 443
+  prefix_list_id    = aws_vpc_endpoint.attack_lab_s3.prefix_list_id
+  ip_protocol       = local.attack_lab_network.rules.s3.protocol
+  from_port         = local.attack_lab_network.rules.s3.port
+  to_port           = local.attack_lab_network.rules.s3.port
 }
 
 resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_control_plane" {
   security_group_id            = aws_security_group.attack_lab.id
   referenced_security_group_id = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
-  ip_protocol                  = "tcp"
-  from_port                    = 443
-  to_port                      = 443
+  ip_protocol                  = local.attack_lab_network.rules.control_plane.protocol
+  from_port                    = local.attack_lab_network.rules.control_plane.port
+  to_port                      = local.attack_lab_network.rules.control_plane.port
 }
 
 resource "aws_vpc_security_group_ingress_rule" "attack_lab_control_plane_runner" {
@@ -1864,17 +1923,17 @@ resource "aws_vpc_security_group_ingress_rule" "attack_lab_proxy_internal" {
 resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_dns_udp" {
   security_group_id            = aws_security_group.attack_lab.id
   referenced_security_group_id = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
-  ip_protocol                  = "udp"
-  from_port                    = 53
-  to_port                      = 53
+  ip_protocol                  = local.attack_lab_network.rules.dns_udp.protocol
+  from_port                    = local.attack_lab_network.rules.dns_udp.port
+  to_port                      = local.attack_lab_network.rules.dns_udp.port
 }
 
 resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_dns_tcp" {
   security_group_id            = aws_security_group.attack_lab.id
   referenced_security_group_id = aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id
-  ip_protocol                  = "tcp"
-  from_port                    = 53
-  to_port                      = 53
+  ip_protocol                  = local.attack_lab_network.rules.dns_tcp.protocol
+  from_port                    = local.attack_lab_network.rules.dns_tcp.port
+  to_port                      = local.attack_lab_network.rules.dns_tcp.port
 }
 
 resource "aws_vpc_security_group_egress_rule" "attack_lab_proxy_dns_udp" {

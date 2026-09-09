@@ -274,6 +274,9 @@ output "attack_lab_release_authority" {
     outbox_role_arn         = aws_iam_role.attack_lab["outbox"].arn
     proxy_role_arn          = aws_iam_role.attack_lab["proxy"].arn
     security_group_id       = aws_security_group.attack_lab.id
+    isolated_subnet_ids     = aws_subnet.attack_lab[*].id
+    image_layer_endpoint_id = aws_vpc_endpoint.attack_lab_s3.id
+    egress_contract_sha256  = filesha256("${path.module}/attack-lab-egress-contract.json")
     proxy_security_group_id = aws_security_group.attack_lab_proxy.id
     web_identity_token_file = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
   }

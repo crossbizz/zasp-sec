@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/attacklabrunner"
 )
@@ -33,18 +34,26 @@ func newProductionHTTPClient(config runtimeConfig) (*http.Client, *http.Transpor
 }
 
 func readRunnerPinnedCA(path string) ([]byte, bool) {
-	before, err := os.Lstat(path)
-	if err != nil || !before.Mode().IsRegular() || before.Mode()&os.ModeSymlink != 0 || before.Size() < 64 || before.Size() > 32<<10 {
+	// ConfigMap atomic projections use relative ca.crt -> ..data/ca.crt links.
+	// OpenRoot follows those links but rejects absolute or escaping targets.
+	root, err := os.OpenRoot(filepath.Dir(path))
+	if err != nil {
 		return nil, false
 	}
-	file, err := os.Open(path)
+	defer root.Close()
+	name := filepath.Base(path)
+	before, err := root.Stat(name)
+	if err != nil || !before.Mode().IsRegular() || before.Size() < 64 || before.Size() > 32<<10 {
+		return nil, false
+	}
+	file, err := root.Open(name)
 	if err != nil {
 		return nil, false
 	}
 	opened, statErr := file.Stat()
 	payload, readErr := io.ReadAll(io.LimitReader(file, 32<<10+1))
 	closeErr := file.Close()
-	after, afterErr := os.Lstat(path)
+	after, afterErr := root.Stat(name)
 	valid := statErr == nil && readErr == nil && closeErr == nil && afterErr == nil && os.SameFile(before, opened) && os.SameFile(opened, after) && opened.Mode() == before.Mode() && after.Mode() == before.Mode() && int64(len(payload)) == before.Size()
 	if !valid || !exactRunnerCertificates(payload) {
 		clear(payload)

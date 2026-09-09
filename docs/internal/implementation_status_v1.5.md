@@ -75,8 +75,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 534 |
-| Component-only | 133 |
+| Production-available | 535 |
+| Component-only | 132 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -130,9 +130,12 @@ Push CI 34308745174, PR CI 34308747843 and main CI 34309274962 passed; M5-17
 is now production-available. PR 19 shipped M5-19's absolute timeout and bounded
 explanation as main be4db822 after independent review and full verification.
 Push CI 34309888042, PR CI 34309939481 and main CI 34310435523 passed; M5-19
-is now production-available. M5-20's dedicated test IAM identity and actual-Pod
-identity checks are under independent review and final verification. M5-21
-and M5-22 retain their original open requirements.
+is now production-available. PR 20 shipped M5-20's dedicated test IAM identity,
+actual-Pod identity checks and corrected deployment preflight as main 5289e80f.
+Push CI 34376119528, PR CI 34376124000 and main CI 34377164185 passed after
+independent review; M5-20 is now production-available. M5-21's isolated route
+boundary and direct-denial fixture are under final review and verification.
+M5-22 retains its original open requirements.
 
 `production-available` is the readiness measure: it requires source-reachable
 production composition, not merely a component proof or external evidence.
@@ -247,12 +250,12 @@ production composition, not merely a component proof or external evidence.
 | M2 | 72 | 69 | 3 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
-| M5 | 42 | 39 | 3 | 0 | 0 |
+| M5 | 42 | 40 | 2 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
 | M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **534** | **133** | **61** | **0** |
+| **Total** | **728** | **535** | **132** | **61** | **0** |
 
 ## Prerequisite work
 

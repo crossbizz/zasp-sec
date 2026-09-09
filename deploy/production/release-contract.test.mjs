@@ -36,6 +36,59 @@ test("Attack Lab test IAM identity trusts only its run service account and denie
   assert.match(policy, /policy\s*=\s*aws_iam_policy\.attack_lab_runner_test_boundary\.policy/);
 });
 
+test("Attack Lab routes image pulls through its own bucket-restricted S3 endpoint", async () => {
+  const terraform = await readFile(new URL("../staging/main.tf", import.meta.url), "utf8");
+  const block = (kind, name) => terraform.match(new RegExp(`resource "${kind}" "${name}" \\{[\\s\\S]*?(?=\\nresource |$)`))?.[0] ?? "";
+  const subnet = block("aws_subnet", "attack_lab");
+  assert.match(subnet, /cidr_block\s*=\s*local\.attack_lab_subnet_cidrs\[count.index\]/);
+  assert.match(subnet, /map_public_ip_on_launch\s*=\s*false/);
+  assert.match(subnet, /precondition/);
+  const association = block("aws_route_table_association", "attack_lab");
+  assert.match(association, /subnet_id\s*=\s*aws_subnet\.attack_lab\[count.index\]\.id/);
+  assert.match(association, /route_table_id\s*=\s*aws_route_table\.attack_lab\.id/);
+  assert.match(block("aws_eks_fargate_profile", "attack_lab"), /subnet_ids\s*=\s*aws_subnet\.attack_lab\[\*\]\.id/);
+  const endpoint = block("aws_vpc_endpoint", "attack_lab_s3");
+  assert.match(endpoint, /route_table_ids\s*=\s*\[aws_route_table\.attack_lab\.id\]/);
+  assert.match(endpoint, /policy\s*=\s*jsonencode\(local\.attack_lab_network\.image_layer_policy\)/);
+  assert.match(block("aws_vpc_endpoint", "s3"), /route_table_ids\s*=\s*\[aws_vpc\.staging\.main_route_table_id\]/);
+  assert.match(block("aws_vpc_security_group_egress_rule", "attack_lab_runner_s3"), /prefix_list_id\s*=\s*aws_vpc_endpoint\.attack_lab_s3\.prefix_list_id/);
+});
+
+test("Attack Lab security group consumes the executable bounded egress contract", async () => {
+  const terraform = await readFile(new URL("../staging/main.tf", import.meta.url), "utf8");
+  const contract = JSON.parse(await readFile(new URL("../staging/attack-lab-egress-contract.json", import.meta.url), "utf8"));
+  assert.deepEqual(contract.rules, {
+    proxy: { protocol: "tcp", port: 8443 }, ecr: { protocol: "tcp", port: 443 },
+    s3: { protocol: "tcp", port: 443 }, control_plane: { protocol: "tcp", port: 443 },
+    dns_udp: { protocol: "udp", port: 53 }, dns_tcp: { protocol: "tcp", port: 53 },
+  });
+  assert.deepEqual(contract.image_layer_policy, { Version: "2012-10-17", Statement: [{
+    Sid: "ImageLayersOnly", Effect: "Allow", Principal: "*", Action: "s3:GetObject",
+    Resource: "arn:${partition}:s3:::prod-${region}-starport-layer-bucket/*",
+  }] });
+  const groups = [...terraform.matchAll(/resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_([^"]+)" \{([\s\S]*?)(?=\nresource |$)/g)];
+  assert.deepEqual(groups.map(([, name]) => name).sort(), Object.keys(contract.rules).sort());
+  const destinations = {
+    proxy: "aws_security_group.attack_lab_proxy.id", ecr: "aws_security_group.attack_lab_ecr_endpoints.id",
+    s3: "aws_vpc_endpoint.attack_lab_s3.prefix_list_id",
+    control_plane: "aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id",
+    dns_udp: "aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id",
+    dns_tcp: "aws_eks_cluster.staging.vpc_config[0].cluster_security_group_id",
+  };
+  for (const [, name, body] of groups) {
+    assert.match(body, new RegExp(`ip_protocol\\s*=\\s*local\\.attack_lab_network\\.rules\\.${name}\\.protocol`));
+    for (const key of ["from_port", "to_port"]) assert.match(body, new RegExp(`${key}\\s*=\\s*local\\.attack_lab_network\\.rules\\.${name}\\.port`));
+    assert.doesNotMatch(body, /cidr_ipv[46]/);
+    const targetKey = name === "s3" ? "prefix_list_id" : "referenced_security_group_id";
+    assert.equal(body.match(new RegExp(`${targetKey}\\s*=\\s*([^\\n]+)`))?.[1].trim(), destinations[name]);
+  }
+  const allEgress = [...terraform.matchAll(/resource "aws_vpc_security_group_egress_rule" "([^"]+)" \{([\s\S]*?)(?=\nresource |$)/g)].filter(([, , body]) => /security_group_id\s*=\s*aws_security_group\.attack_lab\.id\s/.test(body));
+  assert.equal(allEgress.length, 6, "no alternate runner egress rules");
+  const runnerGroup = terraform.match(/resource "aws_security_group" "attack_lab" \{([\s\S]*?)(?=\nresource |$)/)?.[1] ?? "";
+  assert.doesNotMatch(runnerGroup, /egress\s*\{/);
+  for (const [, body] of terraform.matchAll(/resource "aws_security_group_rule" "[^"]+" \{([\s\S]*?)(?=\nresource |$)/g)) assert.doesNotMatch(body, /aws_security_group\.attack_lab\.id/);
+});
+
 test("production container builds are exact, non-root, health-bound, and secret-free", async () => {
   const builds = await inspectContainerBuilds();
   assert.deepEqual(builds.map(({ name, user, port }) => ({ name, user, port })), [
@@ -1615,11 +1668,11 @@ test("terraform isolates Attack Lab queue evidence proxy and runner pod networks
   assert.doesNotMatch(policy, /"(?:s3|sqs|secretsmanager):\*"/);
   const runnerGroup = terraform.slice(terraform.indexOf('resource "aws_security_group" "attack_lab"'), terraform.indexOf("\nresource ", terraform.indexOf('resource "aws_security_group" "attack_lab"') + 1));
   assert.doesNotMatch(runnerGroup, /cidr_blocks\s*=\s*\[aws_vpc\.staging\.cidr_block\]/);
-  assert.match(terraform, /referenced_security_group_id\s*=\s*aws_security_group\.attack_lab_proxy\.id[\s\S]*?from_port\s*=\s*8443[\s\S]*?to_port\s*=\s*8443/);
+  assert.ok(/resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_proxy"[\s\S]*?referenced_security_group_id\s*=\s*aws_security_group\.attack_lab_proxy\.id[\s\S]*?from_port\s*=\s*local\.attack_lab_network\.rules\.proxy\.port/.test(terraform));
   assert.match(terraform, /referenced_security_group_id\s*=\s*aws_security_group\.attack_lab\.id[\s\S]*?from_port\s*=\s*8443[\s\S]*?to_port\s*=\s*8443/);
   assert.match(terraform, /security_group_id\s*=\s*aws_security_group\.attack_lab_proxy\.id[\s\S]*?referenced_security_group_id\s*=\s*aws_eks_cluster\.staging\.vpc_config\[0\]\.cluster_security_group_id[\s\S]*?from_port\s*=\s*8081[\s\S]*?to_port\s*=\s*8081/);
-  assert.match(terraform, /resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_s3"[\s\S]*?prefix_list_id\s*=\s*aws_vpc_endpoint\.s3\.prefix_list_id[\s\S]*?from_port\s*=\s*443[\s\S]*?to_port\s*=\s*443/);
-  assert.match(terraform, /resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_control_plane"[\s\S]*?referenced_security_group_id\s*=\s*aws_eks_cluster\.staging\.vpc_config\[0\]\.cluster_security_group_id[\s\S]*?from_port\s*=\s*443[\s\S]*?to_port\s*=\s*443/);
+  assert.ok(/resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_s3"[\s\S]*?prefix_list_id\s*=\s*aws_vpc_endpoint\.attack_lab_s3\.prefix_list_id[\s\S]*?from_port\s*=\s*local\.attack_lab_network\.rules\.s3\.port/.test(terraform));
+  assert.ok(/resource "aws_vpc_security_group_egress_rule" "attack_lab_runner_control_plane"[\s\S]*?referenced_security_group_id\s*=\s*aws_eks_cluster\.staging\.vpc_config\[0\]\.cluster_security_group_id[\s\S]*?from_port\s*=\s*local\.attack_lab_network\.rules\.control_plane\.port/.test(terraform));
   assert.match(terraform, /resource "aws_vpc_security_group_ingress_rule" "attack_lab_runner_kubelet"[\s\S]*?referenced_security_group_id\s*=\s*aws_eks_cluster\.staging\.vpc_config\[0\]\.cluster_security_group_id[\s\S]*?from_port\s*=\s*10250[\s\S]*?to_port\s*=\s*10250/);
   assert.match(terraform, /for_each\s*=\s*toset\(var\.attack_lab_target_egress_cidrs\)/);
   for (const principal of ["attack_lab_controller", "attack_lab_outbox", "attack_lab_proxy"]) {
