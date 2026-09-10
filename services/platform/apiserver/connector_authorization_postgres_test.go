@@ -1068,23 +1068,15 @@ func TestConnectorAuthorizationPostgresOneClaimNeverLeasesSameGlobalLaneAcrossSc
 }
 
 func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousandRowSkew(t *testing.T) {
-	dsn := startDisposablePostgres(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	connection, err := pgx.Connect(ctx, dsn)
-	if err != nil {
+	connection, runner := reconciliationLanePlanPredecessor(t, ctx)
+	if err := runner.UpProductionReconciliationLanePlan(ctx); err != nil {
 		t.Fatal(err)
 	}
-	defer connection.Close(ctx)
-	migrateToConnectorAuthorization(t, ctx, connection)
-	database, _ := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: connection})
-	workflows, _ := NewPostgresRepository(database)
 	identity := fixtureRequestIdentity(t)
-	integrationID := "pid_72430001-0000-4000-8000-000000000001"
-	create := WorkflowMutation{Action: "create", Kind: "integration", ID: integrationID, Operation: "createIntegration", IdempotencyKey: "index-skew-create-0001", Intent: json.RawMessage(`{"body":{"connector_key":"github"},"expected_version":0,"resource_id":""}`), Body: json.RawMessage(`{"id":"` + integrationID + `","connector_key":"github","name":"Index Skew","configuration":{"authorization_mode":"github_app"},"status":"pending_authorization","created_at":"2026-08-19T00:00:00Z","updated_at":"2026-08-19T00:00:00Z"}`), AuditID: "pid_72430002-0000-4000-8000-000000000002", CorrelationID: "pid_72430003-0000-4000-8000-000000000003", ReceiptID: "pid_72430004-0000-4000-8000-000000000004"}
-	if _, err := workflows.MutateWorkflow(ctx, identity, create); err != nil {
-		t.Fatal(err)
-	}
+	// This is a database query-plan fixture, not an integration enrollment proof.
+	integrationID := invocationIntegration
 	if _, err := connection.Exec(ctx, `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,attempt,available_at,updated_at)
 	 SELECT $1,$2,$3,'pid_'||substr(hash,1,8)||'-'||substr(hash,9,4)||'-4'||substr(hash,14,3)||'-8'||substr(hash,18,3)||'-'||substr(hash,21,12),$4,'github','bind','index-skew-'||lpad(ordinal::text,10,'0'),digest(ordinal::text,'sha256'),'unknown',0,transaction_timestamp()-interval '1 minute',transaction_timestamp()-interval '1 minute'
 	 FROM (SELECT ordinal,md5(ordinal::text) hash FROM generate_series(1,100000) ordinal) generated`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID); err != nil {
@@ -1106,26 +1098,10 @@ func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousand
 	}
 	defer connection.Exec(context.Background(), `RESET enable_seqscan`)
 	var candidatePlan, activePlan []byte
-	if err := connection.QueryRow(ctx, `EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON)
-	 WITH candidates AS (
-	   SELECT lane.provider,lane.operation,effect.organization_id,effect.workspace_id,effect.environment_id,effect.id,effect.updated_at
-	   FROM zasp_connector_effect_lane_scopes lane CROSS JOIN LATERAL (
-	     SELECT candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.id,candidate.updated_at
-	     FROM zasp_connector_effects candidate
-	     WHERE candidate.provider=lane.provider AND candidate.operation=lane.operation AND candidate.organization_id=lane.organization_id AND candidate.workspace_id=lane.workspace_id AND candidate.environment_id=lane.environment_id
-	       AND candidate.status='unknown' AND candidate.attempt<100 AND candidate.available_at<=transaction_timestamp() AND candidate.updated_at<=transaction_timestamp()-interval '15 seconds'
-	       AND (candidate.lease_expires_at IS NULL OR candidate.lease_expires_at<=transaction_timestamp())
-	       AND NOT EXISTS(SELECT 1 FROM zasp_connector_effects live WHERE live.provider=candidate.provider AND live.operation=candidate.operation AND live.status='unknown' AND live.lease_expires_at>transaction_timestamp())
-	       AND (candidate.operation<>'pkce_cleanup' OR candidate.oauth_attempt_id IS NULL OR NOT EXISTS(SELECT 1 FROM zasp_connector_oauth_attempts attempt WHERE (attempt.organization_id,attempt.workspace_id,attempt.environment_id,attempt.id)=(candidate.organization_id,candidate.workspace_id,candidate.environment_id,candidate.oauth_attempt_id) AND attempt.status='consuming'))
-	     ORDER BY candidate.updated_at,candidate.id LIMIT 1
-	   ) effect
-	 ), lane_fair AS (
-	   SELECT candidates.*,row_number() OVER(PARTITION BY provider,operation ORDER BY updated_at,id) lane_rank FROM candidates
-	 ), fair AS (
-	   SELECT lane_fair.*,row_number() OVER(PARTITION BY organization_id,workspace_id,environment_id ORDER BY updated_at,id) organization_rank FROM lane_fair WHERE lane_rank=1
-	 )
-	 SELECT effect.id FROM zasp_connector_effects effect JOIN fair ON (fair.organization_id,fair.workspace_id,fair.environment_id,fair.id)=(effect.organization_id,effect.workspace_id,effect.environment_id,effect.id)
-	 ORDER BY fair.organization_rank,effect.updated_at,effect.id LIMIT 25`).Scan(&candidatePlan); err != nil {
+	if _, err := connection.Exec(ctx, `ALTER TABLE zasp_connector_effects ALTER COLUMN provider SET (n_distinct=25); ANALYZE zasp_connector_effects`); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) "+reconciliationCandidateQuery(t, ctx, connection)).Scan(&candidatePlan); err != nil {
 		t.Fatal(err)
 	}
 	if err := connection.QueryRow(ctx, `EXPLAIN (FORMAT JSON) SELECT 1 FROM zasp_connector_effects WHERE provider='github' AND operation='bind' AND status='unknown' AND lease_expires_at>transaction_timestamp() LIMIT 1`).Scan(&activePlan); err != nil {
@@ -1137,6 +1113,28 @@ func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousand
 	var decodedPlan any
 	if json.Unmarshal(candidatePlan, &decodedPlan) != nil || maxJSONPlanMetric(decodedPlan, "Actual Rows") > 256 || maxJSONPlanMetric(decodedPlan, "Shared Read Blocks") > 2048 || maxJSONPlanMetric(decodedPlan, "Temp Written Blocks") != 0 || strings.Contains(string(candidatePlan), `"Sort Method": "external`) {
 		t.Fatalf("unbounded reconciliation candidate plan=%s", candidatePlan)
+	}
+	// Keep the original bounds and also exercise the normal planner, with both
+	// the observed sampled cardinality and the exact lane cardinality. Repeated
+	// plans use a warm cache; row-work bounds remain meaningful in every case.
+	for _, cardinality := range []int{25, 101} {
+		if _, err := connection.Exec(ctx, fmt.Sprintf("ALTER TABLE zasp_connector_effects ALTER COLUMN provider SET (n_distinct=%d); ANALYZE zasp_connector_effects; RESET enable_seqscan", cardinality)); err != nil {
+			t.Fatal(err)
+		}
+		if err := connection.QueryRow(ctx, "EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) "+reconciliationCandidateQuery(t, ctx, connection)).Scan(&candidatePlan); err != nil {
+			t.Fatal(err)
+		}
+		decodedPlan = nil
+		if json.Unmarshal(candidatePlan, &decodedPlan) != nil || !strings.Contains(string(candidatePlan), "zasp_connector_effect_candidate_lane_idx") || maxJSONPlanMetric(decodedPlan, "Actual Rows") > 256 || maxJSONPlanMetric(decodedPlan, "Shared Read Blocks") > 2048 || maxJSONPlanMetric(decodedPlan, "Temp Written Blocks") != 0 || strings.Contains(string(candidatePlan), `"Sort Method": "external`) {
+			t.Fatalf("normal planner cardinality=%d unbounded plan=%s", cardinality, candidatePlan)
+		}
+		t.Logf("normal planner cardinality=%d ordered index, maxRows=%v sharedReads=%v", cardinality, maxJSONPlanMetric(decodedPlan, "Actual Rows"), maxJSONPlanMetric(decodedPlan, "Shared Read Blocks"))
+	}
+	// Restore the original retirement fixture's planner setting after the added
+	// normal-planner candidate checks. Default-planner retirement still has a
+	// separately reproduced dead-tuple I/O defect; this is not proof of its fix.
+	if _, err := connection.Exec(ctx, `SET enable_seqscan=off`); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := connection.Exec(ctx, `UPDATE zasp_connector_effects SET status='failed',last_error_code='provider_access_denied',resolved_at=transaction_timestamp(),updated_at=transaction_timestamp() WHERE status='unknown'`); err != nil {
 		t.Fatal(err)
