@@ -488,6 +488,13 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 	for key, value := range routed.PathParameters {
 		parameters[key] = value
 	}
+	if routed.OperationID == "getSessionEvent" {
+		writer.Header().Set("Cache-Control", "no-store")
+		if request.URL.RawQuery != "" || !validRouteParameters(routed.OperationID, parameters) {
+			writeProductionError(writer, request, ErrRepositoryOperation)
+			return
+		}
+	}
 	list := administrationPagedOperation(routed.OperationID)
 	if list {
 		allowed := map[string]int{"cursor": 512, "limit": 3}
@@ -556,7 +563,7 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 			parameters["after_time"] = position.AfterTime
 		}
 	}
-	if id := parameters["id"]; id != "" && routed.OperationID != "getSession" && routed.OperationID != "listSessionEvents" && !validAdministrationProductID(id) {
+	if id := parameters["id"]; id != "" && routed.OperationID != "getSession" && routed.OperationID != "listSessionEvents" && routed.OperationID != "getSessionEvent" && !validAdministrationProductID(id) {
 		writeProductionError(writer, request, ErrRepositoryNotFound)
 		return
 	}

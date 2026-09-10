@@ -89,7 +89,7 @@ func AdaptTetragon(input TetragonInput) (Record, error) {
 	trace := digestHex("trace\x00" + input.SourceEventID)[:32]
 	span := digestHex("span\x00" + input.SourceEventID)[:16]
 	record, err := buildRecord(input.Scope, "tetragon", input.SourceEventID, input.Kind, input.Action, input.WorkloadID,
-		domain.ProductID{}, domain.ProductID{}, "", "", "", "", "", "", trace, span, input.EventTime, input.EvidenceID, input.Content)
+		domain.ProductID{}, domain.ProductID{}, "", "", "", "", "", "", trace, span, input.EventTime, input.EvidenceID, input.Content, input.SearchMetadata)
 	if err != nil {
 		return Record{}, err
 	}
@@ -109,13 +109,13 @@ func AdaptOTLP(input OTLPInput) (Record, error) {
 	}
 	agentID, agentErr := domain.ParseProductID(input.Attributes["agent.id"])
 	sessionID, sessionErr := domain.ParseProductID(input.Attributes["session.id"])
-	if agentErr != nil || sessionErr != nil || input.Attributes["event.class"] != "tool" || input.Attributes["event.action"] != "invoke" ||
+	if agentErr != nil || sessionErr != nil || !validOTLPEvent(input.Attributes["event.class"], input.Attributes["event.action"], input.SearchMetadata, input.Content) ||
 		!bounded(input.Attributes["event.id"], 256) || !bounded(input.Attributes["task.id"], 256) || !bounded(input.Attributes["tool.id"], 256) || !bounded(input.Attributes["sandbox.id"], 256) {
 		return Record{}, ErrInput
 	}
-	record, err := buildRecord(input.Scope, "otlp", input.Attributes["event.id"], "tool", "invoke", "", agentID, sessionID,
+	record, err := buildRecord(input.Scope, "otlp", input.Attributes["event.id"], input.Attributes["event.class"], input.Attributes["event.action"], "", agentID, sessionID,
 		input.Attributes["task.id"], input.Attributes["tool.id"], input.Attributes["sandbox.id"], "", "", "",
-		input.Attributes["trace.id"], input.Attributes["span.id"], input.EventTime, input.EvidenceID, input.Content)
+		input.Attributes["trace.id"], input.Attributes["span.id"], input.EventTime, input.EvidenceID, input.Content, input.SearchMetadata)
 	if err != nil {
 		return Record{}, err
 	}
@@ -124,7 +124,7 @@ func AdaptOTLP(input OTLPInput) (Record, error) {
 }
 
 func buildRecord(scope domain.Scope, source, sourceEventID, class, action, workload string, agentID, sessionID domain.ProductID,
-	taskID, toolID, sandboxID, containerID, cgroupID, processID, traceID, spanID string, eventTime time.Time, evidenceID domain.ProductID, content map[string]string,
+	taskID, toolID, sandboxID, containerID, cgroupID, processID, traceID, spanID string, eventTime time.Time, evidenceID domain.ProductID, content map[string]string, metadata runtimemetadata.Fields,
 ) (Record, error) {
 	id, err := deterministicID(scopeIdentity(scope) + "\x00" + source + "\x00" + sourceEventID)
 	if err != nil {
@@ -150,7 +150,7 @@ func buildRecord(scope domain.Scope, source, sourceEventID, class, action, workl
 	if err != nil {
 		return Record{}, ErrInput
 	}
-	record := Record{ID: id, Scope: scope, Event: event, Source: source, SourceEventID: sourceEventID, Class: class, Action: action,
+	record := Record{SearchMetadata: metadata, ID: id, Scope: scope, Event: event, Source: source, SourceEventID: sourceEventID, Class: class, Action: action,
 		WorkloadID: workload, AgentID: agentID, SessionID: sessionID, TaskID: taskID, ToolID: toolID, SandboxID: sandboxID,
 		ContainerID: containerID, CgroupID: cgroupID, ProcessID: processID, TraceID: traceID, SpanID: spanID,
 		EventTime: eventTime, Content: cloneContent(content)}
@@ -540,7 +540,23 @@ func validRecord(record Record) bool {
 		}
 		return bounded(record.WorkloadID, 256) && allowed[record.Class][record.Action]
 	}
-	return record.Source == "otlp" && record.Class == "tool" && record.Action == "invoke" && !record.AgentID.IsZero() && !record.SessionID.IsZero() && bounded(record.TaskID, 256) && bounded(record.ToolID, 256) && bounded(record.SandboxID, 256)
+	return record.Source == "otlp" && validOTLPEvent(record.Class, record.Action, record.SearchMetadata, record.Content) && !record.AgentID.IsZero() && !record.SessionID.IsZero() && bounded(record.TaskID, 256) && bounded(record.ToolID, 256) && bounded(record.SandboxID, 256)
+}
+
+// Semantic observations do not assert that a gateway enforced a decision or
+// that a credential was verified by its provider. Never accept raw content for
+// these classes, including when the sensor otherwise permits full collection.
+func validOTLPEvent(class, action string, metadata runtimemetadata.Fields, content map[string]string) bool {
+	if class == "tool" {
+		return action == "invoke"
+	}
+	if len(content) != 0 {
+		return false
+	}
+	if class == "credential" {
+		return action == "use" && metadata.CredentialID != ""
+	}
+	return class == "policy" && (action == "allow" || action == "monitor" || action == "block") && metadata.Decision == action
 }
 
 func validRecordEnvelope(record Record) bool {

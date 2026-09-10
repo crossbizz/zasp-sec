@@ -122,6 +122,8 @@ func (repository *PostgresRepository) ReadAdministration(ctx context.Context, id
 			return repository.readRuntimeSession(ctx, identity, operation, parameters)
 		}
 		return repository.database.QueryJSON(ctx, postgresListSessionEventsSQL, identity.Scope.OrganizationID().String(), parameters["id"], identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), optionalAdministrationTime(parameters["after_time"]), parameters["after_id"], adminLimit(parameters)+1)
+	case "getSessionEvent":
+		return repository.readRuntimeSession(ctx, identity, operation, parameters)
 	case "listComplianceControls":
 		return repository.database.QueryJSON(ctx, postgresListComplianceControlsSQL, identity.Scope.OrganizationID().String(), parameters["after_id"], adminLimit(parameters)+1)
 	case "listComplianceEvidence":

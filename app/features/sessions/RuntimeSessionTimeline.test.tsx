@@ -1,9 +1,10 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createAPIClient } from "../../../apps/web/api/client";
 import type { RuntimeSession, RuntimeSessionEvent, RuntimeSessionEventPage } from "../../../apps/web/api/generated";
 import { createRuntimeSessionTimelineAPI, RuntimeSessionTimeline, type RuntimeSessionTimelineAPI } from "./RuntimeSessionTimeline";
+import type { RuntimeSessionEvidenceAPI } from "./RuntimeSessionEvidence";
 
 const id = "pid_10000001-0000-4000-8000-000000000001";
 const agent = "pid_10000002-0000-4000-8000-000000000002";
@@ -16,6 +17,18 @@ const page = (items: readonly RuntimeSessionEvent[], cursor: string | null = nul
 const api = (overrides: Partial<RuntimeSessionTimelineAPI> = {}): RuntimeSessionTimelineAPI => ({ get: async () => summary, events: async () => page([first, second]), ...overrides });
 
 describe("canonical runtime timeline", () => {
+  it("opens an exact evidence link through the product API and clears it on client change", async () => {
+    const get = vi.fn<RuntimeSessionEvidenceAPI["get"]>(async () => first);
+    const view = render(<RuntimeSessionTimeline id={id} api={api()} evidenceAPI={{ get }} />);
+    await screen.findByText("First canonical event");
+    await userEvent.click(screen.getAllByRole("link", { name: `Open evidence ${id}` })[0]);
+    const dialog = screen.getByRole("dialog", { name: "Evidence metadata" });
+    expect(await within(dialog).findByText("Raw archive content is not included in this view.")).toBeVisible();
+    expect(get.mock.calls[0][0]).toEqual({ investigationID: id, eventID: id, evidenceID: id });
+    view.rerender(<RuntimeSessionTimeline id={laterID} api={api({ get: async () => ({ ...summary, id: laterID }), events: async () => page([{ ...second, session_id: laterID }]) })} evidenceAPI={{ get }} />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await screen.findByText("Second canonical event");
+  });
   it("uses generated detail and bounded event APIs and verifies target identity", async () => {
     const requests: Request[] = [];
     const client = createAPIClient({ fetch: async request => { requests.push(request); return new Response(JSON.stringify(new URL(request.url).pathname.endsWith("/events") ? page([first, second]) : summary), { headers: { "content-type": "application/json" } }); } });

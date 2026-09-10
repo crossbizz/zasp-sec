@@ -2,7 +2,7 @@ import type { RuntimeSession, RuntimeSessionEvent, RuntimeSessionEventPage, Runt
 
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const CONFIDENCE = ["exact", "strong", "probable", "unattributed"];
-const ACTIONS: Record<string, readonly string[]> = { tool: ["invoke"], runtime: ["exec", "exit"], file: ["read", "write"], network: ["connect", "accept"] };
+const ACTIONS: Record<string, readonly string[]> = { tool: ["invoke"], runtime: ["exec", "exit"], file: ["read", "write"], network: ["connect", "accept"], credential: ["use"], policy: ["allow", "monitor", "block"] };
 
 export function decodeRuntimeSession(value: unknown): RuntimeSession {
   const record = exact(value, ["id", "kind", "workspace_id", "environment_id", "agent_id", "principal_id", "first_event_at", "last_event_at", "projected_at", "event_count", "confidence_counts"]);
@@ -30,6 +30,7 @@ export function decodeRuntimeSessionEvent(value: unknown): RuntimeSessionEvent {
   if ([...record.label as string].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)) bad();
   if (typeof record.class !== "string" || !Object.hasOwn(ACTIONS, record.class) || typeof record.action !== "string" || !ACTIONS[record.class].includes(record.action)) bad();
   if (record.source !== "otlp" && record.source !== "tetragon") bad();
+  if (!(record.source === "otlp" ? ["tool", "credential", "policy"] : ["runtime", "file", "network"]).includes(record.class)) bad();
   if (typeof record.confidence !== "string" || !CONFIDENCE.includes(record.confidence)) bad();
   const attributed = record.confidence === "exact" || record.confidence === "strong";
   if (attributed ? record.session_id === null || record.agent_id === null : record.session_id !== null || record.agent_id !== null) bad();

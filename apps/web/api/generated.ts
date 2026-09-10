@@ -1874,6 +1874,29 @@ export type paths = {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/sessions/{id}/events/{eventId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly eventId: components["schemas"]["ProductID"];
+                readonly id: components["schemas"]["ProductID"] | "unattributed";
+            };
+            readonly cookie?: never;
+        };
+        /**
+         * Get exact authorized runtime evidence metadata
+         * @description Canonical event metadata only. Raw archive content is excluded. Credential use and policy decisions are source observations, not provider ownership or enforcement attestations. Console login events are not supported by this endpoint.
+         */
+        readonly get: operations["getSessionEvent"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/settings/data-controls": {
         readonly parameters: {
             readonly query?: never;
@@ -3311,12 +3334,12 @@ export type components = {
         };
         readonly RuntimeSessionEvent: {
             /** @enum {string} */
-            readonly action: "invoke" | "exec" | "exit" | "read" | "write" | "connect" | "accept";
+            readonly action: "invoke" | "exec" | "exit" | "read" | "write" | "connect" | "accept" | "use" | "allow" | "monitor" | "block";
             readonly agent_id: string | null;
             /** Format: date-time */
             readonly at: string;
             /** @enum {string} */
-            readonly class: "tool" | "runtime" | "network" | "file";
+            readonly class: "tool" | "runtime" | "network" | "file" | "credential" | "policy";
             /** @enum {string} */
             readonly confidence: "exact" | "strong" | "probable" | "unattributed";
             readonly evidence_id: components["schemas"]["ProductID"];
@@ -8213,6 +8236,34 @@ export interface operations {
                 };
             };
             readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly default: components["responses"]["ProductErrorResponse"];
+        };
+    };
+    readonly getSessionEvent: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly eventId: components["schemas"]["ProductID"];
+                readonly id: components["schemas"]["ProductID"] | "unattributed";
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Exact canonical event and evidence reference. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control"?: "no-store";
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["RuntimeSessionEvent"];
+                };
+            };
+            readonly 401: components["responses"]["ProductErrorResponse"];
+            readonly 403: components["responses"]["ProductErrorResponse"];
+            readonly 404: components["responses"]["ProductErrorResponse"];
             readonly default: components["responses"]["ProductErrorResponse"];
         };
     };

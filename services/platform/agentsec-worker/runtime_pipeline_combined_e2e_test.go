@@ -185,6 +185,10 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	for i := range events {
 		events[i] = map[string]any{"event_id": fmt.Sprintf("runtime-pipeline-%d", i+1), "class": "process", "action": "exec", "workload_id": "runtime-pipeline", "event_time": now.Add(-time.Duration(i) * time.Second).Format("2006-01-02T15:04:05.000Z"), "evidence_id": fmt.Sprintf("pid_78000103-0000-4000-8000-%012d", i+103), "content": map[string]string{"binary": "agent"}, "search_metadata": map[string]string{"process_digest": processDigest}}
 	}
+	// Keep the same 26 canonical timestamps and process selector while proving
+	// the three kernel observation classes through the actual workers.
+	events[1]["class"], events[1]["action"] = "file", "read"
+	events[2]["class"], events[2]["action"] = "network", "connect"
 	body, err := json.Marshal(map[string]any{"source": "tetragon", "events": events})
 	if err != nil {
 		t.Fatal(err)
@@ -636,6 +640,167 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	if correlationGraph.calls != 1 || projectionGraph.calls != 1 {
 		t.Fatal("unexpected downstream graph fixture calls")
 	}
+	// A separately enrolled OTLP source supplies semantic observations. Kernel
+	// events never acquire these classes, semantic IDs, or Exact confidence.
+	const semanticSensor = "pid_78000201-0000-4000-8000-000000000201"
+	const semanticSession = "pid_78000202-0000-4000-8000-000000000202"
+	const semanticAgent = "pid_78000203-0000-4000-8000-000000000203"
+	semanticTokenID := workerID(t, "pid_78000204-0000-4000-8000-000000000204")
+	if _, err := admin.Exec(ctx, `INSERT INTO zasp_sensors(organization_id,workspace_id,environment_id,id,name,kind,state) VALUES($1,$2,$3,$4,'Semantic pipeline proof','otlp','active')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), semanticSensor); err != nil {
+		t.Fatal(err)
+	}
+	semanticCredential, err := sensor.NewTokenCredential(bytes.Repeat([]byte{0x69}, 16), bytes.Repeat([]byte{0x79}, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer semanticCredential.Destroy()
+	semanticLocator, err := semanticCredential.LocatorDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	semanticHash, err := semanticCredential.Hash(sensor.SensorTokenAudienceEventIngest, semanticTokenID, 1, salt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, `SELECT zasp_runtime_issue_sensor_token($1,$2,$3,$4,$5,1,1,$6,$7,$8,transaction_timestamp()+interval '1 day')`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), semanticSensor, semanticTokenID.String(), semanticLocator[:], salt, semanticHash[:]); err != nil {
+		t.Fatal(err)
+	}
+	semanticWire, err := semanticCredential.Wire()
+	if err != nil {
+		t.Fatal(err)
+	}
+	semanticEvents := make([]map[string]any, 0, 3)
+	for i, pair := range [][2]string{{"tool", "invoke"}, {"credential", "use"}, {"policy", "block"}} {
+		metadata := map[string]string{}
+		if pair[0] == "credential" {
+			metadata["credential_id"] = "pid_78000205-0000-4000-8000-000000000205"
+		}
+		if pair[0] == "policy" {
+			metadata["decision"] = pair[1]
+		}
+		semanticEvents = append(semanticEvents, map[string]any{
+			"attributes":  map[string]string{"event.id": fmt.Sprintf("semantic-pipeline-%d", i), "event.class": pair[0], "event.action": pair[1], "agent.id": semanticAgent, "session.id": semanticSession, "task.id": "semantic-task", "tool.id": "semantic-tool", "sandbox.id": "semantic-sandbox", "trace.id": strings.Repeat("a", 32), "span.id": strings.Repeat("b", 16)},
+			"event_time":  now.Add(-time.Duration(30+i) * time.Second).Format("2006-01-02T15:04:05.000Z"),
+			"evidence_id": fmt.Sprintf("pid_78000206-0000-4000-8000-%012d", 206+i), "search_metadata": metadata,
+		})
+	}
+	semanticBody, err := json.Marshal(map[string]any{"source": "otlp", "events": semanticEvents})
+	if err != nil {
+		t.Fatal(err)
+	}
+	semanticIngest := func() *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPost, "/internal/v1/runtime/events", bytes.NewReader(semanticBody)).WithContext(ctx)
+		request.Header.Set("Authorization", "Bearer "+semanticWire)
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("X-Zasp-Runtime-Schema", "runtime-event-v1")
+		request.Header.Set("Idempotency-Key", "semantic-pipeline-proof-0001")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		return response
+	}
+	semanticAccepted := semanticIngest()
+	var semanticBatch struct {
+		BatchID string `json:"batch_id"`
+	}
+	if semanticAccepted.Code != http.StatusAccepted || json.Unmarshal(semanticAccepted.Body.Bytes(), &semanticBatch) != nil || semanticBatch.BatchID == "" {
+		t.Fatalf("semantic ingest status=%d body=%s", semanticAccepted.Code, semanticAccepted.Body.String())
+	}
+	if err := outbox.RunOnce(ctx); err != nil || len(publisher.jobs) != 2 {
+		t.Fatalf("semantic outbox: %v", err)
+	}
+	semanticCoordinatorResult := make(chan error, 1)
+	go func() { semanticCoordinatorResult <- coordinator.Processor.RunOnce(ctx) }()
+	semanticCorrelation, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: archive, Receipts: receipts, Graph: &runtimeCorrelationGraphStoreStub{}, ImplementationVersion: "runtime-correlation-v1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	semanticProjection, err := newRuntimeProjectionExecutor(runtimeProjectionExecutorConfig{Reader: archive, Receipts: receipts, Graph: &runtimeCorrelationGraphStoreStub{}, ImplementationVersion: "runtime-projection-v1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stage := range []struct {
+		config    workerRuntimeConfig
+		principal string
+		executor  runtimeStageExecutor
+	}{
+		{validRuntimeArchiveConfig(), "zasp_e2e_archive", archive},
+		{validRuntimeIndexConfig(), "zasp_e2e_index", indexExecutor},
+		{validRuntimeCorrelationConfig(), "zasp_e2e_correlation", semanticCorrelation},
+		{validRuntimeProjectionConfig(), "zasp_e2e_runtime_projection", semanticProjection},
+		{validRuntimeCompleteConfig(), "zasp_e2e_coordinator", complete},
+	} {
+		stageName, _, ok := runtimeStageBinding(stage.config.Mode)
+		if !ok {
+			t.Fatal("invalid semantic stage")
+		}
+		dependencies := &productionRuntimeStageDependencies{Stage: stageName, Executor: stage.executor, ready: func(context.Context) error { return nil }, close: func() error { return nil }}
+		if stageName == runtimeevent.RuntimeStageIndex {
+			dependencies.Sessions, dependencies.SessionReady = sessionExecutor, sessionIndex.Ready
+		}
+		runtime, err := composeRuntimeStageWorkerRuntime(stage.config, database(stage.principal), dependencies)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var state string
+		for attempt := 0; attempt < 100; attempt++ {
+			if err := runtime.Processor.RunOnce(ctx); err != nil {
+				t.Fatalf("semantic stage %s: %v", stageName, err)
+			}
+			err := admin.QueryRow(ctx, `SELECT state FROM zasp_runtime_stage_work WHERE batch_id=$1 AND stage=$2`, semanticBatch.BatchID, string(stageName)).Scan(&state)
+			if err != nil && err != pgx.ErrNoRows {
+				t.Fatal(err)
+			}
+			if state == "succeeded" {
+				break
+			}
+			if state != "" && state != "pending" && state != "leased" {
+				t.Fatalf("semantic stage %s state=%s", stageName, state)
+			}
+			select {
+			case <-ctx.Done():
+				t.Fatal(ctx.Err())
+			case <-time.After(50 * time.Millisecond):
+			}
+		}
+		if state != "succeeded" {
+			t.Fatalf("semantic stage %s did not complete", stageName)
+		}
+	}
+	select {
+	case err := <-semanticCoordinatorResult:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	if err := sessionWorker.RunOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var semanticCount, classCount int
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_events event JOIN zasp_runtime_session_projection_receipts receipt USING(organization_id,workspace_id,environment_id) WHERE receipt.batch_id=$1 AND event.event_id=ANY(receipt.event_ids) AND event.confidence='exact' AND event.session_id=$2 AND event.agent_id=$3 AND event.source='otlp'`, semanticBatch.BatchID, semanticSession, semanticAgent).Scan(&semanticCount); err != nil || semanticCount != 3 {
+		t.Fatalf("semantic projection count=%d err=%v", semanticCount, err)
+	}
+	if err := admin.QueryRow(ctx, `SELECT count(DISTINCT event_class) FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&classCount); err != nil || classCount != 6 {
+		t.Fatalf("six-class projection count=%d err=%v", classCount, err)
+	}
+	var semanticIndexed int
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_search_outbox WHERE batch_id=$1 AND state='indexed' AND attempt=1`, semanticBatch.BatchID).Scan(&semanticIndexed); err != nil || semanticIndexed != 1 {
+		t.Fatalf("semantic search checkpoint count=%d err=%v", semanticIndexed, err)
+	}
+	beforeSemanticReplay := sessionSnapshot()
+	beforeSemanticVersions := versions()
+	if replay := semanticIngest(); replay.Code != http.StatusAccepted || replay.Body.String() != semanticAccepted.Body.String() {
+		t.Fatal("semantic ingest replay drift")
+	}
+	if _, err := queue.PublishBatch(ctx, publisher.jobs[1:]); err != nil {
+		t.Fatal(err)
+	}
+	awaitAcknowledgements(8)
+	if sessionSnapshot() != beforeSemanticReplay || versions() != beforeSemanticVersions {
+		t.Fatal("semantic replay changed canonical evidence")
+	}
+	t.Log("semantic observation pipeline proven: separately enrolled OTLP source, actual five-stage receipts, six canonical classes, scoped Exact instrumentation and stable replay; no raw content or enforcement assertion")
 	t.Log("runtime pipeline proof passed: production roles, durable ingest/outbox, actual local SQS/S3/OpenSearch, five stage receipts, replay and empty DLQ; Neo4j and cloud IAM NOT RUN")
 }
 

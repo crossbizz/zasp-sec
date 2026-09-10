@@ -23,6 +23,8 @@ func TestRuntimeSessionReadRepositorySeparatesRuntimeAndConsoleAuthority(t *test
 		{"getSession", runtimeReadSessionID, `SELECT zasp_runtime_session_get($1,$2,$3,$4,$5)`, map[string]string{"id": runtimeReadSessionID}},
 		{"getSession", "unattributed", `SELECT zasp_runtime_session_get($1,$2,$3,$4,$5)`, map[string]string{"id": "unattributed"}},
 		{"listSessionEvents", runtimeReadSessionID, `SELECT zasp_runtime_session_event_page($1,$2,$3,$4,$5,$6,$7,$8)`, map[string]string{"id": runtimeReadSessionID, "limit": "25"}},
+		{"getSessionEvent", runtimeReadSessionID, `SELECT zasp_runtime_session_event_get($1,$2,$3,$4,$5,$6)`, map[string]string{"id": runtimeReadSessionID, "eventId": runtimeReadSessionID}},
+		{"getSessionEvent", "unattributed", `SELECT zasp_runtime_session_event_get($1,$2,$3,$4,$5,$6)`, map[string]string{"id": "unattributed", "eventId": runtimeReadSessionID}},
 	} {
 		t.Run(test.operation+test.id, func(t *testing.T) {
 			database := &workflowCallDatabase{response: json.RawMessage(`{"items":[]}`)}
@@ -41,6 +43,34 @@ func TestRuntimeSessionReadRepositorySeparatesRuntimeAndConsoleAuthority(t *test
 	repository, _ := NewPostgresRepository(database)
 	if _, err := repository.ReadAdministration(context.Background(), identity, "listSessions", map[string]string{"kind": "console", "limit": "25"}); err != nil || database.query != postgresListSessionsSQL {
 		t.Fatal("console session compatibility changed")
+	}
+}
+
+func TestRuntimeSessionEvidenceRouteAndHandlerRejectUnsupportedTargets(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	for _, test := range []struct {
+		id, event, query string
+		status, reads    int
+	}{
+		{runtimeReadSessionID, runtimeReadSessionID, "", 200, 1}, {"unattributed", runtimeReadSessionID, "", 200, 1},
+		{"session-console-fixture", runtimeReadSessionID, "", 400, 0}, {"unattributed", "invalid", "", 400, 0},
+		{"unattributed", runtimeReadSessionID, "?query=match_all", 400, 0}, {"unattributed", runtimeReadSessionID, "?cursor=ignored", 400, 0},
+	} {
+		parameters := map[string]string{"id": test.id, "eventId": test.event}
+		if test.query == "" && validRouteParameters("getSessionEvent", parameters) != (test.status == 200) {
+			t.Fatal("evidence route target validation drift", parameters)
+		}
+		r := &runtimeSessionReadRecorder{payload: json.RawMessage(`{"id":"event"}`)}
+		h := &identityHTTPHandler{administration: r, now: time.Now}
+		req := workflowRequest(t, identity, testCorrelationID, "getSessionEvent", parameters, http.MethodGet, "/api/v1/sessions/"+test.id+"/events/"+test.event+test.query, "")
+		res := httptest.NewRecorder()
+		h.ServeHTTP(res, req)
+		if res.Code != test.status || r.reads != test.reads {
+			t.Fatalf("evidence request: status=%d reads=%d", res.Code, r.reads)
+		}
+		if test.status == 200 && res.Header().Get("Cache-Control") != "no-store" {
+			t.Fatal("evidence metadata response may be cached")
+		}
 	}
 }
 

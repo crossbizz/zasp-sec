@@ -29,6 +29,16 @@ describe("runtime session search checkpoint boundary", () => {
 });
 
 describe("runtime investigation response boundary", () => {
+  it.each([
+    ["otlp", "tool", "invoke"], ["tetragon", "runtime", "exec"], ["tetragon", "file", "read"], ["tetragon", "network", "connect"],
+    ["otlp", "credential", "use"], ["otlp", "policy", "allow"], ["otlp", "policy", "monitor"], ["otlp", "policy", "block"],
+  ])("accepts supported source-owned class %s/%s/%s", (source, kind, action) => {
+    const observation = { ...event, class: kind, source, action, confidence: "unattributed", session_id: null, agent_id: null };
+    expect(decodeRuntimeSessionEventPage(page([observation])).items[0]).toEqual(observation);
+  });
+  it.each([["tetragon", "credential", "use"], ["tetragon", "policy", "block"], ["otlp", "file", "read"], ["otlp", "runtime", "exec"]])("rejects unsupported source/class association %s/%s/%s", (source, kind, action) => {
+    expect(() => decodeRuntimeSessionEventPage(page([{ ...event, class: kind, source, action }]))).toThrow("schema mismatch");
+  });
   it("accepts durable summaries, multiple-agent uncertainty and explicit unknown collections", () => {
     expect(decodeRuntimeSession(summary)).toEqual(summary);
     expect(decodeRuntimeSession({ ...summary, agent_id: null }).agent_id).toBeNull();

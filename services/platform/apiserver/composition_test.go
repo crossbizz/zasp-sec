@@ -78,8 +78,8 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 146 || len(public) != 146 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 146/146", len(seen), len(public))
+	if len(seen) != 147 || len(public) != 147 {
+		t.Fatalf("mounted/public operation counts = %d/%d, want 147/147", len(seen), len(public))
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {
@@ -373,7 +373,7 @@ func TestBatchThreeCompositionExposesOnlyCompleteDurableOperations(t *testing.T)
 		"listAPITokens", "createAPIToken", "rotateAPIToken", "revokeAPIToken",
 		"listAPITokenRevealGrants", "revealAPIToken", "acknowledgeAPITokenRevealGrant",
 		"listAuditEvents",
-		"listSessions", "getSession", "listSessionEvents", "revokeSession",
+		"listSessions", "getSession", "listSessionEvents", "getSessionEvent", "revokeSession",
 		"listComplianceControls", "listComplianceEvidence",
 		"getDataControls", "updateDataControls",
 		"getExternalDataFlows",

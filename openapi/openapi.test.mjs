@@ -681,7 +681,7 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 146);
+    assert.equal(operations.size, 147);
     for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "getIntegrationSetupStatus", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) {
       assert.ok(operations.has(operationId), operationId);
     }

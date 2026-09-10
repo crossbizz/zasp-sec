@@ -9,6 +9,7 @@ const (
 	postgresRuntimeSessionPageSQL      = `SELECT zasp_runtime_session_page($1,$2,$3,$4,$5,$6,$7,$8,$9)`
 	postgresRuntimeSessionGetSQL       = `SELECT zasp_runtime_session_get($1,$2,$3,$4,$5)`
 	postgresRuntimeSessionEventPageSQL = `SELECT zasp_runtime_session_event_page($1,$2,$3,$4,$5,$6,$7,$8)`
+	postgresRuntimeSessionEventGetSQL  = `SELECT zasp_runtime_session_event_get($1,$2,$3,$4,$5,$6)`
 )
 
 // Unattributed is an explicit investigation collection, not an inferred session.
@@ -39,6 +40,11 @@ func (repository *PostgresRepository) readRuntimeSession(ctx context.Context, id
 			return nil, ErrRepositoryNotFound
 		}
 		return repository.database.QueryJSON(ctx, postgresRuntimeSessionGetSQL, append(args, parameters["id"])...)
+	case "getSessionEvent":
+		if !runtimeSessionTarget(parameters["id"]) || !validAdministrationProductID(parameters["eventId"]) || len(parameters) != 2 {
+			return nil, ErrRepositoryOperation
+		}
+		return repository.database.QueryJSON(ctx, postgresRuntimeSessionEventGetSQL, append(args, parameters["id"], parameters["eventId"])...)
 	case "listSessionEvents":
 		if !runtimeSessionTarget(parameters["id"]) {
 			return nil, ErrRepositoryNotFound

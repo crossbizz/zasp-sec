@@ -175,8 +175,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts\n40|production_runtime_sessions\n41|production_runtime_session_reads\n42|production_runtime_session_search\n43|production_runtime_session_query", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts\n40|production_runtime_sessions\n41|production_runtime_session_reads\n42|production_runtime_session_search\n43|production_runtime_session_query\n44|production_runtime_session_evidence", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -200,6 +200,7 @@ try {
 	console.log("combined E2E: schema 41 production_runtime_session_reads verified");
 	console.log("combined E2E: schema 42 production_runtime_session_search verified");
   console.log("combined E2E: schema 43 production_runtime_session_query verified");
+  console.log("combined E2E: schema 44 production_runtime_session_evidence verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -219,6 +220,7 @@ try {
     env: { ...process.env, ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN: dsn, ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT: runtimeAWSEndpoint, ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT: runtimeSearchEndpoint },
   });
   assert.match(runtimePipelineResult.stdout, /runtime pipeline proof passed:/);
+  assert.match(runtimePipelineResult.stdout, /semantic observation pipeline proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /runtime session summaries proven: completion-triggered unknown collection, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /runtime session search index proven: committed PG receipt, exact S3 archive, real OpenSearch, immutable replay, structured process filter, pagination and scope denial/);
@@ -2265,11 +2267,15 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
     await selectBrowserOption(cdp, "Authorized scope", "Staging");
     await waitForBrowserSelectedOption(cdp, "Authorized scope", "Staging");
     await waitForBrowserScope(cdp, staging);
-    const page = await read("/api/v1/sessions?kind=runtime&limit=1");
+    const page = await read("/api/v1/sessions?kind=runtime&limit=100");
     assert.equal(page.status, 200);
-    assert.equal(page.body.items.length, 1);
+    assert.equal(page.body.items.length, 2);
     assert.deepEqual(page.body.page_info, { next_cursor: null, has_more: false });
-    const summary = page.body.items[0];
+    const summary = page.body.items.find(item => item.id === "unattributed");
+    const semanticSession = "pid_78000202-0000-4000-8000-000000000202";
+    const semanticSummary = page.body.items.find(item => item.id === semanticSession);
+    assert.equal(semanticSummary.event_count, 3);
+    assert.deepEqual(semanticSummary.confidence_counts, { exact: 3, strong: 0, probable: 0, unattributed: 0 });
     assert.equal(summary.id, "unattributed");
     assert.equal(summary.kind, "unattributed");
     assert.equal(summary.agent_id, null);
@@ -2315,9 +2321,39 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
     await clickBrowserAria(cdp, "Open runtime timeline unattributed");
     const readTimelineRows = async (count) => {
       await waitForBrowserAction(cdp, `document.querySelectorAll('[aria-label="Runtime evidence timeline"] > li').length === ${count}`);
-      const response = await cdp.send("Runtime.evaluate", { expression: `Array.from(document.querySelectorAll('[aria-label="Runtime evidence timeline"] > li'), row => ({ id: row.dataset.runtimeEventId, evidence: row.dataset.runtimeEvidenceId, at: row.querySelector('time').dataset.runtimeEventTime, text: row.innerText }))`, returnByValue: true });
+      const response = await cdp.send("Runtime.evaluate", { expression: `Array.from(document.querySelectorAll('[aria-label="Runtime evidence timeline"] > li'), row => ({ id: row.dataset.runtimeEventId, evidence: row.dataset.runtimeEvidenceId, class: row.dataset.runtimeEventClass, at: row.querySelector('time').dataset.runtimeEventTime, text: row.innerText }))`, returnByValue: true });
       assert.equal(response.result?.value?.length, count);
       return response.result.value;
+    };
+    const openEvidence = async (row, investigation, source, confidence, label) => {
+      assert.match(row.text, new RegExp(label));
+      await clickBrowserAria(cdp, "Open evidence " + row.evidence);
+      await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Canonical evidence metadata"]')?.textContent.includes(${JSON.stringify(row.id)}) === true`);
+      const response = await cdp.send("Runtime.evaluate", { expression: `(() => {
+        const pane = document.querySelector('[aria-label="Canonical evidence metadata"]');
+        const dialog = document.querySelector('[aria-label="Evidence metadata"]');
+        return { text: pane.innerText, fields: Object.fromEntries([...pane.querySelectorAll('dt')].map(dt => [dt.textContent, dt.nextElementSibling.textContent])), focused: dialog.contains(document.activeElement), parentHidden: document.querySelector('[aria-label="Runtime timeline"]').closest('[data-dialog-layer]').getAttribute('aria-hidden') };
+      })()`, returnByValue: true });
+      const metadata = response.result?.value;
+      assert.equal(metadata.fields["Canonical event"], row.id);
+      assert.equal(metadata.fields["Evidence reference"], row.evidence);
+      assert.equal(metadata.fields.Source, source);
+      assert.equal(metadata.fields["Correlation confidence"], confidence);
+      assert.match(metadata.text, /Raw archive content is not included/);
+      if (row.class === "credential" || row.class === "policy") assert.match(metadata.text, /not proof of credential ownership or policy enforcement/);
+      assert.equal(metadata.focused, true, "evidence dialog did not take focus");
+      assert.equal(metadata.parentHidden, "true", "underlying timeline remained active");
+      await assertResponsiveRiskLayout(cdp, "Evidence metadata");
+      const canonical = await read(`/api/v1/sessions/${investigation}/events/${row.id}`);
+      assert.equal(canonical.status, 200);
+      assert.equal(canonical.body.id, row.id);
+      assert.equal(canonical.body.evidence_id, row.evidence);
+      assert.equal(canonical.body.class, row.class);
+      assert.equal(Object.keys(canonical.body).length, 11, "evidence API added unreviewed raw fields");
+      const wrongInvestigation = investigation === "unattributed" ? semanticSession : "unattributed";
+      assert.equal((await read(`/api/v1/sessions/${wrongInvestigation}/events/${row.id}`)).status, 404, "another investigation exposed canonical event evidence");
+      await waitForBrowserAction(cdp, `(() => { const button = document.querySelector('[aria-label="Evidence metadata"] button[aria-label="Close"]'); if (!button) return false; button.click(); return true; })()`);
+      await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Evidence metadata"]') === null`);
     };
     const firstTimelinePage = await readTimelineRows(25);
     await clickBrowserText(cdp, "Next event page");
@@ -2335,6 +2371,11 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
     }
     await clickBrowserText(cdp, "First event page");
     assert.deepEqual(await readTimelineRows(25), firstTimelinePage);
+    for (const [eventClass, label] of [["runtime", "Process execution"], ["file", "File read"], ["network", "Network connection"]]) {
+      const row = firstTimelinePage.find(row => row.class === eventClass);
+      assert.ok(row, eventClass + " missing from worker timeline");
+      await openEvidence(row, "unattributed", "tetragon", "unattributed", label);
+    }
     // Change the scope while the drawer is mounted to exercise cancellation and
     // teardown. The helper dispatches the scope change programmatically because
     // the modal correctly makes background controls inert to pointer input.
@@ -2349,6 +2390,17 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
     await waitForBrowserAction(cdp, `(() => { const label=[...document.querySelectorAll('label')].find(item=>item.querySelector('span')?.textContent==='Process'); return label?.querySelector('input')?.value===''; })()`);
     console.log("combined E2E: runtime Sessions UI proven: structured process filter, canonical confidence, indexing checkpoint and scope reset");
     console.log("combined E2E: runtime timeline proven: reverse-ingress worker events, canonical 25-plus-1 pagination, source confidence and scope reset");
+    await clickBrowserAria(cdp, "Open runtime timeline " + semanticSession);
+    const semanticRows = await readTimelineRows(3);
+    assert.deepEqual(semanticRows.map(row => row.evidence), [208, 207, 206].map(id => `pid_78000206-0000-4000-8000-${String(id).padStart(12, "0")}`));
+    for (const [eventClass, label] of [["tool", "Tool invocation"], ["credential", "Credential use observation"], ["policy", "Policy block observation"]]) {
+      const row = semanticRows.find(row => row.class === eventClass);
+      assert.ok(row, eventClass + " missing from worker timeline");
+      await openEvidence(row, semanticSession, "otlp", "exact", label);
+    }
+    await waitForBrowserAction(cdp, `(() => { const button = document.querySelector('[aria-label="Runtime timeline"] button[aria-label="Close"]'); if (!button) return false; button.click(); return true; })()`);
+    await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Runtime timeline"]') === null`);
+    console.log("combined E2E: runtime six-class evidence links proven: deterministic labels, actual scoped canonical metadata, source/confidence, nested focus and responsive layout");
     await clickBrowserAria(cdp, "Red Team");
     await waitForBrowserText(cdp, /No Red Team tests in this scope/);
     const detail = await read("/api/v1/sessions/unattributed");
@@ -2375,10 +2427,12 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
       assert.equal(denied.status, 404, "another scope exposed runtime investigation");
       assert.equal(denied.body.code, "not_found");
     }
+    assert.equal((await read(`/api/v1/sessions/${semanticSession}/events/${semanticRows[0].id}`, production)).status, 404, "another scope exposed canonical event evidence");
     console.log("combined E2E: worker-written runtime session list/detail/events, explicit unknown attribution, structured-query rejection and scope isolation proven");
     await setReadOnly(true);
     const revoked = await read("/api/v1/sessions?kind=runtime", production);
     assert.equal(revoked.status, 403, "revoked investigation permission retained runtime API access");
+    assert.equal((await read(`/api/v1/sessions/${semanticSession}/events/${semanticRows[0].id}`, production)).status, 403, "revoked permission exposed canonical event evidence");
   } finally {
     await setReadOnly(false);
     await selectBrowserOption(cdp, "Authorized scope", "Production");

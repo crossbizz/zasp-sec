@@ -411,6 +411,9 @@ screens:
       - id: view_session_events
         operation_id: listSessionEvents
         availability: available
+      - id: view_session_event_evidence
+        operation_id: getSessionEvent
+        availability: available
       - id: revoke_session
         operation_id: revokeSession
         availability: available
