@@ -29,7 +29,7 @@ Main CI 34426326091 passed, closing M7-07b's original acceptance. M7-07c's
 verified display slice merged in PR 32 as main 214a757d; push CI 34426729932,
 PR CI 34426774094 and main CI 34427605339 passed. Its narrow display criterion
 is accepted. Lineage work continues on
-`codex/runtime-candidate-authority`. The follow-on production reachability audit
+`codex/runtime-candidate-consumer`. The follow-on production reachability audit
 withdrew M3-46 and M3-47's inherited credits: actual ingestion supplies neither
 the required lineage nor a provenance-backed candidate source across batches.
 Their domain tests remain component evidence. The original scope is unchanged.
@@ -134,9 +134,28 @@ passed unit, ownership and real SIGTERM cleanup checks. The post-fix full compos
 run then passed all local functional/browser/privacy/restart checks and complete
 owned cleanup. Full source release checks and staged secret/privacy review passed.
 Independent final review approved authority-only shipping conditional on CI.
-This branch remains unpublished; push/PR/main CI still gate shipping.
+The authority foundation shipped through PR 40 (`cd22a99e`) after push CI
+34532351627 and PR CI 34532402341 passed. It merged as main `612f12d3`;
+main CI 34533327507 passed.
 No original task credit or production v2 activation is approved.
 See `docs/internal/2026-09-10-runtime-candidate-authority.md`.
+
+The candidate consumer is now being implemented on a follow-on branch. Its
+missing-method test failed first; the initial private snapshot decoder and exact
+SQL boundary passed focused response-stub tests. Actual schema-47 repository
+freeze/replay now passes, including own-batch, unpaired and late-conflict cases.
+Wrapped database errors retain fixed sanitized classifications. The delayed
+response cancellation/expiry regression failed first, then passed with the full
+runtime-event race suite in 3.534 seconds. Independent review found no blocker
+in this prerequisite. Snapshot validity isn't live execution authority.
+V2 pure matching and canonical receipts now pass test-first verification and
+independent review. Actual PostgreSQL snapshots produce Exact semantic, Strong
+unique and Probable ambiguous results; late admission/revocation preserves
+result digests and receipt bytes (9.681-second race run). V1 literal receipt
+bytes remain unchanged. Full UI verification passes all 1,179 tests and build.
+Executor/dispatch integration, graph/S3 crash recovery, sensor lineage emission
+and composed attribution remain incomplete. No task credit changed. See
+`docs/internal/2026-09-10-runtime-candidate-consumer.md`.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production

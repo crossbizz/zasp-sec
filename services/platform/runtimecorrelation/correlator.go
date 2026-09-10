@@ -34,11 +34,12 @@ type Result struct {
 }
 
 type CorrelatedBatch struct {
-	BatchID       domain.ProductID
-	Generation    int64
-	ArchiveDigest [sha256.Size]byte
-	ContentDigest [sha256.Size]byte
-	Results       []Result
+	BatchID                 domain.ProductID
+	Generation              int64
+	ArchiveDigest           [sha256.Size]byte
+	ContentDigest           [sha256.Size]byte
+	Results                 []Result
+	CandidateSnapshotDigest [sha256.Size]byte
 }
 
 func Correlate(input Batch) (CorrelatedBatch, error) {
