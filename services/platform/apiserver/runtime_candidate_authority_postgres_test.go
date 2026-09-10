@@ -14,7 +14,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimecorrelation"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
@@ -209,8 +211,28 @@ func TestRuntimeCandidateAuthorityFreezesReplayAfterLateAdmission(t *testing.T) 
 	if _, err := admin.Exec(ctx, `INSERT INTO zasp_runtime_sensor_pairings(organization_id,workspace_id,environment_id,sensor_id,runtime_sensor_id) VALUES($1,$2,$3,$4,$5)`, append(append([]any(nil), scope...), semantic, anchor)...); err != nil {
 		t.Fatal(err)
 	}
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: worker})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := runtimeevent.NewPostgresProductionPipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCorrelation)
+	if err != nil || repository.Ready(ctx) != nil {
+		t.Fatal("candidate repository readiness", err)
+	}
+	correlations := make(map[string]runtimecorrelation.CorrelatedBatch)
+	correlationReceipts := make(map[string][]byte)
 	freeze := func(args []any) ([]byte, bool) {
 		t.Helper()
+		var inputDigest [sha256.Size]byte
+		copy(inputDigest[:], args[9].([]byte))
+		lease := runtimeevent.StageLease{Scope: identity.Scope, BatchID: mustProductID(t, args[3].(string)), Generation: args[4].(int64), Stage: runtimeevent.RuntimeStageCorrelate, Attempt: args[7].(int), ImplementationVersion: args[8].(string), InputDigest: inputDigest, PredecessorDigest: &inputDigest}
+		if err := admin.QueryRow(ctx, `SELECT work.lease_expires_at,predecessor.result_reference,predecessor.result_version_id FROM zasp_runtime_stage_work work JOIN zasp_runtime_stage_work predecessor ON (predecessor.organization_id,predecessor.workspace_id,predecessor.environment_id,predecessor.batch_id,predecessor.batch_generation,predecessor.stage)=(work.organization_id,work.workspace_id,work.environment_id,work.batch_id,work.batch_generation,'index') WHERE (work.organization_id,work.workspace_id,work.environment_id,work.batch_id,work.batch_generation,work.stage)=($1,$2,$3,$4,$5,'correlate')`, args[:5]...).Scan(&lease.LeaseExpiresAt, &lease.InputReference, &lease.InputVersionID); err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := repository.FreezeCandidates(ctx, lease, args[5].(string), args[6].(string), args[10].([]byte), args[11].([]byte))
+		if err != nil {
+			t.Fatal("registered repository freeze", err)
+		}
 		var response []byte
 		if err := worker.QueryRow(ctx, runtimeCandidateFreezeSQL, args...).Scan(&response); err != nil {
 			t.Fatal(err)
@@ -231,7 +253,30 @@ func TestRuntimeCandidateAuthorityFreezesReplayAfterLateAdmission(t *testing.T) 
 		if wire.SHA256 != hex.EncodeToString(digest[:]) {
 			t.Fatal("snapshot checksum drift")
 		}
-		return body, wire.Replayed
+		if !wire.Replayed || !bytes.Equal(snapshot.Bytes(), body) || snapshot.Digest() != digest || !snapshot.ValidFor(identity.Scope, lease.BatchID, lease.Generation, sha256.Sum256(args[11].([]byte))) {
+			t.Fatal("repository snapshot differs from exact database replay")
+		}
+		correlated, err := runtimecorrelation.CorrelateFrozen(runtimecorrelation.Batch{Scope: identity.Scope, BatchID: lease.BatchID, Generation: lease.Generation, ArchiveDigest: sha256.Sum256(args[11].([]byte)), Body: args[11].([]byte)}, snapshot)
+		if err != nil || correlated.CandidateSnapshotDigest != snapshot.Digest() {
+			t.Fatal("actual database snapshot correlation", err)
+		}
+		indexReceipt, err := runtimeevent.DecodeStageReceipt(args[10].([]byte))
+		if err != nil {
+			t.Fatal(err)
+		}
+		receiptBody, _, _, err := runtimecorrelation.EncodeReceipt(runtimecorrelation.Receipt{ImplementationVersion: lease.ImplementationVersion, Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, InputReference: lease.InputReference, InputVersionID: lease.InputVersionID, InputDigest: lease.InputDigest, ArchiveReference: indexReceipt.ArchiveReference, ArchiveVersionID: indexReceipt.ArchiveVersionID, ArchiveDigest: indexReceipt.ArchiveDigest, EffectDigest: correlated.ContentDigest, CandidateSnapshotDigest: snapshot.Digest(), Results: correlated.Results})
+		if err != nil {
+			t.Fatal("actual snapshot receipt", err)
+		}
+		if _, err := runtimecorrelation.DecodeReceipt(receiptBody); err != nil {
+			t.Fatal(err)
+		}
+		key := lease.BatchID.String()
+		if prior, exists := correlations[key]; exists && (prior.ContentDigest != correlated.ContentDigest || !bytes.Equal(correlationReceipts[key], receiptBody)) {
+			t.Fatal("late admission or revocation changed frozen correlation/receipt replay")
+		}
+		correlations[key], correlationReceipts[key] = correlated, bytes.Clone(receiptBody)
+		return body, snapshot.Replayed()
 	}
 	count := func(body []byte) int {
 		t.Helper()
@@ -244,6 +289,7 @@ func TestRuntimeCandidateAuthorityFreezesReplayAfterLateAdmission(t *testing.T) 
 		return len(value.Candidates)
 	}
 	first := seedRuntimeCandidateBatch(t, ctx, admin, 1, semantic, "otlp", 1)
+	assertCandidateRepositoryAdapterErrors(t, ctx, first)
 	for _, table := range []string{"zasp_runtime_candidate_observations", "zasp_runtime_candidate_snapshots"} {
 		if _, err := worker.Exec(ctx, "SELECT * FROM "+table); err == nil {
 			t.Fatal("worker read private candidate table directly")
@@ -268,10 +314,16 @@ func TestRuntimeCandidateAuthorityFreezesReplayAfterLateAdmission(t *testing.T) 
 	proveRuntimeCandidateRunnerContention(t, ctx, admin, worker, first)
 	proveConcurrentRuntimeCandidateRollback(t, ctx, admin, worker, first)
 	freeze(first)
+	if result := correlations[first[3].(string)].Results[0]; result.Confidence != domain.EvidenceConfidenceExact || result.AgentID.IsZero() || result.SessionID.IsZero() {
+		t.Fatal("admitted semantic evidence lost explicit identity")
+	}
 	target := seedRuntimeCandidateBatch(t, ctx, admin, 2, anchor, "tetragon", 0)
 	frozen, replayed := freeze(target)
 	if replayed || count(frozen) != 1 {
 		t.Fatal("unique candidate was not frozen")
+	}
+	if result := correlations[target[3].(string)].Results[0]; result.Confidence != domain.EvidenceConfidenceStrong || result.AgentID.IsZero() || result.SessionID.IsZero() {
+		t.Fatal("qualified actual snapshot didn't produce Strong")
 	}
 	late := seedRuntimeCandidateBatch(t, ctx, admin, 3, semantic, "otlp", 2)
 	freeze(late)
@@ -283,6 +335,9 @@ func TestRuntimeCandidateAuthorityFreezesReplayAfterLateAdmission(t *testing.T) 
 	fresh, replayed := freeze(next)
 	if replayed || count(fresh) != 2 {
 		t.Fatal("new batch silently dropped the competing candidate")
+	}
+	if result := correlations[next[3].(string)].Results[0]; result.Confidence != domain.EvidenceConfidenceProbable || !result.AgentID.IsZero() || !result.SessionID.IsZero() {
+		t.Fatal("competing actual snapshot gained authoritative identity")
 	}
 	t.Run("identical lineage in another enrollment domain is excluded", func(t *testing.T) {
 		const otherAnchor = "pid_78900012-0000-4000-8000-000000000012"
@@ -476,6 +531,36 @@ func TestRuntimeCandidateAuthorityFreezesReplayAfterLateAdmission(t *testing.T) 
 			t.Fatal("maximum-target overflow left a snapshot", err)
 		}
 	})
+}
+
+// Injected driver failures still pass through the production JSON adapter's
+// sanitization. This is adapter evidence, not a claimed live server fault.
+func assertCandidateRepositoryAdapterErrors(t *testing.T, ctx context.Context, args []any) {
+	t.Helper()
+	var digest [sha256.Size]byte
+	copy(digest[:], args[9].([]byte))
+	lease := runtimeevent.StageLease{Scope: fixtureRequestIdentity(t).Scope, BatchID: mustProductID(t, args[3].(string)), Generation: args[4].(int64), Stage: runtimeevent.RuntimeStageCorrelate, Attempt: args[7].(int), ImplementationVersion: args[8].(string), InputDigest: digest, PredecessorDigest: &digest, InputReference: "s3://zasp-evidence/index-receipt.json", InputVersionID: "index-v1", LeaseExpiresAt: time.Now().UTC().Add(time.Minute)}
+	for _, scenario := range []struct {
+		code string
+		want error
+	}{{"54000", runtimeevent.ErrCandidateSnapshotOverflow}, {"42501", runtimeevent.ErrCandidateSnapshotDenied}, {"P0002", runtimeevent.ErrProductionPipelineUnavailable}, {"22023", runtimeevent.ErrProductionPipelineUnavailable}, {"40001", runtimeevent.ErrProductionPipelineUnavailable}, {"08006", runtimeevent.ErrProductionPipelineUnavailable}} {
+		driver := &databaseDriver{rowErr: &pgconn.PgError{Code: scenario.code, Message: "provider-secret", Detail: "private-driver-detail"}}
+		database, err := NewPostgresJSONDatabase(driver)
+		if err != nil {
+			t.Fatal(err)
+		}
+		repository, err := runtimeevent.NewPostgresProductionPipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCorrelation)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = repository.FreezeCandidates(ctx, lease, args[5].(string), args[6].(string), args[10].([]byte), args[11].([]byte))
+		if !errors.Is(err, scenario.want) || len(driver.queryArguments) != 12 || strings.Contains(fmt.Sprint(err), "provider-secret") || strings.Contains(fmt.Sprint(err), "private-driver-detail") {
+			t.Fatal("production adapter candidate error mapping", scenario.code, err)
+		}
+		if err := database.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func seedRuntimeCandidateSensor(t *testing.T, ctx context.Context, admin *pgx.Conn, scope []any, sensor, kind string) {

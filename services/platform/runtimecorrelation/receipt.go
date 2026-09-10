@@ -16,38 +16,41 @@ import (
 )
 
 const receiptSchema = "runtime-correlation-receipt-v1"
+const frozenReceiptSchema = "runtime-correlation-receipt-v2"
 
 type Receipt struct {
-	ImplementationVersion string
-	Scope                 domain.Scope
-	BatchID               domain.ProductID
-	Generation            int64
-	InputReference        string
-	InputVersionID        string
-	InputDigest           [sha256.Size]byte
-	ArchiveReference      string
-	ArchiveVersionID      string
-	ArchiveDigest         [sha256.Size]byte
-	EffectDigest          [sha256.Size]byte
-	Results               []Result
+	ImplementationVersion   string
+	Scope                   domain.Scope
+	BatchID                 domain.ProductID
+	Generation              int64
+	InputReference          string
+	InputVersionID          string
+	InputDigest             [sha256.Size]byte
+	ArchiveReference        string
+	ArchiveVersionID        string
+	ArchiveDigest           [sha256.Size]byte
+	EffectDigest            [sha256.Size]byte
+	Results                 []Result
+	CandidateSnapshotDigest [sha256.Size]byte
 }
 
 type receiptWire struct {
-	Schema                string       `json:"schema"`
-	ImplementationVersion string       `json:"implementation_version"`
-	OrganizationID        string       `json:"organization_id"`
-	WorkspaceID           string       `json:"workspace_id"`
-	EnvironmentID         string       `json:"environment_id"`
-	BatchID               string       `json:"batch_id"`
-	Generation            int64        `json:"generation"`
-	InputReference        string       `json:"input_reference"`
-	InputVersionID        string       `json:"input_version_id"`
-	InputDigest           string       `json:"input_digest"`
-	ArchiveReference      string       `json:"archive_reference"`
-	ArchiveVersionID      string       `json:"archive_version_id"`
-	ArchiveDigest         string       `json:"archive_digest"`
-	EffectDigest          string       `json:"effect_digest"`
-	Results               []resultWire `json:"results"`
+	Schema                  string       `json:"schema"`
+	ImplementationVersion   string       `json:"implementation_version"`
+	OrganizationID          string       `json:"organization_id"`
+	WorkspaceID             string       `json:"workspace_id"`
+	EnvironmentID           string       `json:"environment_id"`
+	BatchID                 string       `json:"batch_id"`
+	Generation              int64        `json:"generation"`
+	InputReference          string       `json:"input_reference"`
+	InputVersionID          string       `json:"input_version_id"`
+	InputDigest             string       `json:"input_digest"`
+	ArchiveReference        string       `json:"archive_reference"`
+	ArchiveVersionID        string       `json:"archive_version_id"`
+	ArchiveDigest           string       `json:"archive_digest"`
+	EffectDigest            string       `json:"effect_digest"`
+	Results                 []resultWire `json:"results"`
+	CandidateSnapshotDigest string       `json:"candidate_snapshot_digest,omitempty"`
 }
 
 func EncodeReceipt(receipt Receipt) ([]byte, [sha256.Size]byte, domain.EvidenceRef, error) {
@@ -97,7 +100,19 @@ func validReceipt(receipt Receipt) bool {
 	if receipt.Scope.Validate() != nil || receipt.BatchID.IsZero() || receipt.Generation < 1 || !validRequired(receipt.ImplementationVersion, 64) || !validReference(receipt.InputReference) || !validReference(receipt.ArchiveReference) || !validVersion(receipt.InputVersionID) || !validVersion(receipt.ArchiveVersionID) || receipt.InputDigest == ([sha256.Size]byte{}) || receipt.ArchiveDigest == ([sha256.Size]byte{}) || receipt.EffectDigest == ([sha256.Size]byte{}) || !validResults(receipt.Results) {
 		return false
 	}
-	expected, err := correlationDigest(receipt.Scope, receipt.BatchID, receipt.Generation, receipt.ArchiveDigest, receipt.Results)
+	var expected [sha256.Size]byte
+	var err error
+	if receipt.ImplementationVersion == "runtime-correlation-v2" {
+		if receipt.CandidateSnapshotDigest == ([sha256.Size]byte{}) {
+			return false
+		}
+		expected, err = frozenCorrelationDigest(receipt.Scope, receipt.BatchID, receipt.Generation, receipt.ArchiveDigest, receipt.CandidateSnapshotDigest, receipt.Results)
+	} else {
+		if receipt.CandidateSnapshotDigest != ([sha256.Size]byte{}) {
+			return false
+		}
+		expected, err = correlationDigest(receipt.Scope, receipt.BatchID, receipt.Generation, receipt.ArchiveDigest, receipt.Results)
+	}
 	return err == nil && expected == receipt.EffectDigest
 }
 
@@ -128,7 +143,12 @@ func validResults(results []Result) bool {
 }
 
 func receiptToWire(receipt Receipt) receiptWire {
-	return receiptWire{Schema: receiptSchema, ImplementationVersion: receipt.ImplementationVersion, OrganizationID: receipt.Scope.OrganizationID().String(), WorkspaceID: receipt.Scope.WorkspaceID().String(), EnvironmentID: receipt.Scope.EnvironmentID().String(), BatchID: receipt.BatchID.String(), Generation: receipt.Generation, InputReference: receipt.InputReference, InputVersionID: receipt.InputVersionID, InputDigest: hex.EncodeToString(receipt.InputDigest[:]), ArchiveReference: receipt.ArchiveReference, ArchiveVersionID: receipt.ArchiveVersionID, ArchiveDigest: hex.EncodeToString(receipt.ArchiveDigest[:]), EffectDigest: hex.EncodeToString(receipt.EffectDigest[:]), Results: resultsToWire(receipt.Results)}
+	wire := receiptWire{Schema: receiptSchema, ImplementationVersion: receipt.ImplementationVersion, OrganizationID: receipt.Scope.OrganizationID().String(), WorkspaceID: receipt.Scope.WorkspaceID().String(), EnvironmentID: receipt.Scope.EnvironmentID().String(), BatchID: receipt.BatchID.String(), Generation: receipt.Generation, InputReference: receipt.InputReference, InputVersionID: receipt.InputVersionID, InputDigest: hex.EncodeToString(receipt.InputDigest[:]), ArchiveReference: receipt.ArchiveReference, ArchiveVersionID: receipt.ArchiveVersionID, ArchiveDigest: hex.EncodeToString(receipt.ArchiveDigest[:]), EffectDigest: hex.EncodeToString(receipt.EffectDigest[:]), Results: resultsToWire(receipt.Results)}
+	if receipt.ImplementationVersion == "runtime-correlation-v2" {
+		wire.Schema = frozenReceiptSchema
+		wire.CandidateSnapshotDigest = hex.EncodeToString(receipt.CandidateSnapshotDigest[:])
+	}
+	return wire
 }
 
 func receiptFromWire(wire receiptWire) (Receipt, bool) {
@@ -140,7 +160,19 @@ func receiptFromWire(wire receiptWire) (Receipt, bool) {
 	inputDigest, inputErr := parseDigest(wire.InputDigest)
 	archiveDigest, archiveErr := parseDigest(wire.ArchiveDigest)
 	effectDigest, effectErr := parseDigest(wire.EffectDigest)
-	if wire.Schema != receiptSchema || organizationErr != nil || workspaceErr != nil || environmentErr != nil || scopeErr != nil || batchErr != nil || inputErr != nil || archiveErr != nil || effectErr != nil {
+	expectedSchema := receiptSchema
+	var snapshotDigest [sha256.Size]byte
+	if wire.ImplementationVersion == "runtime-correlation-v2" {
+		expectedSchema = frozenReceiptSchema
+		var snapshotErr error
+		snapshotDigest, snapshotErr = parseDigest(wire.CandidateSnapshotDigest)
+		if snapshotErr != nil || snapshotDigest == ([sha256.Size]byte{}) {
+			return Receipt{}, false
+		}
+	} else if wire.CandidateSnapshotDigest != "" {
+		return Receipt{}, false
+	}
+	if wire.Schema != expectedSchema || organizationErr != nil || workspaceErr != nil || environmentErr != nil || scopeErr != nil || batchErr != nil || inputErr != nil || archiveErr != nil || effectErr != nil {
 		return Receipt{}, false
 	}
 	results := make([]Result, len(wire.Results))
@@ -160,7 +192,7 @@ func receiptFromWire(wire receiptWire) (Receipt, bool) {
 		}
 		results[index] = Result{EventID: eventID, SessionID: sessionID, AgentID: agentID, Confidence: confidence}
 	}
-	receipt := Receipt{ImplementationVersion: wire.ImplementationVersion, Scope: scope, BatchID: batchID, Generation: wire.Generation, InputReference: wire.InputReference, InputVersionID: wire.InputVersionID, InputDigest: inputDigest, ArchiveReference: wire.ArchiveReference, ArchiveVersionID: wire.ArchiveVersionID, ArchiveDigest: archiveDigest, EffectDigest: effectDigest, Results: results}
+	receipt := Receipt{ImplementationVersion: wire.ImplementationVersion, Scope: scope, BatchID: batchID, Generation: wire.Generation, InputReference: wire.InputReference, InputVersionID: wire.InputVersionID, InputDigest: inputDigest, ArchiveReference: wire.ArchiveReference, ArchiveVersionID: wire.ArchiveVersionID, ArchiveDigest: archiveDigest, EffectDigest: effectDigest, Results: results, CandidateSnapshotDigest: snapshotDigest}
 	return receipt, validReceipt(receipt)
 }
 

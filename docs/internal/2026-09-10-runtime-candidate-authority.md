@@ -1,6 +1,6 @@
 # Frozen runtime candidate authority
 
-Status: locally verified on `codex/runtime-candidate-authority`; publication pending.
+Status: merged through PR 40 as main `612f12d3`; main CI 34533327507 passed.
 No original task credit. M3-46, M3-47 and M7-07 remain unaccepted.
 All 728 classifications remain 535 production-available / 132 component-only /
 61 externally blocked. The original sandbox/container/cgroup/process scope is
@@ -393,4 +393,7 @@ inspected: fixture AWS accounts/UUIDs, public CI IDs, zero-UUID rejection and th
 uint32 bound. No private data or real credential was found; no rule was disabled.
 Independent final review approved authority-only shipping conditional on required
 CI, after inspecting the post-fix browser/cleanup evidence and staged diff.
-Push/PR/main CI remain pending; no original task credit or v2 activation.
+The verified commit is `cd22a99ea8ff50ac81a66c6acf8be5469c4e24e0`, published in
+PR 40. Push CI 34532351627 and PR CI 34532402341 passed. It merged as main
+`612f12d37bce30c7f1c80836de0bb25bfaee7b20`; main CI 34533327507 passed.
+No original task credit or v2 activation.
