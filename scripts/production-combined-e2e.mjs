@@ -2274,8 +2274,8 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
     assert.equal(summary.kind, "unattributed");
     assert.equal(summary.agent_id, null);
     assert.equal(summary.principal_id, null);
-    assert.equal(summary.event_count, 1);
-    assert.deepEqual(summary.confidence_counts, { exact: 0, strong: 0, probable: 0, unattributed: 1 });
+    assert.equal(summary.event_count, 26);
+    assert.deepEqual(summary.confidence_counts, { exact: 0, strong: 0, probable: 0, unattributed: 26 });
     assert.equal(Object.hasOwn(summary, "expires_at"), false);
     assert.equal(page.body.search.state, "current");
     assert.equal(page.body.search.pending_batches, 0);
@@ -2301,7 +2301,7 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
     const initialUI = await waitForBrowserText(cdp, /Unattributed evidence/);
     assert.match(initialUI, /Unknown or multiple agents/);
     assert.match(initialUI, /Observed metadata only/);
-    assert.match(initialUI, /unattributed: 1/);
+    assert.match(initialUI, /unattributed: 26/);
     assert.match(initialUI, /Known indexing work is current/);
     await fillBrowserLabel(cdp, "Process", "/usr/bin/other");
     await clickBrowserText(cdp, "Search sessions");
@@ -2310,17 +2310,45 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
     await clickBrowserText(cdp, "Search sessions");
     const matchingUI = await waitForBrowserText(cdp, /Unattributed evidence/);
     assert.doesNotMatch(matchingUI, /No matching runtime sessions/);
-    assert.match(matchingUI, /1 canonical events/);
+    assert.match(matchingUI, /26 canonical events/);
     await assertResponsiveRiskLayout(cdp, "Runtime session investigations");
+    await clickBrowserAria(cdp, "Open runtime timeline unattributed");
+    const readTimelineRows = async (count) => {
+      await waitForBrowserAction(cdp, `document.querySelectorAll('[aria-label="Runtime evidence timeline"] > li').length === ${count}`);
+      const response = await cdp.send("Runtime.evaluate", { expression: `Array.from(document.querySelectorAll('[aria-label="Runtime evidence timeline"] > li'), row => ({ id: row.dataset.runtimeEventId, evidence: row.dataset.runtimeEvidenceId, at: row.querySelector('time').dataset.runtimeEventTime, text: row.innerText }))`, returnByValue: true });
+      assert.equal(response.result?.value?.length, count);
+      return response.result.value;
+    };
+    const firstTimelinePage = await readTimelineRows(25);
+    await clickBrowserText(cdp, "Next event page");
+    const lastTimelinePage = await readTimelineRows(1);
+    await waitForBrowserAction(cdp, `Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Next event page')?.disabled === true`);
+    const timeline = [...firstTimelinePage, ...lastTimelinePage];
+    // Ingress deliberately wrote suffixes 103..128 at descending event times.
+    // Compare rendered evidence against that fixture, not another API response.
+    assert.deepEqual(timeline.map(row => row.evidence), Array.from({ length: 26 }, (_, index) => `pid_78000103-0000-4000-8000-${String(128 - index).padStart(12, "0")}`));
+    assert.equal(new Set(timeline.map(row => row.id)).size, 26);
+    for (let index = 0; index < timeline.length; index += 1) {
+      assert.match(timeline[index].text, /unattributed/);
+      assert.match(timeline[index].text, /Source: tetragon/);
+      if (index > 0) assert.ok(Date.parse(timeline[index - 1].at) < Date.parse(timeline[index].at), "rendered timeline is not in canonical event-time order");
+    }
+    await clickBrowserText(cdp, "First event page");
+    assert.deepEqual(await readTimelineRows(25), firstTimelinePage);
+    // Change the scope while the drawer is mounted to exercise cancellation and
+    // teardown. The helper dispatches the scope change programmatically because
+    // the modal correctly makes background controls inert to pointer input.
     await selectBrowserOption(cdp, "Authorized scope", "Production");
     await waitForBrowserScope(cdp, production);
     const otherScopeUI = await waitForBrowserText(cdp, /No matching runtime sessions/);
     assert.doesNotMatch(otherScopeUI, /Unattributed evidence/);
+    await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Runtime timeline"]') === null`);
     await selectBrowserOption(cdp, "Authorized scope", "Staging");
     await waitForBrowserScope(cdp, staging);
     await waitForBrowserText(cdp, /Unattributed evidence/);
     await waitForBrowserAction(cdp, `(() => { const label=[...document.querySelectorAll('label')].find(item=>item.querySelector('span')?.textContent==='Process'); return label?.querySelector('input')?.value===''; })()`);
     console.log("combined E2E: runtime Sessions UI proven: structured process filter, canonical confidence, indexing checkpoint and scope reset");
+    console.log("combined E2E: runtime timeline proven: reverse-ingress worker events, canonical 25-plus-1 pagination, source confidence and scope reset");
     await clickBrowserAria(cdp, "Red Team");
     await waitForBrowserText(cdp, /No Red Team tests in this scope/);
     const detail = await read("/api/v1/sessions/unattributed");

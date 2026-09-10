@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createAPIClient } from "../../../apps/web/api/client";
 import type { RuntimeSessionPage } from "../../../apps/web/api/generated";
 import { createRuntimeSessionsAPI, ProductionSessionsView, RuntimeSessionsView, type RuntimeSessionsAPI } from "./RuntimeSessionsView";
+import type { RuntimeSessionTimelineAPI } from "./RuntimeSessionTimeline";
 
 const id = "pid_10000001-0000-4000-8000-000000000001";
 const at = "2026-09-09T10:00:00Z";
@@ -100,5 +101,24 @@ describe("production runtime Sessions list", () => {
     expect(old.mock.calls[0][2].aborted).toBe(true);
     await act(async () => finish(page()));
     expect(screen.queryByText("Unattributed evidence")).not.toBeInTheDocument();
+  });
+
+  it("opens an authorized timeline and closes it when the submitted search changes", async () => {
+    const timelineAPI: RuntimeSessionTimelineAPI = {
+      get: async () => item,
+      events: async () => ({ items: [{ id, session_id: null, agent_id: null, class: "runtime", action: "exec", label: "Worker evidence", evidence_id: id, source: "tetragon", confidence: "unattributed", at, projected_at: at }], page_info: { next_cursor: null, has_more: false } }),
+    };
+    render(<RuntimeSessionsView api={{ list: async () => page() }} timelineAPI={timelineAPI} />);
+    await screen.findByText("Unattributed evidence");
+    await userEvent.click(screen.getByRole("button", { name: "Open runtime timeline unattributed" }));
+    expect(await screen.findByText("Worker evidence")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Open runtime timeline unattributed" }));
+    await screen.findByText("Worker evidence");
+    // Changing a query while an overlay is open is also possible through a
+    // programmatic scope/query transition, not only pointer input.
+    await act(async () => screen.getByRole("button", { name: "Search sessions", hidden: true }).click());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

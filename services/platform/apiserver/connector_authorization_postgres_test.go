@@ -1095,7 +1095,10 @@ func TestConnectorAuthorizationPostgresReconciliationIndexesServeHundredThousand
 	 FROM (SELECT ordinal,md5('lane'||ordinal::text) hash FROM generate_series(1,100) ordinal) generated`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), integrationID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := connection.Exec(ctx, `ANALYZE zasp_connector_effects`); err != nil {
+	// The bounded-plan proof assumes statistics for the complete join, including
+	// the trigger-populated lane catalog and the OAuth anti-join. Analyze every
+	// participating table after bulk fixture loading, not just the effect rows.
+	if _, err := connection.Exec(ctx, `ANALYZE zasp_connector_effects; ANALYZE zasp_connector_effect_lane_scopes; ANALYZE zasp_connector_oauth_attempts`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := connection.Exec(ctx, `SET enable_seqscan=off`); err != nil {

@@ -495,3 +495,107 @@ The final release-source gate passed. Harness/release/ledger contracts passed
 76 tests, with two explicitly gated cleanup tests skipped. Staged secret scanning
 passed; four privacy-scanner matches were verified CI run IDs, not phone numbers.
 The UI slice is ready for shipping CI, without changing task availability yet.
+
+PR 28 main CI 34419096909 passed after merge d46085cf. M7-05's original
+structured-search criterion is now accepted and protected against ledger
+regression. The current count is 536 production-available, 131 component-only
+and 61 external gates. PR 29 contains the independently reviewed M7-06 UI;
+its shipping checks are pending. No M7-06 or M7-07a credit is claimed yet.
+
+### Runtime timeline shell, implementation in progress
+
+The runtime list opens a target-bound drawer using generated summary and event
+APIs. Each request reads one 25-event page; it never eagerly accumulates a whole
+investigation. Strict decoding rejects a foreign target, reverse order, repeated
+page boundary or malformed response. Query identity and cancellation hide prior
+rows when the investigation, filter or principal/scope client changes. Unknown
+identity and source confidence stay explicit. The page explains that event-time
+pagination and fresh summaries are not a cross-request snapshot.
+
+The real pipeline fixture now submits 26 events in descending event-time order.
+All 26 pass through the existing SQS, canonical archive, five-stage worker,
+completion receipt, PostgreSQL projection and immutable session index. The
+owned pipeline-only proof passed with unchanged replay and receipt invariants.
+No session rows are seeded to satisfy the browser. Its new browser assertion
+expects the original evidence IDs in reverse ingress order across 25-plus-1
+pages, checks distinct event IDs and source/confidence, returns to page one,
+and switches scope while the drawer is mounted. Full Chrome proof is pending.
+
+Independent timeline/list/decoder tests passed 56 tests. Review caught a
+harness gap that closed the drawer before scope switching; it now keeps the
+drawer mounted and asserts teardown. A separate RED test reproduced same-scope
+cross-principal runtime event cursor reuse. Runtime event cursors now bind the
+current principal as well as scope, query and investigation; console cursor
+compatibility is unchanged. Focused runtime-read race tests passed. This also
+corrects the earlier summary/API section's premature principal-binding claim
+for event cursors, which previously bound only scope, query and investigation.
+Full final verification, original-task acceptance and shipping CI remain gates.
+
+Full UI verification passed 193 frontend files / 1,145 tests, type-checking,
+lint, release checks, build and production-import checks. The full Chrome run
+has passed the new timeline proof, including mounted-drawer scope teardown;
+the remaining composed workflows and cleanup are still running.
+
+### Event-row and mixed-evidence acceptance audit
+
+Independent original-criterion review withdrew M7-07b, M7-07c and M7-07 credits.
+The production runtime decoder accepts tool/runtime/network/file, not credential
+or policy. The new timeline shows evidence IDs as text, without evidence links.
+Its focused rendering fixture uses Exact and the real worker fixture uses
+Unattributed. Neither proves visible Probable-versus-Exact differentiation.
+The composed runtime fixture is single-class Tetragon evidence, not the required
+mixed-evidence session. Historical six-class `sessioncontrol` component tests
+have no production caller and cannot satisfy these criteria.
+
+The ledger regression first failed on these inherited credits, then passed
+after assigning the three tasks to T14-data-workflows as component-only.
+Current totals are 533 production-available, 134 component-only and 61 external
+gates. All 728 original IDs and historical statuses remain intact. These gaps
+do not invalidate M7-07a's narrower canonical timeline-shell criterion. The
+three tasks remain next in their original dependency order.
+
+The complete Chrome/runtime run passed and cleaned up its owned services. The
+release-source gate passed, including exact source SBOM/license/container/secret
+checks and API resilience tests. Independent review accepted M7-07a's original
+criterion conditionally on final API verification, its M7-06 dependency and CI.
+
+The first full API race run failed the existing 100,000-row reconciliation
+index test. Its plan scanned approximately 100,100 candidates before sorting;
+this was real excess work, not an index-name-only assertion. Three isolated
+unchanged repeats passed in 70.309 seconds. Review found the fixture refreshed
+statistics only for effects, leaving the trigger-populated lane catalog and
+OAuth anti-join tables uncontrolled. The experiment now analyzes all three
+after loading. All index, row, buffer and spill assertions remain unchanged;
+neither planner flags nor production SQL are relaxed. Five controlled repeats
+and the full API suite are running. These checks do not establish bounds for
+arbitrarily stale production statistics; a persistent controlled-statistics
+failure requires a forward query migration, not editing shipped migration 11.
+
+PR 29's corrected push CI 34420736786 and PR CI 34420739605 passed. It merged
+as main 71920e15; main CI 34421351398 is running. M7-06 remains component-only
+until that gate passes.
+
+The controlled-statistics reconciliation proof passed five race repeats in
+171.343 seconds. The final complete API race suite passed in 283.945 seconds.
+Independent review accepted the fixture-only correction with the stated
+statistics limitation. Final harness/release/ledger contracts passed 80 tests,
+with two explicitly gated cleanup tests skipped. Staged gitleaks passed;
+eight MEDIUM privacy findings were verified as one fixed synthetic ProductID
+and CI run numbers, with zero HIGH findings. The timeline slice is ready for
+shipping CI. M7-07a is not promoted before its dependency and shipping gates.
+
+PR 29 main CI 34421351398 passed after merge 71920e15, closing M7-06's
+conditional original-task acceptance. Ledger credit is restored with a regression
+test that first failed on absent acceptance. Current totals are 534
+production-available, 133 component-only and 61 external gates. Timeline commit
+49ed8b16 is in PR 30; its 1,357-commit history secret scan passed before push.
+M7-07a remains conditional on that slice's shipping/main CI.
+
+PR 30's initial push CI 34421874206 and PR CI 34421877737 failed at the ledger
+gate. Task rows, owner map and global counts reflected the three withdrawn
+credits, but the checker's separate M7 milestone map still expected 36/26.
+The negative-only regression selection had not detected the invalid canonical
+ledger. A new positive test reproduces the exact canonical mismatch. The map
+now matches 34 production / 28 component after M7-06's passed main gate.
+The complete ledger command and all ledger tests must pass before repush.
+No product or UI code is changed by this correction.
