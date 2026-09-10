@@ -1,7 +1,8 @@
 # Reconciliation under concurrent API load
 
-Status: opt-in local characterization verified on
-`codex/reconciliation-concurrent-load`; shipping CI pending. No task credit changes.
+Status: opt-in local characterization merged through PR 39 as main `8ec83a9b`.
+Push CI 34523789643, PR CI 34523836361 and main CI 34524724253 passed.
+No task credit changes.
 All 728 classifications remain 535 production-available / 132 component-only /
 61 externally blocked. Reference-deployment acceptance is still unavailable.
 
@@ -84,8 +85,8 @@ concurrent operations are settled before teardown.
 The profile remains the local composed dataset with declared provider fixtures.
 It does not establish reference capacity, all-tenant performance, a general
 maintenance deadline or immediate post-retirement raw-scan compliance. The
-original M8-36b/36 external gates remain open. Required push, PR and main CI
-remain shipping gates. The official upstream Superpowers TDD,
+original M8-36b/36 external gates remain open. Required push and PR CI passed;
+main CI also passed. The official upstream Superpowers TDD,
 verification-before-completion and independent review workflow was followed;
 the installed Superpowers plugin is unavailable, so no installed-plugin run is
 claimed. Staged secret scanning found no leaks. Privacy scanning reported

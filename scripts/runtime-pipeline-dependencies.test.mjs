@@ -99,3 +99,62 @@ test("public container bindings fail closed but owned cleanup still runs", async
   await dependencies.close();
   assert.deepEqual(calls.filter((args) => args[0] === "rm"), [["rm", "--force", containerID]]);
 });
+
+test("cleanup retries one transient inspection failure before verified deletion", async () => {
+  let inspections = 0;
+  const removals = [];
+  const dependencies = createRuntimePipelineDependencies(async (_, args, options) => {
+    if (args[0] === "run") return { status: 0, stdout: containerID };
+    if (args[0] === "inspect") {
+      assert.equal(options.timeout, 3_000);
+      inspections++;
+      if (inspections === 2) return { status: null, stdout: "", signal: "SIGKILL" };
+      return { status: 0, stdout: JSON.stringify([{ Id: containerID, Name: `/zasp-runtime-pipeline-aws-${marker}`, Config: { Labels: { "zasp.marker": marker, "zasp.proof": "runtime-pipeline" } }, NetworkSettings: { Ports: { "4566/tcp": [{ HostIp: "127.0.0.1", HostPort: "45678" }] } } }]) };
+    }
+    removals.push(args);
+    return { status: 0, stdout: "" };
+  }, { marker });
+  await dependencies.start("aws");
+  await dependencies.close();
+  assert.equal(inspections, 3);
+  assert.deepEqual(removals, [["rm", "--force", containerID]]);
+});
+
+test("cleanup bounds persistent inspection failure and never deletes unverified identity", async () => {
+  let inspections = 0;
+  let removeCalls = 0;
+  const dependencies = createRuntimePipelineDependencies(async (_, args) => {
+    if (args[0] === "run") return { status: 0, stdout: containerID };
+    if (args[0] === "inspect") {
+      inspections++;
+      return { status: 1, stdout: "" };
+    }
+    removeCalls++;
+    return { status: 0, stdout: "" };
+  }, { marker });
+  await assert.rejects(dependencies.start("aws"), /inspection failed/);
+  await assert.rejects(dependencies.close(), /cleanup incomplete/);
+  assert.equal(inspections, 3, "one startup attempt and two bounded cleanup attempts");
+  assert.equal(removeCalls, 0);
+});
+
+test("a successful inspection retry cannot substitute foreign or malformed ownership", async () => {
+  for (const retryBody of ["invalid JSON", JSON.stringify([{ Id: containerID, Name: "/foreign", Config: { Labels: {} } }])]) {
+    let inspections = 0;
+    let removeCalls = 0;
+    const dependencies = createRuntimePipelineDependencies(async (_, args) => {
+      if (args[0] === "run") return { status: 0, stdout: containerID };
+      if (args[0] === "inspect") {
+        inspections++;
+        if (inspections === 1) return { status: 0, stdout: JSON.stringify([{ Id: containerID, Name: `/zasp-runtime-pipeline-aws-${marker}`, Config: { Labels: { "zasp.marker": marker, "zasp.proof": "runtime-pipeline" } }, NetworkSettings: { Ports: { "4566/tcp": [{ HostIp: "127.0.0.1", HostPort: "45678" }] } } }]) };
+        return inspections === 2 ? { status: 1, stdout: "" } : { status: 0, stdout: retryBody };
+      }
+      removeCalls++;
+      return { status: 0, stdout: "" };
+    }, { marker });
+    await dependencies.start("aws");
+    await assert.rejects(dependencies.close(), /cleanup incomplete/);
+    assert.equal(inspections, 3);
+    assert.equal(removeCalls, 0);
+  }
+});

@@ -154,6 +154,8 @@ type releaseMigrationRunner interface {
 	DownProductionRuntimeEnrollmentPairing(context.Context) error
 	UpProductionReconciliationLanePlan(context.Context) error
 	DownProductionReconciliationLanePlan(context.Context) error
+	UpProductionRuntimeCandidateAuthority(context.Context) error
+	DownProductionRuntimeCandidateAuthority(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -567,10 +569,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 46
 		}
-		if version != 46 {
+		if version == 46 {
+			if err := runner.UpProductionRuntimeCandidateAuthority(ctx); err != nil {
+				return err
+			}
+			version = 47
+		}
+		if version != 47 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 47 {
+			if err := runner.DownProductionRuntimeCandidateAuthority(ctx); err != nil {
+				return err
+			}
+			version = 46
+		}
 		if version == 46 {
 			if err := runner.DownProductionReconciliationLanePlan(ctx); err != nil {
 				return err

@@ -26,7 +26,7 @@ func (runner *scriptedMigrationRunner) DownProductionReconciliationLanePlan(cont
 
 func TestAgentsecMigrateReconciliationLanePlanRelease(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 45}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || up.version != 46 || !equalMigrationEvents(up.events, []string{"version", "up-production-reconciliation-lane-plan", "version"}) {
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || up.version != 47 || !equalMigrationEvents(up.events, []string{"version", "up-production-reconciliation-lane-plan", "up-production-runtime-candidate-authority", "version"}) {
 		t.Fatalf("up=%v version=%d err=%v", up.events, up.version, err)
 	}
 	down := &scriptedMigrationRunner{version: 46, errAt: "down-production-runtime-enrollment-pairing"}

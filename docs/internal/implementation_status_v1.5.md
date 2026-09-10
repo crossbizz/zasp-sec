@@ -29,7 +29,7 @@ Main CI 34426326091 passed, closing M7-07b's original acceptance. M7-07c's
 verified display slice merged in PR 32 as main 214a757d; push CI 34426729932,
 PR CI 34426774094 and main CI 34427605339 passed. Its narrow display criterion
 is accepted. Lineage work continues on
-`codex/reconciliation-concurrent-load`. The follow-on production reachability audit
+`codex/runtime-candidate-authority`. The follow-on production reachability audit
 withdrew M3-46 and M3-47's inherited credits: actual ingestion supplies neither
 the required lineage nor a provenance-backed candidate source across batches.
 Their domain tests remain component evidence. The original scope is unchanged.
@@ -90,11 +90,53 @@ in-window witness passed all 400 reads, zero errors and p95 31,897,208 ns,
 with 19 overlapping writer commits and default-autovacuum recovery. Full UI/build
 verification passed; the final composed repeat after bounded snapshot-cleanup
 hardening passed all 400 reads, zero errors and p95 15,499,125 ns, then completed
-the browser flows and owned cleanup. Shipping CI is pending.
+the browser flows and owned cleanup. PR 39 (`81c037ad`) passed push CI
+34523789643 and PR CI 34523836361, then merged as main `8ec83a9b`.
+Main CI 34524724253 passed.
 Review permits proceeding with isolated runtime candidate
 authority while the immediate-retirement raw-work concern and reference-load
 gate remain open, without relaxing either assertion or scope. See
 `docs/internal/2026-09-10-reconciliation-concurrent-load.md`.
+
+Frozen runtime candidate-authority work has started. A private typed execution
+capability now reaches authorized stage executors without changing the legacy
+executor signature. Its missing-boundary test failed first; focused stage race
+tests then passed. Schema 47 now provides database observation admission and
+immutable candidate snapshots, but no production executor calls it yet.
+Versioned correlation receipts and composed attribution acceptance remain
+in progress. The first database freeze/replay test failed on the missing authority
+and then passed against actual PostgreSQL. Additional RED regressions exposed
+pre-filter truncation, expired-delivery replay, worker revocation during a stage
+lock wait and snapshot insertion beyond lease expiry. Corrected focused database
+tests passed. Draft M47 now has pinned schema readiness, exact-version runner
+recognition, safe empty rollback and retained-evidence downgrade refusal. Actual
+PostgreSQL drift, concurrent retention, source/anchor revocation and maximum-target
+overflow checks passed. Review exposed a full-runner lock inversion; its RED
+regression now passes with nonblocking downgrade preflight locks. The final focused
+race run passed in 18.864 seconds. The subsequent release gate caught the embedded
+M47/chart-M46 mismatch. CLI/chart/API schema-47 wiring is now implemented; actual
+API startup and repeat rollback at M47 pass. No v2 producer is enabled. Repository,
+v2 correlation/receipts, graph/S3 crash recovery and composed verification remain.
+No original task credit or production-availability classification changed.
+Full schema-47 CLI races and root verification now pass, including 1,179 UI tests,
+typecheck, lint, release assertions, build and ledger validation. Mandatory CI
+includes the new candidate PostgreSQL regressions. Full API races passed in
+432.653 seconds. Composed schema-47 browser proof failed in the temporary-policy
+action flow: the deployment worker reported a missing bundle during fallback
+readback. Owned cleanup completed. The original store error was not retained.
+Bounded test-only tracing now passes, and an actual schema-46/47 comparison
+reproduces superseded-store refusal and the retained lease on both releases.
+It doesn't yet establish the original failure's cause or successful recovery.
+The composed diagnostic rerun passed all functional flows, including the policy
+action, but failed Docker cleanup inspection. The leftover owned fixture was
+verified and removed by exact ID. The bounded one-retry inspection correction
+passed unit, ownership and real SIGTERM cleanup checks. The post-fix full composed
+run then passed all local functional/browser/privacy/restart checks and complete
+owned cleanup. Full source release checks and staged secret/privacy review passed.
+Independent final review approved authority-only shipping conditional on CI.
+This branch remains unpublished; push/PR/main CI still gate shipping.
+No original task credit or production v2 activation is approved.
+See `docs/internal/2026-09-10-runtime-candidate-authority.md`.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production

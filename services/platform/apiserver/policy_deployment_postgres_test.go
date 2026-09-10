@@ -90,7 +90,7 @@ func TestProductionPolicyDeploymentPostgresInstallsExactSingleWriterAuthority(t 
 	assertProductionPolicyDeploymentLifecycle(t, ctx, dsn, connection)
 }
 
-func assertProductionPolicyDeploymentLifecycle(t *testing.T, ctx context.Context, dsn string, connection *pgx.Conn) {
+func assertProductionPolicyDeploymentLifecycle(t *testing.T, ctx context.Context, dsn string, connection *pgx.Conn, afterClaim ...func(*PolicyDeploymentRepository, PolicyDeploymentClaim)) {
 	t.Helper()
 	const (
 		organizationID  = "pid_71000001-0000-4000-8000-000000000001"
@@ -170,6 +170,13 @@ func assertProductionPolicyDeploymentLifecycle(t *testing.T, ctx context.Context
 	claims, err := repository.ClaimPolicyDeployments(ctx, "policy-deployment-v28", "lease-token-policy-v28-0001", 60, 8)
 	if err != nil || len(claims) != 1 || len(claims[0].PersistentPolicies) != 1 || len(claims[0].TemporaryPolicies) != 0 {
 		t.Fatalf("claims=%+v err=%v", claims, err)
+	}
+	if len(afterClaim) > 0 {
+		if len(afterClaim) != 1 {
+			t.Fatal("policy deployment fixture accepts one claim probe")
+		}
+		afterClaim[0](repository, claims[0])
+		return
 	}
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil || len(publicKey) != ed25519.PublicKeySize {
