@@ -254,6 +254,9 @@ func matchSegments(pattern []routeSegment, path []string) (map[string]string, bo
 }
 
 func validRouteParameters(operationID string, parameters map[string]string) bool {
+	if operationID == "getSessionEvent" {
+		return len(parameters) == 2 && runtimeSessionTarget(parameters["id"]) && validAdministrationProductID(parameters["eventId"])
+	}
 	for name, value := range parameters {
 		if name == "id" && stringIn(operationID, "deleteSSOConnection", "testSSOConnection", "deleteSCIMConnection") {
 			if operationID == "deleteSCIMConnection" && !validIdentitySCIMReference(value) || operationID != "deleteSCIMConnection" && !validIdentitySSOReference(value) {

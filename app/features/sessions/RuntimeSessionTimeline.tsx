@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { APITransportError, requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import type { RuntimeSession, RuntimeSessionEvent, RuntimeSessionEventPage } from "../../../apps/web/api/generated";
 import { compareRuntimeSessionEventOrder, decodeRuntimeSession, decodeRuntimeSessionEventPage } from "../../../apps/web/api/runtime-session-decoders";
-import { Badge, Button, Card, LoadingState } from "../../components/ui";
+import { Button, Card, LoadingState, Modal } from "../../components/ui";
+import { RuntimeSessionEventRow } from "./RuntimeSessionEventRow";
+import { RuntimeSessionEvidence, type RuntimeSessionEvidenceAPI } from "./RuntimeSessionEvidence";
 
 export interface RuntimeSessionTimelineAPI {
   get(id: string, signal: AbortSignal): Promise<RuntimeSession>;
@@ -37,11 +39,12 @@ export function createRuntimeSessionTimelineAPI(client: APIClient): RuntimeSessi
 type Query = { id: string; api: RuntimeSessionTimelineAPI; cursor: string | null; page: number; after?: RuntimeSessionEvent };
 type Load = { query: Query; summary?: RuntimeSession; events?: RuntimeSessionEventPage; error?: boolean };
 
-export function RuntimeSessionTimeline({ id, api }: { id: string; api: RuntimeSessionTimelineAPI }) {
+export function RuntimeSessionTimeline({ id, api, evidenceAPI }: { id: string; api: RuntimeSessionTimelineAPI; evidenceAPI?: RuntimeSessionEvidenceAPI }) {
   const initial = useMemo<Query>(() => ({ id, api, cursor: null, page: 1 }), [id, api]);
   const [requested, setRequested] = useState(initial);
   const query = requested.id === id && requested.api === api ? requested : initial;
   const [load, setLoad] = useState<Load | null>(null);
+  const [evidence, setEvidence] = useState<{ event: RuntimeSessionEvent; query: Query; api: RuntimeSessionEvidenceAPI } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     queueMicrotask(() => {
@@ -68,12 +71,7 @@ export function RuntimeSessionTimeline({ id, api }: { id: string; api: RuntimeSe
       <p>Events are ordered by canonical event time, then event ID. Pages and the summary are not a snapshot; restart at the first page to include newly projected earlier events.</p>
     </Card>
     <ol aria-label="Runtime evidence timeline">
-      {events.items.map(event => <li key={event.id} data-runtime-event-id={event.id} data-runtime-evidence-id={event.evidence_id}>
-        <p><time dateTime={event.at} data-runtime-event-time={event.at}>{event.at}</time> · {event.class} / {event.action}</p>
-        <p>{event.label}</p>
-        <p><Badge tone={event.confidence === "exact" ? "success" : event.confidence === "strong" ? "info" : event.confidence === "probable" ? "warning" : "neutral"}>{event.confidence}</Badge> · Source: {event.source}</p>
-        <p>Evidence: {event.evidence_id} · Event: {event.id}</p>
-      </li>)}
+      {events.items.map(event => <RuntimeSessionEventRow key={event.id} event={event} onEvidence={evidenceAPI ? event => setEvidence({ event, query, api: evidenceAPI }) : undefined} />)}
     </ol>
     {events.items.length === 0 && <p>No further committed events on this page.</p>}
     <nav aria-label="Runtime event pages">
@@ -81,5 +79,8 @@ export function RuntimeSessionTimeline({ id, api }: { id: string; api: RuntimeSe
       <span>Page {query.page}</span>
       <Button disabled={!events.page_info.has_more} onClick={() => setRequested({ ...query, cursor: events.page_info.next_cursor, page: query.page + 1, after: events.items.at(-1) })}>Next event page</Button>
     </nav>
+    <Modal open={!!evidence && evidence.query === query && evidence.api === evidenceAPI} title="Evidence metadata" onClose={() => setEvidence(null)}>
+      {evidence && evidence.query === query && evidence.api === evidenceAPI && evidenceAPI && <RuntimeSessionEvidence target={{ investigationID: id, eventID: evidence.event.id, evidenceID: evidence.event.evidence_id }} api={evidenceAPI} />}
+    </Modal>
   </div>;
 }

@@ -73,7 +73,7 @@ describe("M1-26 UI API coverage CI", () => {
   it("records the deliberately hidden provider and job forward references", async () => {
     const map = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8");
     expect(map.match(/availability: planned/g) ?? []).toHaveLength(6);
-    expect(map.match(/availability: available/g)).toHaveLength(140);
+    expect(map.match(/availability: available/g)).toHaveLength(141);
     expect(map.match(/availability: api_available/g)).toHaveLength(6);
     expect(map).not.toMatch(/^\s*(?:route|path|method|server):/m);
   });

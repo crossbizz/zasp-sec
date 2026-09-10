@@ -7,6 +7,7 @@ import { decodeRuntimeSessionPage } from "../../../apps/web/api/runtime-session-
 import { Badge, Button, Card, Drawer, EmptyState, Field, LoadingState, PageHeader, Select } from "../../components/ui";
 import { SessionsComplianceView } from "./SessionsComplianceView";
 import { createRuntimeSessionTimelineAPI, RuntimeSessionTimeline, type RuntimeSessionTimelineAPI } from "./RuntimeSessionTimeline";
+import { createRuntimeSessionEvidenceAPI, type RuntimeSessionEvidenceAPI } from "./RuntimeSessionEvidence";
 
 const textSelectors = [
   ["agent_id", "Agent ID", 40], ["principal_id", "Principal ID", 40],
@@ -35,19 +36,20 @@ export function ProductionSessionsView({ client, canRevokeConsole }: { client: A
   const [surface, setSurface] = useState<"runtime" | "console">("runtime");
   const api = useMemo(() => createRuntimeSessionsAPI(client), [client]);
   const timelineAPI = useMemo(() => createRuntimeSessionTimelineAPI(client), [client]);
+  const evidenceAPI = useMemo(() => createRuntimeSessionEvidenceAPI(client), [client]);
   return <>
     <div className="page" aria-label="Session types">
       <Button aria-pressed={surface === "runtime"} onClick={() => setSurface("runtime")}>Agent runtime</Button>
       <Button aria-pressed={surface === "console"} onClick={() => setSurface("console")}>Console logins</Button>
     </div>
-    {surface === "runtime" ? <RuntimeSessionsView api={api} timelineAPI={timelineAPI} /> : <SessionsComplianceView surface="sessions" client={client} canMutate={canRevokeConsole} />}
+    {surface === "runtime" ? <RuntimeSessionsView api={api} timelineAPI={timelineAPI} evidenceAPI={evidenceAPI} /> : <SessionsComplianceView surface="sessions" client={client} canMutate={canRevokeConsole} />}
   </>;
 }
 
 type Query = { filters: RuntimeSessionFilters; cursor: string | null; page: number };
 type Load = { api: RuntimeSessionsAPI; query: Query; page?: RuntimeSessionPage; error?: boolean };
 
-export function RuntimeSessionsView({ api, timelineAPI }: { api: RuntimeSessionsAPI; timelineAPI?: RuntimeSessionTimelineAPI }) {
+export function RuntimeSessionsView({ api, timelineAPI, evidenceAPI }: { api: RuntimeSessionsAPI; timelineAPI?: RuntimeSessionTimelineAPI; evidenceAPI?: RuntimeSessionEvidenceAPI }) {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [filterError, setFilterError] = useState<string | null>(null);
   const [query, setQuery] = useState<Query>({ filters: {}, cursor: null, page: 1 });
@@ -114,7 +116,7 @@ export function RuntimeSessionsView({ api, timelineAPI }: { api: RuntimeSessions
       </nav>
       <p>Pages are not a snapshot. Newly indexed activity may change results; start again from the first page to refresh.</p>
     </>}
-    {selection && selection.query === query && selection.api === api && timelineAPI && <Drawer open title="Runtime timeline" onClose={() => setSelection(null)}><RuntimeSessionTimeline key={selection.id} id={selection.id} api={timelineAPI} /></Drawer>}
+    {selection && selection.query === query && selection.api === api && timelineAPI && <Drawer open title="Runtime timeline" onClose={() => setSelection(null)}><RuntimeSessionTimeline key={selection.id} id={selection.id} api={timelineAPI} evidenceAPI={evidenceAPI} /></Drawer>}
   </div>;
 }
 

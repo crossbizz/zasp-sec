@@ -599,3 +599,10 @@ ledger. A new positive test reproduces the exact canonical mismatch. The map
 now matches 34 production / 28 component after M7-06's passed main gate.
 The complete ledger command and all ledger tests must pass before repush.
 No product or UI code is changed by this correction.
+
+PR 30's corrected push CI 34422421393 and PR CI 34422426149 passed. Main merge
+a10aaa878eb77420eb204234640aa9008a8730ef passed CI 34423113495. This satisfies
+the independent review's remaining shipping condition for M7-07a. Its ledger
+regression first failed on absent acceptance, then all 26 ledger tests passed.
+Current totals are 535 production-available, 132 component-only and 61 external
+gates. M7-07b, M7-07c and M7-07 remain component-only.

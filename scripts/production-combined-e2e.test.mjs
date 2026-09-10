@@ -6,6 +6,14 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+test("six-class evidence proof requires schema44 and worker-backed scoped links", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");
+  for (const marker of ["44|production_runtime_session_evidence", "schema 44 production_runtime_session_evidence verified", "runtime six-class evidence links proven:", "Open evidence ", "Canonical evidence metadata", "another scope exposed canonical event evidence", "revoked permission exposed canonical event evidence"]) assert.ok(source.includes(marker), marker);
+  for (const marker of ["semantic observation pipeline proven:", '"credential", "use"', '"policy", "block"', 'events[1]["class"], events[1]["action"] = "file", "read"', 'events[2]["class"], events[2]["action"] = "network", "connect"']) assert.ok(worker.includes(marker), marker);
+  assert.doesNotMatch(worker, /(?:INSERT INTO|UPDATE|DELETE FROM) zasp_runtime_session/);
+});
+
 test("session indexing composition requires schema42 and production checkpoint proof", async()=>{
   const source=await readFile(new URL("./production-combined-e2e.mjs",import.meta.url),"utf8");
   assert.ok(source.includes("42|production_runtime_session_search"));

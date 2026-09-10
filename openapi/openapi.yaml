@@ -2309,6 +2309,23 @@ paths:
         '200': { description: Ordered session events., content: { application/json: { schema: { $ref: '#/components/schemas/SessionEventPage' } } } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/sessions/{id}/events/{eventId}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { oneOf: [ { $ref: '#/components/schemas/ProductID' }, { type: string, const: unattributed } ] } }
+      - { name: eventId, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getSessionEvent
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Get exact authorized runtime evidence metadata
+      description: Canonical event metadata only. Raw archive content is excluded. Credential use and policy decisions are source observations, not provider ownership or enforcement attestations. Console login events are not supported by this endpoint.
+      responses:
+        '200': { description: Exact canonical event and evidence reference., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/RuntimeSessionEvent' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/compliance/controls:
     get:
       operationId: listComplianceControls
@@ -3578,8 +3595,8 @@ components:
         id: { $ref: '#/components/schemas/ProductID' }
         session_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
         agent_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
-        class: { type: string, enum: [tool, runtime, network, file] }
-        action: { type: string, enum: [invoke, exec, exit, read, write, connect, accept] }
+        class: { type: string, enum: [tool, runtime, network, file, credential, policy] }
+        action: { type: string, enum: [invoke, exec, exit, read, write, connect, accept, use, allow, monitor, block] }
         label: { type: string, minLength: 1, maxLength: 256 }
         evidence_id: { $ref: '#/components/schemas/ProductID' }
         source: { type: string, enum: [otlp, tetragon] }

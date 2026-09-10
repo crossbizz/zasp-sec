@@ -109,6 +109,18 @@ func classify(source, class, action string) (string, string, bool) {
 	if source == "otlp" && class == "tool" && action == "invoke" {
 		return "medium", "Agent tool invocation", true
 	}
+	if source == "otlp" {
+		switch class + "\x00" + action {
+		case "credential\x00use":
+			return "medium", "Observed credential use", true
+		case "policy\x00allow":
+			return "low", "Observed policy allow", true
+		case "policy\x00monitor":
+			return "medium", "Observed policy monitor", true
+		case "policy\x00block":
+			return "medium", "Observed policy block", true
+		}
+	}
 	if source != "tetragon" {
 		return "", "", false
 	}

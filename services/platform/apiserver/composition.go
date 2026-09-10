@@ -81,6 +81,7 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"GET", "/api/v1/sessions", "listSessions", "investigate_sessions", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/sessions/{id}", "getSession", "investigate_sessions", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/sessions/{id}/events", "listSessionEvents", "investigate_sessions", []string{"BrowserSession"}}, identityDependency},
+	{OperationDefinition{"GET", "/api/v1/sessions/{id}/events/{eventId}", "getSessionEvent", "investigate_sessions", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"DELETE", "/api/v1/sessions/{id}", "revokeSession", "revoke_sessions", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/compliance/controls", "listComplianceControls", "view_compliance", []string{"BrowserSession"}}, identityDependency},
 	{OperationDefinition{"GET", "/api/v1/compliance/evidence", "listComplianceEvidence", "view_compliance", []string{"BrowserSession"}}, identityDependency},
