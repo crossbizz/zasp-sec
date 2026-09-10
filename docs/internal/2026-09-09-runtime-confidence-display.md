@@ -1,7 +1,9 @@
 # M7-07c confidence and source display
 
-Status: focused/full local verification and the final full Chrome run passed.
-Shipping gates are pending. No M7-07c production credit yet.
+Status: M7-07c accepted. Focused/full local verification and the final full
+Chrome run passed. PR 32 merged as main 214a757de9c8a447e841a04b5f5b8060bf01eb67.
+Push CI 34426729932, PR CI 34426774094 and main CI 34427605339 passed.
+M7-07b's dependency gate passed main CI 34426326091.
 
 Original scope: display source and Exact, Strong, Probable and Unattributed;
 the Probable fixture must look different from Exact.
@@ -41,6 +43,10 @@ Independent review found no blocker in this narrow display implementation or
 the explicitly synthetic fixture. After the full Chrome result, independent
 review conditionally accepted M7-07c pending M7-07b's dependency gate and its own
 shipping/main CI. M7-07's authentic mixed-evidence composition remains incomplete.
+
+Those conditional gates have now passed. The authoritative ledger grants only
+M7-07c's original display acceptance; the synthetic fixture grants no production
+lineage or ambiguity credit.
 
 ## Corrected earlier correlation credits
 

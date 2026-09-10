@@ -1,7 +1,8 @@
 # M7-07b: canonical event rows and evidence metadata
 
-Status: implementation, composed pipeline, full browser verification and final
-local gates passed. Shipping gates are pending. No M7-07b production credit yet.
+Status: implementation, composed pipeline, full browser verification, final
+local gates and shipping/main CI passed. M7-07b is production-available under
+its original event-row/evidence-link criterion, not a live deployment claim.
 
 The original criterion is unchanged: tool, runtime, network, file, credential
 and policy rows must each render a deterministic label and evidence link.
@@ -112,5 +113,6 @@ agent/session IDs. This work remains in the original critical path.
 Implementation 0a031483e558fb6ad827c5e032c6526f8baa0a75 passed its 1,359-commit
 history secret scan. PR 31 push CI 34425722226 (8m22s) and PR CI 34425748304
 (7m41s) passed. The release merged to main as
-492cf47395af68ae8160b3aff0bdb550c40bde6c. Main CI 34426326091 remains pending,
-so M7-07b has not yet received production-available credit.
+492cf47395af68ae8160b3aff0bdb550c40bde6c. Main CI 34426326091 passed, satisfying
+the review's final acceptance condition. The ledger records M7-07b as
+production-available; its acceptance regression failed first on absent credit.

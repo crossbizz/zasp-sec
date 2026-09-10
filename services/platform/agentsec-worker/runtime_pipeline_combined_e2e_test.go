@@ -33,6 +33,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent/s3rawstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeindex"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimelineage"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimemetadata"
 	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
 )
@@ -181,9 +182,11 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	}
 	// Deliberately reverse event time at ingress. Twenty-six records cross the
 	// production timeline's 25-row page boundary without seeding session tables.
+	observedLineage := runtimelineage.Observation{Profile: "kubernetes-container-v1", ClusterUID: "78100001-0000-4000-8000-000000000001", NodeUID: "78100002-0000-4000-8000-000000000002", BootID: "78100003-0000-4000-8000-000000000003", PodUID: "78100004-0000-4000-8000-000000000004", ContainerID: "containerd://" + strings.Repeat("a", 64), ProcessID: "42", ProcessStartTime: now.Add(-time.Minute).Format(time.RFC3339Nano), CgroupID: "12345"}
 	events := make([]map[string]any, 26)
 	for i := range events {
 		events[i] = map[string]any{"event_id": fmt.Sprintf("runtime-pipeline-%d", i+1), "class": "process", "action": "exec", "workload_id": "runtime-pipeline", "event_time": now.Add(-time.Duration(i) * time.Second).Format("2006-01-02T15:04:05.000Z"), "evidence_id": fmt.Sprintf("pid_78000103-0000-4000-8000-%012d", i+103), "content": map[string]string{"binary": "agent"}, "search_metadata": map[string]string{"process_digest": processDigest}}
+		events[i]["observed_lineage"] = observedLineage
 	}
 	// Keep the same 26 canonical timestamps and process selector while proving
 	// the three kernel observation classes through the actual workers.
@@ -500,6 +503,9 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 		t.Fatal("canonical metadata-only archive lost event identity, scope, or content filtering")
 	}
 	for i, record := range decoded.Records {
+		if record.ObservedLineage != observedLineage || record.ContainerID != "" || record.CgroupID != "" || record.ProcessID != "" {
+			t.Fatal("observed lineage lost or promoted into legacy matching fields")
+		}
 		if record.SourceEventID != fmt.Sprintf("runtime-pipeline-%d", i+1) || record.Scope != scope || len(record.Content) != 0 {
 			t.Fatal("multi-event archive lost ordered identity, scope or content filtering")
 		}
@@ -679,9 +685,10 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 			metadata["decision"] = pair[1]
 		}
 		semanticEvents = append(semanticEvents, map[string]any{
-			"attributes":  map[string]string{"event.id": fmt.Sprintf("semantic-pipeline-%d", i), "event.class": pair[0], "event.action": pair[1], "agent.id": semanticAgent, "session.id": semanticSession, "task.id": "semantic-task", "tool.id": "semantic-tool", "sandbox.id": "semantic-sandbox", "trace.id": strings.Repeat("a", 32), "span.id": strings.Repeat("b", 16)},
-			"event_time":  now.Add(-time.Duration(30+i) * time.Second).Format("2006-01-02T15:04:05.000Z"),
-			"evidence_id": fmt.Sprintf("pid_78000206-0000-4000-8000-%012d", 206+i), "search_metadata": metadata,
+			"observed_lineage": observedLineage,
+			"attributes":       map[string]string{"event.id": fmt.Sprintf("semantic-pipeline-%d", i), "event.class": pair[0], "event.action": pair[1], "agent.id": semanticAgent, "session.id": semanticSession, "task.id": "semantic-task", "tool.id": "semantic-tool", "sandbox.id": "semantic-sandbox", "trace.id": strings.Repeat("a", 32), "span.id": strings.Repeat("b", 16)},
+			"event_time":       now.Add(-time.Duration(30+i) * time.Second).Format("2006-01-02T15:04:05.000Z"),
+			"evidence_id":      fmt.Sprintf("pid_78000206-0000-4000-8000-%012d", 206+i), "search_metadata": metadata,
 		})
 	}
 	semanticBody, err := json.Marshal(map[string]any{"source": "otlp", "events": semanticEvents})
@@ -788,6 +795,37 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_search_outbox WHERE batch_id=$1 AND state='indexed' AND attempt=1`, semanticBatch.BatchID).Scan(&semanticIndexed); err != nil || semanticIndexed != 1 {
 		t.Fatalf("semantic search checkpoint count=%d err=%v", semanticIndexed, err)
 	}
+	// These emitters have no configured pairing. Identical observed qualifiers
+	// must not create authority or rewrite already committed unknown evidence.
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND source='tetragon' AND confidence='unattributed' AND session_id IS NULL AND agent_id IS NULL`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&unknownCount); err != nil || unknownCount != 26 {
+		t.Fatal("same observed lineage granted unpaired sensors correlation authority")
+	}
+	var semanticReference, semanticVersion, semanticDigest string
+	if err := admin.QueryRow(ctx, `SELECT raw_artifact_reference,raw_artifact_version_id,encode(raw_artifact_checksum,'hex') FROM zasp_runtime_batch_authorities WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND batch_id=$4`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), semanticBatch.BatchID).Scan(&semanticReference, &semanticVersion, &semanticDigest); err != nil {
+		t.Fatal(err)
+	}
+	semanticObject, err := s3API.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(strings.TrimPrefix(semanticReference, "s3://"+bucket+"/")), VersionId: &semanticVersion, ExpectedBucketOwner: aws.String("000000000000"), ChecksumMode: s3types.ChecksumModeEnabled})
+	if err != nil {
+		t.Fatal(err)
+	}
+	semanticArchived, err := io.ReadAll(io.LimitReader(semanticObject.Body, 1<<20))
+	semanticObject.Body.Close()
+	if err != nil || aws.ToString(semanticObject.VersionId) != semanticVersion {
+		t.Fatal("semantic archive readback mismatch")
+	}
+	semanticArchiveDigest := sha256.Sum256(semanticArchived)
+	if hex.EncodeToString(semanticArchiveDigest[:]) != semanticDigest {
+		t.Fatal("semantic lineage not bound to archive digest")
+	}
+	semanticDecoded, err := runtimeevent.DecodeArchivedBatch(scope, semanticArchived)
+	if err != nil || len(semanticDecoded.Records) != 3 {
+		t.Fatal("semantic archive decode failed")
+	}
+	for _, record := range semanticDecoded.Records {
+		if record.ObservedLineage != observedLineage || record.AgentID.String() != semanticAgent || record.SessionID.String() != semanticSession || len(record.Content) != 0 {
+			t.Fatal("semantic archive lost observed lineage")
+		}
+	}
 	beforeSemanticReplay := sessionSnapshot()
 	beforeSemanticVersions := versions()
 	if replay := semanticIngest(); replay.Code != http.StatusAccepted || replay.Body.String() != semanticAccepted.Body.String() {
@@ -801,6 +839,7 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 		t.Fatal("semantic replay changed canonical evidence")
 	}
 	t.Log("semantic observation pipeline proven: separately enrolled OTLP source, actual five-stage receipts, six canonical classes, scoped Exact instrumentation and stable replay; no raw content or enforcement assertion")
+	t.Log("runtime observed lineage preservation proven: exact S3 versions and committed digests, same qualified observations from separate enrollments, unknown kernel attribution and explicit semantic IDs retained, immutable replay; Strong/Probable correlation NOT RUN")
 	t.Log("runtime pipeline proof passed: production roles, durable ingest/outbox, actual local SQS/S3/OpenSearch, five stage receipts, replay and empty DLQ; Neo4j and cloud IAM NOT RUN")
 }
 
