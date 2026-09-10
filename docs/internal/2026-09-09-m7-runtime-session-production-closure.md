@@ -583,3 +583,19 @@ with two explicitly gated cleanup tests skipped. Staged gitleaks passed;
 eight MEDIUM privacy findings were verified as one fixed synthetic ProductID
 and CI run numbers, with zero HIGH findings. The timeline slice is ready for
 shipping CI. M7-07a is not promoted before its dependency and shipping gates.
+
+PR 29 main CI 34421351398 passed after merge 71920e15, closing M7-06's
+conditional original-task acceptance. Ledger credit is restored with a regression
+test that first failed on absent acceptance. Current totals are 534
+production-available, 133 component-only and 61 external gates. Timeline commit
+49ed8b16 is in PR 30; its 1,357-commit history secret scan passed before push.
+M7-07a remains conditional on that slice's shipping/main CI.
+
+PR 30's initial push CI 34421874206 and PR CI 34421877737 failed at the ledger
+gate. Task rows, owner map and global counts reflected the three withdrawn
+credits, but the checker's separate M7 milestone map still expected 36/26.
+The negative-only regression selection had not detected the invalid canonical
+ledger. A new positive test reproduces the exact canonical mismatch. The map
+now matches 34 production / 28 component after M7-06's passed main gate.
+The complete ledger command and all ledger tests must pass before repush.
+No product or UI code is changed by this correction.

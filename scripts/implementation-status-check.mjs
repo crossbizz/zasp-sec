@@ -20,8 +20,8 @@ const allowedProductionClasses = new Set([
   "missing",
 ]);
 const expectedClassCounts = new Map([
-  ["production-available", 533],
-  ["component-only", 134],
+  ["production-available", 534],
+  ["component-only", 133],
   ["blocked/external", 61],
   ["missing", 0],
 ]);
@@ -34,7 +34,7 @@ const expectedMilestoneClassCounts = new Map([
   ["M4", new Map([["production-available", 82], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
   ["M5", new Map([["production-available", 42], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
   ["M6", new Map([["production-available", 36], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
-  ["M7", new Map([["production-available", 36], ["component-only", 26], ["blocked/external", 0], ["missing", 0]])],
+  ["M7", new Map([["production-available", 34], ["component-only", 28], ["blocked/external", 0], ["missing", 0]])],
   ["M7A", new Map([["production-available", 98], ["component-only", 15], ["blocked/external", 0], ["missing", 0]])],
   ["M8", new Map([["production-available", 35], ["component-only", 54], ["blocked/external", 52], ["missing", 0]])],
 ]);
@@ -64,7 +64,7 @@ const auditedProductionClassOwners = new Set([
   "T16-recovery-ops",
 ]);
 const auditedProductionAvailableIDs = new Set([
-  "M7-01", "M7-02", "M7-03", "M7-04", "M7-05",
+  "M7-01", "M7-02", "M7-03", "M7-04", "M7-05", "M7-06",
   "M5-01", "M5-02", "M5-03", "M5-04", "M5-14", "M5-16", "M5-17", "M5-18", "M5-19", "M5-20", "M5-21", "M5-22",
   "M5-05", "M5-06", "M5-07", "M5-08", "M5-09", "M5-10", "M5-11", "M5-12", "M5-13", "M5-15",
   "M3-48h", "M3-52d",
