@@ -1,8 +1,10 @@
 # Runtime enrollment pairing, September 10, 2026
 
-Status: locally verified pairing behavior on `codex/runtime-enrollment-pairing`,
-with an explicitly unresolved full-suite exception below. Not shipped or accepted
-as cross-batch correlation evidence. Original task counts remain
+Status: merged through PR 34 as main `2ec567e578f9254ed6c44531aa829318b3723092`,
+with the explicitly disclosed full-suite exception below. Push CI 34509076346
+passed on retry after a PostgreSQL-tool lookup timeout; PR CI 34509136931 passed
+unchanged. Main CI 34510681669 passed. Not accepted as cross-batch correlation
+evidence. Original task counts remain
 535 production-available, 132 component-only and 61 external gates out of 728.
 M3-46, M3-47 and M7-07 remain component-only under their original owners.
 
@@ -118,7 +120,9 @@ rollout once such provenance exists, not a promise of rollback after use.
 
 ## Still required before shipping this slice
 
-Finish final secret/privacy scans, push/PR checks, merge and main CI. The pairing-specific
+Final secret/privacy scans, push/PR checks, merge and main CI passed.
+Commit `c87000fb53d6f08d7fdc1d630a27ff4ff62517ae` passed a 1,362-commit
+history secret scan. The pairing-specific
 API/database gates and full Chrome lifecycle passed. The connector scaling
 defect remains next on the critical path and blocks any claim of production
 readiness. No verification listed as pending is a pass.

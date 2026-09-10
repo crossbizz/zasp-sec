@@ -22,6 +22,16 @@ identified sampled provider-cardinality estimates and a candidate-level live-lan
 anti-join as a likely cost crossover. Sampling is a hypothesis, not yet a proven
 complete cause.
 
+The controlled experiment now confirms this cause: forcing the observed provider
+cardinality of 25 made the installed query choose a bitmap scan/sort (largest
+node 991.09 rows, 2,483 shared reads). With cardinality 101 it used the ordered
+index. Moving global lane exclusion into a materialized eligible-lane CTE kept
+the ordered index and a largest result of 101 rows for both estimates. Later
+plans had warm caches, so zero reads are not cold-cache performance proof.
+The diagnostic log is `/tmp/zasp-reconciliation46-diagnostic.log`.
+PostgreSQL documents randomized ANALYZE statistics and resulting estimate
+variation in its [EXPLAIN documentation](https://www.postgresql.org/docs/18/using-explain.html).
+
 The isolated, unchanged base revision
 `1aab7f58448f13e015ca398c8f483b58b53df5a5` reproduced the same failure: the
 eight-repeat race command exited 1 after 262.777 seconds, with the failing case
@@ -45,3 +55,7 @@ performance claim is made. M45 can be assessed independently only after the
 failure is demonstrated on the unchanged base and required CI passes, with this
 exception disclosed. Independent review found no M45-specific dependency
 requiring both changes in the same migration.
+
+The forward schema-46 implementation and its outstanding verification are in
+`2026-09-10-reconciliation-lane-plan.md`. The defect stays open until that fix
+passes full verification and ships. No performance assertion was relaxed.

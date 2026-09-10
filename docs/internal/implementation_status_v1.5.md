@@ -29,7 +29,7 @@ Main CI 34426326091 passed, closing M7-07b's original acceptance. M7-07c's
 verified display slice merged in PR 32 as main 214a757d; push CI 34426729932,
 PR CI 34426774094 and main CI 34427605339 passed. Its narrow display criterion
 is accepted. Lineage work continues on
-`codex/runtime-enrollment-pairing`. The follow-on production reachability audit
+`codex/reconciliation-lane-plan`. The follow-on production reachability audit
 withdrew M3-46 and M3-47's inherited credits: actual ingestion supplies neither
 the required lineage nor a provenance-backed candidate source across batches.
 Their domain tests remain component evidence. The original scope is unchanged.
@@ -40,9 +40,11 @@ closed, versioned observed-lineage profile through actual runtime ingest and
 archive decoding but grants no correlation authority. Evidence is recorded in
 `docs/internal/2026-09-09-runtime-lineage-preservation.md`.
 
-Enrollment pairing is in progress on `codex/runtime-enrollment-pairing`, including
-schema 45, the real product API and enrollment UI. It is not shipped or accepted
-as correlation proof. Frozen cross-batch candidate snapshots and composed
+Enrollment pairing merged in PR 34 as main `2ec567e5`, including schema 45,
+the real product API and enrollment UI. Push CI 34509076346 passed on retry
+after a PostgreSQL-tool lookup timeout; PR CI 34509136931 passed unchanged.
+Main CI 34510681669 passed. Pairing is not accepted as correlation proof.
+Frozen cross-batch candidate snapshots and composed
 Strong/Probable attribution remain incomplete. Current verification and remaining
 gates are in `docs/internal/2026-09-10-runtime-enrollment-pairing.md`.
 
@@ -50,7 +52,14 @@ An unchanged connector reconciliation performance fixture failed during the
 full API run. This is an unresolved scaling defect, not a clean full-suite pass;
 its exact plan evidence, independent baseline check and required forward fix are
 tracked in `docs/internal/2026-09-10-connector-reconciliation-plan-regression.md`.
-The correction is next on the critical path before frozen runtime candidates.
+The schema-46 correction is in progress on `codex/reconciliation-lane-plan`,
+before frozen runtime candidates. Root cause is reproduced with fixed planner
+statistics. Actual migration upgrade/rollback, initial bounded-plan proof,
+registered API/worker readiness, claim concurrency and full Node/API suites passed.
+Expanded repetitions exposed a separate default-planner retirement I/O defect,
+also reproduced on schema 45; it remains next on the critical path. Full Chrome
+passed. Three final focused repetitions passed; shipping gates remain pending. Evidence
+is in `docs/internal/2026-09-10-reconciliation-lane-plan.md`.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production

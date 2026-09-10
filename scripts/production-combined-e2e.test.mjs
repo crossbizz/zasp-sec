@@ -6,6 +6,12 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+test("combined product proof requires the forward reconciliation migration", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  for (const marker of ["46|production_reconciliation_lane_plan", "schema 46 production_reconciliation_lane_plan verified"])
+    assert.ok(source.includes(marker), marker);
+});
+
 test("enrollment pairing proof requires schema45 and real browser lifecycle", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   for (const marker of ["45|production_runtime_enrollment_pairing", "schema 45 production_runtime_enrollment_pairing verified", "await exerciseRuntimeEnrollmentPairing(cdp, dsn, sensorID)", "Runtime sensor pairing", "Configured runtime pairing", "runtime enrollment pairing proven:", "paired token survived reload", "anchor deletion rewrote configured pairing"])
