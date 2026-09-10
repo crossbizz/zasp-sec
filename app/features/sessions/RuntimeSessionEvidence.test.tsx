@@ -25,7 +25,7 @@ describe("runtime evidence metadata", () => {
     expect(await screen.findByText("Observed credential use")).toBeVisible();
     expect(screen.getByText(/Raw archive content is not included/)).toBeVisible();
     expect(screen.getByText(/not proof of credential ownership or policy enforcement/)).toBeVisible();
-    expect(screen.getByText("unattributed")).toBeVisible();
+    expect(screen.getByText("Unattributed")).toBeVisible();
     expect(screen.getByText(evidenceID)).toBeVisible();
     expect(screen.queryByRole("link", { name: /Download/ })).not.toBeInTheDocument();
   });

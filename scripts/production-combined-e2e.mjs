@@ -556,6 +556,7 @@ try {
 	assert.match(redTeamState, /No Red Team runs in this scope/);
 	console.log("combined E2E: tenant-scoped Red Team route loaded through isolated Security Agent API authority");
 	await exerciseRuntimeSessionReads(browser.cdp, dsn);
+	await exerciseRuntimeConfidenceDisplay(browser.cdp, dsn);
 	await exerciseRedTeamRecommendations(browser.cdp, dsn);
 
 	const hiddenRequestStart = productAPIRequests.length;
@@ -2338,7 +2339,7 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
       assert.equal(metadata.fields["Canonical event"], row.id);
       assert.equal(metadata.fields["Evidence reference"], row.evidence);
       assert.equal(metadata.fields.Source, source);
-      assert.equal(metadata.fields["Correlation confidence"], confidence);
+      assert.equal(metadata.fields["Correlation confidence"].toLowerCase(), confidence);
       assert.match(metadata.text, /Raw archive content is not included/);
       if (row.class === "credential" || row.class === "policy") assert.match(metadata.text, /not proof of credential ownership or policy enforcement/);
       assert.equal(metadata.focused, true, "evidence dialog did not take focus");
@@ -2365,7 +2366,7 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
     assert.deepEqual(timeline.map(row => row.evidence), Array.from({ length: 26 }, (_, index) => `pid_78000103-0000-4000-8000-${String(128 - index).padStart(12, "0")}`));
     assert.equal(new Set(timeline.map(row => row.id)).size, 26);
     for (let index = 0; index < timeline.length; index += 1) {
-      assert.match(timeline[index].text, /unattributed/);
+      assert.match(timeline[index].text, /Unattributed/);
       assert.match(timeline[index].text, /Source: tetragon/);
       if (index > 0) assert.ok(Date.parse(timeline[index - 1].at) < Date.parse(timeline[index].at), "rendered timeline is not in canonical event-time order");
     }
@@ -2438,6 +2439,93 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
     await selectBrowserOption(cdp, "Authorized scope", "Production");
     await waitForBrowserSelectedOption(cdp, "Authorized scope", "Production");
     await reloadBrowser(cdp);
+    await waitForBrowserText(cdp, /No Red Team tests in this scope/);
+  }
+}
+
+async function exerciseRuntimeConfidenceDisplay(cdp, dsn) {
+  // M7-07c is a display criterion. These two synthetic production-row fixtures
+  // exercise the real API and renderer, NOT the unimplemented cross-batch
+  // correlation path. The original worker evidence must survive byte-for-byte.
+  const organization = "pid_10000001-0000-4000-8000-000000000001";
+  const workspace = "pid_10000022-0000-4000-8000-000000000022";
+  const environment = "pid_10000023-0000-4000-8000-000000000023";
+  const scope = organization + "/" + workspace + "/" + environment;
+  const production = organization + "/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+  const predicate = `organization_id='${organization}' AND workspace_id='${workspace}' AND environment_id='${environment}'`;
+  const probableID = "pid_78100301-0000-4000-8000-000000000301";
+  const strongID = "pid_78100302-0000-4000-8000-000000000302";
+  const session = "pid_78000202-0000-4000-8000-000000000202";
+  const agent = "pid_78000203-0000-4000-8000-000000000203";
+  const owned = `${predicate} AND event_id IN ('${probableID}','${strongID}')`;
+  const sql = statement => command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-At", "-c", statement]);
+  const snapshot = async () => (await sql(`SELECT jsonb_build_object('events',(SELECT jsonb_agg(to_jsonb(event) ORDER BY event_id) FROM zasp_runtime_session_events event WHERE ${predicate}),'summaries',(SELECT jsonb_agg(to_jsonb(summary) ORDER BY id) FROM zasp_runtime_session_summaries summary WHERE ${predicate}))::text`)).stdout.trim();
+  assert.equal((await sql(`SELECT count(*) FROM zasp_runtime_session_events WHERE ${owned}`)).stdout.trim(), "0", "confidence fixture does not own its event IDs");
+  const before = await snapshot();
+  const closeDialog = async title => {
+    await waitForBrowserAction(cdp, `(() => { const button = document.querySelector(${JSON.stringify('[aria-label="' + title + '"] button[aria-label="Close"]')}); if (!button) return false; button.click(); return true; })()`);
+    await waitForBrowserAction(cdp, `document.querySelector(${JSON.stringify('[aria-label="' + title + '"]')}) === null`);
+  };
+  const badge = async confidence => {
+    const selector = `[aria-label="Runtime evidence timeline"] li [data-runtime-confidence="${confidence}"]`;
+    await waitForBrowserAction(cdp, `document.querySelector(${JSON.stringify(selector)}) !== null`);
+    const result = await cdp.send("Runtime.evaluate", { expression: `(() => {
+      const wrapper = document.querySelector(${JSON.stringify(selector)}), badge = wrapper.querySelector('.badge'), row = wrapper.closest('li'), style = getComputedStyle(badge);
+      return { label: badge.textContent, background: style.backgroundColor, color: style.color, meaning: wrapper.title, eventID: row.dataset.runtimeEventId, evidenceID: row.dataset.runtimeEvidenceId, text: row.innerText };
+    })()`, returnByValue: true });
+    return result.result.value;
+  };
+  try {
+    await sql(`BEGIN;
+      WITH basis AS (SELECT min(event_time)-interval '1 second' AS at FROM zasp_runtime_session_events WHERE ${predicate})
+      INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time)
+      SELECT '${organization}','${workspace}','${environment}',fixture.id,fixture.session_id,fixture.agent_id,fixture.confidence,'tetragon','process','exec','Synthetic confidence display fixture',fixture.id,basis.at
+      FROM basis CROSS JOIN (VALUES ('${probableID}',NULL::text,NULL::text,'probable'),('${strongID}','${session}','${agent}','strong')) fixture(id,session_id,agent_id,confidence);
+      COMMIT;`);
+    assert.equal((await sql(`SELECT count(*) FROM zasp_runtime_session_events WHERE ${owned}`)).stdout.trim(), "2");
+    await selectBrowserOption(cdp, "Authorized scope", "Staging");
+    await waitForBrowserScope(cdp, scope);
+    await clickBrowserAria(cdp, "Sessions");
+    await waitForBrowserText(cdp, /Unattributed evidence/);
+    await clickBrowserAria(cdp, "Open runtime timeline unattributed");
+    const probable = await badge("probable"), unattributed = await badge("unattributed");
+    assert.equal(probable.label, "Probable");
+    assert.equal(unattributed.label, "Unattributed");
+    assert.equal(probable.eventID, probableID);
+    assert.match(probable.meaning, /not confirmed/);
+    assert.match(probable.text, /Source: tetragon/);
+    const probableAPI = await browserFetchJSON(cdp, `/api/v1/sessions/unattributed/events/${probableID}`, { "X-Zasp-Expected-Scope": scope });
+    assert.equal(probableAPI.status, 200);
+    assert.equal(probableAPI.body.confidence, "probable");
+    assert.equal(probableAPI.body.agent_id, null);
+    assert.equal(probableAPI.body.session_id, null);
+    await clickBrowserAria(cdp, "Open evidence " + probableID);
+    await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Canonical evidence metadata"] [data-runtime-confidence="probable"]')?.textContent === 'Probable'`);
+    const metadata = await cdp.send("Runtime.evaluate", { expression: `(() => { const pane=document.querySelector('[aria-label="Canonical evidence metadata"]'); return Object.fromEntries([...pane.querySelectorAll('dt')].map(dt=>[dt.textContent,dt.nextElementSibling.textContent])); })()`, returnByValue: true });
+    assert.equal(metadata.result.value.Agent, "Unknown");
+    assert.equal(metadata.result.value.Session, "Unattributed collection");
+    await closeDialog("Evidence metadata");
+    await closeDialog("Runtime timeline");
+    await clickBrowserAria(cdp, "Open runtime timeline " + session);
+    const exact = await badge("exact"), strong = await badge("strong");
+    assert.equal(exact.label, "Exact");
+    assert.equal(strong.label, "Strong");
+    assert.equal(strong.eventID, strongID);
+    assert.match(exact.text, /Source: otlp/);
+    assert.match(strong.text, /Source: tetragon/);
+    assert.notEqual(probable.background, exact.background, "Probable and Exact use the same background");
+    assert.notEqual(probable.color, exact.color, "Probable and Exact use the same foreground");
+    assert.notEqual(strong.background, exact.background);
+    assert.notEqual(unattributed.background, probable.background);
+    await assertResponsiveRiskLayout(cdp, "Runtime timeline");
+    await closeDialog("Runtime timeline");
+    console.log("combined E2E: runtime confidence display fixture passed: four labels, source, computed Probable/Exact color difference and unknown evidence identity; Strong/Probable production correlation NOT RUN");
+  } finally {
+    await sql(`DELETE FROM zasp_runtime_session_events WHERE ${owned} AND title='Synthetic confidence display fixture'`);
+    assert.equal(await snapshot(), before, "confidence fixture cleanup changed worker evidence");
+    await selectBrowserOption(cdp, "Authorized scope", "Production");
+    await waitForBrowserScope(cdp, production);
+    await clickBrowserAria(cdp, "Red Team");
     await waitForBrowserText(cdp, /No Red Team tests in this scope/);
   }
 }

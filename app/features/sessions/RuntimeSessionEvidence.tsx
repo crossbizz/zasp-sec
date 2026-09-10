@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { APITransportError, requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import type { RuntimeSessionEvent } from "../../../apps/web/api/generated";
 import { decodeRuntimeSessionEvent } from "../../../apps/web/api/runtime-session-decoders";
-import { Badge, Button, LoadingState } from "../../components/ui";
+import { Button, LoadingState } from "../../components/ui";
+import { RuntimeConfidence } from "./RuntimeConfidence";
 
 export type RuntimeEvidenceTarget = { investigationID: string; eventID: string; evidenceID: string };
 export interface RuntimeSessionEvidenceAPI {
@@ -56,7 +57,7 @@ export function RuntimeSessionEvidence({ target, api }: { target: RuntimeEvidenc
       <dt>Canonical event</dt><dd>{event.id}</dd>
       <dt>Event type</dt><dd>{event.class} / {event.action}</dd>
       <dt>Source</dt><dd>{event.source}</dd>
-      <dt>Correlation confidence</dt><dd><Badge tone={event.confidence === "exact" ? "success" : event.confidence === "strong" ? "info" : event.confidence === "probable" ? "warning" : "neutral"}>{event.confidence}</Badge></dd>
+      <dt>Correlation confidence</dt><dd><RuntimeConfidence confidence={event.confidence} /></dd>
       <dt>Agent</dt><dd>{event.agent_id ?? "Unknown"}</dd>
       <dt>Session</dt><dd>{event.session_id ?? "Unattributed collection"}</dd>
       <dt>Canonical event time</dt><dd><time dateTime={event.at}>{event.at}</time></dd>

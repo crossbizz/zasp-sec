@@ -6,6 +6,11 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+test("confidence display fixture cannot claim production correlation reachability", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  for (const marker of ["await exerciseRuntimeConfidenceDisplay(browser.cdp, dsn)", "runtime confidence display fixture passed:", "Strong/Probable production correlation NOT RUN", "confidence fixture cleanup changed worker evidence", "data-runtime-confidence", "probable.background, exact.background", "probable.color, exact.color"]) assert.ok(source.includes(marker), marker);
+});
+
 test("six-class evidence proof requires schema44 and worker-backed scoped links", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");
@@ -33,7 +38,7 @@ test("runtime query composition requires schema43 and real indexed HTTP search",
 test("runtime timeline proves reverse-ingress canonical order across real UI pages", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const start = source.indexOf("async function exerciseRuntimeSessionReads");
-  const flow = source.slice(start, source.indexOf("async function exerciseRedTeamRecommendations", start));
+  const flow = source.slice(start, source.indexOf("async function exerciseRuntimeConfidenceDisplay", start));
   for (const marker of ['clickBrowserAria(cdp, "Open runtime timeline unattributed")', 'clickBrowserText(cdp, "Next event page")', 'clickBrowserText(cdp, "First event page")', "128 - index", "new Set(timeline.map", "runtime timeline proven: reverse-ingress worker events, canonical 25-plus-1 pagination, source confidence and scope reset"])
     assert.ok(flow.includes(marker), marker);
   assert.doesNotMatch(flow, /(?:INSERT INTO|UPDATE|DELETE FROM) zasp_runtime_session/);
@@ -42,7 +47,7 @@ test("runtime timeline proves reverse-ingress canonical order across real UI pag
 test("runtime Sessions UI filters worker-written evidence and resets on scope change", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const start = source.indexOf("async function exerciseRuntimeSessionReads");
-  const flow = source.slice(start, source.indexOf("async function exerciseRedTeamRecommendations", start));
+  const flow = source.slice(start, source.indexOf("async function exerciseRuntimeConfidenceDisplay", start));
   for (const marker of ['fillBrowserLabel(cdp, "Process", "/usr/bin/other")', 'fillBrowserLabel(cdp, "Process", "/usr/bin/agent")', 'clickBrowserText(cdp, "Search sessions")', "runtime Sessions UI proven: structured process filter, canonical confidence, indexing checkpoint and scope reset"])
     assert.ok(flow.includes(marker), marker);
   assert.doesNotMatch(flow, /(?:INSERT INTO|UPDATE|DELETE FROM) zasp_runtime_session/);
@@ -54,7 +59,7 @@ test("runtime session browser proof reads worker-written evidence without seedin
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");
   const start = source.indexOf("async function exerciseRuntimeSessionReads");
-  const flow = source.slice(start, source.indexOf("async function exerciseRedTeamRecommendations", start));
+  const flow = source.slice(start, source.indexOf("async function exerciseRuntimeConfidenceDisplay", start));
   assert.ok(start > 0);
   for (const text of ["await exerciseRuntimeSessionReads(browser.cdp, dsn)", "runtime session summaries proven: completion-triggered unknown collection, byte-stable replay"]) assert.ok(source.includes(text), text);
   for (const text of ["another scope exposed runtime investigation", "summary.agent_id, null", "summary.principal_id, null", "summary.kind, \"unattributed\"", "revoked investigation permission retained runtime API access", "runtime session fixture permission ownership changed"]) assert.ok(flow.includes(text), text);

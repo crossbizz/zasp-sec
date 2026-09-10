@@ -106,3 +106,11 @@ across batches, bounded observed lineage, event-time/host/boot identity and
 receipt-bound replay behavior. Bare process IDs or unqualified cgroups cannot
 authorize attribution. Ambiguous evidence must retain null authoritative
 agent/session IDs. This work remains in the original critical path.
+
+## Shipping
+
+Implementation 0a031483e558fb6ad827c5e032c6526f8baa0a75 passed its 1,359-commit
+history secret scan. PR 31 push CI 34425722226 (8m22s) and PR CI 34425748304
+(7m41s) passed. The release merged to main as
+492cf47395af68ae8160b3aff0bdb550c40bde6c. Main CI 34426326091 remains pending,
+so M7-07b has not yet received production-available credit.
