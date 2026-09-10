@@ -150,6 +150,8 @@ type releaseMigrationRunner interface {
 	DownProductionRuntimeSessionQuery(context.Context) error
 	UpProductionRuntimeSessionEvidence(context.Context) error
 	DownProductionRuntimeSessionEvidence(context.Context) error
+	UpProductionRuntimeEnrollmentPairing(context.Context) error
+	DownProductionRuntimeEnrollmentPairing(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -551,10 +553,22 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 44
 		}
-		if version != 44 {
+		if version == 44 {
+			if err := runner.UpProductionRuntimeEnrollmentPairing(ctx); err != nil {
+				return err
+			}
+			version = 45
+		}
+		if version != 45 {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 45 {
+			if err := runner.DownProductionRuntimeEnrollmentPairing(ctx); err != nil {
+				return err
+			}
+			version = 44
+		}
 		if version == 44 {
 			if err := runner.DownProductionRuntimeSessionEvidence(ctx); err != nil {
 				return err

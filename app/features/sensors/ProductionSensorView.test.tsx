@@ -25,6 +25,35 @@ function sensorAPI(overrides: Partial<SensorsAPI> = {}): SensorsAPI {
 }
 
 describe("production sensor management", () => {
+  it("pairs OTLP only with an active scoped runtime and clears selection when kind changes", async () => {
+    const user = userEvent.setup();
+    const paired = { ...enrollment, id: "pid_78200002-0000-4000-8000-000000000002", name: "semantic-source", kind: "otlp" as const, runtime_sensor_id: sensorID };
+    const createSensor = vi.fn(async () => ({ value: paired, version: '"1"' }));
+    const inactive = { ...sensor, id: "pid_78200003-0000-4000-8000-000000000003", name: "inactive-runtime", state: "pending" as const };
+    render(<ProductionSensorView api={sensorAPI({ createSensor, listSensors: async () => [sensor, inactive, paired] })} canWrite fresh onReauthenticate={() => undefined} />);
+    await screen.findByRole("button", { name: "Open production-runtime" });
+    await user.click(screen.getByRole("button", { name: "Enroll sensor" }));
+    expect(screen.queryByLabelText("Runtime sensor pairing")).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Sensor kind"), "otlp");
+    const pairing = screen.getByLabelText("Runtime sensor pairing");
+    expect(within(pairing).getAllByRole("option")).toHaveLength(2);
+    expect(within(pairing).queryByRole("option", { name: /inactive-runtime|semantic-source/ })).not.toBeInTheDocument();
+    await user.selectOptions(pairing, sensorID);
+    await user.selectOptions(screen.getByLabelText("Sensor kind"), "tetragon");
+    await user.selectOptions(screen.getByLabelText("Sensor kind"), "otlp");
+    expect(screen.getByLabelText("Runtime sensor pairing")).toHaveValue("");
+    await user.selectOptions(screen.getByLabelText("Runtime sensor pairing"), sensorID);
+    await user.type(screen.getByLabelText("Sensor name"), paired.name);
+    await user.click(screen.getByRole("button", { name: "Create enrollment" }));
+    expect(await screen.findByText(token)).toBeVisible();
+    expect(createSensor).toHaveBeenCalledWith({ name: paired.name, kind: "otlp", mode: "metadata_only", runtime_sensor_id: sensorID }, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^sensor_/) }));
+    expect(screen.getByText("Pairing cannot be changed. Create a new enrollment to choose another runtime sensor.")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    await user.click(screen.getByRole("button", { name: "Enroll sensor" }));
+    await user.selectOptions(screen.getByLabelText("Sensor kind"), "otlp");
+    expect(screen.getByLabelText("Runtime sensor pairing")).toHaveValue("");
+  });
+
   it("loads authoritative sensors and heartbeat coverage", async () => {
     const user = userEvent.setup();
     const getSensorCoverage = vi.fn(sensorAPI().getSensorCoverage);

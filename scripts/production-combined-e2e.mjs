@@ -175,8 +175,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts\n40|production_runtime_sessions\n41|production_runtime_session_reads\n42|production_runtime_session_search\n43|production_runtime_session_query\n44|production_runtime_session_evidence", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts\n40|production_runtime_sessions\n41|production_runtime_session_reads\n42|production_runtime_session_search\n43|production_runtime_session_query\n44|production_runtime_session_evidence\n45|production_runtime_enrollment_pairing", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -201,6 +201,7 @@ try {
 	console.log("combined E2E: schema 42 production_runtime_session_search verified");
   console.log("combined E2E: schema 43 production_runtime_session_query verified");
   console.log("combined E2E: schema 44 production_runtime_session_evidence verified");
+  console.log("combined E2E: schema 45 production_runtime_enrollment_pairing verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -3812,6 +3813,7 @@ async function assertTask6SensorBrowserState(cdp, publicOrigin, dsn) {
   const reloadedForensics = await browserConnectorForensics(cdp);
   assert.doesNotMatch(JSON.stringify(reloadedForensics), sensorCredentialPattern, "sensor enrollment credential survived a full browser reload");
   assert.equal(JSON.stringify(reloadedForensics).includes(firstCredential) || JSON.stringify(reloadedForensics).includes(secondCredential), false, "known sensor credential survived a full browser reload");
+  const pairedSensorID = await exerciseRuntimeEnrollmentPairing(cdp, dsn, sensorID);
   await clickBrowserAria(cdp, "Open Production E2E sensor renamed");
   sensorDetail = await waitForBrowserText(cdp, /125 events\/s/);
   assert.match(sensorDetail, /Resource version "2"/);
@@ -3820,6 +3822,15 @@ async function assertTask6SensorBrowserState(cdp, publicOrigin, dsn) {
   await waitForBrowserAction(cdp, `document.querySelector(${JSON.stringify('[aria-label="Open Production E2E sensor renamed"]')}) === null`);
   const deletedWitness = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',sensor_row.state,sensor_row.version,sensor_row.revoked_at IS NOT NULL,count(token_row.id),count(*) FILTER(WHERE token_row.revoked_at IS NOT NULL)) FROM zasp_sensors sensor_row JOIN zasp_sensor_tokens token_row ON (token_row.organization_id,token_row.workspace_id,token_row.environment_id,token_row.sensor_id)=(sensor_row.organization_id,sensor_row.workspace_id,sensor_row.environment_id,sensor_row.id) WHERE ${scopePredicate} AND sensor_row.id='${sensorID}' GROUP BY sensor_row.state,sensor_row.version,sensor_row.revoked_at;`]);
   assert.equal(deletedWitness.stdout.trim(), "deleted|3|t|2|2", "sensor deletion did not revoke the sensor and every token exactly once");
+  await clickBrowserAria(cdp, "Open Production E2E paired OTLP");
+  const retainedPairing = await waitForBrowserText(cdp, /Configured runtime pairing/);
+  assert.ok(retainedPairing.includes(sensorID), "anchor deletion rewrote configured pairing");
+  assert.match(retainedPairing, /does not confirm current runtime activity or event attribution/);
+  await clickBrowserText(cdp, "Delete sensor");
+  await waitForBrowserAction(cdp, `document.querySelector(${JSON.stringify('[aria-label="Open Production E2E paired OTLP"]')}) === null`);
+  const retainedPairWitness = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',source.state,anchor.state,pair.runtime_sensor_id) FROM zasp_runtime_sensor_pairings pair JOIN zasp_sensors source ON (source.organization_id,source.workspace_id,source.environment_id,source.id)=(pair.organization_id,pair.workspace_id,pair.environment_id,pair.sensor_id) JOIN zasp_sensors anchor ON (anchor.organization_id,anchor.workspace_id,anchor.environment_id,anchor.id)=(pair.organization_id,pair.workspace_id,pair.environment_id,pair.runtime_sensor_id) WHERE pair.sensor_id='${pairedSensorID}';`]);
+  assert.equal(retainedPairWitness.stdout.trim(), `deleted|deleted|${sensorID}`, "deletion discarded immutable enrollment provenance");
+  console.log("combined E2E: runtime enrollment pairing proven: real UI/API create, refresh, rotation, one-time token privacy and deletion retain immutable scoped pairing; cross-batch correlation NOT RUN");
   const deletedForensics = await browserConnectorForensics(cdp);
   assert.doesNotMatch(JSON.stringify(deletedForensics), sensorCredentialPattern, "sensor credential survived deletion in persistent browser state");
   assert.equal(JSON.stringify(deletedForensics).includes(firstCredential) || JSON.stringify(deletedForensics).includes(secondCredential), false, "known sensor credential survived deletion in persistent browser state");
@@ -3832,6 +3843,43 @@ async function assertTask6SensorBrowserState(cdp, publicOrigin, dsn) {
   firstCredential = "";
   secondCredential = "";
   console.log("combined E2E: Task6 reload and deletion left no enrollment credential in persistent browser state");
+}
+
+async function exerciseRuntimeEnrollmentPairing(cdp, dsn, runtimeSensorID) {
+  const credentialPattern = /\bzasp_sensor_v1\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b/;
+  await clickBrowserText(cdp, "Enroll sensor");
+  await fillBrowserLabel(cdp, "Sensor name", "Production E2E paired OTLP");
+  await selectBrowserOption(cdp, "Sensor kind", "OTLP");
+  await selectBrowserOption(cdp, "Runtime sensor pairing", `Production E2E sensor renamed (${runtimeSensorID})`);
+  await waitForBrowserText(cdp, /Pairing cannot be changed/);
+  await clickBrowserText(cdp, "Create enrollment");
+  await waitForBrowserText(cdp, /Sensor enrollment created\. Copy the token before closing\./);
+  let credential = await waitForBrowserTextMatch(cdp, credentialPattern);
+  assert.doesNotMatch(JSON.stringify(await browserStorageHistoryAndCaches(cdp)), credentialPattern, "paired enrollment token persisted");
+  const witness = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',sensor_row.id,sensor_row.kind,sensor_row.state,pair.runtime_sensor_id) FROM zasp_sensors sensor_row JOIN zasp_runtime_sensor_pairings pair ON (pair.organization_id,pair.workspace_id,pair.environment_id,pair.sensor_id)=(sensor_row.organization_id,sensor_row.workspace_id,sensor_row.environment_id,sensor_row.id) WHERE sensor_row.organization_id='pid_10000001-0000-4000-8000-000000000001' AND sensor_row.workspace_id='pid_10000002-0000-4000-8000-000000000002' AND sensor_row.environment_id='pid_10000003-0000-4000-8000-000000000003' AND sensor_row.name='Production E2E paired OTLP';`]);
+  const [pairedSensorID, ...authority] = witness.stdout.trim().split("|");
+  assert.match(pairedSensorID, /^pid_[0-9a-f-]{36}$/);
+  assert.deepEqual(authority, ["otlp", "pending", runtimeSensorID]);
+  await clickBrowserText(cdp, "Done");
+  await waitForBrowserTextMissing(cdp, credential);
+  await reloadBrowser(cdp);
+  await waitForBrowserText(cdp, /Production E2E paired OTLP/);
+  assert.doesNotMatch(JSON.stringify(await browserConnectorForensics(cdp)), credentialPattern, "paired token survived reload");
+  await clickBrowserAria(cdp, "Open Production E2E paired OTLP");
+  let detail = await waitForBrowserText(cdp, /Configured runtime pairing/);
+  assert.ok(detail.includes(runtimeSensorID), "GET lost persisted runtime pairing");
+  await clickBrowserText(cdp, "Rotate enrollment token");
+  await waitForBrowserText(cdp, /Enrollment token rotated\. Copy it before closing\./);
+  let rotated = await waitForBrowserTextMatch(cdp, credentialPattern);
+  assert.notEqual(rotated, credential);
+  detail = await waitForBrowserText(cdp, /Configured runtime pairing/);
+  assert.ok(detail.includes(runtimeSensorID), "rotation lost configured runtime pairing");
+  await clickBrowserText(cdp, "Close");
+  await waitForBrowserTextMissing(cdp, rotated);
+  assert.doesNotMatch(JSON.stringify(await browserConnectorForensics(cdp)), credentialPattern, "paired rotation credential persisted after close");
+  credential = "";
+  rotated = "";
+  return pairedSensorID;
 }
 
 async function navigateBrowser(cdp, url) {

@@ -38,13 +38,13 @@ export function decodeSessionScopePage(value: unknown): SessionScopePage {
 }
 
 export function decodeSensor(value: unknown): Sensor {
-  const record = exactRecord(value, ["id", "name", "kind", "mode", "state", "version", "token_expires_at", "last_heartbeat_at", "created_at", "updated_at"]);
+  const record = exactRecord(value, ["id", "name", "kind", "mode", "state", "version", "token_expires_at", "last_heartbeat_at", "created_at", "updated_at"], ["runtime_sensor_id"]);
   decodeSensorFields(record);
   return value as Sensor;
 }
 
 export function decodeSensorEnrollment(value: unknown): SensorEnrollment {
-  const record = exactRecord(value, ["id", "name", "kind", "mode", "state", "version", "token_expires_at", "last_heartbeat_at", "created_at", "updated_at", "token"]);
+  const record = exactRecord(value, ["id", "name", "kind", "mode", "state", "version", "token_expires_at", "last_heartbeat_at", "created_at", "updated_at", "token"], ["runtime_sensor_id"]);
   decodeSensorFields(record);
   if (typeof record.token !== "string" || record.token.length !== 81 || !SENSOR_TOKEN.test(record.token) || record.token_expires_at === null || record.state === "revoked") fail();
   return value as SensorEnrollment;
@@ -70,6 +70,7 @@ export function decodeSensorCoverage(value: unknown, expectedSensorID?: string):
 }
 
 function decodeSensorFields(record: Record<string, unknown>): void {
+  if ("runtime_sensor_id" in record) { productID(record.runtime_sensor_id); if (record.kind !== "otlp" || record.runtime_sensor_id === record.id) fail(); }
   productID(record.id); printableString(record.name, 1, 128); enumValue(record.kind, ["tetragon", "otlp"]); enumValue(record.mode, ["metadata_only", "full"]); enumValue(record.state, ["pending", "active", "degraded", "revoked"]); positiveInteger(record.version);
   nullableDateTime(record.token_expires_at); nullableDateTime(record.last_heartbeat_at); dateTime(record.created_at); dateTime(record.updated_at);
   const created = Date.parse(record.created_at as string); const updated = Date.parse(record.updated_at as string);

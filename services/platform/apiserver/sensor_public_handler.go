@@ -171,17 +171,21 @@ func (handler *sensorPublicHTTPHandler) coverage(writer http.ResponseWriter, req
 }
 
 func (handler *sensorPublicHTTPHandler) create(writer http.ResponseWriter, request *http.Request, identity RequestIdentity) {
-	var input struct {
-		Name string `json:"name"`
-		Kind string `json:"kind"`
-		Mode string `json:"mode"`
-	}
 	idempotencyKey, valid := sensorMutationHeaders(request, false)
-	if request.Method != http.MethodPost || request.URL.RawQuery != "" || !valid || !validSensorFreshAuthority(request, identity) || decodeProductionJSON(request, &input) != nil || !validSensorName(input.Name) || !stringIn(input.Kind, "tetragon", "otlp") || !validSensorMode(input.Mode) {
+	if request.Method != http.MethodPost || request.URL.RawQuery != "" || !valid || !validSensorFreshAuthority(request, identity) {
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
-	digest, ok := sensorIntentDigest(identity, "createSensorEnrollment", "", 0, idempotencyKey, map[string]any{"kind": input.Kind, "mode": input.Mode, "name": input.Name})
+	input, err := decodeSensorCreateBody(request)
+	if err != nil {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
+	intent := map[string]any{"kind": input.Kind, "mode": input.Mode, "name": input.Name}
+	if input.RuntimeSensorID != "" {
+		intent["runtime_sensor_id"] = input.RuntimeSensorID
+	}
+	digest, ok := sensorIntentDigest(identity, "createSensorEnrollment", "", 0, idempotencyKey, intent)
 	if !ok {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
@@ -191,7 +195,7 @@ func (handler *sensorPublicHTTPHandler) create(writer http.ResponseWriter, reque
 		if err != nil || !validProductID(sensorID) || sensorID == tokenID {
 			return SensorMutationResult{}, ErrRepositoryUnavailable
 		}
-		return handler.repository.CreateSensor(request.Context(), identity, SensorCreateMutation{SensorID: sensorID, Name: input.Name, Kind: input.Kind, Mode: input.Mode, IdempotencyKey: idempotencyKey, RequestDigest: digest, TokenID: tokenID, TokenGeneration: generation, LocatorDigest: locatorDigest, Salt: salt, TokenHash: tokenHash, TokenExpiresAt: expires})
+		return handler.repository.CreateSensor(request.Context(), identity, SensorCreateMutation{SensorID: sensorID, Name: input.Name, Kind: input.Kind, Mode: input.Mode, RuntimeSensorID: input.RuntimeSensorID, IdempotencyKey: idempotencyKey, RequestDigest: digest, TokenID: tokenID, TokenGeneration: generation, LocatorDigest: locatorDigest, Salt: salt, TokenHash: tokenHash, TokenExpiresAt: expires})
 	}, http.StatusCreated)
 }
 

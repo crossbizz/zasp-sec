@@ -10,6 +10,18 @@ const sensor: Sensor = { id: sensorID, name: "production-runtime", kind: "tetrag
 const enrollment: SensorEnrollment = { ...sensor, state: "pending", version: 1, token_expires_at: "2026-09-20T00:00:00Z", last_heartbeat_at: null, token };
 
 describe("production sensor API adapter", () => {
+  it("binds the requested runtime pairing to the one-time enrollment response", async () => {
+    const anchor = "pid_78200001-0000-4000-8000-000000000001";
+    const paired = { ...enrollment, kind: "otlp" as const, runtime_sensor_id: anchor };
+    const POST = vi.fn(async () => secretResult(paired, 201));
+    const input = { name: sensor.name, kind: "otlp" as const, mode: sensor.mode, runtime_sensor_id: anchor };
+    expect((await createSensorsAPI({ POST } as unknown as APIClient).createSensor(input)).value).toMatchObject({ runtime_sensor_id: anchor });
+    expect(POST).toHaveBeenCalledWith("/api/v1/sensors", expect.objectContaining({ body: input }));
+    const drift = vi.fn(async () => secretResult({ ...paired, runtime_sensor_id: "pid_78200009-0000-4000-8000-000000000009" }, 201));
+    await expect(createSensorsAPI({ POST: drift } as unknown as APIClient).createSensor(input)).rejects.toThrow("pairing");
+    const missing = vi.fn(async () => secretResult({ ...enrollment, kind: "otlp" }, 201));
+    await expect(createSensorsAPI({ POST: missing } as unknown as APIClient).createSensor(input)).rejects.toThrow("pairing");
+  });
   it("loads every bounded cursor page without truncation", async () => {
     const cursor = "c2Vuc29yLXBhZ2UtMg";
     const second = { ...sensor, id: "pid_10000002-0000-4000-8000-000000000002", name: "second-runtime" };

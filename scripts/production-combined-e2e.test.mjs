@@ -6,6 +6,12 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+test("enrollment pairing proof requires schema45 and real browser lifecycle", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  for (const marker of ["45|production_runtime_enrollment_pairing", "schema 45 production_runtime_enrollment_pairing verified", "await exerciseRuntimeEnrollmentPairing(cdp, dsn, sensorID)", "Runtime sensor pairing", "Configured runtime pairing", "runtime enrollment pairing proven:", "paired token survived reload", "anchor deletion rewrote configured pairing"])
+    assert.ok(source.includes(marker), marker);
+});
+
 test("observed lineage composition preserves archives without claiming correlation", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");

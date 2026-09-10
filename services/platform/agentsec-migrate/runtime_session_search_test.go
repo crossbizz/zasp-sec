@@ -26,7 +26,7 @@ func (runner *scriptedMigrationRunner) DownProductionRuntimeSessionSearch(contex
 
 func TestAgentsecMigrateRuntimeSessionSearchRelease(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 41}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || up.version != 44 || !equalMigrationEvents(up.events, []string{"version", "up-production-runtime-session-search", "up-production-runtime-session-query", "up-production-runtime-session-evidence", "version"}) {
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || up.version != 45 || !equalMigrationEvents(up.events, []string{"version", "up-production-runtime-session-search", "up-production-runtime-session-query", "up-production-runtime-session-evidence", "up-production-runtime-enrollment-pairing", "version"}) {
 		t.Fatalf("up=%v version=%d err=%v", up.events, up.version, err)
 	}
 	down := &scriptedMigrationRunner{version: 42, errAt: "down-production-runtime-session-reads"}

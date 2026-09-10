@@ -4766,6 +4766,9 @@ components:
       additionalProperties: false
       required: [name, kind, mode]
       properties:
+        runtime_sensor_id:
+          $ref: '#/components/schemas/ProductID'
+          description: Optional immutable pairing for OTLP only. Must identify an active Tetragon enrollment in the same scope. Omit for an unpaired semantic source. Event payloads cannot select this authority.
         name: { type: string, minLength: 1, maxLength: 128, pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$' }
         kind: { $ref: '#/components/schemas/SensorKind' }
         mode: { $ref: '#/components/schemas/SensorMode' }
@@ -4781,6 +4784,9 @@ components:
       additionalProperties: false
       required: [id, name, kind, mode, state, version, token_expires_at, last_heartbeat_at, created_at, updated_at]
       properties:
+        runtime_sensor_id:
+          $ref: '#/components/schemas/ProductID'
+          description: Configured immutable Tetragon enrollment pairing for an OTLP source. Absent when unpaired. This does not assert current anchor activity or correlation confidence.
         id: { $ref: '#/components/schemas/ProductID' }
         name: { type: string, minLength: 1, maxLength: 128, pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$' }
         kind: { $ref: '#/components/schemas/SensorKind' }
@@ -4796,6 +4802,9 @@ components:
       additionalProperties: false
       required: [id, name, kind, mode, state, version, token_expires_at, last_heartbeat_at, created_at, updated_at, token]
       properties:
+        runtime_sensor_id:
+          $ref: '#/components/schemas/ProductID'
+          description: Configured immutable Tetragon enrollment pairing for an OTLP source. Absent when unpaired. Re-pairing requires a new enrollment.
         id: { $ref: '#/components/schemas/ProductID' }
         name: { type: string, minLength: 1, maxLength: 128, pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$' }
         kind: { $ref: '#/components/schemas/SensorKind' }

@@ -18,6 +18,15 @@ const sensor = {
 };
 
 describe("sensor response decoders", () => {
+  it("preserves optional OTLP pairing and rejects invalid or forged anchors", () => {
+    const runtimeSensorID = "pid_78200001-0000-4000-8000-000000000001";
+    const paired = { ...sensor, kind: "otlp", runtime_sensor_id: runtimeSensorID };
+    expect(decodeSensor(paired)).toMatchObject({ runtime_sensor_id: runtimeSensorID });
+    expect(decodeSensorEnrollment({ ...paired, token })).toMatchObject({ runtime_sensor_id: runtimeSensorID });
+    for (const invalid of [null, undefined, "", "runtime-name", sensorID]) expect(() => decodeSensor({ ...paired, runtime_sensor_id: invalid })).toThrow("schema mismatch");
+    expect(() => decodeSensor({ ...paired, kind: "tetragon" })).toThrow("schema mismatch");
+    expect(() => decodeSensor({ ...paired, organization_id: sensorID })).toThrow("schema mismatch");
+  });
   it("accepts exact sensor, enrollment, page, and coverage authority", () => {
     expect(decodeSensor(sensor).id).toBe(sensorID);
     expect(decodeSensorEnrollment({ ...sensor, token }).token).toBe(token);

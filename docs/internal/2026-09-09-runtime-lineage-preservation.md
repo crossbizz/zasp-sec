@@ -1,8 +1,9 @@
 # Runtime lineage now survives ingestion
 
 Status: preservation slice implemented and independently reviewed. Full local
-verification and the complete composed pipeline/browser proof passed. Shipping
-gates are pending.
+verification and the complete composed pipeline/browser proof passed. PR 33
+merged as main `1aab7f58448f13e015ca398c8f483b58b53df5a5`. Push CI
+34428832660, PR CI 34428835002 and main CI 34429707297 passed.
 This slice grants no M3-46, M3-47 or M7-07 production credit.
 
 The production private runtime ingest API accepts optional `observed_lineage`
@@ -106,4 +107,6 @@ checks committed digests and retained fields, runs all five stages, requires
 Exact, and rechecks immutable replay. All required assertions passed in the
 owned-service harness. Independent final review found no remaining blocker and
 conditioned release acceptance on the full browser result and shipping gates.
-The browser condition has passed; shipping gates remain pending.
+The browser and shipping conditions passed. GitHub merge state and successful
+main CI 34429707297 were rechecked on September 10, 2026. This ships preservation
+only, without granting M3-46, M3-47 or M7-07 correlation task credit.

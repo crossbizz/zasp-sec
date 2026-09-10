@@ -36,7 +36,9 @@ export function createSensorsAPI(client: APIClient) {
     },
     async createSensor(value: SensorInput, attempt: SensorMutationAttempt = createSensorMutationAttempt()): Promise<SensorVersioned<SensorEnrollment>> {
       const result = await client.POST("/api/v1/sensors", { params: { header: { "Idempotency-Key": attempt.idempotencyKey, "X-Zasp-Fresh-Auth": "confirmed" } }, body: value });
-      return secretVersioned(result, undefined);
+      const enrollment = secretVersioned(result, undefined);
+      if (enrollment.value.runtime_sensor_id !== value.runtime_sensor_id) invalidResponse("Sensor enrollment returned a different runtime pairing");
+      return enrollment;
     },
     async updateSensor(id: string, version: string, value: SensorUpdateInput, attempt: SensorMutationAttempt = createSensorMutationAttempt()): Promise<SensorVersioned<Sensor>> {
       const result = await client.PATCH("/api/v1/sensors/{id}", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": version } }, body: value });

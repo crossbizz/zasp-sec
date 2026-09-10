@@ -3657,6 +3657,8 @@ export type components = {
             readonly last_heartbeat_at: string | null;
             readonly mode: components["schemas"]["SensorMode"];
             readonly name: string;
+            /** @description Configured immutable Tetragon enrollment pairing for an OTLP source. Absent when unpaired. This does not assert current anchor activity or correlation confidence. */
+            readonly runtime_sensor_id?: components["schemas"]["ProductID"];
             readonly state: components["schemas"]["SensorState"];
             readonly token_expires_at: string | null;
             /** Format: date-time */
@@ -3683,6 +3685,8 @@ export type components = {
             readonly last_heartbeat_at: string | null;
             readonly mode: components["schemas"]["SensorMode"];
             readonly name: string;
+            /** @description Configured immutable Tetragon enrollment pairing for an OTLP source. Absent when unpaired. Re-pairing requires a new enrollment. */
+            readonly runtime_sensor_id?: components["schemas"]["ProductID"];
             readonly state: components["schemas"]["SensorState"];
             /** @description One-time enrollment credential returned only by create or rotate. */
             readonly token: string;
@@ -3696,6 +3700,8 @@ export type components = {
             readonly kind: components["schemas"]["SensorKind"];
             readonly mode: components["schemas"]["SensorMode"];
             readonly name: string;
+            /** @description Optional immutable pairing for OTLP only. Must identify an active Tetragon enrollment in the same scope. Omit for an unpaired semantic source. Event payloads cannot select this authority. */
+            readonly runtime_sensor_id?: components["schemas"]["ProductID"];
         };
         /** @enum {string} */
         readonly SensorKind: "tetragon" | "otlp";

@@ -585,7 +585,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "runtime session search", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(throughSessionSearch...)...), want: 42},
 		{name: "runtime session query", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(append([]Metadata(nil), throughSessionSearch...), ProductionRuntimeSessionQuery())...)...), want: 43},
 		{name: "runtime session evidence", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(append([]Metadata(nil), throughSessionSearch...), ProductionRuntimeSessionQuery(), ProductionRuntimeSessionEvidence())...)...), want: 44},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(45)}}}, wantErr: ErrInvalidState},
+		{name: "runtime enrollment pairing", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(append([]Metadata(nil), throughSessionSearch...), ProductionRuntimeSessionQuery(), ProductionRuntimeSessionEvidence(), ProductionRuntimeEnrollmentPairing())...)...), want: 45},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(46)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}
