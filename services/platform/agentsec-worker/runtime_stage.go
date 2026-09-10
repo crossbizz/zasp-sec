@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -33,6 +35,24 @@ type runtimeStageEffect struct {
 
 type runtimeStageExecutor interface {
 	Execute(context.Context, runtimeevent.StageLease) (runtimeStageEffect, error)
+}
+
+// Private execution capability, never an archive/receipt field. A database
+// admission must still revalidate this lease after acquiring its locks.
+type runtimeStageExecution struct {
+	lease      runtimeevent.StageLease
+	workerID   string
+	leaseToken string
+}
+
+// Defense in depth only: callers must not log capabilities or reflect them
+// into structured fields. Format suppresses all values, including scope IDs.
+func (runtimeStageExecution) Format(state fmt.State, _ rune) {
+	_, _ = io.WriteString(state, "runtime-stage-execution[redacted]")
+}
+
+type authorizedRuntimeStageExecutor interface {
+	ExecuteAuthorized(context.Context, runtimeStageExecution) (runtimeStageEffect, error)
 }
 
 type runtimeStageProcessorConfig struct {
@@ -103,7 +123,7 @@ func (processor *runtimeStageProcessor) process(ctx context.Context, lease runti
 	workCtx, cancel := context.WithCancel(ctx)
 	heartbeatDone := make(chan error, 1)
 	go processor.keepStageLease(workCtx, cancel, lease, leaseToken, heartbeatDone)
-	effect, executeErr := callRuntimeStageExecutor(processor.config.Executor, workCtx, lease)
+	effect, executeErr := callAuthorizedRuntimeStageExecutor(processor.config.Executor, workCtx, runtimeStageExecution{lease: lease, workerID: processor.config.WorkerID, leaseToken: leaseToken})
 	if ctx.Err() != nil || workCtx.Err() != nil {
 		cancel()
 		_ = processor.joinHeartbeat(heartbeatDone)
@@ -177,6 +197,22 @@ func callRuntimeStageExecutor(executor runtimeStageExecutor, ctx context.Context
 		}
 	}()
 	return executor.Execute(ctx, lease)
+}
+
+func callAuthorizedRuntimeStageExecutor(executor runtimeStageExecutor, ctx context.Context, execution runtimeStageExecution) (effect runtimeStageEffect, resultErr error) {
+	defer func() {
+		if recover() != nil {
+			effect = runtimeStageEffect{}
+			resultErr = errWorkerExecution
+		}
+	}()
+	if nilWorkerDependency(executor) || ctx == nil || ctx.Err() != nil || !validRuntimeStage(execution.lease.Stage) || !exactRuntimeStageLease(execution.lease, execution.lease.Stage) || !workerIdentityPattern.MatchString(execution.workerID) || !runtimeLeaseToken(execution.leaseToken) {
+		return runtimeStageEffect{}, errWorkerExecution
+	}
+	if authorized, ok := executor.(authorizedRuntimeStageExecutor); ok {
+		return authorized.ExecuteAuthorized(ctx, execution)
+	}
+	return callRuntimeStageExecutor(executor, ctx, execution.lease)
 }
 
 func validRuntimeStage(stage runtimeevent.RuntimeStage) bool {

@@ -1462,20 +1462,24 @@ func TestProductionCombinedE2EPartialFixtureProducesDurablePartialOutcome(t *tes
 }
 
 type combinedE2EPostgresTrace struct {
-	mu    sync.Mutex
-	value string
+	mu     sync.Mutex
+	values []string
 }
 
 func (trace *combinedE2EPostgresTrace) set(value string) {
 	trace.mu.Lock()
 	defer trace.mu.Unlock()
-	trace.value = value
+	trace.values = append(trace.values, value)
+	if len(trace.values) > 32 {
+		copy(trace.values, trace.values[len(trace.values)-32:])
+		trace.values = trace.values[:32]
+	}
 }
 
 func (trace *combinedE2EPostgresTrace) String() string {
 	trace.mu.Lock()
 	defer trace.mu.Unlock()
-	return trace.value
+	return strings.Join(trace.values, ",")
 }
 
 type combinedE2EPostgresDriver struct {
@@ -1593,6 +1597,7 @@ func combinedE2EDatabaseStage(query string) string {
 		"zasp_execution_heartbeat_job", "zasp_execution_checkpoint_partial", "zasp_execution_apply_complete_snapshot", "zasp_execution_finish_job",
 		"zasp_security_agent_temporary_policy_readiness", "zasp_security_agent_action_principal_ready", "zasp_security_agent_claim_temporary_policy_effects",
 		"zasp_security_agent_heartbeat_temporary_policy_effect", "zasp_security_agent_store_temporary_policy_target", "zasp_security_agent_read_temporary_policy_target", "zasp_security_agent_finish_temporary_policy_effect",
+		"zasp_policy_deployment_claim", "zasp_policy_deployment_heartbeat", "zasp_policy_deployment_store", "zasp_policy_deployment_read", "zasp_policy_deployment_finish",
 	} {
 		if strings.Contains(query, stage) {
 			return stage

@@ -19,8 +19,11 @@ export function createRuntimePipelineDependencies(command, { marker = randomByte
   const entries = [];
   let closed = false;
   let closing;
-  async function inspect(entry) {
-    const result = await command("docker", ["inspect", entry.id ?? entry.name], { timeout: 3_000, reject: false });
+  async function inspect(entry, retryTransient = false) {
+    let result = await command("docker", ["inspect", entry.id ?? entry.name], { timeout: 3_000, reject: false });
+    // Retry only a failed read during cleanup. A successful response still
+    // needs exact ID/name/label validation, and ownership failures never retry.
+    if (result.status !== 0 && retryTransient) result = await command("docker", ["inspect", entry.id ?? entry.name], { timeout: 3_000, reject: false });
     if (result.status !== 0) throw new Error("runtime dependency inspection failed");
     const records = JSON.parse(result.stdout);
     const record = records[0];
@@ -57,7 +60,7 @@ export function createRuntimePipelineDependencies(command, { marker = randomByte
         const errors = [];
         for (const entry of [...entries].reverse()) {
           try {
-            const record = await inspect(entry);
+            const record = await inspect(entry, true);
             const result = await command("docker", ["rm", "--force", record.Id], { timeout: 3_000, reject: false });
             if (result.status !== 0) throw new Error("runtime dependency cleanup failed");
           } catch (error) { errors.push(error); }

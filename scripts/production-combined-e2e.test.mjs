@@ -8,7 +8,7 @@ import test from "node:test";
 
 test("combined product proof requires the forward reconciliation migration", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
-  for (const marker of ["46|production_reconciliation_lane_plan", "schema 46 production_reconciliation_lane_plan verified"])
+  for (const marker of ["46|production_reconciliation_lane_plan", "schema 46 production_reconciliation_lane_plan verified", "47|production_runtime_candidate_authority", "schema 47 production_runtime_candidate_authority verified"])
     assert.ok(source.includes(marker), marker);
 });
 
