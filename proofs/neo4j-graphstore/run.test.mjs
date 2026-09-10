@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  readFileSync,
   realpathSync,
   renameSync,
   rmSync,
@@ -21,6 +22,7 @@ import {
   IMAGE,
   SUCCESS_LINE,
   DockerRuntime,
+  createGraphFixtureDependency,
   buildEnvironment,
   buildCreateArguments,
   classifyCommandMutation,
@@ -32,13 +34,53 @@ import {
   runMain,
 } from "./run.mjs";
 
-test("create arguments bind one exact-owned loopback-only Neo4j target", () => {
-  const args = buildCreateArguments("zasp-m1-16-0123456789abcdef-neo4j", "0123456789abcdef");
+const fixturePassword = "b".repeat(64);
+
+test("graph dependency retains the verified fixture until exact cleanup", async () => {
+  const runtime = new FakeRuntime();
+  runtime.fixtureConfiguration = () => ({ uri: "bolt+s://127.0.0.1:47687", password: fixturePassword, certificate: "test-public-certificate" });
+  const dependency = createGraphFixtureDependency({ runtime });
+  const configuration = await dependency.start();
+  assert.equal(configuration.uri, "bolt+s://127.0.0.1:47687");
+  assert.equal(runtime.events.includes("remove"), false);
+  await dependency.close();
+  await dependency.close();
+  assert.equal(runtime.events.filter((event) => event === "remove").length, 1);
+  await assert.rejects(dependency.start());
+});
+
+test("graph dependency cancellation prevents allocation after late setup completion", async () => {
+  const runtime = new FakeRuntime();
+  let release;
+  const pending = new Promise((resolve) => { release = resolve; });
+  runtime.build = async () => { runtime.events.push("build"); await pending; };
+  runtime.settle = async () => { release(); await pending; runtime.events.push("settle"); };
+  const dependency = createGraphFixtureDependency({ runtime });
+  const starting = dependency.start();
+  const rejected = assert.rejects(starting);
+  while (!runtime.events.includes("build")) await new Promise((resolve) => setImmediate(resolve));
+  await dependency.close();
+  await rejected;
+  assert.equal(runtime.events.includes("create"), false);
+});
+
+test("repository verification compiles the current Neo4j proof adapter", () => {
+  const manifest = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
+  assert.ok(manifest.scripts.verify.split(" && ").includes("npm run graph:neo4j:test"));
+  assert.match(manifest.scripts["graph:neo4j:test"], /go test -C proofs\/neo4j-graphstore/);
+});
+
+test("create arguments bind one exact-owned authenticated TLS loopback-only Neo4j target", () => {
+  const args = buildCreateArguments("zasp-m1-16-0123456789abcdef-neo4j", "0123456789abcdef", fixturePassword);
   assert.deepEqual(args, [
     "create", "--name", "zasp-m1-16-0123456789abcdef-neo4j",
     "--label", "com.zasp.proof=neo4j-graphstore", "--label", "com.zasp.marker=0123456789abcdef",
     "--publish", "127.0.0.1::7474", "--publish", "127.0.0.1::7687",
-    "--env", "NEO4J_AUTH=none",
+    "--env", `NEO4J_AUTH=neo4j/${fixturePassword}`,
+    "--env", "NEO4J_server_bolt_tls__level=REQUIRED",
+    "--env", "NEO4J_dbms_ssl_policy_bolt_enabled=true",
+    "--env", "NEO4J_dbms_ssl_policy_bolt_base__directory=/var/lib/neo4j/certificates/bolt",
+    "--env", "NEO4J_dbms_ssl_policy_bolt_client__auth=NONE",
     "--env", "NEO4J_db_tx__log_preallocate=false",
     "--env", "NEO4J_db_tx__log_rotation_size=128K",
     "--security-opt", "no-new-privileges:true",
@@ -48,6 +90,7 @@ test("create arguments bind one exact-owned loopback-only Neo4j target", () => {
     IMAGE,
   ]);
   assert.match(IMAGE, /^neo4j:5\.26\.28-community@sha256:[0-9a-f]{64}$/);
+  assert.throws(() => buildCreateArguments("zasp-m1-16-0123456789abcdef-neo4j", "0123456789abcdef"));
 });
 
 test("proof build is offline and ignores ambient Go configuration", () => {
@@ -103,7 +146,7 @@ test("container ownership accepts only the exact Docker-created security and int
     Config: {
       Image: IMAGE,
       Labels: { "com.zasp.proof": "neo4j-graphstore", "com.zasp.marker": marker },
-      Env: ["PATH=/bin", "NEO4J_AUTH=none", "NEO4J_db_tx__log_preallocate=false", "NEO4J_db_tx__log_rotation_size=128K"],
+      Env: ["PATH=/bin", `NEO4J_AUTH=neo4j/${fixturePassword}`, "NEO4J_server_bolt_tls__level=REQUIRED", "NEO4J_dbms_ssl_policy_bolt_enabled=true", "NEO4J_dbms_ssl_policy_bolt_base__directory=/var/lib/neo4j/certificates/bolt", "NEO4J_dbms_ssl_policy_bolt_client__auth=NONE", "NEO4J_db_tx__log_preallocate=false", "NEO4J_db_tx__log_rotation_size=128K"],
       Entrypoint: ["tini"],
       Cmd: ["neo4j"],
     },
@@ -119,7 +162,7 @@ test("container ownership accepts only the exact Docker-created security and int
     },
     Mounts: [mount(secondVolume, "/logs"), mount(firstVolume, "/data")],
   };
-  assert.deepEqual(validateContainerMetadata(container, { token, marker, name: `zasp-m1-16-${marker}-neo4j`, image, state: "created" }), [firstVolume, secondVolume]);
+  assert.deepEqual(validateContainerMetadata(container, { token, marker, name: `zasp-m1-16-${marker}-neo4j`, image, state: "created", password: fixturePassword }), [firstVolume, secondVolume]);
   for (const mutate of [
     (value) => { value.HostConfig.NetworkMode = "default"; },
     (value) => { value.HostConfig.Mounts = []; },
@@ -130,7 +173,7 @@ test("container ownership accepts only the exact Docker-created security and int
   ]) {
     const hostile = structuredClone(container);
     mutate(hostile);
-    assert.throws(() => validateContainerMetadata(hostile, { token, marker, name: `zasp-m1-16-${marker}-neo4j`, image, state: "created" }));
+    assert.throws(() => validateContainerMetadata(hostile, { token, marker, name: `zasp-m1-16-${marker}-neo4j`, image, state: "created", password: fixturePassword }));
   }
 });
 
@@ -394,8 +437,8 @@ test("orchestration succeeds only after proof and reverse cleanup", async () => 
   const result = await orchestrate(runtime, { mainTimeoutMs: 2_000, cleanupTimeoutMs: 2_000 });
   assert.deepEqual(result, { code: 0, line: SUCCESS_LINE });
   assert.deepEqual(runtime.events, [
-    "preflight", "initialize", "docker-preflight", "shared-before", "image", "create", "verify-created", "start", "verify-running",
-    "ports", "ready", "build", "proof", "settle", "remove", "absent", "prefix-absent", "shared-after", "temp-remove",
+    "preflight", "initialize", "docker-preflight", "shared-before", "image", "build", "create", "verify-created", "start", "verify-running",
+    "ports", "ready", "proof", "settle", "remove", "absent", "prefix-absent", "shared-after", "temp-remove",
     "temp-prefix-absent",
   ]);
 });
@@ -445,6 +488,35 @@ test("hard child supervisor SIGKILLs overflow and uncooperative children", async
   const abortedResult = await abortedPromise;
   assert.equal(abortedResult.signal, "SIGKILL");
   assert.deepEqual(aborted.kills, ["SIGKILL"]);
+});
+
+test("bounded stdin provisions only a small buffer and rejects overflow before spawning", async () => {
+  const child = fakeChild();
+  child.child.stdin = new PassThrough();
+  const received = [];
+  child.child.stdin.on("data", (value) => received.push(value));
+  child.child.stdin.on("finish", () => child.child.emit("close", 0, null));
+  const body = Buffer.from("disposable archive");
+  const result = await runBounded("docker", ["cp", "--archive", "-", "owned:/certificates"], { timeoutMs: 1000, outputLimit: 4096, input: body }, (_command, _args, options) => {
+    assert.equal(options.stdio[0], "pipe");
+    return child.child;
+  });
+  assert.equal(result.status, 0);
+  assert.deepEqual(Buffer.concat(received), body);
+  let calls = 0;
+  const rejected = await runBounded("docker", [], { timeoutMs: 1000, outputLimit: 4096, input: Buffer.alloc(65537) }, () => { calls++; return fakeChild().child; });
+  assert.equal(calls, 0);
+  assert.equal(rejected.thrown, true);
+});
+
+test("stdin setup failure settles the already spawned child before cleanup", async () => {
+  const child = fakeChild();
+  child.child.stdin = new EventEmitter();
+  child.child.stdin.end = () => { throw new Error("private input transport failure"); };
+  const result = await runBounded("docker", [], { timeoutMs: 1000, outputLimit: 4096, input: Buffer.from("fixture") }, () => child.child);
+  assert.equal(result.thrown, true);
+  assert.deepEqual(child.kills, ["SIGKILL"]);
+  assert.equal(result.signal, "SIGKILL");
 });
 
 test("fixed output boundary emits one line and numeric status", async () => {

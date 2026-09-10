@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
@@ -43,6 +44,24 @@ type runtimeStageExecution struct {
 	lease      runtimeevent.StageLease
 	workerID   string
 	leaseToken string
+	renewal    *runtimeStageLeaseRenewal
+}
+
+// Only successful, bound database heartbeats update this per-execution window.
+// Lease identity, attempt and credentials never change with its expiry.
+type runtimeStageLeaseRenewal struct {
+	mu        sync.RWMutex
+	expiresAt time.Time
+}
+
+func (execution runtimeStageExecution) currentLease() runtimeevent.StageLease {
+	lease := execution.lease
+	if execution.renewal != nil {
+		execution.renewal.mu.RLock()
+		lease.LeaseExpiresAt = execution.renewal.expiresAt
+		execution.renewal.mu.RUnlock()
+	}
+	return lease
 }
 
 // Defense in depth only: callers must not log capabilities or reflect them
@@ -53,6 +72,10 @@ func (runtimeStageExecution) Format(state fmt.State, _ rune) {
 
 type authorizedRuntimeStageExecutor interface {
 	ExecuteAuthorized(context.Context, runtimeStageExecution) (runtimeStageEffect, error)
+}
+
+type versionedRuntimeStageExecutor interface {
+	SupportsRuntimeStageVersion(runtimeevent.RuntimeStage, string, string) bool
 }
 
 type runtimeStageProcessorConfig struct {
@@ -117,31 +140,38 @@ func (processor *runtimeStageProcessor) callProcess(ctx context.Context, lease r
 }
 
 func (processor *runtimeStageProcessor) process(ctx context.Context, lease runtimeevent.StageLease, leaseToken string) error {
-	if !exactRuntimeStageLease(lease, processor.config.Stage) || lease.ImplementationVersion != processor.config.ImplementationVersion {
+	if !exactRuntimeStageLease(lease, processor.config.Stage) {
 		return errWorkerExecution
+	}
+	if lease.ImplementationVersion != processor.config.ImplementationVersion {
+		compatible, ok := processor.config.Executor.(versionedRuntimeStageExecutor)
+		if !ok || !compatible.SupportsRuntimeStageVersion(lease.Stage, processor.config.ImplementationVersion, lease.ImplementationVersion) {
+			return errWorkerExecution
+		}
 	}
 	workCtx, cancel := context.WithCancel(ctx)
 	heartbeatDone := make(chan error, 1)
-	go processor.keepStageLease(workCtx, cancel, lease, leaseToken, heartbeatDone)
-	effect, executeErr := callAuthorizedRuntimeStageExecutor(processor.config.Executor, workCtx, runtimeStageExecution{lease: lease, workerID: processor.config.WorkerID, leaseToken: leaseToken})
+	execution := runtimeStageExecution{lease: lease, workerID: processor.config.WorkerID, leaseToken: leaseToken, renewal: &runtimeStageLeaseRenewal{expiresAt: lease.LeaseExpiresAt}}
+	go processor.keepStageLease(workCtx, cancel, execution, heartbeatDone)
+	effect, executeErr := callAuthorizedRuntimeStageExecutor(processor.config.Executor, workCtx, execution)
 	if ctx.Err() != nil || workCtx.Err() != nil {
 		cancel()
 		_ = processor.joinHeartbeat(heartbeatDone)
 		return errWorkerExecution
 	}
-	finish := processor.finishRequest(lease, leaseToken, effect, executeErr)
+	finish := processor.finishRequest(execution.currentLease(), leaseToken, effect, executeErr)
 	finishCtx, finishCancel := context.WithTimeout(workCtx, minDuration(time.Duration(processor.config.LeaseSeconds)*time.Second/3, 10*time.Second))
 	result, finishErr := processor.config.Authority.FinishStage(finishCtx, finish)
 	finishCancel()
 	cancel()
 	heartbeatErr := processor.joinHeartbeat(heartbeatDone)
-	if finishErr != nil || heartbeatErr != nil || !exactRuntimeStageFinish(result, finish) {
+	if ctx.Err() != nil || finishErr != nil || heartbeatErr != nil || !exactRuntimeStageFinish(result, finish) {
 		return errWorkerExecution
 	}
 	return nil
 }
 
-func (processor *runtimeStageProcessor) keepStageLease(ctx context.Context, cancel context.CancelFunc, lease runtimeevent.StageLease, leaseToken string, done chan<- error) {
+func (processor *runtimeStageProcessor) keepStageLease(ctx context.Context, cancel context.CancelFunc, execution runtimeStageExecution, done chan<- error) {
 	ticker := time.NewTicker(processor.config.HeartbeatInterval)
 	defer ticker.Stop()
 	for {
@@ -151,13 +181,24 @@ func (processor *runtimeStageProcessor) keepStageLease(ctx context.Context, canc
 			return
 		case <-ticker.C:
 			heartbeatCtx, heartbeatCancel := context.WithTimeout(ctx, minDuration(processor.config.HeartbeatInterval, 5*time.Second))
-			expiresAt, err := processor.config.Authority.HeartbeatStage(heartbeatCtx, lease, processor.config.WorkerID, leaseToken, processor.config.LeaseSeconds)
+			expiresAt, err := processor.config.Authority.HeartbeatStage(heartbeatCtx, execution.currentLease(), execution.workerID, execution.leaseToken, processor.config.LeaseSeconds)
+			heartbeatContextErr := heartbeatCtx.Err()
 			heartbeatCancel()
-			if err != nil || !expiresAt.After(time.Now()) {
+			// Normal durable completion cancels this loop too. Never publish a
+			// renewal after cancellation, but don't turn orderly shutdown into
+			// lease loss. The processor separately checks its caller context.
+			if ctx.Err() != nil {
+				done <- nil
+				return
+			}
+			if err != nil || heartbeatContextErr != nil || !expiresAt.After(time.Now()) {
 				cancel()
 				done <- errWorkerExecution
 				return
 			}
+			execution.renewal.mu.Lock()
+			execution.renewal.expiresAt = expiresAt
+			execution.renewal.mu.Unlock()
 		}
 	}
 }
@@ -206,13 +247,14 @@ func callAuthorizedRuntimeStageExecutor(executor runtimeStageExecutor, ctx conte
 			resultErr = errWorkerExecution
 		}
 	}()
-	if nilWorkerDependency(executor) || ctx == nil || ctx.Err() != nil || !validRuntimeStage(execution.lease.Stage) || !exactRuntimeStageLease(execution.lease, execution.lease.Stage) || !workerIdentityPattern.MatchString(execution.workerID) || !runtimeLeaseToken(execution.leaseToken) {
+	lease := execution.currentLease()
+	if nilWorkerDependency(executor) || ctx == nil || ctx.Err() != nil || !validRuntimeStage(lease.Stage) || !exactRuntimeStageLease(lease, lease.Stage) || !workerIdentityPattern.MatchString(execution.workerID) || !runtimeLeaseToken(execution.leaseToken) {
 		return runtimeStageEffect{}, errWorkerExecution
 	}
 	if authorized, ok := executor.(authorizedRuntimeStageExecutor); ok {
 		return authorized.ExecuteAuthorized(ctx, execution)
 	}
-	return callRuntimeStageExecutor(executor, ctx, execution.lease)
+	return callRuntimeStageExecutor(executor, ctx, lease)
 }
 
 func validRuntimeStage(stage runtimeevent.RuntimeStage) bool {

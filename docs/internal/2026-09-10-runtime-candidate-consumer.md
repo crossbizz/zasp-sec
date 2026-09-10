@@ -1,6 +1,8 @@
 # Consuming frozen runtime candidates
 
-Status: implementation in progress on `codex/runtime-candidate-consumer`.
+Status: consumer-only change merged through PR 41 as main `4f454ade`.
+Implementation `7aba535d` passed push CI 34535065881 and PR CI 34535110848;
+main CI 34536010806 passed. Executor work continues separately.
 The authority foundation shipped through PR 40, commit `cd22a99e`; push CI
 34532351627 and PR CI 34532402341 passed. It merged as main `612f12d3`;
 main CI 34533327507 passed.

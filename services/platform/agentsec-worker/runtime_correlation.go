@@ -23,11 +23,16 @@ type runtimeCorrelationGraphStore interface {
 	ApplySnapshot(context.Context, graphstore.CompleteSnapshot) (graphstore.SnapshotApplyResult, error)
 }
 
+type runtimeCandidateSnapshotAuthority interface {
+	FreezeCandidates(context.Context, runtimeevent.StageLease, string, string, []byte, []byte) (runtimeevent.FrozenCandidateSnapshot, error)
+}
+
 type runtimeCorrelationExecutorConfig struct {
 	Reader                runtimeArchivedBatchReader
 	Receipts              artifactstore.ObjectReferencingArtifactStore
 	Graph                 runtimeCorrelationGraphStore
 	ImplementationVersion string
+	Candidates            runtimeCandidateSnapshotAuthority
 }
 
 type runtimeCorrelationExecutor struct {
@@ -35,13 +40,47 @@ type runtimeCorrelationExecutor struct {
 }
 
 func newRuntimeCorrelationExecutor(config runtimeCorrelationExecutorConfig) (*runtimeCorrelationExecutor, error) {
-	if nilWorkerDependency(config.Reader) || nilWorkerDependency(config.Receipts) || nilWorkerDependency(config.Graph) || config.ImplementationVersion != "runtime-correlation-v1" {
+	if nilWorkerDependency(config.Reader) || nilWorkerDependency(config.Receipts) || nilWorkerDependency(config.Graph) || (config.ImplementationVersion != "runtime-correlation-v1" && config.ImplementationVersion != "runtime-correlation-v2") || (config.ImplementationVersion == "runtime-correlation-v2" && nilWorkerDependency(config.Candidates)) {
 		return nil, errRuntimeUnavailable
 	}
 	return &runtimeCorrelationExecutor{config: config}, nil
 }
 
 func (executor *runtimeCorrelationExecutor) Execute(ctx context.Context, lease runtimeevent.StageLease) (effect runtimeStageEffect, resultErr error) {
+	if executor == nil || lease.ImplementationVersion != "runtime-correlation-v1" || !executor.SupportsRuntimeStageVersion(lease.Stage, executor.config.ImplementationVersion, lease.ImplementationVersion) {
+		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	return executor.forVersion(lease.ImplementationVersion).execute(ctx, lease, nil)
+}
+
+func (executor *runtimeCorrelationExecutor) ExecuteAuthorized(ctx context.Context, execution runtimeStageExecution) (runtimeStageEffect, error) {
+	if executor == nil || ctx == nil || ctx.Err() != nil || !exactRuntimeStageLease(execution.currentLease(), runtimeevent.RuntimeStageCorrelate) || !executor.SupportsRuntimeStageVersion(execution.lease.Stage, executor.config.ImplementationVersion, execution.lease.ImplementationVersion) || !workerIdentityPattern.MatchString(execution.workerID) || !runtimeLeaseToken(execution.leaseToken) {
+		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	return executor.forVersion(execution.lease.ImplementationVersion).execute(ctx, execution.currentLease(), &execution)
+}
+
+func (executor *runtimeCorrelationExecutor) SupportsRuntimeStageVersion(stage runtimeevent.RuntimeStage, configured, claimed string) bool {
+	return executor != nil && stage == runtimeevent.RuntimeStageCorrelate && configured == executor.config.ImplementationVersion && ((configured == "runtime-correlation-v1" && claimed == configured) || (configured == "runtime-correlation-v2" && (claimed == configured || claimed == "runtime-correlation-v1")))
+}
+
+// Never mutate shared executor configuration when concurrent v1/v2 jobs run.
+func (executor *runtimeCorrelationExecutor) forVersion(version string) *runtimeCorrelationExecutor {
+	if version == executor.config.ImplementationVersion {
+		return executor
+	}
+	legacy := *executor
+	legacy.config.ImplementationVersion, legacy.config.Candidates = version, nil
+	return &legacy
+}
+
+func (executor *runtimeCorrelationExecutor) execute(ctx context.Context, lease runtimeevent.StageLease, execution *runtimeStageExecution) (effect runtimeStageEffect, resultErr error) {
+	currentLease := func() runtimeevent.StageLease {
+		if execution != nil {
+			return execution.currentLease()
+		}
+		return lease
+	}
 	defer func() {
 		if recover() != nil {
 			effect = runtimeStageEffect{}
@@ -56,6 +95,7 @@ func (executor *runtimeCorrelationExecutor) Execute(ctx context.Context, lease r
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
 	artifact, err := executor.config.Receipts.Get(ctx, locator)
+	defer clear(artifact.Body)
 	if err != nil {
 		return runtimeStageEffect{}, errRuntimeStageRetryable
 	}
@@ -67,7 +107,9 @@ func (executor *runtimeCorrelationExecutor) Execute(ctx context.Context, lease r
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
 	indexReceipt, err := runtimeevent.DecodeStageReceipt(artifact.Body)
-	clear(artifact.Body)
+	if executor.config.ImplementationVersion == "runtime-correlation-v1" {
+		clear(artifact.Body)
+	}
 	if err != nil || indexReceipt.Stage != runtimeevent.RuntimeStageIndex || indexReceipt.Scope != lease.Scope || indexReceipt.BatchID != lease.BatchID || indexReceipt.Generation != lease.Generation || indexReceipt.EffectDigest != lease.InputDigest || indexReceipt.ImplementationVersion != "runtime-index-v1" {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
@@ -85,20 +127,58 @@ func (executor *runtimeCorrelationExecutor) Execute(ctx context.Context, lease r
 	if sha256.Sum256(body) != indexReceipt.ArchiveDigest {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
-	decoded, err := runtimeevent.DecodeArchivedBatch(lease.Scope, body)
-	if err != nil {
-		return runtimeStageEffect{}, errRuntimeStageMalformed
-	}
-	candidates := trustedRuntimeCandidates(decoded)
 	correlationBody := bytes.Clone(body)
 	defer clear(correlationBody)
-	correlated, err := runtimecorrelation.Correlate(runtimecorrelation.Batch{Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, ArchiveDigest: indexReceipt.ArchiveDigest, Body: correlationBody, Candidates: candidates})
+	input := runtimecorrelation.Batch{Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, ArchiveDigest: indexReceipt.ArchiveDigest, Body: correlationBody}
+	var correlated runtimecorrelation.CorrelatedBatch
+	if executor.config.ImplementationVersion == "runtime-correlation-v2" {
+		if execution == nil || nilWorkerDependency(executor.config.Candidates) {
+			return runtimeStageEffect{}, errRuntimeStageMalformed
+		}
+		admissionLease := currentLease()
+		frozen, freezeErr := executor.config.Candidates.FreezeCandidates(ctx, admissionLease, execution.workerID, execution.leaseToken, artifact.Body, body)
+		// The repository conservatively rejects a response beyond its submitted
+		// local deadline, even if a heartbeat renewed the real SQL lease meanwhile.
+		// One exact replay under a confirmed newer window resolves that case.
+		if fresh := currentLease(); errors.Is(freezeErr, runtimeevent.ErrProductionPipelineUnavailable) && ctx.Err() == nil && fresh.LeaseExpiresAt.After(admissionLease.LeaseExpiresAt) && exactRuntimeStageLease(fresh, runtimeevent.RuntimeStageCorrelate) {
+			frozen, freezeErr = executor.config.Candidates.FreezeCandidates(ctx, fresh, execution.workerID, execution.leaseToken, artifact.Body, body)
+		}
+		if freezeErr != nil {
+			switch {
+			case errors.Is(freezeErr, runtimeevent.ErrCandidateSnapshotDenied):
+				return runtimeStageEffect{}, errRuntimeStageDenied
+			case errors.Is(freezeErr, runtimeevent.ErrCandidateSnapshotOverflow), errors.Is(freezeErr, runtimeevent.ErrProductionPipeline):
+				return runtimeStageEffect{}, errRuntimeStageMalformed
+			case errors.Is(freezeErr, runtimeevent.ErrProductionPipelineUnavailable):
+				return runtimeStageEffect{}, errRuntimeStageRetryable
+			default:
+				return runtimeStageEffect{}, errWorkerExecution
+			}
+		}
+		if ctx.Err() != nil || !exactRuntimeStageLease(currentLease(), runtimeevent.RuntimeStageCorrelate) {
+			return runtimeStageEffect{}, errRuntimeStageRetryable
+		}
+		if frozen.IndexReceiptDigest() != sha256.Sum256(artifact.Body) || !frozen.ValidFor(lease.Scope, lease.BatchID, lease.Generation, indexReceipt.ArchiveDigest) {
+			return runtimeStageEffect{}, errRuntimeStageMalformed
+		}
+		correlated, err = runtimecorrelation.CorrelateFrozen(input, frozen)
+	} else {
+		decoded, decodeErr := runtimeevent.DecodeArchivedBatch(lease.Scope, body)
+		if decodeErr != nil {
+			return runtimeStageEffect{}, errRuntimeStageMalformed
+		}
+		input.Candidates = trustedRuntimeCandidates(decoded)
+		correlated, err = runtimecorrelation.Correlate(input)
+	}
 	if err != nil {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
-	snapshot, nodeIDs, edgeIDs, ok := runtimeCorrelationGraphSnapshot(lease, correlated)
+	snapshot, nodeIDs, edgeIDs, ok := runtimeCorrelationGraphSnapshot(currentLease(), correlated)
 	if !ok {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	if executor.config.ImplementationVersion == "runtime-correlation-v2" && (ctx.Err() != nil || !exactRuntimeStageLease(currentLease(), runtimeevent.RuntimeStageCorrelate)) {
+		return runtimeStageEffect{}, errRuntimeStageRetryable
 	}
 	applied, err := executor.config.Graph.ApplySnapshot(ctx, snapshot)
 	if err != nil {
@@ -107,9 +187,15 @@ func (executor *runtimeCorrelationExecutor) Execute(ctx context.Context, lease r
 	if applied.SnapshotID != snapshot.SnapshotID || applied.Source != snapshot.Source || applied.Generation != snapshot.Generation || applied.InputDigest != snapshot.InputDigest || applied.ContentDigest == ([sha256.Size]byte{}) || !slices.Equal(applied.NodeIDs, nodeIDs) || !slices.Equal(applied.EdgeIDs, edgeIDs) || applied.RemovedNodes < 0 || applied.RemovedEdges < 0 {
 		return runtimeStageEffect{}, errWorkerExecution
 	}
-	receiptBody, receiptDigest, reference, err := runtimecorrelation.EncodeReceipt(runtimecorrelation.Receipt{ImplementationVersion: lease.ImplementationVersion, Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, InputReference: lease.InputReference, InputVersionID: lease.InputVersionID, InputDigest: lease.InputDigest, ArchiveReference: indexReceipt.ArchiveReference, ArchiveVersionID: indexReceipt.ArchiveVersionID, ArchiveDigest: indexReceipt.ArchiveDigest, EffectDigest: correlated.ContentDigest, Results: correlated.Results})
+	if executor.config.ImplementationVersion == "runtime-correlation-v2" && (ctx.Err() != nil || !exactRuntimeStageLease(currentLease(), runtimeevent.RuntimeStageCorrelate)) {
+		return runtimeStageEffect{}, errRuntimeStageRetryable
+	}
+	receiptBody, receiptDigest, reference, err := runtimecorrelation.EncodeReceipt(runtimecorrelation.Receipt{ImplementationVersion: lease.ImplementationVersion, Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, InputReference: lease.InputReference, InputVersionID: lease.InputVersionID, InputDigest: lease.InputDigest, ArchiveReference: indexReceipt.ArchiveReference, ArchiveVersionID: indexReceipt.ArchiveVersionID, ArchiveDigest: indexReceipt.ArchiveDigest, EffectDigest: correlated.ContentDigest, CandidateSnapshotDigest: correlated.CandidateSnapshotDigest, Results: correlated.Results})
 	if err != nil {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	if executor.config.ImplementationVersion == "runtime-correlation-v2" && (ctx.Err() != nil || !exactRuntimeStageLease(currentLease(), runtimeevent.RuntimeStageCorrelate)) {
+		return runtimeStageEffect{}, errRuntimeStageRetryable
 	}
 	stored, err := executor.config.Receipts.Put(ctx, artifactstore.PutRequest{Locator: artifactstore.Locator{Scope: lease.Scope, Reference: reference}, MediaType: "application/json", Body: bytes.Clone(receiptBody)})
 	if err != nil || stored.Scope != lease.Scope || stored.Reference != reference || stored.VersionID == "" || stored.MediaType != "application/json" || stored.Size != int64(len(receiptBody)) || stored.SHA256 != receiptDigest || !bytes.Equal(stored.Body, receiptBody) {
@@ -118,6 +204,9 @@ func (executor *runtimeCorrelationExecutor) Execute(ctx context.Context, lease r
 	resultReference, err := executor.config.Receipts.ObjectReference(stored.Locator)
 	if err != nil || resultReference == "" {
 		return runtimeStageEffect{}, errWorkerExecution
+	}
+	if executor.config.ImplementationVersion == "runtime-correlation-v2" && (ctx.Err() != nil || !exactRuntimeStageLease(currentLease(), runtimeevent.RuntimeStageCorrelate)) {
+		return runtimeStageEffect{}, errRuntimeStageRetryable
 	}
 	return runtimeStageEffect{EffectDigest: correlated.ContentDigest, ResultReference: resultReference, ResultVersionID: stored.VersionID, ResultDigest: receiptDigest}, nil
 }

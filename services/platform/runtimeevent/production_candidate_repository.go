@@ -14,16 +14,35 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimelineage"
 )
 
 const productionCandidateFreezeSQL = `SELECT zasp_runtime_freeze_candidates($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+const productionCandidateReadySQL = `SELECT jsonb_build_object('ready',zasp_production_runtime_candidate_authority_readiness($1,$2) AND zasp_runtime_principal_ready($3))`
 const maximumCandidateSnapshotBytes = 1 << 20
 const maximumCandidateEnvelopeBytes = 2*maximumCandidateSnapshotBytes + 1024
 
 var candidateWorkerPattern = regexp.MustCompile(`^[a-z][a-z0-9.-]{2,127}$`)
 var ErrCandidateSnapshotOverflow = errors.New("runtime candidate snapshot overflow")
 var ErrCandidateSnapshotDenied = errors.New("runtime candidate snapshot denied")
+
+// ReadyCandidates requires the exact candidate schema and registered correlation
+// principal. Unlike legacy pipeline readiness, missing authority has no fallback.
+func (repository *PostgresProductionPipelineRepository) ReadyCandidates(ctx context.Context) error {
+	if !validProductionPipelineRepository(repository, ctx) || repository.authority != ProductionPipelineAuthorityCorrelation {
+		return ErrProductionPipelineUnavailable
+	}
+	metadata := migrations.ProductionRuntimeCandidateAuthority()
+	payload, err := safeProductionQuery(repository.database, ctx, productionCandidateReadySQL, metadata.Checksum(), migrations.ProductionRuntimeCandidateAuthoritySemanticFingerprint(), string(repository.authority))
+	var result struct {
+		Ready bool `json:"ready"`
+	}
+	if err != nil || ctx.Err() != nil || !closedCandidateJSON(payload, 16<<10, &result, "ready") || !result.Ready {
+		return ErrProductionPipelineUnavailable
+	}
+	return nil
+}
 
 // CandidateObservation is a copy of one admitted, provenance-bound occurrence.
 // Its existence is not host attestation or permission to assign Exact confidence.

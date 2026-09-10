@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import {
   lstatSync,
+  readFileSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -14,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
 export const IMAGE = "neo4j:5.26.28-community@sha256:ff32db30b2baff97971e441b46bfd9c832c1b62c970398ef579244c06b21d357";
-export const SUCCESS_LINE = "Neo4j GraphStore proof passed: nodes=3 edges=2 replay=true scoped=true cross_organization_zero=true cleanup=true audit=true.";
+export const SUCCESS_LINE = "Neo4j GraphStore proof passed: nodes=3 edges=2 replay=true scoped=true cross_organization_zero=true cleanup=true audit=true tls=true untrusted_zero=true bad_auth_zero=true.";
 const proofLabel = "com.zasp.proof=neo4j-graphstore";
 const markerLabel = "com.zasp.marker";
 const namePrefix = "zasp-m1-16-";
@@ -24,7 +25,10 @@ const outputLimit = 4 * 1024;
 const dockerOutputLimit = 256 * 1024;
 const proofDirectory = dirname(fileURLToPath(import.meta.url));
 const proofEnvironment = Object.freeze([
-  "NEO4J_AUTH=none",
+  "NEO4J_server_bolt_tls__level=REQUIRED",
+  "NEO4J_dbms_ssl_policy_bolt_enabled=true",
+  "NEO4J_dbms_ssl_policy_bolt_base__directory=/var/lib/neo4j/certificates/bolt",
+  "NEO4J_dbms_ssl_policy_bolt_client__auth=NONE",
   "NEO4J_db_tx__log_preallocate=false",
   "NEO4J_db_tx__log_rotation_size=128K",
 ]);
@@ -46,12 +50,13 @@ class Failure extends Error {
   }
 }
 
-export function buildCreateArguments(name, marker) {
-  if (name !== `${namePrefix}${marker}-neo4j` || !markerPattern.test(marker)) throw new Failure("configuration");
+export function buildCreateArguments(name, marker, password) {
+  if (name !== `${namePrefix}${marker}-neo4j` || !markerPattern.test(marker) || !/^[a-f0-9]{64}$/.test(password ?? "")) throw new Failure("configuration");
   return [
     "create", "--name", name,
     "--label", proofLabel, "--label", `${markerLabel}=${marker}`,
     "--publish", "127.0.0.1::7474", "--publish", "127.0.0.1::7687",
+    "--env", `NEO4J_AUTH=neo4j/${password}`,
     ...proofEnvironment.flatMap((value) => ["--env", value]),
     "--security-opt", "no-new-privileges:true",
     "--pids-limit", "512",
@@ -148,18 +153,24 @@ export function runBounded(command, arguments_, options, spawnImplementation = s
     };
     timer = setTimeout(kill, options.timeoutMs);
     try {
-      child = spawnImplementation(command, arguments_, { cwd: options.cwd, env: options.env, stdio: ["ignore", "pipe", "pipe"] });
+      if (options.input !== undefined && (!Buffer.isBuffer(options.input) || options.input.length > 64 * 1024)) throw new Failure("configuration");
+      child = spawnImplementation(command, arguments_, { cwd: options.cwd, env: options.env, stdio: [options.input === undefined ? "ignore" : "pipe", "pipe", "pipe"] });
       child.stdout.on("data", (chunk) => append("stdout", chunk));
       child.stderr.on("data", (chunk) => append("stderr", chunk));
       child.stdout.once("error", () => { thrown = true; kill(); });
       child.stderr.once("error", () => { thrown = true; kill(); });
       child.once("error", () => { thrown = true; kill(); });
       child.once("close", finish);
+      if (options.input !== undefined) {
+        child.stdin.once("error", () => { thrown = true; kill(); });
+        child.stdin.end(options.input);
+      }
       options.signal?.addEventListener?.("abort", abort, { once: true });
       if (options.signal?.aborted) abort();
     } catch {
       thrown = true;
-      finish(null, null);
+      if (child) kill();
+      else finish(null, null);
     }
   });
 }
@@ -168,27 +179,33 @@ export async function orchestrate(runtime, options = {}) {
   const mainTimeoutMs = options.mainTimeoutMs ?? 120_000;
   const cleanupTimeoutMs = options.cleanupTimeoutMs ?? 60_000;
   let category = null;
-  let cleanupFailed = false;
-  let absenceProved = false;
   try {
     await phase(mainTimeoutMs, async (signal) => {
-      await runtime.preflight(signal);
-      await runtime.initialize(signal);
-      await runtime.dockerPreflight(signal);
-      await runtime.fingerprintShared("before", signal);
-      await runtime.resolveImage(signal);
-      await runtime.create(signal);
-      await runtime.verify("created", signal);
-      await runtime.start(signal);
-      await runtime.verify("running", signal);
-      await runtime.ports(signal);
-      await runtime.ready(signal);
-      await runtime.build(signal);
+      await startGraphRuntime(runtime, signal);
       await runtime.proof(signal);
     });
   } catch (error) {
     category = failureCategory(error);
   }
+  const cleanupFailed = await cleanupGraphRuntime(runtime, cleanupTimeoutMs);
+  if (cleanupFailed) return { code: 1, line: "Neo4j GraphStore proof failed: cleanup rejected." };
+  if (category !== null) return { code: 1, line: `Neo4j GraphStore proof failed: ${category} rejected.` };
+  return { code: 0, line: SUCCESS_LINE };
+}
+
+async function startGraphRuntime(runtime, signal) {
+  for (const operation of [
+    () => runtime.preflight(signal), () => runtime.initialize(signal), () => runtime.dockerPreflight(signal),
+    () => runtime.fingerprintShared("before", signal), () => runtime.resolveImage(signal), () => runtime.build(signal),
+    () => runtime.create(signal), () => runtime.verify("created", signal), () => runtime.start(signal),
+    () => runtime.verify("running", signal), () => runtime.ports(signal), () => runtime.ready(signal),
+  ]) { assertActive(signal); await operation(); }
+  assertActive(signal);
+}
+
+async function cleanupGraphRuntime(runtime, cleanupTimeoutMs) {
+  let cleanupFailed = false;
+  let absenceProved = false;
   try {
     await phase(cleanupTimeoutMs, async (signal) => {
       await stepCleanup(() => runtime.settle(signal), () => { cleanupFailed = true; });
@@ -203,9 +220,37 @@ export async function orchestrate(runtime, options = {}) {
   } catch {
     cleanupFailed = true;
   }
-  if (cleanupFailed) return { code: 1, line: "Neo4j GraphStore proof failed: cleanup rejected." };
-  if (category !== null) return { code: 1, line: `Neo4j GraphStore proof failed: ${category} rejected.` };
-  return { code: 0, line: SUCCESS_LINE };
+  return cleanupFailed;
+}
+
+// The combined proof uses the same exact-owned lifecycle without replacing it
+// with a graph stub. Returned credentials stay in the private worker environment.
+export function createGraphFixtureDependency({ runtime = new DockerRuntime() } = {}) {
+  const controller = new AbortController();
+  let starting;
+  let closing;
+  let closed = false;
+  return {
+    async start() {
+      if (closed) throw new Failure("configuration");
+      starting ??= phase(120_000, async (signal) => {
+        await startGraphRuntime(runtime, signal);
+        return runtime.fixtureConfiguration();
+      }, controller.signal);
+      return starting;
+    },
+    close() {
+      if (closing) return closing;
+      closed = true;
+      controller.abort();
+      closing = (async () => {
+        if (!starting) return;
+        await starting.catch(() => {});
+        if (await cleanupGraphRuntime(runtime, 60_000)) throw new Failure("cleanup");
+      })();
+      return closing;
+    },
+  };
 }
 
 export async function runMain(runtime, options = {}) {
@@ -236,6 +281,7 @@ export class DockerRuntime {
     this.path = path;
     this.home = home;
     this.marker = marker;
+    this.password = randomBytes(32).toString("hex");
     this.name = `${namePrefix}${marker}-neo4j`;
     this.dockerConfig = null;
     this.dockerConfigIdentity = null;
@@ -256,10 +302,10 @@ export class DockerRuntime {
     this.fileSystem = fileSystem;
   }
 
-  async docker(arguments_, timeoutMs = 30_000, signal) {
+  async docker(arguments_, timeoutMs = 30_000, signal, input) {
     if (this.dockerConfig === null) throw new Failure("configuration");
     if (this.dockerConfigIdentity !== null) this.requireDockerConfig();
-    return this.command("docker", arguments_, { timeoutMs, outputLimit: dockerOutputLimit, signal, env: { PATH: this.path, DOCKER_CONFIG: this.dockerConfig } });
+    return this.command("docker", arguments_, { timeoutMs, outputLimit: dockerOutputLimit, signal, input, env: { PATH: this.path, DOCKER_CONFIG: this.dockerConfig } });
   }
 
   async preflight() {
@@ -279,6 +325,9 @@ export class DockerRuntime {
     const build = join(candidate, "build");
     this.fileSystem.mkdir(build, { mode: 0o700 });
     this.buildIdentity = ownedChildDirectory(build, this.tempIdentity, "build", this.fileSystem);
+    const tls = join(candidate, "tls");
+    this.fileSystem.mkdir(tls, { mode: 0o700 });
+    this.tlsIdentity = ownedChildDirectory(tls, this.tempIdentity, "tls", this.fileSystem);
     this.tempReady = true;
     assertActive(signal);
   }
@@ -323,7 +372,7 @@ export class DockerRuntime {
     this.createUncertain = true;
     let result;
     try {
-      result = await this.mutate(() => this.docker(buildCreateArguments(this.name, this.marker), 30_000, signal));
+      result = await this.mutate(() => this.docker(buildCreateArguments(this.name, this.marker, this.password), 30_000, signal));
     } catch {
       result = { status: null, signal: null, thrown: true, stdout: "", stderr: "" };
     }
@@ -340,6 +389,12 @@ export class DockerRuntime {
 
   async start(signal) {
     await this.verify("created", signal);
+    this.requireTemp();
+    const archive = readFileSync(join(this.tempRoot, "tls", "bundle.tar"));
+    try {
+      const copied = await this.mutate(() => this.docker(["cp", "--archive", "-", `${this.token}:/var/lib/neo4j/certificates`], 10_000, signal, archive));
+      if (classifyCommandMutation(copied, "any") !== "applied") throw new Failure("provider");
+    } finally { archive.fill(0); }
     assertActive(signal);
     const result = await this.mutate(() => this.docker(["start", this.token], 30_000, signal));
     const classification = classifyCommandMutation(result, this.token);
@@ -359,6 +414,7 @@ export class DockerRuntime {
       name: this.name,
       image: this.image,
       state,
+      password: this.password,
     });
     if (this.volumeTokens.length === 0) this.volumeTokens = tokens;
     else if (!isDeepStrictEqual(tokens, this.volumeTokens)) throw new Failure("ownership");
@@ -383,7 +439,7 @@ export class DockerRuntime {
     const deadline = Date.now() + 120_000;
     while (Date.now() < deadline) {
       assertActive(signal);
-      if (await readinessProbe(this.httpPort, signal)) return;
+      if (await readinessProbe(this.httpPort, signal, this.password)) return;
       await wait(250, signal);
     }
     throw new Failure("provider");
@@ -393,25 +449,33 @@ export class DockerRuntime {
     this.requireTemp();
     assertActive(signal);
     const binary = join(this.tempRoot, "build", "proof");
-    const result = await runBounded("go", ["build", "-C", proofDirectory, "-o", binary, "."], {
+    const result = await this.mutate(() => runBounded("go", ["build", "-C", proofDirectory, "-o", binary, "."], {
       timeoutMs: 120_000, outputLimit, env: buildEnvironment(this.path, this.home),
       signal,
-    });
+    }));
     if (classifyEmptyMutation(result) !== "applied") throw new Failure("operation");
     this.binary = binary;
+    const provisioned = await this.mutate(() => runBounded(binary, ["--tls-fixture", join(this.tempRoot, "tls")], { timeoutMs: 10_000, outputLimit, env: {}, signal }));
+    if (classifyEmptyMutation(provisioned) !== "applied") throw new Failure("operation");
   }
 
   async proof(signal) {
     this.requireTemp();
     await this.verify("running", signal);
     assertActive(signal);
-    const result = await runBounded(this.binary, [], {
-      timeoutMs: 300_000, outputLimit, env: { NEO4J_GRAPHSTORE_URI: `bolt://127.0.0.1:${this.boltPort}` },
+    const result = await this.mutate(() => runBounded(this.binary, [], {
+      timeoutMs: 300_000, outputLimit, env: { NEO4J_GRAPHSTORE_URI: `bolt+s://127.0.0.1:${this.boltPort}`, NEO4J_GRAPHSTORE_PASSWORD: this.password, NEO4J_GRAPHSTORE_CA_PEM: readFileSync(join(this.tempRoot, "tls", "public.crt"), "utf8"), GODEBUG: "x509usefallbackroots=1" },
       signal,
-    });
+    }));
     if (result.status !== 0 || result.signal !== null || result.thrown || result.stderr !== "" || result.stdout !== `${SUCCESS_LINE}\n`) {
       throw new Failure(fixedChildCategory(result.stdout));
     }
+  }
+
+  fixtureConfiguration() {
+    this.requireTemp();
+    if (!Number.isInteger(this.boltPort) || this.boltPort < 1 || this.boltPort > 65535) throw new Failure("ownership");
+    return Object.freeze({ uri: `bolt+s://127.0.0.1:${this.boltPort}`, password: this.password, certificate: readFileSync(join(this.tempRoot, "tls", "public.crt"), "utf8") });
   }
 
   async settle() {
@@ -527,7 +591,8 @@ export class DockerRuntime {
     if (!this.tempReady || this.tempRoot === null || this.tempIdentity === null || this.dockerConfigIdentity === null || this.buildIdentity === null
         || !sameOwnedDirectory(this.tempRoot, this.tempIdentity, this.fileSystem)
         || !sameOwnedDirectory(this.dockerConfig, this.dockerConfigIdentity, this.fileSystem)
-        || !sameOwnedDirectory(join(this.tempRoot, "build"), this.buildIdentity, this.fileSystem)) throw new Failure("ownership");
+        || !sameOwnedDirectory(join(this.tempRoot, "build"), this.buildIdentity, this.fileSystem)
+        || !sameOwnedDirectory(join(this.tempRoot, "tls"), this.tlsIdentity, this.fileSystem)) throw new Failure("ownership");
   }
 
   requireDockerConfig() {
@@ -538,14 +603,18 @@ export class DockerRuntime {
   }
 }
 
-async function phase(timeoutMs, operation) {
+async function phase(timeoutMs, operation, parentSignal) {
   const controller = new AbortController();
   let timeout;
+  let abort;
   const deadline = new Promise((_, rejectPromise) => {
-    timeout = setTimeout(() => {
+    abort = () => {
       controller.abort();
       rejectPromise(new Failure("operation"));
-    }, timeoutMs);
+    };
+    timeout = setTimeout(abort, timeoutMs);
+    parentSignal?.addEventListener("abort", abort, { once: true });
+    if (parentSignal?.aborted) abort();
   });
   const pending = Promise.resolve().then(() => operation(controller.signal));
   pending.catch(() => {});
@@ -553,6 +622,7 @@ async function phase(timeoutMs, operation) {
     return await Promise.race([pending, deadline]);
   } finally {
     clearTimeout(timeout);
+    parentSignal?.removeEventListener("abort", abort);
   }
 }
 
@@ -610,7 +680,8 @@ export function validateContainerMetadata(value, expected) {
   try {
     const labels = { ...expected.image.labels, "com.zasp.proof": "neo4j-graphstore", "com.zasp.marker": expected.marker };
     const environment = arrayOfStrings(value?.Config?.Env).sort();
-    const wantedEnvironment = [...proofEnvironment, ...expected.image.env].sort();
+    if (!/^[a-f0-9]{64}$/.test(expected.password ?? "")) throw new Failure("ownership");
+    const wantedEnvironment = [`NEO4J_AUTH=neo4j/${expected.password}`, ...proofEnvironment, ...expected.image.env].sort();
     const host = value?.HostConfig;
     if (!plainObject(value) || !plainObject(value.Config) || !plainObject(value.State) || !plainObject(host)
         || value.Id !== expected.token || value.Name !== `/${expected.name}` || value.Image !== expected.image.id
@@ -662,7 +733,7 @@ function exactReadSuccess(result) {
   return result?.status === 0 && result.signal === null && !result.thrown && result.stderr === "";
 }
 
-async function readinessProbe(port, parentSignal) {
+async function readinessProbe(port, parentSignal, password) {
   const controller = new AbortController();
   const abort = () => controller.abort();
   parentSignal?.addEventListener("abort", abort, { once: true });
@@ -670,7 +741,7 @@ async function readinessProbe(port, parentSignal) {
   try {
     const response = await fetch(`http://127.0.0.1:${port}/db/neo4j/tx/commit`, {
       method: "POST", redirect: "error", signal: controller.signal,
-      headers: { "content-type": "application/json", accept: "application/json" },
+      headers: { "content-type": "application/json", accept: "application/json", authorization: `Basic ${Buffer.from(`neo4j:${password}`).toString("base64")}` },
       body: '{"statements":[{"statement":"RETURN 1 AS ready"}]}',
     });
     const reader = response.body?.getReader();
