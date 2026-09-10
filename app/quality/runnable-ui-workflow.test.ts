@@ -84,6 +84,7 @@ function assertRunnableUiWorkflow(
     "npm run ui-api:check",
     "npm run raw-fetch:test",
     "npm run saas:tenancy:test",
+    "npm run graph:neo4j:test",
     "npm run db:tenant-rls:test",
     "npm test",
     "npm run typecheck",

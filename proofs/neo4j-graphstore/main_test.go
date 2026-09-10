@@ -13,6 +13,17 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/graphstore"
 )
 
+func TestProofRequiresVerifiedTLSLoopback(t *testing.T) {
+	if !validURI("bolt+s://127.0.0.1:47687") {
+		t.Fatal("verified TLS loopback rejected")
+	}
+	for _, uri := range []string{"bolt://127.0.0.1:47687", "bolt+ssc://127.0.0.1:47687", "bolt+s://localhost:47687", "bolt+s://user:secret@127.0.0.1:47687"} {
+		if validURI(uri) {
+			t.Fatal("unverified or foreign graph endpoint accepted")
+		}
+	}
+}
+
 func TestRunFixtureProvesScopedReplayReadsAndCleanup(t *testing.T) {
 	store := &fakeGraphStore{}
 	auditor := &fakeAuditor{}
@@ -64,12 +75,12 @@ func TestRunMainUsesExactConfigurationAndFixedOutput(t *testing.T) {
 		{
 			name: "success", getenv: func(key string) string {
 				if key == "NEO4J_GRAPHSTORE_URI" {
-					return "bolt://127.0.0.1:47687"
+					return "bolt+s://127.0.0.1:47687"
 				}
 				return ""
 			},
 			execute: func(_ context.Context, uri string) error {
-				if uri != "bolt://127.0.0.1:47687" {
+				if uri != "bolt+s://127.0.0.1:47687" {
 					t.Fatalf("uri = %q", uri)
 				}
 				return nil
@@ -79,10 +90,10 @@ func TestRunMainUsesExactConfigurationAndFixedOutput(t *testing.T) {
 		{name: "missing", getenv: func(string) string { return "" }, execute: noExecute, wantCode: 1, wantLine: "Neo4j GraphStore proof failed: configuration rejected."},
 		{name: "hostname", getenv: func(string) string { return "bolt://localhost:47687" }, execute: noExecute, wantCode: 1, wantLine: "Neo4j GraphStore proof failed: configuration rejected."},
 		{name: "credentials", getenv: func(string) string { return "bolt://user:secret@127.0.0.1:47687" }, execute: noExecute, wantCode: 1, wantLine: "Neo4j GraphStore proof failed: configuration rejected."},
-		{name: "provider", getenv: func(string) string { return "bolt://127.0.0.1:47687" }, execute: func(context.Context, string) error { return errProvider }, wantCode: 1, wantLine: "Neo4j GraphStore proof failed: provider rejected."},
-		{name: "ownership", getenv: func(string) string { return "bolt://127.0.0.1:47687" }, execute: func(context.Context, string) error { return errOwnership }, wantCode: 1, wantLine: "Neo4j GraphStore proof failed: ownership rejected."},
-		{name: "cleanup", getenv: func(string) string { return "bolt://127.0.0.1:47687" }, execute: func(context.Context, string) error { return errCleanup }, wantCode: 1, wantLine: "Neo4j GraphStore proof failed: cleanup rejected."},
-		{name: "panic", getenv: func(string) string { return "bolt://127.0.0.1:47687" }, execute: func(context.Context, string) error { panic("secret") }, wantCode: 1, wantLine: "Neo4j GraphStore proof failed: operation rejected."},
+		{name: "provider", getenv: func(string) string { return "bolt+s://127.0.0.1:47687" }, execute: func(context.Context, string) error { return errProvider }, wantCode: 1, wantLine: "Neo4j GraphStore proof failed: provider rejected."},
+		{name: "ownership", getenv: func(string) string { return "bolt+s://127.0.0.1:47687" }, execute: func(context.Context, string) error { return errOwnership }, wantCode: 1, wantLine: "Neo4j GraphStore proof failed: ownership rejected."},
+		{name: "cleanup", getenv: func(string) string { return "bolt+s://127.0.0.1:47687" }, execute: func(context.Context, string) error { return errCleanup }, wantCode: 1, wantLine: "Neo4j GraphStore proof failed: cleanup rejected."},
+		{name: "panic", getenv: func(string) string { return "bolt+s://127.0.0.1:47687" }, execute: func(context.Context, string) error { panic("secret") }, wantCode: 1, wantLine: "Neo4j GraphStore proof failed: operation rejected."},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

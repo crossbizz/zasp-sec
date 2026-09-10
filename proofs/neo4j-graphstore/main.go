@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -9,11 +12,13 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v6/neo4j"
+	"github.com/neo4j/neo4j-go-driver/v6/neo4j/auth"
 	neo4jconfig "github.com/neo4j/neo4j-go-driver/v6/neo4j/config"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/graphstore"
@@ -21,7 +26,7 @@ import (
 )
 
 const (
-	successLine    = "Neo4j GraphStore proof passed: nodes=3 edges=2 replay=true scoped=true cross_organization_zero=true cleanup=true audit=true."
+	successLine    = "Neo4j GraphStore proof passed: nodes=3 edges=2 replay=true scoped=true cross_organization_zero=true cleanup=true audit=true tls=true untrusted_zero=true bad_auth_zero=true."
 	mainTimeout    = 90 * time.Second
 	cleanupTimeout = 20 * time.Second
 )
@@ -57,6 +62,12 @@ type fixtureAuditor interface {
 }
 
 func main() {
+	if len(os.Args) == 3 && os.Args[1] == "--tls-fixture" {
+		if err := writeTLSFixture(os.Args[2]); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	os.Exit(runMain(os.Getenv, os.Stdout, executeProof))
 }
 
@@ -98,7 +109,7 @@ func runMain(getenv func(string) string, output io.Writer, execute func(context.
 
 func validURI(raw string) bool {
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed.Scheme != "bolt" || parsed.User != nil || parsed.Hostname() != "127.0.0.1" ||
+	if err != nil || parsed.Scheme != "bolt+s" || parsed.User != nil || parsed.Hostname() != "127.0.0.1" ||
 		parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return false
 	}
@@ -107,7 +118,25 @@ func validURI(raw string) bool {
 }
 
 func executeProof(ctx context.Context, uri string) (err error) {
-	driver, driverErr := neo4j.NewDriver(uri, neo4j.NoAuth(), func(config *neo4jconfig.Config) {
+	password := os.Getenv("NEO4J_GRAPHSTORE_PASSWORD")
+	if !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(password) || os.Getenv("GODEBUG") != "x509usefallbackroots=1" {
+		return errConfiguration
+	}
+	block, rest := pem.Decode([]byte(os.Getenv("NEO4J_GRAPHSTORE_CA_PEM")))
+	if block == nil || block.Type != "CERTIFICATE" || len(rest) != 0 {
+		return errConfiguration
+	}
+	certificate, parseErr := x509.ParseCertificate(block.Bytes)
+	if parseErr != nil || !certificate.IsCA || certificate.CheckSignatureFrom(certificate) != nil || certificate.VerifyHostname("127.0.0.1") != nil {
+		return errConfiguration
+	}
+	roots := x509.NewCertPool()
+	roots.AddCert(certificate)
+	// This standalone disposable proof trusts only its generated certificate.
+	// No operating-system trust or production TLS configuration is changed.
+	x509.SetFallbackRoots(roots)
+	manager := neo4j.BasicAuth("neo4j", password, "")
+	driver, driverErr := neo4j.NewDriver(uri, manager, func(config *neo4jconfig.Config) {
 		config.MaxTransactionRetryTime = 0
 		config.MaxConnectionPoolSize = 4
 		config.ConnectionAcquisitionTimeout = 5 * time.Second
@@ -125,15 +154,28 @@ func executeProof(ctx context.Context, uri string) (err error) {
 			err = errCleanup
 		}
 	}()
-	if driver.VerifyConnectivity(ctx) != nil {
+	if driver.VerifyConnectivity(ctx) != nil || driver.VerifyAuthentication(ctx, nil) != nil {
 		return errProvider
+	}
+	if err := verifyTLSAuthenticationNegatives(ctx, uri, password); err != nil {
+		return err
 	}
 	if neo4jstore.EnsureSchema(ctx, driver, "neo4j") != nil {
 		return errProvider
 	}
-	adapter, adapterErr := neo4jstore.New(driver, "neo4j")
+	// Community has no publisher-role attestation. This proves authenticated
+	// TLS persistence, not the production expected-principal/role deployment gate.
+	adapter, adapterErr := neo4jstore.NewProduction(ctx, neo4jstore.ProductionConfig{Endpoint: uri, AuthenticationReference: "ref:neo4j/auth/local-disposable-proof", ReadinessTimeout: 10 * time.Second}, fixtureAuthenticationResolver{manager})
 	if adapterErr != nil {
 		return errConfiguration
+	}
+	defer func() {
+		if adapter.Close(context.Background()) != nil {
+			err = errCleanup
+		}
+	}()
+	if adapter.Ready(ctx) != nil {
+		return errProvider
 	}
 	store, storeErr := graphstore.New(adapter, graphstore.Config{
 		OperationTimeout: 20 * time.Second, MaximumNodes: 10, MaximumEdges: 10, MaximumDepth: 8,
@@ -148,6 +190,50 @@ func executeProof(ctx context.Context, uri string) (err error) {
 	want := proofResult{Nodes: 3, Edges: 2, Replay: true, Scoped: true, CrossOrganizationZero: true, Cleanup: true, Audit: true}
 	if result != want {
 		return errOwnership
+	}
+	return nil
+}
+
+type fixtureAuthenticationResolver struct{ manager auth.TokenManager }
+
+func (resolver fixtureAuthenticationResolver) ResolveNeo4jAuthentication(context.Context, string) (auth.TokenManager, error) {
+	return resolver.manager, nil
+}
+
+func verifyTLSAuthenticationNegatives(ctx context.Context, uri, password string) error {
+	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	untrusted, err := neo4j.NewDriver(uri, neo4j.BasicAuth("neo4j", password, ""), func(config *neo4jconfig.Config) {
+		config.TlsConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: x509.NewCertPool()}
+		config.MaxTransactionRetryTime = 0
+		config.ConnectionAcquisitionTimeout = 2 * time.Second
+		config.SocketConnectTimeout = 2 * time.Second
+		config.TelemetryDisabled = true
+	})
+	if err != nil || untrusted == nil {
+		return errProvider
+	}
+	connectErr := untrusted.VerifyConnectivity(probeCtx)
+	closeCtx, closeCancel := context.WithTimeout(context.Background(), cleanupTimeout)
+	closeErr := untrusted.Close(closeCtx)
+	closeCancel()
+	if closeErr != nil {
+		return errCleanup
+	}
+	if connectErr == nil || probeCtx.Err() != nil {
+		return errProvider
+	}
+	wrong := "0" + password[1:]
+	if wrong == password {
+		wrong = "1" + password[1:]
+	}
+	adapter, err := neo4jstore.NewProduction(ctx, neo4jstore.ProductionConfig{Endpoint: uri, AuthenticationReference: "ref:neo4j/auth/local-disposable-proof", ReadinessTimeout: 5 * time.Second}, fixtureAuthenticationResolver{neo4j.BasicAuth("neo4j", wrong, "")})
+	if adapter != nil {
+		_ = adapter.Close(context.Background())
+		return errProvider
+	}
+	if !errors.Is(err, neo4jstore.ErrConfiguration) || ctx.Err() != nil {
+		return errProvider
 	}
 	return nil
 }
