@@ -157,6 +157,69 @@ Executor/dispatch integration, graph/S3 crash recovery, sensor lineage emission
 and composed attribution remain incomplete. No task credit changed. See
 `docs/internal/2026-09-10-runtime-candidate-consumer.md`.
 
+The consumer shipped to branch `codex/runtime-candidate-consumer` as `7aba535d`
+in PR 41. Push CI 34535065881 and PR CI 34535110848 passed; it merged as main
+`4f454ade`, with main CI 34536010806 passed. The follow-on
+executor is in progress on `codex/runtime-candidate-executor`: v2 requires an
+explicit worker capability and exact snapshot/index receipt binding before
+effects. Missing-boundary tests failed first; focused v1/v2 tests now pass.
+The renewed-lease regression exposed stale initial expiry in executor, subsequent
+heartbeat and finish paths. Synchronized confirmed expiry and bounded replay now
+pass. Review caught late heartbeat success and shutdown races; RED regressions
+were corrected, with 20 focused repetitions and a final full worker race pass
+in 9.184 seconds. Independent review found no remaining blocker in those changes.
+The projection test's lost notification was fixed without changing production
+behavior or its timeout. Production database injection, compatible v1/v2 dispatch
+and downstream v2 receipt acceptance now pass component tests; the full worker
+race suite passed in 9.248 seconds. Review found a missing exact-schema readiness
+gate. A RED regression reproduced v2 readiness without candidate authority, and
+the correction gates v2 on exact schema 47 plus the registered principal without
+changing v1 compatibility. Actual PostgreSQL tests pass missing/future/drifted
+schema and revoked-principal negatives. The initial revocation test used the
+wrong grantor; it now asserts membership was actually removed before the probe.
+Executor changes remain unpushed pending integration.
+Fresh full UI verification passes all 1,179 tests, typecheck/lint/build/import and
+release contract checks; all candidate PostgreSQL tests pass in 52.974 seconds,
+and platform-wide compilation passes. Real graph/S3 crash/replay and deployed
+acceptance remain open.
+Fresh graph-proof preflight found the historical runner called a removed adapter
+constructor and didn't compile. It now uses the current authenticated TLS adapter
+with an owned short-lived certificate and generated credentials. Actual Neo4j
+tests pass persistence, replay, tenant scope, wrong-credential/untrusted-certificate
+denial and exact cleanup. Normal verification now compiles/tests this proof.
+This restores local graph evidence, not candidate-executor graph/S3 crash recovery
+or production publisher-role attestation. No historical success is counted as a
+current composed pass, and no original task classification changed.
+The combined v1 runtime pipeline now also passes with actual authenticated TLS
+Neo4j for correlation and projection, replacing its graph stubs. Its owned graph
+dependency passed independent lifecycle/trust review and normal actual cleanup.
+Candidate v2 crash recovery remains under verification in an isolated test tenant;
+the first run rejected an incomplete OTLP fixture, now corrected without changing
+product validation. Production v2 producer activation remains disabled.
+Subsequent composed failures exposed an invalid recovery-test schedule: the target
+coordinator retained the organization's exclusive delivery while the late batch
+needed it. The corrected schedule uses real SQS visibility and natural expiry of
+both crashed workers' leases, with the production guards unchanged. Independent
+review accepts that schedule conditional on fresh composed verification; no task
+credit is added. Full UI verification again passes all 1,179 tests and build.
+The corrected actual runtime recovery now passes: frozen PostgreSQL bytes, TLS
+Neo4j replay, identical versioned S3 receipts, SQL stale-worker denial and later
+conflict admission. The final-tree runtime portion also verifies four durable
+session rows with Strong/Probable attribution and empty runtime/DLQ queues after
+completion. Full browser workflow and owned cleanup passed, as did fresh UI/build
+verification and the production release source gate. Remote CI is still pending. This remains
+an isolated fixture-selected v2 proof, not production producer activation or a
+new original-task completion. Evidence is in
+`docs/internal/2026-09-10-runtime-candidate-executor.md`.
+Fresh full verification with graph-proof coverage passes all 1,179 UI tests,
+build, typecheck/lint, release contracts and ledger checks. The final live graph
+TLS/auth rejection and persistence/replay lifecycle passes after the child-process
+settlement fix, with exact cleanup. Candidate readiness is now selected by the
+existing CI naming pattern. The branch is still unpushed; candidate-executor
+graph/S3 failure/retry and production activation remain separate open gates.
+Production v2 activation and task credit remain withheld. See
+`docs/internal/2026-09-10-runtime-candidate-executor.md`.
+
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production
 availability is separately authoritative in

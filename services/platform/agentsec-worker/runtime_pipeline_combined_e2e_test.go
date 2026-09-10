@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -38,8 +39,8 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
 )
 
-// The harness owns all three disposable services. Cloud role attestation and
-// Neo4j are outside this queue/archive/index proof, not silently mocked as passed.
+// The harness owns PostgreSQL, SQS/S3, OpenSearch and authenticated TLS Neo4j.
+// Cloud IAM and Neo4j publisher-role attestation remain external deployment gates.
 func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	dsn := os.Getenv("ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN")
 	if dsn == "" {
@@ -53,6 +54,7 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	searchEndpoint := runtimePipelineLoopback(t, os.Getenv("ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT"))
 	ctx, cancel := context.WithTimeout(context.Background(), 210*time.Second)
 	defer cancel()
+	realGraph := newRuntimePipelineGraphFixture(t, ctx)
 	admin, err := pgx.Connect(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
@@ -393,7 +395,7 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	var sessionWorker workerProcessor
-	correlationGraph, projectionGraph := &runtimeCorrelationGraphStoreStub{}, &runtimeCorrelationGraphStoreStub{}
+	correlationGraph, projectionGraph := &runtimePipelineGraphObserver{delegate: realGraph}, &runtimePipelineGraphObserver{delegate: realGraph}
 	correlation, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: archive, Receipts: receipts, Graph: correlationGraph, ImplementationVersion: "runtime-correlation-v1"})
 	if err != nil {
 		t.Fatal(err)
@@ -628,21 +630,24 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	t.Log("runtime session summaries proven: completion-triggered unknown collection, byte-stable replay")
 	t.Log("runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay")
 	t.Logf("runtime pipeline durable batch=%s archive=%s@%s document=%s", acceptedBatch.BatchID, reference, version, replayIndex.DocumentIDs[0])
-	for _, queueURL := range []*string{queueInfo.QueueUrl, dlq.QueueUrl} {
-		attributes, err := sqsAPI.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{QueueUrl: queueURL, AttributeNames: []sqstypes.QueueAttributeName{sqstypes.QueueAttributeNameApproximateNumberOfMessages, sqstypes.QueueAttributeNameApproximateNumberOfMessagesNotVisible, sqstypes.QueueAttributeNameApproximateNumberOfMessagesDelayed}})
-		if err != nil || len(attributes.Attributes) != 3 {
-			t.Fatal("queue depth unavailable")
-		}
-		for _, count := range attributes.Attributes {
-			if count != "0" {
-				t.Fatalf("queue has visible/inflight/delayed messages: %v; coordinator received=%d acknowledged=%d", attributes.Attributes, observedQueue.receiveCount.Load(), observedQueue.ackCount.Load())
+	assertQueuesEmpty := func() {
+		for _, queueURL := range []*string{queueInfo.QueueUrl, dlq.QueueUrl} {
+			attributes, err := sqsAPI.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{QueueUrl: queueURL, AttributeNames: []sqstypes.QueueAttributeName{sqstypes.QueueAttributeNameApproximateNumberOfMessages, sqstypes.QueueAttributeNameApproximateNumberOfMessagesNotVisible, sqstypes.QueueAttributeNameApproximateNumberOfMessagesDelayed}})
+			if err != nil || len(attributes.Attributes) != 3 {
+				t.Fatal("queue depth unavailable")
+			}
+			for _, count := range attributes.Attributes {
+				if count != "0" {
+					t.Fatalf("queue has visible/inflight/delayed messages: %v; coordinator received=%d acknowledged=%d", attributes.Attributes, observedQueue.receiveCount.Load(), observedQueue.ackCount.Load())
+				}
+			}
+			messages, err := sqsAPI.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{QueueUrl: queueURL, MaxNumberOfMessages: 10, WaitTimeSeconds: 1})
+			if err != nil || len(messages.Messages) != 0 {
+				t.Fatalf("queue not empty: messages=%v err=%v", messages, err)
 			}
 		}
-		messages, err := sqsAPI.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{QueueUrl: queueURL, MaxNumberOfMessages: 10, WaitTimeSeconds: 1})
-		if err != nil || len(messages.Messages) != 0 {
-			t.Fatalf("queue not empty: messages=%v err=%v", messages, err)
-		}
 	}
+	assertQueuesEmpty()
 	if correlationGraph.calls != 1 || projectionGraph.calls != 1 {
 		t.Fatal("unexpected downstream graph fixture calls")
 	}
@@ -717,11 +722,11 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	}
 	semanticCoordinatorResult := make(chan error, 1)
 	go func() { semanticCoordinatorResult <- coordinator.Processor.RunOnce(ctx) }()
-	semanticCorrelation, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: archive, Receipts: receipts, Graph: &runtimeCorrelationGraphStoreStub{}, ImplementationVersion: "runtime-correlation-v1"})
+	semanticCorrelation, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: archive, Receipts: receipts, Graph: realGraph, ImplementationVersion: "runtime-correlation-v1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	semanticProjection, err := newRuntimeProjectionExecutor(runtimeProjectionExecutorConfig{Reader: archive, Receipts: receipts, Graph: &runtimeCorrelationGraphStoreStub{}, ImplementationVersion: "runtime-projection-v1"})
+	semanticProjection, err := newRuntimeProjectionExecutor(runtimeProjectionExecutorConfig{Reader: archive, Receipts: receipts, Graph: realGraph, ImplementationVersion: "runtime-projection-v1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -839,8 +844,10 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 		t.Fatal("semantic replay changed canonical evidence")
 	}
 	t.Log("semantic observation pipeline proven: separately enrolled OTLP source, actual five-stage receipts, six canonical classes, scoped Exact instrumentation and stable replay; no raw content or enforcement assertion")
+	proveRuntimeCandidateRecovery(t, ctx, runtimeCandidateRecoveryFixture{admin: admin, database: database, handler: handler, outbox: outbox, coordinator: coordinator.Processor, queue: observedQueue, archive: archive, index: indexExecutor, receipts: receipts, graph: realGraph})
+	assertQueuesEmpty()
 	t.Log("runtime observed lineage preservation proven: exact S3 versions and committed digests, same qualified observations from separate enrollments, unknown kernel attribution and explicit semantic IDs retained, immutable replay; Strong/Probable correlation NOT RUN")
-	t.Log("runtime pipeline proof passed: production roles, durable ingest/outbox, actual local SQS/S3/OpenSearch, five stage receipts, replay and empty DLQ; Neo4j and cloud IAM NOT RUN")
+	t.Log("runtime pipeline proof passed: production roles, durable ingest/outbox, actual local SQS/S3/OpenSearch/authenticated TLS Neo4j, five stage receipts, replay and empty DLQ; cloud IAM and graph publisher-role attestation NOT RUN")
 }
 
 type runtimePipelinePublisher struct {
@@ -851,6 +858,8 @@ type runtimePipelinePublisher struct {
 
 type runtimePipelineDeliveryQueue struct {
 	*jobqueue.Queue
+	deliveryMu   sync.Mutex
+	deliveries   map[string]jobqueue.Receipt
 	received     atomic.Bool
 	receiveCount atomic.Int64
 	ackCount     atomic.Int64
@@ -859,6 +868,16 @@ type runtimePipelineDeliveryQueue struct {
 func (queue *runtimePipelineDeliveryQueue) ConsumeBatch(ctx context.Context, limit int) ([]jobqueue.Delivery, error) {
 	deliveries, err := queue.Queue.ConsumeBatch(ctx, limit)
 	if len(deliveries) > 0 {
+		queue.deliveryMu.Lock()
+		if queue.deliveries == nil {
+			queue.deliveries = make(map[string]jobqueue.Receipt)
+		}
+		for _, delivery := range deliveries {
+			if _, batch, ok := decodeRuntimeDeliveryJob(delivery.Job); ok {
+				queue.deliveries[batch.String()] = delivery.Receipt
+			}
+		}
+		queue.deliveryMu.Unlock()
 		queue.received.Store(true)
 		queue.receiveCount.Add(int64(len(deliveries)))
 	}

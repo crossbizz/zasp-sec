@@ -74,6 +74,25 @@ test("runtime Sessions UI filters worker-written evidence and resets on scope ch
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 
+test("runtime recovery proof owns authenticated TLS Neo4j instead of a graph stub", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");
+  assert.match(source, /runtimeGraphDependency\.start\(\)/);
+  assert.match(source, /runtimeGraphDependency\.close\(\)/);
+  assert.match(source, /ZASP_COMBINED_E2E_RUNTIME_GRAPH_URI/);
+  assert.match(worker, /newRuntimePipelineGraphFixture/);
+  assert.doesNotMatch(worker, /runtimeCorrelationGraphStoreStub/);
+});
+
+test("runtime candidate recovery is required without granting producer activation credit", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_candidate_recovery_e2e_test.go", import.meta.url), "utf8");
+  assert.ok(source.includes("/runtime candidate recovery proven:/"));
+  for (const marker of ["expires.Add(100 * time.Millisecond)", "fixture-selected v2 jobs, cloud and producer activation NOT RUN", "newRuntimeCorrelationExecutorWithDatabase", "ObjectReferencingArtifactStore.Put(ctx, request)", "graph.delegate.ApplySnapshot(ctx, snapshot)"])
+    assert.ok(worker.includes(marker), marker);
+  assert.doesNotMatch(worker, /UPDATE zasp_runtime_stage_work SET lease_expires_at|INSERT INTO zasp_runtime_candidate|(?:INSERT INTO|UPDATE) zasp_runtime_session/);
+});
+
 test("runtime session browser proof reads worker-written evidence without seeding sessions", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");
@@ -332,12 +351,17 @@ test("combined production E2E removes owned processes and temp root on SIGTERM",
 
 test("combined runtime proof removes owned containers and processes on real SIGTERM", { timeout: 240_000, skip: process.env.ZASP_RUNTIME_PIPELINE_SIGNAL_TEST !== "true" }, async () => {
   const listContainers = () => {
-    const result = spawnSync("docker", ["ps", "--all", "--quiet", "--no-trunc", "--filter", "label=zasp.proof=runtime-pipeline"], { encoding: "utf8", timeout: 5000 });
-    assert.equal(result.status, 0);
-    return new Set(result.stdout.trim().split("\n").filter(Boolean));
+    const ids = new Set();
+    for (const label of ["zasp.proof=runtime-pipeline", "com.zasp.proof=neo4j-graphstore"]) {
+      const result = spawnSync("docker", ["ps", "--all", "--quiet", "--no-trunc", "--filter", `label=${label}`], { encoding: "utf8", timeout: 5000 });
+      assert.equal(result.status, 0);
+      for (const id of result.stdout.trim().split("\n").filter(Boolean)) ids.add(id);
+    }
+    return ids;
   };
+  const isProofRoot = (value) => value.startsWith("zasp-production-e2e-") || value.startsWith("zasp-m1-16-");
   const beforeContainers = listContainers();
-  const beforeRoots = new Set((await readdir(os.tmpdir())).filter((value) => value.startsWith("zasp-production-e2e-")));
+  const beforeRoots = new Set((await readdir(os.tmpdir())).filter(isProofRoot));
   const child = spawn(process.execPath, [fileURLToPath(new URL("./production-combined-e2e.mjs", import.meta.url))], { env: { ...process.env, ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY: "true" }, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   child.stdout.on("data", (value) => { output += value; });
@@ -346,21 +370,24 @@ test("combined runtime proof removes owned containers and processes on real SIGT
     await waitFor(() => output.includes("combined E2E: owned runtime dependencies ready") || child.exitCode !== null, 180_000, () => output);
     assert.equal(child.exitCode, null, output);
     const ownedContainers = [...listContainers()].filter((id) => !beforeContainers.has(id));
-    const ownedRoots = (await readdir(os.tmpdir())).filter((value) => value.startsWith("zasp-production-e2e-") && !beforeRoots.has(value));
-    assert.equal(ownedContainers.length, 2);
-    assert.equal(ownedRoots.length, 1);
+    const ownedRoots = (await readdir(os.tmpdir())).filter((value) => isProofRoot(value) && !beforeRoots.has(value));
+    assert.equal(ownedContainers.length, 3);
+    assert.equal(ownedRoots.length, 2);
     child.kill("SIGTERM");
     const [status, signal] = await Promise.race([once(child, "exit"), rejectAfter(45_000, () => output)]);
     assert.equal(status, 143, output);
     assert.equal(signal, null);
     for (const id of ownedContainers) assert.equal(listContainers().has(id), false, `owned container survived: ${id}`);
-    assert.equal((await readdir(os.tmpdir())).includes(ownedRoots[0]), false);
+    for (const root of ownedRoots) assert.equal((await readdir(os.tmpdir())).includes(root), false);
     const processes = spawnSync("ps", ["-axo", "command="], { encoding: "utf8" });
     assert.equal(processes.status, 0);
-    assert.doesNotMatch(processes.stdout, new RegExp(escapeRegExp(`${os.tmpdir()}/${ownedRoots[0]}`)));
+    for (const root of ownedRoots) assert.doesNotMatch(processes.stdout, new RegExp(escapeRegExp(path.join(os.tmpdir(), root))));
     assert.match(output, /combined E2E: cleanup files/);
   } finally {
-    if (child.exitCode === null) child.kill("SIGTERM");
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGTERM");
+      await Promise.race([once(child, "exit"), rejectAfter(45_000, () => output)]);
+    }
   }
 });
 

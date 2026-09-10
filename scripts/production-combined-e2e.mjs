@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 import { reloadBrowserPage } from "./browser-e2e-helpers.mjs";
 import { createRuntimePipelineDependencies } from "./runtime-pipeline-dependencies.mjs";
+import { createGraphFixtureDependency } from "../proofs/neo4j-graphstore/run.mjs";
 import { createRedTeamRuntimeProof } from "./red-team-runtime-proof.mjs";
 
 const FIXED_NODE_VERSION = "v22.23.1";
@@ -44,6 +45,7 @@ if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-"));
 const children = [];
 const runtimePipelineDependencies = createRuntimePipelineDependencies(command);
+const runtimeGraphDependency = createGraphFixtureDependency();
 const redTeamRuntimeProof = createRedTeamRuntimeProof(command);
 let redTeamRuntimeConfiguration;
 let proxy;
@@ -212,8 +214,8 @@ try {
   console.log("combined E2E: migrations and durable seed ready");
 
   await runtimePipelineDependencies.prepare();
-  const [runtimeAWSEndpoint, runtimeSearchEndpoint] = await Promise.all([
-    runtimePipelineDependencies.start("aws"), runtimePipelineDependencies.start("search"),
+  const [runtimeAWSEndpoint, runtimeSearchEndpoint, runtimeGraph] = await Promise.all([
+    runtimePipelineDependencies.start("aws"), runtimePipelineDependencies.start("search"), runtimeGraphDependency.start(),
   ]);
   console.log("combined E2E: owned runtime dependencies ready");
   if (process.env.ZASP_COMBINED_E2E_RED_TEAM_RUNTIME === "true") {
@@ -224,11 +226,12 @@ try {
   }
   const runtimePipelineResult = await command(workerE2EBinary, ["-test.run", "^TestProductionCombinedE2ERuntimeQueueIndex$", "-test.v", "-test.timeout", "240s"], {
     timeout: 250_000,
-    env: { ...process.env, ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN: dsn, ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT: runtimeAWSEndpoint, ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT: runtimeSearchEndpoint },
+    env: { ...process.env, ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN: dsn, ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT: runtimeAWSEndpoint, ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT: runtimeSearchEndpoint, ZASP_COMBINED_E2E_RUNTIME_GRAPH_URI: runtimeGraph.uri, ZASP_COMBINED_E2E_RUNTIME_GRAPH_PASSWORD: runtimeGraph.password, ZASP_COMBINED_E2E_RUNTIME_GRAPH_CA_PEM: runtimeGraph.certificate, GODEBUG: "x509usefallbackroots=1" },
   });
   assert.match(runtimePipelineResult.stdout, /runtime pipeline proof passed:/);
   assert.match(runtimePipelineResult.stdout, /semantic observation pipeline proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime observed lineage preservation proven:/);
+  assert.match(runtimePipelineResult.stdout, /runtime candidate recovery proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /runtime session summaries proven: completion-triggered unknown collection, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /runtime session search index proven: committed PG receipt, exact S3 archive, real OpenSearch, immutable replay, structured process filter, pagination and scope denial/);
@@ -236,7 +239,8 @@ try {
   assert.match(runtimePipelineResult.stdout, /production session indexing outbox proven: completion transaction, registered index worker, exact receipt\/archive read, live lease renewal, indexed checkpoint and idle replay without duplicate claims/);
   assert.match(runtimePipelineResult.stdout, /--- PASS: TestProductionCombinedE2ERuntimeQueueIndex/);
   assert.doesNotMatch(runtimePipelineResult.stdout, /--- SKIP:/);
-  console.log("combined E2E: local runtime SQS/S3/OpenSearch pipeline passed");
+  console.log(runtimePipelineResult.stdout.match(/runtime candidate recovery proven:[^\n]*/)[0]);
+  console.log("combined E2E: local runtime SQS/S3/OpenSearch/TLS-Neo4j pipeline passed");
 
   if (process.env.ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY !== "true") {
   const publicOrigin = `https://${productHostname}:${proxyPort}`;
@@ -1179,6 +1183,7 @@ try {
 
 async function cleanupOwnedResources() {
   let runtimeCleanupError;
+  try { await runtimeGraphDependency.close(); } catch (error) { runtimeCleanupError = error; }
   try { await redTeamRuntimeProof.close(); } catch (error) { runtimeCleanupError = error; }
   try { await runtimePipelineDependencies.close(); } catch (error) { runtimeCleanupError = error; }
   console.log("combined E2E: cleanup browser");
