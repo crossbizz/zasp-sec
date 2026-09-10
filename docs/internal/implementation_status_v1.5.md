@@ -29,7 +29,7 @@ Main CI 34426326091 passed, closing M7-07b's original acceptance. M7-07c's
 verified display slice merged in PR 32 as main 214a757d; push CI 34426729932,
 PR CI 34426774094 and main CI 34427605339 passed. Its narrow display criterion
 is accepted. Lineage work continues on
-`codex/reconciliation-maintenance-monitor`. The follow-on production reachability audit
+`codex/api-reference-load`. The follow-on production reachability audit
 withdrew M3-46 and M3-47's inherited credits: actual ingestion supplies neither
 the required lineage nor a provenance-backed candidate source across batches.
 Their domain tests remain component evidence. The original scope is unchanged.
@@ -64,12 +64,22 @@ is in `docs/internal/2026-09-10-reconciliation-lane-plan.md`.
 
 PR 36's reviewed retirement characterization merged as main `967673f4`, with
 push CI 34515382318 and PR CI 34515440592 passed. Main CI 34516356752 passed.
-The next production change adds private API maintenance sampling and alerts,
+PR 37 adds private API maintenance sampling and alerts,
 without customer-row reads, new grants or automatic cleanup. Actual API-role
 statistics and the pinned-snapshot debt experiment passed. Full local verification,
-API races and composed Chrome passed. Final review and shipping remain in progress;
-no original task credit is added. See
+API races and composed Chrome passed. Final review, push CI 34518346226 and
+PR CI 34518779299 passed. It merged as main `4e32e68d`; main CI 34519765394
+passed. No original task credit is added. See
 `docs/internal/2026-09-10-reconciliation-maintenance-visibility.md`.
+
+The next change connects API-load evidence to actual bounded HTTPS requests,
+with executable scenario linting, measured samples and a deterministic CLI gate.
+Full CLI races and UI/build verification passed. The first actual composed run
+passed 100 authenticated reads; the full release gate passed. The final composed
+rerun after review fixes passed all 100 reads with p95 10,202,041 ns and complete
+cleanup. Shipping CI remains pending; no original task credit changes.
+Reference deployment attestation and concurrent retirement-load acceptance remain
+open. Evidence is in `docs/internal/2026-09-10-api-measured-load.md`.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production
