@@ -43,12 +43,20 @@ jobs:
           go test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'
       - name: Verify production release sources
         run: npm run production:release:gate
+      - name: Verify reconciliation maintenance alerts
+        run: |
+          task_prom_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-promtool.XXXXXX")
+          curl --fail --location --retry 3 --max-time 120 --output "$task_prom_dir/prometheus.tar.gz" https://github.com/prometheus/prometheus/releases/download/v3.14.0/prometheus-3.14.0.linux-amd64.tar.gz
+          printf '%s  %s\n' f665c6da19eb7ba399c915d30c7d9793c9b417bf8a749b504bc470678631478d "$task_prom_dir/prometheus.tar.gz" | sha256sum --check -
+          tar -xzf "$task_prom_dir/prometheus.tar.gz" -C "$task_prom_dir" prometheus-3.14.0.linux-amd64/promtool
+          ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" node --test deploy/production/reconciliation-maintenance-alerts.test.mjs
+          ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" go test -C services/platform -race -count=1 ./agentsec-api -run '^TestReconciliationMaintenancePrometheusExposition$'
       - name: Verify durable runtime session projection and enrollment pairing
         run: |
           test -x "$(pg_config --bindir)/initdb"
           go test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent
           go test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...
-          go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing)|TestSensor|TestReconciliationLanePlan|TestConnectorAuthorizationPostgresReconciliationIndexes)'
+          go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'
       - name: Verify bounded Attack Lab network enforcement
         run: |
           go test -C proofs/attack-lab-egress -race -count=1 ./...
