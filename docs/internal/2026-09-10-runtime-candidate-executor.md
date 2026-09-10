@@ -333,3 +333,14 @@ Still required: sensor lineage emission, composed browser attribution, producer 
 final scans and PR/main checks. No task credit changed.
 Superpowers remains unavailable as an installed skill; the disclosed official
 upstream test-first/fresh-verification/independent-review workflow is used.
+
+## Publication checkpoint
+
+The composed proof/evidence commit is `74627be3`, following `9414767b` and
+`cc2c8c52`. The verified batch was pushed and PR 42 is open:
+https://github.com/crossbizz/zasp-sec/pull/42 . Initial push and PR checks started;
+neither is counted as passed yet. The pre-push guard remained enabled. Final
+staged secret scans found no leaks. Every privacy warning was inspected and was
+a public CI run identifier or synthetic test UUID, with no real personal data.
+Main merge and main CI are still pending. This publication checkpoint supersedes
+the earlier unpushed status above without erasing the test-failure history.

@@ -211,6 +211,9 @@ verification and the production release source gate. Remote CI is still pending.
 an isolated fixture-selected v2 proof, not production producer activation or a
 new original-task completion. Evidence is in
 `docs/internal/2026-09-10-runtime-candidate-executor.md`.
+The verified executor/proof batch was pushed in commits `9414767b`, `cc2c8c52`
+and `74627be3`; PR 42 is open with remote checks pending. Main merge/CI are not
+yet accepted. All original task classifications and external gates are unchanged.
 Fresh full verification with graph-proof coverage passes all 1,179 UI tests,
 build, typecheck/lint, release contracts and ledger checks. The final live graph
 TLS/auth rejection and persistence/replay lifecycle passes after the child-process
