@@ -226,6 +226,7 @@ func TestServeRuntimeRunsAndCancelsConnectorLifecycleWorker(t *testing.T) {
 
 func TestServeRuntimeBoundsHostileLifecycleWorkerShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	opened := make(chan commandListenResult, 2)
 	listen := func(network, address string) (net.Listener, error) {
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -233,6 +234,7 @@ func TestServeRuntimeBoundsHostileLifecycleWorkerShutdown(t *testing.T) {
 		return listener, err
 	}
 	release := make(chan struct{})
+	defer close(release)
 	dependencies := fixtureRuntimeDependencies()
 	dependencies.LifecycleWorker = func(context.Context) error {
 		<-release
@@ -255,7 +257,6 @@ func TestServeRuntimeBoundsHostileLifecycleWorkerShutdown(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("hostile lifecycle worker blocked process shutdown")
 	}
-	close(release)
 }
 
 func TestServeRuntimeReadinessTracksRequiredProviderChecks(t *testing.T) {
