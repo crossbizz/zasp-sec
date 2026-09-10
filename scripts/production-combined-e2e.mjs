@@ -122,6 +122,10 @@ try {
   const dsn = `postgres://zasp_e2e@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
   const apiDSN = `postgres://zasp_e2e_api@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
   postgres = await startPostgres(postgresPort);
+  if (process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1") {
+    const instrumentation = await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-c", "SELECT current_setting('track_functions')"]);
+    assert.equal(instrumentation.stdout.trim(), "pl", "concurrent-load diagnostic requires actual claim-function call accounting in its owned database");
+  }
   await provisionPostgresPrincipals(dsn);
   console.log("combined E2E: disposable PostgreSQL ready");
 
@@ -794,6 +798,9 @@ try {
 	await exerciseProductionAttackLabLifecycle(browser.cdp, workerE2EBinary, postgresPort, dsn, publicOrigin);
 	await runProductionRecoveryLifecycle(browser.cdp, agentsecctl, workerE2EBinary, postgresPort, dsn, publicOrigin, certificate, recoveryCredentialFile, expectedProductionScope);
 	await exerciseMeasuredAPILoad(agentsecctl, publicOrigin, certificate, recoveryCredentialFile);
+  if (process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1") {
+    await exerciseConcurrentRetirementLoad(dsn, healthPort, agentsecctl, publicOrigin, certificate, recoveryCredentialFile);
+  }
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/identity-access`);
   const identityAccess = await waitForBrowserText(browser.cdp, /member-target-local[\s\S]*E2E Organization/);
@@ -1210,7 +1217,8 @@ async function generateHarnessGitHubAppPrivateKey(target) {
 async function startPostgres(port) {
   const data = path.join(temporaryRoot, "postgres-data");
   await command(path.join(postgresBin, "initdb"), ["--no-locale", "--encoding=UTF8", "--auth-local=trust", "--auth-host=trust", "--username=zasp_e2e", "-D", data]);
-  const child = startChild(path.join(postgresBin, "postgres"), ["-D", data, "-h", "127.0.0.1", "-p", String(port), "-k", ""]);
+  const instrumentation = process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1" ? ["-c", "track_functions=pl"] : [];
+  const child = startChild(path.join(postgresBin, "postgres"), ["-D", data, "-h", "127.0.0.1", "-p", String(port), "-k", "", ...instrumentation]);
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const ready = await command(path.join(postgresBin, "pg_isready"), ["-h", "127.0.0.1", "-p", String(port), "-U", "zasp_e2e", "-d", "postgres"], { reject: false });
     if (ready.status === 0) return { child, data };
@@ -2795,19 +2803,20 @@ async function exerciseRedTeamRetainedRun(cdp, dsn, publicOrigin) {
   console.log("combined E2E: real Red Team run response loss, reload, exact-scope retry, single queue authority, and cancellation proven");
 }
 
-async function exerciseMeasuredAPILoad(agentsecctl, publicOrigin, certificate, credentialFile) {
+async function exerciseMeasuredAPILoad(agentsecctl, publicOrigin, certificate, credentialFile, stress = false) {
   const endpoint = new URL(publicOrigin);
   endpoint.hostname = recoveryHostname;
   const releaseSHA = (await command("git", ["rev-parse", "HEAD"])).stdout.trim();
   const dirty = (await command("git", ["status", "--porcelain"])).stdout.length > 0;
-  const profile = { name: "local-owned-production-composition", source_state: dirty ? "working-tree" : "committed", reference_deployment: false, postgres: "owned-disposable", providers: "declared-local-fixtures" };
+  const profile = { name: stress ? "local-retired-lane-concurrent-load" : "local-owned-production-composition", source_state: dirty ? "working-tree" : "committed", reference_deployment: false, postgres: "owned-disposable", providers: "declared-local-fixtures", retained_lane_rows: stress ? 100000 : 0, concurrent_writer_batches: stress ? 20 : 0, track_functions: process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1" ? "pl" : "none" };
   const profileBytes = JSON.stringify(profile);
-  const scenario = { version: "bounded-api-read-v1", profile: profile.name, profile_sha256: createHash("sha256").update(profileBytes).digest("hex"), deployment_kind: "local", release_sha: releaseSHA, duration_seconds: 5, requests_per_second: 20, concurrency: 4, request_timeout_ms: 2000 };
-  await writeFile(path.join(temporaryRoot, "api-load-profile.json"), profileBytes, { mode: 0o600 });
-  const result = await command(agentsecctl, ["api-load", "run", "--endpoint", endpoint.origin, "--credential-file", credentialFile, "--ca-bundle-file", certificate], { input: JSON.stringify(scenario), reject: false, timeout: 15_000 });
+  const scenario = { version: "bounded-api-read-v1", profile: profile.name, profile_sha256: createHash("sha256").update(profileBytes).digest("hex"), deployment_kind: "local", release_sha: releaseSHA, duration_seconds: stress ? 20 : 5, requests_per_second: 20, concurrency: 4, request_timeout_ms: 2000 };
+  const artifactPrefix = stress ? "api-load-retirement" : "api-load";
+  await writeFile(path.join(temporaryRoot, `${artifactPrefix}-profile.json`), profileBytes, { mode: 0o600 });
+  const result = await command(agentsecctl, ["api-load", "run", "--endpoint", endpoint.origin, "--credential-file", credentialFile, "--ca-bundle-file", certificate], { input: JSON.stringify(scenario), reject: false, timeout: 30_000 });
   assert.equal(result.status, 0, `actual API load failed: ${result.stdout}`);
   const measurement = JSON.parse(result.stdout);
-  assert.equal(measurement.samples.length, 100);
+  assert.equal(measurement.samples.length, scenario.duration_seconds * scenario.requests_per_second);
   assert.equal(measurement.samples.every((sample) => sample.outcome === "ok" && sample.status === 200), true, "actual API workload omitted or failed requests");
   const evaluated = await command(agentsecctl, ["api-load", "evaluate"], { input: result.stdout });
   const report = JSON.parse(evaluated.stdout);
@@ -2816,9 +2825,114 @@ async function exerciseMeasuredAPILoad(agentsecctl, publicOrigin, certificate, c
   assert.equal(report.scenario.deployment_kind, "local");
   assert.equal(report.scenario.profile_sha256, scenario.profile_sha256);
   assert.doesNotMatch(result.stdout + evaluated.stdout, /Bearer|production-e2e-product-token|items|page_info/);
-  await writeFile(path.join(temporaryRoot, "api-load-measurement.json"), result.stdout, { mode: 0o600 });
-  await writeFile(path.join(temporaryRoot, "api-load-evaluation.json"), evaluated.stdout, { mode: 0o600 });
-  console.log(`combined E2E: actual TLS API load measured 100 authenticated bounded reads, p95_ns=${report.p95_ns}; local composition only, reference-load gate NOT RUN`);
+  await writeFile(path.join(temporaryRoot, `${artifactPrefix}-measurement.json`), result.stdout, { mode: 0o600 });
+  await writeFile(path.join(temporaryRoot, `${artifactPrefix}-evaluation.json`), evaluated.stdout, { mode: 0o600 });
+  console.log(`combined E2E: actual TLS API load measured ${measurement.samples.length} authenticated bounded reads, p95_ns=${report.p95_ns}; local composition only, reference-load gate NOT RUN`);
+  return { measurement, report };
+}
+
+// Opt-in characterization against this harness's owned database only. Synthetic
+// queue rows exercise real migration triggers and the launched API's reconciler.
+// Their availability is in the future, so none can dispatch to a provider.
+async function exerciseConcurrentRetirementLoad(dsn, healthPort, agentsecctl, publicOrigin, certificate, credentialFile) {
+  assert.ok(postgres?.child && postgres.child.exitCode === null, "owned PostgreSQL is not running");
+  const target = new URL(dsn);
+  assert.equal(target.hostname, "127.0.0.1");
+  assert.equal(target.username, "zasp_e2e");
+  const diagnosticDeadline = Date.now() + 240_000;
+  const sql = async (statement, timeout = 60_000) => {
+    const remaining = diagnosticDeadline - Date.now();
+    assert.ok(remaining > 0, "owned retirement diagnostic exceeded its four-minute budget");
+    return (await command(path.join(postgresBin, "psql"), [dsn, "-X", "-qAt", "-v", "ON_ERROR_STOP=1", "-c", statement], { timeout: Math.min(timeout, remaining) })).stdout.trim();
+  };
+  const stats = async () => JSON.parse(await sql(`SELECT json_build_object('dead',n_dead_tup,'last_autovacuum',last_autovacuum,'observed_at',clock_timestamp(),'claims',COALESCE((SELECT calls FROM pg_stat_user_functions WHERE funcid='public.zasp_connector_claim_reconciliation(text,integer,integer)'::regprocedure),0),'observed_claim_start',(SELECT max(query_start) FROM pg_stat_activity WHERE usename='zasp_e2e_api' AND query LIKE '%zasp_connector_claim_reconciliation%')) FROM pg_stat_all_tables WHERE relid='public.zasp_connector_effect_lane_scopes'::regclass`, 5000));
+  const settings = JSON.parse(await sql(`SELECT json_build_object('autovacuum',current_setting('autovacuum'),'naptime',current_setting('autovacuum_naptime'),'threshold',current_setting('autovacuum_vacuum_threshold'),'scale',current_setting('autovacuum_vacuum_scale_factor'),'table_options',reloptions) FROM pg_class WHERE oid='public.zasp_connector_effect_lane_scopes'::regclass`));
+  assert.deepEqual(settings, { autovacuum: "on", naptime: "1min", threshold: "50", scale: "0.2", table_options: null });
+  const insert = (batch, count) => `INSERT INTO zasp_connector_effects(organization_id,workspace_id,environment_id,id,integration_id,provider,operation,idempotency_key,request_digest,status,attempt,available_at,updated_at)
+    SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','pid_'||substr(hash,1,8)||'-'||substr(hash,9,4)||'-4'||substr(hash,14,3)||'-8'||substr(hash,18,3)||'-'||substr(hash,21,12),'${task4DiscoveryIntegrationID}','nango:load'||lpad(ordinal::text,6,'0'),'bind','owned-load-${batch}-'||ordinal,digest(hash,'sha256'),'unknown',0,clock_timestamp()+interval '1 hour',clock_timestamp()
+    FROM (SELECT ordinal,md5('owned-load-${batch}-'||ordinal) hash FROM generate_series(1,${count}) ordinal) generated;`;
+  const retire = (batch) => `UPDATE zasp_connector_effects SET status='failed',last_error_code='provider_access_denied',resolved_at=clock_timestamp(),updated_at=clock_timestamp() WHERE idempotency_key LIKE 'owned-load-${batch}-%';`;
+  await sql(insert("base", 100000));
+  await sql("ANALYZE zasp_connector_effects; ANALYZE zasp_connector_effect_lane_scopes");
+  const snapshot = spawn(path.join(postgresBin, "psql"), [dsn, "-X", "-qAt", "-v", "ON_ERROR_STOP=1"], { cwd: root, stdio: ["pipe", "pipe", "pipe"] });
+  children.push(snapshot);
+  let snapshotOutput = "";
+  snapshot.stdout.on("data", (chunk) => { snapshotOutput = (snapshotOutput + chunk).slice(-8192); });
+  snapshot.stderr.on("data", () => {});
+  snapshot.stdin.on("error", () => {});
+  const snapshotExit = once(snapshot, "exit");
+  snapshotExit.catch(() => {});
+  const snapshotDeadline = setTimeout(() => snapshot.kill("SIGTERM"), 120_000);
+  try {
+    snapshot.stdin.write("SET idle_in_transaction_session_timeout='110s'; BEGIN ISOLATION LEVEL REPEATABLE READ; SELECT pg_current_snapshot(); SELECT 'owned-load-snapshot-ready';\n");
+    const readyUntil = Date.now() + 5000;
+    while (!snapshotOutput.includes("owned-load-snapshot-ready") && snapshot.exitCode === null && Date.now() < readyUntil) await delay(25);
+    assert.ok(snapshotOutput.includes("owned-load-snapshot-ready"), "retirement snapshot was not established");
+    await sql(retire("base"));
+    const retiredAt = await sql("SELECT clock_timestamp()");
+    const before = await stats();
+    const rawPlan = JSON.parse(await sql("EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT provider,operation,organization_id,workspace_id,environment_id FROM zasp_connector_effect_lane_scopes ORDER BY provider,operation,organization_id,workspace_id,environment_id LIMIT 25"));
+    const writerCommits = [];
+    const writer = (async () => {
+      const writerDeadline = Date.now() + 30_000;
+      for (let i = 0; i < 20; i += 1) {
+        assert.ok(Date.now() < writerDeadline, "concurrent writer exceeded its bounded schedule");
+        await sql(`BEGIN; ${insert(`writer${i}`, 100)} ${retire(`writer${i}`)} COMMIT;`, 5000);
+        writerCommits.push(Date.now());
+        await delay(500);
+      }
+    })();
+    let loadFinished = false;
+    const reads = exerciseMeasuredAPILoad(agentsecctl, publicOrigin, certificate, credentialFile, true).finally(() => { loadFinished = true; });
+    const observations = [];
+    const witness = (async () => {
+      while (!loadFinished && observations.length < 300) {
+        observations.push(await stats());
+        await delay(100);
+      }
+    })();
+    const debt = waitForMaintenanceMetric(healthPort, /^zasp_reconciliation_maintenance_dead_tuples\{table="zasp_connector_effect_lane_scopes"\} [1-9][0-9]{5,}$/m);
+    // Drain every owned concurrent operation even on a failed measurement.
+    const results = await Promise.allSettled([writer, reads, debt, witness]);
+    for (const result of results) if (result.status === "rejected") throw result.reason;
+    const { measurement, report } = results[1].value;
+    const loadStart = Date.parse(measurement.started_at);
+    const loadEnd = loadStart + measurement.elapsed_ns / 1e6;
+    assert.ok(writerCommits.filter((when) => when >= loadStart && when <= loadEnd).length >= 10, "writer commits did not overlap actual API reads");
+    const during = await stats();
+    assert.ok(during.dead >= 100000, "pinned retirement debt was not retained during API load");
+    const inside = observations.filter((row) => Date.parse(row.observed_at) > loadStart + 1000 && Date.parse(row.observed_at) < loadEnd - 1000);
+    assert.ok(inside.length >= 10, "claim statistics were not sampled inside the actual API interval");
+    const reportedClaimGrowth = inside.at(-1).claims - inside[0].claims;
+    assert.ok(reportedClaimGrowth >= 10, "reported claim counters did not advance during API load");
+    assert.ok(inside.some((row) => Date.parse(row.observed_claim_start) >= loadStart && Date.parse(row.observed_claim_start) <= loadEnd), "no actual API-role claim statement was observed starting inside the load window");
+    snapshot.stdin.end("COMMIT;\n\\q\n");
+    const committedExit = await Promise.race([snapshotExit, delay(5000).then(() => null)]);
+    assert.ok(committedExit, "snapshot did not exit within its commit deadline");
+    const [status] = committedExit;
+    assert.equal(status, 0, "snapshot did not release cleanly");
+    clearTimeout(snapshotDeadline);
+    const releasedAt = await sql("SELECT clock_timestamp()");
+    const maintenanceUntil = Date.now() + 90_000;
+    let after;
+    do {
+      after = await stats();
+      if (after.dead === 0 && Date.parse(after.last_autovacuum) > Date.parse(releasedAt)) break;
+      await delay(1000);
+    } while (Date.now() < maintenanceUntil);
+    assert.ok(after.dead === 0 && Date.parse(after.last_autovacuum) > Date.parse(releasedAt), "default autovacuum did not recover after snapshot release");
+    const finalPlan = JSON.parse(await sql("EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) SELECT provider,operation,organization_id,workspace_id,environment_id FROM zasp_connector_effect_lane_scopes ORDER BY provider,operation,organization_id,workspace_id,environment_id LIMIT 25"));
+    const planNode = finalPlan[0].Plan;
+    assert.ok(planNode["Shared Read Blocks"] + planNode["Shared Hit Blocks"] <= 2048, "post-maintenance physical work exceeded the retained bound");
+    const evidence = { local_only: true, settings, retired_at: retiredAt, released_at: releasedAt, before, during, after, in_window_observations: inside, statistics_publication: "asynchronous; reported counter growth is not an exact execution count", writer_commits: writerCommits.length, measurement: report, pre_maintenance_plan: rawPlan, post_maintenance_plan: finalPlan };
+    await writeFile(path.join(temporaryRoot, "reconciliation-concurrent-load.json"), JSON.stringify(evidence), { mode: 0o600 });
+    console.log(`combined E2E: concurrent retirement load passed: retained_dead=${during.dead}, overlapping_writer_batches=${writerCommits.filter((when) => when >= loadStart && when <= loadEnd).length}, in_window_reported_claim_growth=${reportedClaimGrowth}, claim_start_observed_in_window=true, API_p50_ns=${report.p50_ns}, API_p95_ns=${report.p95_ns}, API_p99_ns=${report.p99_ns}, errors=${report.errors}, pre_reads=${rawPlan[0].Plan["Shared Read Blocks"]}, pre_hits=${rawPlan[0].Plan["Shared Hit Blocks"]}, post_reads=${planNode["Shared Read Blocks"]}, post_hits=${planNode["Shared Hit Blocks"]}; statistics publication is asynchronous; default autovacuum recovered after snapshot release; local diagnostic only, reference gate NOT RUN`);
+  } finally {
+    clearTimeout(snapshotDeadline);
+    await stopChild(snapshot);
+    const cleanupExit = await Promise.race([snapshotExit, delay(1000).then(() => null)]);
+    assert.ok(cleanupExit, "snapshot process cleanup did not complete; outer owned cleanup must continue");
+  }
 }
 
 async function runProductionRecoveryLifecycle(cdp, agentsecctl, workerE2EBinary, postgresPort, dsn, publicOrigin, certificate, credentialFile, expectedScope) {

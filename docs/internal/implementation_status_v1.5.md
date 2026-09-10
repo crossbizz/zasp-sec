@@ -29,7 +29,7 @@ Main CI 34426326091 passed, closing M7-07b's original acceptance. M7-07c's
 verified display slice merged in PR 32 as main 214a757d; push CI 34426729932,
 PR CI 34426774094 and main CI 34427605339 passed. Its narrow display criterion
 is accepted. Lineage work continues on
-`codex/api-reference-load`. The follow-on production reachability audit
+`codex/reconciliation-concurrent-load`. The follow-on production reachability audit
 withdrew M3-46 and M3-47's inherited credits: actual ingestion supplies neither
 the required lineage nor a provenance-backed candidate source across batches.
 Their domain tests remain component evidence. The original scope is unchanged.
@@ -77,9 +77,24 @@ with executable scenario linting, measured samples and a deterministic CLI gate.
 Full CLI races and UI/build verification passed. The first actual composed run
 passed 100 authenticated reads; the full release gate passed. The final composed
 rerun after review fixes passed all 100 reads with p95 10,202,041 ns and complete
-cleanup. Shipping CI remains pending; no original task credit changes.
+cleanup. PR 38 merged as main `2540c7b4` after push CI 34521277124 and PR CI
+34521331499 passed. Main CI 34522254378 passed; no original task credit changes.
 Reference deployment attestation and concurrent retirement-load acceptance remain
 open. Evidence is in `docs/internal/2026-09-10-api-measured-load.md`.
+
+The next opt-in local diagnostic combines 400 actual HTTPS API reads, 100,000
+pinned retired lane rows, concurrent insert/retire writers and actual reconciler
+activity. Its first run passed API and maintenance observations, but review
+rejected its surrounding-window call count as overlap proof. The stricter
+in-window witness passed all 400 reads, zero errors and p95 31,897,208 ns,
+with 19 overlapping writer commits and default-autovacuum recovery. Full UI/build
+verification passed; the final composed repeat after bounded snapshot-cleanup
+hardening passed all 400 reads, zero errors and p95 15,499,125 ns, then completed
+the browser flows and owned cleanup. Shipping CI is pending.
+Review permits proceeding with isolated runtime candidate
+authority while the immediate-retirement raw-work concern and reference-load
+gate remain open, without relaxing either assertion or scope. See
+`docs/internal/2026-09-10-reconciliation-concurrent-load.md`.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production
