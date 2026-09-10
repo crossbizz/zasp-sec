@@ -45,7 +45,7 @@ if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-"));
 const children = [];
 const runtimePipelineDependencies = createRuntimePipelineDependencies(command);
-const runtimeGraphDependency = createGraphFixtureDependency();
+let runtimeGraphDependency;
 const redTeamRuntimeProof = createRedTeamRuntimeProof(command);
 let redTeamRuntimeConfiguration;
 let proxy;
@@ -213,6 +213,10 @@ try {
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
+  // Construct only when needed, inside the cleanup boundary. Early PostgreSQL
+  // shutdown needs no container environment; rejected graph configuration must
+  // still release every resource allocated before this point.
+  runtimeGraphDependency = createGraphFixtureDependency();
   await runtimePipelineDependencies.prepare();
   const [runtimeAWSEndpoint, runtimeSearchEndpoint, runtimeGraph] = await Promise.all([
     runtimePipelineDependencies.start("aws"), runtimePipelineDependencies.start("search"), runtimeGraphDependency.start(),
@@ -1183,7 +1187,7 @@ try {
 
 async function cleanupOwnedResources() {
   let runtimeCleanupError;
-  try { await runtimeGraphDependency.close(); } catch (error) { runtimeCleanupError = error; }
+  try { await runtimeGraphDependency?.close(); } catch (error) { runtimeCleanupError = error; }
   try { await redTeamRuntimeProof.close(); } catch (error) { runtimeCleanupError = error; }
   try { await runtimePipelineDependencies.close(); } catch (error) { runtimeCleanupError = error; }
   console.log("combined E2E: cleanup browser");

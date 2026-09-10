@@ -78,7 +78,10 @@ test("runtime recovery proof owns authenticated TLS Neo4j instead of a graph stu
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");
   assert.match(source, /runtimeGraphDependency\.start\(\)/);
-  assert.match(source, /runtimeGraphDependency\.close\(\)/);
+  assert.match(source, /runtimeGraphDependency\?\.close\(\)/);
+  const construction = source.indexOf("runtimeGraphDependency = createGraphFixtureDependency()");
+  assert.ok(construction > source.indexOf("try {\n  const ports"));
+  assert.ok(construction < source.indexOf("await runtimePipelineDependencies.prepare()"));
   assert.match(source, /ZASP_COMBINED_E2E_RUNTIME_GRAPH_URI/);
   assert.match(worker, /newRuntimePipelineGraphFixture/);
   assert.doesNotMatch(worker, /runtimeCorrelationGraphStoreStub/);
@@ -330,7 +333,9 @@ test("PostgreSQL tool discovery does not depend on a macOS installation path", a
 
 test("combined production E2E removes owned processes and temp root on SIGTERM", { timeout: 60_000 }, async () => {
   const before = new Set((await readdir(os.tmpdir())).filter((value) => value.startsWith("zasp-production-e2e-")));
-  const child = spawn(process.execPath, [fileURLToPath(new URL("./production-combined-e2e.mjs", import.meta.url))], { stdio: ["ignore", "pipe", "pipe"] });
+  // Early PostgreSQL shutdown must not construct the unused Docker dependency.
+  // This synthetic non-secret variable reproduces a forbidden inherited CI env.
+  const child = spawn(process.execPath, [fileURLToPath(new URL("./production-combined-e2e.mjs", import.meta.url))], { env: { ...process.env, AWS_REGION: "synthetic-cleanup-regression" }, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   child.stdout.on("data", (value) => { output += value; });
   child.stderr.on("data", (value) => { output += value; });

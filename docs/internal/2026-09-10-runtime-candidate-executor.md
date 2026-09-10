@@ -344,3 +344,41 @@ staged secret scans found no leaks. Every privacy warning was inspected and was
 a public CI run identifier or synthetic test UUID, with no real personal data.
 Main merge and main CI are still pending. This publication checkpoint supersedes
 the earlier unpushed status above without erasing the test-failure history.
+
+## CI caught an early cleanup regression
+
+Push CI 34542732669 and PR CI 34542734159 failed the early PostgreSQL SIGTERM
+test. The eager graph dependency constructor rejected an inherited forbidden
+environment before cleanup was installed. This left its newly created empty
+temporary root behind. Local runs without that environment had passed.
+
+The regression now supplies a synthetic, non-secret AWS_REGION value and fails
+against the previous implementation in
+`/tmp/zasp-runtime-candidate-ci-cleanup-red.log`. Graph construction now happens
+only at the dependency startup point, inside the existing try/finally boundary.
+Cleanup accepts a dependency that was never constructed. The environment guard
+is unchanged; no credentials, proxies or external graph targets were allowed.
+
+The exact early-shutdown regression passed in 1.870 seconds in
+`/tmp/zasp-runtime-candidate-ci-cleanup-green.log`. An actual later startup with
+the same rejected environment reached migrations, rejected graph construction,
+and cleaned PostgreSQL, owned processes and files before exiting nonzero:
+`/tmp/zasp-runtime-candidate-ci-constructor-rejection.log`.
+The empty root from the RED reproduction was confirmed empty and removed;
+unrelated pre-existing temporary roots were left untouched.
+
+The first broad local rerun had two failures unrelated to the constructor fix:
+a new comment matched the existing forbidden-word source contract, and running
+two harnesses concurrently confused the shutdown test's global root inventory.
+The comment was corrected without changing the assertion, and harness runs are
+serialized. The exact CI regression command now passes 67 tests with two explicit
+opt-in skips in `/tmp/zasp-runtime-candidate-ci-regressions-serial.log`.
+Independent read-only review found no concrete blocker, conditional on fresh full
+verification and CI. Full verification passed all 1,179 UI tests, typecheck, lint,
+build, import boundaries and the unchanged ledger in
+`/tmp/zasp-runtime-candidate-ci-fix-verify.log`. The source release gate passed in
+`/tmp/zasp-runtime-candidate-ci-fix-release.log`, with its external exclusions
+unchanged. The new complete composition has passed actual runtime recovery;
+browser flows are still running in `/tmp/zasp-runtime-candidate-ci-fix-composed.log`.
+This runnable, reviewed correction can be pushed for CI while that longer check
+continues. PR 42 remains unmerged; no task credit changed.

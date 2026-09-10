@@ -214,14 +214,25 @@ new original-task completion. Evidence is in
 The verified executor/proof batch was pushed in commits `9414767b`, `cc2c8c52`
 and `74627be3`; PR 42 is open with remote checks pending. Main merge/CI are not
 yet accepted. All original task classifications and external gates are unchanged.
-Fresh full verification with graph-proof coverage passes all 1,179 UI tests,
+Pre-publication verification with graph-proof coverage passed all 1,179 UI tests,
 build, typecheck/lint, release contracts and ledger checks. The final live graph
 TLS/auth rejection and persistence/replay lifecycle passes after the child-process
 settlement fix, with exact cleanup. Candidate readiness is now selected by the
-existing CI naming pattern. The branch is still unpushed; candidate-executor
-graph/S3 failure/retry and production activation remain separate open gates.
+existing CI naming pattern. That earlier checkpoint preceded the publication
+and graph/S3 recovery proof above; production activation remains an open gate.
 Production v2 activation and task credit remain withheld. See
 `docs/internal/2026-09-10-runtime-candidate-executor.md`.
+
+PR 42's push CI 34542732669 and PR CI 34542734159 failed early SIGTERM cleanup:
+graph construction rejected inherited environment before cleanup was installed.
+A synthetic non-secret environment regression reproduced it locally. Construction
+now occurs inside protected dependency startup; environment rejection is unchanged.
+Early shutdown passes, and later rejected startup also cleans its owned resources.
+The CI regression suite passes 67 tests with two explicit opt-in skips. Independent
+review found no concrete blocker. Fresh full verification passes all 1,179 UI tests
+and build; the source release gate and repeated actual runtime recovery pass.
+The full browser rerun and new remote checks are pending. The verified runnable
+correction is ready for a CI push; PR 42 is not merged and task counts are unchanged.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production
