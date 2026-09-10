@@ -297,6 +297,15 @@ try {
 		throw new Error(`${error instanceof Error ? error.message : "API readiness failed"}; exit=${api.exitCode}; signal=${api.signalCode}: ${api.output()}`);
 	}
   console.log("combined E2E: Go product and internal listeners ready");
+  await waitForMaintenanceMetric(healthPort, /^zasp_reconciliation_maintenance_sample_valid 1$/m);
+  await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", "ALTER TABLE public.zasp_connector_effect_lane_scopes SET(autovacuum_enabled=false)"]);
+  try {
+    await waitForMaintenanceMetric(healthPort, /^zasp_reconciliation_maintenance_autovacuum_enabled\{table="zasp_connector_effect_lane_scopes"\} 0$/m);
+  } finally {
+    await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", "ALTER TABLE public.zasp_connector_effect_lane_scopes RESET(autovacuum_enabled)"]);
+  }
+  await waitForMaintenanceMetric(healthPort, /^zasp_reconciliation_maintenance_autovacuum_enabled\{table="zasp_connector_effect_lane_scopes"\} 1$/m);
+  console.log("combined E2E: actual API lifecycle sampled maintenance disable and recovery through private metrics");
 
   web = startChild(path.join(root, "node_modules", ".bin", "vinext"), ["start", "--port", String(webPort), "--hostname", "127.0.0.1"], { cwd: root });
   await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`, 200);
@@ -3995,6 +4004,17 @@ async function waitForScopeOverlap(predicate, message) {
     await delay(25);
   }
   throw new Error(message);
+}
+
+async function waitForMaintenanceMetric(healthPort, pattern) {
+  for (const deadline = Date.now() + 20_000; Date.now() < deadline;) {
+    const response = await fetch(`http://127.0.0.1:${healthPort}/metrics`, { signal: AbortSignal.timeout(2_000) });
+    const body = await response.text();
+    assert.ok(body.length <= 64 * 1024, "maintenance metrics exceeded internal render bound");
+    if (response.status === 200 && pattern.test(body)) return;
+    await delay(250);
+  }
+  throw new Error("actual API lifecycle maintenance metric not observed within its sampling window");
 }
 
 async function browserHasInteractiveText(cdp, pattern) {

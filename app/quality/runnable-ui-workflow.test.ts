@@ -31,6 +31,13 @@ const repositoryRoot = process.cwd();
 const checkoutAction = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
 const setupNodeAction = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020";
 const setupGoAction = "actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16";
+const maintenanceAlertCommand = `task_prom_dir=$(mktemp -d "\${RUNNER_TEMP}/zasp-promtool.XXXXXX")
+curl --fail --location --retry 3 --max-time 120 --output "$task_prom_dir/prometheus.tar.gz" https://github.com/prometheus/prometheus/releases/download/v3.14.0/prometheus-3.14.0.linux-amd64.tar.gz
+printf '%s  %s\\n' f665c6da19eb7ba399c915d30c7d9793c9b417bf8a749b504bc470678631478d "$task_prom_dir/prometheus.tar.gz" | sha256sum --check -
+tar -xzf "$task_prom_dir/prometheus.tar.gz" -C "$task_prom_dir" prometheus-3.14.0.linux-amd64/promtool
+ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" node --test deploy/production/reconciliation-maintenance-alerts.test.mjs
+ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" go test -C services/platform -race -count=1 ./agentsec-api -run '^TestReconciliationMaintenancePrometheusExposition$'
+`;
 
 async function readWorkflow(): Promise<Workflow> {
   const source = await readFile(
@@ -102,7 +109,7 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["continue-on-error"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(12);
+  expect(verificationSteps).toHaveLength(13);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
@@ -114,7 +121,8 @@ function assertRunnableUiWorkflow(
     "npm run verify",
     "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n",
     "npm run production:release:gate",
-    "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing)|TestSensor|TestReconciliationLanePlan|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n",
+    maintenanceAlertCommand,
+    "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n",
     "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n",
   ]);
   expect(verificationSteps[0]?.with).toEqual({ "fetch-depth": 0 });
@@ -153,7 +161,8 @@ function validWorkflow(): Workflow {
           { run: "npm run verify" },
           { run: "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n" },
           { run: "npm run production:release:gate" },
-          { run: "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing)|TestSensor|TestReconciliationLanePlan|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n" },
+          { run: maintenanceAlertCommand },
+          { run: "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n" },
           { run: "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n" },
         ],
       },

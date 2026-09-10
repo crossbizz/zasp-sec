@@ -187,6 +187,7 @@ func (limiter *requestLimiter) evictOldest() {
 }
 
 type operationalMetrics struct {
+	maintenance      reconciliationMaintenanceSample
 	mu               sync.Mutex
 	requests         map[string]uint64
 	duration         map[string]*durationHistogram
@@ -324,6 +325,7 @@ func (metrics *operationalMetrics) Prometheus() string {
 	for _, outcome := range []string{"succeeded", "failed"} {
 		fmt.Fprintf(&output, "zasp_job_operations_total{outcome=%q} %d\n", outcome, metrics.dependencies["job\x00"+outcome])
 	}
+	metrics.writeReconciliationMaintenance(&output, time.Now())
 	poolStats := metrics.poolStats
 	metrics.mu.Unlock()
 	saturation := poolSaturation{}

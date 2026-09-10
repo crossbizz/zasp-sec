@@ -6,6 +6,57 @@ The edge rejects requests unless host, origin and TLS forwarding metadata are ex
 
 Private `/metrics` exposes process readiness/build data, a bounded detailed API request histogram, request/rate-limit/authentication/dependency counters, and live PostgreSQL pool gauges. Detailed labels use a fixed method set plus `OTHER`, allowlisted routes, bounded status classes and an overflow cap. Independent fixed-cardinality `zasp_http_slo_requests_total` and `zasp_http_slo_request_duration_seconds` series preserve status plus read/mutation latency semantics even after detailed-series overflow. Separate ServiceMonitors scrape API, discovery, projections, gateway control, event ingest, and every runtime worker on port 8081. Prometheus pages when a required Deployment is absent or unavailable, and it tickets failed worker dependency readiness or an HPA held at its maximum. Queue age and projection-lag paging remains an external release gate until each source exports bounded durable lag metrics; capacity is not a substitute for lag.
 
+## Reconciliation maintenance
+
+The API samples PostgreSQL catalog statistics for two fixed tables:
+`public.zasp_connector_effects` and `public.zasp_connector_effect_lane_scopes`.
+It samples serially every 15 seconds with a two-second query deadline. Scrapes
+read the cached result, not the database. After a failed sample, at startup, or
+after 45 seconds without a fresh sample, `zasp_reconciliation_maintenance_sample_valid`
+is zero and table gauges disappear. Unavailable data never becomes healthy zeros.
+The sampler stops with the API lifecycle and doesn't control readiness or issue
+VACUUM, terminate sessions, change table settings or add database grants.
+
+Valid samples expose `dead_tuples`, `live_tuples`, `autovacuum_enabled` and
+`last_autovacuum_seconds`, all prefixed with `zasp_reconciliation_maintenance_`.
+The only table labels are the two fixed names above. Row counts are estimates.
+Ordinary autovacuum must be enabled globally and for the table; this does not
+guarantee worker capacity, scheduling or successful reclamation. A null vacuum
+timestamp is rendered as zero, meaning no recorded vacuum, not completed cleanup.
+Statistics reset or lag, a zero estimate and a recent vacuum timestamp never prove
+the raw scan or reference-load gate passed. PostgreSQL documents these limits in
+its [statistics guide](https://www.postgresql.org/docs/18/monitoring-stats.html).
+
+Three operator tickets distinguish the cases:
+
+- `ZaspReconciliationMaintenanceUnavailable`: invalid/stale samples, missing
+  sampler series, failed scrape targets or all API targets absent for one minute.
+- Dead-tuple estimates at or above 10,000 for two minutes trigger
+  `ZaspReconciliationMaintenanceDebt`, even when the vacuum timestamp advances.
+- `ZaspReconciliationAutovacuumDisabled` fires after one minute with ordinary
+  autovacuum disabled. The thresholds are diagnostic warnings, not a cleanup SLA.
+
+On a ticket, first check the private scrape target and sampler validity. If data
+is unavailable, inspect the API's bounded repository failure counters, database
+connectivity and `track_counts`; don't infer zero debt. If debt persists, an
+authorized database operator should inspect `pg_stat_all_tables`, effective
+autovacuum settings and `pg_stat_progress_vacuum` for these exact tables. Look for
+long-running transactions, old snapshot horizons, replication-slot retention,
+worker saturation and provider maintenance limits. Broader session statistics
+may require operator privileges; never grant them to the product API to make a
+dashboard green. Keep query text, customer rows, credentials and principal names
+out of exported metrics and incident attachments.
+
+If cleanup is held back by an application transaction, coordinate its safe
+completion with its owner. Recheck estimates and actual query work afterward.
+Don't automatically terminate a session, drop a slot or run `VACUUM FULL`.
+Escalate unresolved debt or API latency/error-budget violations to the database
+operator with timestamps, fixed table names and bounded aggregate evidence.
+Any maintenance intervention needs the deployment's change procedure. Keep the
+incident open until the measured operation recovers; advancing vacuum counters
+alone aren't recovery evidence. The original concurrent API/reference-load gate
+and immediate post-retirement raw-scan concern remain separate.
+
 The customer-edge release adds a private `sensor-agent` ServiceMonitor. It
 pages when adapter readiness disappears or reports zero and when either the
 `sensor-agent` or `zasp-tetragon` DaemonSet has unavailable nodes. The SaaS

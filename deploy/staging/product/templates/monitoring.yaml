@@ -59,6 +59,21 @@ spec:
   groups:
     - name: zasp.production
       rules:
+        - alert: ZaspReconciliationMaintenanceUnavailable
+          expr: zasp_reconciliation_maintenance_sample_valid{namespace="{{ .Release.Namespace }}"} == 0 or up{namespace="{{ .Release.Namespace }}",service="agentsec-api"} == 0 or (up{namespace="{{ .Release.Namespace }}",service="agentsec-api"} == 1 unless on (namespace,instance) zasp_reconciliation_maintenance_sample_valid{namespace="{{ .Release.Namespace }}"}) or absent(up{namespace="{{ .Release.Namespace }}",service="agentsec-api"})
+          for: 1m
+          labels: { severity: ticket }
+          annotations: { summary: "Reconciliation maintenance statistics are unavailable or stale" }
+        - alert: ZaspReconciliationMaintenanceDebt
+          expr: zasp_reconciliation_maintenance_dead_tuples{namespace="{{ .Release.Namespace }}"} >= 10000
+          for: 2m
+          labels: { severity: ticket }
+          annotations: { summary: "Reconciliation dead-tuple estimate remains elevated" }
+        - alert: ZaspReconciliationAutovacuumDisabled
+          expr: zasp_reconciliation_maintenance_autovacuum_enabled{namespace="{{ .Release.Namespace }}"} == 0
+          for: 1m
+          labels: { severity: ticket }
+          annotations: { summary: "Ordinary reconciliation autovacuum is disabled" }
         - alert: ZaspAPIErrorBudgetBurn
           expr: sum(rate(zasp_http_slo_requests_total{status_class="5xx"}[5m])) / sum(rate(zasp_http_slo_requests_total[5m])) > 0.01 and sum(rate(zasp_http_slo_requests_total[5m])) > 0
           for: 10m

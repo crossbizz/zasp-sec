@@ -29,7 +29,7 @@ Main CI 34426326091 passed, closing M7-07b's original acceptance. M7-07c's
 verified display slice merged in PR 32 as main 214a757d; push CI 34426729932,
 PR CI 34426774094 and main CI 34427605339 passed. Its narrow display criterion
 is accepted. Lineage work continues on
-`codex/reconciliation-maintenance`. The follow-on production reachability audit
+`codex/reconciliation-maintenance-monitor`. The follow-on production reachability audit
 withdrew M3-46 and M3-47's inherited credits: actual ingestion supplies neither
 the required lineage nor a provenance-backed candidate source across batches.
 Their domain tests remain component evidence. The original scope is unchanged.
@@ -61,6 +61,15 @@ also reproduced on schema 45; it remains next on the critical path. Full Chrome
 passed. Three final focused repetitions and push CI 34513080289 / PR CI
 34513125922 passed. Main CI 34514152920 passed for `5a102d17`. Evidence
 is in `docs/internal/2026-09-10-reconciliation-lane-plan.md`.
+
+PR 36's reviewed retirement characterization merged as main `967673f4`, with
+push CI 34515382318 and PR CI 34515440592 passed. Main CI 34516356752 passed.
+The next production change adds private API maintenance sampling and alerts,
+without customer-row reads, new grants or automatic cleanup. Actual API-role
+statistics and the pinned-snapshot debt experiment passed. Full local verification,
+API races and composed Chrome passed. Final review and shipping remain in progress;
+no original task credit is added. See
+`docs/internal/2026-09-10-reconciliation-maintenance-visibility.md`.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production

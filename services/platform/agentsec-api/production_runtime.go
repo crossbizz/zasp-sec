@@ -280,7 +280,9 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	lifecycleWorkers := []func(context.Context) error{connectorReconciler.Run}
+	lifecycleWorkers := []func(context.Context) error{connectorReconciler.Run, func(ctx context.Context) error {
+		return runReconciliationMaintenance(ctx, connectorRepository, metrics)
+	}}
 	var approvalNotificationReconciler *apiserver.ApprovalNotificationReconciler
 	if approvalNotificationRepository != nil {
 		approvalNotificationReconciler, err = apiserver.NewApprovalNotificationReconciler(apiserver.ApprovalNotificationReconcilerConfig{
