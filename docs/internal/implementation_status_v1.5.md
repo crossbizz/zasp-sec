@@ -5,15 +5,19 @@
 **Last updated:** September 9, 2026
 **Execution branch:** `main`
 
-Migration 42 and the production session-search indexing worker shipped in PR 27
-as main 885d0ff0. Push, PR and main CI passed after local full verification and
-fresh Chrome end-to-end proof. Current unshipped slice: migration 43 and the
-authorized structured-search API, canonical hydration and indexing freshness.
-Full local verification, real PostgreSQL boundaries, Chrome/runtime proof and
-independent M7-05 criterion review passed. Shipping/main CI is pending, so M7-05
-remains component-only until that gate passes. M7-06 and M7-07a UI work is next.
+Migration 43 and the authorized structured-search API shipped in PR 28 as main
+d46085cf after full local verification, real PostgreSQL boundaries, Chrome/runtime
+proof and independent M7-05 criterion review. Push and PR CI passed; main CI
+34419096909 is pending, so M7-05 remains component-only until that gate passes.
 Detailed evidence is in
 `docs/internal/2026-09-09-m7-runtime-session-production-closure.md`.
+
+M7-06 is now being implemented on `codex/runtime-session-investigation-ui`:
+the production route defaults to runtime investigations with structured filters,
+bounded pages, confidence counts and checkpoint status. Console logins remain
+separate. Full verification and the real filter/scope-change/responsive E2E
+passed. Original-task acceptance review passed; shipping CI is pending. No availability
+count is changed by this work. M7-07a timeline implementation is next.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production

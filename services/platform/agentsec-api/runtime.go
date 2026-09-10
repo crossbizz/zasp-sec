@@ -414,12 +414,14 @@ func serveRuntime(ctx context.Context, output io.Writer, version string, config 
 	}
 
 	var productErr, internalErr, workerErr error
-	workerFinished := false
+	productFinished, internalFinished, workerFinished := false, false, false
 	select {
 	case <-ctx.Done():
 	case productErr = <-productDone:
+		productFinished = true
 		cancel()
 	case internalErr = <-internalDone:
+		internalFinished = true
 		cancel()
 	case workerErr = <-workerDone:
 		workerFinished = true
@@ -428,10 +430,12 @@ func serveRuntime(ctx context.Context, output io.Writer, version string, config 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), config.ShutdownTimeout)
 	shutdownErr := productServer.Shutdown(shutdownCtx)
 	cancel()
-	if productErr == nil {
+	// A completed server may return nil. Track receipt separately from its
+	// error so clean health shutdown is never consumed from the channel twice.
+	if !productFinished {
 		productErr = <-productDone
 	}
-	if internalErr == nil {
+	if !internalFinished {
 		internalErr = <-internalDone
 	}
 	if workerDone != nil && !workerFinished {

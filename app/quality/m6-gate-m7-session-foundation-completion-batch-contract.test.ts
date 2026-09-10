@@ -21,7 +21,9 @@ describe("M6 gate and M7 session-foundation completion batch", () => {
     for (const symbol of ["Rollout", "RuntimeProxy", "ParseMCPAction", "NormalizeActionContext", "EvaluateBundleFallback", "MeasureDecisionP95", "EvaluateM6Gate"]) expect(runtime).toContain(` ${symbol}`);
     for (const symbol of ["Project", "BuildSessionFilter"]) expect(sessions).toContain(` ${symbol}`);
     for (const label of ["Monitor", "Enforce", "Disabled", "Simulate policy"]) expect(policiesView).toContain(label);
-    for (const label of ["Session investigations", "Ordered durable session activity", "evidence confidence", "Revoke session"]) expect(sessionsView).toContain(label);
+    for (const label of ["Console login sessions", "Agent runtime evidence is separate", "Revoke session"]) expect(sessionsView).toContain(label);
+    const runtimeView = await readFile(resolve(root, "app/features/sessions/RuntimeSessionsView.tsx"), "utf8");
+    for (const label of ["Runtime session investigations", "Structured filters", "confidence_counts", "Search indexing status"]) expect(runtimeView).toContain(label);
   });
 
   it("keeps all session operations in the generated product contract", async () => {

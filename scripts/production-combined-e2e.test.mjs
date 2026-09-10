@@ -21,6 +21,15 @@ test("runtime query composition requires schema43 and real indexed HTTP search",
   assert.ok(source.includes('"/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1"'));
   assert.ok(source.includes('"/zasp-runtime-sessions-v1/_search"'));
 });
+
+test("runtime Sessions UI filters worker-written evidence and resets on scope change", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function exerciseRuntimeSessionReads");
+  const flow = source.slice(start, source.indexOf("async function exerciseRedTeamRecommendations", start));
+  for (const marker of ['fillBrowserLabel(cdp, "Process", "/usr/bin/other")', 'fillBrowserLabel(cdp, "Process", "/usr/bin/agent")', 'clickBrowserText(cdp, "Search sessions")', "runtime Sessions UI proven: structured process filter, canonical confidence, indexing checkpoint and scope reset"])
+    assert.ok(flow.includes(marker), marker);
+  assert.doesNotMatch(flow, /(?:INSERT INTO|UPDATE|DELETE FROM) zasp_runtime_session/);
+});
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 
