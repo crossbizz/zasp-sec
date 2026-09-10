@@ -1,6 +1,7 @@
 # Actual API load runner
 
-Status: locally verified on `codex/api-reference-load`; shipping CI is pending.
+Status: merged through PR 38 as main `2540c7b4` after push CI 34521277124 and
+PR CI 34521331499 passed. Main CI 34522254378 passed.
 No original task classification changes. The authoritative count remains
 535 production-available / 132 component-only / 61 external gates, total 728.
 
@@ -54,8 +55,8 @@ CI's existing production release gate now unconditionally runs the
 full CLI race suite, including real TLS load tests. The full release gate passed
 with exit 0 in `/tmp/zasp-api-load-release-gate.log`. The browser hook executes
 100 actual authenticated reads, stores temporary local profile/measurement/gate
-files and requires the evaluator to pass. Push, PR and main CI remain shipping
-gates; local success does not substitute for them.
+files and requires the evaluator to pass. Push, PR and main CI passed for the
+shipped change; local success was not substituted for them.
 
 Read-only review accepted the corrected implementation conditional on the final
 composed run and shipping CI. Final evidence review inspected the completed logs
