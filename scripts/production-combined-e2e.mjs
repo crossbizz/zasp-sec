@@ -793,6 +793,7 @@ try {
 	await waitForBrowserText(browser.cdp, /No records in this scope/);
 	await exerciseProductionAttackLabLifecycle(browser.cdp, workerE2EBinary, postgresPort, dsn, publicOrigin);
 	await runProductionRecoveryLifecycle(browser.cdp, agentsecctl, workerE2EBinary, postgresPort, dsn, publicOrigin, certificate, recoveryCredentialFile, expectedProductionScope);
+	await exerciseMeasuredAPILoad(agentsecctl, publicOrigin, certificate, recoveryCredentialFile);
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/identity-access`);
   const identityAccess = await waitForBrowserText(browser.cdp, /member-target-local[\s\S]*E2E Organization/);
@@ -2792,6 +2793,32 @@ async function exerciseRedTeamRetainedRun(cdp, dsn, publicOrigin) {
   const retained = await cdp.send("Runtime.evaluate", { expression: `Object.keys(sessionStorage).filter(key => key.startsWith("zasp:red-team:request:v1:"))`, returnByValue:true });
   assert.deepEqual(retained.result?.value, [], "confirmed Red Team operation left a browser checkpoint");
   console.log("combined E2E: real Red Team run response loss, reload, exact-scope retry, single queue authority, and cancellation proven");
+}
+
+async function exerciseMeasuredAPILoad(agentsecctl, publicOrigin, certificate, credentialFile) {
+  const endpoint = new URL(publicOrigin);
+  endpoint.hostname = recoveryHostname;
+  const releaseSHA = (await command("git", ["rev-parse", "HEAD"])).stdout.trim();
+  const dirty = (await command("git", ["status", "--porcelain"])).stdout.length > 0;
+  const profile = { name: "local-owned-production-composition", source_state: dirty ? "working-tree" : "committed", reference_deployment: false, postgres: "owned-disposable", providers: "declared-local-fixtures" };
+  const profileBytes = JSON.stringify(profile);
+  const scenario = { version: "bounded-api-read-v1", profile: profile.name, profile_sha256: createHash("sha256").update(profileBytes).digest("hex"), deployment_kind: "local", release_sha: releaseSHA, duration_seconds: 5, requests_per_second: 20, concurrency: 4, request_timeout_ms: 2000 };
+  await writeFile(path.join(temporaryRoot, "api-load-profile.json"), profileBytes, { mode: 0o600 });
+  const result = await command(agentsecctl, ["api-load", "run", "--endpoint", endpoint.origin, "--credential-file", credentialFile, "--ca-bundle-file", certificate], { input: JSON.stringify(scenario), reject: false, timeout: 15_000 });
+  assert.equal(result.status, 0, `actual API load failed: ${result.stdout}`);
+  const measurement = JSON.parse(result.stdout);
+  assert.equal(measurement.samples.length, 100);
+  assert.equal(measurement.samples.every((sample) => sample.outcome === "ok" && sample.status === 200), true, "actual API workload omitted or failed requests");
+  const evaluated = await command(agentsecctl, ["api-load", "evaluate"], { input: result.stdout });
+  const report = JSON.parse(evaluated.stdout);
+  assert.equal(report.passed, true);
+  assert.equal(report.provenance, "operator-declared-unattested");
+  assert.equal(report.scenario.deployment_kind, "local");
+  assert.equal(report.scenario.profile_sha256, scenario.profile_sha256);
+  assert.doesNotMatch(result.stdout + evaluated.stdout, /Bearer|production-e2e-product-token|items|page_info/);
+  await writeFile(path.join(temporaryRoot, "api-load-measurement.json"), result.stdout, { mode: 0o600 });
+  await writeFile(path.join(temporaryRoot, "api-load-evaluation.json"), evaluated.stdout, { mode: 0o600 });
+  console.log(`combined E2E: actual TLS API load measured 100 authenticated bounded reads, p95_ns=${report.p95_ns}; local composition only, reference-load gate NOT RUN`);
 }
 
 async function runProductionRecoveryLifecycle(cdp, agentsecctl, workerE2EBinary, postgresPort, dsn, publicOrigin, certificate, credentialFile, expectedScope) {

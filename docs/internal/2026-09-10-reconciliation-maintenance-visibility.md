@@ -1,7 +1,8 @@
 # Reconciliation maintenance visibility
 
-Status: locally verified production visibility change on
-`codex/reconciliation-maintenance-monitor`. No original task credit changes.
+Status: merged through PR 37 as main `4e32e68d` after push CI 34518346226 and
+PR CI 34518779299 passed. Main CI 34519765394 passed.
+No original task credit changes.
 The ledger remains 535 production-available / 132 component-only / 61 external
 gates, covering all 728 original microtasks.
 
@@ -85,5 +86,5 @@ load gates stay open until their own acceptance evidence exists.
 Staged secret scanning passed. Privacy review found six medium warnings and no
 high findings; every warning was a public CI run identifier, inspected in context.
 Final read-only review approved this bounded visibility change after inspecting
-the completed logs and final cancellation/CI tests. Push/PR/main CI remain
-required before this change is shipped. No performance task credit was granted.
+the completed logs and final cancellation/CI tests. Push, PR and main verification
+are complete. No performance task credit was granted.

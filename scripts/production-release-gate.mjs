@@ -14,6 +14,7 @@ await run("node", ["--test", "deploy/production/nango-image-proof.test.mjs"]);
 await run("node", ["--test", "deploy/production/otel-redaction-proof.test.mjs"]);
 await run("node", ["--test", "deploy/staging/gate.test.mjs", "deploy/staging/preflight.test.mjs"]);
 await run("go", ["test", "-C", "services/platform", "-race", "-count=1", "./externalclient", "./database", "./jobqueue", "./agentsec-api", "./healthserver"]);
+await run("go", ["test", "-C", "cmd/agentsecctl", "-race", "-count=1", "./..."]);
 for (const moduleRoot of ["services/health", "services/platform"]) {
   await run("go", ["list", "-mod=readonly", "-m", "all"], { cwd: path.join(root, moduleRoot) });
 }

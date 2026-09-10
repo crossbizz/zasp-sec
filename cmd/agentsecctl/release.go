@@ -416,6 +416,8 @@ func runReleaseCommand(output io.Writer, input io.Reader, arguments []string) er
 		return errInvalidArguments
 	}
 	switch arguments[0] {
+	case "api-load":
+		return runAPILoadCommand(output, input, arguments)
 	case "preflight":
 		if len(arguments) != 1 {
 			return errInvalidArguments
@@ -506,6 +508,10 @@ func uniqueReleaseJSON(payload []byte) bool {
 }
 
 func consumeUniqueReleaseJSON(decoder *json.Decoder, depth int) bool {
+	return consumeUniqueReleaseJSONLimit(decoder, depth, 2048)
+}
+
+func consumeUniqueReleaseJSONLimit(decoder *json.Decoder, depth, arrayLimit int) bool {
 	if depth > 32 {
 		return false
 	}
@@ -530,7 +536,7 @@ func consumeUniqueReleaseJSON(decoder *json.Decoder, depth int) bool {
 				return false
 			}
 			seen[key] = struct{}{}
-			if !consumeUniqueReleaseJSON(decoder, depth+1) {
+			if !consumeUniqueReleaseJSONLimit(decoder, depth+1, arrayLimit) {
 				return false
 			}
 		}
@@ -540,7 +546,7 @@ func consumeUniqueReleaseJSON(decoder *json.Decoder, depth int) bool {
 		count := 0
 		for decoder.More() {
 			count++
-			if count > 2048 || !consumeUniqueReleaseJSON(decoder, depth+1) {
+			if count > arrayLimit || !consumeUniqueReleaseJSONLimit(decoder, depth+1, arrayLimit) {
 				return false
 			}
 		}
