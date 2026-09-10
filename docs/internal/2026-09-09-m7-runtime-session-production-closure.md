@@ -453,3 +453,45 @@ contracts passed 75 tests, with two explicitly gated cleanup tests skipped.
 Staged secret scanning passed; three privacy findings were verified CI run IDs,
 not phone numbers. Shipping CI is pending. M7-05, M7-06 and M7-07a receive no new
 production credit yet; the UI work is next.
+
+PR 28 shipped API commit afec5951 as main d46085cf. Push CI 34418436066 and
+PR CI 34418438831 passed. Main CI 34419096909 is running. The 1,354-commit
+history secret scan passed before the branch push. M7-05 remains component-only
+until the final main gate passes.
+
+### Runtime Sessions list UI, implementation in progress
+
+The production Sessions route defaults to runtime investigations. It uses the
+generated API client, fixed `kind=runtime`, a 25-item page, all ten structured
+selectors and cancellation. Filters submit explicitly and reset pagination.
+The view never eagerly fetches all sessions or their event histories. Query/API
+identity fencing hides older results before effect cleanup; the production
+principal/scope key resets the view on authorization-context changes.
+
+Summaries retain canonical counts, per-confidence totals, unknown principal and
+agent identity, event times and projection time. Unattributed is labeled as an
+evidence collection, not a session inferred from unrelated events. Checkpoints,
+pending/quarantine counts and observed-only coverage remain visible even when
+there are no matches. Provider errors are unavailable states, not empty success.
+Console login sessions and their existing revocation flow remain separate.
+
+Eight focused UI tests passed, including all-selector API transport, missing
+checkpoint rejection, unknown attribution, backlog on empty results, provider
+failure, bounded paging/filter reset, context-change cancellation and console
+separation. Independent Superpowers review reran all eight and found no blocker.
+Full verification passed 192 frontend files / 1,136 tests, type-checking, lint,
+release contracts, production build/import checks and the unchanged ledger.
+The fresh full Chrome/runtime run passed the real UI proof: an incorrect process
+filter returns no matches, the worker's actual process returns its canonical
+unknown collection, confidence and indexing status remain explicit, and changing
+scopes clears old results and filters. Responsive bounds passed at 1,440, 1,024
+and 390 pixels. The existing console-login revocation, discovery, runtime security,
+Red Team, Attack Lab and restart/reload checks also passed. Owned resources were
+cleaned up. Independent original-task review found no remaining M7-06 criterion
+gap; acceptance remains conditional on its dependency and shipping/main CI.
+M7-07a timeline work remains separate and pending.
+
+The final release-source gate passed. Harness/release/ledger contracts passed
+76 tests, with two explicitly gated cleanup tests skipped. Staged secret scanning
+passed; four privacy-scanner matches were verified CI run IDs, not phone numbers.
+The UI slice is ready for shipping CI, without changing task availability yet.

@@ -17,6 +17,7 @@ import { ProductionRedTeamView } from "../features/redteam/ProductionRedTeamView
 import { RecoveryOperationsView } from "../features/recovery/RecoveryOperationsView";
 import { ProductionSecurityAgentsView } from "../features/securityagents/SecurityAgentsView";
 import { SessionsComplianceView } from "../features/sessions/SessionsComplianceView";
+import { ProductionSessionsView } from "../features/sessions/RuntimeSessionsView";
 import { ProductionSensorSurface } from "../features/sensors/ProductionSensorView";
 import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/workflows/ProductionWorkflowViews";
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
@@ -63,7 +64,7 @@ function ProductionRouteSurface({ path, navigate }: { path: string; navigate(pat
   if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" />;
   if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}><IdentityAccessView /><ScopeOnboardingView client={client} /></IdentityAPIProvider>;
   if (path === "/administration/api-access") return <APIAccessView client={client} />;
-  if (path === "/investigate/sessions") return <SessionsComplianceView surface="sessions" client={client} canMutate={session.hasCapability("sessions.revoke")} />;
+  if (path === "/investigate/sessions") return <ProductionSessionsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`} client={client} canRevokeConsole={session.hasCapability("sessions.revoke")} />;
   if (path === "/compliance/evidence") return <SessionsComplianceView surface="compliance" client={client} />;
   if (path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" client={client} canMutate={session.hasCapability("data-controls.manage")} />;
   if (path === "/administration/recovery") return <RecoveryOperationsView client={client} expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("recovery.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
