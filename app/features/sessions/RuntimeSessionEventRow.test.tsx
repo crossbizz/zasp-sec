@@ -24,7 +24,7 @@ describe("runtime session event rows", () => {
   });
   it("visibly distinguishes Probable from Exact without assigning unknown evidence", () => {
     render(<ol><RuntimeSessionEventRow event={{ ...event, confidence: "probable" }} /><RuntimeSessionEventRow event={{ ...event, id: "pid_10000002-0000-4000-8000-000000000002", confidence: "exact", session_id: id, agent_id: id }} /></ol>);
-    expect(screen.getByText("probable")).toHaveClass("badge--warning");
-    expect(screen.getByText("exact")).toHaveClass("badge--success");
+    expect(screen.getByText("Probable")).toHaveClass("badge--warning");
+    expect(screen.getByText("Exact")).toHaveClass("badge--success");
   });
 });

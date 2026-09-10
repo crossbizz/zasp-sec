@@ -68,6 +68,11 @@ test("runtime session tasks cannot inherit console-login or fixture-only product
   }
 });
 
+test("lineage and ambiguity tasks cannot inherit unreachable production-path credit", async () => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  for (const id of ["M3-46", "M3-47"]) assert.ok(ledger.includes(`M3\t${id}\tComplete\tcomponent-only\tT04-discovery-worker\t`), id + " requires actual lineage and candidate composition");
+});
+
 test("shipped runtime session acceptance cannot silently lose production credit", async () => {
   for (const id of ["M7-01", "M7-02", "M7-03", "M7-04", "M7-05", "M7-06", "M7-07a"]) {
     await withLedger((ledger) => {
@@ -188,7 +193,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 534; expected 535/,
+        /production-available count is 532; expected 533/,
       );
     },
   );
@@ -408,7 +413,7 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => status.replace(
-      "| Production-available | 535 |",
+      "| Production-available | 533 |",
       "| Production-available | 496 |",
     ),
     async ({ ledgerPath, statusPath }) => {

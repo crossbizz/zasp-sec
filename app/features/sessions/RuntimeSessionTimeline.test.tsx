@@ -46,7 +46,7 @@ describe("canonical runtime timeline", () => {
     await screen.findByText("First canonical event");
     const rows = screen.getAllByRole("listitem");
     expect(rows[0]).toHaveTextContent("First canonical event"); expect(rows[1]).toHaveTextContent("Second canonical event");
-    expect(rows[0]).toHaveTextContent("tetragon"); expect(rows[0]).toHaveTextContent("exact");
+    expect(rows[0]).toHaveTextContent("tetragon"); expect(rows[0]).toHaveTextContent("Exact");
     expect(screen.getByText(/Principal: Unknown/)).toBeVisible();
     expect(screen.queryByRole("button", { name: /Revoke/ })).not.toBeInTheDocument();
   });
