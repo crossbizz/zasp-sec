@@ -15,6 +15,7 @@ const (
 	postgresRuntimePublicSensorCoverageSQL       = `SELECT zasp_runtime_public_sensor_coverage($1,$2,$3,$4)`
 	postgresRuntimePublicSensorTokenAuthoritySQL = `SELECT zasp_runtime_public_sensor_token_authority($1,$2,$3,$4)`
 	postgresRuntimePublicCreateSensorSQL         = `SELECT zasp_runtime_public_create_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
+	postgresRuntimePublicCreatePairedSensorSQL   = `SELECT zasp_runtime_public_create_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`
 	postgresRuntimePublicUpdateSensorSQL         = `SELECT zasp_runtime_public_update_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	postgresRuntimePublicDeleteSensorSQL         = `SELECT zasp_runtime_public_delete_sensor($1,$2,$3,$4,$5,$6,$7,$8)`
 	postgresRuntimePublicRotateSensorSQL         = `SELECT zasp_runtime_public_rotate_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`
@@ -30,6 +31,7 @@ type SensorPublicRepository struct {
 }
 
 type ProductSensor struct {
+	RuntimeSensorID string     `json:"runtime_sensor_id,omitempty"`
 	ID              string     `json:"id"`
 	Name            string     `json:"name"`
 	Kind            string     `json:"kind"`
@@ -70,6 +72,7 @@ type SensorTokenAuthority struct {
 }
 
 type SensorCreateMutation struct {
+	RuntimeSensorID                            string
 	SensorID, Name, Kind, Mode, IdempotencyKey string
 	RequestDigest                              []byte
 	TokenID                                    string
@@ -234,10 +237,20 @@ func (repository *SensorPublicRepository) CreateSensor(ctx context.Context, iden
 	if !validSensorMutationAuthority(repository, ctx, identity) || !validCreateSensorMutation(input) {
 		return SensorMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimePublicCreateSensorSQL,
+	query := postgresRuntimePublicCreateSensorSQL
+	args := []any{
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(),
-		input.SensorID, input.Name, input.Kind, input.Mode, input.IdempotencyKey, input.RequestDigest, input.TokenID, input.TokenGeneration, input.LocatorDigest, input.Salt, input.TokenHash, input.TokenExpiresAt)
-	return decodeSensorMutation(payload, err, input.SensorID, input.TokenID, input.TokenGeneration, true)
+		input.SensorID, input.Name, input.Kind, input.Mode, input.IdempotencyKey, input.RequestDigest, input.TokenID, input.TokenGeneration, input.LocatorDigest, input.Salt, input.TokenHash, input.TokenExpiresAt}
+	if input.RuntimeSensorID != "" {
+		query = postgresRuntimePublicCreatePairedSensorSQL
+		args = append(args, input.RuntimeSensorID)
+	}
+	payload, err := repository.database.QueryJSON(ctx, query, args...)
+	result, err := decodeSensorMutation(payload, err, input.SensorID, input.TokenID, input.TokenGeneration, true)
+	if err == nil && result.Sensor.RuntimeSensorID != input.RuntimeSensorID {
+		return SensorMutationResult{}, ErrRepositoryUnavailable
+	}
+	return result, err
 }
 
 func (repository *SensorPublicRepository) UpdateSensor(ctx context.Context, identity RequestIdentity, input SensorUpdateMutation) (SensorMutationResult, error) {
@@ -291,7 +304,18 @@ func decodeSensorMutation(payload json.RawMessage, err error, sensorID, tokenID 
 
 func decodeSensorRecord(payload json.RawMessage) (ProductSensor, bool) {
 	var result ProductSensor
-	if !exactJSONFields(payload, publicSensorFields...) || decodeStrictDiscovery(payload, &result) != nil || !validProductID(result.ID) || !validSensorName(result.Name) || !stringIn(result.Kind, "tetragon", "otlp") || !validSensorMode(result.Mode) || !stringIn(result.State, "pending", "active", "degraded", "revoked", "deleted") || result.Version < 1 || !validSensorTime(result.CreatedAt) || !validSensorTime(result.UpdatedAt) || result.UpdatedAt.Before(result.CreatedAt) {
+	fields := publicSensorFields
+	object, ok := decodeSensorObject(payload)
+	if !ok {
+		return ProductSensor{}, false
+	}
+	if _, present := object["runtime_sensor_id"]; present {
+		fields = append(append([]string(nil), fields...), "runtime_sensor_id")
+	}
+	if !exactJSONFields(payload, fields...) || decodeStrictDiscovery(payload, &result) != nil || !validProductID(result.ID) || !validSensorName(result.Name) || !stringIn(result.Kind, "tetragon", "otlp") || !validSensorMode(result.Mode) || !stringIn(result.State, "pending", "active", "degraded", "revoked", "deleted") || result.Version < 1 || !validSensorTime(result.CreatedAt) || !validSensorTime(result.UpdatedAt) || result.UpdatedAt.Before(result.CreatedAt) {
+		return ProductSensor{}, false
+	}
+	if _, present := object["runtime_sensor_id"]; present && (result.Kind != "otlp" || !validProductID(result.RuntimeSensorID) || result.RuntimeSensorID == result.ID) {
 		return ProductSensor{}, false
 	}
 	if result.TokenExpiresAt != nil {
@@ -339,7 +363,7 @@ func validSensorMutationAuthority(repository *SensorPublicRepository, ctx contex
 }
 
 func validCreateSensorMutation(input SensorCreateMutation) bool {
-	return validProductID(input.SensorID) && validSensorName(input.Name) && stringIn(input.Kind, "tetragon", "otlp") && validSensorMode(input.Mode) && validIdempotentDigest(input.IdempotencyKey, input.RequestDigest) && validTokenMutation(input.TokenID, input.TokenGeneration, input.LocatorDigest, input.Salt, input.TokenHash, input.TokenExpiresAt)
+	return validProductID(input.SensorID) && validSensorName(input.Name) && stringIn(input.Kind, "tetragon", "otlp") && (input.RuntimeSensorID == "" || input.Kind == "otlp" && validProductID(input.RuntimeSensorID) && input.RuntimeSensorID != input.SensorID) && validSensorMode(input.Mode) && validIdempotentDigest(input.IdempotencyKey, input.RequestDigest) && validTokenMutation(input.TokenID, input.TokenGeneration, input.LocatorDigest, input.Salt, input.TokenHash, input.TokenExpiresAt)
 }
 
 func validIdempotentDigest(key string, digest []byte) bool {
