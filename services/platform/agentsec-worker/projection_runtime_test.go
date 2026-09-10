@@ -89,7 +89,9 @@ func TestProjectionProcessorKeepsLeaseAliveUntilDurableCompletion(t *testing.T) 
 	t.Parallel()
 	scope := projectionTestScope(t)
 	digest := sha256.Sum256([]byte("candidate"))
-	finishStarted := make(chan struct{})
+	// FinishProjectionWork signals without blocking. Retain an early signal
+	// even when the worker reaches completion before this test starts receiving.
+	finishStarted := make(chan struct{}, 1)
 	allowFinish := make(chan struct{})
 	authority := &projectionAuthorityStub{
 		leases: []apiserver.ProjectionWorkLease{{

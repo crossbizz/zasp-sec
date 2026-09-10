@@ -17,8 +17,8 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
-func newProductionRuntimeCorrelation(ctx context.Context, config workerRuntimeConfig) (*productionRuntimeStageDependencies, error) {
-	if ctx == nil || ctx.Err() != nil || !validRuntimeCorrelationAWSAuthority(config) {
+func newProductionRuntimeCorrelation(ctx context.Context, config workerRuntimeConfig, database runtimeevent.ProductionIngestDatabase) (*productionRuntimeStageDependencies, error) {
+	if ctx == nil || ctx.Err() != nil || !validRuntimeCorrelationAWSAuthority(config) || nilWorkerDependency(database) {
 		return nil, errRuntimeUnavailable
 	}
 	requestTimeout := minDuration(config.LeaseDuration/3, 30*time.Second)
@@ -67,7 +67,7 @@ func newProductionRuntimeCorrelation(ctx context.Context, config workerRuntimeCo
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	executor, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: reader, Receipts: receipts, Graph: graph, ImplementationVersion: config.RuntimeStageVersion})
+	executor, err := newRuntimeCorrelationExecutorWithDatabase(runtimeCorrelationExecutorConfig{Reader: reader, Receipts: receipts, Graph: graph, ImplementationVersion: config.RuntimeStageVersion}, database)
 	if err != nil {
 		_ = closeGraph()
 		transport.CloseIdleConnections()
@@ -90,4 +90,18 @@ func newProductionRuntimeCorrelation(ctx context.Context, config workerRuntimeCo
 		return nil, errRuntimeUnavailable
 	}
 	return &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageCorrelate, Executor: executor, ready: ready, close: func() error { closeErr := closeGraph(); transport.CloseIdleConnections(); return closeErr }}, nil
+}
+
+func newRuntimeCorrelationExecutorWithDatabase(config runtimeCorrelationExecutorConfig, database runtimeevent.ProductionIngestDatabase) (*runtimeCorrelationExecutor, error) {
+	if !nilWorkerDependency(config.Candidates) {
+		return nil, errRuntimeUnavailable
+	}
+	if config.ImplementationVersion == "runtime-correlation-v2" {
+		var err error
+		config.Candidates, err = runtimeevent.NewPostgresProductionPipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCorrelation)
+		if err != nil {
+			return nil, errRuntimeUnavailable
+		}
+	}
+	return newRuntimeCorrelationExecutor(config)
 }

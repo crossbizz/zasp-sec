@@ -196,7 +196,7 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		} else if config.Mode == workerModeRuntimeIndex {
 			stage, err = newProductionRuntimeIndex(ctx, config)
 		} else if config.Mode == workerModeRuntimeCorrelation {
-			stage, err = newProductionRuntimeCorrelation(ctx, config)
+			stage, err = newProductionRuntimeCorrelation(ctx, config, database)
 		} else if config.Mode == workerModeRuntimeProjection {
 			stage, err = newProductionRuntimeProjection(ctx, config)
 		} else {
@@ -320,6 +320,9 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 			return errRuntimeUnavailable
 		}
 		if wantStage == runtimeevent.RuntimeStageComplete && repository.ReadySessionProjection(ctx) != nil {
+			return errRuntimeUnavailable
+		}
+		if wantStage == runtimeevent.RuntimeStageCorrelate && config.RuntimeStageVersion == "runtime-correlation-v2" && repository.ReadyCandidates(ctx) != nil {
 			return errRuntimeUnavailable
 		}
 		return nil

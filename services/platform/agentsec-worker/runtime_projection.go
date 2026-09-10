@@ -64,7 +64,7 @@ func (executor *runtimeProjectionExecutor) Execute(ctx context.Context, lease ru
 	}
 	correlationReceipt, err := runtimecorrelation.DecodeReceipt(artifact.Body)
 	clear(artifact.Body)
-	if err != nil || correlationReceipt.Scope != lease.Scope || correlationReceipt.BatchID != lease.BatchID || correlationReceipt.Generation != lease.Generation || correlationReceipt.EffectDigest != lease.InputDigest || correlationReceipt.ImplementationVersion != "runtime-correlation-v1" {
+	if err != nil || correlationReceipt.Scope != lease.Scope || correlationReceipt.BatchID != lease.BatchID || correlationReceipt.Generation != lease.Generation || correlationReceipt.EffectDigest != lease.InputDigest || (correlationReceipt.ImplementationVersion != "runtime-correlation-v1" && correlationReceipt.ImplementationVersion != "runtime-correlation-v2") {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
 	archiveLease := lease

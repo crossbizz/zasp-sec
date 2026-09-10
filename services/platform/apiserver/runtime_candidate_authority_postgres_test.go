@@ -216,7 +216,7 @@ func TestRuntimeCandidateAuthorityFreezesReplayAfterLateAdmission(t *testing.T) 
 		t.Fatal(err)
 	}
 	repository, err := runtimeevent.NewPostgresProductionPipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCorrelation)
-	if err != nil || repository.Ready(ctx) != nil {
+	if err != nil || repository.Ready(ctx) != nil || repository.ReadyCandidates(ctx) != nil {
 		t.Fatal("candidate repository readiness", err)
 	}
 	correlations := make(map[string]runtimecorrelation.CorrelatedBatch)
