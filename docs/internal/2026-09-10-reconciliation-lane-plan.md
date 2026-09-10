@@ -1,7 +1,7 @@
 # Reconciliation lane plan, September 10, 2026
 
-Status: locally verified bounded candidate-plan correction on
-`codex/reconciliation-lane-plan`. Not shipped. No original task credit changes:
+Status: merged through PR 35 as main `5a102d17`; main CI passed.
+No original task credit changes:
 535 production-available / 132 component-only / 61 external gates, all 728 rows.
 
 The pre-existing query-plan defect reproduced on unchanged main and then under
@@ -79,10 +79,14 @@ and have not been silently changed by this plan-only correction.
   completed, conditional on required push/PR/main CI. It explicitly retains the
   separate retirement defect and awards no original task credit.
 
-## Still required
+## Shipping
 
-Commit-history secret scan, push/PR checks, merge and main CI. Each pending gate
-is pending, not a pass. The broad file count includes required schema catalog,
+The commit-history secret scan passed for 1,363 commits / 31.23 MB.
+Push CI 34513080289 and PR CI 34513125922 both passed for exact head
+`cfd9512063888566abea477f16841094b4c0c57d`. PR 35 merged as
+`5a102d1748eebce8b0e875ef8022b4ccb921b0c0` on September 10, 2026.
+Main CI 34514152920 passed for that exact merge commit.
+The broad file count includes required schema catalog,
 release CLI, deployment identities, startup caps and their regression contracts.
 
 ## Separate retirement exception
