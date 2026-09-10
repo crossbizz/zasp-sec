@@ -221,6 +221,7 @@ try {
   });
   assert.match(runtimePipelineResult.stdout, /runtime pipeline proof passed:/);
   assert.match(runtimePipelineResult.stdout, /semantic observation pipeline proven:/);
+  assert.match(runtimePipelineResult.stdout, /runtime observed lineage preservation proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /runtime session summaries proven: completion-triggered unknown collection, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /runtime session search index proven: committed PG receipt, exact S3 archive, real OpenSearch, immutable replay, structured process filter, pagination and scope denial/);

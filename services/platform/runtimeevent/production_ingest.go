@@ -303,7 +303,7 @@ func canonicalIngestEvent(record Record) (ingestEvent, error) {
 	if !validRecord(record) || record.Event.Evidence.Validate() != nil {
 		return ingestEvent{}, ErrProductionIngest
 	}
-	event := ingestEvent{SearchMetadata: record.SearchMetadata, EventTime: record.EventTime.Format(timestampLayout), EvidenceID: record.Event.Evidence.String(), Content: cloneContent(record.Content)}
+	event := ingestEvent{ObservedLineage: record.ObservedLineage, SearchMetadata: record.SearchMetadata, EventTime: record.EventTime.Format(timestampLayout), EvidenceID: record.Event.Evidence.String(), Content: cloneContent(record.Content)}
 	switch record.Source {
 	case "tetragon":
 		event.EventID = record.SourceEventID

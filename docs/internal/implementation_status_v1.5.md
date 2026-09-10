@@ -17,18 +17,28 @@ passed, closing its original list/filter/confidence/freshness acceptance.
 M7-07a shipped in PR 30 as main a10aaa87 with full local UI verification, real
 reverse-ingress 25-plus-1 Chrome proof, full API races, release gate and independent
 review passed. Push, PR and main CI 34423113495 passed. M7-07b's evidence slice
-is merged through PR 31 and awaits its main CI.
-Independent audit withdrew
-three inherited credits: M7-07b six-class evidence links, M7-07c Probable/Exact
-verification and M7-07 mixed-evidence E2E remain incomplete. Their owner is T14.
+is merged through PR 31 and passed main CI 34426326091.
+Independent audit withdrew three inherited credits before implementation:
+M7-07b six-class evidence links, M7-07c Probable/Exact verification and M7-07
+mixed-evidence E2E. The first two have since met their original acceptance;
+M7-07 remains incomplete. Their owner is T14.
 
 PR 31's push CI 34425722226 and PR CI 34425748304 passed. Its six-class
 worker/API/Chrome proof and full local verification are merged as main 492cf473.
-Main CI 34426326091 is pending. M7-07c is in progress on
-`codex/runtime-confidence-display`. The follow-on production reachability audit
+Main CI 34426326091 passed, closing M7-07b's original acceptance. M7-07c's
+verified display slice merged in PR 32 as main 214a757d; push CI 34426729932,
+PR CI 34426774094 and main CI 34427605339 passed. Its narrow display criterion
+is accepted. Lineage work continues on
+`codex/runtime-lineage-correlation`. The follow-on production reachability audit
 withdrew M3-46 and M3-47's inherited credits: actual ingestion supplies neither
 the required lineage nor a provenance-backed candidate source across batches.
 Their domain tests remain component evidence. The original scope is unchanged.
+
+The next preservation-only slice accepts a closed, versioned observed-lineage
+profile through actual runtime ingest and archive decoding. It does not grant
+correlation authority. Enrollment pairing and frozen cross-batch candidate
+snapshots remain pending; progress and verification are recorded in
+`docs/internal/2026-09-09-runtime-lineage-preservation.md`.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production
@@ -100,8 +110,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 533 |
-| Component-only | 134 |
+| Production-available | 535 |
+| Component-only | 132 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -196,9 +206,9 @@ M7-05 is now accepted after PR 28 main CI 34419096909 passed. After withholding
 M7-07b/M7-07c/M7-07's unsupported credits and accepting shipped M7-06 after
 PR 29 main CI 34421351398 and M7-07a after PR 30 main CI 34423113495, the total
 was 535 production-available, 132 component-only and 61 external gates.
-The subsequent M3-46/M3-47 reachability correction makes the current total
-533 production-available, 134 component-only and 61 external gates.
-M7-07b, M7-07c and M7-07 still await their original acceptance.
+After the M3-46/M3-47 reachability correction and M7-07b/M7-07c's passed main gates,
+the current total is 535 production-available, 132 component-only and 61 external
+gates. M7-07 still awaits authentic mixed-evidence acceptance.
 
 ## Production-availability audit basis
 
@@ -312,10 +322,10 @@ M7-07b, M7-07c and M7-07 still await their original acceptance.
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
-| M7 | 62 | 35 | 27 | 0 | 0 |
+| M7 | 62 | 37 | 25 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **533** | **134** | **61** | **0** |
+| **Total** | **728** | **535** | **132** | **61** | **0** |
 
 ## Prerequisite work
 

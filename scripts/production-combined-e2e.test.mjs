@@ -6,6 +6,13 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+test("observed lineage composition preserves archives without claiming correlation", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");
+  assert.ok(source.includes("/runtime observed lineage preservation proven:/"));
+  for (const marker of ["runtime observed lineage preservation proven:", 'events[i]["observed_lineage"] = observedLineage', "record.ObservedLineage != observedLineage", "same observed lineage granted unpaired sensors correlation authority", "semantic archive lost observed lineage", "Strong/Probable correlation NOT RUN"]) assert.ok(worker.includes(marker), marker);
+});
+
 test("confidence display fixture cannot claim production correlation reachability", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   for (const marker of ["await exerciseRuntimeConfidenceDisplay(browser.cdp, dsn)", "runtime confidence display fixture passed:", "Strong/Probable production correlation NOT RUN", "confidence fixture cleanup changed worker evidence", "data-runtime-confidence", "probable.background, exact.background", "probable.color, exact.color"]) assert.ok(source.includes(marker), marker);
