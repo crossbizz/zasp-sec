@@ -22,6 +22,15 @@ test("runtime query composition requires schema43 and real indexed HTTP search",
   assert.ok(source.includes('"/zasp-runtime-sessions-v1/_search"'));
 });
 
+test("runtime timeline proves reverse-ingress canonical order across real UI pages", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function exerciseRuntimeSessionReads");
+  const flow = source.slice(start, source.indexOf("async function exerciseRedTeamRecommendations", start));
+  for (const marker of ['clickBrowserAria(cdp, "Open runtime timeline unattributed")', 'clickBrowserText(cdp, "Next event page")', 'clickBrowserText(cdp, "First event page")', "128 - index", "new Set(timeline.map", "runtime timeline proven: reverse-ingress worker events, canonical 25-plus-1 pagination, source confidence and scope reset"])
+    assert.ok(flow.includes(marker), marker);
+  assert.doesNotMatch(flow, /(?:INSERT INTO|UPDATE|DELETE FROM) zasp_runtime_session/);
+});
+
 test("runtime Sessions UI filters worker-written evidence and resets on scope change", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const start = source.indexOf("async function exerciseRuntimeSessionReads");

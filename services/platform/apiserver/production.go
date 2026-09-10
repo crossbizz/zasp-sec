@@ -516,7 +516,11 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 		parameters["limit"] = strconv.Itoa(limit)
 		parameters["cursor_binding"] = administrationCursorBinding(query)
 		if routed.OperationID == "listSessionEvents" {
-			digest := sha256.Sum256([]byte(parameters["cursor_binding"] + "\x00" + parameters["id"]))
+			binding := parameters["cursor_binding"] + "\x00" + parameters["id"]
+			if parameters["id"] == "unattributed" || validAdministrationProductID(parameters["id"]) {
+				binding = "runtime-session-events.v1\x00" + binding + "\x00" + identity.PrincipalID.String()
+			}
+			digest := sha256.Sum256([]byte(binding))
 			parameters["cursor_binding"] = base64.RawURLEncoding.EncodeToString(digest[:])
 		}
 		if routed.OperationID == "listEnvironments" {

@@ -7,17 +7,22 @@
 
 Migration 43 and the authorized structured-search API shipped in PR 28 as main
 d46085cf after full local verification, real PostgreSQL boundaries, Chrome/runtime
-proof and independent M7-05 criterion review. Push and PR CI passed; main CI
-34419096909 is pending, so M7-05 remains component-only until that gate passes.
+proof and independent M7-05 criterion review. Push, PR and main CI 34419096909
+passed. M7-05 is now production-available under its original acceptance criteria.
 Detailed evidence is in
 `docs/internal/2026-09-09-m7-runtime-session-production-closure.md`.
 
-M7-06 is now being implemented on `codex/runtime-session-investigation-ui`:
+M7-06 is in shipping CI on `codex/runtime-session-investigation-ui`:
 the production route defaults to runtime investigations with structured filters,
 bounded pages, confidence counts and checkpoint status. Console logins remain
 separate. Full verification and the real filter/scope-change/responsive E2E
 passed. Original-task acceptance review passed; shipping CI is pending. No availability
-count is changed by this work. M7-07a timeline implementation is next.
+count is changed by this work. M7-07a timeline implementation is on
+`codex/runtime-session-timeline`, with full local UI verification, real
+reverse-ingress 25-plus-1 Chrome proof, full API races and release gate passed.
+Shipping CI is next. Independent audit withdrew
+three inherited credits: M7-07b six-class evidence links, M7-07c Probable/Exact
+verification and M7-07 mixed-evidence E2E remain incomplete. Their owner is T14.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production
@@ -89,8 +94,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 535 |
-| Component-only | 132 |
+| Production-available | 533 |
+| Component-only | 134 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -181,8 +186,10 @@ CI passed. PR 24 shipped migration 41 summaries and runtime read APIs as
 main 4bf800f4. Push CI 34391545741, PR CI 34391587105 and main CI 34392565900
 passed after independent original-task acceptance, PostgreSQL concurrency,
 scoped HTTP and full Chrome/runtime proof. M7-01 through M7-04 are restored.
-The total is 535 production-available, 132 component-only and 61 external gates.
-M7-05, M7-06 and M7-07a remain component-only pending their own acceptance.
+M7-05 is now accepted after PR 28 main CI 34419096909 passed. After withholding
+M7-07b/M7-07c/M7-07's unsupported credits, the total is 533 production-available,
+134 component-only and 61 external gates. M7-06 and M7-07a
+remain component-only pending their own shipping acceptance.
 
 ## Production-availability audit basis
 
@@ -296,10 +303,10 @@ M7-05, M7-06 and M7-07a remain component-only pending their own acceptance.
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
-| M7 | 62 | 35 | 27 | 0 | 0 |
+| M7 | 62 | 33 | 29 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **535** | **132** | **61** | **0** |
+| **Total** | **728** | **533** | **134** | **61** | **0** |
 
 ## Prerequisite work
 

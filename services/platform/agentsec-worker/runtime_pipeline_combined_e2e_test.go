@@ -179,7 +179,16 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := []byte(`{"source":"tetragon","events":[{"event_id":"runtime-pipeline-1","class":"process","action":"exec","workload_id":"runtime-pipeline","event_time":"` + now.Format("2006-01-02T15:04:05.000Z") + `","evidence_id":"pid_78000103-0000-4000-8000-000000000103","content":{"binary":"agent"},"search_metadata":{"process_digest":"` + processDigest + `"}}]}`)
+	// Deliberately reverse event time at ingress. Twenty-six records cross the
+	// production timeline's 25-row page boundary without seeding session tables.
+	events := make([]map[string]any, 26)
+	for i := range events {
+		events[i] = map[string]any{"event_id": fmt.Sprintf("runtime-pipeline-%d", i+1), "class": "process", "action": "exec", "workload_id": "runtime-pipeline", "event_time": now.Add(-time.Duration(i) * time.Second).Format("2006-01-02T15:04:05.000Z"), "evidence_id": fmt.Sprintf("pid_78000103-0000-4000-8000-%012d", i+103), "content": map[string]string{"binary": "agent"}, "search_metadata": map[string]string{"process_digest": processDigest}}
+	}
+	body, err := json.Marshal(map[string]any{"source": "tetragon", "events": events})
+	if err != nil {
+		t.Fatal(err)
+	}
 	handler, err := runtimeevent.NewProductionIngestHandler(runtimeevent.ProductionIngestConfig{Repository: ingestRepository, Artifacts: raw, MaximumBytes: 1 << 20, Clock: func() time.Time { return now }})
 	if err != nil {
 		t.Fatal(err)
@@ -483,15 +492,20 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 		t.Fatal("archive readback mismatch")
 	}
 	decoded, err := runtimeevent.DecodeArchivedBatch(scope, archived)
-	if err != nil || len(decoded.Records) != 1 || decoded.Records[0].SourceEventID != "runtime-pipeline-1" || decoded.Records[0].Scope != scope || len(decoded.Records[0].Content) != 0 {
+	if err != nil || len(decoded.Records) != 26 || decoded.Records[0].SourceEventID != "runtime-pipeline-1" || decoded.Records[0].Scope != scope || len(decoded.Records[0].Content) != 0 {
 		t.Fatal("canonical metadata-only archive lost event identity, scope, or content filtering")
+	}
+	for i, record := range decoded.Records {
+		if record.SourceEventID != fmt.Sprintf("runtime-pipeline-%d", i+1) || record.Scope != scope || len(record.Content) != 0 {
+			t.Fatal("multi-event archive lost ordered identity, scope or content filtering")
+		}
 	}
 	inputDigest := sha256.Sum256(archived)
 	if digest != hex.EncodeToString(inputDigest[:]) || stages != 5 || outboxCount != 1 || state != "succeeded" {
 		t.Fatalf("batch state=%s stages=%d outbox=%d digest=%s", state, stages, outboxCount, digest)
 	}
 	replayIndex, err := index.Apply(ctx, runtimeindex.Batch{Scope: scope, BatchID: workerID(t, acceptedBatch.BatchID), Generation: 1, InputDigest: inputDigest, ArchiveReference: reference, ArchiveVersionID: version, Body: archived})
-	if err != nil || len(replayIndex.DocumentIDs) != 1 || !replayIndex.Replayed {
+	if err != nil || len(replayIndex.DocumentIDs) != 26 || !replayIndex.Replayed {
 		t.Fatalf("index replay=%#v err=%v", replayIndex, err)
 	}
 	readIndex := func() json.RawMessage {
@@ -554,7 +568,7 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	}
 	var eventCount, receiptCount int
 	var summaryCount int
-	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_summaries WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id='unattributed' AND event_count=1 AND unattributed_count=1 AND exact_count=0 AND strong_count=0 AND probable_count=0 AND minimum_agent_id IS NULL AND maximum_agent_id IS NULL`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&summaryCount); err != nil || summaryCount != 1 {
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_summaries WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id='unattributed' AND event_count=26 AND unattributed_count=26 AND exact_count=0 AND strong_count=0 AND probable_count=0 AND minimum_agent_id IS NULL AND maximum_agent_id IS NULL`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&summaryCount); err != nil || summaryCount != 1 {
 		t.Fatalf("worker-written runtime summary count=%d error=%v", summaryCount, err)
 	}
 	summarySnapshot := func() string {
@@ -565,15 +579,14 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 		return snapshot
 	}
 	beforeSummaries := summarySnapshot()
-	var confidence string
-	var sessionID, agentID *string
-	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&eventCount); err != nil || eventCount != 1 {
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&eventCount); err != nil || eventCount != 26 {
 		t.Fatalf("durable runtime event count=%d error=%v", eventCount, err)
 	}
-	if err := admin.QueryRow(ctx, `SELECT confidence,session_id,agent_id FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&confidence, &sessionID, &agentID); err != nil || confidence != "unattributed" || sessionID != nil || agentID != nil {
-		t.Fatalf("unknown runtime attribution changed: confidence=%s error=%v", confidence, err)
+	var unknownCount int
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND confidence='unattributed' AND session_id IS NULL AND agent_id IS NULL`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()).Scan(&unknownCount); err != nil || unknownCount != 26 {
+		t.Fatalf("unknown runtime attribution changed: count=%d error=%v", unknownCount, err)
 	}
-	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_projection_receipts receipt JOIN zasp_runtime_stage_work stage USING(organization_id,workspace_id,environment_id,batch_id,batch_generation) WHERE receipt.batch_id=$1 AND stage.stage='project' AND receipt.receipt_digest=stage.result_digest AND cardinality(receipt.event_ids)=1`, acceptedBatch.BatchID).Scan(&receiptCount); err != nil || receiptCount != 1 {
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_projection_receipts receipt JOIN zasp_runtime_stage_work stage USING(organization_id,workspace_id,environment_id,batch_id,batch_generation) WHERE receipt.batch_id=$1 AND stage.stage='project' AND receipt.receipt_digest=stage.result_digest AND cardinality(receipt.event_ids)=26`, acceptedBatch.BatchID).Scan(&receiptCount); err != nil || receiptCount != 1 {
 		t.Fatalf("projection receipt not bound to predecessor: count=%d error=%v", receiptCount, err)
 	}
 	proveRuntimeSessionSearchIndex(t, ctx, admin, scope, workerID(t, acceptedBatch.BatchID), archived, sessionIndex, sessionWorker, receipts)

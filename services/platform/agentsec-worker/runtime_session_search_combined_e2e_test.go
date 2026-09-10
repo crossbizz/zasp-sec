@@ -79,7 +79,7 @@ func proveRuntimeSessionSearchIndex(t *testing.T, ctx context.Context, admin *pg
 	}
 	for replay := 0; replay < 2; replay++ {
 		result, err := index.Apply(ctx, binding, artifact.Body, archive)
-		if err != nil || result.Scope != scope || result.BatchID != batchID || result.Generation != generation || result.ReceiptDigest != binding.ReceiptDigest || len(result.DocumentIDs) != 1 {
+		if err != nil || result.Scope != scope || result.BatchID != batchID || result.Generation != generation || result.ReceiptDigest != binding.ReceiptDigest || len(result.DocumentIDs) != 26 {
 			t.Fatalf("session index write/replay %d: %#v %v", replay, result, err)
 		}
 	}

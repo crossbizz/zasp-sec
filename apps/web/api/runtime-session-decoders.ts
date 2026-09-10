@@ -60,6 +60,12 @@ export function decodeRuntimeSessionEventPage(value: unknown): RuntimeSessionEve
   return value as RuntimeSessionEventPage;
 }
 
+export function compareRuntimeSessionEventOrder(left: RuntimeSessionEvent, right: RuntimeSessionEvent): number {
+  const earlier = instant(left.at), later = instant(right.at);
+  if (earlier !== later) return earlier < later ? -1 : 1;
+  return left.id === right.id ? 0 : left.id < right.id ? -1 : 1;
+}
+
 function page(value: unknown, withSearch = false): unknown[] {
   const record = exact(value, withSearch ? ["items", "page_info", "search"] : ["items", "page_info"]);
   if (!Array.isArray(record.items) || record.items.length > 100) bad();

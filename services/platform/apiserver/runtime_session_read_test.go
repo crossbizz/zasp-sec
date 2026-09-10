@@ -123,4 +123,13 @@ func TestRuntimeSessionReadEventCursorIsBoundToItsInvestigation(t *testing.T) {
 	if foreign.Code != 404 || r.reads != 1 {
 		t.Fatalf("cross-investigation cursor reached store: status=%d reads=%d", foreign.Code, r.reads)
 	}
+	same := request(runtimeReadSessionID, "limit=1&cursor="+url.QueryEscape(page.PageInfo.Cursor))
+	if same.Code != 200 || r.reads != 2 {
+		t.Fatalf("same-principal event cursor rejected: status=%d reads=%d", same.Code, r.reads)
+	}
+	identity.PrincipalID = mustProductID(t, "pid_99000004-0000-4000-8000-000000000004")
+	otherPrincipal := request(runtimeReadSessionID, "limit=1&cursor="+url.QueryEscape(page.PageInfo.Cursor))
+	if otherPrincipal.Code != 404 || r.reads != 2 {
+		t.Fatalf("cross-principal event cursor reached store: status=%d reads=%d", otherPrincipal.Code, r.reads)
+	}
 }

@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { APITransportError, requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import type { RuntimeSession, RuntimeSessionPage, RuntimeSessionSearchStatus } from "../../../apps/web/api/generated";
 import { decodeRuntimeSessionPage } from "../../../apps/web/api/runtime-session-decoders";
-import { Badge, Button, Card, EmptyState, Field, LoadingState, PageHeader, Select } from "../../components/ui";
+import { Badge, Button, Card, Drawer, EmptyState, Field, LoadingState, PageHeader, Select } from "../../components/ui";
 import { SessionsComplianceView } from "./SessionsComplianceView";
+import { createRuntimeSessionTimelineAPI, RuntimeSessionTimeline, type RuntimeSessionTimelineAPI } from "./RuntimeSessionTimeline";
 
 const textSelectors = [
   ["agent_id", "Agent ID", 40], ["principal_id", "Principal ID", 40],
@@ -33,23 +34,25 @@ export function createRuntimeSessionsAPI(client: APIClient): RuntimeSessionsAPI 
 export function ProductionSessionsView({ client, canRevokeConsole }: { client: APIClient; canRevokeConsole: boolean }) {
   const [surface, setSurface] = useState<"runtime" | "console">("runtime");
   const api = useMemo(() => createRuntimeSessionsAPI(client), [client]);
+  const timelineAPI = useMemo(() => createRuntimeSessionTimelineAPI(client), [client]);
   return <>
     <div className="page" aria-label="Session types">
       <Button aria-pressed={surface === "runtime"} onClick={() => setSurface("runtime")}>Agent runtime</Button>
       <Button aria-pressed={surface === "console"} onClick={() => setSurface("console")}>Console logins</Button>
     </div>
-    {surface === "runtime" ? <RuntimeSessionsView api={api} /> : <SessionsComplianceView surface="sessions" client={client} canMutate={canRevokeConsole} />}
+    {surface === "runtime" ? <RuntimeSessionsView api={api} timelineAPI={timelineAPI} /> : <SessionsComplianceView surface="sessions" client={client} canMutate={canRevokeConsole} />}
   </>;
 }
 
 type Query = { filters: RuntimeSessionFilters; cursor: string | null; page: number };
 type Load = { api: RuntimeSessionsAPI; query: Query; page?: RuntimeSessionPage; error?: boolean };
 
-export function RuntimeSessionsView({ api }: { api: RuntimeSessionsAPI }) {
+export function RuntimeSessionsView({ api, timelineAPI }: { api: RuntimeSessionsAPI; timelineAPI?: RuntimeSessionTimelineAPI }) {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [filterError, setFilterError] = useState<string | null>(null);
   const [query, setQuery] = useState<Query>({ filters: {}, cursor: null, page: 1 });
   const [load, setLoad] = useState<Load | null>(null);
+  const [selection, setSelection] = useState<{ id: string; query: Query; api: RuntimeSessionsAPI } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     queueMicrotask(() => {
@@ -103,7 +106,7 @@ export function RuntimeSessionsView({ api }: { api: RuntimeSessionsAPI }) {
     {current?.error && <div role="alert"><p>Runtime sessions could not be loaded. Results are unavailable, not empty.</p><Button onClick={() => setQuery({ ...query })}>Retry runtime search</Button></div>}
     {page && <>
       {page.search ? <SearchCheckpoint status={page.search} /> : <p role="alert">Indexing status is unavailable. Search completeness is unknown.</p>}
-      {page.items.length === 0 ? <EmptyState title="No matching runtime sessions" description="No indexed events matched these filters. Check indexing status and collection coverage before drawing conclusions." /> : page.items.map(item => <RuntimeSessionSummary key={item.id} item={item} />)}
+      {page.items.length === 0 ? <EmptyState title="No matching runtime sessions" description="No indexed events matched these filters. Check indexing status and collection coverage before drawing conclusions." /> : page.items.map(item => <RuntimeSessionSummary key={item.id} item={item} onSelect={timelineAPI ? () => setSelection({ id: item.id, query, api }) : undefined} />)}
       <nav aria-label="Runtime session pages">
         <Button disabled={loading || query.page === 1} onClick={() => setQuery({ ...query, cursor: null, page: 1 })}>First session page</Button>
         <span>Page {query.page}</span>
@@ -111,6 +114,7 @@ export function RuntimeSessionsView({ api }: { api: RuntimeSessionsAPI }) {
       </nav>
       <p>Pages are not a snapshot. Newly indexed activity may change results; start again from the first page to refresh.</p>
     </>}
+    {selection && selection.query === query && selection.api === api && timelineAPI && <Drawer open title="Runtime timeline" onClose={() => setSelection(null)}><RuntimeSessionTimeline key={selection.id} id={selection.id} api={timelineAPI} /></Drawer>}
   </div>;
 }
 
@@ -126,8 +130,8 @@ function SearchCheckpoint({ status }: { status: RuntimeSessionSearchStatus }) {
   </Card>;
 }
 
-function RuntimeSessionSummary({ item }: { item: RuntimeSession }) {
-  return <Card title={item.kind === "unattributed" ? "Unattributed evidence" : item.id}>
+function RuntimeSessionSummary({ item, onSelect }: { item: RuntimeSession; onSelect?: () => void }) {
+  return <Card title={item.kind === "unattributed" ? "Unattributed evidence" : item.id} action={onSelect && <Button aria-label={`Open runtime timeline ${item.id}`} onClick={onSelect}>View timeline</Button>}>
     {item.kind === "unattributed" && <p>This is an evidence collection, not an inferred agent session.</p>}
     <p>{item.agent_id ?? "Unknown or multiple agents"} · Principal: {item.principal_id ?? "Unknown"}</p>
     <p>{item.event_count.toLocaleString("en-US")} canonical events</p>
