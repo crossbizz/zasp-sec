@@ -471,7 +471,21 @@ before the coverage fixture correction and fails the old two-file assertion in
 454.544 seconds. It isn't final-code evidence. Fresh stable-code UI/build
 verification passes all 1,184 tests, typecheck/lint, contracts, seven client/eight
 server compiled chunks and the unchanged ledger in
-`/tmp/zasp-retirement-stable-ui.log`. Full API and sensor races are running in
-`/tmp/zasp-retirement-stable-full-api.log` and `/tmp/zasp-retirement-stable-sensor.log`.
-PR 43 remains unmerged. Original task classifications and production gates are
-unchanged.
+`/tmp/zasp-retirement-stable-ui.log`. Full API races pass in 547.091 seconds in
+`/tmp/zasp-retirement-stable-full-api.log`; full sensor races pass in 152.943
+seconds in `/tmp/zasp-retirement-stable-sensor.log`. The source-release gate
+also passes in `/tmp/zasp-retirement-stable-release-source.log`.
+
+Correction `0bc905ac` is pushed through the unchanged credential guard. Its
+postcommit Gitleaks scan passes all 1,382 commits in 4.82 seconds with no leaks:
+`/tmp/zasp-retirement-postcommit-gitleaks.log`. Push CI 34610595193 passes in
+15m30s and PR CI 34610598964 passes in 15m36s. Both execute every stage, including
+sensor lineage/authenticated replay and Attack Lab network enforcement.
+
+PR 43 merged the exact verified head `0bc905ac7f4214be79251037a4437cf8cf07464b`
+at 2026-09-11 14:47:56 UTC as main
+`c30d9fa68d230effcca63b6345a0c2a10d1b3270`. Main CI 34612285514 passes every
+stage in 16 minutes, confirmed against that exact SHA. Deployment isn't claimed.
+Original task classifications and
+production gates are unchanged. Work on the next daemon replay proof is isolated
+in a separate worktree and isn't part of this verified commit.

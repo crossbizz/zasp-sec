@@ -3,8 +3,9 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-sensor-lineage`, PR 43 (merge held for final API and hosted verification)
-**Last verified main:** `a4fede82`, PR 42; main CI 34544444052 passed
+**Execution branch:** `codex/runtime-daemon-replay` (next proof, unpublished)
+**Latest main:** `c30d9fa6`, PR 43; main CI 34612285514 passed
+**Last verified main:** `c30d9fa6`, PR 43; main CI 34612285514 passed
 
 Migration 43 and the authorized structured-search API shipped in PR 28 as main
 d46085cf after full local verification, real PostgreSQL boundaries, Chrome/runtime
@@ -887,11 +888,36 @@ retirement. The corrected fixture verifies the exact retained generation
 watermark and unchanged coverage after idle restart, with production behavior
 unchanged. Focused real-PostgreSQL races pass in 43.714 seconds, and independent
 review reports no findings. Fresh stable-code UI/build verification passes all
-1,184 tests and the ledger. Full API/sensor checks, postcommit secret scanning
-and fresh hosted verification remain required before merge. Evidence and failed
+1,184 tests and the ledger. Full API races pass in 547.091 seconds; sensor races
+pass in 152.943 seconds. Correction `0bc905ac` is pushed after the source-release
+gate and postcommit 1,382-commit secret scan pass. Push CI 34610595193 and PR CI
+34610598964 pass every stage, including sensor replay and Attack Lab enforcement.
+PR 43 merged the exact verified head as main `c30d9fa6`; main CI 34612285514
+passes every stage in 16 minutes. Evidence and failed
 intermediate runs are in `docs/internal/2026-09-11-lineage-release-verification.md`.
 No original task credit changes: 535 production-available, 132 component-only,
-61 external gates. PR 43 is still unmerged.
+61 external gates. No deployed production acceptance is inferred from this merge.
+
+The next running-daemon lost-success replay proof is isolated on
+`codex/runtime-daemon-replay`, based on `0bc905ac`. Its one-event sealed-source
+fixture now preserves the existing three-event fixture and refuses rewriting
+history. A real TLS socket test verifies dropped first acceptance, gated retries,
+explicit replay release and exact body/key/credential-digest evidence, capped at
+eight forwarded attempts. The actual unchanged consumer daemon now passes local
+lost-success replay against PostgreSQL 18.6, real schema-48 migration and public
+enrollment/rotation APIs. Both receipts match the original persisted batch; exact
+request/checkpoint replay, one artifact write, five stages, one outbox entry and
+the production durable ACK verifier pass. Reviewed cleanup preserves owned roots
+after failure and checks exact directory identity after all process joins.
+The bounded owned-container CI runner passes twice locally (3.26s and 2.60s),
+including inspection, no OOM and exact stopped-container removal. Its CI step is
+implemented but unpublished. Final API races pass in 596.655s, sensor races in
+146.820s, all 1,188 UI tests and typechecking pass, and final lint/build/compiled
+closure/release checks pass. The final runner passes twice again (3.66s, 3.39s)
+after error preservation was corrected. Hosted CI and publication remain pending.
+Prepared producer data, browser identity, readiness and artifact storage remain
+fixtures. No live discovery, deployed acceptance or original task credit is added.
+Evidence: `docs/internal/2026-09-11-daemon-replay-proof.md`.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production

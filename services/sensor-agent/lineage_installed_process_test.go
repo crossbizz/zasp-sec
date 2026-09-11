@@ -79,7 +79,7 @@ func TestInstalledLineageConsumerProcess(t *testing.T) {
 			t.Error("write fixture result")
 		}
 	}()
-	if config.Action == "initialize" || config.Action == "initialize-interrupted" {
+	if config.Action == "initialize" || config.Action == "initialize-interrupted" || config.Action == "initialize-single" {
 		if initializeInstalledLineageFixture(ctx, config) == nil {
 			result.Outcome = "initialized"
 		}
@@ -181,7 +181,7 @@ func TestInstalledLineageConsumerProcess(t *testing.T) {
 		}
 		return
 	}
-	if config.Action == "verify-acknowledgment" || config.Action == "reclaim-acknowledged" || config.Action == "collect-completion" || config.Action == "reconcile-producer" {
+	if config.Action == "verify-acknowledgment" || config.Action == "verify-daemon-acknowledgment" || config.Action == "reclaim-acknowledged" || config.Action == "collect-completion" || config.Action == "reconcile-producer" {
 		// Producer-only path: don't open a token, CA, client or consumer cursor.
 		spool, err := newLineageSpool(config.SpoolPath, uint32(os.Getuid()))
 		if err != nil {
@@ -189,6 +189,12 @@ func TestInstalledLineageConsumerProcess(t *testing.T) {
 		}
 		defer spool.Close()
 		receipts, err := newLineageReceiptReader(config.AckPath, uint32(os.Geteuid()))
+		if config.Action == "verify-daemon-acknowledgment" {
+			if receipts != nil {
+				receipts.Close()
+			}
+			receipts, err = newProductionLineageReceiptReader(config.AckPath, 65532)
+		}
 		if config.Action == "reclaim-acknowledged" {
 			if receipts != nil {
 				defer receipts.Close()
@@ -378,7 +384,11 @@ func initializeInstalledLineageFixture(ctx context.Context, config installedLine
 		return err
 	}
 	defer generation.Close()
-	for index := 0; index < 3; index++ {
+	records := 3
+	if config.Action == "initialize-single" {
+		records = 1
+	}
+	for index := 0; index < records; index++ {
 		kind := "file"
 		if index == 0 {
 			kind = "exec"
