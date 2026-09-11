@@ -833,9 +833,28 @@ the harness-owned root. Four helper tests and the 71-test Node CI invocation
 pass; real early SIGTERM cleanup also passes with an empty private Go cache.
 Independent review found and verified a failed-spawn cleanup correction, then
 reported no remaining concrete blocker. Fresh full UI/build verification and the
-release-source gate pass. Composed runtime checks pass; browser flows and fresh
-hosted checks remain required before merge. Details and failed hosted runs are recorded in
+release-source gate pass. The final composed runtime/browser run passed with a
+clean console and complete owned cleanup. The correction is published as
+`bd5528b2`; push CI 34604327038 and PR CI 34604332018 passed cleanup but failed
+the released migration-13 readiness check on hosted PostgreSQL 16.15.
+Details and failed hosted runs are recorded in
 `docs/internal/2026-09-11-lineage-release-verification.md`. No task credit changes.
+
+PostgreSQL major compatibility is an open production release gate. An isolated
+16.12 fixture reproduced v13 refusal; local 18.3 passes. Exact catalog comparison
+found 135 extra NOT NULL records and 18 MAINTAIN ACL entries on 18, which changes
+the pinned semantic fingerprint. Released migrations and security/drift checks
+remain unchanged. CI now selects an explicit PostgreSQL-18 reference environment
+with signed packages and a checked server major; that correction doesn't repair
+older-major bootstrap or establish an 18-only deployment contract. Original Neon,
+SaaS and single-tenant scope remains intact. Verify actual Neon/deployment majors
+and design a reachable, independently reviewed compatibility path before claiming
+production acceptance. The subsequent hosted sensor/Attack Lab stages were skipped,
+not passed. Current-head CI and main merge remain pending. Counts stay 535/132/61.
+The reference-setup change passes 19 workflow tests, the corrected dependent
+release contract and independent review. Fresh full UI/build verification passes
+1,184 tests and validates the unchanged 728-row ledger. Hosted apt execution and
+the complete current-head CI result remain required evidence.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production

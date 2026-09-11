@@ -295,6 +295,71 @@ remaining concrete blocker. Fresh full UI/build verification passed all 1,180
 tests, typecheck/lint, source contracts, compiled imports and the 728-row ledger:
 `/tmp/zasp-lineage-process-group-ui.log`. The release-source gate also passed:
 `/tmp/zasp-lineage-process-group-release.log`. The composed run has passed its
-local runtime pipeline and is continuing browser flows in
-`/tmp/zasp-lineage-process-group-composed.log`. Hosted checks will run alongside
-that final local acceptance; both must pass before merge.
+local runtime pipeline and completed all browser flows and owned cleanup with
+exit 0 in `/tmp/zasp-lineage-process-group-composed.log`. Its console was clean.
+The correction is published as `bd5528b2`. Push CI 34604327038 and PR CI
+34604332018 passed the cleanup regression but failed the database gate below.
+Product API and sensor code are unchanged by this harness-only correction.
+
+## PostgreSQL compatibility gate remains open
+
+Both runs failed the migration runner at released migration 13, before migration
+48. The hosted Ubuntu 24.04 image uses PostgreSQL 16.15. Local full-suite evidence
+used PostgreSQL 18.3. Earlier green CI that didn't expose PostgreSQL tools must
+not be interpreted as a full database compatibility pass. Failed hosted evidence:
+`/tmp/zasp-lineage-corrected-ci-backend-failed.log` and
+`/tmp/zasp-lineage-corrected-ci-full.log`. Subsequent sensor acceptance and Attack
+Lab CI steps were skipped, not passed.
+
+A disposable, non-networked PostgreSQL 16.12 container reproduced the runner's
+v13 refusal. After that rollback, applying the exact released SQL only inside the
+disposable diagnostic database allowed catalog inspection. Security readiness is
+true on both versions, but the v13 live fingerprint is
+`5550b4043c2d28e777b3988c6d484cd7408c49c295f9856ca5e08c10328c56f4`
+on 16.12 and the pinned
+`6a3a830ff7e43a220be6e0658a6262ed92c8c0165c803b34319acb0e0ed6cb9c`
+on 18.3. Multiset comparison found exactly 135 additional NOT NULL constraint
+catalog entries and 18 table-owner MAINTAIN ACL entries on 18. All remaining
+canonical rows match. No schema check or released SQL was changed.
+
+Evidence is in `/tmp/zasp-pg-catalog-diagnostic.FOX8OU/`: `postgres16.log`,
+`postgres18.log`, the temporary Go overlay diagnostic and `container-inspection.json`.
+The inspected diagnostic container exited 0 without OOM and had only the read-only
+test-binary bind, no named volumes. It was removed by its exact ID. The shared
+image and unrelated containers were unchanged.
+
+The workflow correction pins Ubuntu 24.04 and reference PostgreSQL major 18,
+installs through the official signed PGDG apt repository using a SHA-256-pinned
+repository key, checks the actual server major and places its complete binary
+directory first on PATH. Minor releases follow the signed major-18 package and
+the selected server version is logged. This is a reference-environment correction,
+not a fixed PostgreSQL 16 compatibility defect or an 18-only product contract.
+The two workflow regression runs fail before the correction, first on the floating
+OS and then on ambient database selection. Logs:
+`/tmp/zasp-pg-reference-red.log`, `/tmp/zasp-pg-reference-setup-red.log`.
+
+Original scope requires Neon, multi-tenant SaaS and the same binaries/schemas for
+single-tenant installation, with no original PostgreSQL major restriction. Later
+implementation plans mention 15+, 16 and 17. Independent scope review confirms
+that those expectations can't silently become 18-only production support. A
+verified compatibility design must address bootstrap as well as forward upgrade:
+v13 rejects before commit and v14 requires v13 readiness, so a later migration
+alone isn't a reachable repair. Preserve released SQL and pinned drift-denial
+authority. Actual Neon majors, supported deployment configurations and the older
+major compatibility matrix remain unverified release gates. Production acceptance
+is withheld and original task counts don't change.
+
+The reference-setup regression suite passes all 19 tests. Independent review
+caught a dependent release contract looking for the former setup-step name; its
+RED test is preserved in `/tmp/zasp-pg-reference-release-red.log`. The corrected
+contract retains ordering/tool checks and adds explicit OS and database-major
+assertions. Reviewer reruns pass both suites and final review reports no remaining
+concrete finding. Shell syntax validation passes. These checks don't substitute
+for executing the signed apt installation on the hosted runner.
+
+Fresh full verification exits 0 with 1,184 UI tests, typecheck/lint, contracts,
+production build, seven client/eight server compiled chunks and the unchanged
+728-row availability ledger. Evidence: `/tmp/zasp-pg-reference-ui.log`.
+The final release-source gate also exits 0:
+`/tmp/zasp-pg-reference-release-source.log`. Built-image signatures/scans and live
+provider/DNS/TLS acceptance remain separate deployment gates.

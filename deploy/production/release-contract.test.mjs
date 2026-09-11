@@ -19,11 +19,15 @@ test("production CI runs sensor lineage and authenticated replay regressions", a
   assert.ok(step.run.includes("TestProductionRuntimeIngestHTTPPersistsTransactionalOutboxBeforeAcceptance"));
   assert.ok(step.run.includes('test -x "$(pg_config --bindir)/initdb"'));
   assert.ok(step.run.includes('export PATH="$(pg_config --bindir):$PATH"'));
-  const fixtureIndex = workflow.jobs.verify.steps.findIndex(({ name }) => name === "Expose PostgreSQL fixture tools");
+  const fixtureIndex = workflow.jobs.verify.steps.findIndex(({ name }) => name === "Install PostgreSQL 18 reference fixture tools");
   const uiIndex = workflow.jobs.verify.steps.findIndex(({ name }) => name === "Verify runnable UI");
   assert.ok(fixtureIndex >= 0 && fixtureIndex < uiIndex, "all PostgreSQL test steps need the fixture binaries on PATH");
   const fixtureSetup = workflow.jobs.verify.steps[fixtureIndex].run;
-  assert.ok(fixtureSetup.includes("for fixture_tool in initdb postgres pg_isready pg_ctl"));
+  assert.equal(workflow.jobs.verify["runs-on"], "ubuntu-24.04");
+  assert.ok(fixtureSetup.includes("postgresql-18 postgresql-client-18"));
+  assert.ok(fixtureSetup.includes("fixture_pg_bin=/usr/lib/postgresql/18/bin"));
+  assert.ok(fixtureSetup.includes("for fixture_tool in initdb postgres pg_isready pg_ctl pg_config"));
+  assert.ok(fixtureSetup.includes('"postgres (PostgreSQL) 18."*) ;;'));
   assert.ok(fixtureSetup.includes('test -x "$fixture_pg_bin/$fixture_tool"'));
   assert.ok(fixtureSetup.includes('printf \'%s\\n\' "$fixture_pg_bin" >> "$GITHUB_PATH"'));
 });
