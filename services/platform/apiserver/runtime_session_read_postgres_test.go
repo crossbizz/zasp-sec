@@ -63,7 +63,7 @@ func TestRuntimeSessionReadProjectionBackfillAuthorityAndReplay(t *testing.T) {
 	}
 	identity := fixtureRequestIdentity(t)
 	var apiSchema string
-	if err := admin.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint()).Scan(&apiSchema); err != nil || apiSchema != ProductionRecoverySchemaVersion {
+	if err := admin.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), migrations.ProductionRuntimeCorrelationRouting().Checksum(), migrations.ProductionRuntimeCorrelationRoutingSemanticFingerprint()).Scan(&apiSchema); err != nil || apiSchema != ProductionRecoverySchemaVersion {
 		t.Fatalf("production API rejects installed schema41: schema=%s error=%v", apiSchema, err)
 	}
 	scope := identity.Scope

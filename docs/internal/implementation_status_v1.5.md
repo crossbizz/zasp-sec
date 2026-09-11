@@ -3,7 +3,7 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-correlation-lineage`; PR46 published from the preserved routing branch, hosted CI pending
+**Execution branch:** `codex/runtime-correlation-lineage`; PR46 correction published, mixed-evidence browser proof in progress
 **Latest main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
 **Last verified main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
 
@@ -32,14 +32,28 @@ the regression reproduced it and the validator now binds one exact shell
 container. Final verification passes1,188 UI tests, build/imports and728 ledger
 rows. The source release gate, complete migration races and final runtime/Chrome
 rerun all pass with cleanup. Final independent review approves incremental
-publication after those results. PR46 is published at exact head
-`e4a5d96cee0efe8cca78bd6b59e32c081de60c0c`; push CI 34628265078 and PR CI
-34628358007 are running. The exact head must pass both checks before merge.
-Postcommit history scanning passed all 1,393 commits. The unchanged publication
-hook had no HIGH findings; its 16 nonblocking MEDIUM findings were reviewed as
-public CI identifiers and synthetic fixture account identifiers. No hook or scan
-was bypassed. The next branch preserves this published head unchanged.
-Nothing in PR46 is on main or credited as production-available yet. Counts remain
+publication after those results. PR46 was published at `e4a5d96c`. Push CI
+34628265078 and PR CI 34628358007 both failed two historical schema40/41 tests:
+their direct readiness-query calls supplied four arguments instead of the six
+already supplied by production. The failure reproduces locally. All eight direct
+test calls now use the same compiled release49 bindings as production. Five
+negative tests previously accepted any error, including argument-binding errors;
+they now require `pgx.ErrNoRows`. Tightened negative assertions also failed before
+the binding correction. The hosted selection now includes all nine release49
+correlation routing regressions. Independent review found no issue in this
+test/CI-only correction, conditional on the expanded tests and full verification
+passing. The expanded actual PostgreSQL race selection passed in 222.071s,
+including all release49 routing tests; the source release gate passed. Full UI
+verification found both copies of the workflow command contract needed the
+expanded selection, including its positive baseline. Both are corrected. Fresh
+verification passed all 1,188 UI tests, typecheck/lint/build, compiled imports and
+all728 ledger rows. The focused workflow contract also passed all23 cases. Local
+evidence: `/tmp/zasp-routing-ci-full-selection.log`,
+`/tmp/zasp-routing-ci-fix-publish-verify.log` and
+`/tmp/zasp-routing-ci-fix-final-source-gate.log`. Correction `49faf28d` is pushed
+to PR46. Push CI34630633844 and PR CI34630639306 are running against that exact
+head. Postcommit scanning passed all1,394 commits. No hook or scan was bypassed.
+PR46 is not merged or deployed. Nothing here changes original-task credit. Counts remain
 535 production-available, 132 component-only and 61 blocked/external, with no
 missing rows. Details and evidence limits are in
 `docs/internal/2026-09-11-correlation-routing-upgrade.md`.
@@ -54,6 +68,11 @@ different tenant, and its separate confidence-display test seeds synthetic rows.
 The next proof must read the actual worker-created mixed-evidence session through
 authorized product APIs and Chrome, preserve pagination and unknown identities,
 and verify scope denial. Do not transplant or seed runtime evidence to close it.
+The new M7-07 proof first failed on two events versus27, then found all five
+session-search jobs pending after runtime projection. Its fixture now invokes
+the actual session-search worker and checks indexed results before browser
+pagination. Final execution and review are pending; details are in
+`docs/internal/2026-09-11-worker-mixed-evidence.md`.
 M3-46, M3-47 and M7-07 remain open. Live source/provider enrollment and deployed
 release evidence remain separate gates.
 
