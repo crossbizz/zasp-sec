@@ -55,6 +55,12 @@ leaks; the exact public PR body scan is clean. No hook or scanner was bypassed.
 The next routing branch starts from that exact head while CI runs. It is auditing
 version-filtered claims before enabling v2 jobs; no routing migration or rollout
 is implemented yet.
+Independent source review supports separate legacy/upgraded claim entrypoints
+sharing the same concurrency controls, with version filtering before both claims
+and exhaustion. It also identified the old API's schema48 ceiling as a separate
+upgrade-availability boundary. The next implementation requirements are recorded
+in `docs/internal/2026-09-11-correlation-routing-upgrade.md`; this design review
+does not count as implementation or deployment proof.
 
 Migration 43 and the authorized structured-search API shipped in PR 28 as main
 d46085cf after full local verification, real PostgreSQL boundaries, Chrome/runtime
