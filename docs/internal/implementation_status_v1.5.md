@@ -3,9 +3,9 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-sandbox-lineage`; PR46 correction and PR47 mixed-evidence proof published, hosted checks running
-**Latest main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
-**Last verified main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
+**Execution branch:** `codex/runtime-sandbox-lineage`; PR47 merged and main CI running; file-event cgroup increment verified and reviewed for publication
+**Latest main:** `c6aec68d`, PR 47; main CI 34634275277 running
+**Last verified main:** `3679545f`, PR 46; main CI 34632397599 passed
 
 PR45 merged its exact reviewed head after push CI 34621547317 and PR CI
 34621568895 passed. Main CI 34623324047 also passed. PR44's main CI
@@ -51,11 +51,13 @@ all728 ledger rows. The focused workflow contract also passed all23 cases. Local
 evidence: `/tmp/zasp-routing-ci-full-selection.log`,
 `/tmp/zasp-routing-ci-fix-publish-verify.log` and
 `/tmp/zasp-routing-ci-fix-final-source-gate.log`. Correction `49faf28d` is pushed
-to PR46. Push CI34630633844 and PR CI34630639306 are running against that exact
-head. Postcommit scanning passed all1,394 commits. The publication hook's two
+to PR46. Push CI 34630633844 and PR CI 34630639306 passed against that exact
+head. PR46 merged as `3679545ff5b2ac75f70857c88fd897fe97f8d10a` on September 11
+at 18:16:58 UTC, without bypassing checks. Main CI 34632397599 passed.
+Postcommit scanning passed all1,394 commits. The publication hook's two
 nonblocking MEDIUM findings are the public CI identifiers34628265078 and
 34628358007, not phone numbers. No hook or scan was bypassed.
-PR46 is not merged or deployed. Nothing here changes original-task credit. Counts remain
+PR46 is merged but has no live deployment proof. Nothing here changes original-task credit. Counts remain
 535 production-available, 132 component-only and 61 blocked/external, with no
 missing rows. Details and evidence limits are in
 `docs/internal/2026-09-11-correlation-routing-upgrade.md`.
@@ -81,8 +83,9 @@ review accepts M7-07's original criterion after verified main. Fresh verificatio
 passed all 1,188 UI tests, typecheck/lint/build/imports and all 728 ledger rows.
 The mixed-evidence increment is published as PR47 at exact head
 `748c258767f6e2851f3e20b192506cdae5dc9f61`. Push CI 34631235822 and PR CI
-34631280739 are running. It must wait for PR46 and its main CI before merge,
-then pass its own hosted and main checks before M7-07 is credited. Postcommit
+34631280739 passed. After PR46's main CI passed, the exact verified PR47 head
+merged as `c6aec68da88768bff20a892a21e12bed89a12de0` at 18:36:58 UTC. Main CI
+34634275277 is running; M7-07 still awaits that result before credit. Postcommit
 history scanning passed all 1,396 commits. The unchanged publication hook's 21
 nonblocking findings were inspected: public CI IDs, synthetic AWS accounts and
 fixture product IDs, with no HIGH findings. The next branch preserves both
@@ -90,6 +93,33 @@ published heads unchanged. No original-task credit yet. Details are in
 `docs/internal/2026-09-11-worker-mixed-evidence.md`.
 M3-46, M3-47 and M7-07 remain open. Live source/provider enrollment and deployed
 release evidence remain separate gates.
+
+The independent M3-46/M3-47 scope audit confirms that a semantic sandbox binding
+can support inferred runtime lineage without treating a Kubernetes PodUID or CRI
+PodSandboxID as the semantic sandbox ID. But merely retaining `sandbox.id` in a
+snapshot is insufficient: its source, lifetime and conflicts must affect matching.
+The released Tetragon producer does not emit numeric cgroup membership
+identity. Its cgroup namespace inode is not a substitute. Sub-millisecond process
+starts can also be omitted by the current millisecond observation contract.
+The next implementation must preserve these distinctions through producer,
+archive, admission, immutable snapshot and versioned correlation receipts. Old
+v1/v2 receipts and frozen replay behavior must stay unchanged. No new original
+task credit follows from this audit.
+
+The local file-event cgroup increment now selects the actual unsigned provider
+data for the pinned synchronous file policy. Membership stays event-local and
+never enters the process cache. New producer generations have paired v2 source
+and record formats; historical readers refuse them before consumption. Actual
+old-binary refusal and non-root daemon-to-API archival, lost-success replay and
+token rotation pass. The exact maximum uint64 survives the archive. Independent
+review found an outer JSON alias overwrite; its behavioral regression failed
+before the exact-key fix. Adapter/lineage and runtime receipt races pass, as do
+full UI verification (1,188 tests, build/imports and all 728 rows) and the source
+release gate. Final complete sensor races passed in 112.847s. Independent review
+approved incremental publication after that pass and confirmed the alias fix. No
+sandbox/cgroup task is closed, and live BTF/policy loading is not claimed.
+Evidence and rollback limits:
+`docs/internal/2026-09-11-file-cgroup-lineage.md`.
 
 PR 44 merged as `fd4ba167`. Both initial push CI 34617264232 and PR CI
 34617323187 failed the new daemon step with `exec format error`. Its pinned

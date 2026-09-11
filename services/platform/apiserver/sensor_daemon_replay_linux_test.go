@@ -29,6 +29,12 @@ func TestRuntimeAcceptanceActualDaemonLostSuccessReplay(t *testing.T) {
 		t.Skip("requires owned isolated Linux daemon/PostgreSQL composition")
 	}
 	assertDaemonReplayContainer(t)
+	for _, profile := range []string{"tetragon-local-stream-v1", "tetragon-local-stream-v2"} {
+		t.Run(profile, func(t *testing.T) { exerciseRuntimeDaemonLostSuccessReplay(t, profile) })
+	}
+}
+
+func exerciseRuntimeDaemonLostSuccessReplay(t *testing.T, profile string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 	ownership := &daemonReplayOwnership{}
@@ -153,6 +159,7 @@ func TestRuntimeAcceptanceActualDaemonLostSuccessReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := installedChunkChildConfig{Endpoint: endpoint, CAPath: filepath.Join(credentials, "ca.crt"), TokenPath: filepath.Join(root, "credentials", "token"), SpoolPath: filepath.Join(root, "spool"), CursorPath: filepath.Join(root, "state", "cursor-0.json"), AckPath: filepath.Join(root, "acks"), ResultPath: filepath.Join(root, "result.json"), Stamp: time.Now().UTC().Add(-time.Second).Truncate(time.Millisecond).Format(time.RFC3339Nano), Source: sensoradapter.LineageSource{Profile: "tetragon-local-stream-v1", GenerationID: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", EnrollmentBinding: created.EnrollmentBinding, NodeName: "node-a", ClusterUID: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", NodeUID: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", BootID: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}}
+	config.Source.Profile = profile
 	for _, name := range []string{"spool", "acks", "state", "credentials", "kernel", "btf"} {
 		path, mode := filepath.Join(root, name), os.FileMode(0750)
 		if name == "state" || name == "credentials" {
@@ -265,6 +272,13 @@ func TestRuntimeAcceptanceActualDaemonLostSuccessReplay(t *testing.T) {
 	archive, err := runtimeevent.DecodeArchivedBatch(scope, artifacts.body())
 	if err != nil || len(archive.Records) != 1 || archive.Records[0].ObservedLineage.ClusterUID != config.Source.ClusterUID || archive.Records[0].ObservedLineage.NodeUID != config.Source.NodeUID || archive.Records[0].ObservedLineage.BootID != config.Source.BootID {
 		t.Fatal("actual upload lost observed lineage", err)
+	}
+	wantCgroup := ""
+	if profile == "tetragon-local-stream-v2" {
+		wantCgroup = "18446744073709551615"
+	}
+	if archive.Records[0].ObservedLineage.CgroupID != wantCgroup {
+		t.Fatal("actual daemon archive lost file-event cgroup identity")
 	}
 	t.Log("actual non-root daemon: committed lost response, unchanged checkpoint, real token rotation, exact replay, single SQL/artifact authority and verified ACK passed")
 }

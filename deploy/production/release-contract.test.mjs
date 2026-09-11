@@ -402,6 +402,11 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   assert.deepEqual(tracingPolicies.map(({ metadata }) => metadata.name).sort(), ["zasp-network-connect", "zasp-sensitive-file"]);
   assert.equal(tracingPolicies.every(({ spec }) => JSON.stringify(spec.podSelector) === "{}"), true);
   assert.equal(tracingPolicies.every(({ spec }) => JSON.stringify(spec.containerSelector) === JSON.stringify({ matchExpressions: [{ key: "name", operator: "Exists" }] })), true);
+  const fileProbe = tracingPolicies.find(({ metadata }) => metadata.name === "zasp-sensitive-file").spec.kprobes[0];
+  assert.equal(fileProbe.call, "security_file_permission");
+  assert.deepEqual(fileProbe.data, [{ index: 0, type: "uint64", source: "current_task", resolve: "cgroups.dfl_cgrp.kn.id", label: "zasp_cgroup_v2_id" }]);
+  assert.deepEqual(fileProbe.selectors, [{ matchArgs: [{ index: 0, operator: "Prefix", values: ["/etc", "/var/run/secrets", "/run/secrets"] }] }]);
+  assert.equal(tracingPolicies.find(({ metadata }) => metadata.name === "zasp-network-connect").spec.kprobes[0].data, undefined);
 
   const tetragon = resources.find(({ kind, spec }) => kind === "DaemonSet" && spec?.template?.spec?.containers?.some(({ name }) => name === "tetragon"));
   assert.ok(tetragon);

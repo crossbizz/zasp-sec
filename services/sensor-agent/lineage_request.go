@@ -27,7 +27,7 @@ func lineageSubscriptionRequest() *tetragon.GetEventsRequest {
 		FieldFilters: []*tetragon.FieldFilter{
 			filter(tetragon.EventType_PROCESS_EXEC),
 			filter(tetragon.EventType_PROCESS_EXIT, "time"),
-			filter(tetragon.EventType_PROCESS_KPROBE, "function_name", "args", "action", "return_action", "policy_name"),
+			filter(tetragon.EventType_PROCESS_KPROBE, "function_name", "args", "action", "return_action", "policy_name", "data"),
 		},
 	}
 }

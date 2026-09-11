@@ -512,6 +512,8 @@ spec:
       args:
         - { index: 0, type: file }
         - { index: 1, type: int }
+      data:
+        - { index: 0, type: uint64, source: current_task, resolve: cgroups.dfl_cgrp.kn.id, label: zasp_cgroup_v2_id }
       selectors:
         - matchArgs:
             - index: 0
