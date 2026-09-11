@@ -363,3 +363,73 @@ production build, seven client/eight server compiled chunks and the unchanged
 The final release-source gate also exits 0:
 `/tmp/zasp-pg-reference-release-source.log`. Built-image signatures/scans and live
 provider/DNS/TLS acceptance remain separate deployment gates.
+
+The reference correction is published as `54705e99` through the unchanged push
+guard. Push CI 34606556303 and PR CI 34606560539 both installed the signed
+PostgreSQL 18 packages and passed UI/build, cleanup, release-source and maintenance
+alert steps. Both passed the migration and runtime-index packages but then failed
+the enrollment-pairing HTTP test below. Subsequent sensor/Attack Lab steps were
+skipped; neither run is a complete pass.
+
+Two extra isolated Linux checks use PostgreSQL 18.6 from the official arm64 image
+manifest `sha256:4d155aa3f2c2cc1838bb70e81396f76373ec7275ec9ce9cf32873cd677c9a992`.
+The v13 diagnostic matches the pinned fingerprint and security readiness. The
+existing `TestReleaseMigrationReachesExactPostgresTargetFromEmptyV1AndV2AndRejectsDrift`
+passes in 6.02 seconds. Despite its historical name, its actual assertions cover
+empty-to-48, idempotent 48, full rollback, v1-to-48 and checksum-drift refusal; it
+doesn't separately set up a v2 starting state. This is a non-race Linux fixture
+pass, not a claim about the actual CLI subprocess or hosted full-suite result.
+
+Evidence: `postgres18-linux.log`, `postgres18-release.log`,
+`container18-inspection.json` and `container18-release-inspection.json` under
+`/tmp/zasp-pg-catalog-diagnostic.FOX8OU/`. Both containers ran as the image's
+non-root postgres user with no capabilities/network, read-only root, bounded
+memory/tmpfs and one read-only binary bind. Both exited 0 without OOM and were
+removed by inspected exact IDs. Their logs and the pinned image remain available.
+
+## Token expiry precision
+
+Push 34606556303 and PR 34606560539 passed the actual migration runner suite in
+86.973 and 79.425 seconds. Both then failed
+`TestRuntimeEnrollmentPairingMigrationAndAuthority`: the real public sensor-create
+handler returned 503. Evidence: `/tmp/zasp-pg-reference-ci-failed.log` and
+`/tmp/zasp-pg-reference-pr-ci-failed.log`.
+
+The handler passed a nanosecond expiry to PostgreSQL, which stores microseconds,
+then required the committed expiry to equal the original nanosecond value before
+revealing the one-time credential. That mismatch can produce a committed token
+with a 503 response. A forced sub-microsecond clock reproduces the same failure
+against local PostgreSQL, independent of the host clock's precision. The RED run
+also reproduces creation and rotation failures in a precision-boundary double:
+`/tmp/zasp-sensor-expiry-red.log`.
+
+The fix truncates the intended expiry to microseconds before mutation. Exact
+returned token ID, generation and expiry checks remain unchanged. TTL isn't
+extended. No released migration, authentication check or SQL permission changes.
+Fifty unit cases cover create/rotate, sub-microsecond clocks, a fractional TTL,
+UTC conversion and refusal of both positive and negative 1ns/1us authority drift.
+The real paired API test forces fractional time, verifies exact persisted and
+returned expiry after create and rotation, ingests with the replacement token and
+denies the old token before any artifact write. Its first negative assertion
+expected 401; the existing ingest contract is 403. The failed diagnostic preserved
+that 403 with zero artifact writes in `/tmp/zasp-sensor-expiry-revoked-status.log`.
+Only the test expectation was corrected.
+
+All focused handler races and the real PostgreSQL pairing test pass in 8.071
+seconds: `/tmp/zasp-sensor-expiry-verified-focused.log`. Independent review reports
+no findings and separately passes all 50 precision cases. Fresh full UI/build
+verification exits 0 with 1,184 UI tests, contracts and the unchanged 728-row ledger:
+`/tmp/zasp-sensor-expiry-ui.log`. The first full API run started before the new
+401-to-403 test correction and cannot count as a final passing invocation; a
+final-code full run remains required before merge.
+
+The same final focused tests pass on non-root Linux PostgreSQL 18.6: five
+top-level tests, including all 50 precision cases and the real pairing authority
+test in 3.31 seconds. Binary SHA-256:
+`982c693cb58ce45cbf579321575ad2d7568921b48f323bc1010fafa91b459bae`.
+Evidence: `/tmp/zasp-sensor-expiry-linux.log` and
+`/tmp/zasp-sensor-expiry-linux-inspection.json`. The bounded, networkless container
+had read-only root, no capabilities and only a read-only binary bind. It exited 0
+without OOM and was removed by its inspected exact ID. This run has no race
+instrumentation; the separate host run supplies focused race evidence.
+The final release-source gate passes in `/tmp/zasp-sensor-expiry-release-source.log`.

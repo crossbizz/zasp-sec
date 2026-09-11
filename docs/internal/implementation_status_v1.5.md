@@ -855,6 +855,28 @@ The reference-setup change passes 19 workflow tests, the corrected dependent
 release contract and independent review. Fresh full UI/build verification passes
 1,184 tests and validates the unchanged 728-row ledger. Hosted apt execution and
 the complete current-head CI result remain required evidence.
+Published reference correction `54705e99` now passes hosted setup, UI/build,
+cleanup, release-source and maintenance-alert steps in push 34606556303 and
+PR 34606560539. Both later failed the paired enrollment HTTP test after the
+migration packages passed; sensor/Attack Lab stages were skipped. Isolated non-root Linux PostgreSQL
+18.6 also matches v13 and passes empty-to-48, idempotency, rollback, v1-to-48 and
+checksum-drift refusal in 6.02 seconds. Exact logs and cleanup are in the release
+verification record; older-major compatibility and deployed acceptance stay open.
+
+The paired-enrollment failure is a production timestamp-precision defect: the
+handler compared the database's microsecond expiry with its original nanosecond
+value after committing a token. A forced-clock real PostgreSQL test and precision
+unit regressions reproduce 503. The fix canonicalizes expiry before mutation and
+keeps exact returned credential authority checks. Fifty create/rotate precision
+cases reject positive/negative nanosecond and microsecond drift; real paired
+create/rotate readback and revoked-token denial pass with focused races in 8.071
+seconds. Independent review reports no findings. Full UI/build passes 1,184 tests;
+final full API verification, publication and fresh hosted checks remain pending.
+The final focused Linux PostgreSQL 18.6 run passes five top-level tests, including
+50 precision cases and the actual paired create/rotate/ingest test in 3.31 seconds.
+Its inspected container exited 0 without OOM and was removed; evidence is in the
+release verification record. The release-source gate passes. No scope or original
+task-count changes.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production

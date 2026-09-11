@@ -318,7 +318,9 @@ func (handler *sensorPublicHTTPHandler) withFreshCredential(writer http.Response
 		return
 	}
 	now := handler.config.Clock().UTC()
-	expires := now.Add(handler.config.TokenTTL)
+	// PostgreSQL preserves microseconds. Canonicalize before mutation so the
+	// committed expiry still matches exactly when revealing the one-time token.
+	expires := now.Add(handler.config.TokenTTL).Truncate(time.Microsecond)
 	if now.IsZero() || !validSensorTime(now) || !validSensorTime(expires) {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
