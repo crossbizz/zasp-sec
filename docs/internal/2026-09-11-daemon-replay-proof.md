@@ -255,3 +255,11 @@ passes all 1,188 UI tests, typecheck/lint/build, compiled imports and all 728 le
 rows (`/tmp/zasp-daemon-platform-full-verify.log`). The complete source-release gate
 also passes (`/tmp/zasp-daemon-platform-source-gate.log`). Replacement hosted AMD64
 CI remains pending; local ARM64 success isn't substituted for it.
+
+Correction `ee93b5662e04c50c6d3c62dea500999f2c3b2d01` is pushed to PR44.
+Push CI 34619630942 and PR CI 34619634385 are running. The postcommit HEAD-history
+scan passes all 1,387 commits without leaks in 3.98s. Exact PR-body scan is clean;
+the unchanged push guard's nonblocking warnings were reviewed as public CI IDs.
+No scanner or hook was bypassed. Main remains `c30d9fa6` until reviewed hosted
+checks permit merge. The investigation workflow traced the failure to the image
+platform before changing the runner; hosted AMD64 verification remains pending.

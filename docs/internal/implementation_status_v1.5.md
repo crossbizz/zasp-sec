@@ -3,20 +3,22 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-daemon-replay`; repairing PR 44 CI architecture failure
+**Execution branch:** `codex/runtime-daemon-replay`; PR44 correction `ee93b566` pushed, CI running
 **Latest main:** `c30d9fa6`, PR 43; main CI 34612285514 passed
 **Last verified main:** `c30d9fa6`, PR 43; main CI 34612285514 passed
 
-PR 44 remains unmerged at `5a8d4a5d`. Both push CI 34617264232 and PR CI
+PR 44 remains unmerged. Both initial push CI 34617264232 and PR CI
 34617323187 failed the new daemon step with `exec format error`. Its pinned
-image was ARM64-only while hosted CI is AMD64. The unpublished correction pins
+image was ARM64-only while hosted CI is AMD64. The pushed correction pins
 the multi-architecture PostgreSQL 18.6 Bookworm index, selects the actual Docker
 host platform explicitly and rejects a mismatched pulled image before compiling.
 Its behavioral RED and all 15 runner/command-owner tests pass after correction.
 Both actual local daemon attempts pass with exact cleanup. Fresh full verification
 passes 1,188 UI tests, typecheck/lint/build/imports and all 728 ledger rows;
-the source release gate and independent review pass. The correction is ready
-for push; replacement hosted AMD64 CI and merge remain pending.
+the source release gate and independent review pass. Correction `ee93b566` is
+pushed, with push CI 34619630942 and PR CI 34619634385 running. The postcommit
+HEAD-history scan passes all 1,387 commits. Hosted AMD64 proof and merge remain
+pending.
 Fresh complete local
 `npm run verify` passed before the follow-on edits, including all 1,188 UI tests,
 build and the 728-row ledger (`/tmp/zasp-daemon-premerge-verify.log`).
