@@ -210,3 +210,56 @@ Independent testing, maintainability and corrected failure-path reviews report
 no findings. The bounded slice audit accepts all five numbered replay scenarios
 plus failure-evidence preservation (six slice criteria), not six original tasks.
 The original counts remain 535/132/61. No live gate was waived.
+
+Head `5a8d4a5d5875132f4dfaff5e72637fc3495e2709` is pushed as PR 44:
+https://github.com/crossbizz/zasp-sec/pull/44 . The final postcommit HEAD-history
+scan passes all 1,386 commits with no leaks in 4.63s:
+`/tmp/zasp-daemon-final-head-gitleaks.log`. Push CI 34617264232 and PR CI
+34617323187 are running, not accepted as passes. Main remains `c30d9fa6`.
+
+PR body/title scan-at-sink has zero findings. The unchanged pre-push guard's
+nonblocking warnings were reviewed: public CI identifiers, fixed memory/CPU
+limits, an existing fixture UUID and the deliberate loopback metrics URL.
+The full diff scan is retained at `/tmp/zasp-daemon-pushed-diff-redaction.json`.
+No credential guard was bypassed. The supplemental GPT-6 Astra CLI review failed
+because the installed CLI is too old for that model; it isn't a review pass.
+Independent app reviews completed. The generic ship version helper requires an
+absent VERSION file; this repository's existing package versioning was preserved.
+
+## Hosted architecture failure and repair
+
+Both initial CI runs failed the new daemon step with `exec format error`, after
+their preceding verification passed. PR44 is not merged. The original pinned
+digest is a single ARM64 Linux manifest, not a multi-architecture image. The
+runner compiled from that image's architecture on the AMD64 CI host, creating
+binaries that its kernel could not execute. Local ARM64 passes did not cover it.
+The failure log is `/tmp/zasp-daemon-pr-ci-failed.log`.
+
+Registry inspection identified the matching PostgreSQL 18.6 Bookworm index:
+`sha256:1c59e2c3c818eaa0f0628f695b36e7c9e362d6b219b36a54a32df645cbd7e1af`.
+It contains the original ARM64 digest and AMD64 digest
+`sha256:a10c981235b4f635e65df0cfb66a5598064628128505dbc6a3ed4ca303717521`.
+No PostgreSQL or base-distribution version change is intended.
+
+The corrected runner reads the Docker daemon's OS/architecture, accepts only
+Linux AMD64/ARM64 and explicitly selects that platform for pull and create.
+It rejects a mismatched image before compiling and logs the selected platform.
+All original ownership, isolation, output-retention and cleanup checks remain.
+The missing-helper test is recorded separately from the behavioral missing-platform
+RED in `/tmp/zasp-daemon-platform-argument-red.log`. All 15 runner/command-owner
+tests pass in `/tmp/zasp-daemon-platform-green.log`. Actual ARM64 reruns pass in
+3.16s and 2.59s, with verified exact container cleanup:
+`/tmp/zasp-daemon-platform-actual.log`. Independent review found no concrete
+blocker and independently reran all 15 tests. Fresh complete local verification
+passes all 1,188 UI tests, typecheck/lint/build, compiled imports and all 728 ledger
+rows (`/tmp/zasp-daemon-platform-full-verify.log`). The complete source-release gate
+also passes (`/tmp/zasp-daemon-platform-source-gate.log`). Replacement hosted AMD64
+CI remains pending; local ARM64 success isn't substituted for it.
+
+Correction `ee93b5662e04c50c6d3c62dea500999f2c3b2d01` is pushed to PR44.
+Push CI 34619630942 and PR CI 34619634385 are running. The postcommit HEAD-history
+scan passes all 1,387 commits without leaks in 3.98s. Exact PR-body scan is clean;
+the unchanged push guard's nonblocking warnings were reviewed as public CI IDs.
+No scanner or hook was bypassed. Main remains `c30d9fa6` until reviewed hosted
+checks permit merge. The investigation workflow traced the failure to the image
+platform before changing the runner; hosted AMD64 verification remains pending.
