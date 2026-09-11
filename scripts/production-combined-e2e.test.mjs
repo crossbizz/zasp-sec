@@ -18,11 +18,11 @@ test("enrollment pairing proof requires schema45 and real browser lifecycle", as
     assert.ok(source.includes(marker), marker);
 });
 
-test("observed lineage composition preserves archives without claiming correlation", async () => {
+test("observed lineage composition separates v1 preservation from local v2 correlation", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");
   assert.ok(source.includes("/runtime observed lineage preservation proven:/"));
-  for (const marker of ["runtime observed lineage preservation proven:", 'events[i]["observed_lineage"] = observedLineage', "record.ObservedLineage != observedLineage", "same observed lineage granted unpaired sensors correlation authority", "semantic archive lost observed lineage", "Strong/Probable correlation NOT RUN"]) assert.ok(worker.includes(marker), marker);
+  for (const marker of ["runtime observed lineage preservation proven:", 'events[i]["observed_lineage"] = observedLineage', "record.ObservedLineage != observedLineage", "same observed lineage granted unpaired sensors correlation authority", "semantic archive lost observed lineage", "fresh v2 Strong/Probable proven separately on local schema49, live producer attestation NOT RUN"]) assert.ok(worker.includes(marker), marker);
 });
 
 test("confidence display fixture cannot claim production correlation reachability", async () => {
@@ -87,13 +87,16 @@ test("runtime recovery proof owns authenticated TLS Neo4j instead of a graph stu
   assert.doesNotMatch(worker, /runtimeCorrelationGraphStoreStub/);
 });
 
-test("runtime candidate recovery is required without granting producer activation credit", async () => {
+test("runtime candidate recovery requires production-created v2 jobs without fixture relabeling", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_candidate_recovery_e2e_test.go", import.meta.url), "utf8");
   assert.ok(source.includes("/runtime candidate recovery proven:/"));
-  for (const marker of ["expires.Add(100 * time.Millisecond)", "fixture-selected v2 jobs, cloud and producer activation NOT RUN", "newRuntimeCorrelationExecutorWithDatabase", "ObjectReferencingArtifactStore.Put(ctx, request)", "graph.delegate.ApplySnapshot(ctx, snapshot)"])
+  for (const marker of ["expires.Add(100 * time.Millisecond)", "production-created v2 jobs on local schema49, cloud deployment NOT RUN", "NewPostgresCorrelationPipelineRepository", "newRuntimeCorrelationExecutorWithDatabase", "ObjectReferencingArtifactStore.Put(ctx, request)", "graph.delegate.ApplySnapshot(ctx, snapshot)"])
     assert.ok(worker.includes(marker), marker);
-  assert.doesNotMatch(worker, /UPDATE zasp_runtime_stage_work SET lease_expires_at|INSERT INTO zasp_runtime_candidate|(?:INSERT INTO|UPDATE) zasp_runtime_session/);
+  assert.doesNotMatch(worker, /UPDATE zasp_runtime_stage_work SET (?:lease_expires_at|implementation_version)|INSERT INTO zasp_runtime_candidate|(?:INSERT INTO|UPDATE) zasp_runtime_session/);
+  const pipeline = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");
+  assert.ok(pipeline.indexOf("runner.UpProductionRuntimeCorrelationRouting(ctx)") > pipeline.indexOf('t.Log("runtime v2 reader v1 backlog proven:'));
+  assert.ok(source.includes("/runtime correlation routing proven:/"));
 });
 
 test("runtime session browser proof reads worker-written evidence without seeding sessions", async () => {

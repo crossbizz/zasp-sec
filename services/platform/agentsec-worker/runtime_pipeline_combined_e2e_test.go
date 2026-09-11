@@ -31,6 +31,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue/sqsdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimecorrelation"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent/s3rawstore"
@@ -848,10 +849,58 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	proveRuntimeV1BacklogReceipt(t, ctx, admin, receipts, scope, semanticBatch.BatchID, 3, domain.EvidenceConfidenceExact)
 	t.Log("runtime v2 reader v1 backlog proven: production-created raw and semantic jobs, unchanged v1 versions and exact S3 receipts, no candidate observations or snapshots, stable replay; schema48 local proof only")
 	t.Log("semantic observation pipeline proven: separately enrolled OTLP source, actual five-stage receipts, six canonical classes, scoped Exact instrumentation and stable replay; no raw content or enforcement assertion")
+	runner, err := migrations.NewRunner(&runtimePipelineMigrationDatabase{connection: admin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.UpProductionRuntimeCorrelationRouting(ctx); err != nil {
+		t.Fatal("routing upgrade after v1 backlog", err)
+	}
+	if version, err := runner.Version(ctx); err != nil || version != 49 {
+		t.Fatal("routing release not installed", version, err)
+	}
+	// Replaying previously accepted payloads after upgrade must not re-route them.
+	if replay := semanticIngest(); replay.Code != http.StatusAccepted || replay.Body.String() != semanticAccepted.Body.String() {
+		t.Fatal("routing upgrade changed original acceptance replay")
+	}
+	proveRuntimeV1BacklogReceipt(t, ctx, admin, receipts, scope, acceptedBatch.BatchID, 26, domain.EvidenceConfidenceUnattributed)
+	proveRuntimeV1BacklogReceipt(t, ctx, admin, receipts, scope, semanticBatch.BatchID, 3, domain.EvidenceConfidenceExact)
 	proveRuntimeCandidateRecovery(t, ctx, runtimeCandidateRecoveryFixture{admin: admin, database: database, handler: handler, outbox: outbox, coordinator: coordinator.Processor, queue: observedQueue, archive: archive, index: indexExecutor, receipts: receipts, graph: realGraph})
+	t.Log("runtime correlation routing proven: migrated48-to49 after v1 backlog, original acceptance replay preserved, fresh production ingestion creates v2 and actual registered workers complete frozen Strong/Probable receipts; local owned composition, not cloud deployment")
 	assertQueuesEmpty()
-	t.Log("runtime observed lineage preservation proven: exact S3 versions and committed digests, same qualified observations from separate enrollments, unknown kernel attribution and explicit semantic IDs retained, immutable replay; Strong/Probable correlation NOT RUN")
+	t.Log("runtime observed lineage preservation proven: exact S3 versions and committed digests, same qualified observations from separate enrollments, original v1 unknown kernel attribution and explicit semantic IDs retained, immutable replay; fresh v2 Strong/Probable proven separately on local schema49, live producer attestation NOT RUN")
 	t.Log("runtime pipeline proof passed: production roles, durable ingest/outbox, actual local SQS/S3/OpenSearch/authenticated TLS Neo4j, five stage receipts, replay and empty DLQ; cloud IAM and graph publisher-role attestation NOT RUN")
+}
+
+// Use the production runner against the owned database, including its exact
+// checksum, catalog-fingerprint and lock checks. No hand-applied migration SQL.
+type runtimePipelineMigrationDatabase struct{ connection *pgx.Conn }
+
+func (database *runtimePipelineMigrationDatabase) QueryRow(ctx context.Context, statement string, arguments ...any) migrations.Row {
+	return database.connection.QueryRow(ctx, statement, arguments...)
+}
+func (database *runtimePipelineMigrationDatabase) Begin(ctx context.Context) (migrations.Transaction, error) {
+	transaction, err := database.connection.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &runtimePipelineMigrationTransaction{transaction: transaction}, nil
+}
+
+type runtimePipelineMigrationTransaction struct{ transaction pgx.Tx }
+
+func (transaction *runtimePipelineMigrationTransaction) QueryRow(ctx context.Context, statement string, arguments ...any) migrations.Row {
+	return transaction.transaction.QueryRow(ctx, statement, arguments...)
+}
+func (transaction *runtimePipelineMigrationTransaction) Exec(ctx context.Context, statement string, arguments ...any) error {
+	_, err := transaction.transaction.Exec(ctx, statement, arguments...)
+	return err
+}
+func (transaction *runtimePipelineMigrationTransaction) Commit(ctx context.Context) error {
+	return transaction.transaction.Commit(ctx)
+}
+func (transaction *runtimePipelineMigrationTransaction) Rollback(ctx context.Context) error {
+	return transaction.transaction.Rollback(ctx)
 }
 
 func proveRuntimeV1BacklogReceipt(t *testing.T, ctx context.Context, admin *pgx.Conn, receipts artifactstore.ArtifactStore, scope domain.Scope, batch string, count int, confidence domain.EvidenceConfidence) {

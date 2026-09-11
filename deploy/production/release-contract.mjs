@@ -66,10 +66,12 @@ export async function inspectContainerBuilds() {
   }));
 }
 
-export async function renderRelease(value) {
-  if (!validRelease(value)) throw new Error("release rejected");
+export async function renderRelease(value, options = { schemaVersion: 49 }) {
+  if (!validRelease(value) || !options || Object.keys(options).join() !== "schemaVersion" || ![48, 49].includes(options.schemaVersion)) throw new Error("release rejected");
+  const schemaVersion = options.schemaVersion;
   const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
   const set = [
+    ["schema.expectedVersion", String(schemaVersion)],
     ["global.publicOrigin", `https://${value.host}`],
     ["global.trustedProxyCIDRs[0]", "10.20.0.0/16"],
     ...value.awsS3CIDRs.map((cidr, index) => [`network.s3CIDRs[${index}]`, cidr]),
@@ -344,7 +346,7 @@ export async function renderRelease(value) {
     throw new Error("release rejected");
   }
   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw new Error("release rejected");
-  validateRenderedRelease(resources, platformAccountID);
+  validateRenderedRelease(resources, platformAccountID, schemaVersion);
   return Object.freeze(resources);
 }
 
@@ -512,9 +514,9 @@ function validRelease(value) {
   return value.telemetry.backend === "newrelic" && value.telemetry.endpoint === "https://otlp.nr-data.net";
 }
 
-export function validateRenderedRelease(resources, platformAccountID) {
+export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49) {
   const accountPattern = /^[0-9]{12}$/;
-  if (!Array.isArray(resources) || !accountPattern.test(platformAccountID) || platformAccountID === "000000000000") throw new Error("release rejected");
+  if (!Array.isArray(resources) || !accountPattern.test(platformAccountID) || platformAccountID === "000000000000" || ![48, 49].includes(schemaVersion)) throw new Error("release rejected");
   const deployments = new Map(resources.filter(({ kind }) => kind === "Deployment").map((resource) => [resource.metadata?.name, resource]));
   const deploymentIdentities = new Map([
     ["web", "agentsec-web"],
@@ -606,7 +608,7 @@ export function validateRenderedRelease(resources, platformAccountID) {
     if (!rendered || (role === null ? roleArn !== undefined : roleArn !== `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`)) throw new Error("release rejected");
   }
   const jobIdentities = new Map([
-    ["agentsec-schema-v48", "agentsec-migration"],
+    [`agentsec-schema-v${schemaVersion}`, "agentsec-migration"],
     ["agentsec-projection-graph-init-v1", "agentsec-projection-graph-init"],
     ["agentsec-projection-search-init-v1", "agentsec-projection-search-init"],
     ["nango-migrate", "nango-migrate"],
@@ -614,6 +616,17 @@ export function validateRenderedRelease(resources, platformAccountID) {
   ]);
   const jobs = resources.filter(({ kind }) => kind === "Job");
   if (jobs.length !== jobIdentities.size || jobs.some((resource) => jobIdentities.get(resource.metadata?.name) !== resource.spec?.template?.spec?.serviceAccountName)) throw new Error("release rejected");
+  const migration = jobs.find(({ metadata }) => metadata.name === `agentsec-schema-v${schemaVersion}`);
+  const command = `export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate ${schemaVersion === 48 ? "up-to-48" : "up"}`;
+  const migrationContainers = migration?.spec?.template?.spec?.containers;
+  if (!Array.isArray(migrationContainers) || migrationContainers.length !== 1 || JSON.stringify(migrationContainers[0].command) !== JSON.stringify(["/bin/sh", "-ec"]) || JSON.stringify(migrationContainers[0].args) !== JSON.stringify([command])) throw new Error("release rejected");
+  for (const deployment of deployments.values()) {
+    const annotation = deployment.spec?.template?.metadata?.annotations?.["zasp.io/schema-version"];
+    if (annotation !== undefined && annotation !== String(schemaVersion)) throw new Error("release rejected");
+  }
+  const api = deployments.get("agentsec-api");
+  const expected = api?.spec?.template?.spec?.containers?.[0]?.env?.filter(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION");
+  if (api?.spec?.template?.metadata?.annotations?.["zasp.io/schema-version"] !== String(schemaVersion) || expected?.length !== 1 || expected[0].value !== String(schemaVersion) || expected[0].valueFrom !== undefined) throw new Error("release rejected");
   const cronJobIdentities = new Map([["production-readonly-canary", "agentsec-canary"]]);
   const cronJobs = resources.filter(({ kind }) => kind === "CronJob");
   if (cronJobs.length !== cronJobIdentities.size || cronJobs.some((resource) => cronJobIdentities.get(resource.metadata?.name) !== resource.spec?.jobTemplate?.spec?.template?.spec?.serviceAccountName)) throw new Error("release rejected");

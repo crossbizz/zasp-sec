@@ -10,13 +10,13 @@ import { customerEdgeReleaseFixture as edgeRelease, productionReleaseFixture as 
 
 const exec = promisify(execFile);
 
-test("release pre-stages a dual-version correlation worker before routing activation", async () => {
+test("routing release requires the dual-version correlation worker", async () => {
   const resources = await renderRelease(release);
   const worker = one(resources, "Deployment", "agentsec-runtime-correlation");
   assert.equal(envOf(worker).ZASP_RUNTIME_STAGE_VERSION, "runtime-correlation-v2");
   assert.equal(envOf(worker).ZASP_DATABASE_AUTHORITY, "zasp_runtime_correlation_worker");
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "48");
-  assert.ok(one(resources, "Job", "agentsec-schema-v48"));
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "49");
+  assert.ok(one(resources, "Job", "agentsec-schema-v49"));
   assert.doesNotThrow(() => validateRenderedRelease(resources, "123456789012"));
   for (const version of ["runtime-correlation-v1", "runtime-correlation-v3", ""]) {
     const drift = structuredClone(resources);
@@ -33,6 +33,27 @@ test("release pre-stages a dual-version correlation worker before routing activa
     mutate(one(drift, "Deployment", "agentsec-runtime-correlation").spec.template.spec.containers[0]);
     assert.throws(() => validateRenderedRelease(drift, "123456789012"), /release rejected/);
   }
+});
+
+test("compatibility staging explicitly pins48 without activating routing", async () => {
+  const resources = await renderRelease(release, { schemaVersion: 48 });
+  const migration = one(resources, "Job", "agentsec-schema-v48");
+  assert.match(migration.spec.template.spec.containers[0].args[0], /agentsec-migrate up-to-48$/);
+  assert.equal(one(resources,"Deployment","agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "48");
+  assert.equal(envOf(one(resources,"Deployment","agentsec-runtime-correlation")).ZASP_RUNTIME_STAGE_VERSION, "runtime-correlation-v2");
+  assert.doesNotThrow(() => validateRenderedRelease(resources,"123456789012",48));
+  assert.throws(() => validateRenderedRelease(resources,"123456789012"), /release rejected/);
+  for (const mutate of [
+    drift => { one(drift,"Job","agentsec-schema-v48").spec.template.spec.containers[0].args[0] = migration.spec.template.spec.containers[0].args[0].replace("up-to-48","up"); },
+    drift => { one(drift,"Job","agentsec-schema-v48").spec.template.spec.containers[0].command = ["/bin/true"]; },
+    drift => { one(drift,"Job","agentsec-schema-v48").spec.template.spec.containers.push(structuredClone(migration.spec.template.spec.containers[0])); },
+    drift => { one(drift,"Deployment","agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"] = "49"; },
+    drift => { one(drift,"Deployment","agentsec-api").spec.template.spec.containers[0].env.push({ name:"ZASP_EXPECTED_SCHEMA_VERSION", value:"49" }); },
+  ]) {
+    const drift=structuredClone(resources); mutate(drift);
+    assert.throws(() => validateRenderedRelease(drift,"123456789012",48), /release rejected/);
+  }
+  for (const options of [{ schemaVersion:47 },{ schemaVersion:50 },{ schemaVersion:"48" },{ schemaVersion:48, extra:true },null]) await assert.rejects(renderRelease(release,options),/release rejected/);
 });
 
 test("production CI runs sensor lineage and authenticated replay regressions", async () => {
@@ -607,7 +628,7 @@ test("production release renders private Nango dependency plus a fail-closed loc
 test("rendered release rejects an unreviewed job identity", async () => {
   const resources = await renderRelease(release);
   const names = resources.filter(({ kind }) => kind === "Job").map(({ metadata }) => metadata.name).sort();
-  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v48", "nango-migrate", "zasp-canary-secret-sync"]);
+  assert.deepEqual(names, ["agentsec-projection-graph-init-v1", "agentsec-projection-search-init-v1", "agentsec-schema-v49", "nango-migrate", "zasp-canary-secret-sync"]);
   assert.throws(() => validateRenderedRelease([...resources, {
     apiVersion: "batch/v1",
     kind: "Job",
@@ -688,9 +709,9 @@ test("release renders one TLS origin, split ports, private internals, and migrat
   assert.deepEqual(one(resources, "Service", "agentsec-api").spec.ports.map(({ name, port }) => [name, port]), [["product", 8080], ["internal", 8081]]);
   assert.deepEqual(resources.filter(({ kind }) => kind === "Ingress").map(({ metadata }) => metadata.name).sort(), ["zasp-product", "zasp-runtime"]);
   assert.equal(resources.some(({ kind, metadata }) => kind === "Service" && ["neo4j", "nango", "otel-collector"].includes(metadata.name) && metadata.annotations?.["service.beta.kubernetes.io/aws-load-balancer-type"]), false);
-  assert.equal(one(resources, "Job", "agentsec-schema-v48").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
-  assert.match(one(resources, "Job", "agentsec-schema-v48").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
-  const migration = one(resources, "Job", "agentsec-schema-v48");
+  assert.equal(one(resources, "Job", "agentsec-schema-v49").metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
+  assert.match(one(resources, "Job", "agentsec-schema-v49").spec.template.spec.containers[0].args[0], /exec \/app\/agentsec-migrate up/);
+  const migration = one(resources, "Job", "agentsec-schema-v49");
   assert.equal(migration.spec.template.spec.serviceAccountName, "agentsec-migration");
   assert.equal(migration.spec.template.spec.containers[0].env.some(({ valueFrom }) => valueFrom?.secretKeyRef), false);
   assert.equal(migration.spec.template.spec.containers[0].volumeMounts[0].mountPath, "/var/run/secrets/zasp-migration");
@@ -726,13 +747,13 @@ test("release renders one TLS origin, split ports, private internals, and migrat
     ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL: "zasp_security_agent_action_worker_runtime",
     ZASP_POLICY_DEPLOYMENT_DB_PRINCIPAL: "zasp_policy_deployment_worker_runtime",
   });
-  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v48", "-10"]]) {
+  for (const [kind, name, weight] of [["ServiceAccount", "agentsec-migration", "-30"], ["SecretProviderClass", "zasp-production-migration-secrets", "-20"], ["Job", "agentsec-schema-v49", "-10"]]) {
     const resource = one(resources, kind, name);
     assert.equal(resource.metadata.annotations["helm.sh/hook"], "pre-install,pre-upgrade");
     assert.equal(resource.metadata.annotations["helm.sh/hook-weight"], weight);
   }
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "48");
-  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "48");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "49");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION").value, "49");
   assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(({ name }) => name === "ZASP_DATABASE_AUTHORITY").value, "zasp_discovery_api");
   const apiSecretProvider = one(resources, "SecretProviderClass", release.secretProviderClass);
   assert.equal(apiSecretProvider.spec.secretObjects[0].data.length, 9);
@@ -1303,7 +1324,7 @@ test("release isolates Attack Lab execution behind a proxy-only Fargate authorit
   assert.equal(trust.metadata.namespace, "zasp-attack-lab");
   assert.match(trust.data["proxy-ca.crt"], /^-----BEGIN CERTIFICATE-----/);
 
-  const migration = one(resources, "Job", "agentsec-schema-v48");
+  const migration = one(resources, "Job", "agentsec-schema-v49");
   assert.equal(envOf(migration).ZASP_ATTACK_LAB_CONTROLLER_DB_PRINCIPAL, "zasp_attack_lab_controller_runtime");
   assert.equal(envOf(migration).ZASP_ATTACK_LAB_OUTBOX_DB_PRINCIPAL, "zasp_attack_lab_outbox_runtime");
   assert.equal(envOf(migration).ZASP_ATTACK_LAB_PROXY_DB_PRINCIPAL, "zasp_attack_lab_proxy_runtime");

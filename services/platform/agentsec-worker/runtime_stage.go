@@ -275,5 +275,10 @@ func validRuntimeStageEffect(effect runtimeStageEffect) bool {
 }
 
 func exactRuntimeStageFinish(result runtimeevent.StageFinishResult, request runtimeevent.StageFinishRequest) bool {
+	// SQL makes retryable/failed completion terminal on the final attempt.
+	// Compare against that durable result without changing the submitted request.
+	if request.Lease.Attempt == 100 && (request.Outcome == runtimeevent.StageOutcomeRetryable || request.Outcome == runtimeevent.StageOutcomeFailed) {
+		request.Outcome, request.ErrorClass = runtimeevent.StageOutcomeFailed, "exhausted"
+	}
 	return result.BatchID == request.Lease.BatchID && result.Generation == request.Lease.Generation && result.Stage == request.Lease.Stage && result.State == request.Outcome && result.Attempt == request.Lease.Attempt && result.InputDigest == request.Lease.InputDigest && result.ImplementationVersion == request.Lease.ImplementationVersion && result.EffectDigest == request.EffectDigest && result.ResultReference == request.ResultReference && result.ResultVersionID == request.ResultVersionID && result.ResultDigest == request.ResultDigest && result.ErrorClass == request.ErrorClass
 }

@@ -77,7 +77,7 @@ jobs:
           test -x "$(pg_config --bindir)/initdb"
           go test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent
           go test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...
-          go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'
+          go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority|CorrelationRouting)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'
       - name: Verify sensor lineage and authenticated replay
         run: |
           export PATH="$(pg_config --bindir):$PATH"

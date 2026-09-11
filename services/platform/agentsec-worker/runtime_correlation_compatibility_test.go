@@ -53,9 +53,14 @@ type runtimeCandidateReadinessDatabase struct {
 	readyWorkerDatabase
 	available                  bool
 	candidateCalls, otherCalls int
+	routingCalls               int
 }
 
 func (database *runtimeCandidateReadinessDatabase) QueryJSON(_ context.Context, statement string, _ ...any) (json.RawMessage, error) {
+	if strings.Contains(statement, "zasp_production_runtime_correlation_routing_readiness") {
+		database.routingCalls++
+		return json.RawMessage(`{"ready":true}`), nil
+	}
 	if strings.Contains(statement, "zasp_production_runtime_candidate_authority_readiness") {
 		database.candidateCalls++
 		if !database.available {
@@ -68,6 +73,34 @@ func (database *runtimeCandidateReadinessDatabase) QueryJSON(_ context.Context, 
 	}
 	database.otherCalls++
 	return nil, errors.New("unexpected database operation")
+}
+
+func TestRuntimeCorrelationCompositionSelectsImmutableClaimCapability(t *testing.T) {
+	for _, version := range []string{"runtime-correlation-v1", "runtime-correlation-v2"} {
+		t.Run(version, func(t *testing.T) {
+			config := validRuntimeCorrelationConfig()
+			config.RuntimeStageVersion = version
+			database := &runtimeCandidateReadinessDatabase{available: true}
+			executor := runtimeStageExecutorFunc(func(context.Context, runtimeevent.StageLease) (runtimeStageEffect, error) {
+				t.Fatal("readiness executed work")
+				return runtimeStageEffect{}, errRuntimeStageRetryable
+			})
+			dependencies, err := composeRuntimeStageWorkerRuntime(config, database, &productionRuntimeStageDependencies{Stage: runtimeevent.RuntimeStageCorrelate, Executor: executor, ready: func(context.Context) error { return nil }, close: func() error { return nil }})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := dependencies.Ready(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			want := 0
+			if version == "runtime-correlation-v2" {
+				want = 1
+			}
+			if database.routingCalls != want {
+				t.Fatal("composition did not bind versioned claim capability", database.routingCalls, want)
+			}
+		})
+	}
 }
 
 func TestRuntimeCorrelationV2WorkerPreservesV1JobsAndReceipts(t *testing.T) {

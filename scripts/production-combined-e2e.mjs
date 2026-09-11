@@ -145,7 +145,7 @@ try {
   await command("go", ["test", "-c", "-o", workerE2EBinary, "./agentsec-worker"], { cwd: platform, timeout: 120_000 });
 	await command("go", ["test", "-c", "-o", gatewayE2EBinary, "."], { cwd: path.join(root, "services", "runtime-gateway"), timeout: 120_000 });
 	await command("go", ["build", "-o", agentsecctl, "."], { cwd: path.join(root, "cmd", "agentsecctl") });
-  const migrationResult = await command(migrate, ["up"], { reject: false, env: {
+  const migrationResult = await command(migrate, ["up-to-48"], { reject: false, env: {
     ...process.env,
     ZASP_POSTGRES_DSN: dsn,
     ZASP_MIGRATION_TIMEOUT: "20s",
@@ -240,6 +240,7 @@ try {
   assert.match(runtimePipelineResult.stdout, /runtime observed lineage preservation proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime candidate recovery proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime v2 reader v1 backlog proven:/);
+  assert.match(runtimePipelineResult.stdout, /runtime correlation routing proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /runtime session summaries proven: completion-triggered unknown collection, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /runtime session search index proven: committed PG receipt, exact S3 archive, real OpenSearch, immutable replay, structured process filter, pagination and scope denial/);
@@ -249,6 +250,7 @@ try {
   assert.doesNotMatch(runtimePipelineResult.stdout, /--- SKIP:/);
   console.log(runtimePipelineResult.stdout.match(/runtime candidate recovery proven:[^\n]*/)[0]);
   console.log(runtimePipelineResult.stdout.match(/runtime v2 reader v1 backlog proven:[^\n]*/)[0]);
+  console.log(runtimePipelineResult.stdout.match(/runtime correlation routing proven:[^\n]*/)[0]);
   console.log("combined E2E: local runtime SQS/S3/OpenSearch/TLS-Neo4j pipeline passed");
 
   if (process.env.ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY !== "true") {

@@ -174,10 +174,11 @@ type StageFinishResult struct {
 }
 
 type PostgresProductionPipelineRepository struct {
-	database  ProductionIngestDatabase
-	authority ProductionPipelineAuthority
-	stage     RuntimeStage
-	clock     func() time.Time
+	database      ProductionIngestDatabase
+	authority     ProductionPipelineAuthority
+	stage         RuntimeStage
+	clock         func() time.Time
+	correlationV2 bool
 }
 
 func NewPostgresProductionPipelineRepository(database ProductionIngestDatabase, authority ProductionPipelineAuthority) (*PostgresProductionPipelineRepository, error) {
@@ -191,6 +192,10 @@ func NewPostgresProductionPipelineRepository(database ProductionIngestDatabase, 
 func (repository *PostgresProductionPipelineRepository) Ready(ctx context.Context) error {
 	if !validProductionPipelineRepository(repository, ctx) {
 		return ErrProductionPipelineUnavailable
+	}
+	if repository.correlationV2 {
+		_, err := repository.correlationClaimStatement(ctx)
+		return err
 	}
 	var result struct {
 		Ready bool `json:"ready"`
@@ -301,7 +306,15 @@ func (repository *PostgresProductionPipelineRepository) ClaimStages(ctx context.
 	if !validProductionPipelineRepository(repository, ctx) || !validWorkerLease(workerID, leaseToken) || leaseSeconds < 5 || leaseSeconds > 900 || limit < 1 || limit > 10 {
 		return nil, ErrProductionPipeline
 	}
-	payload, err := safeProductionQuery(repository.database, ctx, productionPipelineClaimStageSQL, workerID, leaseToken, leaseSeconds, limit)
+	statement := productionPipelineClaimStageSQL
+	if repository.correlationV2 {
+		var err error
+		statement, err = repository.correlationClaimStatement(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	payload, err := safeProductionQuery(repository.database, ctx, statement, workerID, leaseToken, leaseSeconds, limit)
 	if err != nil {
 		return nil, ErrProductionPipelineUnavailable
 	}
@@ -314,6 +327,9 @@ func (repository *PostgresProductionPipelineRepository) ClaimStages(ctx context.
 	for index, wire := range wires {
 		lease, ok := wire.result(repository.stage)
 		if !ok || !validStageLease(lease, repository.stage, repository.clock()) {
+			return nil, ErrProductionPipelineUnavailable
+		}
+		if repository.correlationV2 && lease.ImplementationVersion != "runtime-correlation-v1" && !(statement == productionCorrelationClaimV2SQL && lease.ImplementationVersion == "runtime-correlation-v2") {
 			return nil, ErrProductionPipelineUnavailable
 		}
 		if _, duplicate := seen[lease.BatchID]; duplicate {
@@ -368,7 +384,11 @@ func (repository *PostgresProductionPipelineRepository) FinishStage(ctx context.
 		return StageFinishResult{}, ErrProductionPipelineUnknown
 	}
 	result, ok := decodeStageFinish(payload)
-	if !ok || result.BatchID != request.Lease.BatchID || result.Generation != request.Lease.Generation || result.Stage != request.Lease.Stage || result.State != request.Outcome || result.Attempt != request.Lease.Attempt || result.InputDigest != request.Lease.InputDigest || result.ImplementationVersion != request.Lease.ImplementationVersion || request.Outcome == StageOutcomeSucceeded && (result.EffectDigest != request.EffectDigest || result.ResultReference != request.ResultReference || result.ResultVersionID != request.ResultVersionID || result.ResultDigest != request.ResultDigest) {
+	expectedState, expectedError := request.Outcome, request.ErrorClass
+	if request.Lease.Attempt == 100 && (request.Outcome == StageOutcomeRetryable || request.Outcome == StageOutcomeFailed) {
+		expectedState, expectedError = StageOutcomeFailed, "exhausted"
+	}
+	if !ok || result.BatchID != request.Lease.BatchID || result.Generation != request.Lease.Generation || result.Stage != request.Lease.Stage || result.State != expectedState || result.ErrorClass != expectedError || result.Attempt != request.Lease.Attempt || result.InputDigest != request.Lease.InputDigest || result.ImplementationVersion != request.Lease.ImplementationVersion || request.Outcome == StageOutcomeSucceeded && (result.EffectDigest != request.EffectDigest || result.ResultReference != request.ResultReference || result.ResultVersionID != request.ResultVersionID || result.ResultDigest != request.ResultDigest) {
 		return StageFinishResult{}, ErrProductionPipelineUnknown
 	}
 	return result, nil

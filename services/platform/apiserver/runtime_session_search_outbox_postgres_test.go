@@ -3,6 +3,7 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -77,9 +78,9 @@ func TestRuntimeSessionSearchOutboxBackfillAndFencedCompletion(t *testing.T) {
 		t.Fatal(err)
 	}
 	var futureSchema string
-	futureErr := future.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint()).Scan(&futureSchema)
+	futureErr := future.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), migrations.ProductionRuntimeCorrelationRouting().Checksum(), migrations.ProductionRuntimeCorrelationRoutingSemanticFingerprint()).Scan(&futureSchema)
 	future.Rollback(ctx)
-	if futureErr == nil {
+	if !errors.Is(futureErr, pgx.ErrNoRows) {
 		t.Fatal("API accepted unknown schema43")
 	}
 	var count int

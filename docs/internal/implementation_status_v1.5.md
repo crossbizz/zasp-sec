@@ -3,9 +3,59 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-correlation-prestage`; local verification passed, publication pending
-**Latest main:** `fd4ba167`, PR 44; main CI 34621326929 pending
-**Last verified main:** `c30d9fa6`, PR 43; main CI 34612285514 passed
+**Execution branch:** `codex/runtime-correlation-routing`; PR46 hosted CI correction under verification
+**Latest main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
+**Last verified main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
+
+PR45 merged its exact reviewed head after push CI 34621547317 and PR CI
+34621568895 passed. Main CI 34623324047 also passed. PR44's main CI
+34621326929 passed. Neither release activates v2 job routing.
+
+The local migration49 draft now has version-filtered SQL claim entrypoints,
+a mutation fence for old function bodies already waiting during migration,
+pinned readiness and API schema48/49 compatibility. Actual PostgreSQL regressions
+and migration races pass for this draft. Review found and reproduced two defects:
+the first guard rejected valid final-attempt completion, and pinned readiness
+accepted damaged fingerprint metadata. Both are fixed and independently reviewed.
+Positive and deliberately unfenced negative controls now prove both old-body
+claim and exhaustion boundaries. Runtime wiring now selects a private immutable
+v2 reader capability, rechecks exact release authority on every poll, and permits
+only independently healthy48 fallback. Repository and worker final-attempt
+validation now match SQL's failed/exhausted result. The local composed proof
+upgraded48 to49 after draining v1, then processed fresh production-created v2
+jobs without relabeling, including frozen Strong recovery and fresh Probable
+conflict. The full installed-Chrome suite passed with cleanup. CLI activation,
+idempotent49 and bounded48 pre-staging also pass actual PostgreSQL checks.
+The chart/renderer now distinguish48 pre-staging from49 activation. Review found
+that argument-only validation could accept a different migration executable;
+the regression reproduced it and the validator now binds one exact shell
+container. Final verification passes1,188 UI tests, build/imports and728 ledger
+rows. The source release gate, complete migration races and final runtime/Chrome
+rerun all pass with cleanup. Final independent review approves incremental
+publication after those results. PR46 was published at `e4a5d96c`. Push CI
+34628265078 and PR CI 34628358007 both failed two historical schema40/41 tests:
+their direct readiness-query calls supplied four arguments instead of the six
+already supplied by production. The failure reproduces locally. All eight direct
+test calls now use the same compiled release49 bindings as production. Five
+negative tests previously accepted any error, including argument-binding errors;
+they now require `pgx.ErrNoRows`. Tightened negative assertions also failed before
+the binding correction. The hosted selection now includes all nine release49
+correlation routing regressions. Independent review found no issue in this
+test/CI-only correction, conditional on the expanded tests and full verification
+passing. The expanded actual PostgreSQL race selection passed in 222.071s,
+including all release49 routing tests; the source release gate passed. Full UI
+verification found both copies of the workflow command contract needed the
+expanded selection, including its positive baseline. Both are corrected. Fresh
+verification passed all 1,188 UI tests, typecheck/lint/build, compiled imports and
+all728 ledger rows. The focused workflow contract also passed all23 cases. Local
+evidence: `/tmp/zasp-routing-ci-full-selection.log`,
+`/tmp/zasp-routing-ci-fix-publish-verify.log` and
+`/tmp/zasp-routing-ci-fix-final-source-gate.log`. Correction publication and fresh
+hosted checks are pending. PR46 is not merged or deployed.
+Nothing in this local change is shipped or credited as production-available. Counts remain
+535 production-available, 132 component-only and 61 blocked/external, with no
+missing rows. Details and evidence limits are in
+`docs/internal/2026-09-11-correlation-routing-upgrade.md`.
 
 PR 44 merged as `fd4ba167`. Both initial push CI 34617264232 and PR CI
 34617323187 failed the new daemon step with `exec format error`. Its pinned
@@ -20,7 +70,7 @@ pushed, with push CI 34619630942 and PR CI 34619634385 passed. The postcommit
 HEAD-history scan passes all 1,387 commits. Hosted CI selected `linux/amd64`,
 passed both actual daemon attempts in 4.93s/4.92s and verified exact container
 cleanup. The exact reviewed head merged after both checks passed. Fresh main
-CI 34621326929 is pending; the last verified main remains the prior release.
+CI 34621326929 subsequently passed; PR45 is now the last verified main.
 Fresh complete local
 `npm run verify` passed before the follow-on edits, including all 1,188 UI tests,
 build and the 728-row ledger (`/tmp/zasp-daemon-premerge-verify.log`).
@@ -47,6 +97,19 @@ changes in this proof extension.
 This adds no original-task credit. Its evidence document
 `docs/internal/2026-09-11-correlation-worker-prestage.md` is retained in that local
 commit and ships with the pre-stage change after PR44.
+The reviewed pre-stage change was published as PR45 at `b8f8da24`. Push CI
+34621547317 and PR CI 34621568895 passed. The unchanged publication guard's
+nonblocking findings were reviewed as public CI IDs and a synthetic fixture
+account. Postcommit HEAD-history scanning passed all 1,390 commits with no
+leaks; the exact public PR body scan is clean. No hook or scanner was bypassed.
+The routing branch started from that exact head and has incorporated merged main.
+Its migration draft is local; no routing rollout is activated.
+Independent source review supports separate legacy/upgraded claim entrypoints
+sharing the same concurrency controls, with version filtering before both claims
+and exhaustion. It also identified the old API's schema48 ceiling as a separate
+upgrade-availability boundary. The next implementation requirements are recorded
+in `docs/internal/2026-09-11-correlation-routing-upgrade.md`; this design review
+does not count as implementation or deployment proof.
 
 Migration 43 and the authorized structured-search API shipped in PR 28 as main
 d46085cf after full local verification, real PostgreSQL boundaries, Chrome/runtime
