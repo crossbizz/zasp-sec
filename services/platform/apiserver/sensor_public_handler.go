@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -50,7 +51,8 @@ type sensorCursor struct {
 
 type sensorEnrollment struct {
 	ProductSensor
-	Token string `json:"token"`
+	Token             string `json:"token"`
+	EnrollmentBinding string `json:"enrollment_binding,omitempty"`
 }
 
 func NewSensorPublicHTTPHandler(repository SensorPublicAuthority, signingKey []byte, configured ...SensorPublicHandlerConfig) (http.Handler, error) {
@@ -93,11 +95,16 @@ func (handler *sensorPublicHTTPHandler) ServeHTTP(writer http.ResponseWriter, re
 		writeProductionError(writer, request, ErrRepositoryOperation)
 		return
 	}
+	boundEnrollment, validProfile := sensorEnrollmentProfile(request)
+	if !validProfile {
+		writeProductionError(writer, request, ErrRepositoryOperation)
+		return
+	}
 	switch routed.OperationID {
 	case "listSensors":
 		handler.list(writer, request, identity)
 	case "createSensorEnrollment":
-		handler.create(writer, request, identity)
+		handler.create(writer, request, identity, boundEnrollment)
 	case "getSensor":
 		handler.get(writer, request, identity, sensorID)
 	case "updateSensor":
@@ -105,7 +112,7 @@ func (handler *sensorPublicHTTPHandler) ServeHTTP(writer http.ResponseWriter, re
 	case "deleteSensor":
 		handler.delete(writer, request, identity, sensorID)
 	case "rotateSensorToken":
-		handler.rotate(writer, request, identity, sensorID)
+		handler.rotate(writer, request, identity, sensorID, boundEnrollment)
 	case "getSensorCoverage":
 		handler.coverage(writer, request, identity, sensorID)
 	default:
@@ -170,7 +177,7 @@ func (handler *sensorPublicHTTPHandler) coverage(writer http.ResponseWriter, req
 	writeJSONValue(writer, request, http.StatusOK, value, err)
 }
 
-func (handler *sensorPublicHTTPHandler) create(writer http.ResponseWriter, request *http.Request, identity RequestIdentity) {
+func (handler *sensorPublicHTTPHandler) create(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, boundEnrollment bool) {
 	idempotencyKey, valid := sensorMutationHeaders(request, false)
 	if request.Method != http.MethodPost || request.URL.RawQuery != "" || !valid || !validSensorFreshAuthority(request, identity) {
 		writeProductionError(writer, request, ErrRepositoryOperation)
@@ -195,8 +202,12 @@ func (handler *sensorPublicHTTPHandler) create(writer http.ResponseWriter, reque
 		if err != nil || !validProductID(sensorID) || sensorID == tokenID {
 			return SensorMutationResult{}, ErrRepositoryUnavailable
 		}
-		return handler.repository.CreateSensor(request.Context(), identity, SensorCreateMutation{SensorID: sensorID, Name: input.Name, Kind: input.Kind, Mode: input.Mode, RuntimeSensorID: input.RuntimeSensorID, IdempotencyKey: idempotencyKey, RequestDigest: digest, TokenID: tokenID, TokenGeneration: generation, LocatorDigest: locatorDigest, Salt: salt, TokenHash: tokenHash, TokenExpiresAt: expires})
-	}, http.StatusCreated)
+		result, err := handler.repository.CreateSensor(request.Context(), identity, SensorCreateMutation{SensorID: sensorID, Name: input.Name, Kind: input.Kind, Mode: input.Mode, RuntimeSensorID: input.RuntimeSensorID, IdempotencyKey: idempotencyKey, RequestDigest: digest, TokenID: tokenID, TokenGeneration: generation, LocatorDigest: locatorDigest, Salt: salt, TokenHash: tokenHash, TokenExpiresAt: expires})
+		if err == nil && !result.Replayed && result.Sensor.ID != sensorID {
+			return SensorMutationResult{}, ErrRepositoryUnavailable
+		}
+		return result, err
+	}, http.StatusCreated, boundEnrollment)
 }
 
 func (handler *sensorPublicHTTPHandler) update(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, sensorID string) {
@@ -243,7 +254,7 @@ func (handler *sensorPublicHTTPHandler) delete(writer http.ResponseWriter, reque
 	writer.WriteHeader(http.StatusNoContent)
 }
 
-func (handler *sensorPublicHTTPHandler) rotate(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, sensorID string) {
+func (handler *sensorPublicHTTPHandler) rotate(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, sensorID string, boundEnrollment bool) {
 	idempotencyKey, expectedVersion, valid := sensorVersionedMutationHeaders(request)
 	if request.Method != http.MethodPost || request.URL.RawQuery != "" || !valid || !validSensorFreshAuthority(request, identity) || decodeEmptyInput(request) != nil {
 		writeProductionError(writer, request, ErrRepositoryOperation)
@@ -260,11 +271,15 @@ func (handler *sensorPublicHTTPHandler) rotate(writer http.ResponseWriter, reque
 		return
 	}
 	handler.withFreshCredential(writer, request, identity, authority.Generation+1, func(tokenID string, generation int64, locatorDigest, salt, tokenHash []byte, expires time.Time) (SensorMutationResult, error) {
-		return handler.repository.RotateSensorToken(request.Context(), identity, SensorRotateMutation{SensorID: sensorID, ExpectedVersion: expectedVersion, IdempotencyKey: idempotencyKey, RequestDigest: digest, TokenID: tokenID, TokenGeneration: generation, LocatorDigest: locatorDigest, Salt: salt, TokenHash: tokenHash, TokenExpiresAt: expires})
-	}, http.StatusOK)
+		result, err := handler.repository.RotateSensorToken(request.Context(), identity, SensorRotateMutation{SensorID: sensorID, ExpectedVersion: expectedVersion, IdempotencyKey: idempotencyKey, RequestDigest: digest, TokenID: tokenID, TokenGeneration: generation, LocatorDigest: locatorDigest, Salt: salt, TokenHash: tokenHash, TokenExpiresAt: expires})
+		if err == nil && result.Sensor.ID != sensorID {
+			return SensorMutationResult{}, ErrRepositoryUnavailable
+		}
+		return result, err
+	}, http.StatusOK, boundEnrollment)
 }
 
-func (handler *sensorPublicHTTPHandler) withFreshCredential(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, requestedGeneration int64, mutate func(string, int64, []byte, []byte, []byte, time.Time) (SensorMutationResult, error), status int) {
+func (handler *sensorPublicHTTPHandler) withFreshCredential(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, requestedGeneration int64, mutate func(string, int64, []byte, []byte, []byte, time.Time) (SensorMutationResult, error), status int, boundEnrollment bool) {
 	tokenID, err := handler.config.NewProductID()
 	if err != nil || !validProductID(tokenID) {
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
@@ -322,9 +337,35 @@ func (handler *sensorPublicHTTPHandler) withFreshCredential(writer http.Response
 		writeProductionError(writer, request, ErrRepositoryUnavailable)
 		return
 	}
+	enrollment := sensorEnrollment{ProductSensor: result.Sensor, Token: wire}
+	if boundEnrollment {
+		id, parseErr := domain.ParseProductID(result.Sensor.ID)
+		binding, bindingErr := sensor.EnrollmentBinding(identity.Scope, id)
+		if parseErr != nil || bindingErr != nil {
+			writeProductionError(writer, request, ErrRepositoryUnavailable)
+			return
+		}
+		enrollment.EnrollmentBinding = binding
+	}
 	writer.Header().Set("ETag", quoteVersion(result.Sensor.Version))
 	writer.Header().Set("Pragma", "no-cache")
-	writeJSONValue(writer, request, status, sensorEnrollment{ProductSensor: result.Sensor, Token: wire}, nil)
+	writeJSONValue(writer, request, status, enrollment, nil)
+}
+
+// This selects response representation only. It never changes mutation intent,
+// credential authority, receipt digests or one-time-token replay behavior.
+func sensorEnrollmentProfile(request *http.Request) (bool, bool) {
+	found := false
+	for name, values := range request.Header {
+		if !strings.EqualFold(name, "X-Zasp-Sensor-Enrollment-Schema") {
+			continue
+		}
+		if found || len(values) != 1 || values[0] != "enrollment-binding-v1" {
+			return false, false
+		}
+		found = true
+	}
+	return found, true
 }
 
 func sensorMutationHeaders(request *http.Request, versioned bool) (string, bool) {

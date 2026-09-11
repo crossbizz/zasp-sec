@@ -588,7 +588,8 @@ func TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift(t 
 		{name: "runtime enrollment pairing", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(append([]Metadata(nil), throughSessionSearch...), ProductionRuntimeSessionQuery(), ProductionRuntimeSessionEvidence(), ProductionRuntimeEnrollmentPairing())...)...), want: 45},
 		{name: "reconciliation lane plan", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(append([]Metadata(nil), throughSessionSearch...), ProductionRuntimeSessionQuery(), ProductionRuntimeSessionEvidence(), ProductionRuntimeEnrollmentPairing(), ProductionReconciliationLanePlan())...)...), want: 46},
 		{name: "runtime candidate authority", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(append([]Metadata(nil), throughSessionSearch...), ProductionRuntimeSessionQuery(), ProductionRuntimeSessionEvidence(), ProductionRuntimeEnrollmentPairing(), ProductionReconciliationLanePlan(), ProductionRuntimeCandidateAuthority())...)...), want: 47},
-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(48)}}}, wantErr: ErrInvalidState},
+		{name: "runtime acceptance", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(append([]Metadata(nil), throughSessionSearch...), ProductionRuntimeSessionQuery(), ProductionRuntimeSessionEvidence(), ProductionRuntimeEnrollmentPairing(), ProductionReconciliationLanePlan(), ProductionRuntimeCandidateAuthority(), ProductionRuntimeAcceptance())...)...), want: 48},
+		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(49)}}}, wantErr: ErrInvalidState},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}

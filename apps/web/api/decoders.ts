@@ -44,10 +44,17 @@ export function decodeSensor(value: unknown): Sensor {
 }
 
 export function decodeSensorEnrollment(value: unknown): SensorEnrollment {
-  const record = exactRecord(value, ["id", "name", "kind", "mode", "state", "version", "token_expires_at", "last_heartbeat_at", "created_at", "updated_at", "token"], ["runtime_sensor_id"]);
+  const record = exactRecord(value, ["id", "name", "kind", "mode", "state", "version", "token_expires_at", "last_heartbeat_at", "created_at", "updated_at", "token"], ["runtime_sensor_id", "enrollment_binding"]);
   decodeSensorFields(record);
+  if ("enrollment_binding" in record && (typeof record.enrollment_binding !== "string" || !/^[0-9a-f]{64}$/.test(record.enrollment_binding))) fail();
   if (typeof record.token !== "string" || record.token.length !== 81 || !SENSOR_TOKEN.test(record.token) || record.token_expires_at === null || record.state === "revoked") fail();
   return value as SensorEnrollment;
+}
+
+export function decodeBoundSensorEnrollment(value: unknown): SensorEnrollment & { readonly enrollment_binding: string } {
+  const decoded = decodeSensorEnrollment(value);
+  if (typeof decoded.enrollment_binding !== "string") fail();
+  return decoded as SensorEnrollment & { readonly enrollment_binding: string };
 }
 
 export function decodeSensorPage(value: unknown): SensorPage {

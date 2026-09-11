@@ -1,6 +1,6 @@
 import type { APIClient } from "../../../apps/web/api/client";
 import { APITransportError, requireAPIData } from "../../../apps/web/api/client";
-import { decodeSensor, decodeSensorCoverage, decodeSensorEnrollment, decodeSensorPage } from "../../../apps/web/api/decoders";
+import { decodeSensor, decodeSensorCoverage, decodeBoundSensorEnrollment, decodeSensorPage } from "../../../apps/web/api/decoders";
 import type { Sensor, SensorCoverage, SensorEnrollment, SensorInput, SensorUpdateInput } from "../../../apps/web/api/generated";
 
 const quotedVersion = /^"[1-9][0-9]*"$/;
@@ -35,7 +35,7 @@ export function createSensorsAPI(client: APIClient) {
       return requireNoStoreData(await client.GET("/api/v1/sensors/{id}/coverage", { params: { path: { id } }, signal }), (value) => decodeSensorCoverage(value, id));
     },
     async createSensor(value: SensorInput, attempt: SensorMutationAttempt = createSensorMutationAttempt()): Promise<SensorVersioned<SensorEnrollment>> {
-      const result = await client.POST("/api/v1/sensors", { params: { header: { "Idempotency-Key": attempt.idempotencyKey, "X-Zasp-Fresh-Auth": "confirmed" } }, body: value });
+      const result = await client.POST("/api/v1/sensors", { params: { header: { "Idempotency-Key": attempt.idempotencyKey, "X-Zasp-Fresh-Auth": "confirmed", "X-Zasp-Sensor-Enrollment-Schema": "enrollment-binding-v1" } }, body: value });
       const enrollment = secretVersioned(result, undefined);
       if (enrollment.value.runtime_sensor_id !== value.runtime_sensor_id) invalidResponse("Sensor enrollment returned a different runtime pairing");
       return enrollment;
@@ -52,7 +52,7 @@ export function createSensorsAPI(client: APIClient) {
       return { version: responseVersion(result.response) };
     },
     async rotateSensorToken(id: string, version: string, attempt: SensorMutationAttempt = createSensorMutationAttempt()): Promise<SensorVersioned<SensorEnrollment>> {
-      const result = await client.POST("/api/v1/sensors/{id}/rotate-token", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": version, "X-Zasp-Fresh-Auth": "confirmed" } }, body: {} });
+      const result = await client.POST("/api/v1/sensors/{id}/rotate-token", { params: { path: { id }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": version, "X-Zasp-Fresh-Auth": "confirmed", "X-Zasp-Sensor-Enrollment-Schema": "enrollment-binding-v1" } }, body: {} });
       return secretVersioned(result, id);
     },
   };
@@ -63,7 +63,7 @@ function requireNoStoreData<T>(result: { data?: unknown; error?: unknown; respon
 }
 
 function secretVersioned(result: { data?: unknown; error?: unknown; response: Response }, expectedID: string | undefined): SensorVersioned<SensorEnrollment> {
-  const value = requireNoStoreData(result, decodeSensorEnrollment); if (expectedID !== undefined && value.id !== expectedID) invalidResponse("Sensor enrollment returned a different resource");
+  const value = requireNoStoreData(result, decodeBoundSensorEnrollment); if (expectedID !== undefined && value.id !== expectedID) invalidResponse("Sensor enrollment returned a different resource");
   if (result.response.headers.get("Pragma")?.toLowerCase() !== "no-cache") invalidResponse("Sensor enrollment response was cacheable");
   return versioned(result.response, value);
 }

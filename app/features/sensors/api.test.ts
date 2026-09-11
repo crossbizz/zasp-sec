@@ -7,9 +7,18 @@ import { createSensorsAPI } from "./api";
 const sensorID = "pid_10000001-0000-4000-8000-000000000001";
 const token = "zasp_sensor_v1.EREREREREREREREREREREQ.IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI";
 const sensor: Sensor = { id: sensorID, name: "production-runtime", kind: "tetragon", mode: "metadata_only", state: "active", version: 4, token_expires_at: "2026-09-20T00:00:00Z", last_heartbeat_at: "2026-08-20T00:01:00Z", created_at: "2026-08-20T00:00:00Z", updated_at: "2026-08-20T00:01:00Z" };
-const enrollment: SensorEnrollment = { ...sensor, state: "pending", version: 1, token_expires_at: "2026-09-20T00:00:00Z", last_heartbeat_at: null, token };
+const enrollment: SensorEnrollment = { ...sensor, state: "pending", version: 1, token_expires_at: "2026-09-20T00:00:00Z", last_heartbeat_at: null, token, enrollment_binding: "a".repeat(64) };
 
 describe("production sensor API adapter", () => {
+  it("requires a canonical installation binding and never falls back to unbound enrollment", async () => {
+    for (const binding of [undefined, null, "", "A".repeat(64), "a".repeat(63), "a".repeat(64) + " ", "a".repeat(64) + "\n", "a".repeat(64) + "\r\n"]) {
+      const changed = { ...enrollment, enrollment_binding: binding };
+      if (binding === undefined) delete changed.enrollment_binding;
+      const api = createSensorsAPI({ POST: vi.fn(async () => jsonResult(changed, 201, { ETag: '"1"', Pragma: "no-cache" })) } as unknown as APIClient);
+      await expect(api.createSensor({ name: sensor.name, kind: sensor.kind, mode: sensor.mode })).rejects.toThrow();
+      await expect(api.rotateSensorToken(sensor.id, '"4"')).rejects.toThrow();
+    }
+  });
   it("binds the requested runtime pairing to the one-time enrollment response", async () => {
     const anchor = "pid_78200001-0000-4000-8000-000000000001";
     const paired = { ...enrollment, kind: "otlp" as const, runtime_sensor_id: anchor };
@@ -43,8 +52,8 @@ describe("production sensor API adapter", () => {
     await api.updateSensor(sensorID, '"4"', { name: sensor.name, mode: "full" }, attempt);
     await api.rotateSensorToken(sensorID, '"4"', attempt);
     await api.deleteSensor(sensorID, '"4"', attempt);
-    expect(POST.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ params: { header: { "Idempotency-Key": attempt.idempotencyKey, "X-Zasp-Fresh-Auth": "confirmed" } } }));
-    expect(POST.mock.calls[1]?.[1]).toEqual(expect.objectContaining({ params: { path: { id: sensorID }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"4"', "X-Zasp-Fresh-Auth": "confirmed" } } }));
+    expect(POST.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ params: { header: { "Idempotency-Key": attempt.idempotencyKey, "X-Zasp-Fresh-Auth": "confirmed", "X-Zasp-Sensor-Enrollment-Schema": "enrollment-binding-v1" } } }));
+    expect(POST.mock.calls[1]?.[1]).toEqual(expect.objectContaining({ params: { path: { id: sensorID }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"4"', "X-Zasp-Fresh-Auth": "confirmed", "X-Zasp-Sensor-Enrollment-Schema": "enrollment-binding-v1" } } }));
     expect(PATCH.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ params: { path: { id: sensorID }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"4"' } } }));
     expect(DELETE.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ params: { path: { id: sensorID }, header: { "Idempotency-Key": attempt.idempotencyKey, "If-Match": '"4"' } } }));
   });

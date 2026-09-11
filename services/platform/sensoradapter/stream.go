@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -34,11 +32,20 @@ type StreamSink interface {
 }
 
 type FileProcessorConfig struct {
-	LogPath      string
-	CursorPath   string
-	Normalizer   *Normalizer
-	Sink         StreamSink
-	MaximumLines int
+	LogPath         string
+	CursorPath      string
+	Normalizer      *Normalizer
+	Sink            StreamSink
+	MaximumLines    int
+	ProtectedInputs []PinnedInput
+}
+
+// PinnedInput borrows an already-open parent from a read-only input owner.
+// Construction checks that its basename cannot be replaced by cursor writes.
+// The caller retains ownership of Parent and keeps it open during construction.
+type PinnedInput struct {
+	Parent *os.Root
+	Name   string
 }
 
 type StreamResult struct {
@@ -46,6 +53,11 @@ type StreamResult struct {
 	Submitted int
 	Dropped   uint64
 	Idle      bool
+	// ProducerDroppedTotal is a durable cumulative counter, not a per-tick
+	// delta. Omit new fields from legacy cursor JSON when unused.
+	ProducerDroppedTotal uint64 `json:",omitempty"`
+	// CoverageUnknown is the current accounting snapshot, not a new loss delta.
+	CoverageUnknown bool `json:",omitempty"`
 }
 
 type cursorState struct {
@@ -57,28 +69,43 @@ type cursorState struct {
 }
 
 type pendingStream struct {
-	events []RuntimeEvent
-	state  cursorState
-	result StreamResult
+	Events    []RuntimeEvent          `json:"events,omitempty"`
+	Envelope  *RuntimeEnvelope        `json:"envelope,omitempty"`
+	State     cursorState             `json:"next"`
+	From      cursorState             `json:"from"`
+	EndOffset int64                   `json:"end_offset"`
+	Cache     []cachedProcessIdentity `json:"cache"`
+	Result    StreamResult            `json:"result"`
 }
 
 type FileProcessor struct {
-	mu            sync.Mutex
-	logRoot       *os.Root
-	logName       string
-	cursorRoot    *os.Root
-	cursorName    string
-	normalizer    *Normalizer
-	sink          StreamSink
-	maximumLines  int
-	pending       *pendingStream
-	reconstructed bool
-	closed        bool
+	mu              sync.Mutex
+	logRoot         *os.Root
+	logName         string
+	cursorRoot      *os.Root
+	cursorName      string
+	cursorLock      *os.File
+	sourceBinding   string
+	checkpoint      *streamCheckpoint
+	writeCheckpoint func(*os.Root, string, []byte) error
+	normalizer      *Normalizer
+	sink            StreamSink
+	maximumLines    int
+	pending         *pendingStream
+	reconstructed   bool
+	closed          bool
 }
 
 func NewFileProcessor(config FileProcessorConfig) (*FileProcessor, error) {
-	if !validAbsoluteFilePath(config.LogPath) || !validAbsoluteFilePath(config.CursorPath) || config.LogPath == config.CursorPath || config.Normalizer == nil || nilInterface(config.Sink) || config.MaximumLines < 1 || config.MaximumLines > maximumBatchEvents {
+	if !validAbsoluteFilePath(config.LogPath) || !validAbsoluteFilePath(config.CursorPath) || config.LogPath == config.CursorPath || config.LogPath == config.CursorPath+".lock" || config.Normalizer == nil || nilInterface(config.Sink) || config.MaximumLines < 1 || config.MaximumLines > maximumBatchEvents || len(config.ProtectedInputs) > 8 {
 		return nil, ErrStream
+	}
+	lineageSource := config.Normalizer.lineageSource
+	if lineageSource != (LineageSource{}) {
+		client, ok := config.Sink.(*ProductionClient)
+		if !lineageSource.valid() || !ok || client == nil || client.enrollment != lineageSource.EnrollmentBinding {
+			return nil, ErrStream
+		}
 	}
 	logRoot, logName, err := openPinnedParent(config.LogPath)
 	if err != nil {
@@ -89,7 +116,37 @@ func NewFileProcessor(config FileProcessorConfig) (*FileProcessor, error) {
 		_ = logRoot.Close()
 		return nil, ErrStream
 	}
-	return &FileProcessor{logRoot: logRoot, logName: logName, cursorRoot: cursorRoot, cursorName: cursorName, normalizer: config.Normalizer, sink: config.Sink, maximumLines: config.MaximumLines}, nil
+	if !validCursorName(cursorName) || !cursorInputDisjoint(cursorRoot, cursorName, logRoot, logName) {
+		_ = logRoot.Close()
+		_ = cursorRoot.Close()
+		return nil, ErrStream
+	}
+	for _, input := range config.ProtectedInputs {
+		if input.Parent == nil || input.Name == "" || input.Name == "." || input.Name == ".." || filepath.Base(input.Name) != input.Name || !cursorInputDisjoint(cursorRoot, cursorName, input.Parent, input.Name) {
+			_ = logRoot.Close()
+			_ = cursorRoot.Close()
+			return nil, ErrStream
+		}
+	}
+	lock, err := acquireCursorLock(cursorRoot, cursorName+".lock")
+	if err != nil {
+		_ = logRoot.Close()
+		_ = cursorRoot.Close()
+		return nil, ErrStream
+	}
+	source, err := streamSourceBinding(logRoot, config.LogPath)
+	cache, cacheErr := config.Normalizer.checkpoint()
+	privateNormalizer, normalizerErr := NewNormalizer(config.Normalizer.maximum)
+	if normalizerErr == nil {
+		privateNormalizer.lineageSource = lineageSource
+	}
+	if err != nil || cacheErr != nil || normalizerErr != nil || privateNormalizer.restoreCheckpoint(cache) != nil {
+		_ = lock.Close()
+		_ = logRoot.Close()
+		_ = cursorRoot.Close()
+		return nil, ErrStream
+	}
+	return &FileProcessor{logRoot: logRoot, logName: logName, cursorRoot: cursorRoot, cursorName: cursorName, cursorLock: lock, sourceBinding: lineageSource.bindStream(source), writeCheckpoint: writeCheckpointBytes, normalizer: privateNormalizer, sink: config.Sink, maximumLines: config.MaximumLines}, nil
 }
 
 func (processor *FileProcessor) Close() error {
@@ -104,7 +161,8 @@ func (processor *FileProcessor) Close() error {
 	processor.closed = true
 	processor.pending = nil
 	logErr, cursorErr := processor.logRoot.Close(), processor.cursorRoot.Close()
-	if logErr != nil || cursorErr != nil {
+	lockErr := processor.cursorLock.Close()
+	if logErr != nil || cursorErr != nil || lockErr != nil {
 		return ErrStream
 	}
 	return nil
@@ -116,16 +174,20 @@ func (processor *FileProcessor) ProcessAvailable(ctx context.Context) (StreamRes
 	}
 	processor.mu.Lock()
 	defer processor.mu.Unlock()
-	if processor.closed {
+	if processor.closed || !validCursorLock(processor.cursorRoot, processor.cursorName+".lock", processor.cursorLock) {
 		return StreamResult{}, ErrStream
+	}
+	if err := processor.loadCheckpoint(); err != nil {
+		return StreamResult{}, err
 	}
 	if processor.pending != nil {
 		return processor.commitPending(ctx)
 	}
-	state, found, err := readCursorState(processor.cursorRoot, processor.cursorName)
-	if err != nil {
-		return StreamResult{}, err
+	state, found := cursorState{}, processor.checkpoint.Committed != nil
+	if found {
+		state = *processor.checkpoint.Committed
 	}
+	var err error
 	var file *os.File
 	var info os.FileInfo
 	selectedName := ""
@@ -163,6 +225,7 @@ func (processor *FileProcessor) ProcessAvailable(ctx context.Context) (StreamRes
 		return StreamResult{}, ErrStream
 	}
 	defer file.Close()
+	from := state
 	lines, nextOffset, partial, err := readCompleteLines(file, state.Offset, processor.maximumLines)
 	if err != nil {
 		return StreamResult{}, err
@@ -170,11 +233,20 @@ func (processor *FileProcessor) ProcessAvailable(ctx context.Context) (StreamRes
 	if len(lines) == 0 {
 		return StreamResult{Idle: partial || nextOffset == state.Offset}, nil
 	}
+	beforeCache, err := processor.normalizer.checkpoint()
+	if err != nil {
+		return StreamResult{}, err
+	}
+	processor.checkpoint.Cache = beforeCache
 	events := make([]RuntimeEvent, 0, len(lines))
 	droppedBefore := state.Dropped
 	for _, line := range lines {
 		event, normalizeErr := processor.normalizer.Normalize(line)
 		if normalizeErr != nil {
+			if state.Dropped == ^uint64(0) {
+				_ = processor.normalizer.restoreCheckpoint(beforeCache)
+				return StreamResult{}, ErrStream
+			}
 			state.Dropped++
 			continue
 		}
@@ -184,17 +256,22 @@ func (processor *FileProcessor) ProcessAvailable(ctx context.Context) (StreamRes
 	if selectedName != processor.logName && nextOffset == info.Size() {
 		state, err = nextLogState(processor.logRoot, processor.logName, selectedName, state.Device, state.Inode, state.Dropped)
 		if err != nil {
+			_ = processor.normalizer.restoreCheckpoint(beforeCache)
 			return StreamResult{}, err
 		}
 	}
 	result := StreamResult{Read: len(lines), Submitted: len(events), Dropped: state.Dropped - droppedBefore}
-	if len(events) == 0 {
-		if err := writeCursorState(processor.cursorRoot, processor.cursorName, state); err != nil {
-			return StreamResult{}, err
-		}
-		return result, nil
+	cache, err := processor.normalizer.checkpoint()
+	if err != nil {
+		_ = processor.normalizer.restoreCheckpoint(beforeCache)
+		return StreamResult{}, err
 	}
-	processor.pending = &pendingStream{events: cloneRuntimeEvents(events), state: state, result: result}
+	processor.pending = &pendingStream{Events: cloneRuntimeEvents(events), State: state, From: from, EndOffset: nextOffset, Result: result, Cache: cache}
+	// Pending work can only be replayed, never rolled back or normalized again.
+	// Its post-cursor cache is sufficient; retaining a second committed cache
+	// would duplicate up to 8 MiB on disk and much more after JSON decoding.
+	processor.checkpoint.Cache = nil
+	processor.checkpoint.Pending = processor.pending
 	return processor.commitPending(ctx)
 }
 
@@ -203,13 +280,47 @@ func (processor *FileProcessor) commitPending(ctx context.Context) (StreamResult
 	if pending == nil {
 		return StreamResult{}, ErrStream
 	}
-	if err := safeStreamIngest(processor.sink, ctx, cloneRuntimeEvents(pending.events)); err != nil {
+	if pending.Envelope == nil && len(pending.Events) > 0 && processor.checkpoint.Target.Mode == runtimeEnvelopeVersion {
+		client, ok := processor.sink.(*ProductionClient)
+		if !ok {
+			return StreamResult{}, ErrStream
+		}
+		envelope, err := safeStreamEnvelopePrepare(client, cloneRuntimeEvents(pending.Events))
+		if err != nil {
+			if persistErr := processor.persistCheckpoint(processor.checkpoint); persistErr != nil {
+				return StreamResult{}, persistErr
+			}
+			return StreamResult{}, err
+		}
+		pending.Envelope = &envelope
+		pending.Events = nil
+	}
+	// Re-persist before every attempt, including after an uncertain rename/sync.
+	// No request is sent until its exact pending checkpoint is durable.
+	if err := processor.persistCheckpoint(processor.checkpoint); err != nil {
 		return StreamResult{}, err
 	}
-	if err := writeCursorState(processor.cursorRoot, processor.cursorName, pending.state); err != nil {
+	if pending.Envelope != nil {
+		if err := safeStreamEnvelopeIngest(processor.sink.(*ProductionClient), ctx, *pending.Envelope); err != nil {
+			return StreamResult{}, err
+		}
+	} else if len(pending.Events) > 0 {
+		if err := safeStreamIngest(processor.sink, ctx, cloneRuntimeEvents(pending.Events)); err != nil {
+			return StreamResult{}, err
+		}
+	}
+	if ctx.Err() != nil {
+		return StreamResult{}, ErrClientRetryable
+	}
+	committed := *processor.checkpoint
+	committed.Committed = &pending.State
+	committed.Cache = pending.Cache
+	committed.Pending = nil
+	if err := processor.persistCheckpoint(&committed); err != nil {
 		return StreamResult{}, err
 	}
-	result := pending.result
+	result := pending.Result
+	processor.checkpoint = &committed
 	processor.pending = nil
 	return result, nil
 }
@@ -248,6 +359,7 @@ func readCompleteLines(file io.ReadSeeker, offset int64, maximum int) ([][]byte,
 	reader := bufio.NewReaderSize(file, maximumTetragonLineBytes+1)
 	lines := make([][]byte, 0, maximum)
 	next := offset
+	retainedBytes := 0
 	for len(lines) < maximum {
 		line, err := reader.ReadSlice('\n')
 		if errors.Is(err, io.EOF) {
@@ -272,6 +384,10 @@ func readCompleteLines(file io.ReadSeeker, offset int64, maximum int) ([][]byte,
 		if err != nil || len(line) < 1 || line[len(line)-1] != '\n' {
 			return nil, offset, false, ErrStream
 		}
+		if len(line) > maximumEnvelopeBodyBytes-retainedBytes {
+			return lines, next, false, nil
+		}
+		retainedBytes += len(line)
 		next += int64(len(line))
 		lines = append(lines, bytes.Clone(line[:len(line)-1]))
 	}
@@ -316,19 +432,40 @@ func writeCursorState(root *os.Root, name string, state cursorState) (result err
 	if root == nil || name == "" || !validCursorState(state) {
 		return ErrStream
 	}
+	payload, err := marshalCursorState(state)
+	if err != nil {
+		return ErrStream
+	}
+	return writeCheckpointBytes(root, name, payload)
+}
+
+func writeCheckpointBytes(root *os.Root, name string, payload []byte) (result error) {
+	if root == nil || name == "" || len(payload) == 0 || len(payload) > maximumCheckpointBytes {
+		return ErrStream
+	}
 	if info, err := root.Lstat(name); err == nil {
 		if !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 || info.Mode()&os.ModeSymlink != 0 {
+			return ErrStream
+		}
+		stat, ok := info.Sys().(*syscall.Stat_t)
+		if !ok || stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 {
 			return ErrStream
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return ErrStream
 	}
-	payload, err := marshalCursorState(state)
-	if err != nil {
-		return ErrStream
-	}
-	temporary, err := randomCursorName()
-	if err != nil {
+	temporary := temporaryCheckpointName(name)
+	// One reserved slot per cursor bounds crash leftovers. The caller holds
+	// that cursor's lifetime lock; never remove another cursor's temporary file.
+	if info, err := root.Lstat(temporary); err == nil {
+		stat, ok := info.Sys().(*syscall.Stat_t)
+		if !ok || !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 || stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 || info.Size() > maximumCheckpointBytes {
+			return ErrStream
+		}
+		if root.Remove(temporary) != nil {
+			return ErrStream
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return ErrStream
 	}
 	file, err := root.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
@@ -515,14 +652,6 @@ func marshalCursorState(state cursorState) ([]byte, error) {
 
 func validCursorState(state cursorState) bool {
 	return state.Version == cursorContractVersion && state.Device > 0 && state.Inode > 0 && state.Offset >= 0
-}
-
-func randomCursorName() (string, error) {
-	value := [8]byte{}
-	if _, err := io.ReadFull(rand.Reader, value[:]); err != nil {
-		return "", ErrStream
-	}
-	return ".zasp-sensor-cursor-" + hex.EncodeToString(value[:]), nil
 }
 
 func validAbsoluteFilePath(path string) bool {

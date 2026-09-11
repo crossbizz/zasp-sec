@@ -843,6 +843,7 @@ paths:
         - $ref: '#/components/parameters/BrowserMutationOrigin'
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/SensorEnrollmentSchema'
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/SensorInput' } } }
@@ -932,6 +933,7 @@ paths:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/ResourceVersion'
         - $ref: '#/components/parameters/FreshAuth'
+        - $ref: '#/components/parameters/SensorEnrollmentSchema'
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/EmptyInput' } } }
@@ -2860,6 +2862,12 @@ components:
       required: false
       description: Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin.
       schema: { type: string, minLength: 9, maxLength: 2048, pattern: '^https://[^/?#]+$' }
+    SensorEnrollmentSchema:
+      name: X-Zasp-Sensor-Enrollment-Schema
+      in: header
+      required: false
+      description: Select enrollment-binding-v1 to require a scoped installation binding in a successful one-time credential response. Omission preserves the legacy representation. This is not authentication or mutation intent.
+      schema: { type: string, const: enrollment-binding-v1 }
     FreshAuth:
       name: X-Zasp-Fresh-Auth
       in: header
@@ -4802,6 +4810,12 @@ components:
       additionalProperties: false
       required: [id, name, kind, mode, state, version, token_expires_at, last_heartbeat_at, created_at, updated_at, token]
       properties:
+        enrollment_binding:
+          type: string
+          minLength: 64
+          maxLength: 64
+          pattern: '^[0-9a-f]{64}$'
+          description: Present and required for the enrollment-binding-v1 response profile. Server-derived public comparison hash of exact Organization, Workspace, Environment and sensor enrollment; unchanged by credential rotation. This grants no authority. Preserve it in sensorAgent.enrollmentBinding.
         runtime_sensor_id:
           $ref: '#/components/schemas/ProductID'
           description: Configured immutable Tetragon enrollment pairing for an OTLP source. Absent when unpaired. Re-pairing requires a new enrollment.

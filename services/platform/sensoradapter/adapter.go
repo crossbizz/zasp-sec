@@ -24,6 +24,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimelineage"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimemetadata"
 	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
 )
@@ -50,14 +51,15 @@ var (
 )
 
 type RuntimeEvent struct {
-	SearchMetadata runtimemetadata.Fields `json:"search_metadata,omitzero"`
-	EventID        string                 `json:"event_id"`
-	Class          string                 `json:"class"`
-	Action         string                 `json:"action"`
-	WorkloadID     string                 `json:"workload_id"`
-	EventTime      string                 `json:"event_time"`
-	EvidenceID     string                 `json:"evidence_id"`
-	Content        map[string]string      `json:"content,omitempty"`
+	ObservedLineage runtimelineage.Observation `json:"observed_lineage,omitzero"`
+	SearchMetadata  runtimemetadata.Fields     `json:"search_metadata,omitzero"`
+	EventID         string                     `json:"event_id"`
+	Class           string                     `json:"class"`
+	Action          string                     `json:"action"`
+	WorkloadID      string                     `json:"workload_id"`
+	EventTime       string                     `json:"event_time"`
+	EvidenceID      string                     `json:"evidence_id"`
+	Content         map[string]string          `json:"content,omitempty"`
 }
 
 type Heartbeat struct {
@@ -285,17 +287,19 @@ type processCorrelationKey struct {
 // preceding exec identity. It retains no raw arguments, file paths, addresses,
 // credentials, or other provider content.
 type Normalizer struct {
-	mu      sync.Mutex
-	maximum int
-	order   []processCorrelationKey
-	values  map[processCorrelationKey]providerProcess
+	mu            sync.Mutex
+	lineageSource LineageSource // copied once at construction, never refreshed
+	maximum       int
+	encodedBytes  int
+	order         []processCorrelationKey
+	values        map[processCorrelationKey]providerProcess
 }
 
 func NewNormalizer(maximumProcesses int) (*Normalizer, error) {
 	if maximumProcesses < 1 || maximumProcesses > 100_000 {
 		return nil, ErrAdapter
 	}
-	return &Normalizer{maximum: maximumProcesses, values: make(map[processCorrelationKey]providerProcess, maximumProcesses)}, nil
+	return &Normalizer{maximum: maximumProcesses, encodedBytes: 2, values: make(map[processCorrelationKey]providerProcess)}, nil
 }
 
 func (normalizer *Normalizer) Normalize(line []byte) (RuntimeEvent, error) {
@@ -332,26 +336,39 @@ func (normalizer *Normalizer) Normalize(line []byte) (RuntimeEvent, error) {
 	if err != nil {
 		return RuntimeEvent{}, err
 	}
+	event.ObservedLineage = normalizer.lineageSource.qualify(root.NodeName, *process, root.Time)
 	if root.ProcessExec != nil {
 		if !keyOK {
 			return RuntimeEvent{}, ErrAdapter
 		}
 		identity := retainedProcessIdentity(*process)
+		size, sizeErr := cacheIdentitySize(cachedIdentity(key, identity))
+		if sizeErr != nil || size > maximumCacheEncodedBytes-2 {
+			return RuntimeEvent{}, ErrAdapter
+		}
 		if prior, found := normalizer.values[key]; found {
 			if !sameProcessIdentity(prior, identity) {
 				return RuntimeEvent{}, ErrAdapter
 			}
 			return event, nil
 		}
-		if len(normalizer.order) == normalizer.maximum {
+		for len(normalizer.order) > 0 && (len(normalizer.order) == normalizer.maximum || size > maximumCacheEncodedBytes-normalizer.encodedBytes) {
+			oldest := normalizer.order[0]
+			oldSize, _ := cacheIdentitySize(cachedIdentity(oldest, normalizer.values[oldest]))
+			normalizer.encodedBytes -= oldSize
 			delete(normalizer.values, normalizer.order[0])
 			copy(normalizer.order, normalizer.order[1:])
 			normalizer.order = normalizer.order[:len(normalizer.order)-1]
 		}
 		normalizer.order = append(normalizer.order, key)
 		normalizer.values[key] = identity
+		normalizer.encodedBytes += size
 	}
 	if root.ProcessExit != nil && keyOK {
+		if prior, found := normalizer.values[key]; found {
+			size, _ := cacheIdentitySize(cachedIdentity(key, prior))
+			normalizer.encodedBytes -= size
+		}
 		delete(normalizer.values, key)
 		for index, candidate := range normalizer.order {
 			if candidate == key {
@@ -371,6 +388,7 @@ func (normalizer *Normalizer) reset() {
 	defer normalizer.mu.Unlock()
 	clear(normalizer.values)
 	normalizer.order = nil
+	normalizer.encodedBytes = 2
 }
 
 func correlationKey(node string, process providerProcess) (processCorrelationKey, bool) {
@@ -387,7 +405,7 @@ func correlationKey(node string, process providerProcess) (processCorrelationKey
 func retainedProcessIdentity(value providerProcess) providerProcess {
 	startedAt, _ := parseProviderTimestamp(value.StartTime)
 	return providerProcess{
-		ExecID: value.ExecID, PID: value.PID, Binary: "correlated", StartTime: startedAt.Format(time.RFC3339Nano),
+		ExecID: value.ExecID, PID: value.PID, Binary: "correlated", StartTime: startedAt.Format("2006-01-02T15:04:05.000000000Z"),
 		Pod: providerPod{Namespace: value.Pod.Namespace, Name: value.Pod.Name, UID: value.Pod.UID,
 			Container: providerContainer{ID: value.Pod.Container.ID, Name: value.Pod.Container.Name}},
 	}
@@ -503,24 +521,28 @@ func decodeClosed(payload []byte, target any) error {
 
 type ProductionClientConfig struct {
 	BaseURL string
-	Token   func() ([]byte, error)
-	Do      func(*http.Request) (*http.Response, error)
-	Now     func() time.Time
+	// EnrollmentBinding is an explicit scoped enrollment constraint, not a token.
+	// Empty preserves the legacy transport but cannot prepare durable envelopes.
+	EnrollmentBinding string
+	Token             func() ([]byte, error)
+	Do                func(*http.Request) (*http.Response, error)
+	Now               func() time.Time
 }
 
 type ProductionClient struct {
-	base  *url.URL
-	token func() ([]byte, error)
-	do    func(*http.Request) (*http.Response, error)
-	now   func() time.Time
+	base       *url.URL
+	enrollment string
+	token      func() ([]byte, error)
+	do         func(*http.Request) (*http.Response, error)
+	now        func() time.Time
 }
 
 func NewProductionClient(config ProductionClientConfig) (*ProductionClient, error) {
 	base, err := url.Parse(config.BaseURL)
-	if err != nil || base.Scheme != "https" || base.Host == "" || base.User != nil || base.RawQuery != "" || base.Fragment != "" || base.Path != "" || config.Token == nil || config.Do == nil || config.Now == nil {
+	if err != nil || base.Scheme != "https" || base.Host == "" || base.User != nil || base.RawQuery != "" || base.Fragment != "" || base.Path != "" || config.Token == nil || config.Do == nil || config.Now == nil || config.EnrollmentBinding != "" && !enrollmentBindingPattern.MatchString(config.EnrollmentBinding) {
 		return nil, ErrClient
 	}
-	return &ProductionClient{base: base, token: config.Token, do: config.Do, now: config.Now}, nil
+	return &ProductionClient{base: base, enrollment: config.EnrollmentBinding, token: config.Token, do: config.Do, now: config.Now}, nil
 }
 
 func (client *ProductionClient) Heartbeat(ctx context.Context, report Heartbeat) error {
@@ -536,6 +558,14 @@ func (client *ProductionClient) Heartbeat(ctx context.Context, report Heartbeat)
 }
 
 func (client *ProductionClient) Ingest(ctx context.Context, events []RuntimeEvent) error {
+	if client != nil && client.enrollment != "" {
+		envelope, err := client.PrepareEnvelope(events)
+		if err != nil {
+			return err
+		}
+		defer clear(envelope.Body)
+		return client.IngestEnvelope(ctx, envelope)
+	}
 	if client == nil || len(events) == 0 || len(events) > maximumBatchEvents {
 		return ErrClient
 	}
@@ -590,6 +620,9 @@ func (client *ProductionClient) send(ctx context.Context, path, media, schema, i
 		request.Header.Set("X-Zasp-Schema-Version", schema)
 	} else {
 		request.Header.Set("X-Zasp-Runtime-Schema", schema)
+		if schema == enrollmentRuntimeSchema {
+			request.Header.Set("X-Zasp-Expected-Enrollment", client.enrollment)
+		}
 	}
 	if idempotency != "" {
 		request.Header.Set("Idempotency-Key", idempotency)
@@ -647,7 +680,7 @@ func validRuntimeEvent(value RuntimeEvent, now time.Time) bool {
 		return false
 	}
 	when, err := time.Parse(timestampLayout, value.EventTime)
-	if err != nil || when.Format(timestampLayout) != value.EventTime || when.Before(now.Add(-24*time.Hour)) || when.After(now.Add(5*time.Minute)) || !strings.HasPrefix(value.EventID, "tetragon:") || len(value.EventID) != 73 || len(value.WorkloadID) != 68 || !strings.HasPrefix(value.WorkloadID, "k8s:") {
+	if err != nil || when.Format(timestampLayout) != value.EventTime || !value.ObservedLineage.ValidAt(when) || when.Before(now.Add(-24*time.Hour)) || when.After(now.Add(5*time.Minute)) || !strings.HasPrefix(value.EventID, "tetragon:") || len(value.EventID) != 73 || len(value.WorkloadID) != 68 || !strings.HasPrefix(value.WorkloadID, "k8s:") {
 		return false
 	}
 	if _, err := domain.ParseProductID(value.EvidenceID); err != nil {

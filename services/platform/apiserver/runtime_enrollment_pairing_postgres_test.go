@@ -105,7 +105,7 @@ func TestRuntimeEnrollmentPairingMigrationAndAuthority(t *testing.T) {
 		t.Fatal(err)
 	}
 	var futureSchema string
-	futureErr := future.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint()).Scan(&futureSchema)
+	futureErr := future.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint()).Scan(&futureSchema)
 	future.Rollback(ctx)
 	if futureErr == nil {
 		t.Fatal("API accepted unknown schema46")

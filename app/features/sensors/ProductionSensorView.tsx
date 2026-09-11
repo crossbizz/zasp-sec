@@ -98,7 +98,9 @@ export function ProductionSensorView({ api, canWrite, fresh, onReauthenticate }:
 }
 
 function OneTimeCredential({ value }: { value: SensorEnrollment }) {
-  return <div className="credential-once"><strong>Copy this token now</strong><p>This credential is shown once. Zasp cannot recover it after this dialog closes.</p><code>{value.token}</code><p>Expires {value.token_expires_at}</p><strong>Helm deployment boundary</strong><p>Create the Kubernetes Secret out of band, then render the customer-edge chart with these values. Never place the token in Helm arguments or release history.</p><code>sensorAgent.enabled=true</code><code>sensorAgent.tokenSecretName=&lt;pre-created-secret-name&gt;</code></div>;
+  return <div className="credential-once"><strong>Copy this token now</strong><p>This credential is shown once. Zasp cannot recover it after this dialog closes.</p><code>{value.token}</code><p>Expires {value.token_expires_at}</p>
+    {value.kind === "tetragon" ? <><strong>Helm deployment boundary</strong><p>Create the Kubernetes Secret out of band, then render the customer-edge chart with these values. Never place the token in Helm arguments or release history.</p><code>sensorAgent.enabled=true</code><code>sensorAgent.tokenSecretName=&lt;pre-created-secret-name&gt;</code><code>sensorAgent.enrollmentBinding={value.enrollment_binding}</code><p>Keep this enrollment binding when rotating the token. A new enrollment needs its own binding and cursor state.</p></> : <><strong>OTLP ingestion boundary</strong><p>This token belongs to an OTLP source. Do not install the Tetragon sensor-agent chart with it. Configure the semantic collector for this enrollment; runtime pairing does not change the token&apos;s source kind.</p><code>enrollment_binding={value.enrollment_binding}</code></>}
+  </div>;
 }
 
 function sensorWithoutToken(value: SensorEnrollment): Sensor {

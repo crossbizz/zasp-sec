@@ -20,7 +20,7 @@ func TestProductionCandidateReadinessRequiresExactAuthority(t *testing.T) {
 	}{
 		{"ready", `{"ready":true}`, nil, true},
 		{"schema drift", `{"ready":false}`, nil, false},
-		{"missing schema", "", &pgconn.PgError{Code: "42883", Message: "private provider detail"}, false},
+		{"permission denied", "", &pgconn.PgError{Code: "42501", Message: "private provider detail"}, false},
 		{"provider failure", "", errors.New("private provider detail"), false},
 		{"unknown field", `{"ready":true,"other":true}`, nil, false},
 		{"case alias", `{"Ready":true}`, nil, false},
@@ -35,7 +35,7 @@ func TestProductionCandidateReadinessRequiresExactAuthority(t *testing.T) {
 				t.Fatal("candidate readiness failed closed-response contract", err)
 			}
 			metadata := migrations.ProductionRuntimeCandidateAuthority()
-			if database.calls != 1 || database.statements[0] != productionCandidateReadySQL || !reflect.DeepEqual(database.arguments[0], []any{metadata.Checksum(), migrations.ProductionRuntimeCandidateAuthoritySemanticFingerprint(), string(ProductionPipelineAuthorityCorrelation)}) {
+			if database.calls != 1 || database.statements[0] != productionCandidateReadyV48SQL || !reflect.DeepEqual(database.arguments[0], []any{migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), metadata.Checksum(), migrations.ProductionRuntimeCandidateAuthoritySemanticFingerprint(), string(ProductionPipelineAuthorityCorrelation)}) {
 				t.Fatal("candidate readiness lost exact schema/principal binding or fell back")
 			}
 		})
@@ -45,6 +45,29 @@ func TestProductionCandidateReadinessRequiresExactAuthority(t *testing.T) {
 		repository, _ := NewPostgresProductionPipelineRepository(database, authority)
 		if repository.ReadyCandidates(context.Background()) != ErrProductionPipelineUnavailable || database.calls != 0 {
 			t.Fatal("wrong authority queried candidate readiness")
+		}
+	}
+}
+
+func TestProductionCandidateReadinessOnlyFallsBackToExactPredecessor(t *testing.T) {
+	for _, predecessor := range []struct {
+		body  string
+		err   error
+		ready bool
+	}{
+		{`{"ready":true}`, nil, true},
+		{`{"ready":false}`, nil, false},
+		{"", &pgconn.PgError{Code: "42883"}, false},
+		{`{"ready":true,"other":true}`, nil, false},
+	} {
+		database := &productionIngestDatabaseStub{responses: []json.RawMessage{nil, json.RawMessage(predecessor.body)}, errors: []error{&pgconn.PgError{Code: "42883"}, predecessor.err}}
+		repository, _ := NewPostgresProductionPipelineRepository(database, ProductionPipelineAuthorityCorrelation)
+		err := repository.ReadyCandidates(context.Background())
+		if (err == nil) != predecessor.ready || database.calls != 2 || database.statements[0] != productionCandidateReadyV48SQL || database.statements[1] != productionCandidateReadySQL {
+			t.Fatal("candidate readiness lost exact predecessor fallback", err)
+		}
+		if !reflect.DeepEqual(database.arguments[1], []any{migrations.ProductionRuntimeCandidateAuthority().Checksum(), migrations.ProductionRuntimeCandidateAuthoritySemanticFingerprint(), string(ProductionPipelineAuthorityCorrelation)}) {
+			t.Fatal("predecessor fallback did not pin schema47")
 		}
 	}
 }

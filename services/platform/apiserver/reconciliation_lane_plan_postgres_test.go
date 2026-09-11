@@ -140,7 +140,7 @@ func TestReconciliationLanePlanMigration(t *testing.T) {
 			t.Fatalf("drift admitted %s ready=%t error=%v", mutation, ready, err)
 		}
 		var marker string
-		if err := transaction.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint()).Scan(&marker); err == nil {
+		if err := transaction.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint()).Scan(&marker); err == nil {
 			transaction.Rollback(ctx)
 			t.Fatal("API startup accepted drift", mutation)
 		}
