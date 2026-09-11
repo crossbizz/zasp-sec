@@ -865,7 +865,7 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	}
 	proveRuntimeV1BacklogReceipt(t, ctx, admin, receipts, scope, acceptedBatch.BatchID, 26, domain.EvidenceConfidenceUnattributed)
 	proveRuntimeV1BacklogReceipt(t, ctx, admin, receipts, scope, semanticBatch.BatchID, 3, domain.EvidenceConfidenceExact)
-	proveRuntimeCandidateRecovery(t, ctx, runtimeCandidateRecoveryFixture{admin: admin, database: database, handler: handler, outbox: outbox, coordinator: coordinator.Processor, queue: observedQueue, archive: archive, index: indexExecutor, receipts: receipts, graph: realGraph})
+	proveRuntimeCandidateRecovery(t, ctx, runtimeCandidateRecoveryFixture{admin: admin, database: database, handler: handler, outbox: outbox, coordinator: coordinator.Processor, sessions: sessionWorker, queue: observedQueue, archive: archive, index: indexExecutor, receipts: receipts, graph: realGraph})
 	t.Log("runtime correlation routing proven: migrated48-to49 after v1 backlog, original acceptance replay preserved, fresh production ingestion creates v2 and actual registered workers complete frozen Strong/Probable receipts; local owned composition, not cloud deployment")
 	assertQueuesEmpty()
 	t.Log("runtime observed lineage preservation proven: exact S3 versions and committed digests, same qualified observations from separate enrollments, original v1 unknown kernel attribution and explicit semantic IDs retained, immutable replay; fresh v2 Strong/Probable proven separately on local schema49, live producer attestation NOT RUN")

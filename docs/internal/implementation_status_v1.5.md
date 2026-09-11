@@ -3,7 +3,7 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-correlation-lineage`; PR46 correction published, mixed-evidence browser proof in progress
+**Execution branch:** `codex/runtime-correlation-lineage`; PR46 correction published, mixed-evidence browser proof locally passed
 **Latest main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
 **Last verified main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
 
@@ -52,7 +52,9 @@ evidence: `/tmp/zasp-routing-ci-full-selection.log`,
 `/tmp/zasp-routing-ci-fix-publish-verify.log` and
 `/tmp/zasp-routing-ci-fix-final-source-gate.log`. Correction `49faf28d` is pushed
 to PR46. Push CI34630633844 and PR CI34630639306 are running against that exact
-head. Postcommit scanning passed all1,394 commits. No hook or scan was bypassed.
+head. Postcommit scanning passed all1,394 commits. The publication hook's two
+nonblocking MEDIUM findings are the public CI identifiers34628265078 and
+34628358007, not phone numbers. No hook or scan was bypassed.
 PR46 is not merged or deployed. Nothing here changes original-task credit. Counts remain
 535 production-available, 132 component-only and 61 blocked/external, with no
 missing rows. Details and evidence limits are in
@@ -63,15 +65,21 @@ original criteria. M3-46's frozen candidate contract contains qualified containe
 cgroup and process observations but no sandbox identity field; the legacy
 correlator's sandbox support does not prove the production v2 path. M7-07's
 actual candidate recovery creates Exact and Strong events in one session and an
-unassigned Probable conflict in its own tenant. The current browser proof uses a
+unassigned Probable conflict in its own tenant. The earlier browser proof used a
 different tenant, and its separate confidence-display test seeds synthetic rows.
-The next proof must read the actual worker-created mixed-evidence session through
-authorized product APIs and Chrome, preserve pagination and unknown identities,
-and verify scope denial. Do not transplant or seed runtime evidence to close it.
-The new M7-07 proof first failed on two events versus27, then found all five
+The new proof reads the actual worker-created mixed-evidence session through
+authorized product APIs and Chrome, preserves pagination and unknown identities,
+and verifies scope denial. It does not transplant or seed runtime evidence.
+The new M7-07 proof first failed on two events versus 27, then found all five
 session-search jobs pending after runtime projection. Its fixture now invokes
 the actual session-search worker and checks indexed results before browser
-pagination. Final execution and review are pending; details are in
+pagination. The full actual runtime/Chrome proof passed with exit0 and cleanup,
+including visible Exact/Strong 25-plus-2 pagination, canonical ordering/source,
+unassigned Probable evidence, foreign-tenant denial and API permission revocation.
+Worker races, runner contracts and the source release gate passed. Independent
+review accepts M7-07's original criterion after verified main. Fresh verification
+passed all 1,188 UI tests, typecheck/lint/build/imports and all 728 ledger rows.
+Publication and hosted checks remain pending. No original-task credit yet. Details are in
 `docs/internal/2026-09-11-worker-mixed-evidence.md`.
 M3-46, M3-47 and M7-07 remain open. Live source/provider enrollment and deployed
 release evidence remain separate gates.

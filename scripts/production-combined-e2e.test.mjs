@@ -30,6 +30,16 @@ test("confidence display fixture cannot claim production correlation reachabilit
   for (const marker of ["await exerciseRuntimeConfidenceDisplay(browser.cdp, dsn)", "runtime confidence display fixture passed:", "Strong/Probable production correlation NOT RUN", "confidence fixture cleanup changed worker evidence", "data-runtime-confidence", "probable.background, exact.background", "probable.color, exact.color"]) assert.ok(source.includes(marker), marker);
 });
 
+test("mixed evidence browser acceptance uses worker data and visible confidence", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function exerciseWorkerMixedEvidence");
+  const flow = source.slice(start, source.indexOf("async function exerciseRuntimeConfidenceDisplay", start));
+  assert.ok(source.includes("await exerciseWorkerMixedEvidence(browser.cdp, dsn, chromePort, publicOrigin)"));
+  for (const marker of ["mixed session lacks worker-created pagination evidence", "reverse-ingress mixed evidence lost canonical ordering across pages", "visible mixed confidence differs from worker decision", 'unknown[0].label, "Probable"', "foreign tenant read worker-created evidence", "revoked investigator retained evidence access", "mixed-evidence browser proof changed worker evidence", "identity setup fixture only, live deployment NOT RUN"])
+    assert.ok(flow.includes(marker), marker);
+  assert.doesNotMatch(flow, /(?:INSERT INTO|UPDATE|DELETE FROM) zasp_runtime_/);
+});
+
 test("six-class evidence proof requires schema44 and worker-backed scoped links", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
   const worker = await readFile(new URL("../services/platform/agentsec-worker/runtime_pipeline_combined_e2e_test.go", import.meta.url), "utf8");

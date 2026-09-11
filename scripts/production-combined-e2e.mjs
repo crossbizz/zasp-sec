@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { createHash, createHmac, generateKeyPairSync } from "node:crypto";
+import { createHash, createHmac, generateKeyPairSync, randomBytes } from "node:crypto";
 import { once } from "node:events";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
@@ -239,6 +239,7 @@ try {
   assert.match(runtimePipelineResult.stdout, /semantic observation pipeline proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime observed lineage preservation proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime candidate recovery proven:/);
+  assert.match(runtimePipelineResult.stdout, /runtime mixed session input proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime v2 reader v1 backlog proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime correlation routing proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay/);
@@ -249,6 +250,7 @@ try {
   assert.match(runtimePipelineResult.stdout, /--- PASS: TestProductionCombinedE2ERuntimeQueueIndex/);
   assert.doesNotMatch(runtimePipelineResult.stdout, /--- SKIP:/);
   console.log(runtimePipelineResult.stdout.match(/runtime candidate recovery proven:[^\n]*/)[0]);
+  console.log(runtimePipelineResult.stdout.match(/runtime mixed session input proven:[^\n]*/)[0]);
   console.log(runtimePipelineResult.stdout.match(/runtime v2 reader v1 backlog proven:[^\n]*/)[0]);
   console.log(runtimePipelineResult.stdout.match(/runtime correlation routing proven:[^\n]*/)[0]);
   console.log("combined E2E: local runtime SQS/S3/OpenSearch/TLS-Neo4j pipeline passed");
@@ -589,6 +591,7 @@ try {
 	console.log("combined E2E: tenant-scoped Red Team route loaded through isolated Security Agent API authority");
 	await exerciseRuntimeSessionReads(browser.cdp, dsn);
 	await exerciseRuntimeConfidenceDisplay(browser.cdp, dsn);
+	await exerciseWorkerMixedEvidence(browser.cdp, dsn, chromePort, publicOrigin);
 	await exerciseRedTeamRecommendations(browser.cdp, dsn);
 
 	const hiddenRequestStart = productAPIRequests.length;
@@ -2478,6 +2481,120 @@ async function exerciseRuntimeSessionReads(cdp, dsn) {
     await waitForBrowserSelectedOption(cdp, "Authorized scope", "Production");
     await reloadBrowser(cdp);
     await waitForBrowserText(cdp, /No Red Team tests in this scope/);
+  }
+}
+
+async function exerciseWorkerMixedEvidence(primary, dsn, chromePort, origin) {
+  // Only identity/session setup is synthetic. Ingestion, correlation and
+  // projection already created this tenant's evidence through product code.
+  const organization = "pid_78930001-0000-4000-8000-000000000001";
+  const workspace = "pid_78930002-0000-4000-8000-000000000002";
+  const environment = "pid_78930003-0000-4000-8000-000000000003";
+  const principal = "pid_78930601-0000-4000-8000-000000000601";
+  const session = "pid_78930302-0000-4000-8000-000000000302";
+  const agent = "pid_78930301-0000-4000-8000-000000000301";
+  const scope = `${organization}/${workspace}/${environment}`;
+  const primaryScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+  const predicate = `organization_id='${organization}' AND workspace_id='${workspace}' AND environment_id='${environment}'`;
+  const sql = statement => command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-At", "-c", statement]);
+  const snapshot = async () => (await sql(`SELECT jsonb_build_object('events',(SELECT jsonb_agg(to_jsonb(e) ORDER BY event_id) FROM zasp_runtime_session_events e WHERE ${predicate}),'summaries',(SELECT jsonb_agg(to_jsonb(s) ORDER BY id) FROM zasp_runtime_session_summaries s WHERE ${predicate}),'snapshots',(SELECT jsonb_agg(to_jsonb(c) ORDER BY batch_id) FROM zasp_runtime_candidate_snapshots c WHERE ${predicate}))::text`)).stdout.trim();
+  const before = await snapshot();
+  assert.equal((await sql(`SELECT count(*) FROM zasp_identity_memberships WHERE principal_id='${principal}'`)).stdout.trim(), "0", "mixed-evidence proof does not own principal");
+  const token = randomBytes(32).toString("hex");
+  const tokenDigest = createHash("sha256").update(token).digest("hex");
+  const csrf = randomBytes(32).toString("hex");
+  let cdp;
+  try {
+    await sql(`BEGIN;
+      INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role) VALUES('${principal}','${organization}','organization-candidate-recovery-fixture','member-candidate-recovery-fixture','security_admin');
+      INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES('${principal}','${organization}','${workspace}','${environment}','Candidate recovery','["view"]'::jsonb,true);
+      INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES(decode('${tokenDigest}','hex'),'${csrf}','session-candidate-recovery-browser-fixture','${principal}','${organization}','${workspace}','${environment}','["view"]'::jsonb,transaction_timestamp()+interval '1 hour');
+      COMMIT;`);
+    cdp = await startBrowserTab(chromePort, `${origin}/`, { name: "__Host-zasp_session", value: token, sameSite: "Lax" });
+    await waitForBrowserScope(cdp, scope);
+    const read = target => browserFetchJSON(cdp, target, { "X-Zasp-Expected-Scope": scope });
+    const detail = await read(`/api/v1/sessions/${session}`);
+    assert.equal(detail.status, 200);
+    assert.equal(detail.body.event_count, 27, "mixed session lacks worker-created pagination evidence");
+    assert.deepEqual(detail.body.confidence_counts, { exact: 26, strong: 1, probable: 0, unattributed: 0 });
+    const search = await read("/api/v1/sessions?kind=runtime&limit=100");
+    assert.equal(search.status, 200);
+    assert.equal(search.body.search.state, "current");
+    assert.equal(search.body.search.pending_batches, 0);
+    assert.deepEqual(search.body.items.find(item => item.id === session), detail.body);
+    await clickBrowserAria(cdp, "Sessions");
+    await clickBrowserAria(cdp, `Open runtime timeline ${session}`);
+    const rows = async count => {
+      await waitForBrowserAction(cdp, `document.querySelectorAll('[aria-label="Runtime evidence timeline"] > li').length === ${count}`);
+      const result = await cdp.send("Runtime.evaluate", { expression: `Array.from(document.querySelectorAll('[aria-label="Runtime evidence timeline"] > li'), row => ({ id: row.dataset.runtimeEventId, evidence: row.dataset.runtimeEvidenceId, confidence: row.querySelector('[data-runtime-confidence]').dataset.runtimeConfidence, label: row.querySelector('[data-runtime-confidence] .badge').textContent, at: row.querySelector('time').dataset.runtimeEventTime, text: row.innerText }))`, returnByValue: true });
+      return result.result.value;
+    };
+    const first = await rows(25);
+    assert.equal(first.filter(row => row.confidence === "strong").length, 1);
+    await clickBrowserText(cdp, "Next event page");
+    const last = await rows(2);
+    await waitForBrowserAction(cdp, `Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Next event page')?.disabled === true`);
+    const all = [...first, ...last];
+    assert.equal(new Set(all.map(row => row.id)).size, 27);
+    const canonical = await read(`/api/v1/sessions/${session}/events?limit=100`);
+    assert.equal(canonical.status, 200);
+    assert.equal(canonical.body.items.length, 27);
+    assert.deepEqual(all.map(row => row.id), canonical.body.items.map(row => row.id));
+    assert.deepEqual(all.map(row => row.evidence).sort(), [401, 402, ...Array.from({ length: 25 }, (_, i) => 700 + i)].map(id => `pid_78930401-0000-4000-8000-${String(id).padStart(12, "0")}`).sort());
+    assert.deepEqual(all.slice(2).map(row => row.evidence), Array.from({ length: 25 }, (_, i) => `pid_78930401-0000-4000-8000-${String(724 - i).padStart(12, "0")}`), "reverse-ingress mixed evidence lost canonical ordering across pages");
+    for (const [i, row] of all.entries()) {
+      const strong = row.evidence.endsWith("000000000402");
+      assert.equal(row.confidence, strong ? "strong" : "exact");
+      assert.equal(row.label, strong ? "Strong" : "Exact", "visible mixed confidence differs from worker decision");
+      assert.equal(row.confidence, canonical.body.items[i].confidence);
+      assert.equal(canonical.body.items[i].agent_id, agent);
+      assert.equal(canonical.body.items[i].session_id, session);
+      assert.match(row.text, strong ? /Source: tetragon/ : /Source: otlp/);
+      if (i) assert.ok(Date.parse(all[i - 1].at) <= Date.parse(row.at), "mixed timeline reversed canonical time");
+    }
+    await clickBrowserText(cdp, "First event page");
+    assert.deepEqual(await rows(25), first);
+    const strong = first.find(row => row.confidence === "strong");
+    await clickBrowserAria(cdp, `Open evidence ${strong.evidence}`);
+    await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Canonical evidence metadata"] [data-runtime-confidence="strong"]')?.textContent === 'Strong'`);
+    const strongAPI = await read(`/api/v1/sessions/${session}/events/${strong.id}`);
+    assert.equal(strongAPI.status, 200);
+    assert.equal(strongAPI.body.confidence, "strong");
+    assert.equal(strongAPI.body.agent_id, agent);
+    assert.equal(strongAPI.body.session_id, session);
+    const close = async label => {
+      await waitForBrowserAction(cdp, `(() => { const button=document.querySelector(${JSON.stringify('[aria-label="' + label + '"] button[aria-label="Close"]')}); if (!button) return false; button.click(); return true; })()`);
+      await waitForBrowserAction(cdp, `document.querySelector(${JSON.stringify('[aria-label="' + label + '"]')}) === null`);
+    };
+    await close("Evidence metadata");
+    await close("Runtime timeline");
+    await clickBrowserAria(cdp, "Open runtime timeline unattributed");
+    const unknown = await rows(1);
+    assert.equal(unknown[0].confidence, "probable");
+    assert.equal(unknown[0].label, "Probable");
+    assert.equal(unknown[0].evidence, "pid_78930401-0000-4000-8000-000000000404");
+    assert.match(unknown[0].text, /Source: tetragon/);
+    const probable = await read(`/api/v1/sessions/unattributed/events/${unknown[0].id}`);
+    assert.equal(probable.status, 200);
+    assert.equal(probable.body.confidence, "probable");
+    assert.equal(probable.body.agent_id, null);
+    assert.equal(probable.body.session_id, null);
+    assert.equal((await read(`/api/v1/sessions/${session}/events/${unknown[0].id}`)).status, 404, "ambiguous evidence acquired a session");
+    for (const target of [`/api/v1/sessions/${session}`, `/api/v1/sessions/${session}/events/${strong.id}`, `/api/v1/sessions/unattributed/events/${unknown[0].id}`]) {
+      assert.equal((await browserFetchJSON(primary, target, { "X-Zasp-Expected-Scope": primaryScope })).status, 404, "foreign tenant read worker-created evidence");
+    }
+    await sql(`UPDATE zasp_identity_memberships SET role='read_only_viewer',version=version+1 WHERE principal_id='${principal}' AND organization_id='${organization}'`);
+    assert.equal((await read(`/api/v1/sessions/${session}/events/${strong.id}`)).status, 403, "revoked investigator retained evidence access");
+    console.log("combined E2E: worker-created mixed evidence proven: Exact/Strong 25-plus-2 Chrome pagination, canonical source and evidence links, Probable remains unassigned, foreign tenant denial and live permission revocation; identity setup fixture only, live deployment NOT RUN");
+  } finally {
+    try { await cdp?.dispose(); } finally {
+      await sql(`BEGIN;
+        DELETE FROM zasp_product_sessions WHERE principal_id='${principal}' AND organization_id='${organization}' AND session_id='session-candidate-recovery-browser-fixture';
+        DELETE FROM zasp_authorized_scopes WHERE principal_id='${principal}' AND ${predicate};
+        DELETE FROM zasp_identity_memberships WHERE principal_id='${principal}' AND organization_id='${organization}';
+        COMMIT;`);
+      assert.equal(await snapshot(), before, "mixed-evidence browser proof changed worker evidence");
+    }
   }
 }
 
