@@ -49,14 +49,7 @@ func TestAttackLabTimeoutSeparatesAttemptBudgetFromTransportAndCallerDeadlines(t
 		{"attempt budget", false, false, true}, {"caller deadline", true, false, false}, {"HTTP timeout", false, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
 			budget := 30 * time.Millisecond
-			if tc.callerDeadline {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithTimeout(ctx, 20*time.Millisecond)
-				defer cancel()
-				budget = time.Second
-			}
 			api := timeoutTestKubernetesAPI(t, attackLabTimeoutTransport(func(request *http.Request) (*http.Response, error) {
 				if tc.transportTimeout {
 					return nil, context.DeadlineExceeded
@@ -64,6 +57,14 @@ func TestAttackLabTimeoutSeparatesAttemptBudgetFromTransportAndCallerDeadlines(t
 				<-request.Context().Done()
 				return nil, request.Context().Err()
 			}))
+			// Fixture credential setup isn't part of the caller's collection budget.
+			ctx := context.Background()
+			if tc.callerDeadline {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, 20*time.Millisecond)
+				defer cancel()
+				budget = time.Second
+			}
 			started := time.Now()
 			_, err := api.Collect(ctx, "zasp-attack-lab", "zasp-attack-lab-7e300001000040008000000000000001", "123e4567-e89b-12d3-a456-426614174000", budget)
 			assertAttackLabTimeoutEvidence(t, err, tc.timedOut)
@@ -84,14 +85,7 @@ func TestAttackLabCompletedJobEvidenceReadKeepsDeadlineClassification(t *testing
 		{"evidence exceeds attempt budget", false, false, true}, {"evidence caller deadline", true, false, false}, {"evidence HTTP timeout", false, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
 			budget := 30 * time.Millisecond
-			if tc.callerDeadline {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithTimeout(ctx, 20*time.Millisecond)
-				defer cancel()
-				budget = time.Second
-			}
 			calls := 0
 			api := timeoutTestKubernetesAPI(t, attackLabTimeoutTransport(func(request *http.Request) (*http.Response, error) {
 				calls++
@@ -107,6 +101,13 @@ func TestAttackLabCompletedJobEvidenceReadKeepsDeadlineClassification(t *testing
 				<-request.Context().Done()
 				return nil, request.Context().Err()
 			}))
+			ctx := context.Background()
+			if tc.callerDeadline {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, 20*time.Millisecond)
+				defer cancel()
+				budget = time.Second
+			}
 			_, err := api.Collect(ctx, "zasp-attack-lab", name, uid, budget)
 			assertAttackLabTimeoutEvidence(t, err, tc.timedOut)
 			if calls != 2 {
