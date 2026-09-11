@@ -3,20 +3,24 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-daemon-replay`; repairing PR 44 CI architecture failure
-**Latest main:** `c30d9fa6`, PR 43; main CI 34612285514 passed
+**Execution branch:** `codex/runtime-correlation-prestage`; local verification passed, publication pending
+**Latest main:** `fd4ba167`, PR 44; main CI 34621326929 pending
 **Last verified main:** `c30d9fa6`, PR 43; main CI 34612285514 passed
 
-PR 44 remains unmerged at `5a8d4a5d`. Both push CI 34617264232 and PR CI
+PR 44 merged as `fd4ba167`. Both initial push CI 34617264232 and PR CI
 34617323187 failed the new daemon step with `exec format error`. Its pinned
-image was ARM64-only while hosted CI is AMD64. The unpublished correction pins
+image was ARM64-only while hosted CI is AMD64. The pushed correction pins
 the multi-architecture PostgreSQL 18.6 Bookworm index, selects the actual Docker
 host platform explicitly and rejects a mismatched pulled image before compiling.
 Its behavioral RED and all 15 runner/command-owner tests pass after correction.
 Both actual local daemon attempts pass with exact cleanup. Fresh full verification
 passes 1,188 UI tests, typecheck/lint/build/imports and all 728 ledger rows;
-the source release gate and independent review pass. The correction is ready
-for push; replacement hosted AMD64 CI and merge remain pending.
+the source release gate and independent review pass. Correction `ee93b566` is
+pushed, with push CI 34619630942 and PR CI 34619634385 passed. The postcommit
+HEAD-history scan passes all 1,387 commits. Hosted CI selected `linux/amd64`,
+passed both actual daemon attempts in 4.93s/4.92s and verified exact container
+cleanup. The exact reviewed head merged after both checks passed. Fresh main
+CI 34621326929 is pending; the last verified main remains the prior release.
 Fresh complete local
 `npm run verify` passed before the follow-on edits, including all 1,188 UI tests,
 build and the 728-row ledger (`/tmp/zasp-daemon-premerge-verify.log`).
@@ -27,10 +31,22 @@ failed first, then all 39 contracts, full worker races and actual PostgreSQL
 candidate readiness tests passed. Independent source review found no blocker,
 conditional on verified candidate readiness and replacement of every old worker
 before routing activation. Full follow-on UI/build verification and the complete
-source release gate passed. Publication waits for the PR44 repair.
+source release gate passed. PR44 has now merged and its identical source tree
+is incorporated into the pre-stage branch.
+The pre-stage branch now also exercises upgraded readers against actual
+production-created v1 raw and semantic jobs. Its first actual run exposed an
+Execute-only test wrapper that erased version negotiation. Passing the actual
+executor fixes that harness boundary. The actual runtime pipeline and full
+installed-Chrome suite pass with successful cleanup. Both completed v1 receipts
+retain their version, scoped digest binding and evidence confidence, with no
+candidate observations or snapshots. Full worker races and the source release
+gate also pass. Independent review found no blocker. Final combined-branch
+verification passes all 1,188 UI tests, typecheck/lint/build, compiled imports and
+all 728 ledger rows. No production Go code or task classification
+changes in this proof extension.
 This adds no original-task credit. Its evidence document
 `docs/internal/2026-09-11-correlation-worker-prestage.md` is retained in that local
-commit and will ship with the pre-stage change after PR44.
+commit and ships with the pre-stage change after PR44.
 
 Migration 43 and the authorized structured-search API shipped in PR 28 as main
 d46085cf after full local verification, real PostgreSQL boundaries, Chrome/runtime
@@ -1257,8 +1273,10 @@ SourceIdentity/trust-condition capability dependency. Official LocalStack
 v4.14.0 source retains the same unsupported forwarding path; this was source
 review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
-session configuration. The 728 source-plan counts are `0/0/667/61` because
-PROV-01 is excluded from those counts.
+session configuration. The historical Pending/In-progress/Complete/Blocked
+execution counts are `0/0/667/61`; PROV-01 is excluded. These are not
+production-readiness counts. The authoritative production classes remain
+535 production-available, 132 component-only and 61 blocked/external.
 The blocked M8 resilience executions require an authorized isolated AWS/reference deployment; deterministic validators remain locally testable.
 
 ## In progress

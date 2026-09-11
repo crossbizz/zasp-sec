@@ -10,6 +10,31 @@ import { customerEdgeReleaseFixture as edgeRelease, productionReleaseFixture as 
 
 const exec = promisify(execFile);
 
+test("release pre-stages a dual-version correlation worker before routing activation", async () => {
+  const resources = await renderRelease(release);
+  const worker = one(resources, "Deployment", "agentsec-runtime-correlation");
+  assert.equal(envOf(worker).ZASP_RUNTIME_STAGE_VERSION, "runtime-correlation-v2");
+  assert.equal(envOf(worker).ZASP_DATABASE_AUTHORITY, "zasp_runtime_correlation_worker");
+  assert.equal(one(resources, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"], "48");
+  assert.ok(one(resources, "Job", "agentsec-schema-v48"));
+  assert.doesNotThrow(() => validateRenderedRelease(resources, "123456789012"));
+  for (const version of ["runtime-correlation-v1", "runtime-correlation-v3", ""]) {
+    const drift = structuredClone(resources);
+    const container = one(drift, "Deployment", "agentsec-runtime-correlation").spec.template.spec.containers[0];
+    container.env.find(({ name }) => name === "ZASP_RUNTIME_STAGE_VERSION").value = version;
+    assert.throws(() => validateRenderedRelease(drift, "123456789012"), /release rejected/);
+  }
+  for (const mutate of [
+    container => { container.env = container.env.filter(({ name }) => name !== "ZASP_RUNTIME_STAGE_VERSION"); },
+    container => { container.env.push({ name: "ZASP_RUNTIME_STAGE_VERSION", value: "runtime-correlation-v1" }); },
+    container => { container.env.find(({ name }) => name === "ZASP_RUNTIME_STAGE_VERSION").valueFrom = { secretKeyRef: { name: "override", key: "version" } }; },
+  ]) {
+    const drift = structuredClone(resources);
+    mutate(one(drift, "Deployment", "agentsec-runtime-correlation").spec.template.spec.containers[0]);
+    assert.throws(() => validateRenderedRelease(drift, "123456789012"), /release rejected/);
+  }
+});
+
 test("production CI runs sensor lineage and authenticated replay regressions", async () => {
   const workflow = load(await readFile(new URL("../../.github/workflows/runnable-ui.yml", import.meta.url), "utf8"));
   const step = workflow.jobs.verify.steps.find(({ name }) => name === "Verify sensor lineage and authenticated replay");

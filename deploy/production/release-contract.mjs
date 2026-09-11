@@ -551,6 +551,12 @@ export function validateRenderedRelease(resources, platformAccountID) {
     ["otel-collector", "otel-collector"],
   ]);
   if (deployments.size !== deploymentIdentities.size || [...deploymentIdentities].some(([name, serviceAccount]) => deployments.get(name)?.spec?.template?.spec?.serviceAccountName !== serviceAccount)) throw new Error("release rejected");
+  // Pre-stage the compatible reader before a later migration routes new v2 work.
+  // A downgraded reader can claim those jobs and exhaust their retry budget.
+  const correlation = deployments.get("agentsec-runtime-correlation").spec.template.spec.containers;
+  const correlationVersions = correlation?.length === 1 && Array.isArray(correlation[0].env)
+    ? correlation[0].env.filter(({ name }) => name === "ZASP_RUNTIME_STAGE_VERSION") : [];
+  if (correlationVersions.length !== 1 || correlationVersions[0].value !== "runtime-correlation-v2" || correlationVersions[0].valueFrom !== undefined) throw new Error("release rejected");
   const identityContracts = new Map([
     ["agentsec-web", null],
     ["agentsec-api", "api"],
