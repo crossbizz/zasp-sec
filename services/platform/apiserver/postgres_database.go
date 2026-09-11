@@ -216,7 +216,10 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = 'production-r
   AND (NOT EXISTS (SELECT 1 FROM zasp_schema_versions acceptance WHERE acceptance.version = 48)
     OR (EXISTS (SELECT 1 FROM zasp_schema_versions acceptance WHERE acceptance.version = 48 AND acceptance.name = 'production_runtime_acceptance' AND acceptance.checksum = $3)
       AND EXISTS (SELECT 1 FROM zasp_schema_metadata acceptance WHERE acceptance.key = 'production_runtime_acceptance_fingerprint' AND acceptance.value = $4)))
-  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 48)`
+  AND (NOT EXISTS (SELECT 1 FROM zasp_schema_versions routing WHERE routing.version = 49)
+    OR (EXISTS (SELECT 1 FROM zasp_schema_versions routing WHERE routing.version = 49 AND routing.name = 'production_runtime_correlation_routing' AND routing.checksum = $5)
+      AND EXISTS (SELECT 1 FROM zasp_schema_metadata routing WHERE routing.key = 'production_runtime_correlation_routing_fingerprint' AND routing.value = $6)))
+  AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 49)`
 
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
 func expectedCoreSchemaFingerprint() string {
@@ -361,7 +364,7 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 	}
 	var version string
 	if marker == ProductionRecoverySchemaVersion {
-		if err := database.driver.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint()).Scan(&version); err != nil {
+		if err := database.driver.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), migrations.ProductionRuntimeCorrelationRouting().Checksum(), migrations.ProductionRuntimeCorrelationRoutingSemanticFingerprint()).Scan(&version); err != nil {
 			return "", classifyPostgresError(err)
 		}
 	} else if marker == AttackLabExecutionSchemaVersion {

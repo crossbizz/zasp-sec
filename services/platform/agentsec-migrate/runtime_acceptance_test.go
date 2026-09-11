@@ -26,7 +26,7 @@ func (runner *scriptedMigrationRunner) DownProductionRuntimeAcceptance(context.C
 
 func TestAgentsecMigrateRuntimeAcceptanceRelease(t *testing.T) {
 	up := &scriptedMigrationRunner{version: 47}
-	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || up.version != 48 || !equalMigrationEvents(up.events, []string{"version", "up-production-runtime-acceptance", "version"}) {
+	if err := runReleaseMigration(context.Background(), up, []string{"up"}); err != nil || up.version != 49 || !equalMigrationEvents(up.events, []string{"version", "up-production-runtime-acceptance", "up-production-runtime-correlation-routing", "version"}) {
 		t.Fatalf("up events=%v version=%d err=%v", up.events, up.version, err)
 	}
 	down := &scriptedMigrationRunner{version: 48, errAt: "down-production-runtime-candidate-authority"}

@@ -158,6 +158,8 @@ type releaseMigrationRunner interface {
 	DownProductionRuntimeCandidateAuthority(context.Context) error
 	UpProductionRuntimeAcceptance(context.Context) error
 	DownProductionRuntimeAcceptance(context.Context) error
+	UpProductionRuntimeCorrelationRouting(context.Context) error
+	DownProductionRuntimeCorrelationRouting(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -176,7 +178,7 @@ func main() {
 	defer cancel()
 	arguments := os.Args[1:]
 	var registration discoveryPrincipalRegistration
-	if len(arguments) == 1 && arguments[0] == "up" {
+	if isForwardMigration(arguments) {
 		registration, err = loadDiscoveryPrincipalRegistration(os.Getenv)
 		if err != nil {
 			log.Fatal("release migration configuration rejected")
@@ -195,7 +197,7 @@ func main() {
 	if err != nil || runReleaseMigration(ctx, runner, arguments) != nil {
 		log.Fatal("release migration failed")
 	}
-	if len(arguments) == 1 && arguments[0] == "up" {
+	if isForwardMigration(arguments) {
 		if err := registerReleasePrincipals(ctx, connection, registration); err != nil {
 			log.Fatal("release principal registration or readiness failed")
 		}
@@ -282,6 +284,10 @@ func loadMigrationTimeout(getenv func(string) string) (time.Duration, error) {
 	return timeout, nil
 }
 
+func isForwardMigration(arguments []string) bool {
+	return len(arguments) == 1 && (arguments[0] == "up" || arguments[0] == "up-to-48")
+}
+
 func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arguments []string) error {
 	if ctx == nil || runner == nil || len(arguments) != 1 {
 		return errInvalidMigrationCommand
@@ -294,7 +300,7 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
-	case "up":
+	case "up", "up-to-48":
 		if version == 0 {
 			if err := runner.Up(ctx); err != nil {
 				return err
@@ -583,10 +589,26 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 48
 		}
-		if version != 48 {
+		target := int64(49)
+		if arguments[0] == "up-to-48" {
+			target = 48
+		}
+		if version == 48 && target == 49 {
+			if err := runner.UpProductionRuntimeCorrelationRouting(ctx); err != nil {
+				return err
+			}
+			version = 49
+		}
+		if version != target {
 			return migrations.ErrInvalidState
 		}
 	case "down":
+		if version == 49 {
+			if err := runner.DownProductionRuntimeCorrelationRouting(ctx); err != nil {
+				return err
+			}
+			version = 48
+		}
 		if version == 48 {
 			if err := runner.DownProductionRuntimeAcceptance(ctx); err != nil {
 				return err

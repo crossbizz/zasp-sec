@@ -305,6 +305,9 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	repository, err := runtimeevent.NewPostgresProductionPipelineRepository(database, authority)
+	if wantStage == runtimeevent.RuntimeStageCorrelate && config.RuntimeStageVersion == "runtime-correlation-v2" {
+		repository, err = runtimeevent.NewPostgresCorrelationPipelineRepository(database)
+	}
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}

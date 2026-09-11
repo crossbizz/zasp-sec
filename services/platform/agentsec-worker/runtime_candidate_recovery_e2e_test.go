@@ -38,9 +38,9 @@ type runtimeCandidateRecoveryFixture struct {
 	graph               *graphstore.Store
 }
 
-// This proof selects v2 only for its own never-claimed pending jobs. It does not
-// activate production producers. Enrollment is fixture setup; all runtime rows,
-// candidate snapshots, graph writes and receipts come from actual workers.
+// The caller upgrades its owned database through the production runner first.
+// Enrollment remains fixture setup; fresh ingestion creates v2 runtime jobs and
+// actual workers create candidate snapshots, graph writes and receipts.
 func proveRuntimeCandidateRecovery(t *testing.T, ctx context.Context, f runtimeCandidateRecoveryFixture) {
 	t.Helper()
 	org := "pid_78930001-0000-4000-8000-000000000001"
@@ -99,8 +99,8 @@ func proveRuntimeCandidateRecovery(t *testing.T, ctx context.Context, f runtimeC
 	lineage := runtimelineage.Observation{Profile: "kubernetes-container-v1", ClusterUID: "78931001-0000-4000-8000-000000000001", NodeUID: "78931002-0000-4000-8000-000000000002", BootID: "78931003-0000-4000-8000-000000000003", PodUID: "78931004-0000-4000-8000-000000000004", ContainerID: "containerd://" + strings.Repeat("c", 64), ProcessID: "42", ProcessStartTime: now.Add(-time.Minute).Format(time.RFC3339Nano), CgroupID: "78931"}
 	agent, session := "pid_78930301-0000-4000-8000-000000000301", "pid_78930302-0000-4000-8000-000000000302"
 	correlationDB := f.database("zasp_e2e_correlation")
-	correlationRepo, err := runtimeevent.NewPostgresProductionPipelineRepository(correlationDB, runtimeevent.ProductionPipelineAuthorityCorrelation)
-	if err != nil || correlationRepo.ReadyCandidates(ctx) != nil {
+	correlationRepo, err := runtimeevent.NewPostgresCorrelationPipelineRepository(correlationDB)
+	if err != nil || correlationRepo.Ready(ctx) != nil || correlationRepo.ReadyCandidates(ctx) != nil {
 		t.Fatal("recovery candidate authority readiness", err)
 	}
 	correlation, err := newRuntimeCorrelationExecutorWithDatabase(runtimeCorrelationExecutorConfig{Reader: f.archive, Receipts: f.receipts, Graph: f.graph, ImplementationVersion: "runtime-correlation-v2"}, correlationDB)
@@ -215,11 +215,11 @@ func proveRuntimeCandidateRecovery(t *testing.T, ctx context.Context, f runtimeC
 		for _, stage := range []runtimeevent.RuntimeStage{runtimeevent.RuntimeStageArchive, runtimeevent.RuntimeStageIndex} {
 			runStage(accepted.BatchID, stage, processors[stage])
 		}
-		// Fixture-owned rollout selection only. Never seed completed work or edit a
-		// live lease, receipt, snapshot, expiry or database clock.
-		selected, err := f.admin.Exec(ctx, `UPDATE zasp_runtime_stage_work SET implementation_version='runtime-correlation-v2' WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND batch_id=$4 AND stage='correlate' AND state='pending' AND attempt=0 AND implementation_version='runtime-correlation-v1'`, org, workspace, environment, accepted.BatchID)
-		if err != nil || selected.RowsAffected() != 1 {
-			t.Fatal("fixture-only v2 selection failed", err)
+		// Assert the producer's choice. Never relabel work or edit a live lease,
+		// receipt, snapshot, expiry or database clock to manufacture v2 coverage.
+		var produced bool
+		if err := f.admin.QueryRow(ctx, `SELECT implementation_version='runtime-correlation-v2' AND state='pending' AND attempt=0 FROM zasp_runtime_stage_work WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND batch_id=$4 AND stage='correlate'`, org, workspace, environment, accepted.BatchID).Scan(&produced); err != nil || !produced {
+			t.Fatal("production ingestion did not create fresh v2 work", err)
 		}
 		return accepted.BatchID, coordinatorDone, stopCoordinator
 	}
@@ -399,7 +399,7 @@ func proveRuntimeCandidateRecovery(t *testing.T, ctx context.Context, f runtimeC
 	if err := f.admin.QueryRow(ctx, `SELECT count(*) FILTER (WHERE event_id=$4 AND source='tetragon' AND confidence='strong' AND agent_id=$6 AND session_id=$7),count(*) FILTER (WHERE event_id=$5 AND source='tetragon' AND confidence='probable' AND agent_id IS NULL AND session_id IS NULL),count(*) FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3`, org, workspace, environment, result.EventID.String(), uncertain.EventID.String(), agent, session).Scan(&durableStrong, &durableProbable, &totalEvents); err != nil || durableStrong != 1 || durableProbable != 1 || totalEvents != 4 {
 		t.Fatal("completed sessions lost recovered confidence or duplicated events", err)
 	}
-	t.Log("runtime candidate recovery proven: authenticated ingest, registered PostgreSQL roles, natural lease expiry, frozen late-admission replay, actual TLS Neo4j replay and identical S3 version, Strong recovery and fresh Probable conflict; fixture-selected v2 jobs, cloud and producer activation NOT RUN")
+	t.Log("runtime candidate recovery proven: authenticated ingest, registered PostgreSQL roles, natural lease expiry, frozen late-admission replay, actual TLS Neo4j replay and identical S3 version, Strong recovery and fresh Probable conflict; production-created v2 jobs on local schema49, cloud deployment NOT RUN")
 }
 
 func mustCandidateObjectReference(t *testing.T, store artifactstore.ObjectReferencingArtifactStore, locator artifactstore.Locator) string {
