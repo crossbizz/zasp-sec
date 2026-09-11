@@ -31,6 +31,7 @@ type runtimeCandidateRecoveryFixture struct {
 	database            func(string) apiserver.JSONDatabase
 	handler             http.Handler
 	outbox, coordinator workerProcessor
+	sessions            workerProcessor
 	queue               *runtimePipelineDeliveryQueue
 	archive             *runtimeArchiveExecutor
 	index               *runtimeIndexExecutor
@@ -174,20 +175,34 @@ func proveRuntimeCandidateRecovery(t *testing.T, ctx context.Context, f runtimeC
 		t.Fatalf("candidate recovery stage %s did not finish", stage)
 	}
 	serial := 0
-	ingest := func(source, agentID, sessionID string) (string, <-chan error, context.CancelFunc) {
+	batchCounts := map[string]int{}
+	ingest := func(source, agentID, sessionID string, count int) (string, <-chan error, context.CancelFunc) {
 		t.Helper()
-		serial++
-		event := map[string]any{"observed_lineage": lineage, "event_time": now.Format("2006-01-02T15:04:05.000Z"), "evidence_id": fmt.Sprintf("pid_78930401-0000-4000-8000-%012d", 400+serial)}
-		if source == "otlp" {
-			event["attributes"] = map[string]string{"event.id": fmt.Sprintf("candidate-recovery-%d", serial), "event.class": "tool", "event.action": "invoke", "agent.id": agentID, "session.id": sessionID, "task.id": "candidate-task", "tool.id": "candidate-tool", "sandbox.id": "candidate-sandbox", "trace.id": strings.Repeat("c", 32), "span.id": strings.Repeat("d", 16)}
-		} else {
-			event["event_id"] = fmt.Sprintf("candidate-recovery-%d", serial)
-			event["class"] = "process"
-			event["action"] = "exec"
-			event["workload_id"] = "candidate-recovery"
-			event["content"] = map[string]string{}
+		if count != 1 && (count != 25 || source != "otlp") {
+			t.Fatal("unsupported candidate ingestion fixture size")
 		}
-		body, err := json.Marshal(map[string]any{"source": source, "events": []any{event}})
+		serial++
+		events := make([]any, count)
+		for ordinal := range events {
+			event := map[string]any{"observed_lineage": lineage, "event_time": now.Format("2006-01-02T15:04:05.000Z"), "evidence_id": fmt.Sprintf("pid_78930401-0000-4000-8000-%012d", 400+serial)}
+			if source == "otlp" {
+				event["attributes"] = map[string]string{"event.id": fmt.Sprintf("candidate-recovery-%d", serial), "event.class": "tool", "event.action": "invoke", "agent.id": agentID, "session.id": sessionID, "task.id": "candidate-task", "tool.id": "candidate-tool", "sandbox.id": "candidate-sandbox", "trace.id": strings.Repeat("c", 32), "span.id": strings.Repeat("d", 16)}
+			} else {
+				event["event_id"] = fmt.Sprintf("candidate-recovery-%d", serial)
+				event["class"] = "process"
+				event["action"] = "exec"
+				event["workload_id"] = "candidate-recovery"
+				event["content"] = map[string]string{}
+			}
+			if count == 25 {
+				// Reverse ingress order crosses the browser's 25-row boundary.
+				event["event_time"] = now.Add(time.Duration(count-ordinal) * time.Millisecond).Format("2006-01-02T15:04:05.000Z")
+				event["evidence_id"] = fmt.Sprintf("pid_78930401-0000-4000-8000-%012d", 700+ordinal)
+				event["attributes"].(map[string]string)["event.id"] = fmt.Sprintf("candidate-page-%d", ordinal)
+			}
+			events[ordinal] = event
+		}
+		body, err := json.Marshal(map[string]any{"source": source, "events": events})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -207,6 +222,7 @@ func proveRuntimeCandidateRecovery(t *testing.T, ctx context.Context, f runtimeC
 		if response.Code != http.StatusAccepted || json.Unmarshal(response.Body.Bytes(), &accepted) != nil || accepted.BatchID == "" {
 			t.Fatalf("candidate recovery ingest status=%d body=%s", response.Code, response.Body.String())
 		}
+		batchCounts[accepted.BatchID] = count
 		if err := f.outbox.RunOnce(ctx); err != nil {
 			t.Fatal(err)
 		}
@@ -260,18 +276,18 @@ func proveRuntimeCandidateRecovery(t *testing.T, ctx context.Context, f runtimeC
 			t.Fatal(err)
 		}
 		receipt, err := runtimecorrelation.DecodeReceipt(artifact.Body)
-		if err != nil || !bytes.Equal(digest, artifact.SHA256[:]) || sha256.Sum256(artifact.Body) != artifact.SHA256 || receipt.Scope != scope || receipt.BatchID.String() != batch || receipt.ImplementationVersion != "runtime-correlation-v2" || len(receipt.Results) != 1 {
+		if err != nil || !bytes.Equal(digest, artifact.SHA256[:]) || sha256.Sum256(artifact.Body) != artifact.SHA256 || receipt.Scope != scope || receipt.BatchID.String() != batch || receipt.ImplementationVersion != "runtime-correlation-v2" || len(receipt.Results) != batchCounts[batch] || batchCounts[batch] < 1 {
 			t.Fatal("candidate receipt binding", err)
 		}
 		return artifact, receipt
 	}
-	first, firstDone, _ := ingest("otlp", agent, session)
+	first, firstDone, _ := ingest("otlp", agent, session, 1)
 	finish(first, firstDone, true)
 	_, firstReceipt := readReceipt(first)
 	if firstReceipt.Results[0].Confidence.String() != "exact" {
 		t.Fatal("semantic candidate wasn't Exact")
 	}
-	target, targetDone, stopTargetCoordinator := ingest("tetragon", "", "")
+	target, targetDone, stopTargetCoordinator := ingest("tetragon", "", "", 1)
 	leaseToken, err := newWorkerLeaseToken()
 	if err != nil {
 		t.Fatal(err)
@@ -342,7 +358,7 @@ func proveRuntimeCandidateRecovery(t *testing.T, ctx context.Context, f runtimeC
 	if err := f.admin.QueryRow(ctx, `SELECT work.state='leased' AND work.attempt=1 AND work.lease_expires_at<=clock_timestamp() AND delivery.disposition='held' AND delivery.lease_expires_at<=clock_timestamp() AND delivery.provider_ack_digest IS NULL FROM zasp_runtime_stage_work work JOIN zasp_runtime_deliveries delivery USING(organization_id,workspace_id,environment_id,batch_id,batch_generation) WHERE work.organization_id=$1 AND work.batch_id=$2 AND work.stage='correlate'`, org, target).Scan(&expired); err != nil || !expired {
 		t.Fatal("crashed worker leases did not naturally expire", err)
 	}
-	late, lateDone, _ := ingest("otlp", "pid_78930501-0000-4000-8000-000000000501", "pid_78930502-0000-4000-8000-000000000502")
+	late, lateDone, _ := ingest("otlp", "pid_78930501-0000-4000-8000-000000000501", "pid_78930502-0000-4000-8000-000000000502", 1)
 	finish(late, lateDone, true)
 	if err := f.queue.ExtendVisibility(ctx, []jobqueue.Receipt{targetDelivery}, time.Second); err != nil {
 		t.Fatal(err)
@@ -388,7 +404,7 @@ func proveRuntimeCandidateRecovery(t *testing.T, ctx context.Context, f runtimeC
 		t.Fatal("stale SQL completion changed replacement")
 	}
 	finish(target, targetDone, false)
-	ambiguous, ambiguousDone, _ := ingest("tetragon", "", "")
+	ambiguous, ambiguousDone, _ := ingest("tetragon", "", "", 1)
 	finish(ambiguous, ambiguousDone, true)
 	_, ambiguousReceipt := readReceipt(ambiguous)
 	uncertain := ambiguousReceipt.Results[0]
@@ -399,6 +415,38 @@ func proveRuntimeCandidateRecovery(t *testing.T, ctx context.Context, f runtimeC
 	if err := f.admin.QueryRow(ctx, `SELECT count(*) FILTER (WHERE event_id=$4 AND source='tetragon' AND confidence='strong' AND agent_id=$6 AND session_id=$7),count(*) FILTER (WHERE event_id=$5 AND source='tetragon' AND confidence='probable' AND agent_id IS NULL AND session_id IS NULL),count(*) FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3`, org, workspace, environment, result.EventID.String(), uncertain.EventID.String(), agent, session).Scan(&durableStrong, &durableProbable, &totalEvents); err != nil || durableStrong != 1 || durableProbable != 1 || totalEvents != 4 {
 		t.Fatal("completed sessions lost recovered confidence or duplicated events", err)
 	}
+	pageBatch, pageDone, _ := ingest("otlp", agent, session, 25)
+	finish(pageBatch, pageDone, true)
+	_, pageReceipt := readReceipt(pageBatch)
+	for _, result := range pageReceipt.Results {
+		if result.Confidence.String() != "exact" || result.AgentID.String() != agent || result.SessionID.String() != session {
+			t.Fatal("pagination receipt changed explicit semantic identity")
+		}
+	}
+	var exactCount, strongCount, mixedCount int
+	if err := f.admin.QueryRow(ctx, `SELECT count(*) FILTER(WHERE confidence='exact' AND source='otlp'),count(*) FILTER(WHERE confidence='strong' AND source='tetragon'),count(*) FROM zasp_runtime_session_events WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND session_id=$4 AND agent_id=$5`, org, workspace, environment, session, agent).Scan(&exactCount, &strongCount, &mixedCount); err != nil || exactCount != 26 || strongCount != 1 || mixedCount != 27 {
+		t.Fatal("worker-created mixed pagination evidence incomplete", err)
+	}
+	if f.sessions == nil {
+		t.Fatal("mixed session search worker missing")
+	}
+	indexed := 0
+	for attempt := 0; attempt < 30; attempt++ {
+		if err := f.sessions.RunOnce(ctx); err != nil {
+			t.Fatal("mixed session search worker", err)
+		}
+		if err := f.admin.QueryRow(ctx, `SELECT count(*) FROM zasp_runtime_session_search_outbox WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND state='indexed' AND indexed_at IS NOT NULL AND attempt=1`, org, workspace, environment).Scan(&indexed); err != nil {
+			t.Fatal(err)
+		}
+		if indexed == len(batchCounts) {
+			break
+		}
+		pause(50 * time.Millisecond)
+	}
+	if indexed != 5 || indexed != len(batchCounts) {
+		t.Fatal("mixed session indexing did not complete all five real batches", indexed)
+	}
+	t.Log("runtime mixed session input proven: authenticated reverse-ingress 25-event batch, exact versioned correlation receipt and 27 worker-projected events with 26 Exact and one Strong; browser acceptance runs separately")
 	t.Log("runtime candidate recovery proven: authenticated ingest, registered PostgreSQL roles, natural lease expiry, frozen late-admission replay, actual TLS Neo4j replay and identical S3 version, Strong recovery and fresh Probable conflict; production-created v2 jobs on local schema49, cloud deployment NOT RUN")
 }
 
