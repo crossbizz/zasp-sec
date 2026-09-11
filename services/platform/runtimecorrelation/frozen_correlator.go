@@ -16,7 +16,7 @@ import (
 // supplies cross-batch candidates. This pure computation doesn't grant permission
 // to write effects; its caller must separately hold a current execution lease.
 func CorrelateFrozen(input Batch, snapshot runtimeevent.FrozenCandidateSnapshot) (CorrelatedBatch, error) {
-	if input.Scope.Validate() != nil || input.BatchID.IsZero() || input.Generation < 1 || input.ArchiveDigest == ([sha256.Size]byte{}) || len(input.Body) < 1 || len(input.Body) > 64<<20 || sha256.Sum256(input.Body) != input.ArchiveDigest || len(input.Candidates) != 0 || !snapshot.ValidFor(input.Scope, input.BatchID, input.Generation, input.ArchiveDigest) {
+	if input.Scope.Validate() != nil || input.BatchID.IsZero() || input.Generation < 1 || input.ArchiveDigest == ([sha256.Size]byte{}) || len(input.Body) < 1 || len(input.Body) > 64<<20 || sha256.Sum256(input.Body) != input.ArchiveDigest || len(input.Candidates) != 0 || snapshot.HasSandboxBindings() || !snapshot.ValidFor(input.Scope, input.BatchID, input.Generation, input.ArchiveDigest) {
 		return CorrelatedBatch{}, ErrInput
 	}
 	batch, err := runtimeevent.DecodeArchivedBatch(input.Scope, input.Body)
@@ -80,6 +80,10 @@ func qualifiedObservationMatch(record runtimeevent.Record, candidate runtimeeven
 }
 
 func frozenCorrelationDigest(scope domain.Scope, batchID domain.ProductID, generation int64, archiveDigest, snapshotDigest [sha256.Size]byte, results []Result) ([sha256.Size]byte, error) {
+	return versionedFrozenCorrelationDigest("zasp.runtime-correlation.batch.v2", scope, batchID, generation, archiveDigest, snapshotDigest, results)
+}
+
+func versionedFrozenCorrelationDigest(digestDomain string, scope domain.Scope, batchID domain.ProductID, generation int64, archiveDigest, snapshotDigest [sha256.Size]byte, results []Result) ([sha256.Size]byte, error) {
 	wire := struct {
 		Domain                  string       `json:"domain"`
 		OrganizationID          string       `json:"organization_id"`
@@ -90,7 +94,7 @@ func frozenCorrelationDigest(scope domain.Scope, batchID domain.ProductID, gener
 		ArchiveDigest           string       `json:"archive_digest"`
 		CandidateSnapshotDigest string       `json:"candidate_snapshot_digest"`
 		Results                 []resultWire `json:"results"`
-	}{"zasp.runtime-correlation.batch.v2", scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), batchID.String(), generation, hex.EncodeToString(archiveDigest[:]), hex.EncodeToString(snapshotDigest[:]), resultsToWire(results)}
+	}{digestDomain, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), batchID.String(), generation, hex.EncodeToString(archiveDigest[:]), hex.EncodeToString(snapshotDigest[:]), resultsToWire(results)}
 	encoded, err := json.Marshal(wire)
 	if err != nil {
 		return [sha256.Size]byte{}, ErrInput

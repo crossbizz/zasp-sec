@@ -3,8 +3,12 @@
 Original criterion: compose session timeline rows with confidence/source and
 pagination; render mixed evidence without false Exact attribution.
 
-Status: local verification and independent review passed. Publication and hosted
-checks are pending. No original task credit before verified main.
+Status: M7-07 accepted after local verification, independent review and verified
+main. PR47 head `748c258767f6e2851f3e20b192506cdae5dc9f61` passed push CI
+34631235822 and PR CI34631280739, then merged as
+`c6aec68da88768bff20a892a21e12bed89a12de0`. Main CI34634275277 passed.
+Only M7-07 gains original task credit: 536 production-available, 131
+component-only and 61 external gates. M3-46/M3-47 remain open.
 
 The recovery fixture's tenant owns the events throughout this proof. The new
 browser context has a separately declared identity/session fixture. It uses the

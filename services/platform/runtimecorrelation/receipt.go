@@ -17,6 +17,7 @@ import (
 
 const receiptSchema = "runtime-correlation-receipt-v1"
 const frozenReceiptSchema = "runtime-correlation-receipt-v2"
+const sandboxReceiptSchema = "runtime-correlation-receipt-v3"
 
 type Receipt struct {
 	ImplementationVersion   string
@@ -102,7 +103,12 @@ func validReceipt(receipt Receipt) bool {
 	}
 	var expected [sha256.Size]byte
 	var err error
-	if receipt.ImplementationVersion == "runtime-correlation-v2" {
+	if receipt.ImplementationVersion == "runtime-correlation-v3" {
+		if receipt.CandidateSnapshotDigest == ([sha256.Size]byte{}) || !validSandboxResults(receipt.Results) {
+			return false
+		}
+		expected, err = sandboxCorrelationDigest(receipt.Scope, receipt.BatchID, receipt.Generation, receipt.ArchiveDigest, receipt.CandidateSnapshotDigest, receipt.Results)
+	} else if receipt.ImplementationVersion == "runtime-correlation-v2" {
 		if receipt.CandidateSnapshotDigest == ([sha256.Size]byte{}) {
 			return false
 		}
@@ -112,6 +118,13 @@ func validReceipt(receipt Receipt) bool {
 			return false
 		}
 		expected, err = correlationDigest(receipt.Scope, receipt.BatchID, receipt.Generation, receipt.ArchiveDigest, receipt.Results)
+	}
+	if receipt.ImplementationVersion != "runtime-correlation-v3" {
+		for _, result := range receipt.Results {
+			if result.SandboxID != "" || !result.SandboxSourceSensorID.IsZero() {
+				return false
+			}
+		}
 	}
 	return err == nil && expected == receipt.EffectDigest
 }
@@ -147,6 +160,9 @@ func receiptToWire(receipt Receipt) receiptWire {
 	if receipt.ImplementationVersion == "runtime-correlation-v2" {
 		wire.Schema = frozenReceiptSchema
 		wire.CandidateSnapshotDigest = hex.EncodeToString(receipt.CandidateSnapshotDigest[:])
+	} else if receipt.ImplementationVersion == "runtime-correlation-v3" {
+		wire.Schema = sandboxReceiptSchema
+		wire.CandidateSnapshotDigest = hex.EncodeToString(receipt.CandidateSnapshotDigest[:])
 	}
 	return wire
 }
@@ -162,8 +178,11 @@ func receiptFromWire(wire receiptWire) (Receipt, bool) {
 	effectDigest, effectErr := parseDigest(wire.EffectDigest)
 	expectedSchema := receiptSchema
 	var snapshotDigest [sha256.Size]byte
-	if wire.ImplementationVersion == "runtime-correlation-v2" {
+	if wire.ImplementationVersion == "runtime-correlation-v2" || wire.ImplementationVersion == "runtime-correlation-v3" {
 		expectedSchema = frozenReceiptSchema
+		if wire.ImplementationVersion == "runtime-correlation-v3" {
+			expectedSchema = sandboxReceiptSchema
+		}
 		var snapshotErr error
 		snapshotDigest, snapshotErr = parseDigest(wire.CandidateSnapshotDigest)
 		if snapshotErr != nil || snapshotDigest == ([sha256.Size]byte{}) {
@@ -179,18 +198,21 @@ func receiptFromWire(wire receiptWire) (Receipt, bool) {
 	for index, value := range wire.Results {
 		eventID, eventErr := domain.ParseProductID(value.EventID)
 		confidence, confidenceErr := domain.ParseEvidenceConfidence(value.Confidence)
-		var sessionID, agentID domain.ProductID
-		var sessionErr, agentErr error
+		var sessionID, agentID, sandboxSource domain.ProductID
+		var sessionErr, agentErr, sandboxSourceErr error
 		if value.SessionID != "" {
 			sessionID, sessionErr = domain.ParseProductID(value.SessionID)
 		}
 		if value.AgentID != "" {
 			agentID, agentErr = domain.ParseProductID(value.AgentID)
 		}
-		if eventErr != nil || confidenceErr != nil || sessionErr != nil || agentErr != nil {
+		if value.SandboxSourceSensorID != "" {
+			sandboxSource, sandboxSourceErr = domain.ParseProductID(value.SandboxSourceSensorID)
+		}
+		if eventErr != nil || confidenceErr != nil || sessionErr != nil || agentErr != nil || sandboxSourceErr != nil {
 			return Receipt{}, false
 		}
-		results[index] = Result{EventID: eventID, SessionID: sessionID, AgentID: agentID, Confidence: confidence}
+		results[index] = Result{EventID: eventID, SessionID: sessionID, AgentID: agentID, Confidence: confidence, SandboxID: value.SandboxID, SandboxSourceSensorID: sandboxSource}
 	}
 	receipt := Receipt{ImplementationVersion: wire.ImplementationVersion, Scope: scope, BatchID: batchID, Generation: wire.Generation, InputReference: wire.InputReference, InputVersionID: wire.InputVersionID, InputDigest: inputDigest, ArchiveReference: wire.ArchiveReference, ArchiveVersionID: wire.ArchiveVersionID, ArchiveDigest: archiveDigest, EffectDigest: effectDigest, Results: results, CandidateSnapshotDigest: snapshotDigest}
 	return receipt, validReceipt(receipt)

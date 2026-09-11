@@ -27,10 +27,12 @@ type Batch struct {
 }
 
 type Result struct {
-	EventID    domain.ProductID
-	SessionID  domain.ProductID
-	AgentID    domain.ProductID
-	Confidence domain.EvidenceConfidence
+	EventID               domain.ProductID
+	SessionID             domain.ProductID
+	AgentID               domain.ProductID
+	Confidence            domain.EvidenceConfidence
+	SandboxID             string
+	SandboxSourceSensorID domain.ProductID
 }
 
 type CorrelatedBatch struct {
@@ -87,16 +89,18 @@ func correlationDigest(scope domain.Scope, batchID domain.ProductID, generation 
 }
 
 type resultWire struct {
-	EventID    string `json:"event_id"`
-	SessionID  string `json:"session_id"`
-	AgentID    string `json:"agent_id"`
-	Confidence string `json:"confidence"`
+	EventID               string `json:"event_id"`
+	SessionID             string `json:"session_id"`
+	AgentID               string `json:"agent_id"`
+	Confidence            string `json:"confidence"`
+	SandboxID             string `json:"sandbox_id,omitempty"`
+	SandboxSourceSensorID string `json:"sandbox_source_sensor_id,omitempty"`
 }
 
 func resultsToWire(results []Result) []resultWire {
 	wire := make([]resultWire, len(results))
 	for index, result := range results {
-		wire[index] = resultWire{EventID: result.EventID.String(), SessionID: result.SessionID.String(), AgentID: result.AgentID.String(), Confidence: result.Confidence.String()}
+		wire[index] = resultWire{EventID: result.EventID.String(), SessionID: result.SessionID.String(), AgentID: result.AgentID.String(), Confidence: result.Confidence.String(), SandboxID: result.SandboxID, SandboxSourceSensorID: result.SandboxSourceSensorID.String()}
 	}
 	return wire
 }

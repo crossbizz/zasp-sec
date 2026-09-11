@@ -3,9 +3,22 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-sandbox-binding`; PR47 main CI running; reviewed file-event cgroup increment published as PR48, hosted checks running
-**Latest main:** `c6aec68d`, PR 47; main CI 34634275277 running
-**Last verified main:** `3679545f`, PR 46; main CI 34632397599 passed
+**Execution branch:** `codex/runtime-sandbox-binding`; local sandbox contract prerequisites; PR48 merged, main CI running
+**Latest main:** `6f0a93cc`, PR 48; main CI 34636483553 running
+**Last verified main:** `c6aec68d`, PR 47; main CI 34634275277 passed
+
+M7-07 now meets its independently reviewed original acceptance criterion after
+verified main. Current counts: 536 production-available, 131 component-only and
+61 external gates, with all 728 rows accounted for. M3-46/M3-47 remain open.
+The local sandbox-v3 prerequisite retains source-scoped semantic identity in a
+new frozen snapshot and receipt contract, with historical unknowns preserved.
+It isn't activated or shipped. SQL admission/freeze, worker routing, downstream
+projection/graph/index/API/browser proof and process precision remain pending.
+Full verification and final runtime contract races pass. The independent
+review's same-batch provenance and pinned historical-v2 receipt regressions
+also pass. Evidence: `docs/internal/2026-09-11-sandbox-binding-contract.md`.
+PR48 merged its exact reviewed head after push CI34634470637 and PR
+CI34634548903 passed. Main CI34636483553 is running. No M3 task credit follows.
 
 PR45 merged its exact reviewed head after push CI 34621547317 and PR CI
 34621568895 passed. Main CI 34623324047 also passed. PR44's main CI
@@ -85,13 +98,13 @@ The mixed-evidence increment is published as PR47 at exact head
 `748c258767f6e2851f3e20b192506cdae5dc9f61`. Push CI 34631235822 and PR CI
 34631280739 passed. After PR46's main CI passed, the exact verified PR47 head
 merged as `c6aec68da88768bff20a892a21e12bed89a12de0` at 18:36:58 UTC. Main CI
-34634275277 is running; M7-07 still awaits that result before credit. Postcommit
+34634275277 passed; M7-07 now receives its original acceptance credit. Postcommit
 history scanning passed all 1,396 commits. The unchanged publication hook's 21
 nonblocking findings were inspected: public CI IDs, synthetic AWS accounts and
 fixture product IDs, with no HIGH findings. The next branch preserves both
-published heads unchanged. No original-task credit yet. Details are in
+published heads unchanged. Only M7-07 gains original-task credit. Details are in
 `docs/internal/2026-09-11-worker-mixed-evidence.md`.
-M3-46, M3-47 and M7-07 remain open. Live source/provider enrollment and deployed
+M3-46 and M3-47 remain open. Live source/provider enrollment and deployed
 release evidence remain separate gates.
 
 The independent M3-46/M3-47 scope audit confirms that a semantic sandbox binding
@@ -121,8 +134,8 @@ sandbox/cgroup task is closed, and live BTF/policy loading is not claimed.
 Evidence and rollback limits:
 `docs/internal/2026-09-11-file-cgroup-lineage.md`.
 PR48 is published at `f398bb67d51db34a57ab82829ccee2d4419bdbaa`. Push CI
-34634470637 and PR CI 34634548903 are running. It must wait for PR47's main CI
-and its own checks before merge, then pass main verification. Postcommit scanning
+34634470637 and PR CI34634548903 passed. PR47's main gate also passed before
+PR48 merged as `6f0a93cc`. Its main CI34636483553 is running. Postcommit scanning
 passed all 1,398 commits. The eight unchanged-hook MEDIUM findings were inspected
 against exact added lines: all were public CI IDs, with no HIGH findings or
 bypass. The next local branch preserves the published head. Counts are unchanged.
@@ -1167,8 +1180,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 535 |
-| Component-only | 132 |
+| Production-available | 536 |
+| Component-only | 131 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -1264,8 +1277,9 @@ M7-07b/M7-07c/M7-07's unsupported credits and accepting shipped M7-06 after
 PR 29 main CI 34421351398 and M7-07a after PR 30 main CI 34423113495, the total
 was 535 production-available, 132 component-only and 61 external gates.
 After the M3-46/M3-47 reachability correction and M7-07b/M7-07c's passed main gates,
-the current total is 535 production-available, 132 component-only and 61 external
-gates. M7-07 still awaits authentic mixed-evidence acceptance.
+the total was 535 production-available, 132 component-only and 61 external
+gates. M7-07's actual worker-backed mixed-evidence acceptance and PR47 main CI
+34634275277 now pass: 536 production-available, 131 component-only and 61 external.
 
 ## Production-availability audit basis
 
@@ -1379,10 +1393,10 @@ gates. M7-07 still awaits authentic mixed-evidence acceptance.
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
-| M7 | 62 | 37 | 25 | 0 | 0 |
+| M7 | 62 | 38 | 24 | 0 | 0 |
 | M7A | 113 | 98 | 15 | 0 | 0 |
 | M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **535** | **132** | **61** | **0** |
+| **Total** | **728** | **536** | **131** | **61** | **0** |
 
 ## Prerequisite work
 
@@ -1408,8 +1422,8 @@ review only, not live testing. Its tagged STS provider accepts `source_identity`
 but delegates the response without adding it to the returned session or stored
 session configuration. The historical Pending/In-progress/Complete/Blocked
 execution counts are `0/0/667/61`; PROV-01 is excluded. These are not
-production-readiness counts. The authoritative production classes remain
-535 production-available, 132 component-only and 61 blocked/external.
+production-readiness counts. The authoritative production classes are now
+536 production-available, 131 component-only and 61 blocked/external.
 The blocked M8 resilience executions require an authorized isolated AWS/reference deployment; deterministic validators remain locally testable.
 
 ## In progress

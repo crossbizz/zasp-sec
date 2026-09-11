@@ -174,6 +174,11 @@ func TestFrozenQualifiedMatchingRejectsDomainTimeAndProcessContradictions(t *tes
 // response stub. It doesn't grant callers a snapshot constructor or claim PG proof.
 func frozenCorrelationFixture(t *testing.T, source string, mutate func([]runtimeevent.CandidateObservation) []runtimeevent.CandidateObservation) (Batch, runtimeevent.FrozenCandidateSnapshot) {
 	t.Helper()
+	return versionedFrozenCorrelationFixture(t, source, false, mutate)
+}
+
+func versionedFrozenCorrelationFixture(t *testing.T, source string, sandbox bool, mutate func([]runtimeevent.CandidateObservation) []runtimeevent.CandidateObservation) (Batch, runtimeevent.FrozenCandidateSnapshot) {
+	t.Helper()
 	scope, now := correlationScope(t, 1), time.Date(2026, 9, 10, 10, 0, 0, 0, time.UTC)
 	lineage := frozenLineage()
 	event := map[string]any{"event_id": "event-1", "class": "process", "action": "exec", "workload_id": "runtime-a", "event_time": now.Format("2006-01-02T15:04:05.000Z"), "evidence_id": correlationID(t, 8).String(), "content": map[string]any{}, "observed_lineage": lineage}
@@ -198,12 +203,22 @@ func frozenCorrelationFixture(t *testing.T, source string, mutate func([]runtime
 	values := make([]any, len(candidates))
 	for index, candidate := range candidates {
 		values[index] = map[string]any{"batch_id": candidate.BatchID.String(), "generation": candidate.Generation, "event_ordinal": index + 1, "source_sensor_id": candidate.SourceSensorID.String(), "agent_id": candidate.AgentID.String(), "session_id": candidate.SessionID.String(), "archive_digest": hex.EncodeToString(candidate.ArchiveDigest[:]), "index_receipt_digest": hex.EncodeToString(candidate.IndexReceiptDigest[:]), "observed_lineage": candidate.Lineage, "event_time": candidate.EventTime.Format("2006-01-02T15:04:05.000Z")}
+		if sandbox {
+			values[index].(map[string]any)["sandbox_id"] = nil
+			if candidate.SandboxObserved {
+				values[index].(map[string]any)["sandbox_id"] = candidate.SandboxID
+			}
+		}
 	}
 	sourceID, anchor := correlationID(t, 12), correlationID(t, 12)
 	if source == "otlp" {
 		sourceID = correlationID(t, 11)
 	}
-	snapshotBody, err := json.Marshal(map[string]any{"schema": "runtime-candidate-snapshot-v1", "organization_id": scope.OrganizationID().String(), "workspace_id": scope.WorkspaceID().String(), "environment_id": scope.EnvironmentID().String(), "batch_id": input.BatchID.String(), "generation": input.Generation, "source_sensor_id": sourceID.String(), "runtime_sensor_id": anchor.String(), "archive_digest": hex.EncodeToString(input.ArchiveDigest[:]), "index_receipt_digest": hex.EncodeToString(receiptDigest[:]), "window_seconds": 300, "candidates": values})
+	schema, version := "runtime-candidate-snapshot-v1", "runtime-correlation-v2"
+	if sandbox {
+		schema, version = "runtime-candidate-snapshot-v2", "runtime-correlation-v3"
+	}
+	snapshotBody, err := json.Marshal(map[string]any{"schema": schema, "organization_id": scope.OrganizationID().String(), "workspace_id": scope.WorkspaceID().String(), "environment_id": scope.EnvironmentID().String(), "batch_id": input.BatchID.String(), "generation": input.Generation, "source_sensor_id": sourceID.String(), "runtime_sensor_id": anchor.String(), "archive_digest": hex.EncodeToString(input.ArchiveDigest[:]), "index_receipt_digest": hex.EncodeToString(receiptDigest[:]), "window_seconds": 300, "candidates": values})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +231,7 @@ func frozenCorrelationFixture(t *testing.T, source string, mutate func([]runtime
 	if err != nil {
 		t.Fatal(err)
 	}
-	lease := runtimeevent.StageLease{Scope: scope, BatchID: input.BatchID, Generation: input.Generation, Stage: runtimeevent.RuntimeStageCorrelate, Attempt: 1, ImplementationVersion: "runtime-correlation-v2", InputReference: "s3://zasp-evidence/index.json", InputVersionID: "index-v1", InputDigest: effectDigest, PredecessorDigest: &effectDigest, LeaseExpiresAt: time.Now().UTC().Add(time.Minute)}
+	lease := runtimeevent.StageLease{Scope: scope, BatchID: input.BatchID, Generation: input.Generation, Stage: runtimeevent.RuntimeStageCorrelate, Attempt: 1, ImplementationVersion: version, InputReference: "s3://zasp-evidence/index.json", InputVersionID: "index-v1", InputDigest: effectDigest, PredecessorDigest: &effectDigest, LeaseExpiresAt: time.Now().UTC().Add(time.Minute)}
 	snapshot, err := repository.FreezeCandidates(context.Background(), lease, "candidate-worker-01", strings.Repeat("a", 32), receipt, body)
 	if err != nil {
 		t.Fatal("fixture snapshot rejected", err)
