@@ -186,3 +186,8 @@ f03217f980b7c9001238960eb21919027daddb48:services/platform/agentsec-worker/recov
 # an in-memory database stub. This is not a provisioned credential. Ignore only
 # this exact historical finding; new or relocated credentials remain scanned.
 06b7df3e4f3a26e9cc9ede1e3195de730e0a70df:services/platform/runtimeevent/session_projection_repository_test.go:generic-api-key:73
+
+# Sensor expiry precision tests use a fixed HTTP idempotency identifier, not
+# authentication material. Ignore only this exact introduction-commit finding;
+# changed or relocated credential values remain scanned.
+c24bdf1dc06352a49027b06dd80a4929ed2f2caf:services/platform/apiserver/sensor_public_precision_test.go:generic-api-key:69

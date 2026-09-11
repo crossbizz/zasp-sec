@@ -44,9 +44,10 @@ type LocalSensorProbeConfig struct {
 }
 
 type LocalSensorProbe struct {
-	mu           sync.Mutex
-	config       LocalSensorProbeConfig
-	adapterDrops uint64
+	mu            sync.Mutex
+	config        LocalSensorProbeConfig
+	adapterDrops  uint64
+	producerDrops uint64
 }
 
 func NewLocalSensorProbe(config LocalSensorProbeConfig) (*LocalSensorProbe, error) {
@@ -79,10 +80,13 @@ func (probe *LocalSensorProbe) Report(ctx context.Context, result sensoradapter.
 	if probe.adapterDrops > 1_000_000_000 {
 		probe.adapterDrops = 1_000_000_000
 	}
+	if result.ProducerDroppedTotal > probe.producerDrops {
+		probe.producerDrops = min(result.ProducerDroppedTotal, 1_000_000_000)
+	}
 	kernel, kernelErr := readProbeText(probe.config.KernelFile, 128)
 	btfErr := validateBTFFile(probe.config.BTFFile)
 	providerDrops, metricsErr := probe.readTetragonDrops(ctx)
-	totalDrops := probe.adapterDrops
+	totalDrops := min(probe.adapterDrops+probe.producerDrops, 1_000_000_000)
 	if providerDrops > 1_000_000_000-totalDrops {
 		totalDrops = 1_000_000_000
 	} else {
@@ -105,7 +109,7 @@ func (probe *LocalSensorProbe) Report(ctx context.Context, result sensoradapter.
 	if kernelErr != nil || btfErr != nil || metricsErr != nil {
 		report.Status = "degraded"
 		report.Capabilities = []string{"process"}
-	} else if totalDrops > 0 {
+	} else if totalDrops > 0 || result.CoverageUnknown {
 		report.Status = "degraded"
 	}
 	if kernelErr != nil || btfErr != nil || metricsErr != nil {

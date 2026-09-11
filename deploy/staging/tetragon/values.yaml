@@ -12,6 +12,9 @@ tetragon:
     enablePolicyFilter: true
     enableProcessCred: true
     enableProcessNs: true
+    grpc:
+      enabled: true
+      address: unix:///var/run/tetragon/tetragon.sock
     clusterName: zasp-runtime
     exportFilename: tetragon.log
     exportFilePerm: "644"

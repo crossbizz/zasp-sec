@@ -1,9 +1,20 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestSensorAgentEnrollmentBindingIsRequiredAndCanonical(t *testing.T) {
+	for _, binding := range []string{"", strings.Repeat("a", 63), strings.Repeat("A", 64), strings.Repeat("a", 64) + " ", strings.Repeat("g", 64)} {
+		values := validSensorAgentEnvironment()
+		values["ZASP_SENSOR_ENROLLMENT_BINDING"] = binding
+		if _, err := loadSensorAgentConfig(func(key string) string { return values[key] }); err == nil {
+			t.Fatal("missing or malformed installation binding accepted")
+		}
+	}
+}
 
 func TestLoadSensorAgentConfigRequiresExactProductionAuthority(t *testing.T) {
 	t.Parallel()
@@ -11,6 +22,9 @@ func TestLoadSensorAgentConfigRequiresExactProductionAuthority(t *testing.T) {
 	config, err := loadSensorAgentConfig(func(key string) string { return values[key] })
 	if err != nil {
 		t.Fatalf("loadSensorAgentConfig: %v", err)
+	}
+	if config.EnrollmentBinding != strings.Repeat("a", 64) {
+		t.Fatal("configuration lost its enrollment binding")
 	}
 	if config.ControlPlaneURL != "https://runtime.example.test" || config.TokenFile != "/var/run/secrets/zasp-sensor/token" || config.LogFile != "/var/run/cilium/tetragon/tetragon.log" || config.CursorFile != "/var/lib/zasp-sensor/cursor.json" || config.Namespace != "agentsec" || config.PodName != "sensor-agent-a" || config.NodeName != "node-a" || config.KernelFile != "/proc/sys/kernel/osrelease" || config.BTFFile != "/sys/kernel/btf/vmlinux" || config.MetricsURL != "http://10.0.0.8:2112/metrics" || config.BatchSize != 100 || config.MaximumProcesses != 10_000 || config.PollInterval != time.Second || config.OperationTimeout != 10*time.Second || config.ShutdownTimeout != 15*time.Second || config.LeaseDuration != 15*time.Second || config.ReportTTL != 30*time.Second {
 		t.Fatalf("config = %#v", config)
@@ -62,23 +76,24 @@ func TestLoadSensorAgentConfigRejectsAmbientOrUnsafeValues(t *testing.T) {
 
 func validSensorAgentEnvironment() map[string]string {
 	return map[string]string{
-		"ZASP_SENSOR_CONTROL_PLANE_URL": "https://runtime.example.test",
-		"ZASP_SENSOR_TOKEN_FILE":        "/var/run/secrets/zasp-sensor/token",
-		"ZASP_TETRAGON_LOG_FILE":        "/var/run/cilium/tetragon/tetragon.log",
-		"ZASP_SENSOR_CURSOR_FILE":       "/var/lib/zasp-sensor/cursor.json",
-		"ZASP_SENSOR_NAMESPACE":         "agentsec",
-		"ZASP_SENSOR_POD_NAME":          "sensor-agent-a",
-		"ZASP_SENSOR_NODE_NAME":         "node-a",
-		"ZASP_SENSOR_KERNEL_FILE":       "/proc/sys/kernel/osrelease",
-		"ZASP_SENSOR_BTF_FILE":          "/sys/kernel/btf/vmlinux",
-		"ZASP_TETRAGON_METRICS_URL":     "http://10.0.0.8:2112/metrics",
-		"ZASP_SENSOR_BATCH_SIZE":        "100",
-		"ZASP_SENSOR_MAX_PROCESSES":     "10000",
-		"ZASP_SENSOR_POLL_INTERVAL":     "1s",
-		"ZASP_SENSOR_OPERATION_TIMEOUT": "10s",
-		"ZASP_SENSOR_SHUTDOWN_TIMEOUT":  "15s",
-		"ZASP_SENSOR_LEASE_DURATION":    "15s",
-		"ZASP_SENSOR_REPORT_TTL":        "30s",
+		"ZASP_SENSOR_ENROLLMENT_BINDING": strings.Repeat("a", 64),
+		"ZASP_SENSOR_CONTROL_PLANE_URL":  "https://runtime.example.test",
+		"ZASP_SENSOR_TOKEN_FILE":         "/var/run/secrets/zasp-sensor/token",
+		"ZASP_TETRAGON_LOG_FILE":         "/var/run/cilium/tetragon/tetragon.log",
+		"ZASP_SENSOR_CURSOR_FILE":        "/var/lib/zasp-sensor/cursor.json",
+		"ZASP_SENSOR_NAMESPACE":          "agentsec",
+		"ZASP_SENSOR_POD_NAME":           "sensor-agent-a",
+		"ZASP_SENSOR_NODE_NAME":          "node-a",
+		"ZASP_SENSOR_KERNEL_FILE":        "/proc/sys/kernel/osrelease",
+		"ZASP_SENSOR_BTF_FILE":           "/sys/kernel/btf/vmlinux",
+		"ZASP_TETRAGON_METRICS_URL":      "http://10.0.0.8:2112/metrics",
+		"ZASP_SENSOR_BATCH_SIZE":         "100",
+		"ZASP_SENSOR_MAX_PROCESSES":      "10000",
+		"ZASP_SENSOR_POLL_INTERVAL":      "1s",
+		"ZASP_SENSOR_OPERATION_TIMEOUT":  "10s",
+		"ZASP_SENSOR_SHUTDOWN_TIMEOUT":   "15s",
+		"ZASP_SENSOR_LEASE_DURATION":     "15s",
+		"ZASP_SENSOR_REPORT_TTL":         "30s",
 	}
 }
 

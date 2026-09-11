@@ -10,6 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
+import { spawnOwnedCommand } from "./owned-command.mjs";
 import { reloadBrowserPage } from "./browser-e2e-helpers.mjs";
 import { createRuntimePipelineDependencies } from "./runtime-pipeline-dependencies.mjs";
 import { createGraphFixtureDependency } from "../proofs/neo4j-graphstore/run.mjs";
@@ -44,6 +45,7 @@ if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined
 
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-"));
 const children = [];
+const ownedCommands = new WeakMap();
 const runtimePipelineDependencies = createRuntimePipelineDependencies(command);
 let runtimeGraphDependency;
 const redTeamRuntimeProof = createRedTeamRuntimeProof(command);
@@ -181,8 +183,8 @@ try {
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
-  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47) ORDER BY version;"]);
-  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts\n40|production_runtime_sessions\n41|production_runtime_session_reads\n42|production_runtime_session_search\n43|production_runtime_session_query\n44|production_runtime_session_evidence\n45|production_runtime_enrollment_pairing\n46|production_reconciliation_lane_plan\n47|production_runtime_candidate_authority", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
+  const schemaRelease = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version IN (14,15,16,17,18,19,20,21,22,23,24,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48) ORDER BY version;"]);
+  assert.equal(schemaRelease.stdout.trim(), "14|typed_inventory_cutover\n15|runtime_data_plane\n16|runtime_gateway_reconciliation\n17|runtime_ingest_reconciliation\n18|security_agent_execution\n19|identity_administration\n20|security_agent_controls\n21|security_agent_autonomous_response\n22|security_agent_temporary_policy\n23|security_agent_connector_revocation\n24|security_agent_session_isolation\n27|production_recovery\n28|production_policy_deployment\n29|production_home_attention\n30|production_approval_notification\n31|production_workflow_compatibility\n32|production_security_agent_planner\n33|production_security_agent_attack_path\n34|production_integration_setup\n35|production_integration_webhook\n36|production_runtime_queue_replay\n37|production_red_team_safety\n38|production_red_team_invocation\n39|production_red_team_artifacts\n40|production_runtime_sessions\n41|production_runtime_session_reads\n42|production_runtime_session_search\n43|production_runtime_session_query\n44|production_runtime_session_evidence\n45|production_runtime_enrollment_pairing\n46|production_reconciliation_lane_plan\n47|production_runtime_candidate_authority\n48|production_runtime_acceptance", "combined E2E did not migrate through the typed inventory, runtime data-plane, Security Agent, identity administration, execution-control, autonomous-response, temporary-policy, connector-revocation, session-isolation, recovery, central policy deployment, Home attention, approval notification, workflow compatibility, production planner, attack-path trigger, and integration setup releases");
   console.log("combined E2E: schema 14 typed_inventory_cutover verified");
   console.log("combined E2E: schema 15 runtime_data_plane verified");
   console.log("combined E2E: schema 17 runtime_ingest_reconciliation verified");
@@ -210,6 +212,7 @@ try {
   console.log("combined E2E: schema 45 production_runtime_enrollment_pairing verified");
   console.log("combined E2E: schema 46 production_reconciliation_lane_plan verified");
   console.log("combined E2E: schema 47 production_runtime_candidate_authority verified");
+  console.log("combined E2E: schema 48 production_runtime_acceptance verified");
   await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
@@ -4507,6 +4510,7 @@ function startChild(executable, args, options = {}) {
 }
 
 async function stopChild(child) {
+  if (ownedCommands.has(child)) return ownedCommands.get(child).stop();
   if (!child || child.exitCode !== null || child.signalCode !== null) return;
   child.kill("SIGTERM");
   await Promise.race([once(child, "exit"), delay(5_000)]);
@@ -4517,17 +4521,23 @@ async function stopChild(child) {
 }
 
 async function command(executable, args, options = {}) {
-  const child = spawn(executable, args, { cwd: options.cwd ?? root, env: options.env ?? process.env, stdio: ["pipe", "pipe", "pipe"] });
-	children.push(child);
-  let stdout = "";
-  let stderr = "";
-  child.stdout.on("data", (value) => { stdout += value; });
-  child.stderr.on("data", (value) => { stderr += value; });
-  if (options.input) child.stdin.end(options.input); else child.stdin.end();
-  const deadline = setTimeout(() => child.kill("SIGKILL"), options.timeout ?? 30_000);
-	const [status, signal] = await once(child, "exit");
-  clearTimeout(deadline);
-	const result = { status, signal, stdout, stderr };
+  const environment = options.env ?? process.env;
+  const owned = spawnOwnedCommand(executable, args, {
+    cwd: options.cwd ?? root,
+    env: executable === "go" ? { ...environment, GOTMPDIR: temporaryRoot } : environment,
+    input: options.input,
+  });
+  children.push(owned.child);
+  ownedCommands.set(owned.child, owned);
+  let rejectShutdown;
+  const failedShutdown = new Promise((_, reject) => { rejectShutdown = reject; });
+  let timedOut = false;
+  const deadline = setTimeout(() => { timedOut = true; void owned.stop().catch(rejectShutdown); }, options.timeout ?? 30_000);
+  let result;
+  try { result = await Promise.race([owned.completed, failedShutdown]); }
+  finally { clearTimeout(deadline); }
+  if (timedOut) throw new Error(`${path.basename(executable)} exceeded its deadline`);
+  const { status, signal, stdout, stderr } = result;
 	if (status !== 0 && options.reject !== false) throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
   return result;
 }

@@ -20,14 +20,16 @@ import (
 var errSensorRuntime = errors.New("sensor agent runtime unavailable")
 
 type tokenReader struct {
-	mu     sync.Mutex
-	root   *os.Root
-	name   string
-	closed bool
+	mu        sync.Mutex
+	root      *os.Root
+	name      string
+	closed    bool
+	projected bool
 }
 
 type sensorAgentDependencies struct {
 	Processor        *sensoradapter.FileProcessor
+	Lineage          *lineageConsumerRuntime
 	Runtime          agentProcessor
 	heartbeats       heartbeatSink
 	token            *tokenReader
@@ -49,15 +51,19 @@ type clusterReporter interface {
 }
 
 type clusteredAgentProcessor struct {
-	nodeName    string
-	stream      agentProcessor
-	probe       localNodeReporter
-	coordinator clusterReporter
+	nodeName           string
+	stream             agentProcessor
+	probe              localNodeReporter
+	coordinator        clusterReporter
+	preserveKnownDrops bool
 }
 
 func buildSensorAgentDependencies(config sensorAgentConfig, injectedDo func(*http.Request) (*http.Response, error)) (sensorAgentDependencies, error) {
 	if !validSensorAgentConfig(config) {
 		return sensorAgentDependencies{}, errSensorRuntime
+	}
+	if config.Role == "lineage-consumer" {
+		return buildProductionLineageConsumerDependencies(config, injectedDo)
 	}
 	reader, err := newTokenReader(config.TokenFile)
 	if err != nil {
@@ -68,6 +74,23 @@ func buildSensorAgentDependencies(config sensorAgentConfig, injectedDo func(*htt
 	if err != nil {
 		_ = reader.Close()
 		return sensorAgentDependencies{}, errSensorRuntime
+	}
+	protected := []sensoradapter.PinnedInput{{Parent: reader.root, Name: reader.name}}
+	// Pin other configured local inputs only when their basename could overlap
+	// cursor state. Unrelated names cannot collide even through parent aliases.
+	for _, path := range []string{config.KernelFile, config.BTFFile} {
+		for _, reserved := range sensoradapter.ReservedCursorNames(filepath.Base(config.CursorFile)) {
+			if filepath.Base(path) != reserved {
+				continue
+			}
+			parent, err := os.OpenRoot(filepath.Dir(path))
+			if err != nil {
+				_ = reader.Close()
+				return sensorAgentDependencies{}, errSensorRuntime
+			}
+			defer parent.Close()
+			protected = append(protected, sensoradapter.PinnedInput{Parent: parent, Name: filepath.Base(path)})
+		}
 	}
 	var transport *http.Transport
 	do := injectedDo
@@ -80,7 +103,7 @@ func buildSensorAgentDependencies(config sensorAgentConfig, injectedDo func(*htt
 		client := &http.Client{Transport: transport, Timeout: config.OperationTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 		do = client.Do
 	}
-	client, err := sensoradapter.NewProductionClient(sensoradapter.ProductionClientConfig{BaseURL: config.ControlPlaneURL, Token: reader.Read, Do: do, Now: time.Now})
+	client, err := sensoradapter.NewProductionClient(sensoradapter.ProductionClientConfig{BaseURL: config.ControlPlaneURL, EnrollmentBinding: config.EnrollmentBinding, Token: reader.Read, Do: do, Now: time.Now})
 	if err != nil {
 		if transport != nil {
 			transport.CloseIdleConnections()
@@ -96,7 +119,7 @@ func buildSensorAgentDependencies(config sensorAgentConfig, injectedDo func(*htt
 		_ = reader.Close()
 		return sensorAgentDependencies{}, errSensorRuntime
 	}
-	processor, err := sensoradapter.NewFileProcessor(sensoradapter.FileProcessorConfig{LogPath: config.LogFile, CursorPath: config.CursorFile, Normalizer: normalizer, Sink: client, MaximumLines: config.BatchSize})
+	processor, err := sensoradapter.NewFileProcessor(sensoradapter.FileProcessorConfig{LogPath: config.LogFile, CursorPath: config.CursorFile, Normalizer: normalizer, Sink: client, MaximumLines: config.BatchSize, ProtectedInputs: protected})
 	if err != nil {
 		if transport != nil {
 			transport.CloseIdleConnections()
@@ -147,7 +170,7 @@ func buildClusteredSensorAgentDependencies(config sensorAgentConfig, api cluster
 	if err != nil {
 		return fail()
 	}
-	dependencies.Runtime = &clusteredAgentProcessor{nodeName: config.NodeName, stream: dependencies.Processor, probe: probe, coordinator: coordinator}
+	dependencies.Runtime = &clusteredAgentProcessor{nodeName: config.NodeName, stream: dependencies.Runtime, probe: probe, coordinator: coordinator, preserveKnownDrops: config.Role == "lineage-consumer"}
 	return dependencies, nil
 }
 
@@ -155,11 +178,14 @@ func (dependencies sensorAgentDependencies) ReadToken() ([]byte, error) {
 	if dependencies.token == nil {
 		return nil, errSensorRuntime
 	}
+	if dependencies.Lineage != nil {
+		return readLineageToken(dependencies.token, uint32(os.Geteuid()))
+	}
 	return dependencies.token.Read()
 }
 
 func (dependencies sensorAgentDependencies) Close() error {
-	if dependencies.Processor == nil || dependencies.token == nil {
+	if (dependencies.Processor == nil) == (dependencies.Lineage == nil) || dependencies.token == nil {
 		return errSensorRuntime
 	}
 	if dependencies.transport != nil {
@@ -168,7 +194,13 @@ func (dependencies sensorAgentDependencies) Close() error {
 	if dependencies.metricsTransport != nil {
 		dependencies.metricsTransport.CloseIdleConnections()
 	}
-	processorErr, tokenErr := dependencies.Processor.Close(), dependencies.token.Close()
+	var processorErr error
+	if dependencies.Lineage != nil {
+		processorErr = dependencies.Lineage.Close()
+	} else {
+		processorErr = dependencies.Processor.Close()
+	}
+	tokenErr := dependencies.token.Close()
 	if processorErr != nil || tokenErr != nil {
 		return errSensorRuntime
 	}
@@ -258,7 +290,7 @@ func (processor *clusteredAgentProcessor) ProcessAvailable(ctx context.Context) 
 	}
 	if streamErr != nil || probeErr != nil {
 		report.Status = "degraded"
-		if streamErr != nil && report.Drops < 1_000_000_000 {
+		if streamErr != nil && !processor.preserveKnownDrops && report.Drops < 1_000_000_000 {
 			report.Drops++
 		}
 	}

@@ -17,8 +17,9 @@ runtimeGateway:
     storageClassName: ""
 sensorAgent:
   enabled: true
+  enrollmentBinding: ""
   tokenSecretName: ""
-  stateHostPath: /var/lib/zasp-sensor
+  stateHostPath: /var/lib/zasp-sensor-lineage
 network:
   controlPlaneCIDRs: []
   kubernetesAPICIDRs: []

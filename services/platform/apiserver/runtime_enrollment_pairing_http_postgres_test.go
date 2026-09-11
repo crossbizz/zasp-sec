@@ -26,6 +26,10 @@ func exercisePairedProductEnrollmentAndRuntimeIngest(t *testing.T, ctx context.C
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Force a sub-microsecond clock on every host. A wall clock that happens to
+	// return microseconds hides a committed-token/503 response mismatch.
+	clock := time.Now().UTC().Truncate(time.Second).Add(123456789 * time.Nanosecond)
+	product.(*sensorPublicHTTPHandler).config.Clock = func() time.Time { return clock }
 	body, err := json.Marshal(map[string]string{"name": "HTTP paired source", "kind": "otlp", "mode": "metadata_only", "runtime_sensor_id": anchor})
 	if err != nil {
 		t.Fatal(err)
@@ -42,6 +46,31 @@ func exercisePairedProductEnrollmentAndRuntimeIngest(t *testing.T, ctx context.C
 	if created.Code != http.StatusCreated || json.Unmarshal(created.Body.Bytes(), &enrollment) != nil || enrollment.RuntimeSensorID != anchor || enrollment.Token == "" {
 		t.Fatalf("real product pairing create failed status=%d", created.Code)
 	}
+	assertExpiry := func(generation int64) {
+		t.Helper()
+		var persisted time.Time
+		err := admin.QueryRow(ctx, `SELECT expires_at FROM zasp_sensor_tokens WHERE (organization_id,workspace_id,environment_id,sensor_id,token_generation)=($1,$2,$3,$4,$5)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), enrollment.ID, generation).Scan(&persisted)
+		want := clock.Add(product.(*sensorPublicHTTPHandler).config.TokenTTL).Truncate(time.Microsecond)
+		if err != nil || enrollment.TokenExpiresAt == nil || !persisted.Equal(want) || !enrollment.TokenExpiresAt.Equal(want) {
+			t.Fatal("persisted and returned credential expiry differ", err)
+		}
+	}
+	assertExpiry(1)
+	originalID, originalToken := enrollment.ID, enrollment.Token
+	clock = clock.Add(777 * time.Nanosecond)
+	rotation := httptest.NewRequest(http.MethodPost, "/api/v1/sensors/"+enrollment.ID+"/rotate-token", strings.NewReader(`{}`))
+	rotation.Header.Set("Content-Type", "application/json")
+	rotation.Header.Set("Idempotency-Key", "paired-product-rotate-0001")
+	rotation.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
+	rotation.Header.Set("If-Match", created.Header().Get("ETag"))
+	rotation = rotation.WithContext(context.WithValue(ctx, identityContextKey{}, identity))
+	rotation = rotation.WithContext(context.WithValue(rotation.Context(), routedOperationContextKey{}, RoutedOperation{OperationID: "rotateSensorToken", PathParameters: map[string]string{"id": enrollment.ID}}))
+	rotated := httptest.NewRecorder()
+	product.ServeHTTP(rotated, rotation)
+	if rotated.Code != http.StatusOK || json.Unmarshal(rotated.Body.Bytes(), &enrollment) != nil || enrollment.ID != originalID || enrollment.RuntimeSensorID != anchor || enrollment.Token == "" || enrollment.Token == originalToken {
+		t.Fatalf("real product pairing rotation failed status=%d", rotated.Code)
+	}
+	assertExpiry(2)
 	config := admin.Config().Copy()
 	config.User = "invocation_ingest"
 	ingestConnection, err := pgx.ConnectConfig(ctx, config)
@@ -89,6 +118,13 @@ func exercisePairedProductEnrollmentAndRuntimeIngest(t *testing.T, ctx context.C
 	if first.Code != http.StatusAccepted || json.Unmarshal(first.Body.Bytes(), &accepted) != nil || accepted.BatchID == "" {
 		t.Fatalf("paired ingest status=%d", first.Code)
 	}
+	replacementToken := enrollment.Token
+	enrollment.Token = originalToken
+	putsBeforeRevoked := artifacts.calls
+	if denied := call(batchBody); denied.Code != http.StatusForbidden || artifacts.calls != putsBeforeRevoked {
+		t.Fatalf("rotated-away credential status=%d artifact delta=%d", denied.Code, artifacts.calls-putsBeforeRevoked)
+	}
+	enrollment.Token = replacementToken
 	var binding string
 	if err := admin.QueryRow(ctx, `SELECT concat_ws('|',generation,source_sensor_id,source_kind,runtime_sensor_id) FROM zasp_runtime_batch_domains WHERE (organization_id,workspace_id,environment_id,batch_id)=($1,$2,$3,$4)`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), accepted.BatchID).Scan(&binding); err != nil || binding != "1|"+enrollment.ID+"|otlp|"+anchor {
 		t.Fatal("authenticated ingest lost enrollment domain", err)

@@ -382,3 +382,24 @@ unchanged. The new complete composition has passed actual runtime recovery;
 browser flows are still running in `/tmp/zasp-runtime-candidate-ci-fix-composed.log`.
 This runnable, reviewed correction can be pushed for CI while that longer check
 continues. PR 42 remains unmerged; no task credit changed.
+
+The correction shipped to the PR branch as `3fffdea2`. Its staged secret scan
+found no leaks; all four privacy warnings were the two public CI run IDs above,
+each repeated in both evidence documents. The pre-push guard stayed enabled.
+The full repeated composition then exited zero, including actual recovery,
+every existing browser flow and owned cleanup. The separate final three-container
+SIGTERM test passed without a skip in 32.246 seconds:
+`/tmp/zasp-runtime-candidate-ci-fix-real-sigterm.log`.
+The updated PR body was scanned with public-repository visibility and had no
+privacy findings. Push CI 34543727745 and PR CI 34543729424 are running against
+the correction; neither is accepted until its final result is read.
+
+Both correction checks passed: push 34543727745 in 8m35s and PR 34543729424
+in 7m52s. PR 42 merged as main `a4fede82f00e093a9b8e749a065868ba214f666c`.
+Main CI 34544444052 is running and is not counted as passed yet. The next branch
+is `codex/runtime-sensor-lineage`, based on that exact main merge. Its new failing
+sensor restart regressions are uncommitted and were not part of PR 42.
+
+Main CI 34544444052 completed successfully. PR 42 is fully through local,
+push, PR and main verification. This closes shipment of the executor/recovery
+slice, not producer activation or any additional original task.

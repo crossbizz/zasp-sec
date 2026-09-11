@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -98,4 +99,37 @@ func tetragonMetricsFixture() string {
 		"tetragon_observer_ringbuf_errors_total 1\n" +
 		"tetragon_observer_ringbuf_events_lost_total 1\n" +
 		"tetragon_observer_ringbuf_queue_events_lost_total 1\n"
+}
+
+func TestLocalSensorProbeCumulativeProducerLossAndUnknownCoverage(t *testing.T) {
+	for _, drops := range []uint64{0, 7, ^uint64(0)} {
+		t.Run(fmt.Sprint(drops), func(t *testing.T) {
+			kernel, btf := filepath.Join(t.TempDir(), "kernel"), filepath.Join(t.TempDir(), "btf")
+			writeSensorFixture(t, kernel, "6.8.1\n", 0444)
+			writeSensorFixture(t, btf, "btf", 0444)
+			probe, err := NewLocalSensorProbe(LocalSensorProbeConfig{NodeName: "node-a", KernelFile: kernel, BTFFile: btf, MetricsURL: "http://127.0.0.1:2112/metrics", PollInterval: time.Second, Now: time.Now, Do: func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"text/plain"}}, Body: io.NopCloser(strings.NewReader(strings.ReplaceAll(tetragonMetricsFixture(), " 1\n", " 0\n")))}, nil
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for retry := 0; retry < 3; retry++ {
+				report, err := probe.Report(context.Background(), sensoradapter.StreamResult{ProducerDroppedTotal: drops, CoverageUnknown: true})
+				if err != nil || report.Status != "degraded" || report.Drops != min(drops, 1_000_000_000) {
+					t.Fatal(report, err)
+				}
+			}
+			// Unknown coverage is a current snapshot. A valid later snapshot may
+			// clear a transient read error; actual historical unknowns stay set in
+			// the durable lineage ledger. Known drop counters never go backwards.
+			report, err := probe.Report(context.Background(), sensoradapter.StreamResult{})
+			status := "degraded"
+			if drops == 0 {
+				status = "healthy"
+			}
+			if err != nil || report.Status != status || report.Drops != min(drops, 1_000_000_000) {
+				t.Fatal(report, err)
+			}
+		})
+	}
 }

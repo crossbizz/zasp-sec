@@ -9,7 +9,7 @@ const sensorID = "pid_10000001-0000-4000-8000-000000000001";
 const token = "zasp_sensor_v1.EREREREREREREREREREREQ.IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI";
 const sensor: Sensor = { id: sensorID, name: "production-runtime", kind: "tetragon", mode: "metadata_only", state: "active", version: 4, token_expires_at: "2026-09-20T00:00:00Z", last_heartbeat_at: "2026-08-20T00:01:00Z", created_at: "2026-08-20T00:00:00Z", updated_at: "2026-08-20T00:01:00Z" };
 const coverage: SensorCoverage = { sensor_id: sensorID, supported: true, status: "healthy", last_heartbeat: "2026-08-20T00:01:00Z", kernel: "6.8.0", btf: true, capabilities: ["file", "network", "process"], event_rate: 125, drops: 0 };
-const enrollment: SensorEnrollment = { ...sensor, version: 1, state: "pending", token_expires_at: "2026-09-20T00:00:00Z", last_heartbeat_at: null, token };
+const enrollment: SensorEnrollment = { ...sensor, version: 1, state: "pending", token_expires_at: "2026-09-20T00:00:00Z", last_heartbeat_at: null, token, enrollment_binding: "a".repeat(64) };
 
 function sensorAPI(overrides: Partial<SensorsAPI> = {}): SensorsAPI {
   return {
@@ -46,6 +46,8 @@ describe("production sensor management", () => {
     await user.type(screen.getByLabelText("Sensor name"), paired.name);
     await user.click(screen.getByRole("button", { name: "Create enrollment" }));
     expect(await screen.findByText(token)).toBeVisible();
+    expect(screen.queryByText("sensorAgent.enabled=true")).not.toBeInTheDocument();
+    expect(screen.getByText("OTLP ingestion boundary")).toBeVisible();
     expect(createSensor).toHaveBeenCalledWith({ name: paired.name, kind: "otlp", mode: "metadata_only", runtime_sensor_id: sensorID }, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^sensor_/) }));
     expect(screen.getByText("Pairing cannot be changed. Create a new enrollment to choose another runtime sensor.")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Done" }));
@@ -77,6 +79,7 @@ describe("production sensor management", () => {
     expect(screen.getByText("Helm deployment boundary")).toBeVisible();
     expect(screen.getByText("sensorAgent.enabled=true")).toBeVisible();
     expect(screen.getByText("sensorAgent.tokenSecretName=<pre-created-secret-name>")).toBeVisible();
+    expect(screen.getByText(`sensorAgent.enrollmentBinding=${enrollment.enrollment_binding}`)).toBeVisible();
     expect(document.body.innerHTML).not.toContain("--set sensorAgent.token=");
     expect(createSensor).toHaveBeenCalledWith({ name: "production-runtime", kind: "tetragon", mode: "metadata_only" }, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^sensor_/) }));
     expect(localStorage.length).toBe(0);

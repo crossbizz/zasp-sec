@@ -3680,6 +3680,8 @@ export type components = {
         readonly SensorEnrollment: {
             /** Format: date-time */
             readonly created_at: string;
+            /** @description Present and required for the enrollment-binding-v1 response profile. Server-derived public comparison hash of exact Organization, Workspace, Environment and sensor enrollment; unchanged by credential rotation. This grants no authority. Preserve it in sensorAgent.enrollmentBinding. */
+            readonly enrollment_binding?: string;
             readonly id: components["schemas"]["ProductID"];
             readonly kind: components["schemas"]["SensorKind"];
             readonly last_heartbeat_at: string | null;
@@ -4041,6 +4043,8 @@ export type components = {
         readonly ResourceVersion: string;
         /** @description Quoted current schedule version, or quoted zero when creating the singleton schedule. */
         readonly ScheduleVersion: string;
+        /** @description Select enrollment-binding-v1 to require a scoped installation binding in a successful one-time credential response. Omission preserves the legacy representation. This is not authentication or mutation intent. */
+        readonly SensorEnrollmentSchema: "enrollment-binding-v1";
     };
     requestBodies: never;
     headers: {
@@ -4314,6 +4318,7 @@ export type ParameterPageCursor = components['parameters']['PageCursor'];
 export type ParameterPageLimit = components['parameters']['PageLimit'];
 export type ParameterResourceVersion = components['parameters']['ResourceVersion'];
 export type ParameterScheduleVersion = components['parameters']['ScheduleVersion'];
+export type ParameterSensorEnrollmentSchema = components['parameters']['SensorEnrollmentSchema'];
 export type HeaderRetryAfter = components['headers']['RetryAfter'];
 export type HeaderWorkflowAuditId = components['headers']['WorkflowAuditID'];
 export type HeaderWorkflowETag = components['headers']['WorkflowETag'];
@@ -7752,6 +7757,8 @@ export interface operations {
                 readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
                 /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
                 readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+                /** @description Select enrollment-binding-v1 to require a scoped installation binding in a successful one-time credential response. Omission preserves the legacy representation. This is not authentication or mutation intent. */
+                readonly "X-Zasp-Sensor-Enrollment-Schema"?: components["parameters"]["SensorEnrollmentSchema"];
             };
             readonly path?: never;
             readonly cookie?: never;
@@ -7937,6 +7944,8 @@ export interface operations {
                 readonly "X-CSRF-Token"?: components["parameters"]["BrowserMutationCSRFToken"];
                 /** @description Explicit fresh-auth confirmation required for a sensitive approval or connector authorization mutation. */
                 readonly "X-Zasp-Fresh-Auth": components["parameters"]["FreshAuth"];
+                /** @description Select enrollment-binding-v1 to require a scoped installation binding in a successful one-time credential response. Omission preserves the legacy representation. This is not authentication or mutation intent. */
+                readonly "X-Zasp-Sensor-Enrollment-Schema"?: components["parameters"]["SensorEnrollmentSchema"];
             };
             readonly path: {
                 readonly id: components["schemas"]["ProductID"];

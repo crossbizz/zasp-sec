@@ -2,6 +2,7 @@ package sensoradapter
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -9,6 +10,19 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestReadCompleteLinesBoundsAggregateMemoryWithoutSkippingInput(t *testing.T) {
+	line := strings.Repeat("x", 128<<10) + "\n"
+	reader := strings.NewReader(strings.Repeat(line, 70))
+	lines, next, partial, err := readCompleteLines(reader, 0, 1000)
+	if err != nil || partial || next > 8<<20 || len(lines) == 0 || len(lines) >= 70 {
+		t.Fatalf("unbounded aggregate line batch: count=%d next=%d partial=%t err=%v", len(lines), next, partial, err)
+	}
+	tail, end, partial, err := readCompleteLines(reader, next, 1000)
+	if err != nil || partial || len(lines)+len(tail) != 70 || end != int64(70*len(line)) {
+		t.Fatal("bounded read lost input", err)
+	}
+}
 
 func TestFileProcessorAdvancesOnlyAfterExactIngestAcknowledgement(t *testing.T) {
 	t.Parallel()
@@ -40,8 +54,13 @@ func TestFileProcessorRetriesExactBatchAndCursorAfterUnknownIngest(t *testing.T)
 	writeFixtureLog(t, logPath, tetragonExecFixture()+"\n"+tetragonFileFixture()+"\n")
 	sink := &recordingStreamSink{err: ErrClientRetryable}
 	processor := newFixtureFileProcessor(t, logPath, cursorPath, sink)
-	if result, err := processor.ProcessAvailable(context.Background()); !errors.Is(err, ErrClientRetryable) || result != (StreamResult{}) || fileExists(cursorPath) {
+	if result, err := processor.ProcessAvailable(context.Background()); !errors.Is(err, ErrClientRetryable) || result != (StreamResult{}) || !fileExists(cursorPath) {
 		t.Fatalf("failed ProcessAvailable = %#v, %v, cursor=%t", result, err, fileExists(cursorPath))
+	}
+	// A pending checkpoint is durable, but the committed cursor must not advance.
+	var checkpoint streamCheckpoint
+	if err := json.Unmarshal([]byte(readFixtureCursor(t, cursorPath)), &checkpoint); err != nil || checkpoint.Committed != nil || checkpoint.Pending == nil {
+		t.Fatal("uncertain ingest advanced committed cursor", err)
 	}
 	sink.err = nil
 	result, err := processor.ProcessAvailable(context.Background())
@@ -250,6 +269,7 @@ func newFixtureFileProcessorLimit(t *testing.T, logPath, cursorPath string, sink
 	if err != nil {
 		t.Fatalf("NewFileProcessor: %v", err)
 	}
+	t.Cleanup(func() { _ = processor.Close() })
 	return processor
 }
 

@@ -10,7 +10,7 @@ permissions:
 jobs:
   verify:
     name: Verify runnable UI
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,6 +31,27 @@ jobs:
         run: npm install --global npm@10.9.8
       - name: Install locked dependencies
         run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
+      # Reference validation only. Older-major compatibility remains an open
+      # release gate in docs/internal/implementation_status_v1.5.md.
+      - name: Install PostgreSQL 18 reference fixture tools
+        run: |
+          fixture_pg_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-pgdg.XXXXXX")
+          curl --fail --location --retry 3 --max-time 60 --output "$fixture_pg_dir/pgdg.asc" https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          printf '%s  %s\n' 0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76 "$fixture_pg_dir/pgdg.asc" | sha256sum --check -
+          sudo install -m 0644 "$fixture_pg_dir/pgdg.asc" /usr/share/keyrings/zasp-ci-pgdg.asc
+          printf '%s\n' 'deb [arch=amd64 signed-by=/usr/share/keyrings/zasp-ci-pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/zasp-ci-pgdg.list > /dev/null
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-18 postgresql-client-18
+          fixture_pg_bin=/usr/lib/postgresql/18/bin
+          for fixture_tool in initdb postgres pg_isready pg_ctl pg_config; do
+            test -x "$fixture_pg_bin/$fixture_tool"
+          done
+          case "$("$fixture_pg_bin/postgres" --version)" in
+            "postgres (PostgreSQL) 18."*) ;;
+            *) exit 1 ;;
+          esac
+          "$fixture_pg_bin/postgres" --version
+          printf '%s\n' "$fixture_pg_bin" >> "$GITHUB_PATH"
       - name: Install pinned secret scanner
         run: go install github.com/zricethezav/gitleaks/v8@v8.30.1
       - name: Verify implementation status ledger
@@ -39,7 +60,7 @@ jobs:
         run: npm run verify
       - name: Verify Red Team runtime and ledger regressions
         run: |
-          node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs
+          node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs
           go test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'
       - name: Verify production release sources
         run: npm run production:release:gate
@@ -57,6 +78,12 @@ jobs:
           go test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent
           go test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...
           go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'
+      - name: Verify sensor lineage and authenticated replay
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/sensor-agent -race -count=1 ./...
+          go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntimeAcceptance|TestProductionRuntimeIngestHTTPPersistsTransactionalOutboxBeforeAcceptance)'
       - name: Verify bounded Attack Lab network enforcement
         run: |
           go test -C proofs/attack-lab-egress -race -count=1 ./...

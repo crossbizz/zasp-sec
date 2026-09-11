@@ -21,6 +21,7 @@ import (
 
 const (
 	productionRuntimeSchema      = "runtime-event-v1"
+	productionEnrollmentSchema   = "runtime-event-enrollment-v1"
 	maximumProductionIngestBytes = 64 << 20
 	maximumProductionEvents      = 1000
 )
@@ -34,6 +35,7 @@ var (
 	ErrProductionIngestUnknown          = errors.New("production runtime ingest outcome unknown")
 	ErrProductionIngestUnavailable      = errors.New("production runtime ingest unavailable")
 	productionIdempotencyPattern        = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$`)
+	productionEnrollmentPattern         = regexp.MustCompile(`^[0-9a-f]{64}$`)
 )
 
 type IngestAuthority struct {
@@ -180,6 +182,7 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 		writeProductionIngestError(writer, http.StatusBadRequest, false)
 		return
 	}
+	expectedEnrollment, _ := productionEnrollmentConstraint(request.Header)
 	credential, err := productionIngestCredential(request.Header)
 	if err != nil {
 		writeProductionIngestError(writer, http.StatusForbidden, false)
@@ -195,6 +198,16 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 	if err != nil || !validIngestAuthority(authority) {
 		writeProductionIngestError(writer, http.StatusForbidden, false)
 		return
+	}
+	// This is a constraint on authority obtained from the exact credential used
+	// below, not caller-supplied tenant authority. Its transport schema prevents
+	// older handlers from silently ignoring the expected-enrollment condition.
+	if expectedEnrollment != "" {
+		actual, bindingErr := sensor.EnrollmentBinding(authority.Scope, authority.SensorID)
+		if bindingErr != nil || actual != expectedEnrollment {
+			writeProductionIngestError(writer, http.StatusForbidden, false)
+			return
+		}
 	}
 	body, err := io.ReadAll(io.LimitReader(request.Body, handler.config.MaximumBytes+1))
 	if err != nil || len(body) == 0 || int64(len(body)) > handler.config.MaximumBytes {
@@ -215,7 +228,32 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
 		return
 	}
-	reservation, err := safeProductionReserve(ctx, handler.config.Repository, credential, IngestReserveRequest{Scope: authority.Scope, BatchID: batchID, IdempotencyKey: idempotencyKey, ContentDigest: digest, Source: input.Source, MediaType: "application/json", SchemaVersion: productionRuntimeSchema, PayloadSize: int64(len(archivedBody)), EventCount: len(input.Events)})
+	jobID, jobErr := deterministicID(batchID.String() + "\x00runtime-job")
+	outboxID, outboxErr := deterministicID(batchID.String() + "\x00runtime-outbox")
+	if jobErr != nil || outboxErr != nil {
+		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
+		return
+	}
+	reserveRequest := IngestReserveRequest{Scope: authority.Scope, BatchID: batchID, IdempotencyKey: idempotencyKey, ContentDigest: digest, Source: input.Source, MediaType: "application/json", SchemaVersion: productionRuntimeSchema, PayloadSize: int64(len(archivedBody)), EventCount: len(input.Events)}
+	if expectedEnrollment != "" {
+		repository, ok := handler.config.Repository.(ProductionAcceptanceRepository)
+		if !ok || nilProductionIngestValue(repository) {
+			writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
+			return
+		}
+		accepted, lookupErr := safeProductionLookupAcceptance(ctx, repository, credential, IngestAcceptanceRequest{IngestReserveRequest: reserveRequest, EnrollmentBinding: expectedEnrollment, JobID: jobID, OutboxID: outboxID})
+		if lookupErr != nil {
+			writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
+			return
+		}
+		if accepted.Found {
+			writer.Header().Set("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusAccepted)
+			_ = json.NewEncoder(writer).Encode(map[string]string{"batch_id": batchID.String()})
+			return
+		}
+	}
+	reservation, err := safeProductionReserve(ctx, handler.config.Repository, credential, reserveRequest)
 	if errors.Is(err, ErrProductionIngestRateLimited) {
 		writer.Header().Set("Retry-After", "1")
 		writeProductionIngestError(writer, http.StatusTooManyRequests, true)
@@ -232,12 +270,6 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
 		return
 	}
-	jobID, jobErr := deterministicID(batchID.String() + "\x00runtime-job")
-	outboxID, outboxErr := deterministicID(batchID.String() + "\x00runtime-outbox")
-	if jobErr != nil || outboxErr != nil {
-		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
-		return
-	}
 	result, err := safeProductionFinalize(ctx, handler.config.Repository, credential, IngestFinalizeRequest{BatchID: batchID, JobID: jobID, OutboxID: outboxID, Artifact: artifact})
 	if err != nil || result.BatchID != batchID || result.Generation != reservation.Generation || !validAcceptedIngestState(result.State, result.Replayed) {
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
@@ -249,7 +281,10 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 }
 
 func validProductionIngestHeaders(header http.Header) bool {
-	if len(header.Values("Authorization")) != 1 || len(header.Values("Content-Type")) != 1 || header.Get("Content-Type") != "application/json" || len(header.Values("X-Zasp-Runtime-Schema")) != 1 || header.Get("X-Zasp-Runtime-Schema") != productionRuntimeSchema || len(header.Values("Idempotency-Key")) != 1 || !productionIdempotencyPattern.MatchString(header.Get("Idempotency-Key")) {
+	if len(header.Values("Authorization")) != 1 || len(header.Values("Content-Type")) != 1 || header.Get("Content-Type") != "application/json" || len(header.Values("X-Zasp-Runtime-Schema")) != 1 || len(header.Values("Idempotency-Key")) != 1 || !productionIdempotencyPattern.MatchString(header.Get("Idempotency-Key")) {
+		return false
+	}
+	if _, valid := productionEnrollmentConstraint(header); !valid {
 		return false
 	}
 	for _, name := range []string{"X-Zasp-Organization", "X-Zasp-Workspace", "X-Zasp-Environment", "X-Zasp-Sensor", "X-Zasp-Organization-ID", "X-Zasp-Workspace-ID", "X-Zasp-Environment-ID", "X-Zasp-Scope", "X-Organization-ID", "X-Workspace-ID", "X-Environment-ID", "X-Scope", "X-Tenant", "X-Tenant-ID", "X-Forwarded-Authorization", "Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto"} {
@@ -258,6 +293,31 @@ func validProductionIngestHeaders(header http.Header) bool {
 		}
 	}
 	return header.Get("Content-Encoding") == ""
+}
+
+func productionEnrollmentConstraint(header http.Header) (string, bool) {
+	const name = "X-Zasp-Expected-Enrollment"
+	var values []string
+	present := false
+	for key, candidate := range header {
+		if strings.EqualFold(key, name) {
+			// net/http canonicalizes real incoming header names. Explicitly reject
+			// map aliases too, so injected duplicate casing cannot hide a constraint.
+			if present || key != http.CanonicalHeaderKey(name) {
+				return "", false
+			}
+			present, values = true, candidate
+		}
+	}
+	switch header.Get("X-Zasp-Runtime-Schema") {
+	case productionRuntimeSchema:
+		return "", !present
+	case productionEnrollmentSchema:
+		if present && len(values) == 1 && productionEnrollmentPattern.MatchString(values[0]) {
+			return values[0], true
+		}
+	}
+	return "", false
 }
 
 func productionIngestCredential(header http.Header) (*sensor.TokenCredential, error) {

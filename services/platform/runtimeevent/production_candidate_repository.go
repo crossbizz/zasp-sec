@@ -20,6 +20,7 @@ import (
 
 const productionCandidateFreezeSQL = `SELECT zasp_runtime_freeze_candidates($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 const productionCandidateReadySQL = `SELECT jsonb_build_object('ready',zasp_production_runtime_candidate_authority_readiness($1,$2) AND zasp_runtime_principal_ready($3))`
+const productionCandidateReadyV48SQL = `SELECT jsonb_build_object('ready',zasp_production_runtime_acceptance_readiness($1,$2) AND zasp_production_runtime_candidate_authority_readiness($3,$4) AND zasp_runtime_principal_ready($5))`
 const maximumCandidateSnapshotBytes = 1 << 20
 const maximumCandidateEnvelopeBytes = 2*maximumCandidateSnapshotBytes + 1024
 
@@ -28,13 +29,18 @@ var ErrCandidateSnapshotOverflow = errors.New("runtime candidate snapshot overfl
 var ErrCandidateSnapshotDenied = errors.New("runtime candidate snapshot denied")
 
 // ReadyCandidates requires the exact candidate schema and registered correlation
-// principal. Unlike legacy pipeline readiness, missing authority has no fallback.
+// principal. Only an absent v48 function can try the explicitly pinned v47
+// predecessor; false readiness and other provider failures never fall back.
 func (repository *PostgresProductionPipelineRepository) ReadyCandidates(ctx context.Context) error {
 	if !validProductionPipelineRepository(repository, ctx) || repository.authority != ProductionPipelineAuthorityCorrelation {
 		return ErrProductionPipelineUnavailable
 	}
 	metadata := migrations.ProductionRuntimeCandidateAuthority()
-	payload, err := safeProductionQuery(repository.database, ctx, productionCandidateReadySQL, metadata.Checksum(), migrations.ProductionRuntimeCandidateAuthoritySemanticFingerprint(), string(repository.authority))
+	payload, err := safeProductionQuery(repository.database, ctx, productionCandidateReadyV48SQL, migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), metadata.Checksum(), migrations.ProductionRuntimeCandidateAuthoritySemanticFingerprint(), string(repository.authority))
+	var provider *pgconn.PgError
+	if ctx.Err() == nil && errors.As(err, &provider) && provider.Code == "42883" {
+		payload, err = safeProductionQuery(repository.database, ctx, productionCandidateReadySQL, metadata.Checksum(), migrations.ProductionRuntimeCandidateAuthoritySemanticFingerprint(), string(repository.authority))
+	}
 	var result struct {
 		Ready bool `json:"ready"`
 	}

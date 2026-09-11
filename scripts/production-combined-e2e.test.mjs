@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { readFile, readdir } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rmdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 test("combined product proof requires the forward reconciliation migration", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
-  for (const marker of ["46|production_reconciliation_lane_plan", "schema 46 production_reconciliation_lane_plan verified", "47|production_runtime_candidate_authority", "schema 47 production_runtime_candidate_authority verified"])
+  for (const marker of ["46|production_reconciliation_lane_plan", "schema 46 production_reconciliation_lane_plan verified", "47|production_runtime_candidate_authority", "schema 47 production_runtime_candidate_authority verified", "48|production_runtime_acceptance", "schema 48 production_runtime_acceptance verified"])
     assert.ok(source.includes(marker), marker);
 });
 
@@ -331,27 +331,53 @@ test("PostgreSQL tool discovery does not depend on a macOS installation path", a
   assert.ok(!/const postgresBin = "\/opt\/homebrew/.test(source));
 });
 
-test("combined production E2E removes owned processes and temp root on SIGTERM", { timeout: 60_000 }, async () => {
-  const before = new Set((await readdir(os.tmpdir())).filter((value) => value.startsWith("zasp-production-e2e-")));
+test("combined production E2E removes owned processes and temp root on SIGTERM", { timeout: 90_000 }, async () => {
+  const temporaryParent = await mkdtemp(path.join(os.tmpdir(), "zasp-signal-test-"));
+  // Another harness can create a similarly named root concurrently. Only this
+  // child's private TMPDIR is evidence of ownership, never a global set difference.
+  const unrelatedRoot = await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-"));
   // Early PostgreSQL shutdown must not construct the unused Docker dependency.
   // This synthetic non-secret variable reproduces a forbidden inherited CI env.
-  const child = spawn(process.execPath, [fileURLToPath(new URL("./production-combined-e2e.mjs", import.meta.url))], { env: { ...process.env, AWS_REGION: "synthetic-cleanup-regression" }, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(process.execPath, [fileURLToPath(new URL("./production-combined-e2e.mjs", import.meta.url))], { env: { ...process.env, TMPDIR: temporaryParent, AWS_REGION: "synthetic-cleanup-regression" }, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   child.stdout.on("data", (value) => { output += value; });
   child.stderr.on("data", (value) => { output += value; });
-  await waitFor(() => output.includes("combined E2E: disposable PostgreSQL ready"), 20_000, () => output);
-  const owned = (await readdir(os.tmpdir())).filter((value) => value.startsWith("zasp-production-e2e-") && !before.has(value));
+  try {
+  await waitFor(() => output.includes("combined E2E: disposable PostgreSQL ready") || child.exitCode !== null || child.signalCode !== null, 20_000, () => output);
+  assert.equal(child.exitCode, null, output);
+  assert.equal(child.signalCode, null, output);
+  const owned = (await readdir(temporaryParent)).filter((value) => value.startsWith("zasp-production-e2e-"));
   assert.equal(owned.length, 1, `owned roots: ${owned.join(", ")}`);
-  const ownedRoot = `${os.tmpdir()}/${owned[0]}`;
+  const ownedRoot = path.join(temporaryParent, owned[0]);
   child.kill("SIGTERM");
   const [status, signal] = await Promise.race([once(child, "exit"), rejectAfter(45_000, () => `harness did not exit after SIGTERM: ${output}`)]);
   assert.equal(signal, null);
   assert.equal(status, 143);
-  assert.equal((await readdir(os.tmpdir())).includes(owned[0]), false, `temporary root survived: ${ownedRoot}`);
+  assert.equal((await readdir(temporaryParent)).includes(owned[0]), false, `temporary root survived: ${ownedRoot}`);
+  assert.equal((await readdir(os.tmpdir())).includes(path.basename(unrelatedRoot)), true, "unrelated root was removed");
   const processes = spawnSync("ps", ["-axo", "command="], { encoding: "utf8" });
   assert.equal(processes.status, 0);
   assert.doesNotMatch(processes.stdout, new RegExp(escapeRegExp(ownedRoot)));
   assert.match(output, /combined E2E: cleanup files/);
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGTERM");
+      await Promise.race([once(child, "exit"), rejectAfter(45_000, () => output)]);
+    }
+    // Empty-directory removal preserves evidence if the harness leaked files.
+    await rmdir(unrelatedRoot);
+    const processes = spawnSync("ps", ["-axo", "command="], { encoding: "utf8" });
+    assert.equal(processes.status, 0);
+    assert.doesNotMatch(processes.stdout, new RegExp(escapeRegExp(temporaryParent)));
+    // Interrupted go run can leave an empty compiler scratch directory outside
+    // the harness root. Remove only those empty, exact child directories.
+    for (const entry of await readdir(temporaryParent, { withFileTypes: true })) {
+      if (entry.isDirectory() && /^go-build[0-9]+$/.test(entry.name)) {
+        await rmdir(path.join(temporaryParent, entry.name));
+      }
+    }
+    await rmdir(temporaryParent);
+  }
 });
 
 test("combined runtime proof removes owned containers and processes on real SIGTERM", { timeout: 240_000, skip: process.env.ZASP_RUNTIME_PIPELINE_SIGNAL_TEST !== "true" }, async () => {

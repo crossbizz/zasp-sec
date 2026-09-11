@@ -104,6 +104,13 @@ function verifyDocument(value, rawText) {
   });
 
   assert.deepEqual(value.components.parameters, {
+    SensorEnrollmentSchema: {
+      name: "X-Zasp-Sensor-Enrollment-Schema",
+      in: "header",
+      required: false,
+      description: "Select enrollment-binding-v1 to require a scoped installation binding in a successful one-time credential response. Omission preserves the legacy representation. This is not authentication or mutation intent.",
+      schema: { type: "string", const: "enrollment-binding-v1" },
+    },
 		CSRFToken: {
 			name: "X-CSRF-Token",
 			in: "header",
@@ -379,6 +386,10 @@ describe("production workflow concurrency contract", () => {
     assert.deepEqual(document.components.schemas.SensorState.enum, ["pending", "active", "degraded", "revoked"]);
     assert.deepEqual(document.components.schemas.Sensor.required, ["id", "name", "kind", "mode", "state", "version", "token_expires_at", "last_heartbeat_at", "created_at", "updated_at"]);
     assert.deepEqual(document.components.schemas.SensorEnrollment.required, [...document.components.schemas.Sensor.required, "token"]);
+    for (const operation of [collection.post, rotation]) assert.equal(operation.parameters.some((value) => value.$ref === "#/components/parameters/SensorEnrollmentSchema"), true);
+    assert.equal(document.components.schemas.SensorEnrollment.properties.enrollment_binding.pattern, "^[0-9a-f]{64}$");
+    assert.equal(document.components.schemas.SensorEnrollment.properties.enrollment_binding.minLength, 64);
+    assert.equal(document.components.schemas.SensorEnrollment.properties.enrollment_binding.maxLength, 64);
     assert.equal(document.components.schemas.SensorEnrollment.properties.token.pattern, "^zasp_sensor_v1\\.[A-Za-z0-9_-]{22}\\.[A-Za-z0-9_-]{43}$");
     assert.deepEqual(document.components.schemas.SensorPage.required, ["items", "page_info"]);
     assert.equal(document.components.schemas.SensorPage.properties.page_info.$ref, "#/components/schemas/PageInfo");

@@ -22,6 +22,29 @@ var buildVersion = "dev"
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if os.Getenv("ZASP_SENSOR_ROLE") == "lineage-layout" {
+		uid, err := parseBoundedInteger(os.Getenv("ZASP_LINEAGE_CONSUMER_UID"), 1, 2147483647)
+		if err != nil || os.Getenv("ZASP_SENSOR_TOKEN_FILE") != "" || initializeLineageLayout(os.Getenv("ZASP_LINEAGE_LAYOUT_DIRECTORY"), uint32(uid)) != nil {
+			os.Exit(1)
+		}
+		return
+	}
+	if role := os.Getenv("ZASP_SENSOR_ROLE"); role == "lineage-producer" {
+		config, err := loadLineageProducerDaemonConfig(os.Getenv)
+		if err != nil {
+			os.Exit(1)
+		}
+		dependencies, err := buildProductionLineageProducer(config)
+		if err != nil {
+			os.Exit(1)
+		}
+		if serveSensorDaemon(ctx, os.Stdout, buildVersion, "sensor-lineage-producer", ":8082", config.PollInterval, config.ShutdownTimeout, dependencies.run, dependencies.Close, net.Listen) != nil {
+			os.Exit(1)
+		}
+		return
+	} else if role != "" && role != "legacy-consumer" && role != "lineage-consumer" {
+		os.Exit(1)
+	}
 	config, err := loadSensorAgentConfig(os.Getenv)
 	if err != nil {
 		os.Exit(1)
@@ -36,29 +59,38 @@ func main() {
 }
 
 func serveSensorAgent(ctx context.Context, output io.Writer, version string, config sensorAgentConfig, dependencies sensorAgentDependencies, listen func(string, string) (net.Listener, error)) (resultErr error) {
-	if ctx == nil || output == nil || !validBuildVersion(version) || !validSensorAgentConfig(config) || dependencies.Processor == nil || nilAgentValue(dependencies.Runtime) || dependencies.token == nil || listen == nil {
+	if ctx == nil || output == nil || !validBuildVersion(version) || !validSensorAgentConfig(config) || (dependencies.Processor == nil) == (dependencies.Lineage == nil) || nilAgentValue(dependencies.Runtime) || dependencies.token == nil || listen == nil {
+		return errSensorRuntime
+	}
+	return serveSensorDaemon(ctx, output, version, "sensor-agent", sensorHealthAddress, config.PollInterval, config.ShutdownTimeout, func(ctx context.Context, ticks <-chan time.Time, ready func(bool)) error {
+		return runSensorAgentLoop(ctx, dependencies.Runtime, ticks, ready)
+	}, dependencies.Close, listen)
+}
+
+func serveSensorDaemon(ctx context.Context, output io.Writer, version, service, address string, interval, shutdown time.Duration, run func(context.Context, <-chan time.Time, func(bool)) error, closeDependencies func() error, listen func(string, string) (net.Listener, error)) (resultErr error) {
+	if ctx == nil || output == nil || !validBuildVersion(version) || run == nil || closeDependencies == nil || listen == nil || interval < 50*time.Millisecond || interval > 30*time.Second || shutdown < 5*time.Second || shutdown > time.Minute {
 		return errSensorRuntime
 	}
 	defer func() {
 		if recover() != nil {
 			resultErr = errSensorRuntime
 		}
-		if err := dependencies.Close(); err != nil && resultErr == nil {
+		if err := closeDependencies(); err != nil && resultErr == nil {
 			resultErr = errSensorRuntime
 		}
 	}()
-	handler, err := health.New(health.Config{Service: "sensor-agent", Version: version})
+	handler, err := health.New(health.Config{Service: service, Version: version})
 	if err != nil {
 		return errSensorRuntime
 	}
-	listener, err := listen("tcp", sensorHealthAddress)
+	listener, err := listen("tcp", address)
 	if err != nil || listener == nil {
 		if listener != nil {
 			_ = listener.Close()
 		}
 		return errSensorRuntime
 	}
-	if _, err := fmt.Fprintf(output, "sensor-agent build %s\n", version); err != nil {
+	if _, err := fmt.Fprintf(output, "%s build %s\n", service, version); err != nil {
 		_ = listener.Close()
 		return errSensorRuntime
 	}
@@ -67,10 +99,10 @@ func serveSensorAgent(ctx context.Context, output io.Writer, version string, con
 	server := &http.Server{Handler: handler, ReadHeaderTimeout: 2 * time.Second, ReadTimeout: 5 * time.Second, WriteTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 8 << 10}
 	serverDone := make(chan error, 1)
 	go func() { serverDone <- server.Serve(listener) }()
-	ticker := time.NewTicker(config.PollInterval)
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	loopDone := make(chan error, 1)
-	go func() { loopDone <- runSensorAgentLoop(runtimeCtx, dependencies.Runtime, ticker.C, handler.SetReady) }()
+	go func() { loopDone <- run(runtimeCtx, ticker.C, handler.SetReady) }()
 	var first error
 	serverFinished, loopFinished := false, false
 	select {
@@ -82,12 +114,12 @@ func serveSensorAgent(ctx context.Context, output io.Writer, version string, con
 	}
 	handler.SetReady(false)
 	cancel()
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), config.ShutdownTimeout)
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdown)
 	shutdownErr := server.Shutdown(shutdownCtx)
 	shutdownCancel()
 	closeErr := server.Close()
 	_ = listener.Close()
-	deadline := time.NewTimer(config.ShutdownTimeout)
+	deadline := time.NewTimer(shutdown)
 	defer deadline.Stop()
 	for !serverFinished || !loopFinished {
 		select {

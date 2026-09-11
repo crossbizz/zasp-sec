@@ -182,6 +182,27 @@ func TestProductionRuntimeIngestHTTPPersistsTransactionalOutboxBeforeAcceptance(
 	if artifacts.calls != 2 {
 		t.Fatalf("replay artifact puts=%d", artifacts.calls)
 	}
+	t.Run("bound envelope credential lifecycle", func(t *testing.T) {
+		for _, up := range []func(context.Context) error{runner.UpProductionPolicyDeployment, runner.UpProductionHomeAttention, runner.UpProductionApprovalNotification, runner.UpProductionWorkflowCompatibility, runner.UpProductionSecurityAgentPlanner, runner.UpProductionSecurityAgentAttackPath, runner.UpProductionIntegrationSetup, runner.UpProductionIntegrationWebhook, runner.UpProductionRuntimeQueueReplay, runner.UpProductionRedTeamSafety, runner.UpProductionRedTeamInvocation, runner.UpProductionRedTeamArtifacts, runner.UpProductionRuntimeSessions, runner.UpProductionRuntimeSessionReads, runner.UpProductionRuntimeSessionSearch, runner.UpProductionRuntimeSessionQuery, runner.UpProductionRuntimeSessionEvidence, runner.UpProductionRuntimeEnrollmentPairing, runner.UpProductionReconciliationLanePlan, runner.UpProductionRuntimeCandidateAuthority} {
+			if err := up(ctx); err != nil {
+				t.Fatal("acceptance fixture upgrade", err)
+			}
+		}
+		if err := runner.UpProductionRuntimeAcceptance(ctx); err != nil {
+			t.Fatal(err)
+		}
+		exerciseBoundRuntimeEnvelopeLifecycle(t, ctx, connection, ingestConnection, scope, sensorID, tokenID, wireToken, now)
+		t.Run("installed file recovery over HTTPS", func(t *testing.T) {
+			exerciseInstalledSensorRecovery(t, ctx, connection, ingestConnection, scope, false)
+		})
+		t.Run("lineage generation recovery over HTTPS", func(t *testing.T) { exerciseInstalledSensorRecovery(t, ctx, connection, ingestConnection, scope, true) })
+		t.Run("admitted chunk consumer recovery over HTTPS", func(t *testing.T) {
+			exerciseInstalledSensorRecoveryMode(t, ctx, connection, ingestConnection, scope, "chunks")
+		})
+		t.Run("incomplete upload across credential rotation", func(t *testing.T) {
+			exerciseIncompleteAcceptanceRotation(t, ctx, connection, ingestConnection, scope, now)
+		})
+	})
 }
 
 type postgresHTTPIngestArtifactStore struct {

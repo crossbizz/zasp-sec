@@ -28,6 +28,9 @@ func TestBuildSensorAgentDependenciesUsesRegularRotatableTokenAndHardenedTranspo
 	requests := 0
 	dependencies, err := buildSensorAgentDependencies(config, func(request *http.Request) (*http.Response, error) {
 		requests++
+		if request.Header.Get("X-Zasp-Runtime-Schema") != "runtime-event-enrollment-v1" || request.Header.Get("X-Zasp-Expected-Enrollment") != strings.Repeat("a", 64) {
+			t.Fatal("production construction did not bind the runtime request to its installation")
+		}
 		if request.URL.Scheme != "https" || request.Header.Get("Authorization") != "Bearer "+fixtureAgentToken() || request.Header.Get("Idempotency-Key") == "" {
 			t.Fatalf("request = %#v", request)
 		}
@@ -68,6 +71,180 @@ func TestBuildSensorAgentDependenciesRejectsSymlinkOrPermissiveTokenBeforeProvid
 	}
 	if dependencies, err := buildSensorAgentDependencies(fixtureAgentConfig(link, logFile, filepath.Join(directory, "cursor")), func(*http.Request) (*http.Response, error) { t.Fatal("provider called"); return nil, nil }); err == nil || dependencies != (sensorAgentDependencies{}) {
 		t.Fatalf("symlink = %#v, %v", dependencies, err)
+	}
+}
+
+func TestBuildSensorAgentDependenciesRejectsExpiredRuntimeFixtureBeforeTransport(t *testing.T) {
+	t.Parallel()
+	directory := t.TempDir()
+	tokenFile, logFile, cursorFile := filepath.Join(directory, "token"), filepath.Join(directory, "tetragon.log"), filepath.Join(directory, "cursor.json")
+	writeSensorFixture(t, tokenFile, fixtureAgentToken(), 0o600)
+	writeSensorFixture(t, logFile, tetragonAgentFixtureAt(time.Now().UTC().Add(-25*time.Hour))+"\n", 0o600)
+	dependencies, err := buildSensorAgentDependencies(fixtureAgentConfig(tokenFile, logFile, cursorFile), func(*http.Request) (*http.Response, error) {
+		t.Fatal("expired event reached transport")
+		return nil, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = dependencies.Close() })
+	if result, err := dependencies.Processor.ProcessAvailable(context.Background()); !errors.Is(err, sensoradapter.ErrEnvelopeExpired) || result != (sensoradapter.StreamResult{}) {
+		t.Fatalf("expired fixture result=%+v error=%v", result, err)
+	}
+}
+
+func TestSensorAgentRejectsReservedCheckpointInputCollisions(t *testing.T) {
+	for _, input := range []string{"token", "kernel", "btf"} {
+		for _, reserved := range sensoradapter.ReservedCursorNames("cursor.json") {
+			for _, alias := range []bool{false, true} {
+				name := input + "/" + reserved + "/direct"
+				if alias {
+					name = input + "/" + reserved + "/parent-alias"
+				}
+				t.Run(name, func(t *testing.T) {
+					directory := t.TempDir()
+					inputDirectory := directory
+					if alias {
+						inputDirectory = filepath.Join(t.TempDir(), "alias")
+						if err := os.Symlink(directory, inputDirectory); err != nil {
+							t.Fatal(err)
+						}
+					}
+					inputPath := filepath.Join(inputDirectory, reserved)
+					tokenPath := filepath.Join(directory, "token")
+					logPath := filepath.Join(directory, "tetragon.log")
+					cursorPath := filepath.Join(directory, "cursor.json")
+					writeSensorFixture(t, tokenPath, fixtureAgentToken(), 0o600)
+					writeSensorFixture(t, logPath, tetragonAgentFixture()+"\n", 0o600)
+					config := fixtureAgentConfig(tokenPath, logPath, cursorPath)
+					value := "configured input must survive"
+					switch input {
+					case "token":
+						config.TokenFile, value = inputPath, fixtureAgentToken()
+					case "kernel":
+						config.KernelFile = inputPath
+					case "btf":
+						config.BTFFile = inputPath
+					}
+					writeSensorFixture(t, inputPath, value, 0o600)
+					before, err := os.Stat(inputPath)
+					if err != nil {
+						t.Fatal(err)
+					}
+					dependencies, err := buildSensorAgentDependencies(config, func(*http.Request) (*http.Response, error) {
+						t.Fatal("colliding input reached provider I/O")
+						return nil, nil
+					})
+					if dependencies.Processor != nil {
+						_ = dependencies.Close()
+					}
+					if err != errSensorRuntime || dependencies != (sensorAgentDependencies{}) {
+						t.Fatal("reserved input was not rejected during construction", err)
+					}
+					after, statErr := os.Stat(inputPath)
+					body, readErr := os.ReadFile(inputPath)
+					if statErr != nil || readErr != nil || !os.SameFile(before, after) || string(body) != value {
+						t.Fatal("rejected input changed", statErr, readErr)
+					}
+					for _, slot := range sensoradapter.ReservedCursorNames("cursor.json") {
+						if slot == reserved {
+							continue
+						}
+						if _, err := os.Lstat(filepath.Join(directory, slot)); !os.IsNotExist(err) {
+							t.Fatal("rejected configuration created cursor state", slot, err)
+						}
+					}
+					// Identical basenames in separate directories remain valid.
+					config.CursorFile = filepath.Join(t.TempDir(), "cursor.json")
+					dependencies, err = buildSensorAgentDependencies(config, func(*http.Request) (*http.Response, error) {
+						t.Fatal("construction called provider")
+						return nil, nil
+					})
+					if err != nil {
+						t.Fatal("disjoint input was rejected", err)
+					}
+					if err := dependencies.Close(); err != nil {
+						t.Fatal(err)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestSensorAgentBoundInstallationReplaysAfterRestartWithRotatedToken(t *testing.T) {
+	directory := t.TempDir()
+	tokenFile, logFile, cursorFile := filepath.Join(directory, "token"), filepath.Join(directory, "tetragon.log"), filepath.Join(directory, "cursor.json")
+	now := time.Now().UTC().Add(-time.Second)
+	firstLine := tetragonAgentFixtureAt(now) + "\n"
+	writeSensorFixture(t, tokenFile, fixtureAgentToken(), 0o600)
+	writeSensorFixture(t, logFile, firstLine, 0o600)
+	config := fixtureAgentConfig(tokenFile, logFile, cursorFile)
+	var bodies [][]byte
+	transport := func(request *http.Request) (*http.Response, error) {
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bodies = append(bodies, body)
+		checkpoint, err := os.ReadFile(cursorFile)
+		if err != nil || !bytes.Contains(checkpoint, []byte(base64.StdEncoding.EncodeToString(body))) || bytes.Contains(checkpoint, []byte("zasp_sensor_v1.")) || request.Header.Get("X-Zasp-Expected-Enrollment") != config.EnrollmentBinding {
+			t.Fatal("request was not durably frozen for the installation before transport", err)
+		}
+		if len(bodies) == 1 {
+			return nil, sensoradapter.ErrClientRetryable
+		}
+		if request.Header.Get("Authorization") == "Bearer "+fixtureAgentToken() {
+			t.Fatal("restarted sensor reused the old credential")
+		}
+		return &http.Response{StatusCode: http.StatusAccepted, Header: http.Header{"Cache-Control": []string{"no-store"}}, Body: io.NopCloser(strings.NewReader(`{"batch_id":"pid_10000001-0000-4000-8000-000000000001"}`))}, nil
+	}
+	first, err := buildSensorAgentDependencies(config, transport)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result, err := first.Processor.ProcessAvailable(context.Background()); err != sensoradapter.ErrClientRetryable || result != (sensoradapter.StreamResult{}) {
+		t.Fatal("uncertain request did not remain pending", err)
+	}
+	if err := first.Close(); err != nil {
+		t.Fatal(err)
+	}
+	rotated := "zasp_sensor_v1." + base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{3}, 16)) + "." + base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{4}, 32))
+	writeSensorFixture(t, tokenFile, rotated, 0o600)
+	writeSensorFixture(t, logFile, firstLine+tetragonAgentFixtureAt(now.Add(500*time.Millisecond))+"\n", 0o600)
+	// A token replacement cannot replace the enrollment pinned in old state.
+	drift := config
+	drift.EnrollmentBinding = strings.Repeat("b", 64)
+	wrong, err := buildSensorAgentDependencies(drift, func(*http.Request) (*http.Response, error) {
+		t.Fatal("changed enrollment reached transport")
+		return nil, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, _ := os.ReadFile(cursorFile)
+	if _, err := wrong.Processor.ProcessAvailable(context.Background()); err != sensoradapter.ErrStream {
+		t.Fatal("changed installation accepted pending work", err)
+	}
+	if err := wrong.Close(); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := os.ReadFile(cursorFile)
+	if !bytes.Equal(before, after) {
+		t.Fatal("rejected installation changed pending state")
+	}
+	restarted, err := buildSensorAgentDependencies(config, transport)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restarted.Close()
+	for i := 0; i < 2; i++ {
+		if result, err := restarted.Processor.ProcessAvailable(context.Background()); err != nil || result.Read != 1 || result.Submitted != 1 {
+			t.Fatal("restart did not separate pending and appended input", result, err)
+		}
+	}
+	if len(bodies) != 3 || !bytes.Equal(bodies[0], bodies[1]) || bytes.Equal(bodies[1], bodies[2]) {
+		t.Fatal("restart regrouped or rewrote pending work")
 	}
 }
 
@@ -242,7 +419,7 @@ func (reporter *recordingClusterReporter) Tick(_ context.Context, report NodeRep
 }
 
 func fixtureAgentConfig(token, log, cursor string) sensorAgentConfig {
-	return sensorAgentConfig{ControlPlaneURL: "https://runtime.example.test", TokenFile: token, LogFile: log, CursorFile: cursor, Namespace: "agentsec", PodName: "sensor-agent-a", NodeName: "node-a", KernelFile: "/proc/sys/kernel/osrelease", BTFFile: "/sys/kernel/btf/vmlinux", MetricsURL: "http://10.0.0.8:2112/metrics", BatchSize: 100, MaximumProcesses: 1000, PollInterval: time.Second, OperationTimeout: time.Second, ShutdownTimeout: 5 * time.Second, LeaseDuration: 15 * time.Second, ReportTTL: 30 * time.Second}
+	return sensorAgentConfig{ControlPlaneURL: "https://runtime.example.test", EnrollmentBinding: strings.Repeat("a", 64), TokenFile: token, LogFile: log, CursorFile: cursor, Namespace: "agentsec", PodName: "sensor-agent-a", NodeName: "node-a", KernelFile: "/proc/sys/kernel/osrelease", BTFFile: "/sys/kernel/btf/vmlinux", MetricsURL: "http://10.0.0.8:2112/metrics", BatchSize: 100, MaximumProcesses: 1000, PollInterval: time.Second, OperationTimeout: time.Second, ShutdownTimeout: 5 * time.Second, LeaseDuration: 15 * time.Second, ReportTTL: 30 * time.Second}
 }
 func fixtureAgentToken() string {
 	return "zasp_sensor_v1." + base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{1}, 16)) + "." + base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{2}, 32))
@@ -257,5 +434,13 @@ func writeSensorFixture(t *testing.T, path, value string, mode os.FileMode) {
 	}
 }
 func tetragonAgentFixture() string {
-	return `{"process_exec":{"process":{"exec_id":"exec-1","pid":42,"uid":1000,"cwd":"/tmp","binary":"/usr/bin/agent","arguments":"","flags":"execve","start_time":"2026-08-20T12:00:00.000Z","auid":4294967295,"pod":{"namespace":"agentsec","name":"agent-a","uid":"11111111-2222-4333-8444-555555555555","container":{"id":"containerd://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","name":"agent","image":{"id":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","name":"agent:prod"},"start_time":"2026-08-20T11:59:00.000Z","pid":12,"security_context":{}},"pod_labels":{"app":"agent"},"workload":"agent-a","workload_kind":"Pod"},"docker":"aaaaaaaaaaaaaaaaaaaaaaaa","parent_exec_id":"parent-1","cap":{},"ns":{},"tid":42,"process_credentials":{},"in_init_tree":false}},"node_name":"node-a","time":"2026-08-20T12:00:00.000Z","cluster_name":"cluster-a","node_labels":{}}`
+	// Production dependencies use the real clock. A fixed historical event turns
+	// these successful-ingest wiring tests into accidental freshness rejections.
+	return tetragonAgentFixtureAt(time.Now().UTC().Add(-time.Second))
+}
+
+func tetragonAgentFixtureAt(when time.Time) string {
+	body := `{"process_exec":{"process":{"exec_id":"exec-1","pid":42,"uid":1000,"cwd":"/tmp","binary":"/usr/bin/agent","arguments":"","flags":"execve","start_time":"2026-08-20T12:00:00.000Z","auid":4294967295,"pod":{"namespace":"agentsec","name":"agent-a","uid":"11111111-2222-4333-8444-555555555555","container":{"id":"containerd://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","name":"agent","image":{"id":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","name":"agent:prod"},"start_time":"2026-08-20T11:59:00.000Z","pid":12,"security_context":{}},"pod_labels":{"app":"agent"},"workload":"agent-a","workload_kind":"Pod"},"docker":"aaaaaaaaaaaaaaaaaaaaaaaa","parent_exec_id":"parent-1","cap":{},"ns":{},"tid":42,"process_credentials":{},"in_init_tree":false}},"node_name":"node-a","time":"2026-08-20T12:00:00.000Z","cluster_name":"cluster-a","node_labels":{}}`
+	body = strings.ReplaceAll(body, "2026-08-20T12:00:00.000Z", when.UTC().Format("2006-01-02T15:04:05.000Z"))
+	return strings.ReplaceAll(body, "2026-08-20T11:59:00.000Z", when.UTC().Add(-time.Minute).Format("2006-01-02T15:04:05.000Z"))
 }
