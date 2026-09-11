@@ -8,9 +8,21 @@ import (
 // The private namespace authenticates pre-source startup state. Once any
 // enrollment bytes exist, a scoped controller must match every present byte.
 func lineageReservationEnrollmentMatches(raw []byte, id, enrollment string) bool {
-	prefix := []byte(`{"version":"tetragon-spool-v1","record_format":"zasp-tetragon-record-v1","source":{"profile":"tetragon-local-stream-v1","generation_id":"` + id + `","enrollment_binding":"` + enrollment + `"`)
-	n := min(len(raw), len(prefix))
-	return enrollmentBindingPattern.MatchString(enrollment) && bytes.Equal(raw[:n], prefix[:n])
+	if !enrollmentBindingPattern.MatchString(enrollment) {
+		return false
+	}
+	for _, version := range []string{"1", "2"} {
+		prefix := []byte(lineageManifestSourcePrefix(version, id) + enrollment + `"`)
+		n := min(len(raw), len(prefix))
+		if bytes.Equal(raw[:n], prefix[:n]) {
+			return true
+		}
+	}
+	return false
+}
+
+func lineageManifestSourcePrefix(version, id string) string {
+	return `{"version":"tetragon-spool-v1","record_format":"zasp-tetragon-record-v` + version + `","source":{"profile":"tetragon-local-stream-v` + version + `","generation_id":"` + id + `","enrollment_binding":"`
 }
 
 // Only prefixes of this exact canonical manifest grammar are startup scratch.
@@ -31,8 +43,17 @@ func validLineageReservationMetadata(name string, raw []byte, id string) bool {
 	if name != ".pending" {
 		return false
 	}
+	for _, version := range []string{"1", "2"} {
+		if validLineageReservationPrefix(raw, id, version) {
+			return true
+		}
+	}
+	return false
+}
+
+func validLineageReservationPrefix(raw []byte, id, version string) bool {
 	p := lineageManifestPrefix{raw: raw}
-	if !p.literal(`{"version":"tetragon-spool-v1","record_format":"zasp-tetragon-record-v1","source":{"profile":"tetragon-local-stream-v1","generation_id":"` + id + `","enrollment_binding":"`) {
+	if !p.literal(lineageManifestSourcePrefix(version, id)) {
 		return false
 	}
 	if p.done {

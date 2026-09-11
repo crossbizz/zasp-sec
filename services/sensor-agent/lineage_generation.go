@@ -77,7 +77,7 @@ func startLineageGeneration(ctx context.Context, nodeName, binding string, api l
 	uuid[6] = uuid[6]&0x0f | 0x40
 	uuid[8] = uuid[8]&0x3f | 0x80
 	generation.source = sensoradapter.LineageSource{
-		Profile:           "tetragon-local-stream-v1",
+		Profile:           "tetragon-local-stream-v2",
 		GenerationID:      fmt.Sprintf("%x-%x-%x-%x-%x", uuid[:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:]),
 		EnrollmentBinding: binding,
 		NodeName:          before.NodeName, ClusterUID: before.ClusterUID, NodeUID: before.NodeUID, BootID: before.BootID,

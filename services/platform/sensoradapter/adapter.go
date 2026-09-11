@@ -99,6 +99,7 @@ type providerKprobe struct {
 	Action       string          `json:"action"`
 	PolicyName   string          `json:"policy_name"`
 	ReturnAction string          `json:"return_action"`
+	Data         json.RawMessage `json:"data,omitempty"`
 }
 type providerArg struct {
 	File *providerFile `json:"file_arg,omitempty"`
@@ -190,6 +191,9 @@ func NormalizeTetragonLine(line []byte) (RuntimeEvent, error) {
 	root, err := decodeProviderRoot(line)
 	if err != nil {
 		return RuntimeEvent{}, err
+	}
+	if root.ProcessKprobe != nil && len(root.ProcessKprobe.Data) != 0 {
+		return RuntimeEvent{}, ErrAdapter // New records require a v2 source owner.
 	}
 	return normalizeProviderRoot(line, root)
 }
@@ -310,6 +314,10 @@ func (normalizer *Normalizer) Normalize(line []byte) (RuntimeEvent, error) {
 	if err != nil {
 		return RuntimeEvent{}, err
 	}
+	cgroup, err := normalizer.lineageSource.fileCgroup(root.ProcessKprobe)
+	if err != nil {
+		return RuntimeEvent{}, err
+	}
 	normalizer.mu.Lock()
 	defer normalizer.mu.Unlock()
 	var process *providerProcess
@@ -337,6 +345,9 @@ func (normalizer *Normalizer) Normalize(line []byte) (RuntimeEvent, error) {
 		return RuntimeEvent{}, err
 	}
 	event.ObservedLineage = normalizer.lineageSource.qualify(root.NodeName, *process, root.Time)
+	if event.ObservedLineage != (runtimelineage.Observation{}) {
+		event.ObservedLineage.CgroupID = cgroup
+	}
 	if root.ProcessExec != nil {
 		if !keyOK {
 			return RuntimeEvent{}, ErrAdapter

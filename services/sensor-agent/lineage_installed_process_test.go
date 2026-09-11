@@ -394,9 +394,14 @@ func initializeInstalledLineageFixture(ctx context.Context, config installedLine
 			kind = "exec"
 		}
 		event := lineageProviderFixture(kind)
+		if config.Action == "initialize-single" && config.Source.Profile == "tetragon-local-stream-v2" {
+			event = lineageCgroupProviderFixture(^uint64(0))
+		}
 		event.NodeName, event.Time = config.Source.NodeName, timestamppb.New(stamp)
-		if index == 0 {
+		if event.GetProcessExec() != nil {
 			event.GetProcessExec().Process.StartTime = timestamppb.New(stamp)
+		} else if index == 0 {
+			event.GetProcessKprobe().Process.StartTime = timestamppb.New(stamp)
 		} else {
 			started := stamp
 			if index == 2 {

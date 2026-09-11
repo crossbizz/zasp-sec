@@ -226,7 +226,7 @@ func TestLineageSubscriberRequestHasFixedScopeAndFreshOwnedFilters(t *testing.T)
 			message = &tetragon.ProcessExit{}
 		}
 		if index == 2 {
-			paths = append(paths, "function_name", "args", "action", "return_action", "policy_name")
+			paths = append(paths, "function_name", "args", "action", "return_action", "policy_name", "data")
 			message = &tetragon.ProcessKprobe{}
 		}
 		want := &tetragon.FieldFilter{EventSet: []tetragon.EventType{event}, Fields: &fieldmaskpb.FieldMask{Paths: paths}, Action: tetragon.FieldFilterAction_INCLUDE}

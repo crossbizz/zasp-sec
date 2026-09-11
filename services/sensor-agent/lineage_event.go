@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -45,6 +46,11 @@ type lineageProbeRecord struct {
 	Action       string                  `json:"action"`
 	ReturnAction string                  `json:"return_action"`
 	Policy       string                  `json:"policy_name"`
+	Data         []lineageCgroupRecord   `json:"data,omitempty"`
+}
+type lineageCgroupRecord struct {
+	Label string `json:"label"`
+	Size  string `json:"size_arg"`
 }
 type lineageProcessRecord struct {
 	Exec   string            `json:"exec_id,omitempty"`
@@ -195,6 +201,16 @@ func sanitizeLineageProbe(probe *tetragon.ProcessKprobe) (lineageProbeRecord, er
 		return lineageProbeRecord{}, errLineageEvent
 	}
 	record := lineageProbeRecord{Process: process, Function: probe.FunctionName, Action: action, ReturnAction: returnAction, Policy: probe.PolicyName}
+	if len(probe.Data) != 0 {
+		if probe.FunctionName != "security_file_permission" || probe.PolicyName != "zasp-sensitive-file" || len(probe.Data) != 1 || probe.Data[0] == nil || len(probe.Data[0].ProtoReflect().GetUnknown()) != 0 || probe.Data[0].Label != "zasp_cgroup_v2_id" {
+			return lineageProbeRecord{}, errLineageEvent
+		}
+		value, ok := probe.Data[0].Arg.(*tetragon.KprobeArgument_SizeArg)
+		if !ok || value == nil || value.SizeArg == 0 {
+			return lineageProbeRecord{}, errLineageEvent
+		}
+		record.Data = []lineageCgroupRecord{{Label: "zasp_cgroup_v2_id", Size: strconv.FormatUint(value.SizeArg, 10)}}
+	}
 	switch probe.FunctionName {
 	case "security_file_permission":
 		if len(probe.Args) != 2 || probe.Args[0] == nil || probe.Args[1] == nil {

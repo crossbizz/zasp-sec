@@ -21,7 +21,8 @@ var lineageUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4
 // alone is not that proof. Existing exporter files MUST NOT be adopted.
 //
 // These fields contain no credential and grant no tenant or correlation
-// authority. No production configuration creates this contract yet.
+// authority. V2 permits strictly selected file-event cgroup observations. The
+// profile is also a reader fence: old readers must refuse the entire generation.
 type LineageSource struct {
 	Profile           string `json:"profile"`
 	GenerationID      string `json:"generation_id"`
@@ -33,7 +34,7 @@ type LineageSource struct {
 }
 
 func (source LineageSource) valid() bool {
-	if source.Profile != "tetragon-local-stream-v1" || !enrollmentBindingPattern.MatchString(source.EnrollmentBinding) || !boundedText(source.NodeName, 253) || strings.TrimSpace(source.NodeName) != source.NodeName {
+	if (source.Profile != "tetragon-local-stream-v1" && source.Profile != "tetragon-local-stream-v2") || !enrollmentBindingPattern.MatchString(source.EnrollmentBinding) || !boundedText(source.NodeName, 253) || strings.TrimSpace(source.NodeName) != source.NodeName {
 		return false
 	}
 	for _, id := range []string{source.GenerationID, source.ClusterUID, source.NodeUID, source.BootID} {
@@ -70,7 +71,7 @@ func (source LineageSource) qualify(node string, process providerProcess, when s
 	}
 	// Never round an execution start down to fit the millisecond wire time.
 	// Omit the optional process pair together when its precision doesn't fit.
-	// Numeric cgroup identity is not supplied by this provider surface.
+	// Event-local cgroup data, when present, is applied separately, never cached.
 	if started, ok := parseProviderTimestamp(process.StartTime); ok && process.PID > 0 && !started.After(eventTime) {
 		withProcess := observation
 		withProcess.ProcessID = strconv.FormatUint(uint64(process.PID), 10)
