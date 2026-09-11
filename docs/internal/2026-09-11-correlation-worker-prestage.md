@@ -36,10 +36,37 @@ healthy schema48, with the readiness qualification above. Independent final
 three-file review found no critical or important issue. Fresh full `npm run verify`
 passes all 1,188 UI tests, typecheck, lint, production build and all 728 ledger rows:
 `/tmp/zasp-correlation-prestage-full-verify.log`. The complete source release gate
-also passes in `/tmp/zasp-correlation-prestage-source-gate.log`. Publication remains
-pending while PR44's CI architecture failure is repaired. Superpowers isn't
+also passes in `/tmp/zasp-correlation-prestage-source-gate.log`. Publication was
+held while PR44's CI architecture failure was repaired. Superpowers isn't
 installed; its official upstream test-first, verification and independent-review
 workflow is used, not claimed as an installed-skill pass.
+
+The composed schema-48 proof now runs the pre-staged v2 reader against actual
+production-created v1 jobs from separately enrolled raw and semantic sources.
+The first actual run failed at correlation because the old Execute-only test
+wrapper erased version negotiation. That RED is recorded in
+`/tmp/zasp-correlation-prestage-backlog-red.log`. Passing actual executors through
+composition preserves the same optional interfaces as production; no production
+Go code changed. The corrected run reads both completed v1 receipts from their
+exact S3 versions, verifies the committed digest, scope, batch and generation,
+retains 26 Unattributed raw results and three Exact semantic results, and checks
+zero candidate observations or snapshots for either batch. Existing replay
+checks and the separate fixture-selected v2 recovery proof remain intact.
+
+The full actual pipeline and installed-Chrome suite passed with exit 0 and
+successful cleanup in `/tmp/zasp-correlation-prestage-backlog-full.log`.
+Supporting contracts passed 72 tests; two opt-in real-signal cleanup probes were
+skipped in `/tmp/zasp-correlation-prestage-combined-contracts.log`. Full worker
+races passed again in 9.109s in `/tmp/zasp-correlation-prestage-final-worker.log`.
+The complete source release gate passed in
+`/tmp/zasp-correlation-prestage-final-source-gate.log`. Independent follow-on
+review found no critical or important issue in the two-file proof extension.
+Final runnable-UI verification after combining the repaired daemon branch passes
+with exit 0: all 1,188 UI tests, typecheck/lint/build, compiled imports and all
+728 ledger rows in `/tmp/zasp-correlation-prestage-final-verify.log`.
+PR44's corrected push and PR CI passed, including both actual AMD64 daemon
+attempts. It merged as `fd4ba167`; the pre-stage branch incorporates that main
+commit without additional source changes. New main CI 34621326929 is pending.
 
 Rollback to the v1 worker remains compatible only while v2 jobs haven't been
 created. Routing49 needs its own forward migration, pinned readiness/CLI wiring,

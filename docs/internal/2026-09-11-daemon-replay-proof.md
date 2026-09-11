@@ -229,7 +229,7 @@ absent VERSION file; this repository's existing package versioning was preserved
 ## Hosted architecture failure and repair
 
 Both initial CI runs failed the new daemon step with `exec format error`, after
-their preceding verification passed. PR44 is not merged. The original pinned
+their preceding verification passed. PR44 was held unmerged. The original pinned
 digest is a single ARM64 Linux manifest, not a multi-architecture image. The
 runner compiled from that image's architecture on the AMD64 CI host, creating
 binaries that its kernel could not execute. Local ARM64 passes did not cover it.
@@ -262,4 +262,15 @@ scan passes all 1,387 commits without leaks in 3.98s. Exact PR-body scan is clea
 the unchanged push guard's nonblocking warnings were reviewed as public CI IDs.
 No scanner or hook was bypassed. Main remains `c30d9fa6` until reviewed hosted
 checks permit merge. The investigation workflow traced the failure to the image
-platform before changing the runner; hosted AMD64 verification remains pending.
+platform before changing the runner; hosted AMD64 verification was still pending
+at that publication checkpoint.
+
+Replacement push CI 34619630942 and PR CI 34619634385 both passed. The hosted
+log explicitly selects `linux/amd64`; actual daemon replay passes twice in
+4.93s and 4.92s, followed by verified exact container removal. Evidence is in
+`/tmp/zasp-daemon-platform-hosted-ci.log`. The exact reviewed head `ee93b566`
+merged through PR44 as `fd4ba1670f766b57c3d92ddbca03dcd59d609a50` on
+September 11 at 16:19:30 UTC. Fresh main CI 34621326929 is pending. This closes
+the platform-specific CI defect, not live production acceptance or an original
+microtask. Counts remain 535 production-available, 132 component-only and
+61 blocked/external.

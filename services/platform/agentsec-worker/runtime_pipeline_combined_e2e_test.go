@@ -27,9 +27,11 @@ import (
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/jackc/pgx/v5"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue"
 	"github.com/zasp-ai/zasp-sec/services/platform/jobqueue/sqsdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimecorrelation"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent/s3rawstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeindex"
@@ -396,7 +398,11 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	}
 	var sessionWorker workerProcessor
 	correlationGraph, projectionGraph := &runtimePipelineGraphObserver{delegate: realGraph}, &runtimePipelineGraphObserver{delegate: realGraph}
-	correlation, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: archive, Receipts: receipts, Graph: correlationGraph, ImplementationVersion: "runtime-correlation-v1"})
+	// Schema 48 still creates v1 jobs. Exercise the pre-staged production v2
+	// reader against those untouched jobs and the real candidate authority.
+	correlationConfig := validRuntimeCorrelationConfig()
+	correlationConfig.RuntimeStageVersion = "runtime-correlation-v2"
+	correlation, err := newRuntimeCorrelationExecutorWithDatabase(runtimeCorrelationExecutorConfig{Reader: archive, Receipts: receipts, Graph: correlationGraph, ImplementationVersion: correlationConfig.RuntimeStageVersion}, database("zasp_e2e_correlation"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,20 +419,15 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 		principal string
 		executor  runtimeStageExecutor
 	}{
-		{validRuntimeArchiveConfig(), "zasp_e2e_archive", archive}, {validRuntimeIndexConfig(), "zasp_e2e_index", indexExecutor}, {validRuntimeCorrelationConfig(), "zasp_e2e_correlation", correlation}, {validRuntimeProjectionConfig(), "zasp_e2e_runtime_projection", projection}, {validRuntimeCompleteConfig(), "zasp_e2e_coordinator", complete},
+		{validRuntimeArchiveConfig(), "zasp_e2e_archive", archive}, {validRuntimeIndexConfig(), "zasp_e2e_index", indexExecutor}, {correlationConfig, "zasp_e2e_correlation", correlation}, {validRuntimeProjectionConfig(), "zasp_e2e_runtime_projection", projection}, {validRuntimeCompleteConfig(), "zasp_e2e_coordinator", complete},
 	} {
 		stageName, _, ok := runtimeStageBinding(stage.config.Mode)
 		if !ok {
 			t.Fatal("invalid stage")
 		}
-		tracedExecutor := runtimeStageExecutorFunc(func(ctx context.Context, lease runtimeevent.StageLease) (runtimeStageEffect, error) {
-			effect, err := stage.executor.Execute(ctx, lease)
-			if err != nil {
-				t.Logf("owned raw-stage executor %s failed: %v", stageName, err)
-			}
-			return effect, err
-		})
-		stageDependencies := &productionRuntimeStageDependencies{Stage: stageName, Executor: tracedExecutor, ready: func(context.Context) error { return nil }, close: func() error { return nil }}
+		// Pass the actual executor so composition retains its version negotiation
+		// and authorized-execution interfaces, as it does in production.
+		stageDependencies := &productionRuntimeStageDependencies{Stage: stageName, Executor: stage.executor, ready: func(context.Context) error { return nil }, close: func() error { return nil }}
 		if stageName == runtimeevent.RuntimeStageIndex {
 			stageDependencies.Sessions = sessionExecutor
 			stageDependencies.SessionReady = sessionIndex.Ready
@@ -722,7 +723,7 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	}
 	semanticCoordinatorResult := make(chan error, 1)
 	go func() { semanticCoordinatorResult <- coordinator.Processor.RunOnce(ctx) }()
-	semanticCorrelation, err := newRuntimeCorrelationExecutor(runtimeCorrelationExecutorConfig{Reader: archive, Receipts: receipts, Graph: realGraph, ImplementationVersion: "runtime-correlation-v1"})
+	semanticCorrelation, err := newRuntimeCorrelationExecutorWithDatabase(runtimeCorrelationExecutorConfig{Reader: archive, Receipts: receipts, Graph: realGraph, ImplementationVersion: correlationConfig.RuntimeStageVersion}, database("zasp_e2e_correlation"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -737,7 +738,7 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	}{
 		{validRuntimeArchiveConfig(), "zasp_e2e_archive", archive},
 		{validRuntimeIndexConfig(), "zasp_e2e_index", indexExecutor},
-		{validRuntimeCorrelationConfig(), "zasp_e2e_correlation", semanticCorrelation},
+		{correlationConfig, "zasp_e2e_correlation", semanticCorrelation},
 		{validRuntimeProjectionConfig(), "zasp_e2e_runtime_projection", semanticProjection},
 		{validRuntimeCompleteConfig(), "zasp_e2e_coordinator", complete},
 	} {
@@ -843,11 +844,45 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	if sessionSnapshot() != beforeSemanticReplay || versions() != beforeSemanticVersions {
 		t.Fatal("semantic replay changed canonical evidence")
 	}
+	proveRuntimeV1BacklogReceipt(t, ctx, admin, receipts, scope, acceptedBatch.BatchID, 26, domain.EvidenceConfidenceUnattributed)
+	proveRuntimeV1BacklogReceipt(t, ctx, admin, receipts, scope, semanticBatch.BatchID, 3, domain.EvidenceConfidenceExact)
+	t.Log("runtime v2 reader v1 backlog proven: production-created raw and semantic jobs, unchanged v1 versions and exact S3 receipts, no candidate observations or snapshots, stable replay; schema48 local proof only")
 	t.Log("semantic observation pipeline proven: separately enrolled OTLP source, actual five-stage receipts, six canonical classes, scoped Exact instrumentation and stable replay; no raw content or enforcement assertion")
 	proveRuntimeCandidateRecovery(t, ctx, runtimeCandidateRecoveryFixture{admin: admin, database: database, handler: handler, outbox: outbox, coordinator: coordinator.Processor, queue: observedQueue, archive: archive, index: indexExecutor, receipts: receipts, graph: realGraph})
 	assertQueuesEmpty()
 	t.Log("runtime observed lineage preservation proven: exact S3 versions and committed digests, same qualified observations from separate enrollments, unknown kernel attribution and explicit semantic IDs retained, immutable replay; Strong/Probable correlation NOT RUN")
 	t.Log("runtime pipeline proof passed: production roles, durable ingest/outbox, actual local SQS/S3/OpenSearch/authenticated TLS Neo4j, five stage receipts, replay and empty DLQ; cloud IAM and graph publisher-role attestation NOT RUN")
+}
+
+func proveRuntimeV1BacklogReceipt(t *testing.T, ctx context.Context, admin *pgx.Conn, receipts artifactstore.ArtifactStore, scope domain.Scope, batch string, count int, confidence domain.EvidenceConfidence) {
+	t.Helper()
+	var implementation, reference, version string
+	var generation int64
+	var digest []byte
+	if err := admin.QueryRow(ctx, `SELECT implementation_version,batch_generation,result_reference,result_version_id,result_digest FROM zasp_runtime_stage_work WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND batch_id=$4 AND stage='correlate' AND state='succeeded'`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), batch).Scan(&implementation, &generation, &reference, &version, &digest); err != nil || implementation != "runtime-correlation-v1" {
+		t.Fatalf("v2 reader changed v1 job version: %q err=%v", implementation, err)
+	}
+	locator, ok := runtimeReceiptLocator(scope, reference, version)
+	if !ok {
+		t.Fatal("v1 backlog receipt locator rejected")
+	}
+	artifact, err := receipts.Get(ctx, locator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := runtimecorrelation.DecodeReceipt(artifact.Body)
+	if err != nil || artifact.Locator != locator || !bytes.Equal(digest, artifact.SHA256[:]) || sha256.Sum256(artifact.Body) != artifact.SHA256 || receipt.Scope != scope || receipt.BatchID.String() != batch || receipt.Generation != generation || receipt.ImplementationVersion != implementation || receipt.CandidateSnapshotDigest != ([sha256.Size]byte{}) || len(receipt.Results) != count {
+		t.Fatal("v1 backlog receipt binding changed", err)
+	}
+	for _, result := range receipt.Results {
+		if result.Confidence != confidence {
+			t.Fatal("v2 reader changed v1 evidence confidence")
+		}
+	}
+	var observations, snapshots int
+	if err := admin.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_runtime_candidate_observations WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND batch_id=$4),(SELECT count(*) FROM zasp_runtime_candidate_snapshots WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND batch_id=$4)`, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), batch).Scan(&observations, &snapshots); err != nil || observations != 0 || snapshots != 0 {
+		t.Fatalf("v1 backlog acquired candidate state: observations=%d snapshots=%d err=%v", observations, snapshots, err)
+	}
 }
 
 type runtimePipelinePublisher struct {
