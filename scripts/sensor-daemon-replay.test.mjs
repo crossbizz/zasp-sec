@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
-import { buildDaemonReplayArguments, validateDaemonReplayContainer, validateDaemonReplayResult, closeDaemonReplayContainer, cleanupDaemonReplayResources, daemonReplayCommandBudget } from "./sensor-daemon-replay.mjs";
+import { readFile, mkdtemp, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { once } from "node:events";
+import { spawnOwnedCommand } from "./owned-command.mjs";
+import { buildDaemonReplayArguments, validateDaemonReplayContainer, validateDaemonReplayResult, closeDaemonReplayContainer, cleanupDaemonReplayResources, daemonReplayCommandBudget, finishDaemonReplayCommand } from "./sensor-daemon-replay.mjs";
 
 const owner = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const id = "a".repeat(64);
+const passingOutput = "--- PASS: TestRuntimeAcceptanceActualDaemonLostSuccessReplay (3.00s)\nPASS\n";
 const config = { owner, directory: "/tmp/zasp-daemon-proof-fixture", imageEnvironment: ["PATH=/usr/local/bin:/usr/bin:/bin"] };
 
 test("CI runs actual daemon proof and ownership regressions within a bounded step", async () => {
@@ -46,7 +51,7 @@ test("daemon proof arguments reject widened mounts and require all isolation con
 
 test("daemon proof inspects exact identity, mounts, isolation and exit", () => {
   validateDaemonReplayContainer(fixture(), config);
-  validateDaemonReplayResult(fixture(), "--- PASS: TestRuntimeAcceptanceActualDaemonLostSuccessReplay (3.00s)\nPASS\n");
+  validateDaemonReplayResult(fixture(), passingOutput);
   const mutations = [
     v => { v.Config.Image = "unrelated:latest"; },
     v => { v.Config.Entrypoint = ["/bin/sh"]; },
@@ -65,7 +70,7 @@ test("daemon proof inspects exact identity, mounts, isolation and exit", () => {
   ];
   for (const mutate of mutations) { const value = fixture(); mutate(value); assert.throws(() => validateDaemonReplayContainer(value, config)); }
   for (const state of [{ OOMKilled: true }, { Running: true }, { ExitCode: 1 }, { Pid: 14 }]) {
-    const value = fixture(); Object.assign(value.State, state); assert.throws(() => validateDaemonReplayResult(value, "PASS\n"));
+    const value = fixture(); Object.assign(value.State, state); assert.throws(() => validateDaemonReplayResult(value, passingOutput));
   }
   assert.throws(() => validateDaemonReplayResult(fixture(), "--- SKIP: TestRuntimeAcceptanceActualDaemonLostSuccessReplay\nPASS\n"));
 });
@@ -127,4 +132,22 @@ test("overall execution budget leaves three minutes before CI hard timeout", () 
   assert.equal(daemonReplayCommandBudget(300_000, 0), 300_000);
   assert.equal(daemonReplayCommandBudget(300_000, 710_000), 10_000);
   assert.throws(() => daemonReplayCommandBudget(300_000, 720_000));
+});
+
+test("interrupted command is joined and its output retained before cleanup", { timeout: 10_000, skip: process.platform === "win32" }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), "zasp-daemon-command-test-"));
+  const owned = spawnOwnedCommand(process.execPath, ["-e", "process.stderr.write('diagnostic evidence\\n'); process.stdout.write('ready evidence\\n'); setInterval(() => {}, 1000)"]);
+  try {
+    await once(owned.child.stdout, "data");
+    await finishDaemonReplayCommand(owned, { directory, sequence: 1, failed: true });
+    const path = join(directory, "failed-command-1.json");
+    const result = JSON.parse(await readFile(path, "utf8"));
+    assert.equal(result.signal, "SIGTERM");
+    assert.match(result.stdout, /ready evidence/);
+    assert.match(result.stderr, /diagnostic evidence/);
+    assert.equal((await stat(path)).mode & 0o777, 0o600);
+  } finally {
+    await owned.stop();
+    await rm(directory, { recursive: true });
+  }
 });

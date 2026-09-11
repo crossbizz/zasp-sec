@@ -112,6 +112,15 @@ export async function cleanupDaemonReplayResources({ commands, container, remove
   if (failures.length) throw new AggregateError(failures, "owned cleanup incomplete; evidence preserved");
 }
 
+export async function finishDaemonReplayCommand(owned, { directory, sequence, failed }) {
+  await owned.stop();
+  if (!failed) return;
+  const result = await owned.completed.catch(error => ({ status: null, signal: null, stdout: "", stderr: error.message }));
+  // CLI timeouts/interruption don't return through the normal attempt log path.
+  // Keep joined output privately, before Docker shutdown destroys its tmpfs.
+  await writeFile(join(directory, `failed-command-${sequence}.json`), JSON.stringify(result), { mode: 0o600 });
+}
+
 export async function runDaemonReplayProof() {
   const started = performance.now();
   const directory = await mkdtemp(join(tmpdir(), "zasp-daemon-proof-"));
@@ -120,23 +129,28 @@ export async function runDaemonReplayProof() {
   const commands = new Set();
   let interrupted = false, creating = false, successful = false;
   let failure;
+  let sequence = 0;
   const interrupt = () => { interrupted = true; for (const command of commands) void command.stop().catch(() => {}); };
   process.once("SIGINT", interrupt); process.once("SIGTERM", interrupt);
   const run = async (executable, args, { timeout = 20_000, env = process.env, cleanup = false, reject = true } = {}) => {
     if (interrupted && !cleanup) throw new Error("daemon proof interrupted");
     if (!cleanup) timeout = daemonReplayCommandBudget(timeout, performance.now() - started);
     const owned = spawnOwnedCommand(executable, args, { cwd: root, env });
+    const commandSequence = ++sequence;
     commands.add(owned);
-    let timer, timedOut = false;
+    let timer, timedOut = false, commandFailed = false;
     try {
       const result = await Promise.race([owned.completed, new Promise((_, reject) => {
         timer = setTimeout(() => { timedOut = true; reject(new Error("owned command deadline")); }, timeout);
       })]);
       if (reject && result.status !== 0) throw new Error(`${executable} failed: ${result.stderr.slice(-4000)}`);
       return result;
+    } catch (error) {
+      commandFailed = true;
+      throw error;
     } finally {
       clearTimeout(timer);
-      await owned.stop();
+      await finishDaemonReplayCommand(owned, { directory, sequence: commandSequence, failed: timedOut || interrupted || commandFailed });
       commands.delete(owned);
       if (timedOut) console.error("command deadline; owned process group joined");
     }

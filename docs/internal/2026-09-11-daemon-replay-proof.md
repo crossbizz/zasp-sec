@@ -136,8 +136,8 @@ PID zero, exit zero and no OOM, then removed by exact ID without force. Their
 absence was checked; host logs and final inspection remain in
 `/tmp/zasp-daemon-manual-final-inspection.json`. No unrelated container was touched.
 
-Full API races and a fresh pinned UI/build verification are running. Hosted CI and
-publication of this branch are not yet claimed. Counts remain 535/132/61.
+Full API races and pinned UI/build verification have passed, as recorded below.
+Hosted CI and publication of this branch are not yet claimed. Counts remain 535/132/61.
 
 Final source re-review reports no findings in the runner deadline/cleanup fixes,
 the narrow Attack Lab fixture timer correction or the workflow contract. The
@@ -184,7 +184,29 @@ tests pass in `/tmp/zasp-daemon-execution-identity-green.log`.
 An initial postcommit Gitleaks invocation used its default all-reference history
 and reported two fixed fake lease strings in `adcc80a6`, on the unrelated local
 `codex/main-integration` branch. That commit isn't an ancestor of this release.
-The release gate's existing scope is `--log-opts=HEAD`; it will be rerun after the
-execution-identity correction commit. No new ignore or scanner-rule change was
+The release gate's existing scope is `--log-opts=HEAD`; it passes all 1,385 commits
+after execution-identity correction `01393c7d`. No new ignore or scanner-rule change was
 made. The original all-reference report is retained at
 `/tmp/zasp-daemon-postcommit-gitleaks.json`.
+
+Execution-identity inspection passes the real container twice (3.28s, 2.69s),
+with final independent re-review reporting no findings. The ship audit then found
+that timeout/interruption could discard buffered CLI output before the normal
+attempt log was written. The runner now joins that command and saves both output
+streams, status and signal to a unique private 0600 JSON file before Docker
+cleanup. A real interrupted Node child verifies SIGTERM, both streams and mode.
+Failed joins still preserve the owned root and reconcile Docker independently.
+
+The exit-state denial tests now use otherwise valid named-test PASS output, so
+their failure can't be caused by an unrelated output assertion. All 14 runner and
+command-owner tests pass; lint passes. Final real-daemon attempts pass in 3.18s
+and 3.21s with verified exact removal. Logs:
+`/tmp/zasp-daemon-failure-output-green.log`,
+`/tmp/zasp-daemon-failure-output-lint.log`,
+`/tmp/zasp-daemon-failure-output-actual.log`. The missing-helper RED is retained in
+`/tmp/zasp-daemon-failure-output-red.log`.
+
+Independent testing, maintainability and corrected failure-path reviews report
+no findings. The bounded slice audit accepts all five numbered replay scenarios
+plus failure-evidence preservation (six slice criteria), not six original tasks.
+The original counts remain 535/132/61. No live gate was waived.
