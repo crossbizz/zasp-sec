@@ -3,7 +3,7 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-correlation-lineage`; PR46 correction published, mixed-evidence browser proof locally passed
+**Execution branch:** `codex/runtime-sandbox-lineage`; PR46 correction and PR47 mixed-evidence proof published, hosted checks running
 **Latest main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
 **Last verified main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
 
@@ -79,7 +79,14 @@ unassigned Probable evidence, foreign-tenant denial and API permission revocatio
 Worker races, runner contracts and the source release gate passed. Independent
 review accepts M7-07's original criterion after verified main. Fresh verification
 passed all 1,188 UI tests, typecheck/lint/build/imports and all 728 ledger rows.
-Publication and hosted checks remain pending. No original-task credit yet. Details are in
+The mixed-evidence increment is published as PR47 at exact head
+`748c258767f6e2851f3e20b192506cdae5dc9f61`. Push CI 34631235822 and PR CI
+34631280739 are running. It must wait for PR46 and its main CI before merge,
+then pass its own hosted and main checks before M7-07 is credited. Postcommit
+history scanning passed all 1,396 commits. The unchanged publication hook's 21
+nonblocking findings were inspected: public CI IDs, synthetic AWS accounts and
+fixture product IDs, with no HIGH findings. The next branch preserves both
+published heads unchanged. No original-task credit yet. Details are in
 `docs/internal/2026-09-11-worker-mixed-evidence.md`.
 M3-46, M3-47 and M7-07 remain open. Live source/provider enrollment and deployed
 release evidence remain separate gates.
