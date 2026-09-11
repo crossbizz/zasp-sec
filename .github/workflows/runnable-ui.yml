@@ -31,6 +31,13 @@ jobs:
         run: npm install --global npm@10.9.8
       - name: Install locked dependencies
         run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci
+      - name: Expose PostgreSQL fixture tools
+        run: |
+          fixture_pg_bin="$(pg_config --bindir)"
+          for fixture_tool in initdb postgres pg_isready pg_ctl; do
+            test -x "$fixture_pg_bin/$fixture_tool"
+          done
+          printf '%s\n' "$fixture_pg_bin" >> "$GITHUB_PATH"
       - name: Install pinned secret scanner
         run: go install github.com/zricethezav/gitleaks/v8@v8.30.1
       - name: Verify implementation status ledger
@@ -57,6 +64,12 @@ jobs:
           go test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent
           go test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...
           go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'
+      - name: Verify sensor lineage and authenticated replay
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/sensor-agent -race -count=1 ./...
+          go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntimeAcceptance|TestProductionRuntimeIngestHTTPPersistsTransactionalOutboxBeforeAcceptance)'
       - name: Verify bounded Attack Lab network enforcement
         run: |
           go test -C proofs/attack-lab-egress -race -count=1 ./...

@@ -10,6 +10,63 @@ import { customerEdgeReleaseFixture as edgeRelease, productionReleaseFixture as 
 
 const exec = promisify(execFile);
 
+test("production CI runs sensor lineage and authenticated replay regressions", async () => {
+  const workflow = load(await readFile(new URL("../../.github/workflows/runnable-ui.yml", import.meta.url), "utf8"));
+  const step = workflow.jobs.verify.steps.find(({ name }) => name === "Verify sensor lineage and authenticated replay");
+  assert.ok(step, "sensor runtime and acceptance tests must run at every push");
+  assert.ok(step.run.includes("go test -C services/sensor-agent -race -count=1 ./..."));
+  assert.ok(step.run.includes("TestRuntimeAcceptance"));
+  assert.ok(step.run.includes("TestProductionRuntimeIngestHTTPPersistsTransactionalOutboxBeforeAcceptance"));
+  assert.ok(step.run.includes('test -x "$(pg_config --bindir)/initdb"'));
+  assert.ok(step.run.includes('export PATH="$(pg_config --bindir):$PATH"'));
+  const fixtureIndex = workflow.jobs.verify.steps.findIndex(({ name }) => name === "Expose PostgreSQL fixture tools");
+  const uiIndex = workflow.jobs.verify.steps.findIndex(({ name }) => name === "Verify runnable UI");
+  assert.ok(fixtureIndex >= 0 && fixtureIndex < uiIndex, "all PostgreSQL test steps need the fixture binaries on PATH");
+  const fixtureSetup = workflow.jobs.verify.steps[fixtureIndex].run;
+  assert.ok(fixtureSetup.includes("for fixture_tool in initdb postgres pg_isready pg_ctl"));
+  assert.ok(fixtureSetup.includes('test -x "$fixture_pg_bin/$fixture_tool"'));
+  assert.ok(fixtureSetup.includes('printf \'%s\\n\' "$fixture_pg_bin" >> "$GITHUB_PATH"'));
+});
+
+test("customer edge isolates lineage producer, consumer and layout initialization", async () => {
+  const resources = await renderCustomerEdgeRelease(edgeRelease);
+  const pod = one(resources, "DaemonSet", "sensor-agent").spec.template.spec;
+  assert.equal(pod.automountServiceAccountToken, false);
+  const consumer = pod.containers.find(({ name }) => name === "sensor-agent");
+  const producer = pod.containers.find(({ name }) => name === "lineage-producer");
+  assert.ok(producer);
+  const env = container => Object.fromEntries(container.env.filter(item => item.value !== undefined).map(item => [item.name, item.value]));
+  assert.equal(env(consumer).ZASP_SENSOR_ROLE, "lineage-consumer");
+  assert.equal(env(producer).ZASP_SENSOR_ROLE, "lineage-producer");
+  assert.equal(env(producer).ZASP_SENSOR_TOKEN_FILE, undefined);
+  assert.equal(env(consumer).ZASP_TETRAGON_LOG_FILE, undefined);
+  assert.equal(env(consumer).ZASP_SENSOR_CURSOR_FILE, undefined);
+  assert.equal(producer.securityContext.runAsUser, 0);
+  assert.equal(producer.securityContext.runAsGroup, 65532);
+  assert.deepEqual(producer.securityContext.capabilities, { drop: ["ALL"] });
+  assert.equal(consumer.securityContext.runAsUser, 65532);
+  assert.equal(producer.volumeMounts.some(({ name }) => ["token", "token-source"].includes(name)), false);
+  assert.equal(consumer.volumeMounts.some(({ name }) => name === "tetragon-socket"), false);
+  assert.ok(producer.volumeMounts.some(m => m.subPath === "producer" && !m.readOnly));
+  assert.ok(producer.volumeMounts.some(m => m.subPath === "acks" && m.readOnly));
+  assert.ok(consumer.volumeMounts.some(m => m.subPath === "producer" && m.readOnly));
+  assert.ok(consumer.volumeMounts.some(m => m.subPath === "acks" && !m.readOnly));
+  assert.ok(consumer.volumeMounts.some(m => m.subPath === "consumer" && !m.readOnly));
+  const layout = pod.initContainers.find(({ name }) => name === "initialize-lineage-layout");
+  assert.ok(layout);
+  assert.equal(env(layout).ZASP_SENSOR_ROLE, "lineage-layout");
+  assert.deepEqual(layout.securityContext.capabilities, { drop: ["ALL"], add: ["CHOWN", "DAC_READ_SEARCH"] });
+  assert.deepEqual(layout.volumeMounts.map(m => m.name), ["state"]);
+  assert.equal(pod.initContainers.some(c => c.volumeMounts.some(m => m.name === "kubernetes-authority")), false);
+  const socket = pod.volumes.find(({ name }) => name === "tetragon-socket");
+  assert.deepEqual(socket.hostPath, { path: "/var/run/tetragon", type: "DirectoryOrCreate" });
+  assert.equal(pod.volumes.find(({ name }) => name === "state").hostPath.path, "/var/lib/zasp-sensor-lineage");
+  assert.deepEqual(one(resources, "ClusterRole", "sensor-lineage-identity").rules, [
+    { apiGroups: [""], resources: ["nodes"], verbs: ["get"] },
+    { apiGroups: [""], resources: ["namespaces"], resourceNames: ["kube-system"], verbs: ["get"] },
+  ]);
+});
+
 test("production API composes the dedicated session search repository", async () => {
   const composition = await readFile(new URL("../../services/platform/agentsec-api/production_runtime.go", import.meta.url), "utf8");
   const authority = await readFile(new URL("../../services/platform/agentsec-api/policy_production.go", import.meta.url), "utf8");
@@ -211,16 +268,21 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   const sensorContainer = sensorPod.containers.find(({ name }) => name === "sensor-agent");
   assert.equal(sensorContainer.image, edgeRelease.sensorImage);
   assert.equal(sensorPod.serviceAccountName, "sensor-agent");
-  assert.equal(sensorPod.automountServiceAccountToken, true);
+  assert.equal(sensorPod.automountServiceAccountToken, false);
   assert.equal(sensorContainer.securityContext.privileged, false);
   assert.equal(sensorContainer.securityContext.readOnlyRootFilesystem, true);
   assert.equal(sensorContainer.securityContext.runAsUser, 65532);
   assert.equal(sensorPod.hostNetwork, false);
   assert.deepEqual(envOf(sensor), {
+    GOMEMLIMIT: "128MiB",
+    ZASP_SENSOR_ROLE: "lineage-consumer",
+    ZASP_SENSOR_ENROLLMENT_BINDING: edgeRelease.sensorEnrollmentBinding,
     ZASP_SENSOR_CONTROL_PLANE_URL: edgeRelease.controlPlaneURL,
     ZASP_SENSOR_TOKEN_FILE: "/var/run/secrets/zasp-sensor/token",
-    ZASP_TETRAGON_LOG_FILE: "/var/run/cilium/tetragon/tetragon.log",
-    ZASP_SENSOR_CURSOR_FILE: "/var/lib/zasp-sensor/cursor.json",
+    ZASP_SENSOR_TOKEN_SOURCE: "kubernetes-projected",
+    ZASP_LINEAGE_SPOOL_DIRECTORY: "/var/lib/zasp-lineage/producer",
+    ZASP_LINEAGE_ACK_DIRECTORY: "/var/lib/zasp-lineage/acks",
+    ZASP_LINEAGE_STATE_DIRECTORY: "/var/lib/zasp-lineage/consumer",
     ZASP_SENSOR_NAMESPACE: "fieldRef:metadata.namespace",
     ZASP_SENSOR_POD_NAME: "fieldRef:metadata.name",
     ZASP_SENSOR_NODE_NAME: "fieldRef:spec.nodeName",
@@ -239,14 +301,10 @@ test("customer edge renders database-free gateway, multi-node sensor, and pinned
   assert.equal(sensorPod.volumes.find(({ name }) => name === "token-source").secret.secretName, edgeRelease.sensorTokenSecretName);
   assert.equal(sensorPod.volumes.find(({ name }) => name === "token-source").secret.defaultMode, 0o440);
   assert.equal(sensorPod.volumes.find(({ name }) => name === "state").hostPath.path, edgeRelease.stateHostPath);
-  assert.equal(sensorPod.volumes.find(({ name }) => name === "tetragon-log").hostPath.type, "DirectoryOrCreate");
-  assert.equal(sensorContainer.volumeMounts.some(({ name }) => name === "token-source"), false);
-  const materializer = sensorPod.initContainers.find(({ name }) => name === "materialize-sensor-authority");
-  assert.equal(materializer.image, edgeRelease.sensorImage);
-  assert.deepEqual(materializer.command, ["/bin/sh", "-ec"]);
-  assert.match(materializer.args[0], /chown 65532:65532 \/config\/token \/state; chmod 0600 \/config\/token; chmod 0700 \/state/);
-  assert.equal(materializer.securityContext.runAsUser, 0);
-  assert.deepEqual(materializer.securityContext.capabilities, { drop: ["ALL"], add: ["CHOWN", "DAC_OVERRIDE", "FOWNER"] });
+  assert.equal(sensorPod.volumes.find(({ name }) => name === "tetragon-socket").hostPath.type, "DirectoryOrCreate");
+  assert.deepEqual(sensorContainer.volumeMounts.find(({ name }) => name === "token-source"), { name: "token-source", mountPath: "/var/run/secrets/zasp-sensor", readOnly: true });
+  assert.equal(sensorPod.volumes.some(({ name }) => name === "token"), false);
+  assert.equal(sensorPod.initContainers.some(({ name }) => name === "materialize-sensor-authority"), false);
   assert.deepEqual(one(resources, "Role", "sensor-agent").rules, [
     { apiGroups: ["coordination.k8s.io"], resources: ["leases"], verbs: ["get", "list", "create", "update"] },
     { apiGroups: [""], resources: ["pods"], verbs: ["list"] },
@@ -316,6 +374,7 @@ test("customer edge rejects mutable sensors, broad networks, shared secrets, and
   for (const value of [
     { ...edgeRelease, sensorImage: "zasp/sensor-agent:latest" },
     { ...edgeRelease, sensorTokenSecretName: edgeRelease.credentialSecretName },
+    ...[undefined, null, "", "a".repeat(63), "A".repeat(64), "a".repeat(64) + " "].map((sensorEnrollmentBinding) => ({ ...edgeRelease, sensorEnrollmentBinding })),
     { ...edgeRelease, kubernetesAPICIDRs: [] },
     { ...edgeRelease, nodeCIDRs: ["0.0.0.0/0"] },
     { ...edgeRelease, stateHostPath: "/tmp/zasp-sensor" },

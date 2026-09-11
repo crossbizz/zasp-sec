@@ -156,10 +156,11 @@ export const customerEdgeReleaseFixture = Object.freeze({
   proxyClientTokenSecretName: "zasp-runtime-gateway-proxy-token",
   proxyUpstreamURL: "https://tools.customer.example/v1/actions",
   sensorTokenSecretName: "zasp-sensor-token",
+  sensorEnrollmentBinding: "a".repeat(64),
   storageClassName: "gp3-encrypted",
   controlPlaneCIDRs: Object.freeze(["10.80.0.0/28"]),
   proxyAllowedCIDRs: Object.freeze(["203.0.113.0/28"]),
   kubernetesAPICIDRs: Object.freeze(["10.96.0.1/32"]),
   nodeCIDRs: Object.freeze(["10.0.0.0/16"]),
-  stateHostPath: "/var/lib/zasp-sensor",
+  stateHostPath: "/var/lib/zasp-sensor-lineage",
 });

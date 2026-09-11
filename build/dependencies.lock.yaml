@@ -286,6 +286,38 @@ dependencies:
     review: approved
   - ecosystem: go
     manifest: services/sensor-agent/go.mod
+    name: github.com/cilium/tetragon/api
+    version: v1.6.0
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/sensor-agent/go.mod
+    name: golang.org/x/sys
+    version: v0.44.0
+    license: BSD-3-Clause
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/sensor-agent/go.mod
+    name: google.golang.org/grpc
+    version: v1.76.0
+    license: Apache-2.0
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/sensor-agent/go.mod
+    name: google.golang.org/protobuf
+    version: v1.36.10
+    license: BSD-3-Clause
+    owner: platform-data
+    scope: runtime
+    review: approved
+  - ecosystem: go
+    manifest: services/sensor-agent/go.mod
     name: k8s.io/api
     version: v0.35.5
     license: Apache-2.0

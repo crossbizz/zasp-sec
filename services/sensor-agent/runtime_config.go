@@ -5,30 +5,36 @@ import (
 	"net"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"time"
 )
 
 var errSensorConfig = errors.New("sensor agent configuration rejected")
+var enrollmentBindingPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 type sensorAgentConfig struct {
-	ControlPlaneURL  string
-	TokenFile        string
-	LogFile          string
-	CursorFile       string
-	Namespace        string
-	PodName          string
-	NodeName         string
-	KernelFile       string
-	BTFFile          string
-	MetricsURL       string
-	BatchSize        int
-	MaximumProcesses int
-	PollInterval     time.Duration
-	OperationTimeout time.Duration
-	ShutdownTimeout  time.Duration
-	LeaseDuration    time.Duration
-	ReportTTL        time.Duration
+	Role                                         string
+	SpoolDirectory, AckDirectory, StateDirectory string
+	ControlPlaneURL                              string
+	EnrollmentBinding                            string
+	TokenFile                                    string
+	TokenSource                                  string
+	LogFile                                      string
+	CursorFile                                   string
+	Namespace                                    string
+	PodName                                      string
+	NodeName                                     string
+	KernelFile                                   string
+	BTFFile                                      string
+	MetricsURL                                   string
+	BatchSize                                    int
+	MaximumProcesses                             int
+	PollInterval                                 time.Duration
+	OperationTimeout                             time.Duration
+	ShutdownTimeout                              time.Duration
+	LeaseDuration                                time.Duration
+	ReportTTL                                    time.Duration
 }
 
 func loadSensorAgentConfig(getenv func(string) string) (sensorAgentConfig, error) {
@@ -36,8 +42,10 @@ func loadSensorAgentConfig(getenv func(string) string) (sensorAgentConfig, error
 		return sensorAgentConfig{}, errSensorConfig
 	}
 	config := sensorAgentConfig{
-		ControlPlaneURL: getenv("ZASP_SENSOR_CONTROL_PLANE_URL"), TokenFile: getenv("ZASP_SENSOR_TOKEN_FILE"),
-		LogFile: getenv("ZASP_TETRAGON_LOG_FILE"), CursorFile: getenv("ZASP_SENSOR_CURSOR_FILE"),
+		Role: getenv("ZASP_SENSOR_ROLE"), SpoolDirectory: getenv("ZASP_LINEAGE_SPOOL_DIRECTORY"), AckDirectory: getenv("ZASP_LINEAGE_ACK_DIRECTORY"), StateDirectory: getenv("ZASP_LINEAGE_STATE_DIRECTORY"),
+		ControlPlaneURL: getenv("ZASP_SENSOR_CONTROL_PLANE_URL"), TokenFile: getenv("ZASP_SENSOR_TOKEN_FILE"), TokenSource: getenv("ZASP_SENSOR_TOKEN_SOURCE"),
+		EnrollmentBinding: getenv("ZASP_SENSOR_ENROLLMENT_BINDING"),
+		LogFile:           getenv("ZASP_TETRAGON_LOG_FILE"), CursorFile: getenv("ZASP_SENSOR_CURSOR_FILE"),
 		Namespace: getenv("ZASP_SENSOR_NAMESPACE"), PodName: getenv("ZASP_SENSOR_POD_NAME"), NodeName: getenv("ZASP_SENSOR_NODE_NAME"),
 		KernelFile: getenv("ZASP_SENSOR_KERNEL_FILE"), BTFFile: getenv("ZASP_SENSOR_BTF_FILE"), MetricsURL: getenv("ZASP_TETRAGON_METRICS_URL"),
 	}
@@ -70,17 +78,35 @@ func loadSensorAgentConfig(getenv func(string) string) (sensorAgentConfig, error
 }
 
 func validSensorAgentConfig(config sensorAgentConfig) bool {
+	if !enrollmentBindingPattern.MatchString(config.EnrollmentBinding) {
+		return false
+	}
 	parsed, err := url.Parse(config.ControlPlaneURL)
 	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.Port() != "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return false
 	}
-	if !validAbsolute(config.TokenFile) || !validAbsolute(config.LogFile) || !validAbsolute(config.CursorFile) {
+	if !validAbsolute(config.TokenFile) {
 		return false
+	}
+	if config.Role == "lineage-consumer" {
+		if config.TokenSource != "owned-file" && config.TokenSource != "kubernetes-projected" || config.TokenSource == "kubernetes-projected" && filepath.Base(config.TokenFile) != "token" {
+			return false
+		}
+		if config.LogFile != "" || config.CursorFile != "" || !validAbsolute(config.SpoolDirectory) || !validAbsolute(config.AckDirectory) || !validAbsolute(config.StateDirectory) || !lineagePathsSeparate([]string{config.SpoolDirectory, config.AckDirectory, config.StateDirectory, filepath.Dir(config.TokenFile), filepath.Dir(config.KernelFile), filepath.Dir(config.BTFFile), "/var/run/secrets/kubernetes.io/serviceaccount"}) {
+			return false
+		}
+	} else {
+		if config.TokenSource != "" {
+			return false
+		}
+		if config.Role != "" && config.Role != "legacy-consumer" || config.SpoolDirectory != "" || config.AckDirectory != "" || config.StateDirectory != "" || !validAbsolute(config.LogFile) || !validAbsolute(config.CursorFile) || config.TokenFile == config.LogFile || config.TokenFile == config.CursorFile || config.LogFile == config.CursorFile {
+			return false
+		}
 	}
 	if !validKubernetesName(config.Namespace) || !validKubernetesName(config.PodName) || !validKubernetesName(config.NodeName) || !validAbsolute(config.KernelFile) || !validAbsolute(config.BTFFile) {
 		return false
 	}
-	if config.TokenFile == config.LogFile || config.TokenFile == config.CursorFile || config.LogFile == config.CursorFile || config.KernelFile == config.BTFFile {
+	if config.KernelFile == config.BTFFile {
 		return false
 	}
 	probeURL, err := url.Parse(config.MetricsURL)

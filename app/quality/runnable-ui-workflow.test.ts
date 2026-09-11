@@ -31,6 +31,17 @@ const repositoryRoot = process.cwd();
 const checkoutAction = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
 const setupNodeAction = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020";
 const setupGoAction = "actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16";
+const postgresFixtureCommand = `fixture_pg_bin="$(pg_config --bindir)"
+for fixture_tool in initdb postgres pg_isready pg_ctl; do
+  test -x "$fixture_pg_bin/$fixture_tool"
+done
+printf '%s\\n' "$fixture_pg_bin" >> "$GITHUB_PATH"
+`;
+const sensorAcceptanceCommand = `export PATH="$(pg_config --bindir):$PATH"
+test -x "$(pg_config --bindir)/initdb"
+go test -C services/sensor-agent -race -count=1 ./...
+go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntimeAcceptance|TestProductionRuntimeIngestHTTPPersistsTransactionalOutboxBeforeAcceptance)'
+`;
 const maintenanceAlertCommand = `task_prom_dir=$(mktemp -d "\${RUNNER_TEMP}/zasp-promtool.XXXXXX")
 curl --fail --location --retry 3 --max-time 120 --output "$task_prom_dir/prometheus.tar.gz" https://github.com/prometheus/prometheus/releases/download/v3.14.0/prometheus-3.14.0.linux-amd64.tar.gz
 printf '%s  %s\\n' f665c6da19eb7ba399c915d30c7d9793c9b417bf8a749b504bc470678631478d "$task_prom_dir/prometheus.tar.gz" | sha256sum --check -
@@ -110,13 +121,14 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["continue-on-error"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(13);
+  expect(verificationSteps).toHaveLength(15);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
     setupGoAction,
     "npm install --global npm@10.9.8",
     "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci",
+    postgresFixtureCommand,
     "go install github.com/zricethezav/gitleaks/v8@v8.30.1",
     "npm run implementation:status:check",
     "npm run verify",
@@ -124,6 +136,7 @@ function assertRunnableUiWorkflow(
     "npm run production:release:gate",
     maintenanceAlertCommand,
     "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n",
+    sensorAcceptanceCommand,
     "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n",
   ]);
   expect(verificationSteps[0]?.with).toEqual({ "fetch-depth": 0 });
@@ -157,6 +170,7 @@ function validWorkflow(): Workflow {
           { uses: setupGoAction, with: { "go-version": "1.25.6", cache: true, "cache-dependency-path": "services/platform/go.sum" } },
           { run: "npm install --global npm@10.9.8" },
           { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
+          { run: postgresFixtureCommand },
           { run: "go install github.com/zricethezav/gitleaks/v8@v8.30.1" },
           { run: "npm run implementation:status:check" },
           { run: "npm run verify" },
@@ -164,6 +178,7 @@ function validWorkflow(): Workflow {
           { run: "npm run production:release:gate" },
           { run: maintenanceAlertCommand },
           { run: "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n" },
+          { run: sensorAcceptanceCommand },
           { run: "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n" },
         ],
       },
