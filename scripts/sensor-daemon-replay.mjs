@@ -13,9 +13,14 @@ const binaries = ["apiserver.test", "sensor-agent.test", "sensor-agent"];
 const capabilities = ["CHOWN", "DAC_OVERRIDE", "FOWNER", "KILL", "NET_BIND_SERVICE", "SETGID", "SETUID"];
 const tmpfs = { "/tmp": "rw,nosuid,nodev,size=536870912,mode=1777", "/var/lib/postgresql": "rw,nosuid,nodev,size=16777216", "/var/run/secrets/kubernetes.io/serviceaccount": "rw,nosuid,nodev,size=65536,mode=0755" };
 const testName = "TestRuntimeAcceptanceActualDaemonLostSuccessReplay";
-function validateConfig({ owner, directory }) {
+const testArguments = [`-test.run=^(${testName}|TestSensorDaemonReplayOwnershipCleanup|TestSensorDaemonReplayTrace)`, "-test.v", "-test.timeout=120s"];
+const proofEnvironment = ["ZASP_TEST_DAEMON_REPLAY=1", "GOMEMLIMIT=256MiB"];
+function validateConfig({ owner, directory, imageEnvironment }) {
   assert.match(owner, /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/);
   assert.ok(typeof directory === "string" && isAbsolute(directory) && resolve(directory) === directory && dirname(directory) !== "/" && !/[,\r\n\0]/.test(directory));
+  assert.ok(Array.isArray(imageEnvironment) && imageEnvironment.every(value => typeof value === "string" && /^[A-Z_][A-Z0-9_]*=/.test(value) && !/[\r\n\0]/.test(value)));
+  const keys = [...imageEnvironment, ...proofEnvironment].map(value => value.split("=", 1)[0]);
+  assert.equal(new Set(keys).size, keys.length, "image defaults conflict with proof environment");
 }
 export function buildDaemonReplayArguments(config) {
   validateConfig(config);
@@ -25,7 +30,7 @@ export function buildDaemonReplayArguments(config) {
     ...Object.entries(tmpfs).flatMap(([path, value]) => ["--tmpfs", `${path}:${value}`]),
     ...binaries.flatMap(name => ["--mount", `type=bind,src=${join(config.directory, name)},dst=/proof/${name},readonly`]),
     "--env", "ZASP_TEST_DAEMON_REPLAY=1", "--env", "GOMEMLIMIT=256MiB", "--entrypoint", "/proof/apiserver.test", image,
-    `-test.run=^(${testName}|TestSensorDaemonReplayOwnershipCleanup|TestSensorDaemonReplayTrace)`, "-test.v", "-test.timeout=120s"];
+    ...testArguments];
 }
 export function validateDaemonReplayContainer(value, config) {
   validateConfig(config);
@@ -34,6 +39,10 @@ export function validateDaemonReplayContainer(value, config) {
   assert.equal(value.Config?.Labels?.["zasp.proof"], "daemon-replay");
   assert.equal(value.Config?.Labels?.["zasp.owner"], config.owner);
   assert.equal(value.Config.User, "0:65532");
+  assert.equal(value.Config.Image, image);
+  assert.deepEqual(value.Config.Entrypoint, ["/proof/apiserver.test"]);
+  assert.deepEqual(value.Config.Cmd, testArguments);
+  assert.deepEqual([...value.Config.Env].sort(), [...config.imageEnvironment, ...proofEnvironment].sort());
   const host = value.HostConfig;
   for (const [key, expected] of Object.entries({ NetworkMode: "none", ReadonlyRootfs: true, Privileged: false, Memory: 1073741824, MemorySwap: 1073741824, PidsLimit: 128, NanoCpus: 2000000000, ShmSize: 67108864, IpcMode: "private", PidMode: "" })) assert.equal(host?.[key], expected, key);
   assert.deepEqual(host.CapDrop, ["ALL"]);
@@ -107,7 +116,7 @@ export async function runDaemonReplayProof() {
   const started = performance.now();
   const directory = await mkdtemp(join(tmpdir(), "zasp-daemon-proof-"));
   const directoryIdentity = await lstat(directory);
-  const config = { owner: randomUUID(), directory };
+  const config = { owner: randomUUID(), directory, imageEnvironment: [] };
   const commands = new Set();
   let interrupted = false, creating = false, successful = false;
   let failure;
@@ -135,7 +144,12 @@ export async function runDaemonReplayProof() {
   const docker = (args, options) => run("docker", args, options);
   try {
     await docker(["pull", image], { timeout: 120_000 });
-    const arch = (await docker(["image", "inspect", "--format", "{{.Architecture}}", image])).stdout.trim();
+    const metadata = JSON.parse((await docker(["image", "inspect", image])).stdout);
+    assert.equal(metadata.length, 1);
+    const arch = metadata[0].Architecture;
+    // Only defaults from the exact pulled digest may accompany our two entries.
+    config.imageEnvironment = metadata[0].Config.Env ?? [];
+    validateConfig(config);
     assert.ok(["arm64", "amd64"].includes(arch));
     const env = { ...process.env, CGO_ENABLED: "0", GOOS: "linux", GOARCH: arch };
     for (const [name, module, packageName] of [["apiserver.test", "platform", "./apiserver"], ["sensor-agent.test", "sensor-agent", "."], ["sensor-agent", "sensor-agent", "."]]) {

@@ -170,3 +170,21 @@ Full API races pass in 596.655 seconds:
 `/tmp/zasp-daemon-final-api.log`. All local verification for this proof is complete;
 publication, hosted CI and merge of this branch remain pending. Original scope
 and production task counts are unchanged.
+
+Local commits `0b545e26` (the separate timing fixture repair) and `bf167b39`
+(daemon composition/runner) are not pushed. A fresh adversarial review then found
+that container inspection lacked exact image, entrypoint, command and environment
+checks. The runner now compares all four, allowing only the defaults inspected
+from the exact pulled image digest plus its two explicit proof environment values.
+Negative mutations fail on changed executable/image/selector, missing opt-in and
+extra environment entries. The prior validator failed this regression:
+`/tmp/zasp-daemon-execution-identity-red.log`. All 13 final runner/command-owner
+tests pass in `/tmp/zasp-daemon-execution-identity-green.log`.
+
+An initial postcommit Gitleaks invocation used its default all-reference history
+and reported two fixed fake lease strings in `adcc80a6`, on the unrelated local
+`codex/main-integration` branch. That commit isn't an ancestor of this release.
+The release gate's existing scope is `--log-opts=HEAD`; it will be rerun after the
+execution-identity correction commit. No new ignore or scanner-rule change was
+made. The original all-reference report is retained at
+`/tmp/zasp-daemon-postcommit-gitleaks.json`.

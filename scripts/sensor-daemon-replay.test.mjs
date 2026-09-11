@@ -5,7 +5,7 @@ import { buildDaemonReplayArguments, validateDaemonReplayContainer, validateDaem
 
 const owner = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const id = "a".repeat(64);
-const config = { owner, directory: "/tmp/zasp-daemon-proof-fixture" };
+const config = { owner, directory: "/tmp/zasp-daemon-proof-fixture", imageEnvironment: ["PATH=/usr/local/bin:/usr/bin:/bin"] };
 
 test("CI runs actual daemon proof and ownership regressions within a bounded step", async () => {
   const workflow = await readFile(new URL("../.github/workflows/runnable-ui.yml", import.meta.url), "utf8");
@@ -13,7 +13,13 @@ test("CI runs actual daemon proof and ownership regressions within a bounded ste
 });
 const fixture = () => ({
   Id: id, Name: `/zasp-daemon-replay-${owner}`,
-  Config: { User: "0:65532", Labels: { "zasp.proof": "daemon-replay", "zasp.owner": owner } },
+  Config: {
+    User: "0:65532", Labels: { "zasp.proof": "daemon-replay", "zasp.owner": owner },
+    Image: "postgres:18.6@sha256:4d155aa3f2c2cc1838bb70e81396f76373ec7275ec9ce9cf32873cd677c9a992",
+    Entrypoint: ["/proof/apiserver.test"],
+    Cmd: ["-test.run=^(TestRuntimeAcceptanceActualDaemonLostSuccessReplay|TestSensorDaemonReplayOwnershipCleanup|TestSensorDaemonReplayTrace)", "-test.v", "-test.timeout=120s"],
+    Env: [...config.imageEnvironment, "ZASP_TEST_DAEMON_REPLAY=1", "GOMEMLIMIT=256MiB"],
+  },
   HostConfig: {
     NetworkMode: "none", ReadonlyRootfs: true, Privileged: false, CapDrop: ["ALL"],
     CapAdd: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "KILL", "NET_BIND_SERVICE", "SETGID", "SETUID"],
@@ -42,6 +48,12 @@ test("daemon proof inspects exact identity, mounts, isolation and exit", () => {
   validateDaemonReplayContainer(fixture(), config);
   validateDaemonReplayResult(fixture(), "--- PASS: TestRuntimeAcceptanceActualDaemonLostSuccessReplay (3.00s)\nPASS\n");
   const mutations = [
+    v => { v.Config.Image = "unrelated:latest"; },
+    v => { v.Config.Entrypoint = ["/bin/sh"]; },
+    v => { v.Config.Cmd = ["-test.run=MissingTest"]; },
+    v => { v.Config.Env = v.Config.Env.filter(value => !value.startsWith("ZASP_TEST_DAEMON_REPLAY=")); },
+    v => { v.Config.Env.push("ZASP_EXTRA_OVERRIDE=1"); },
+    v => { v.Config.Env.push("LD_PRELOAD=/different.so"); },
     v => { v.Config.Labels["zasp.owner"] = "other"; },
     v => { v.HostConfig.NetworkMode = "host"; },
     v => { v.HostConfig.CapAdd.push("SYS_ADMIN"); },
