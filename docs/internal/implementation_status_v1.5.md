@@ -3,7 +3,7 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-sandbox-lineage`; PR47 merged and main CI running; file-event cgroup increment verified and reviewed for publication
+**Execution branch:** `codex/runtime-sandbox-binding`; PR47 main CI running; reviewed file-event cgroup increment published as PR48, hosted checks running
 **Latest main:** `c6aec68d`, PR 47; main CI 34634275277 running
 **Last verified main:** `3679545f`, PR 46; main CI 34632397599 passed
 
@@ -120,6 +120,12 @@ approved incremental publication after that pass and confirmed the alias fix. No
 sandbox/cgroup task is closed, and live BTF/policy loading is not claimed.
 Evidence and rollback limits:
 `docs/internal/2026-09-11-file-cgroup-lineage.md`.
+PR48 is published at `f398bb67d51db34a57ab82829ccee2d4419bdbaa`. Push CI
+34634470637 and PR CI 34634548903 are running. It must wait for PR47's main CI
+and its own checks before merge, then pass main verification. Postcommit scanning
+passed all 1,398 commits. The eight unchanged-hook MEDIUM findings were inspected
+against exact added lines: all were public CI IDs, with no HIGH findings or
+bypass. The next local branch preserves the published head. Counts are unchanged.
 
 PR 44 merged as `fd4ba167`. Both initial push CI 34617264232 and PR CI
 34617323187 failed the new daemon step with `exec format error`. Its pinned
