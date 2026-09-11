@@ -2,8 +2,9 @@
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
-**Last updated:** September 10, 2026
-**Execution branch:** `main`
+**Last updated:** September 11, 2026
+**Execution branch:** `codex/runtime-sensor-lineage` (unpublished)
+**Last verified main:** `a4fede82`, PR 42; main CI 34544444052 passed
 
 Migration 43 and the authorized structured-search API shipped in PR 28 as main
 d46085cf after full local verification, real PostgreSQL boundaries, Chrome/runtime
@@ -233,6 +234,589 @@ review found no concrete blocker. Fresh full verification passes all 1,179 UI te
 and build; the source release gate and repeated actual runtime recovery pass.
 The full browser rerun and new remote checks are pending. The verified runnable
 correction is ready for a CI push; PR 42 is not merged and task counts are unchanged.
+
+Correction `3fffdea2` is pushed. The repeated full runtime/browser composition
+and exact-owned cleanup passed, followed by the real three-container SIGTERM
+test in 32.246 seconds with no skip. All local gates and independent review are
+green. Push CI 34543727745 and PR CI 34543729424 are running on this correction;
+main merge and main CI remain pending. No original-task classification changed.
+
+Both correction CI runs passed, and PR 42 merged as main `a4fede82`. Main CI
+34544444052 is running. The next branch, `codex/runtime-sensor-lineage`, has
+reproduced two sensor restart gaps before lineage activation: changed batch
+boundaries after an uncertain response, and lost prior-file process cache after
+rotation. These new RED tests are uncommitted and were not shipped in PR 42.
+The source audit is `docs/internal/2026-09-10-runtime-sensor-lineage-audit.md`.
+
+Main CI 34544444052 passed, closing PR 42's shipping checks. The next sensor
+branch remains unpushed while its restart repair is in progress. Counts remain
+535 production-available, 132 component-only and 61 blocked/external.
+
+The sensor branch's first uncommitted enrollment-bound ingest component passes
+full sensor/runtime-event race tests and independent review. Its new transport
+checks a full scoped-enrollment constraint before reading event data, preserving
+the archive contract and legacy clients without that header. Actual credential
+rotation/revocation, installation binding, durable envelope/cache integration and
+the two RED restart regressions remain unfinished. No sensor producer was enabled
+and no new task credit or production-readiness claim is granted.
+
+The next uncommitted component freezes the sensor request envelope, including
+destination, scoped enrollment, transport schema, exact body bytes and
+idempotency key. Focused race tests pass, including hostile JSON with recomputed
+digests and rejection before credential access. Independent review found no
+implementation blocker; its hostile-body coverage request is now included.
+
+Actual client/HTTP/PostgreSQL lifecycle verification then exposed another
+required repair: same-enrollment token rotation after accepted-response loss
+hits reservation SQLSTATE 23505. The rotated credential authenticates as
+generation 2, but the original batch is correctly bound to generation 1. The
+test remains RED. Separate real lifecycle cases pass for revoked prior tokens,
+cross-enrollment replacement before body reads, and revocation between initial
+authentication and reservation, without additional artifact writes or batches.
+The reviewed next step is a narrowly authenticated finalized-acceptance lookup
+in a new forward migration, preserving original credential/artifact provenance
+and existing incomplete-upload reconciliation. It is not implemented yet.
+The two original stream restart regressions also remain RED. No push or task
+credit is claimed for this branch. Detailed evidence and limits remain in
+`docs/internal/2026-09-10-runtime-sensor-lineage-audit.md`.
+
+The finalized-acceptance lookup is now implemented as an unpublished migration-48
+SQL/metadata and Go repository/handler component. Actual client/HTTP/PostgreSQL
+response-loss replay after token rotation passes with one artifact write total
+and unchanged batch provenance. Review found and test-first corrections fixed
+principal revocation during blocked authentication and previously accepted
+quarantined replay. Raw migration, v47 compatibility and exact rollback checks
+pass. Strict response decoding and full sensor/runtime-event race suites pass.
+Migration Runner/CLI/release wiring, more drift/expiry/race coverage and the two
+RED file-stream restart repairs remain unfinished. No original-task credit or
+push is claimed. Evidence and remaining gates are in
+`docs/internal/2026-09-10-runtime-acceptance-replay.md`.
+
+The next unpublished checkpoint adds actual migration48 Runner/CLI rollout,
+API startup and release-source/render wiring. Full CLI races, two actual
+upgrade/startup/rollback cycles and source contracts pass. Review found a
+blocking upgrade lock inversion; a RED concurrent-reader regression is now
+GREEN with NOWAIT preflight and unchanged schema on refusal. A second RED
+regression found a self-referential48 checksum check in candidate/API readiness
+and accepted replay. Application-pinned48 checks now pass those actual
+PostgreSQL negatives, with pinned47 compatibility preserved. Lookup checks
+the pinned values before and after authentication. The focused release suite
+passes in 26.416 seconds; full runtime-event/migration races also pass.
+Controlled-wait principal revocation, checksum drift and wall-clock expiry
+pass without changing persisted work. Independent review found no further
+concrete blocker in the rollout corrections, but gives no shipping approval.
+The two file-stream restart failures, durable checkpoint/cache, installation
+binding, sensor lineage emission and production producer activation remain
+open. No full UI/release proof or push is claimed for this branch. Counts stay
+535 production-available, 132 component-only and 61 external. The final API and
+older-schema compatibility repeat passes in 64.330 seconds, including proof
+that the credential was valid before the controlled expiry wait. Full CLI
+races pass again in 76.716 seconds, full worker races pass in 9.007 seconds,
+and all 728 ledger rows validate. Details are in
+`docs/internal/2026-09-10-runtime-acceptance-replay.md`.
+
+The durable sensor checkpoint now makes both original file-stream restart
+regressions pass. Pending requests, cursor transitions and sanitized process
+cache survive restart; exclusive cursor writer locking and bounded checkpoint
+decoding are implemented. Exact bound-envelope replay is still a component:
+production sensor construction has not yet been given enrollment binding.
+Initial memory tests failed the resource gate. With the newly rendered
+`GOMEMLIMIT=128MiB`, Linux package stress tests under 256 MiB and 0.5 CPU pass
+persistence failures, transport retries and acknowledgment at peak 206,716,928
+bytes with zero memory-limit/OOM events. A 32,000,253-byte hostile decode test also
+passes. These measurements don't certify the full daemon. Final full adapter,
+sensor, runtime-event and sensor-agent races pass; deployment contracts pass
+36/36. Installation binding, composed file/HTTP/SQL lifecycle proof, lineage
+emission, producer activation and full UI/release verification remain open.
+No push or task credit changed. Details and retained RED evidence are in
+`docs/internal/2026-09-10-sensor-durable-checkpoint.md`.
+
+The following installation checkpoint now wires the server-issued enrollment
+binding through an opt-in create/rotate response, generated client, strict UI
+decoder, Helm instructions, deployment validation and actual sensor construction.
+Legacy response shape and one-time replay semantics remain intact. A composed
+local test passes real public token rotation, PostgreSQL, file restart and
+certificate-verified HTTPS with one artifact write and unchanged work/provenance.
+Artifact storage and public browser identity remain test doubles/fixtures.
+Full sensor-agent races, focused UI tests, OpenAPI contracts and 36 deployment
+contracts pass. The corrected UI builds. Full API verification and all remaining
+lineage, full-daemon resource and release gates stay open; no push or task credit
+changed. Evidence: `docs/internal/2026-09-10-sensor-installation-binding.md`.
+
+Installation follow-up: the full API race suite passed in 438.170 seconds.
+Review then reproduced a checkpoint temporary-slot/input collision. Construction
+now rejects reserved log/token/kernel/BTF paths using pinned directory identity
+before creating a lock, including parent aliases. All 18 production-constructor
+collision cases preserve input bytes/inodes and have separate-directory positive
+checks. Full sensor-agent and adapter races pass (2.187 and 4.888 seconds); the
+actual PostgreSQL/HTTPS credential lifecycle passes again after this fix (8.236
+seconds). Independent component review found no concrete blocker. This isn't a
+deployed filesystem guarantee against privileged directory manipulation. All
+lineage, full-daemon resource and final release gates remain open. No push or
+task-count change. Detailed evidence remains in the installation checkpoint above.
+
+Lineage generation checkpoint: the sensor client now carries and validates the
+existing observed-lineage contract, preserving absent-lineage bytes and frozen
+replay. A new immutable source-generation normalizer qualifies full runtime IDs,
+omits incompatible process precision without rounding, and binds cache/checkpoint
+state to generation, enrollment and host identity. Changed boot/Node/generation
+and legacy/unqualified cache adoption fail before submission. Full adapter,
+lineage, runtime-event and sensor-agent races pass. Both unqualified and fixture-
+qualified file/HTTPS/PostgreSQL rotation/recovery modes pass with unchanged
+provenance and no semantic authority granted. Independent component review found
+no concrete blocker. The trusted local subscriber/spool/boot manifest isn't yet
+implemented; the deployed exporter path remains unqualified. No task credit,
+production activation or push. Evidence and required source-level gates:
+`docs/internal/2026-09-10-sensor-lineage-generation.md`.
+
+Lineage identity-reader checkpoint: pinned root-owned procfs boot reads and
+bounded certificate-verified Kubernetes GETs now produce copied, repeatedly
+checked host/Node/Namespace identity. Boot mismatch/change, resource replacement,
+malformed replies, cancellation and request-scope expansion reject without partial
+identity. Full sensor-agent races pass (2.363 seconds); actual Linux procfs tests
+pass three repetitions under 256 MiB/0.5 CPU, without an OOM kill. Those limits
+don't certify the full daemon. Independent component review found no concrete
+blocker. No local subscriber/spool, production wiring or new RBAC is activated.
+Counts and shipping gates remain unchanged. Evidence and limits:
+`docs/internal/2026-09-10-sensor-lineage-identity-reader.md`.
+
+Subscriber security audit: the pinned Tetragon socket exposes policy-changing
+methods without per-method authorization. The selected producer runs inside the
+Tetragon pod and writes sanitized generation-bound records; the sensor agent
+must not receive the raw socket. A temporary downstream official v1.6 API client
+build, dependency tidy/verification and uncached test pass on Go 1.25. This is
+not pinned-v1.7 live compatibility or implemented subscription evidence.
+Independent review confirmed the access boundary. No production manifests,
+dependencies, permissions, activation or task counts changed. Required tests
+and the implementation decision are recorded in
+`docs/internal/2026-09-10-sensor-lineage-subscriber-boundary.md`.
+
+The subscriber's owned record converter and fixed request are now implemented.
+Actual normalization tests preserve qualified identity without opaque provider
+serialization; parent health-check and unknown-oneof ambiguity regressions failed
+before fixes. Final full sensor-agent races pass (2.260 seconds), along with 81
+dependency tests. Complete module inventory exposed an invalid upstream root
+placeholder missed by the earlier compile/tidy proof; an exact version exclusion
+now makes inventory/download/verification pass without selecting the root module.
+Independent component review found no blocker. No socket, spool, live subscription
+or production activation is claimed, and counts remain unchanged. Details:
+`docs/internal/2026-09-10-sensor-lineage-record-conversion.md`.
+
+The local subscription component now checks Linux socket ownership, pins both
+parent and socket inode, validates peer UID and permits one physical dial attempt.
+Its fixed gRPC stream has bounded messages/headers and explicit lifetime failure.
+Review/regressions repaired inode reuse, caller metadata leakage and buffered
+event return after cancellation. Full host sensor-agent races pass (2.669 seconds);
+actual Linux socket/gRPC fixture tests pass three repetitions under 256 MiB/0.5 CPU,
+including a root-owned socket with a non-root peer. Owned proof containers are
+removed. These aren't live Tetragon or full-daemon proofs. No spool/manifest,
+deployment, production activation, push or task-credit change. Evidence:
+`docs/internal/2026-09-10-sensor-lineage-local-subscription.md`.
+
+The private spool component now publishes source-bound manifests and immutable
+numbered chunks with checksums, byte/record counts and explicit capacity bounds.
+Test-first repairs prevent an uncertain append from publishing incorrect final
+counters and reject writes into replaced generation directories. Full host
+sensor-agent races pass (6.171 seconds); subprocess exits, actual directory-sync
+failure, both quotas and concurrent reader visibility are covered. Independent
+component review found no remaining concrete blocker. All spool tests also pass
+three Linux repetitions under 256 MiB/0.5 CPU, with no network or capabilities;
+the owned proof container exited zero without OOM and was removed. Consumer integration,
+acknowledgment/reclamation, live source compatibility and production deployment
+remain open. No task-credit change or push. Evidence:
+`docs/internal/2026-09-10-sensor-lineage-private-spool.md`.
+
+Generation startup now composes repeated boot/Kubernetes identity checks around
+checked local subscription setup, then publishes a fresh UUIDv4 source manifest.
+Actual HTTPS/Unix gRPC fixtures verify ordering and source-to-spool transport.
+Identity drift rejects publication; post-publication cancellation preserves
+abandoned history and closes owned resources. A timed test verifies that the
+15-second startup limit doesn't terminate an admitted stream. Full sensor-agent
+races pass (22.244 seconds), with no concrete blocker in independent component
+review. All startup tests also pass on isolated Linux under 256 MiB/0.5 CPU;
+the owned proof container exited zero without OOM and was removed.
+Server-side listener acknowledgment/replay freshness, pump-time rechecks,
+consumer integration and production deployment remain open. No task-credit
+change or push. Evidence:
+`docs/internal/2026-09-10-sensor-lineage-generation-startup.md`.
+
+The bounded event pump now carries checked subscription records into immutable
+spool batches, rechecking full identity before each publication and while idle.
+It joins reception before accounting for queued/sender-held records, preserves
+uncertain publication without a seal, and refuses capacity overwrite or a second
+run on existing history. Focused races pass three repetitions (8.030 seconds);
+fresh full sensor-agent races pass (25.193 seconds), including final idle and
+single-run cases. All pump tests also pass three Linux repetitions under
+256 MiB/0.5 CPU; the owned proof container exited zero without OOM and was removed.
+Independent component review accepted the result. Four identity
+GETs per batch remain an explicit unproven fleet-scale cost. Durable consumer
+admission, acknowledgment/reclamation, deployment and live source-to-browser
+proof remain open. No task-credit change or push. Evidence:
+`docs/internal/2026-09-10-sensor-lineage-event-pump.md`.
+
+Read-only consumer admission now pins the producer-owned generation and manifest,
+requires the trusted expected enrollment, and verifies owned canonical chunks.
+Gap and seal checks reject missing records, unsupported files, false totals and
+complete-coverage claims. Closure verification rereads every claimed chunk and
+checks cumulative limits; it isn't delivery acknowledgment or reclamation
+authority. Focused host races pass three repetitions (3.478 seconds), and fresh
+full sensor-agent races pass (25.001 seconds). Independent component review found
+no concrete blocker. Three final Linux repetitions also pass, including an actual
+non-root consumer reading root-owned records while producer write attempts return
+permission denials. Owned proof containers were inspected and removed; no OOM.
+Durable chunk checkpoints, exact-envelope replay, consumer
+acknowledgment/reclamation and production integration remain open. No task-credit
+change or push. Evidence:
+`docs/internal/2026-09-10-sensor-lineage-consumer-admission.md`.
+
+The separate durable chunk consumer now binds source-wide digest/count progress,
+retained process identity and exact pending upload envelopes. It replays pending
+work before reading new chunks, survives credential rotation and uncertain
+acknowledgment writes, and records rejected input without credential access.
+A test-first consistency fix rejects cached identity on zero consumed history.
+Independent review found no remaining concrete blocker. Final full adapter races
+passed (8.730 seconds), as did full sensor-agent races (25.130 seconds). Three
+Linux repetitions and both maximal-state benchmarks passed under 256 MiB/0.5 CPU,
+with peak memory 195,801,088 bytes and no OOM; owned proof containers were removed.
+Reader/daemon integration, separately verified
+ACK/reclamation and actual source-to-browser acceptance remain open. No task
+credit or push. Evidence:
+`docs/internal/2026-09-10-sensor-lineage-chunk-consumer.md`.
+
+The admitted spool reader now connects to the durable consumer with repeated
+admission checks and protected borrowed-reader lifetime. A separately compiled
+sensor process uses the real sanitizer/spool/reader/token path against actual
+certificate-verified HTTPS ingest and registered PostgreSQL roles. Real enrollment
+rotation preserves the exact pending request and original durable authority;
+another restart restores partial-event identity, while changed-start input drops
+without upload. A test-fixture-only correction permits distinct artifact keys
+while preserving per-key drift rejection. Final containing integration tests pass
+(20.686 seconds), focused races pass three repetitions (4.704 seconds), and full
+sensor-agent races pass (25.178 seconds). Linux tests also pass three repetitions,
+including a non-root consumer checkpointing root-owned records while producer
+writes return permission errors. Owned proof containers exited zero without OOM
+and were removed. The artifact store and provider identity are fixtures; this is
+not deployed-daemon or live-source proof. Verified ACK/reclamation, daemon
+activation and original end-to-end acceptance remain open. No task credit or push.
+Evidence: `docs/internal/2026-09-10-sensor-lineage-consumer-integration.md`.
+
+Sealed-consumption ACK publication is now implemented as a separate component.
+The consumer rereads the full committed source digest/count chain, re-establishes
+checkpoint durability, verifies the exact source seal and publishes a bounded
+receipt to a disjoint consumer-owned directory. It retains producer coverage/gap
+accounting without claiming cryptographic service acceptance. Tests cover actual
+process death, uncertain directory sync, identical retry, conflicting receipts,
+quota, source/output ownership and concurrent Close. Actual local HTTPS/PostgreSQL
+composition acknowledges after credential rotation/restart with zero token reads
+or uploads; root-producer/non-root-consumer Linux checks also pass. Independent
+review found no production-code blocker and requested an exact device/inode test,
+which was added. Producer-side ACK admission, reclamation/rotation and deployment
+activation remain open. No task credit or push. Evidence:
+`docs/internal/2026-09-10-sensor-lineage-consumption-ack.md`.
+
+Producer-side receipt admission now independently checks the configured consumer
+UID, exact destination/source, pinned physical generation, complete seal and
+reread chunk prefix without consumer checkpoint or credentials. Missing and
+invalid receipts are distinct; active target generations and changed source or
+receipt identities fail. No deletion authority is returned. Full adapter and
+sensor-agent races pass (12.233 and 32.888 seconds), focused receipt races pass
+three repetitions (14.814 seconds), and actual HTTPS/PostgreSQL composition passes
+with the token file physically unavailable during producer verification (24.857
+seconds). Restricted Linux root/non-root checks pass after a test-only cleanup
+ownership correction. Independent review found no component blocker. Full root
+verification also passes, including 1,180 UI tests, typecheck/lint, production build
+and compiled import checks. Crash-safe reclamation/rotation, daemon activation,
+live source and original browser acceptance remain open. No task credit or push.
+Evidence: `docs/internal/2026-09-10-sensor-lineage-producer-receipt.md`.
+
+Bounded acknowledged-source reclamation now passes component verification. Under
+the existing producer lock, it repeats receipt admission, pins the exact source
+file inventory, durably records intent, renames the generation, removes only
+verified files and publishes a retained completion record. Nine cancellation and
+process-death boundaries recover without deleting altered or unrelated files.
+Linux directory-sync failures, 128-chunk cleanup under a 192-descriptor limit and
+the restricted root-producer/non-root-consumer path pass. Actual TLS/PostgreSQL
+composition reclaims without token, checkpoint or additional requests. Full agent
+races, final focused races and root UI/build verification pass; review found no
+bounded-component blocker. The careful skill limited cleanup to exact owned test
+resources. Completion records remain capped at eight: consumer checkpoint/ACK
+retirement and completion-record collection are next, before indefinite rotation
+or daemon activation. Counts remain 535 production-available, 132 component-only
+and 61 external gates. No task credit or push. Evidence:
+`docs/internal/2026-09-11-sensor-lineage-reclamation.md`.
+
+The credentialless committed-checkpoint deletion primitive now passes test-first
+verification and independent review. It requires trusted source/destination,
+authenticated-consumption input and a live authorization callback, locks the
+existing cursor slot, rejects pending or mismatched checkpoints, then removes
+only the pinned matching file and syncs its directory. The slot lock remains.
+Process-death/cancellation recovery, authorization-time file/lock/directory changes,
+nonblocking FIFO refusal and actual Linux directory-sync failure pass. Full adapter
+and sensor-agent races pass in 15.200 and 45.361 seconds; restricted Linux tests
+pass three repetitions. The consumer caller's producer-completion authentication,
+ACK retirement and completion-record collection are not implemented by this
+primitive. No daemon activation, new task credit or push. Evidence:
+`docs/internal/2026-09-11-sensor-checkpoint-retirement.md`.
+
+Consumer completion authentication now reaches the checkpoint-retirement primitive.
+It pins the producer's bounded, root-owned completion record, matches the trusted
+installation and physical spool, verifies source/tombstone absence and requires
+the exact unchanged consumer ACK. The consumer re-establishes completion durability
+and checks output isolation before writer ownership and checkpoint deletion.
+Retirement preserves ACK/completion evidence. Test-first isolation corrections,
+authority-replacement and concurrent-Close tests pass. Actual HTTPS/PostgreSQL
+composition passes in 30.834 seconds with no token reads or extra uploads; the
+restricted root/non-root Linux lifecycle also passes three repetitions. Final full
+sensor-agent races pass in 46.791 seconds. This is component progress only: ACK
+retirement, completion-record collection and indefinite rotation remain open.
+No activation, task credit or push. Evidence:
+`docs/internal/2026-09-11-sensor-consumer-completion.md`.
+
+The three-phase retirement handshake now frees finished checkpoint, ACK and
+producer-completion slots. It authenticates exact completion and physical
+directory identities, durably publishes consumer retirement, durably collects
+producer completion, then removes the retired ACK. Twenty-four fresh generations
+reuse one bounded slot with constant remaining metadata. Five crash boundaries,
+five Linux sync-failure stages and the root/non-root lifecycle pass. Review also
+found and corrected an original ACK durability gap before initial producer intent
+and source deletion; its actual Linux regression failed first, then passed.
+Final full sensor-agent races pass in 57.575 seconds and actual HTTPS/PostgreSQL
+composition passes in 45.376 seconds without retirement token reads or uploads.
+Independent bounded-protocol review has no remaining concrete blocker after the
+final Linux gates. Daemon activation, automatic slot assignment/rotation and orphan
+recovery remain open. Counts stay 535 production-available, 132 component-only
+and 61 external gates. No task credit or push. Evidence:
+`docs/internal/2026-09-11-sensor-retirement-handshake.md`.
+
+Interrupted established generations can now finish delivery and ACK-gated cleanup.
+The producer validates the full bounded prefix, promotes complete pending chunks
+or matching seals, and preserves partial writes as a hash-bound private fragment.
+Restart closure explicitly marks counters unknown and coverage incomplete. Review
+caught and corrected shared-prefix scratch deletion with a failing regression.
+Five cancellation/process-death boundaries, hostile files, publication-time
+identity changes, actual Linux sync failures and 128-chunk recovery pass. Full
+sensor-agent races pass in 74.065 seconds; actual local HTTPS/PostgreSQL recovery
+through the complete retirement handshake passes in 49.402 seconds. Restricted
+Linux and root/non-root lifecycle gates pass three repetitions. Fresh root
+verification passes all 1,180 UI tests and the production build. Pre-manifest
+reservations, enumeration/slot assignment, rotation/controller wiring and live
+source-to-browser gates remain open. No activation, task credit or push. Evidence:
+`docs/internal/2026-09-11-sensor-interrupted-generation-recovery.md`.
+
+New generation creation now uses a private `.creating-UUID` reservation and only
+publishes the public name after the canonical manifest is complete and synced.
+Startup discard is restricted to bounded private metadata and its `.discard-UUID`
+retry state; public/legacy history is preserved. The exact manifest-prefix parser,
+eight process-death boundaries, quota reuse and late-conflict correction pass.
+Final full sensor-agent races pass in 62.004 seconds. Actual local HTTPS/PostgreSQL
+reservation cleanup through the full delivery/retirement lifecycle passes in
+43.258 seconds without reservation credential reads or requests. Six actual Linux
+sync-failure stages and both producer/consumer permission flows pass three times.
+Independent review found no remaining bounded-component blocker after those gates.
+Automatic enumeration, slot assignment, rotation/controller and live acceptance
+remain open. No activation, task credit or push. Evidence:
+`docs/internal/2026-09-11-sensor-private-reservations.md`.
+
+Producer enumeration and one bounded reconciliation tick now find private startup
+work, interrupted sources, reclaim intents and completions from producer-owned
+evidence. The whole installation snapshot is validated before mutation; scoped
+private cleanup rechecks enrollment, live generations are skipped, durable intents
+run first and per-item failures don't starve independent work. Nine actual
+process-death boundaries and hostile/stale-snapshot tests pass. Full sensor-agent
+races pass in 65.377 seconds; the final focused races pass in 10.928 seconds.
+Actual local HTTPS/PostgreSQL delivery now invokes this tick for reclamation and
+collection and passes in 48.200 seconds without extra requests or token access.
+Restricted Linux and root/non-root original/recovered flows pass three repetitions.
+Consumer durable slot assignment, rotation/daemon wiring, live source-to-browser
+proof and remaining M48 gates stay open. Counts remain 535 production-available,
+132 component-only and 61 external gates. No task credit, activation or push.
+Evidence: `docs/internal/2026-09-11-sensor-producer-reconciliation.md`.
+
+Consumer generations now reserve eight fixed durable cursor slots. Assignments
+bind trusted scope and physical state/spool/source identities before processing;
+occupied scratch, live cursor writers and retained history prevent unsafe reuse.
+Review found a pathname handoff gap, reproduced it with ancestor replacement, and
+accepted the corrected processor-construction identity binding. Final full adapter
+and sensor-agent races pass in 14.231 and 72.540 seconds. Actual local HTTPS/
+PostgreSQL replay and retirement through assigned processing pass in 46.271 seconds.
+Linux restart/sync-failure and root/non-root lifecycle tests pass three repetitions.
+Authenticated slot release, consumer discovery/reconciliation, rotation/daemon
+wiring and live acceptance remain open. No task credit, activation or push.
+Evidence: `docs/internal/2026-09-11-sensor-durable-consumer-slots.md`.
+
+Authenticated retirement now releases an exact consumer slot after producer
+collection. A fixed per-slot record saves full completion, assignment and original
+ACK evidence before ACK replacement. Checkpoint deletion verifies the same physical
+state/spool/source binding as processing. Release holds the existing cursor lock
+through assignment/evidence deletion and directory synchronization. Recovery finds
+retirement evidence even after assignment deletion; file absence alone can't free
+saved work. Twenty-four generations reuse one slot with constant remaining state.
+Nine actual process-death boundaries, seven Linux sync-failure stages, stale release,
+hostile metadata and ancestor replacement pass. Final full sensor-agent races pass
+in 87.413 seconds, full adapter races in 13.986 seconds, and actual local HTTPS/
+PostgreSQL integration in 44.609 seconds. Restricted Linux and root/non-root flows
+pass three repetitions without skips or OOM. Consumer discovery/reconciliation,
+rotation/daemon wiring, live acceptance and remaining M48 gates stay open. Counts
+remain 535 production-available, 132 component-only and 61 external gates.
+No task credit, activation or push.
+Evidence: `docs/internal/2026-09-11-sensor-slot-retirement.md`.
+
+Consumer discovery/reconciliation now enumerates producer-owned source and reclaim
+metadata alongside saved slots. The bounded tick resumes exact assignments,
+processes one chunk per public source, verifies complete consumption before ACK,
+and prioritizes local retirement even when an upload client is unavailable.
+An orphan-scratch regression is corrected: missing source evidence is preserved
+and rejected before state writes. Stale source snapshots, incomplete reclaim,
+private startup, concurrent cleanup and independent-source progress pass.
+Full sensor-agent races pass in 89.990 seconds; final controller races pass in
+7.567 seconds. Actual local HTTPS/PostgreSQL integration uses the controller for
+event delivery and credential-free retirement and passes in 40.091 seconds.
+Restricted Linux controller and root/non-root original/recovered lifecycles each
+pass three repetitions without selected-test skips, failures or OOM.
+Rotation/daemon wiring, live Tetragon-to-browser acceptance and remaining M48 gates
+stay open. No task credit, activation or push; counts are unchanged.
+Evidence: `docs/internal/2026-09-11-sensor-consumer-reconciliation.md`.
+
+Timed producer rotation and an explicit `lineage-producer` binary role are now
+implemented. The loop reconciles while collecting, waits for capacity before
+opening a subscription, uses a new generation per connection, and joins owned
+pumps before releasing dependencies. Ten generations rotate and complete with the
+consumer across the eight-slot limit. Review corrections cover early pump cleanup,
+known completion before readiness, and consumer-readable spool admission before
+writer-lock creation. The root role excludes product-token configuration and
+requires separate scoped mounts. Final full sensor-agent races pass in 96.976
+seconds; the separate actual local HTTPS/PostgreSQL regression passes in 45.348
+seconds. The production executable, actual procfs, TLS Kubernetes fixture and Unix
+gRPC fixture pass rotation/readiness/SIGTERM tests three times on restricted Linux,
+including rejected mode/group probes with zero spool writes. Root/non-root
+consumer lifecycle tests also pass three repetitions. Consumer-role/deployment
+wiring, live Tetragon-to-browser acceptance and remaining M48 gates stay open.
+Counts remain unchanged; no task credit, activation or push.
+Evidence: `docs/internal/2026-09-11-sensor-producer-daemon.md`.
+
+The explicit non-root `lineage-consumer` executable role now composes automatic
+generation discovery, fixed-slot processing, strict per-attempt token reads,
+credential-free local retirement, producer readiness and existing cluster reports.
+Canceled-upload scheduling is fair across process-lifetime ticks; retirement stays
+first and all authority checks remain. Full sensor-agent races pass in 110.007
+seconds; the separate actual local HTTPS/PostgreSQL regression passes in 40.426
+seconds. Final restricted Linux producer/consumer executables, root/non-root
+lifecycles and ordinary controller tests each pass three repetitions. The compiled
+consumer has UID 65532 and zero effective capabilities, uploads a qualified chunk
+to a fixture, remains unready under failed cluster authority, and completes local
+retirement after product token-file removal before clean SIGTERM. This isn't
+server-side revocation or live-cluster proof. Independent review found no remaining
+concrete blocker in this bounded slice. Deployment wiring, live Tetragon-to-browser
+acceptance, full original identity scope and remaining M48 gates stay open. Counts
+are unchanged; no task credit, activation or push.
+Evidence: `docs/internal/2026-09-11-sensor-consumer-daemon.md`.
+
+Customer-edge wiring now selects the lineage producer/consumer roles with
+per-role subdirectory mounts, a checked layout initializer, non-root token copy
+and explicit Kubernetes authority projection. The initializer preserves existing
+work, recovers only empty root-owned partial directories, and re-establishes inode
+sync on restart. Its CHOWN/DAC_READ_SEARCH permissions are confined to the layout
+mount; long-running roles drop all capabilities. The two containers share one
+service account and its combined Kubernetes grants, not separate RBAC identities.
+Final Linux initializer tests pass three repetitions. Three distinct generations
+complete all six lifecycle phases across fresh containers with actual read-only
+mount flags, cross-container inode checks and fsync. All 44 release/staging tests
+pass. Root verification passes 1,180 UI tests, typecheck/lint, contracts, build and
+compiled import checks. Final full sensor-agent races pass in 101.790 seconds.
+The separate HTTPS/PostgreSQL regression passes in 39.720
+seconds. Independent review found no remaining bounded-slice blocker. Kubernetes
+deployment, token refresh, legacy backlog transition, live source-to-browser
+acceptance and the remaining original scope/M48 gates stay open. Counts are
+unchanged; no task credit, push or activation.
+Evidence: `docs/internal/2026-09-11-sensor-lineage-installation.md`.
+
+The subsequent credential-refresh slice removes the init-time product-token copy.
+The lineage consumer explicitly selects a checked Linux projected-Secret reader;
+the chart mounts that Secret read-only without subPath. One non-root reader sees
+replacement versions without caching old authority. Twenty Linux cases pass,
+including invalid/missing recovery and ownership/link/permission rejection; an
+actual writable mount is rejected. During 200 concurrent publications, 1,000 reads
+return published fixtures or fail closed, then observe the final version. Both
+token modes retain credential-free local cleanup. Host agent races pass in 108.782
+seconds; 41 selected release/staging tests and full root verification pass, including
+1,180 UI tests and the production build. Independent review found no concrete
+bounded-slice blocker. Actual Kubernetes projection and running-daemon rotation,
+unchanged pending-envelope replay through real authenticated ingestion, live
+source-to-browser acceptance and whole-branch release review remain open. All 11
+owned test containers and eight volumes were removed after inspection; logs and
+binaries remain. Counts unchanged; no task credit, main push or activation.
+Evidence: `docs/internal/2026-09-11-sensor-projected-token-refresh.md`.
+
+The compiled consumer now has local process-level projected-rotation proof. An
+initial 503 leaves no acknowledgment; the same UID65532/zero-capability daemon
+retries the exact body/key with the new projected token, then completes retirement
+after key removal. The pre-refresh binary fails; the final binary passes in 0.41
+seconds. Original owned-file cleanup passes three repetitions. The separate full
+real HTTPS/PostgreSQL credential/replay suite passes in 39.607 seconds, including
+durable acceptance before response loss, unchanged provenance and no duplicated
+stage/outbox work. These are separate compositions, not combined live acceptance.
+Selected host races pass in 12.887 seconds. Independent review found no bounded
+fixture blocker. Seven test containers and six volumes were removed after exact
+inspection, with evidence retained. The existing local Kubernetes context refuses
+connections; no cluster configuration changed. Whole-platform pre-push races were
+started, not yet credited. Counts unchanged; no task credit, main push or activation.
+Evidence: `docs/internal/2026-09-11-sensor-daemon-token-replay.md`.
+
+The whole-platform pre-push race run subsequently failed in the 100,000-row
+connector fixture with an unexpected EOF. Its isolated repetition failed with
+explicit PostgreSQL SQLSTATE 53100, no space left on device. Both runs ended;
+neither is a full-suite pass. New batch-lock and damaged/missing acceptance-binding
+cases pass in the full local runtime-ingest acceptance suite (42.448 seconds).
+The workflow now selects sensor-agent races and runtime-acceptance PostgreSQL
+tests with an explicit fixture-binary check; all 42 selected release/staging
+contracts pass. Independent review of these changes, two other M48 boundary
+tests and successful full release verification remain required. Docker was
+unavailable before an additional Linux run could start. No data cleanup, push,
+activation or task credit is claimed. Counts remain 535/132/61.
+Evidence: `docs/internal/2026-09-11-lineage-release-verification.md`.
+
+The follow-up closes the four missing local M48 boundary-test categories with
+independent review. Foreign organization/workspace/environment credentials reusing
+the sensor ID cannot access the original receipt, including pre-body HTTP denial.
+Incomplete uploads retain original credential provenance across rotation; actual
+SQL reconciliation then allows exact receipt replay without duplicate work. The
+final containing PostgreSQL race suite passes in 39.130 seconds. Review's stale
+diagnostic-observation correction is included. Fifteen inspected old fixture
+binaries were losslessly compressed, recovering about 434 MiB with decompressed
+SHA-256 verification; no user data or evidence logs were deleted. The unchanged
+100,000-row index test now passes in 73.092 seconds. CI exposes all four required
+PostgreSQL tools before verification and selects the new sensor/acceptance tests.
+Its strict 15-step workflow contract passes after updating stale expectations.
+Fresh root UI/build verification passes all 1,180 tests, typecheck/lint, contracts,
+build and compiled import checks. Full backend races pass across 79 packages
+with serial package scheduling. Sensor-agent host races pass in 135.317 seconds. Twelve more old fixture executables were losslessly
+compressed with matching decompressed hashes; both groups save 776 MiB across
+27 recoverable binaries. OrbStack reports stopped with no listed machines; a
+local start reported Docker ready without reset or Kubernetes changes. The current
+ordinary Linux suite exits 0 as UID65532 with no capabilities/network and no OOM
+kill; explicit fixture-only tests skip and retain their prior separate evidence.
+Its binary hash matches the earlier reviewed final binary. The one stopped test
+container was removed after exact inspection; logs and binary remain.
+Live deployment/composed acceptance and original M3-46/M3-47/M7-07 scope remain
+open. No task credit, push or activation; counts remain 535/132/61.
+Evidence: `docs/internal/2026-09-11-lineage-release-verification.md`.
+
+The release-source gate and full local composed Chrome/runtime-worker proof now
+pass, with all owned cleanup phases complete. Live infrastructure remains an
+external gate. Independent review caught lost producer-drop/unknown-coverage
+health accounting and held the push. A failing regression confirmed the defect.
+The fix persists bounded, identity-bound totals before ACK/retirement, preserves
+unknown history, and survives retries, restart and slot reuse. Focused host races
+and adapter races pass. Final full sensor races pass in 120.511 seconds; the
+fresh non-root Linux suite has 217 passes and 20 explicit fixture-only skips.
+The actual executable passes three token-removal cleanup lifecycles. Fresh root
+verification passes all 1,180 UI tests and the production build; the release-source
+gate passes. Independent review found no remaining concrete fix blocker.
+The new production edits supersede earlier sensor binary evidence. The parallel
+harness SIGTERM test now isolates its temporary directory and passes without
+claiming unrelated concurrent roots. No original scope was removed and no task
+credit was added. Counts remain 535 production-available, 132 component-only,
+61 external gates. See the same release verification record for failures and logs.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production
