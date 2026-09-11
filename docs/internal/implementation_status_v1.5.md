@@ -3,7 +3,7 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-correlation-routing`; migration49 locally verified and reviewed, publication pending
+**Execution branch:** `codex/runtime-correlation-lineage`; PR46 published from the preserved routing branch, hosted CI pending
 **Latest main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
 **Last verified main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
 
@@ -32,11 +32,30 @@ the regression reproduced it and the validator now binds one exact shell
 container. Final verification passes1,188 UI tests, build/imports and728 ledger
 rows. The source release gate, complete migration races and final runtime/Chrome
 rerun all pass with cleanup. Final independent review approves incremental
-publication after those results. Publication and hosted CI remain pending.
-Nothing in this local change is shipped or credited as production-available. Counts remain
+publication after those results. PR46 is published at exact head
+`e4a5d96cee0efe8cca78bd6b59e32c081de60c0c`; push CI 34628265078 and PR CI
+34628358007 are running. The exact head must pass both checks before merge.
+Postcommit history scanning passed all 1,393 commits. The unchanged publication
+hook had no HIGH findings; its 16 nonblocking MEDIUM findings were reviewed as
+public CI identifiers and synthetic fixture account identifiers. No hook or scan
+was bypassed. The next branch preserves this published head unchanged.
+Nothing in PR46 is on main or credited as production-available yet. Counts remain
 535 production-available, 132 component-only and 61 blocked/external, with no
 missing rows. Details and evidence limits are in
 `docs/internal/2026-09-11-correlation-routing-upgrade.md`.
+
+The next acceptance audit confirms two remaining gaps, with no change to the
+original criteria. M3-46's frozen candidate contract contains qualified container,
+cgroup and process observations but no sandbox identity field; the legacy
+correlator's sandbox support does not prove the production v2 path. M7-07's
+actual candidate recovery creates Exact and Strong events in one session and an
+unassigned Probable conflict in its own tenant. The current browser proof uses a
+different tenant, and its separate confidence-display test seeds synthetic rows.
+The next proof must read the actual worker-created mixed-evidence session through
+authorized product APIs and Chrome, preserve pagination and unknown identities,
+and verify scope denial. Do not transplant or seed runtime evidence to close it.
+M3-46, M3-47 and M7-07 remain open. Live source/provider enrollment and deployed
+release evidence remain separate gates.
 
 PR 44 merged as `fd4ba167`. Both initial push CI 34617264232 and PR CI
 34617323187 failed the new daemon step with `exec format error`. Its pinned
