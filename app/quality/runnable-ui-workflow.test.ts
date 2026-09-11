@@ -4,6 +4,7 @@ import { JSON_SCHEMA, load } from "js-yaml";
 import { describe, expect, it } from "vitest";
 
 type WorkflowStep = {
+  "timeout-minutes"?: number;
   if?: unknown;
   "continue-on-error"?: unknown;
   run?: string;
@@ -55,6 +56,7 @@ test -x "$(pg_config --bindir)/initdb"
 go test -C services/sensor-agent -race -count=1 ./...
 go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntimeAcceptance|TestProductionRuntimeIngestHTTPPersistsTransactionalOutboxBeforeAcceptance)'
 `;
+const daemonReplayCommand = "node --test scripts/sensor-daemon-replay.test.mjs\nnode scripts/sensor-daemon-replay.mjs\n";
 const maintenanceAlertCommand = `task_prom_dir=$(mktemp -d "\${RUNNER_TEMP}/zasp-promtool.XXXXXX")
 curl --fail --location --retry 3 --max-time 120 --output "$task_prom_dir/prometheus.tar.gz" https://github.com/prometheus/prometheus/releases/download/v3.14.0/prometheus-3.14.0.linux-amd64.tar.gz
 printf '%s  %s\\n' f665c6da19eb7ba399c915d30c7d9793c9b417bf8a749b504bc470678631478d "$task_prom_dir/prometheus.tar.gz" | sha256sum --check -
@@ -135,7 +137,7 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["continue-on-error"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(15);
+  expect(verificationSteps).toHaveLength(16);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
@@ -151,6 +153,7 @@ function assertRunnableUiWorkflow(
     maintenanceAlertCommand,
     "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n",
     sensorAcceptanceCommand,
+    daemonReplayCommand,
     "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n",
   ]);
   expect(verificationSteps[0]?.with).toEqual({ "fetch-depth": 0 });
@@ -163,6 +166,7 @@ function assertRunnableUiWorkflow(
     cache: true,
     "cache-dependency-path": "services/platform/go.sum",
   });
+  expect(verificationSteps[14]?.["timeout-minutes"]).toBe(15);
   for (const step of verificationSteps) {
     expect(step.if).toBeUndefined();
     expect(step["continue-on-error"]).toBeUndefined();
@@ -194,6 +198,7 @@ function validWorkflow(): Workflow {
           { run: maintenanceAlertCommand },
           { run: "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n" },
           { run: sensorAcceptanceCommand },
+          { run: daemonReplayCommand, "timeout-minutes": 15 },
           { run: "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n" },
         ],
       },
@@ -202,6 +207,18 @@ function validWorkflow(): Workflow {
 }
 
 describe("runnable UI GitHub Actions gate", () => {
+  it.each(["omitted", "skipped", "unbounded", "allowed-failure"])("rejects %s actual daemon proof", async (condition) => {
+    const workflow = validWorkflow();
+    const steps = workflow.jobs?.verify?.steps;
+    const step = steps?.find(value => value.run === daemonReplayCommand);
+    if (!steps || !step) throw new Error("daemon proof fixture is missing");
+    if (condition === "omitted") steps.splice(steps.indexOf(step), 1);
+    if (condition === "skipped") step.if = false;
+    if (condition === "unbounded") delete step["timeout-minutes"];
+    if (condition === "allowed-failure") step["continue-on-error"] = true;
+    const manifest = await readPackageManifest();
+    expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
+  });
   it("accepts the baseline before testing hostile workflow mutations", async () => {
     assertRunnableUiWorkflow(validWorkflow(), await readPackageManifest());
   });

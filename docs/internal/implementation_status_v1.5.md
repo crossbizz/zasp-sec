@@ -3,8 +3,34 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-sensor-lineage`, PR 43 (merge held for final API and hosted verification)
-**Last verified main:** `a4fede82`, PR 42; main CI 34544444052 passed
+**Execution branch:** `codex/runtime-daemon-replay`; repairing PR 44 CI architecture failure
+**Latest main:** `c30d9fa6`, PR 43; main CI 34612285514 passed
+**Last verified main:** `c30d9fa6`, PR 43; main CI 34612285514 passed
+
+PR 44 remains unmerged at `5a8d4a5d`. Both push CI 34617264232 and PR CI
+34617323187 failed the new daemon step with `exec format error`. Its pinned
+image was ARM64-only while hosted CI is AMD64. The unpublished correction pins
+the multi-architecture PostgreSQL 18.6 Bookworm index, selects the actual Docker
+host platform explicitly and rejects a mismatched pulled image before compiling.
+Its behavioral RED and all 15 runner/command-owner tests pass after correction.
+Both actual local daemon attempts pass with exact cleanup. Fresh full verification
+passes 1,188 UI tests, typecheck/lint/build/imports and all 728 ledger rows;
+the source release gate and independent review pass. The correction is ready
+for push; replacement hosted AMD64 CI and merge remain pending.
+Fresh complete local
+`npm run verify` passed before the follow-on edits, including all 1,188 UI tests,
+build and the 728-row ledger (`/tmp/zasp-daemon-premerge-verify.log`).
+The preserved next branch `codex/runtime-correlation-prestage`, local commit
+`e974a1d9`, pre-stages the existing dual-version correlation worker on
+schema48 before a separate routing49 change. Rendered-release downgrade guards
+failed first, then all 39 contracts, full worker races and actual PostgreSQL
+candidate readiness tests passed. Independent source review found no blocker,
+conditional on verified candidate readiness and replacement of every old worker
+before routing activation. Full follow-on UI/build verification and the complete
+source release gate passed. Publication waits for the PR44 repair.
+This adds no original-task credit. Its evidence document
+`docs/internal/2026-09-11-correlation-worker-prestage.md` is retained in that local
+commit and will ship with the pre-stage change after PR44.
 
 Migration 43 and the authorized structured-search API shipped in PR 28 as main
 d46085cf after full local verification, real PostgreSQL boundaries, Chrome/runtime
@@ -887,11 +913,40 @@ retirement. The corrected fixture verifies the exact retained generation
 watermark and unchanged coverage after idle restart, with production behavior
 unchanged. Focused real-PostgreSQL races pass in 43.714 seconds, and independent
 review reports no findings. Fresh stable-code UI/build verification passes all
-1,184 tests and the ledger. Full API/sensor checks, postcommit secret scanning
-and fresh hosted verification remain required before merge. Evidence and failed
+1,184 tests and the ledger. Full API races pass in 547.091 seconds; sensor races
+pass in 152.943 seconds. Correction `0bc905ac` is pushed after the source-release
+gate and postcommit 1,382-commit secret scan pass. Push CI 34610595193 and PR CI
+34610598964 pass every stage, including sensor replay and Attack Lab enforcement.
+PR 43 merged the exact verified head as main `c30d9fa6`; main CI 34612285514
+passes every stage in 16 minutes. Evidence and failed
 intermediate runs are in `docs/internal/2026-09-11-lineage-release-verification.md`.
 No original task credit changes: 535 production-available, 132 component-only,
-61 external gates. PR 43 is still unmerged.
+61 external gates. No deployed production acceptance is inferred from this merge.
+
+The next running-daemon lost-success replay proof is isolated on
+`codex/runtime-daemon-replay`, based on `0bc905ac`. Its one-event sealed-source
+fixture now preserves the existing three-event fixture and refuses rewriting
+history. A real TLS socket test verifies dropped first acceptance, gated retries,
+explicit replay release and exact body/key/credential-digest evidence, capped at
+eight forwarded attempts. The actual unchanged consumer daemon now passes local
+lost-success replay against PostgreSQL 18.6, real schema-48 migration and public
+enrollment/rotation APIs. Both receipts match the original persisted batch; exact
+request/checkpoint replay, one artifact write, five stages, one outbox entry and
+the production durable ACK verifier pass. Reviewed cleanup preserves owned roots
+after failure and checks exact directory identity after all process joins.
+The bounded owned-container CI runner passes twice locally (3.26s and 2.60s),
+including inspection, no OOM and exact stopped-container removal. Its CI step is
+implemented and pushed. Final API races pass in 596.655s, sensor races in
+146.820s, all 1,188 UI tests and typechecking pass, and final lint/build/compiled
+closure/release checks pass. The final runner passes twice again (3.66s, 3.39s)
+after error preservation was corrected. Final execution-identity/failure-output
+corrections pass 14 runner/command-owner tests, lint and two actual runs (3.18s,
+3.21s). Head `5a8d4a5d` is pushed as PR 44 after the full HEAD-history secret
+scan passes (1,386 commits). Push CI 34617264232 and PR CI 34617323187 are
+running; neither is accepted as a pass yet. Main remains verified `c30d9fa6`.
+Prepared producer data, browser identity, readiness and artifact storage remain
+fixtures. No live discovery, deployed acceptance or original task credit is added.
+Evidence: `docs/internal/2026-09-11-daemon-replay-proof.md`.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production

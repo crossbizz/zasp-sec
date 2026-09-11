@@ -84,6 +84,11 @@ jobs:
           test -x "$(pg_config --bindir)/initdb"
           go test -C services/sensor-agent -race -count=1 ./...
           go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntimeAcceptance|TestProductionRuntimeIngestHTTPPersistsTransactionalOutboxBeforeAcceptance)'
+      - name: Verify actual daemon lost-success replay
+        timeout-minutes: 15
+        run: |
+          node --test scripts/sensor-daemon-replay.test.mjs
+          node scripts/sensor-daemon-replay.mjs
       - name: Verify bounded Attack Lab network enforcement
         run: |
           go test -C proofs/attack-lab-egress -race -count=1 ./...

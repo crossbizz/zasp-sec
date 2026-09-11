@@ -1,0 +1,257 @@
+# Running-daemon replay proof, in progress
+
+Original scope and task credits are unchanged. This branch starts at `0bc905ac`.
+PR 43 merged as main `c30d9fa6` after both branch checks passed. Main CI
+34612285514 passes in 16 minutes. This next proof is separate and unpublished.
+Local running-daemon/PostgreSQL composition passes; deployed acceptance remains open.
+
+## Preparation verified
+
+The sealed-source fixture has an explicit one-event mode while retaining the
+existing three-event mode. It refuses rewriting an existing generation and never
+labels a closed fixture as complete live coverage. The original helper failed
+the one-event assertion; the corrected cases pass with races in 2.239 seconds.
+Evidence: `/tmp/zasp-daemon-single-exact-red.log` and
+`/tmp/zasp-daemon-single-green.log`. The first test draft incorrectly expected
+complete coverage; that assertion was corrected before the exact RED run.
+
+A TLS socket test verifies loss of the first accepted response before any headers,
+closed-gate retry refusal, explicit replay release and exact body/key/authentication
+digest evidence. Snapshots own their byte slices; at most eight forwarded attempts
+are retained. Non-202 responses are forwarded without opening replay. Oversize
+requests cannot reach the handler. Removing the attempt bound makes the ninth
+attempt regression fail, recorded in `/tmp/zasp-daemon-trace-bounds-red.log`.
+
+Independent review found that holding the state mutex across I/O could block
+evidence polling. A real stalled-handler regression failed before the fix. State
+locking is now short-held, an in-flight reservation permits only one handler,
+and request context/read/write deadlines are five seconds. Socket test clients
+have two-second timeouts. Replay cannot open while a handler is in flight.
+All trace races pass in 2.089 seconds. Evidence:
+`/tmp/zasp-daemon-trace-poll-red.log` and `/tmp/zasp-daemon-trace-poll-green.log`.
+Final independent source re-review reports no findings; it did not rerun tests.
+
+Superpowers isn't installed. The previously disclosed official upstream
+test-first, verification and independent-review fallback applies. These checks
+verify test helpers, not completion of an original product microtask.
+
+## Composition implemented and repeated locally
+
+Run only in an owned, inspected, networkless PostgreSQL 18 reference container,
+with bounded private tmpfs, read-only root and exact read-only binary binds. Root
+fixture setup must be distinguished from the unchanged production daemon running
+as UID/GID 65532 with zero effective capabilities. PostgreSQL runs non-root.
+
+Use the real migration runner through schema 48, separately registered API/ingest
+principals and real public enrollment/rotation handlers. Browser identity and
+artifact storage remain explicit fixture limitations. Discover one prepared,
+sealed source using the actual daemon, not a consumer-loop test substitute.
+
+After first actual ingestion commits, lose its response and keep retries gated.
+Join the first daemon before inspecting its pending checkpoint and opening replay.
+Rotate the real token, atomically replace its owned file and restart the unchanged
+executable against unchanged source/state. Compare exact request bytes/key and
+known issued-credential digests. Require one sensor-scoped batch, one artifact,
+five stages and one outbox entry, including detection of duplicates under another
+batch ID. Verify actual durable ACK source/destination, generation inode,
+manifest/seal digests and progress. File existence alone isn't acceptance.
+
+All waits and cleanup must be bounded. Cancel handlers independently, join every
+child before removing owned state, preserve failure evidence and inspect container
+exit/OOM state before exact removal. Repeat the focused composition and review
+before full affected tests/UI verification and publication. Real producer-daemon
+reclamation, Kubernetes projection, live Tetragon-to-browser discovery and deployed
+infrastructure remain open gates.
+
+The complete composition above now runs in
+`TestRuntimeAcceptanceActualDaemonLostSuccessReplay`. PostgreSQL 18.6 uses real
+schema-48 migrations and six registered database principals. The ordinary
+consumer binary runs as UID/GID 65532 with zero effective capabilities. No product
+test switch, SQL change or released migration edit was needed.
+
+Review found two missing proof checks: returned receipt IDs weren't compared with
+the persisted batch ID, and automatic temporary-directory cleanup could delete
+state after a failed join. Both are corrected. Shared ownership cleanup runs after
+all child cleanup, reports PostgreSQL wait errors and preserves roots after any
+failure. It validates every original root inode/path before removing any root.
+Linux regressions cover joined, failed-join and replaced-root outcomes. Both HTTP
+receipt IDs must equal the same original SQL authority. Independent re-review
+reports no findings in these corrections; the reviewer didn't rerun the container.
+
+The corrected composition, all trace cases and ownership cases passed twice:
+3.37s and 2.85s for the composition. Logs:
+`/tmp/zasp-daemon-compose-reviewed.log` and
+`/tmp/zasp-daemon-compose-reviewed-repeat.log`. Inspection is in
+`/tmp/zasp-daemon-compose-reviewed-inspection.json`. Both exits were zero, PID zero
+and no OOM. These supersede the earlier pre-review 3.85s and 3.30s passes.
+
+`scripts/sensor-daemon-replay.mjs` builds all three binaries, inspects exact mounts
+and container isolation before starting, runs the composition twice, checks an
+actual PASS (not a skipped test), verifies no OOM/zero PID and removes only the
+stopped owned container. Failed runs retain host evidence and stopped container
+metadata; private tmpfs doesn't survive container exit. Its command groups use
+the existing joined bounded command owner. Compilation has a five-minute limit
+per binary; container execution is limited to 130 seconds per attempt, with a
+120-second Go test deadline. The CI step has a 15-minute limit.
+
+Runner tests first failed on the missing module, then passed five cases. The CI
+step assertion failed before wiring and then all six cases passed. Logs:
+`/tmp/zasp-daemon-runner-red.log`, `/tmp/zasp-daemon-runner-green.log`,
+`/tmp/zasp-daemon-runner-ci-red.log`, `/tmp/zasp-daemon-runner-ci-green.log`.
+The actual runner then passed both attempts (3.26s, 2.60s) and verified exact
+container removal: `/tmp/zasp-daemon-runner-actual.log`. Image manifest:
+`postgres:18.6@sha256:4d155aa3f2c2cc1838bb70e81396f76373ec7275ec9ce9cf32873cd677c9a992`.
+The Linux arm64 runner-built binary SHA-256 values were:
+
+| Binary | SHA-256 |
+| --- | --- |
+| apiserver.test | 5b39d1301f9c13d4ded11024730055b9ecfdca8f16981d92c61ed8d18dd17be0 |
+| sensor-agent.test | fd4d08be9b1098269d51261ec16f3fe0b6456a87451835042d7aa609179233c6 |
+| sensor-agent | 58b0aad54e0d58b092907d48da9edbf3b2c9d10a1605d5c88b02d4646dfc9207 |
+
+Independent runner review found that a failed command join could skip Docker
+shutdown and that sequential command budgets could exceed CI's deadline. Cleanup
+now attempts every join and container reconciliation independently, aggregates
+failures and forbids root deletion after any failure. A monotonic 12-minute
+execution deadline reserves three minutes before CI's 15-minute stop. New tests
+cover failed join, failed container cleanup, success ordering and remaining time.
+All nine runner tests plus four existing command-owner tests pass (13 total):
+`/tmp/zasp-daemon-runner-cleanup-green.log`; missing-helper RED is retained in
+`/tmp/zasp-daemon-runner-cleanup-red.log`. The corrected runner passes the actual
+composition twice again (3.72s and 2.76s), verifies no OOM and exact container
+removal: `/tmp/zasp-daemon-runner-reviewed-actual.log`.
+
+Full sensor races pass in 146.820s: `/tmp/zasp-daemon-final-sensor.log`.
+The first pinned verification run failed an existing Attack Lab timing test:
+its 20ms caller deadline included temporary credential filesystem setup, and the
+collection method rejects a context that's already expired at entry as malformed.
+The original focused case passed 20 repetitions, confirming intermittent timing.
+Both caller-deadline tests now start their clock after fixture setup, with all
+limits/assertions and production code unchanged. Thirty repetitions of both
+corrected cases pass in 5.832s: `/tmp/zasp-daemon-existing-timeout-fixed.log`.
+The failed broad run remains in `/tmp/zasp-daemon-final-ui.log`.
+
+The two manually created disposable proof containers were inspected as exited,
+PID zero, exit zero and no OOM, then removed by exact ID without force. Their
+absence was checked; host logs and final inspection remain in
+`/tmp/zasp-daemon-manual-final-inspection.json`. No unrelated container was touched.
+
+Full API races and pinned UI/build verification have passed, as recorded below.
+Hosted CI and publication of this branch are not yet claimed. Counts remain 535/132/61.
+
+Final source re-review reports no findings in the runner deadline/cleanup fixes,
+the narrow Attack Lab fixture timer correction or the workflow contract. The
+workflow contract now requires all 16 steps, including the actual daemon proof;
+four hostile mutations reject omission, skip conditions, missing timeout and
+allowed failure. Its 23 cases pass locally. The earlier full run correctly failed
+the old 15-step contract (`/tmp/zasp-daemon-final-ui-retry.log`), and the final
+fresh run includes the updated contract. The production source-release gate
+passes: `/tmp/zasp-daemon-final-release-source.log`. This isn't a deployed canary,
+image signature or live provider check.
+
+Final UI verification passes all 1,188 tests in 196 files and typechecking.
+Lint then rejected an explicit throw inside the runner's finally block. The
+runner now retains execution and cleanup errors separately, combines them when
+needed and throws after cleanup, without losing the original failure. Final
+runner/command-owner tests pass 13/13, lint passes and the actual runner passes
+twice again (3.66s and 3.39s), with exact removal. Evidence:
+`/tmp/zasp-daemon-final-ui-stable.log`, `/tmp/zasp-daemon-runner-final-unit.log`,
+`/tmp/zasp-daemon-runner-final-lint.log`,
+`/tmp/zasp-daemon-runner-final-actual.log`.
+
+The remaining verification commands were run after that correction: production
+source/import tests, seven staging gates, all 41 release contract/gate tests,
+production build, compiled import closure (seven client/eight server chunks) and
+the 728-row ledger all pass. The build produced `dist/standalone/server.js`.
+This is a combined verification record, not a claim that the earlier interrupted
+`npm run verify` invocation exited successfully. No web runtime code changed.
+
+Full API races pass in 596.655 seconds:
+`/tmp/zasp-daemon-final-api.log`. All local verification for this proof is complete;
+publication, hosted CI and merge of this branch remain pending. Original scope
+and production task counts are unchanged.
+
+Local commits `0b545e26` (the separate timing fixture repair) and `bf167b39`
+(daemon composition/runner) are not pushed. A fresh adversarial review then found
+that container inspection lacked exact image, entrypoint, command and environment
+checks. The runner now compares all four, allowing only the defaults inspected
+from the exact pulled image digest plus its two explicit proof environment values.
+Negative mutations fail on changed executable/image/selector, missing opt-in and
+extra environment entries. The prior validator failed this regression:
+`/tmp/zasp-daemon-execution-identity-red.log`. All 13 final runner/command-owner
+tests pass in `/tmp/zasp-daemon-execution-identity-green.log`.
+
+An initial postcommit Gitleaks invocation used its default all-reference history
+and reported two fixed fake lease strings in `adcc80a6`, on the unrelated local
+`codex/main-integration` branch. That commit isn't an ancestor of this release.
+The release gate's existing scope is `--log-opts=HEAD`; it passes all 1,385 commits
+after execution-identity correction `01393c7d`. No new ignore or scanner-rule change was
+made. The original all-reference report is retained at
+`/tmp/zasp-daemon-postcommit-gitleaks.json`.
+
+Execution-identity inspection passes the real container twice (3.28s, 2.69s),
+with final independent re-review reporting no findings. The ship audit then found
+that timeout/interruption could discard buffered CLI output before the normal
+attempt log was written. The runner now joins that command and saves both output
+streams, status and signal to a unique private 0600 JSON file before Docker
+cleanup. A real interrupted Node child verifies SIGTERM, both streams and mode.
+Failed joins still preserve the owned root and reconcile Docker independently.
+
+The exit-state denial tests now use otherwise valid named-test PASS output, so
+their failure can't be caused by an unrelated output assertion. All 14 runner and
+command-owner tests pass; lint passes. Final real-daemon attempts pass in 3.18s
+and 3.21s with verified exact removal. Logs:
+`/tmp/zasp-daemon-failure-output-green.log`,
+`/tmp/zasp-daemon-failure-output-lint.log`,
+`/tmp/zasp-daemon-failure-output-actual.log`. The missing-helper RED is retained in
+`/tmp/zasp-daemon-failure-output-red.log`.
+
+Independent testing, maintainability and corrected failure-path reviews report
+no findings. The bounded slice audit accepts all five numbered replay scenarios
+plus failure-evidence preservation (six slice criteria), not six original tasks.
+The original counts remain 535/132/61. No live gate was waived.
+
+Head `5a8d4a5d5875132f4dfaff5e72637fc3495e2709` is pushed as PR 44:
+https://github.com/crossbizz/zasp-sec/pull/44 . The final postcommit HEAD-history
+scan passes all 1,386 commits with no leaks in 4.63s:
+`/tmp/zasp-daemon-final-head-gitleaks.log`. Push CI 34617264232 and PR CI
+34617323187 are running, not accepted as passes. Main remains `c30d9fa6`.
+
+PR body/title scan-at-sink has zero findings. The unchanged pre-push guard's
+nonblocking warnings were reviewed: public CI identifiers, fixed memory/CPU
+limits, an existing fixture UUID and the deliberate loopback metrics URL.
+The full diff scan is retained at `/tmp/zasp-daemon-pushed-diff-redaction.json`.
+No credential guard was bypassed. The supplemental GPT-6 Astra CLI review failed
+because the installed CLI is too old for that model; it isn't a review pass.
+Independent app reviews completed. The generic ship version helper requires an
+absent VERSION file; this repository's existing package versioning was preserved.
+
+## Hosted architecture failure and repair
+
+Both initial CI runs failed the new daemon step with `exec format error`, after
+their preceding verification passed. PR44 is not merged. The original pinned
+digest is a single ARM64 Linux manifest, not a multi-architecture image. The
+runner compiled from that image's architecture on the AMD64 CI host, creating
+binaries that its kernel could not execute. Local ARM64 passes did not cover it.
+The failure log is `/tmp/zasp-daemon-pr-ci-failed.log`.
+
+Registry inspection identified the matching PostgreSQL 18.6 Bookworm index:
+`sha256:1c59e2c3c818eaa0f0628f695b36e7c9e362d6b219b36a54a32df645cbd7e1af`.
+It contains the original ARM64 digest and AMD64 digest
+`sha256:a10c981235b4f635e65df0cfb66a5598064628128505dbc6a3ed4ca303717521`.
+No PostgreSQL or base-distribution version change is intended.
+
+The corrected runner reads the Docker daemon's OS/architecture, accepts only
+Linux AMD64/ARM64 and explicitly selects that platform for pull and create.
+It rejects a mismatched image before compiling and logs the selected platform.
+All original ownership, isolation, output-retention and cleanup checks remain.
+The missing-helper test is recorded separately from the behavioral missing-platform
+RED in `/tmp/zasp-daemon-platform-argument-red.log`. All 15 runner/command-owner
+tests pass in `/tmp/zasp-daemon-platform-green.log`. Actual ARM64 reruns pass in
+3.16s and 2.59s, with verified exact container cleanup:
+`/tmp/zasp-daemon-platform-actual.log`. Independent review found no concrete
+blocker and independently reran all 15 tests. Fresh complete local verification
+passes all 1,188 UI tests, typecheck/lint/build, compiled imports and all 728 ledger
+rows (`/tmp/zasp-daemon-platform-full-verify.log`). The complete source-release gate
+also passes (`/tmp/zasp-daemon-platform-source-gate.log`). Replacement hosted AMD64
+CI remains pending; local ARM64 success isn't substituted for it.
