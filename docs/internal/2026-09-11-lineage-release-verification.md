@@ -1,7 +1,8 @@
 # Lineage release verification checkpoint
 
 September 11, 2026. Changes are published in PR 43 from
-`codex/runtime-sensor-lineage`; hosted checks and the main merge are pending.
+`codex/runtime-sensor-lineage`; hosted checks found a cleanup defect, and the main
+merge is held while its correction is verified.
 No original task credit changes. Earlier entries below retain their observations
 at the time; the publication section records the latest state.
 
@@ -261,3 +262,39 @@ neither is recorded as a pass. Main remains at `a4fede82`.
 The two final Linux proof containers were removed by their inspected exact IDs
 after exit 0. They had no named volumes. Binaries, logs and inspection remain in
 `/tmp/zasp-lineage-health-containers.json`; no user data was removed.
+
+## Hosted cleanup failure
+
+The first API/UI checkpoint passed push CI 34602348318. Subsequent pushes
+34602656142 and 34602697676 passed UI verification but failed the harness SIGTERM
+test: two Go compiler descendants still referenced its private TMPDIR after the
+immediate `go build` process exited. The same test failed on the documentation
+checkpoint's push CI 34602817317 and PR CI 34602820246. Only the superseded PR run
+34602731586 was canceled; the other cancellation requests found already completed
+runs. Main was not merged.
+
+The hosted failure is retained in `/tmp/zasp-lineage-ci-failed.log`. Two new
+deterministic regressions reproduced the parent-only cleanup defect, including
+a TERM-resistant child and an already-exited parent:
+`/tmp/zasp-owned-command-red.log`. Commands now get an owned POSIX process group,
+bounded TERM/KILL shutdown and completion that waits for inherited output pipes
+to close. Completed historical commands aren't signaled again. Go compiler
+scratch is under the harness-owned root and is removed only after command
+settlement. This isn't a claim about descendants that deliberately escape their
+process group and close inherited pipes.
+
+Another failing test and independent review caught cleanup rethrowing an already
+settled spawn error. Cleanup now finishes, while the command's completion retains
+its original error. All four helper tests pass independently. The full selected
+Node CI invocation passes 71 tests with two explicit opt-in signal fixtures
+skipped: `/tmp/zasp-lineage-ci-contracts-local.log`. The real early harness SIGTERM
+test passes with both the normal cache and a private empty Go cache, with owned
+process/root removal and unrelated-root preservation. Cold-cache evidence:
+`/tmp/zasp-lineage-command-cold-cache.log`. Final independent review found no
+remaining concrete blocker. Fresh full UI/build verification passed all 1,180
+tests, typecheck/lint, source contracts, compiled imports and the 728-row ledger:
+`/tmp/zasp-lineage-process-group-ui.log`. The release-source gate also passed:
+`/tmp/zasp-lineage-process-group-release.log`. The composed run has passed its
+local runtime pipeline and is continuing browser flows in
+`/tmp/zasp-lineage-process-group-composed.log`. Hosted checks will run alongside
+that final local acceptance; both must pass before merge.

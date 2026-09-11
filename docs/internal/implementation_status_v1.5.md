@@ -3,7 +3,7 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-sensor-lineage`, PR 43 (published; CI pending)
+**Execution branch:** `codex/runtime-sensor-lineage`, PR 43 (merge held for CI cleanup correction)
 **Last verified main:** `a4fede82`, PR 42; main CI 34544444052 passed
 
 Migration 43 and the authorized structured-search API shipped in PR 28 as main
@@ -824,6 +824,18 @@ credential guard. The isolated API/UI checkpoint also passed full UI/build
 verification before publication. Push CI 34602697676 and PR CI 34602731586 are
 running; main remains `a4fede82`. This is publication, not a main merge or deployed
 acceptance. The 535/132/61 production-availability counts are unchanged.
+
+The first API/UI checkpoint passed CI 34602348318. Later push/PR checks passed
+UI verification but exposed orphan Go compiler processes during the harness's
+SIGTERM test. Main merge is held. The correction owns command process groups,
+waits for inherited pipes to close, bounds TERM/KILL, and keeps Go scratch under
+the harness-owned root. Four helper tests and the 71-test Node CI invocation
+pass; real early SIGTERM cleanup also passes with an empty private Go cache.
+Independent review found and verified a failed-spawn cleanup correction, then
+reported no remaining concrete blocker. Fresh full UI/build verification and the
+release-source gate pass. Composed runtime checks pass; browser flows and fresh
+hosted checks remain required before merge. Details and failed hosted runs are recorded in
+`docs/internal/2026-09-11-lineage-release-verification.md`. No task credit changes.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production

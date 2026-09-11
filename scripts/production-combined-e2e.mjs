@@ -10,6 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
+import { spawnOwnedCommand } from "./owned-command.mjs";
 import { reloadBrowserPage } from "./browser-e2e-helpers.mjs";
 import { createRuntimePipelineDependencies } from "./runtime-pipeline-dependencies.mjs";
 import { createGraphFixtureDependency } from "../proofs/neo4j-graphstore/run.mjs";
@@ -44,6 +45,7 @@ if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined
 
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-"));
 const children = [];
+const ownedCommands = new WeakMap();
 const runtimePipelineDependencies = createRuntimePipelineDependencies(command);
 let runtimeGraphDependency;
 const redTeamRuntimeProof = createRedTeamRuntimeProof(command);
@@ -4508,6 +4510,7 @@ function startChild(executable, args, options = {}) {
 }
 
 async function stopChild(child) {
+  if (ownedCommands.has(child)) return ownedCommands.get(child).stop();
   if (!child || child.exitCode !== null || child.signalCode !== null) return;
   child.kill("SIGTERM");
   await Promise.race([once(child, "exit"), delay(5_000)]);
@@ -4518,17 +4521,23 @@ async function stopChild(child) {
 }
 
 async function command(executable, args, options = {}) {
-  const child = spawn(executable, args, { cwd: options.cwd ?? root, env: options.env ?? process.env, stdio: ["pipe", "pipe", "pipe"] });
-	children.push(child);
-  let stdout = "";
-  let stderr = "";
-  child.stdout.on("data", (value) => { stdout += value; });
-  child.stderr.on("data", (value) => { stderr += value; });
-  if (options.input) child.stdin.end(options.input); else child.stdin.end();
-  const deadline = setTimeout(() => child.kill("SIGKILL"), options.timeout ?? 30_000);
-	const [status, signal] = await once(child, "exit");
-  clearTimeout(deadline);
-	const result = { status, signal, stdout, stderr };
+  const environment = options.env ?? process.env;
+  const owned = spawnOwnedCommand(executable, args, {
+    cwd: options.cwd ?? root,
+    env: executable === "go" ? { ...environment, GOTMPDIR: temporaryRoot } : environment,
+    input: options.input,
+  });
+  children.push(owned.child);
+  ownedCommands.set(owned.child, owned);
+  let rejectShutdown;
+  const failedShutdown = new Promise((_, reject) => { rejectShutdown = reject; });
+  let timedOut = false;
+  const deadline = setTimeout(() => { timedOut = true; void owned.stop().catch(rejectShutdown); }, options.timeout ?? 30_000);
+  let result;
+  try { result = await Promise.race([owned.completed, failedShutdown]); }
+  finally { clearTimeout(deadline); }
+  if (timedOut) throw new Error(`${path.basename(executable)} exceeded its deadline`);
+  const { status, signal, stdout, stderr } = result;
 	if (status !== 0 && options.reject !== false) throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
   return result;
 }
