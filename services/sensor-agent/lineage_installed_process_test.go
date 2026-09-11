@@ -154,6 +154,8 @@ func TestInstalledLineageConsumerProcess(t *testing.T) {
 			if err != nil {
 				return
 			}
+			result.Result.ProducerDroppedTotal = progress.ProducerDroppedTotal
+			result.Result.CoverageUnknown = progress.CoverageUnknown
 			if config.Action == "retire-slot" {
 				if progress.Retired == 1 && progress.Released == 0 {
 					result.Outcome = "slot-retired"
@@ -161,7 +163,7 @@ func TestInstalledLineageConsumerProcess(t *testing.T) {
 			} else {
 				if progress.Released == 1 {
 					result.Outcome = "slot-released"
-				} else if progress == (lineageConsumerProgress{}) {
+				} else if installedLineageConsumerIdle(progress) {
 					result.Outcome = "slot-idle"
 				}
 			}
@@ -334,6 +336,30 @@ func TestInstalledLineageConsumerProcess(t *testing.T) {
 		result.Outcome = "rejected"
 	}
 	result.Progress, result.Durable, _ = consumer.Committed()
+}
+
+// Cumulative coverage isn't activity. Keep it in the child result even when a
+// restarted consumer performs no new work during an idempotent release retry.
+func installedLineageConsumerIdle(progress lineageConsumerProgress) bool {
+	progress.ProducerDroppedTotal, progress.CoverageUnknown = 0, false
+	return progress == (lineageConsumerProgress{})
+}
+
+func TestInstalledLineageIdleDoesNotEraseCoverage(t *testing.T) {
+	for _, dropped := range []uint64{0, 7} {
+		for _, unknown := range []bool{false, true} {
+			progress := lineageConsumerProgress{ProducerDroppedTotal: dropped, CoverageUnknown: unknown}
+			if !installedLineageConsumerIdle(progress) || progress.ProducerDroppedTotal != dropped || progress.CoverageUnknown != unknown {
+				t.Fatal("idle classification changed retained coverage")
+			}
+			for _, active := range []lineageConsumerProgress{{SourcesProcessed: 1}, {Acknowledged: 1}, {Retired: 1}, {Released: 1}, {Waiting: 1}, {Read: 1}, {Submitted: 1}} {
+				active.ProducerDroppedTotal, active.CoverageUnknown = dropped, unknown
+				if installedLineageConsumerIdle(active) {
+					t.Fatal("activity classified as idle")
+				}
+			}
+		}
+	}
 }
 
 func initializeInstalledLineageFixture(ctx context.Context, config installedLineageProcessConfig) error {

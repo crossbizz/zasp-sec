@@ -433,3 +433,45 @@ had read-only root, no capabilities and only a read-only binary bind. It exited 
 without OOM and was removed by its inspected exact ID. This run has no race
 instrumentation; the separate host run supplies focused race evidence.
 The final release-source gate passes in `/tmp/zasp-sensor-expiry-release-source.log`.
+
+## Retained coverage and the commit-time secret scan
+
+Expiry correction `c24bdf1d` is published. Push CI 34608709266 and PR CI
+34608714471 failed the release contract's full-history Gitleaks scan on the fixed
+HTTP idempotency identifier in `sensor_public_precision_test.go:69`. Independent
+inspection of that immutable commit confirms this is a test correlation value,
+not authentication material. The correction adds one exact introduction-commit
+fingerprint to `.gitleaksignore`. No rule, directory or current file is excluded.
+Gitleaks 8.30.1 then passes all 1,381 commits in 6.04 seconds:
+`/tmp/zasp-sensor-expiry-gitleaks-reviewed.log`. The earlier precommit UI checks
+had scanned HEAD before that new test entered history. A postcommit scan is now
+required before this correction is pushed.
+
+The broad API runs also exposed stale installed-process fixture expectations.
+Cumulative coverage uncertainty was being classified as current activity, and
+retirement expected only two lock files despite the new durable coverage file.
+The test-only correction reports cumulative coverage through the existing child
+result, classifies idle activity on a copy, and verifies exact bounded,
+enrollment-bound coverage after retirement and another idle restart. The retained
+slot-zero seal and assignment are a deduplication watermark, not active work.
+Other slots must stay empty, and idle restart must leave the file bytes unchanged.
+Production accounting, credential checks and retirement behavior are unchanged.
+
+The initial correction had a local variable redeclaration, then an incorrect
+all-empty-watermarks assertion. Both failed before publication and were fixed;
+the retained watermark is intentional. Logs are preserved in
+`/tmp/zasp-retirement-coverage-api.log` and
+`/tmp/zasp-retirement-coverage-api-fixed.log`. Final focused real-PostgreSQL races
+pass in 43.714 seconds: `/tmp/zasp-retirement-coverage-verified-api.log`.
+The idle unit passes locally in 2.095 seconds and independently in 1.043 seconds.
+Final independent review reports no findings in these test/gate corrections.
+
+The earlier broad run in `/tmp/zasp-sensor-expiry-final-full-api.log` compiled
+before the coverage fixture correction and fails the old two-file assertion in
+454.544 seconds. It isn't final-code evidence. Fresh stable-code UI/build
+verification passes all 1,184 tests, typecheck/lint, contracts, seven client/eight
+server compiled chunks and the unchanged ledger in
+`/tmp/zasp-retirement-stable-ui.log`. Full API and sensor races are running in
+`/tmp/zasp-retirement-stable-full-api.log` and `/tmp/zasp-retirement-stable-sensor.log`.
+PR 43 remains unmerged. Original task classifications and production gates are
+unchanged.

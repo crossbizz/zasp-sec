@@ -449,8 +449,12 @@ func exerciseInstalledChunkSensorRecovery(t *testing.T, ctx context.Context, adm
 			if step.action == "release-slot" && retry == 1 {
 				expected = "slot-idle"
 			}
-			if result := invoke(step.action); result.Outcome != expected || result.TokenReads != 0 || result.Requests != 0 {
+			result := invoke(step.action)
+			if result.Outcome != expected || result.TokenReads != 0 || result.Requests != 0 {
 				t.Fatal("retirement handshake failed", step.action, result)
+			}
+			if step.action != "reconcile-producer" && (!result.Result.CoverageUnknown || result.Result.ProducerDroppedTotal != 0) {
+				t.Fatal("consumer retirement lost interrupted coverage history", result.Result)
 			}
 		}
 		if step.action == "retire-slot" {
@@ -476,8 +480,45 @@ func exerciseInstalledChunkSensorRecovery(t *testing.T, ctx context.Context, adm
 			t.Fatal("handshake state remains", path, err)
 		}
 	}
-	if entries, err := os.ReadDir(filepath.Dir(config.CursorPath)); err != nil || len(entries) != 2 {
-		t.Fatal("authenticated slot release didn't retain only fixed locks", len(entries), err)
+	stateEntries, err := os.ReadDir(filepath.Dir(config.CursorPath))
+	if err != nil || len(stateEntries) != 3 || stateEntries[0].Name() != ".slots.lock" || stateEntries[1].Name() != "coverage.json" || stateEntries[2].Name() != "cursor-0.json.lock" {
+		t.Fatal("authenticated slot release didn't retain fixed locks and coverage", len(stateEntries), err)
+	}
+	coverage, err := os.ReadFile(filepath.Join(filepath.Dir(config.CursorPath), "coverage.json"))
+	var history struct {
+		Version           string            `json:"version"`
+		EnrollmentBinding string            `json:"enrollment_binding"`
+		Destination       string            `json:"destination"`
+		Unknown           bool              `json:"counters_unknown"`
+		Dropped           uint64            `json:"producer_dropped"`
+		Slots             []json.RawMessage `json:"slots"`
+	}
+	if err != nil || len(coverage) > 64<<10 || json.Unmarshal(coverage, &history) != nil || history.Version != "tetragon-consumer-coverage-v1" || history.EnrollmentBinding != config.Source.EnrollmentBinding || history.Destination != config.Endpoint+"/internal/v1/runtime/events" || !history.Unknown || history.Dropped != 0 || len(history.Slots) != 8 {
+		t.Fatal("released slot lost bounded enrollment-bound coverage", err)
+	}
+	// The fixed deduplication watermark outlives its released assignment. It
+	// prevents an idle restart from counting this interrupted generation again.
+	var watermark struct {
+		Assignment struct {
+			Slot        int                         `json:"slot"`
+			Source      sensoradapter.LineageSource `json:"source"`
+			Destination string                      `json:"destination"`
+		} `json:"assignment"`
+		Seal json.RawMessage `json:"seal"`
+	}
+	if json.Unmarshal(history.Slots[0], &watermark) != nil || watermark.Assignment.Slot != 0 || watermark.Assignment.Source != config.Source || watermark.Assignment.Destination != history.Destination || !bytes.Equal(bytes.TrimSpace(watermark.Seal), bytes.TrimSpace(sealRaw)) {
+		t.Fatal("released coverage lost the exact generation watermark")
+	}
+	for _, slot := range history.Slots[1:] {
+		if string(slot) != "null" {
+			t.Fatal("coverage occupied an unrelated slot")
+		}
+	}
+	if result := invoke("release-slot"); result.Outcome != "slot-idle" || !result.Result.CoverageUnknown || result.TokenReads != 0 || result.Requests != 0 {
+		t.Fatal("idle restart lost coverage or required credentials", result)
+	}
+	if after, err := os.ReadFile(filepath.Join(filepath.Dir(config.CursorPath), "coverage.json")); err != nil || !bytes.Equal(coverage, after) {
+		t.Fatal("idle restart changed durable coverage", err)
 	}
 	for _, path := range []string{config.AckPath, config.SpoolPath} {
 		entries, err := os.ReadDir(path)

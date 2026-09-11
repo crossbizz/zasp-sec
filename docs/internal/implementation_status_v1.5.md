@@ -3,7 +3,7 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-sensor-lineage`, PR 43 (merge held for CI cleanup correction)
+**Execution branch:** `codex/runtime-sensor-lineage`, PR 43 (merge held for final API and hosted verification)
 **Last verified main:** `a4fede82`, PR 42; main CI 34544444052 passed
 
 Migration 43 and the authorized structured-search API shipped in PR 28 as main
@@ -877,6 +877,21 @@ The final focused Linux PostgreSQL 18.6 run passes five top-level tests, includi
 Its inspected container exited 0 without OOM and was removed; evidence is in the
 release verification record. The release-source gate passes. No scope or original
 task-count changes.
+
+Expiry correction `c24bdf1d` is published. Its push/PR checks 34608709266 and
+34608714471 failed Gitleaks on a fixed test idempotency value, independently
+confirmed as non-authentication material. One exact historical fingerprint now
+passes the full 1,381-commit scan; all credential rules remain active. A separate
+broad API run exposed stale test assumptions about retained coverage after slot
+retirement. The corrected fixture verifies the exact retained generation
+watermark and unchanged coverage after idle restart, with production behavior
+unchanged. Focused real-PostgreSQL races pass in 43.714 seconds, and independent
+review reports no findings. Fresh stable-code UI/build verification passes all
+1,184 tests and the ledger. Full API/sensor checks, postcommit secret scanning
+and fresh hosted verification remain required before merge. Evidence and failed
+intermediate runs are in `docs/internal/2026-09-11-lineage-release-verification.md`.
+No original task credit changes: 535 production-available, 132 component-only,
+61 external gates. PR 43 is still unmerged.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production
