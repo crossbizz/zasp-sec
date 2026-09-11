@@ -8,23 +8,30 @@ import { performance } from "node:perf_hooks";
 import { spawnOwnedCommand } from "./owned-command.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const image = "postgres:18.6@sha256:4d155aa3f2c2cc1838bb70e81396f76373ec7275ec9ce9cf32873cd677c9a992";
+const image = "postgres:18.6-bookworm@sha256:1c59e2c3c818eaa0f0628f695b36e7c9e362d6b219b36a54a32df645cbd7e1af";
 const binaries = ["apiserver.test", "sensor-agent.test", "sensor-agent"];
 const capabilities = ["CHOWN", "DAC_OVERRIDE", "FOWNER", "KILL", "NET_BIND_SERVICE", "SETGID", "SETUID"];
 const tmpfs = { "/tmp": "rw,nosuid,nodev,size=536870912,mode=1777", "/var/lib/postgresql": "rw,nosuid,nodev,size=16777216", "/var/run/secrets/kubernetes.io/serviceaccount": "rw,nosuid,nodev,size=65536,mode=0755" };
 const testName = "TestRuntimeAcceptanceActualDaemonLostSuccessReplay";
 const testArguments = [`-test.run=^(${testName}|TestSensorDaemonReplayOwnershipCleanup|TestSensorDaemonReplayTrace)`, "-test.v", "-test.timeout=120s"];
 const proofEnvironment = ["ZASP_TEST_DAEMON_REPLAY=1", "GOMEMLIMIT=256MiB"];
-function validateConfig({ owner, directory, imageEnvironment }) {
+export function daemonReplayPlatform(info) {
+  assert.equal(info?.os, "linux", "daemon proof requires a Linux Docker host");
+  const architecture = new Map([["amd64", "amd64"], ["x86_64", "amd64"], ["arm64", "arm64"], ["aarch64", "arm64"]]).get(info.architecture);
+  assert.ok(architecture, "unsupported Docker host architecture");
+  return `linux/${architecture}`;
+}
+function validateConfig({ owner, directory, imageEnvironment, platform }) {
   assert.match(owner, /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/);
   assert.ok(typeof directory === "string" && isAbsolute(directory) && resolve(directory) === directory && dirname(directory) !== "/" && !/[,\r\n\0]/.test(directory));
   assert.ok(Array.isArray(imageEnvironment) && imageEnvironment.every(value => typeof value === "string" && /^[A-Z_][A-Z0-9_]*=/.test(value) && !/[\r\n\0]/.test(value)));
   const keys = [...imageEnvironment, ...proofEnvironment].map(value => value.split("=", 1)[0]);
   assert.equal(new Set(keys).size, keys.length, "image defaults conflict with proof environment");
+  assert.ok(platform === "linux/amd64" || platform === "linux/arm64", "unsupported proof platform");
 }
 export function buildDaemonReplayArguments(config) {
   validateConfig(config);
-  return ["create", "--name", `zasp-daemon-replay-${config.owner}`, "--label", "zasp.proof=daemon-replay", "--label", `zasp.owner=${config.owner}`,
+  return ["create", "--platform", config.platform, "--name", `zasp-daemon-replay-${config.owner}`, "--label", "zasp.proof=daemon-replay", "--label", `zasp.owner=${config.owner}`,
     "--network", "none", "--read-only", "--user", "0:65532", "--cap-drop", "ALL", ...capabilities.flatMap(value => ["--cap-add", value]),
     "--security-opt", "no-new-privileges", "--pids-limit", "128", "--memory", "1g", "--memory-swap", "1g", "--cpus", "2", "--shm-size", "64m",
     ...Object.entries(tmpfs).flatMap(([path, value]) => ["--tmpfs", `${path}:${value}`]),
@@ -157,10 +164,15 @@ export async function runDaemonReplayProof() {
   };
   const docker = (args, options) => run("docker", args, options);
   try {
-    await docker(["pull", image], { timeout: 120_000 });
+    const host = JSON.parse((await docker(["info", "--format", '{"os":{{json .OSType}},"architecture":{{json .Architecture}}}'])).stdout);
+    config.platform = daemonReplayPlatform(host);
+    await docker(["pull", "--platform", config.platform, image], { timeout: 120_000 });
     const metadata = JSON.parse((await docker(["image", "inspect", image])).stdout);
     assert.equal(metadata.length, 1);
     const arch = metadata[0].Architecture;
+    assert.equal(metadata[0].Os, "linux");
+    assert.equal(`linux/${arch}`, config.platform, "pulled image differs from Docker host platform");
+    console.log(`daemon proof platform ${config.platform}; pinned image ${image}`);
     // Only defaults from the exact pulled digest may accompany our two entries.
     config.imageEnvironment = metadata[0].Config.Env ?? [];
     validateConfig(config);

@@ -5,12 +5,23 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import { spawnOwnedCommand } from "./owned-command.mjs";
-import { buildDaemonReplayArguments, validateDaemonReplayContainer, validateDaemonReplayResult, closeDaemonReplayContainer, cleanupDaemonReplayResources, daemonReplayCommandBudget, finishDaemonReplayCommand } from "./sensor-daemon-replay.mjs";
+import { buildDaemonReplayArguments, validateDaemonReplayContainer, validateDaemonReplayResult, closeDaemonReplayContainer, cleanupDaemonReplayResources, daemonReplayCommandBudget, finishDaemonReplayCommand, daemonReplayPlatform } from "./sensor-daemon-replay.mjs";
 
 const owner = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const id = "a".repeat(64);
 const passingOutput = "--- PASS: TestRuntimeAcceptanceActualDaemonLostSuccessReplay (3.00s)\nPASS\n";
-const config = { owner, directory: "/tmp/zasp-daemon-proof-fixture", imageEnvironment: ["PATH=/usr/local/bin:/usr/bin:/bin"] };
+const config = { owner, directory: "/tmp/zasp-daemon-proof-fixture", platform: "linux/amd64", imageEnvironment: ["PATH=/usr/local/bin:/usr/bin:/bin"] };
+
+test("daemon proof selects the actual Docker host platform instead of a foreign image", () => {
+  for (const [architecture, expected] of [["x86_64", "linux/amd64"], ["amd64", "linux/amd64"], ["aarch64", "linux/arm64"], ["arm64", "linux/arm64"]]) {
+    const platform = daemonReplayPlatform({ os: "linux", architecture });
+    assert.equal(platform, expected);
+    const args = buildDaemonReplayArguments({ ...config, platform });
+    assert.equal(args[args.indexOf("--platform") + 1], expected);
+  }
+  for (const value of [{ os: "windows", architecture: "amd64" }, { os: "linux", architecture: "riscv64" }, {}, null]) assert.throws(() => daemonReplayPlatform(value));
+  for (const platform of [undefined, "linux/arm", "windows/amd64", "linux/amd64\n"]) assert.throws(() => buildDaemonReplayArguments({ ...config, platform }));
+});
 
 test("CI runs actual daemon proof and ownership regressions within a bounded step", async () => {
   const workflow = await readFile(new URL("../.github/workflows/runnable-ui.yml", import.meta.url), "utf8");
@@ -20,7 +31,7 @@ const fixture = () => ({
   Id: id, Name: `/zasp-daemon-replay-${owner}`,
   Config: {
     User: "0:65532", Labels: { "zasp.proof": "daemon-replay", "zasp.owner": owner },
-    Image: "postgres:18.6@sha256:4d155aa3f2c2cc1838bb70e81396f76373ec7275ec9ce9cf32873cd677c9a992",
+    Image: "postgres:18.6-bookworm@sha256:1c59e2c3c818eaa0f0628f695b36e7c9e362d6b219b36a54a32df645cbd7e1af",
     Entrypoint: ["/proof/apiserver.test"],
     Cmd: ["-test.run=^(TestRuntimeAcceptanceActualDaemonLostSuccessReplay|TestSensorDaemonReplayOwnershipCleanup|TestSensorDaemonReplayTrace)", "-test.v", "-test.timeout=120s"],
     Env: [...config.imageEnvironment, "ZASP_TEST_DAEMON_REPLAY=1", "GOMEMLIMIT=256MiB"],
