@@ -3,7 +3,7 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-sensor-lineage` (unpublished)
+**Execution branch:** `codex/runtime-sensor-lineage`, PR 43 (published; CI pending)
 **Last verified main:** `a4fede82`, PR 42; main CI 34544444052 passed
 
 Migration 43 and the authorized structured-search API shipped in PR 28 as main
@@ -817,6 +817,13 @@ harness SIGTERM test now isolates its temporary directory and passes without
 claiming unrelated concurrent roots. No original scope was removed and no task
 credit was added. Counts remain 535 production-available, 132 component-only,
 61 external gates. See the same release verification record for failures and logs.
+
+The verified lineage slice is published in PR 43 through three dependency-ordered
+commits, `1783d2ad`, `043a900a` and `088226ad`. Each push passed the unchanged
+credential guard. The isolated API/UI checkpoint also passed full UI/build
+verification before publication. Push CI 34602697676 and PR CI 34602731586 are
+running; main remains `a4fede82`. This is publication, not a main merge or deployed
+acceptance. The 535/132/61 production-availability counts are unchanged.
 
 This file preserves the authoritative historical execution evidence for the
 728 microtasks in the v1.5 technical implementation plan. Production

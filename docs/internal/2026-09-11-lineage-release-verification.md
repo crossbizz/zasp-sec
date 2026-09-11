@@ -1,7 +1,9 @@
 # Lineage release verification checkpoint
 
-September 11, 2026. Working changes remain unpublished on
-`codex/runtime-sensor-lineage`. No original task credit changes.
+September 11, 2026. Changes are published in PR 43 from
+`codex/runtime-sensor-lineage`; hosted checks and the main merge are pending.
+No original task credit changes. Earlier entries below retain their observations
+at the time; the publication section records the latest state.
 
 ## Checks that passed
 
@@ -240,9 +242,21 @@ commit remains recoverable; no force-push is involved.
 An isolated first-checkpoint worktree exposed stale schema-47 chart expectations
 and historical test timestamps. Packaging now includes schema-48 expectations
 with the API migration, and a current legacy sensor event fixture. That sensor
-suite passes in 1.852 seconds. The intermediate full UI/build verification is
-being rerun before any push. Neither the first attempt nor PR creation published
-anything; main remains unchanged at this checkpoint.
+suite passes in 1.852 seconds. The intermediate full UI/build verification then
+passed all 1,180 UI tests, typecheck/lint, contracts, production build, compiled
+imports and the 728-row ledger. Evidence:
+`/tmp/zasp-lineage-publish-first-ui-owned-deps.log`. An initial dependency-directory
+symlink made the SBOM tool report missing development dependencies; a private
+copy of the existing installed dependencies corrected that fixture setup. The
+original dependency directory was unchanged.
+
+Three dependency-ordered commits were pushed separately through the unchanged
+credential guard: `1783d2ad` (API/migration and compatible UI), `043a900a`
+(sensor collection and loss accounting), and `088226ad` (verification records).
+Each push succeeded. Their final tree is identical to the consolidated verified
+snapshot. PR 43 is open at https://github.com/crossbizz/zasp-sec/pull/43.
+Push CI 34602697676 and PR CI 34602731586 are running at this checkpoint;
+neither is recorded as a pass. Main remains at `a4fede82`.
 
 The two final Linux proof containers were removed by their inspected exact IDs
 after exit 0. They had no named volumes. Binaries, logs and inspection remain in
