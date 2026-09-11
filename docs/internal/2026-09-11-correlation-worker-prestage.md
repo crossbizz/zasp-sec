@@ -68,6 +68,12 @@ PR44's corrected push and PR CI passed, including both actual AMD64 daemon
 attempts. It merged as `fd4ba167`; the pre-stage branch incorporates that main
 commit without additional source changes. New main CI 34621326929 is pending.
 
+Published as PR45 at `b8f8da248c377fad606db5aa0584555ffd1691b3`. Push CI
+34621547317 and PR CI 34621568895 are running. Postcommit history scanning
+found no leaks across 1,390 commits; the exact PR-body scan has zero findings.
+Public CI IDs and the synthetic account explain the unchanged push guard's
+nonblocking warnings. No publication safeguard was changed or bypassed.
+
 Rollback to the v1 worker remains compatible only while v2 jobs haven't been
 created. Routing49 needs its own forward migration, pinned readiness/CLI wiring,
 guarded rollback and real ingest-to-candidate-to-browser evidence without fixture

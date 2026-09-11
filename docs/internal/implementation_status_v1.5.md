@@ -3,7 +3,7 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-correlation-prestage`; local verification passed, publication pending
+**Execution branch:** `codex/runtime-correlation-routing`; PR45 `b8f8da24` pushed, CI running
 **Latest main:** `fd4ba167`, PR 44; main CI 34621326929 pending
 **Last verified main:** `c30d9fa6`, PR 43; main CI 34612285514 passed
 
@@ -47,6 +47,14 @@ changes in this proof extension.
 This adds no original-task credit. Its evidence document
 `docs/internal/2026-09-11-correlation-worker-prestage.md` is retained in that local
 commit and ships with the pre-stage change after PR44.
+The reviewed pre-stage change is published as PR45 at `b8f8da24`. Push CI
+34621547317 and PR CI 34621568895 are running. The unchanged publication guard's
+nonblocking findings were reviewed as public CI IDs and a synthetic fixture
+account. Postcommit HEAD-history scanning passed all 1,390 commits with no
+leaks; the exact public PR body scan is clean. No hook or scanner was bypassed.
+The next routing branch starts from that exact head while CI runs. It is auditing
+version-filtered claims before enabling v2 jobs; no routing migration or rollout
+is implemented yet.
 
 Migration 43 and the authorized structured-search API shipped in PR 28 as main
 d46085cf after full local verification, real PostgreSQL boundaries, Chrome/runtime
