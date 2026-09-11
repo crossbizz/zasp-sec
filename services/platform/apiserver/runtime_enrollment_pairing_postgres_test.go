@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -105,9 +106,9 @@ func TestRuntimeEnrollmentPairingMigrationAndAuthority(t *testing.T) {
 		t.Fatal(err)
 	}
 	var futureSchema string
-	futureErr := future.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint()).Scan(&futureSchema)
+	futureErr := future.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), migrations.ProductionRuntimeCorrelationRouting().Checksum(), migrations.ProductionRuntimeCorrelationRoutingSemanticFingerprint()).Scan(&futureSchema)
 	future.Rollback(ctx)
-	if futureErr == nil {
+	if !errors.Is(futureErr, pgx.ErrNoRows) {
 		t.Fatal("API accepted unknown schema46")
 	}
 	const anchor = "pid_78200001-0000-4000-8000-000000000001"

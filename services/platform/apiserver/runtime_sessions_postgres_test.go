@@ -255,7 +255,7 @@ func TestRuntimeSessionsMigrationPinsAuthorityAndRestoresPreviousRelease(t *test
 		t.Fatalf("version=%d err=%v", version, err)
 	}
 	var apiSchema string
-	if err := connection.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint()).Scan(&apiSchema); err != nil || apiSchema != ProductionRecoverySchemaVersion {
+	if err := connection.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), migrations.ProductionRuntimeCorrelationRouting().Checksum(), migrations.ProductionRuntimeCorrelationRoutingSemanticFingerprint()).Scan(&apiSchema); err != nil || apiSchema != ProductionRecoverySchemaVersion {
 		t.Fatalf("production API rejects installed schema40: schema=%s error=%v", apiSchema, err)
 	}
 	future, err := connection.Begin(ctx)
@@ -266,7 +266,7 @@ func TestRuntimeSessionsMigrationPinsAuthorityAndRestoresPreviousRelease(t *test
 		_ = future.Rollback(ctx)
 		t.Fatal(err)
 	}
-	err = future.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint()).Scan(&apiSchema)
+	err = future.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), migrations.ProductionRuntimeCorrelationRouting().Checksum(), migrations.ProductionRuntimeCorrelationRoutingSemanticFingerprint()).Scan(&apiSchema)
 	_ = future.Rollback(ctx)
 	if !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("future schema41 admitted API: %v", err)

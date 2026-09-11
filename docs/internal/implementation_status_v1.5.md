@@ -3,7 +3,7 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-correlation-routing`; migration49 locally verified and reviewed, publication pending
+**Execution branch:** `codex/runtime-correlation-routing`; PR46 hosted CI correction under verification
 **Latest main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
 **Last verified main:** `b8f6d9b4`, PR 45; main CI 34623324047 passed
 
@@ -32,7 +32,26 @@ the regression reproduced it and the validator now binds one exact shell
 container. Final verification passes1,188 UI tests, build/imports and728 ledger
 rows. The source release gate, complete migration races and final runtime/Chrome
 rerun all pass with cleanup. Final independent review approves incremental
-publication after those results. Publication and hosted CI remain pending.
+publication after those results. PR46 was published at `e4a5d96c`. Push CI
+34628265078 and PR CI 34628358007 both failed two historical schema40/41 tests:
+their direct readiness-query calls supplied four arguments instead of the six
+already supplied by production. The failure reproduces locally. All eight direct
+test calls now use the same compiled release49 bindings as production. Five
+negative tests previously accepted any error, including argument-binding errors;
+they now require `pgx.ErrNoRows`. Tightened negative assertions also failed before
+the binding correction. The hosted selection now includes all nine release49
+correlation routing regressions. Independent review found no issue in this
+test/CI-only correction, conditional on the expanded tests and full verification
+passing. The expanded actual PostgreSQL race selection passed in 222.071s,
+including all release49 routing tests; the source release gate passed. Full UI
+verification found both copies of the workflow command contract needed the
+expanded selection, including its positive baseline. Both are corrected. Fresh
+verification passed all 1,188 UI tests, typecheck/lint/build, compiled imports and
+all728 ledger rows. The focused workflow contract also passed all23 cases. Local
+evidence: `/tmp/zasp-routing-ci-full-selection.log`,
+`/tmp/zasp-routing-ci-fix-publish-verify.log` and
+`/tmp/zasp-routing-ci-fix-final-source-gate.log`. Correction publication and fresh
+hosted checks are pending. PR46 is not merged or deployed.
 Nothing in this local change is shipped or credited as production-available. Counts remain
 535 production-available, 132 component-only and 61 blocked/external, with no
 missing rows. Details and evidence limits are in
