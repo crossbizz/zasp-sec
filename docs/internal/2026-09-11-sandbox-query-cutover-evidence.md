@@ -411,4 +411,9 @@ The staged scan then reported six detections across five exact locations: the
 moved combined-proof signing/reveal fixtures, two checkpoint-client fixture tokens
 and a precise-routing database-stub lease. These are reviewed false positives,
 not a clean scan yet. Preserve exact historical-fingerprint exceptions, not a
-blanket test-directory exclusion. All324 intended source/test/doc files are staged.
+blanket test-directory exclusion. All324 intended source/test/doc files were
+committed locally as fdc51aca8c5dc8d022dbfc469ad42be852fd168d, without a push.
+The publication-range historical scan reproduced the six fixture detections.
+Five exact commit/path/rule/line exceptions now retain the existing repository
+policy. The same range scan passed with no leaks: three non-merge commits,
+1.98MB,361ms. No source credential values or broad test exclusions were added.

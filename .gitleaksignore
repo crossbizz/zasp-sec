@@ -191,3 +191,14 @@ f03217f980b7c9001238960eb21919027daddb48:services/platform/agentsec-worker/recov
 # authentication material. Ignore only this exact introduction-commit finding;
 # changed or relocated credential values remain scanned.
 c24bdf1dc06352a49027b06dd80a4929ed2f2caf:services/platform/apiserver/sensor_public_precision_test.go:generic-api-key:69
+
+# Precision acceptance retains the existing synthetic local API signing/reveal
+# fixtures and adds fixed loopback-checkpoint and database-stub lease tokens.
+# Independent source triage confirmed no provisioned credentials. Ignore only
+# these exact commit/path/rule/line fingerprints, never a whole test directory.
+# Changed or relocated values remain visible in subsequent commits.
+fdc51aca8c5dc8d022dbfc469ad42be852fd168d:scripts/production-combined-e2e.mjs:generic-api-key:1217
+fdc51aca8c5dc8d022dbfc469ad42be852fd168d:scripts/production-combined-e2e.mjs:generic-api-key:1218
+fdc51aca8c5dc8d022dbfc469ad42be852fd168d:services/platform/agentsec-worker/runtime_precision_combined_e2e_test.go:generic-api-key:62
+fdc51aca8c5dc8d022dbfc469ad42be852fd168d:services/platform/agentsec-worker/runtime_precision_combined_e2e_test.go:generic-api-key:88
+fdc51aca8c5dc8d022dbfc469ad42be852fd168d:services/platform/runtimeevent/production_precise_routing_test.go:generic-api-key:17

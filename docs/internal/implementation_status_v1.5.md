@@ -678,9 +678,11 @@ standalone production build and compiled imports. Integration review found no ne
 blocking wiring issue. Local main-history merge f5cfb2c3 changes no source files.
 The unpublished-file secret scan covered5.55MB and found12 synthetic fixture
 values or non-authentication identifiers, independently traced to test provenance.
-The staged scan finds six of those known fixture detections; exact historical
-fingerprints must be recorded before the publication scan can pass. No provisioned
-credential was identified. No production readiness or original task credit is implied.
+The staged scan found six of those known fixture detections. Source commit
+fdc51aca8c5dc8d022dbfc469ad42be852fd168d is now local. Five exact historical
+fingerprint exceptions, not wildcard exclusions, let the publication-range scan
+pass with no leaks across1.98MB. No provisioned credential was identified and
+nothing has been pushed yet. No production readiness or original task credit is implied.
 
 M7-07 now meets its independently reviewed original acceptance criterion after
 verified main. Current counts: 536 production-available, 131 component-only and
