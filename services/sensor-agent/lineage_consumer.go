@@ -8,10 +8,17 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/sensoradapter"
 )
 
+type lineageChunkProcessor interface {
+	ProcessAvailable(context.Context) (sensoradapter.StreamResult, error)
+	Committed() (sensoradapter.ChunkProgress, bool, error)
+	VerifyConsumed(context.Context) (sensoradapter.VerifiedConsumption, error)
+	Close() error
+}
+
 type lineageChunkConsumer struct {
 	mu              sync.Mutex
 	reader          *lineageSpoolReader
-	processor       *sensoradapter.ChunkProcessor
+	processor       lineageChunkProcessor
 	acknowledgments *lineageAcknowledgments
 }
 
@@ -52,7 +59,7 @@ func buildBoundLineageChunkConsumer(reader *lineageSpoolReader, client *sensorad
 		}
 		outputs = []*os.Root{acknowledgments.root}
 	}
-	processor, err := sensoradapter.NewChunkProcessor(sensoradapter.ChunkProcessorConfig{
+	config := sensoradapter.ChunkProcessorConfig{
 		Source: reader.source, SourceRoot: reader.root, SpoolRoot: reader.parent,
 		CursorPath: cursor, MaximumProcesses: maximum, Client: client, ProtectedInputs: protected,
 		DisjointOutputRoots: outputs,
@@ -69,7 +76,14 @@ func buildBoundLineageChunkConsumer(reader *lineageSpoolReader, client *sensorad
 			}
 			return sensoradapter.ImmutableChunk{Sequence: chunk.Sequence, Digest: chunk.Digest, Lines: chunk.Lines}, found, nil
 		},
-	})
+	}
+	var processor lineageChunkProcessor
+	var err error
+	if reader.source.Profile == "tetragon-local-stream-v3" {
+		processor, err = sensoradapter.NewPreciseChunkProcessor(config)
+	} else {
+		processor, err = sensoradapter.NewChunkProcessor(config)
+	}
 	if err != nil {
 		return nil, err
 	}

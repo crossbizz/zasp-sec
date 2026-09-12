@@ -1,6 +1,9 @@
 # File-event cgroup identity
 
-This is an unmerged M3-46 increment. M3-46 and M3-47 remain open. There is no
+PR48's exact head `f398bb67d51db34a57ab82829ccee2d4419bdbaa` passed push CI
+34634470637 and PR CI34634548903. It merged at 19:00:37 UTC as
+`6f0a93cccc4e68119af5956a5e0ad4b4fcc3e719`; main CI34636483553 passed.
+M3-46 and M3-47 remain open. There is no
 new original-task credit, live kernel acceptance or deployed-release claim.
 
 The typed Tetragon producer previously discarded every `ProcessKprobe.Data`
@@ -77,6 +80,9 @@ reader profiles. The existing matcher still rejects contradictory cgroup IDs.
 - `/tmp/zasp-cgroup-source-gate.log`: complete source release gate passed.
 - `/tmp/zasp-cgroup-receipt-races.log`: runtime event, frozen correlation and
   projection race tests passed with unchanged receipt algorithms.
+- `/tmp/zasp-cgroup-postcommit-secrets.log`: all 1,398 commits passed. The
+  publication hook's eight nonblocking MEDIUM matches were public CI IDs,
+  inspected against exact added lines. There were no HIGH findings or bypass.
 
 Independent review accepted the version fence and event-local semantics, found
 the outer-alias defect, and confirmed its fix. It approved incremental

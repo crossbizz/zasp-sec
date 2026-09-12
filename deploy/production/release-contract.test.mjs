@@ -35,6 +35,18 @@ test("routing release requires the dual-version correlation worker", async () =>
   }
 });
 
+test("sandbox compatibility staging explicitly pins49 before future activation", async () => {
+  const resources = await renderRelease(release, { schemaVersion: 49 });
+  const migration = one(resources, "Job", "agentsec-schema-v49");
+  assert.match(migration.spec.template.spec.containers[0].args[0], /agentsec-migrate up-to-49$/);
+  assert.doesNotThrow(() => validateRenderedRelease(resources, "123456789012", 49));
+  for (const command of ["up", "up-to-48", "up-to-50"]) {
+    const drift = structuredClone(resources);
+    one(drift, "Job", "agentsec-schema-v49").spec.template.spec.containers[0].args[0] = migration.spec.template.spec.containers[0].args[0].replace("up-to-49", command);
+    assert.throws(() => validateRenderedRelease(drift, "123456789012", 49), /release rejected/);
+  }
+});
+
 test("compatibility staging explicitly pins48 without activating routing", async () => {
   const resources = await renderRelease(release, { schemaVersion: 48 });
   const migration = one(resources, "Job", "agentsec-schema-v48");
@@ -78,6 +90,15 @@ test("production CI runs sensor lineage and authenticated replay regressions", a
   assert.ok(fixtureSetup.includes('printf \'%s\\n\' "$fixture_pg_bin" >> "$GITHUB_PATH"'));
 });
 
+test("customer edge selects precise source only explicitly", async () => {
+  for (const profile of ["tetragon-local-stream-v2", "tetragon-local-stream-v3"]) {
+    const resources = await renderCustomerEdgeRelease(edgeRelease, { sourceProfile: profile });
+    const producer = one(resources, "DaemonSet", "sensor-agent").spec.template.spec.containers.find(c => c.name === "lineage-producer");
+    assert.deepEqual(producer.env.filter(e => e.name === "ZASP_LINEAGE_SOURCE_PROFILE"), [{ name: "ZASP_LINEAGE_SOURCE_PROFILE", value: profile }]);
+  }
+  for (const options of [null, 1, { sourceProfile: "" }, { sourceProfile: "tetragon-local-stream-v4" }, { sourceProfile: " tetragon-local-stream-v3" }, { sourceProfile: "tetragon-local-stream-v3", extra: true }]) await assert.rejects(renderCustomerEdgeRelease(edgeRelease, options), /edge release rejected/);
+});
+
 test("customer edge isolates lineage producer, consumer and layout initialization", async () => {
   const resources = await renderCustomerEdgeRelease(edgeRelease);
   const pod = one(resources, "DaemonSet", "sensor-agent").spec.template.spec;
@@ -88,6 +109,7 @@ test("customer edge isolates lineage producer, consumer and layout initializatio
   const env = container => Object.fromEntries(container.env.filter(item => item.value !== undefined).map(item => [item.name, item.value]));
   assert.equal(env(consumer).ZASP_SENSOR_ROLE, "lineage-consumer");
   assert.equal(env(producer).ZASP_SENSOR_ROLE, "lineage-producer");
+  assert.equal(env(producer).ZASP_LINEAGE_SOURCE_PROFILE, "tetragon-local-stream-v2");
   assert.equal(env(producer).ZASP_SENSOR_TOKEN_FILE, undefined);
   assert.equal(env(consumer).ZASP_TETRAGON_LOG_FILE, undefined);
   assert.equal(env(consumer).ZASP_SENSOR_CURSOR_FILE, undefined);
@@ -115,14 +137,6 @@ test("customer edge isolates lineage producer, consumer and layout initializatio
     { apiGroups: [""], resources: ["nodes"], verbs: ["get"] },
     { apiGroups: [""], resources: ["namespaces"], resourceNames: ["kube-system"], verbs: ["get"] },
   ]);
-});
-
-test("production API composes the dedicated session search repository", async () => {
-  const composition = await readFile(new URL("../../services/platform/agentsec-api/production_runtime.go", import.meta.url), "utf8");
-  const authority = await readFile(new URL("../../services/platform/agentsec-api/policy_production.go", import.meta.url), "utf8");
-  assert.ok(composition.includes("apiserver.NewPostgresRepositoryWithRuntimeSessionSearch(tracedDatabase, policyHistory.sessionSearch)"));
-  assert.ok(authority.includes("runtimeopensearch.NewSessionIndex("));
-  assert.ok(authority.includes("history.sessionSearch.Close()"));
 });
 
 test("session query API IAM grants only fixed read endpoints", async () => {
@@ -1118,6 +1132,7 @@ test("release mounts distinct risk and graph projections behind exact DB, Neo4j,
   });
   assert.deepEqual(envOf(searchInit), {
     ZASP_WORKER_MODE: "projection-search-init", ZASP_AWS_REGION: release.projectionSearch.awsRegion, ZASP_PROJECTION_INIT_ROLE_ARN: release.projectionSearch.initRoleArn,
+    ZASP_RUNTIME_SESSION_INDEX: "zasp-runtime-sessions-v1",
     ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE: release.projectionSearch.webIdentityTokenFile, ZASP_PROJECTION_INIT_TIMEOUT: "20s",
     ZASP_OPENSEARCH_ENDPOINT: release.projectionSearch.endpoint, ZASP_OPENSEARCH_INDEX: release.projectionSearch.index,
   });

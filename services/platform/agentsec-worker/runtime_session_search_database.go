@@ -22,13 +22,28 @@ type runtimeSessionSearchAuthority interface {
 	Finish(context.Context, runtimeSessionSearchLease, string, string, string, []string, int) error
 }
 
-type postgresRuntimeSessionSearchAuthority struct{ database recoveryJSONDatabase }
+type postgresRuntimeSessionSearchAuthority struct {
+	database  recoveryJSONDatabase
+	indexName string
+	precision bool
+}
 
 func newPostgresRuntimeSessionSearchAuthority(database recoveryJSONDatabase) (*postgresRuntimeSessionSearchAuthority, error) {
+	return newConfiguredPostgresRuntimeSessionSearchAuthority(database, "")
+}
+
+func newConfiguredPostgresRuntimeSessionSearchAuthority(database recoveryJSONDatabase, indexName string) (*postgresRuntimeSessionSearchAuthority, error) {
 	if nilWorkerDependency(database) {
 		return nil, errRuntimeUnavailable
 	}
-	return &postgresRuntimeSessionSearchAuthority{database: database}, nil
+	switch indexName {
+	case "", "zasp-runtime-sessions-v1":
+		indexName = ""
+	case "zasp-runtime-sessions-v2":
+	default:
+		return nil, errRuntimeUnavailable
+	}
+	return &postgresRuntimeSessionSearchAuthority{database: database, indexName: indexName}, nil
 }
 func (authority *postgresRuntimeSessionSearchAuthority) query(ctx context.Context, sql string, args ...any) (body json.RawMessage, resultErr error) {
 	defer func() {
@@ -47,13 +62,34 @@ func (authority *postgresRuntimeSessionSearchAuthority) query(ctx context.Contex
 	return body, nil
 }
 func (authority *postgresRuntimeSessionSearchAuthority) Ready(ctx context.Context) error {
+	if authority == nil {
+		return errRuntimeUnavailable
+	}
 	metadata := migrations.ProductionRuntimeSessionSearch()
-	body, err := authority.query(ctx, `SELECT to_jsonb(zasp_production_runtime_session_search_readiness($1,$2) AND zasp_runtime_session_search_worker_ready())`, metadata.Checksum(), migrations.ProductionRuntimeSessionSearchSemanticFingerprint())
+	fingerprint := migrations.ProductionRuntimeSessionSearchSemanticFingerprint()
+	statement := `SELECT to_jsonb(zasp_production_runtime_session_search_readiness($1,$2) AND zasp_runtime_session_search_worker_ready())`
+	if authority.indexName == "zasp-runtime-sessions-v2" {
+		metadata = migrations.ProductionRuntimeSandboxBinding()
+		fingerprint = migrations.ProductionRuntimeSandboxBindingSemanticFingerprint()
+		statement = `SELECT to_jsonb(zasp_production_runtime_sandbox_binding_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_runtime_index_worker'))`
+	}
+	if authority.precision {
+		metadata = migrations.ProductionRuntimePrecision()
+		fingerprint = migrations.ProductionRuntimePrecisionSemanticFingerprint()
+		statement = `SELECT to_jsonb(zasp_production_runtime_precision_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_runtime_index_worker'))`
+	}
+	body, err := authority.query(ctx, statement, metadata.Checksum(), fingerprint)
 	var ready bool
 	if err != nil || decodeStrictWorkerJSON(body, &ready) != nil || !ready {
 		return errRuntimeUnavailable
 	}
 	return nil
+}
+
+// A cached health check cannot authorize a v2 mutation after release50 drift.
+// The SQL function also checks readiness across its own blocking row locks.
+func (authority *postgresRuntimeSessionSearchAuthority) mutationReady(ctx context.Context) bool {
+	return authority != nil && (authority.indexName != "zasp-runtime-sessions-v2" || authority.Ready(ctx) == nil)
 }
 func validSessionSearchWorkerCall(worker, token string, seconds int) bool {
 	return workerIdentityPattern.MatchString(worker) && runtimeLeaseToken(token) && seconds >= 5 && seconds <= 900
@@ -63,7 +99,17 @@ func (authority *postgresRuntimeSessionSearchAuthority) Claim(ctx context.Contex
 	if !validSessionSearchWorkerCall(worker, token, seconds) {
 		return nil, errWorkerExecution
 	}
-	body, err := authority.query(ctx, `SELECT COALESCE(zasp_runtime_session_search_claim($1,$2,$3),'null'::jsonb)`, worker, token, seconds)
+	if !authority.mutationReady(ctx) {
+		return nil, errWorkerExecution
+	}
+	statement := `SELECT COALESCE(zasp_runtime_session_search_claim($1,$2,$3),'null'::jsonb)`
+	if authority.indexName == "zasp-runtime-sessions-v2" {
+		statement = `SELECT COALESCE(zasp_runtime_sandbox_search_claim($1,$2,$3),'null'::jsonb)`
+	}
+	if authority.precision {
+		statement = `SELECT COALESCE(zasp_runtime_precise_search_claim($1,$2,$3),'null'::jsonb)`
+	}
+	body, err := authority.query(ctx, statement, worker, token, seconds)
 	if err != nil {
 		return nil, err
 	}
@@ -71,19 +117,28 @@ func (authority *postgresRuntimeSessionSearchAuthority) Claim(ctx context.Contex
 		return nil, nil
 	}
 	var wire struct {
-		Organization string    `json:"organization_id"`
-		Workspace    string    `json:"workspace_id"`
-		Environment  string    `json:"environment_id"`
-		Batch        string    `json:"batch_id"`
-		Generation   int64     `json:"generation"`
-		Digest       string    `json:"receipt_digest"`
-		Reference    string    `json:"receipt_reference"`
-		Version      string    `json:"receipt_version"`
-		IDs          []string  `json:"document_ids"`
-		Attempt      int       `json:"attempt"`
-		Until        time.Time `json:"lease_until"`
+		Organization      string          `json:"organization_id"`
+		Workspace         string          `json:"workspace_id"`
+		Environment       string          `json:"environment_id"`
+		Batch             string          `json:"batch_id"`
+		Generation        int64           `json:"generation"`
+		Digest            string          `json:"receipt_digest"`
+		Reference         string          `json:"receipt_reference"`
+		Version           string          `json:"receipt_version"`
+		IDs               []string        `json:"document_ids"`
+		Attempt           int             `json:"attempt"`
+		Until             time.Time       `json:"lease_until"`
+		ProjectionVersion json.RawMessage `json:"projection_implementation_version"`
 	}
 	if decodeStrictWorkerJSON(body, &wire) != nil {
+		return nil, errWorkerExecution
+	}
+	var projectionVersion string
+	if authority.precision {
+		if json.Unmarshal(wire.ProjectionVersion, &projectionVersion) != nil || (projectionVersion != "runtime-projection-v1" && projectionVersion != "runtime-projection-v2" && projectionVersion != "runtime-projection-v3") {
+			return nil, errWorkerExecution
+		}
+	} else if wire.ProjectionVersion != nil {
 		return nil, errWorkerExecution
 	}
 	org, orgErr := domain.ParseProductID(wire.Organization)
@@ -96,6 +151,8 @@ func (authority *postgresRuntimeSessionSearchAuthority) Claim(ctx context.Contex
 		return nil, errWorkerExecution
 	}
 	lease := runtimeSessionSearchLease{Binding: sessionsearch.ReceiptBinding{Scope: scope, BatchID: batch, Generation: wire.Generation}, ReceiptReference: wire.Reference, ReceiptVersion: wire.Version, DocumentIDs: wire.IDs, Attempt: wire.Attempt, LeaseUntil: wire.Until.UTC()}
+	lease.indexName = authority.indexName
+	lease.projectionImplementationVersion = projectionVersion
 	copy(lease.Binding.ReceiptDigest[:], digest)
 	if !validRuntimeSessionSearchLease(lease) || !validSessionSearchDeadline(lease.LeaseUntil, seconds) {
 		return nil, errWorkerExecution
@@ -110,10 +167,17 @@ func sessionSearchLeaseArguments(lease runtimeSessionSearchLease, worker, token 
 	return []any{lease.Binding.Scope.OrganizationID().String(), lease.Binding.Scope.WorkspaceID().String(), lease.Binding.Scope.EnvironmentID().String(), lease.Binding.BatchID.String(), lease.Binding.Generation, worker, token, lease.Attempt}
 }
 func (authority *postgresRuntimeSessionSearchAuthority) Heartbeat(ctx context.Context, lease runtimeSessionSearchLease, worker, token string, seconds int) (time.Time, error) {
-	if !validRuntimeSessionSearchLease(lease) || !validSessionSearchWorkerCall(worker, token, seconds) {
+	if authority == nil || !authority.acceptsLeaseCapability(lease) || lease.indexName != authority.indexName || !validRuntimeSessionSearchLease(lease) || !validSessionSearchWorkerCall(worker, token, seconds) {
 		return time.Time{}, errWorkerExecution
 	}
-	body, err := authority.query(ctx, `SELECT zasp_runtime_session_search_heartbeat($1,$2,$3,$4,$5,$6,$7,$8,$9)`, append(sessionSearchLeaseArguments(lease, worker, token), seconds)...)
+	if !authority.mutationReady(ctx) {
+		return time.Time{}, errWorkerExecution
+	}
+	statement := `SELECT zasp_runtime_session_search_heartbeat($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	if authority.indexName == "zasp-runtime-sessions-v2" {
+		statement = `SELECT zasp_runtime_sandbox_search_heartbeat($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+	}
+	body, err := authority.query(ctx, statement, append(sessionSearchLeaseArguments(lease, worker, token), seconds)...)
 	var result struct {
 		Until time.Time `json:"lease_until"`
 	}
@@ -123,7 +187,7 @@ func (authority *postgresRuntimeSessionSearchAuthority) Heartbeat(ctx context.Co
 	return result.Until.UTC(), nil
 }
 func (authority *postgresRuntimeSessionSearchAuthority) Finish(ctx context.Context, lease runtimeSessionSearchLease, worker, token, outcome string, ids []string, retrySeconds int) error {
-	if !validRuntimeSessionSearchLease(lease) || !validSessionSearchWorkerCall(worker, token, 5) || ids == nil {
+	if authority == nil || !authority.acceptsLeaseCapability(lease) || lease.indexName != authority.indexName || !validRuntimeSessionSearchLease(lease) || !validSessionSearchWorkerCall(worker, token, 5) || ids == nil {
 		return errWorkerExecution
 	}
 	state := outcome
@@ -144,8 +208,15 @@ func (authority *postgresRuntimeSessionSearchAuthority) Finish(ctx context.Conte
 	default:
 		return errWorkerExecution
 	}
+	if !authority.mutationReady(ctx) {
+		return errWorkerExecution
+	}
 	args := append(sessionSearchLeaseArguments(lease, worker, token), lease.Binding.ReceiptDigest[:], outcome, ids, retrySeconds)
-	body, err := authority.query(ctx, `SELECT zasp_runtime_session_search_finish($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, args...)
+	statement := `SELECT zasp_runtime_session_search_finish($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+	if authority.indexName == "zasp-runtime-sessions-v2" {
+		statement = `SELECT zasp_runtime_sandbox_search_finish($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+	}
+	body, err := authority.query(ctx, statement, args...)
 	var result struct {
 		State      string     `json:"state"`
 		Batch      string     `json:"batch_id"`

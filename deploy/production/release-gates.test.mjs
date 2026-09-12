@@ -45,6 +45,14 @@ test("read-only synthetic proves web and authenticated API correlation without l
 
 test("release sources contain truthful runbooks, canary, SBOM/license/image/secret gates", async () => {
   const result = await verifyReleaseSources();
+  assert.deepEqual(result.renderedRollouts, [
+    { schemaVersion: 48, phase: "compatibility", schemaJob: "agentsec-schema-v48" },
+    { schemaVersion: 49, phase: "compatibility", schemaJob: "agentsec-schema-v49" },
+    { schemaVersion: 50, phase: "backfill", schemaJob: "agentsec-schema-v50" },
+    { schemaVersion: 50, phase: "query", schemaJob: "agentsec-schema-v50" },
+    { schemaVersion: 51, phase: "precision-consumers", schemaJob: "agentsec-schema-v51" },
+    { schemaVersion: 51, phase: "precision-intake", schemaJob: "agentsec-schema-v51" },
+  ]);
   assert.equal(result.canary, true);
   assert.equal(result.documentation, true);
   assert.equal(result.imageDefinitions, 9);

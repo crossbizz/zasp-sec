@@ -30,6 +30,7 @@ type PackageManifest = {
 };
 
 const repositoryRoot = process.cwd();
+const sessionIAMCommand = "task_tf_dir=$(mktemp -d \"${RUNNER_TEMP}/zasp-terraform.XXXXXX\")\ncurl --fail --location --retry 3 --max-time 120 --output \"$task_tf_dir/terraform.zip\" https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip\nprintf '%s  %s\\n' d25ce7b6902013ad905db3d2eab0be4cd905887fe88b81a6171b8d5503c31f3d \"$task_tf_dir/terraform.zip\" | sha256sum --check -\nunzip -q \"$task_tf_dir/terraform.zip\" -d \"$task_tf_dir\"\nexport TF_DATA_DIR=\"$task_tf_dir/data\"\n\"$task_tf_dir/terraform\" -chdir=deploy/staging init -backend=false -input=false -lockfile=readonly\n\"$task_tf_dir/terraform\" -chdir=deploy/staging test -filter=tests/session_search_iam.tftest.hcl -var-file=release.tfvars -no-color\n";
 const checkoutAction = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
 const setupNodeAction = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020";
 const setupGoAction = "actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16";
@@ -137,7 +138,7 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["continue-on-error"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(16);
+  expect(verificationSteps).toHaveLength(17);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
@@ -148,10 +149,11 @@ function assertRunnableUiWorkflow(
     "go install github.com/zricethezav/gitleaks/v8@v8.30.1",
     "npm run implementation:status:check",
     "npm run verify",
-    "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n",
+    "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n",
     "npm run production:release:gate",
+    sessionIAMCommand,
     maintenanceAlertCommand,
-    "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority|CorrelationRouting)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n",
+    "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent ./internal/testprocess ./internal/sandboxcutover\ngo test -C services/platform -race -count=1 ./agentsec-api ./agentsec-worker\ngo test -C services/platform -race -count=1 ./runtimemetadata ./runtimelineage ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 -timeout=30m ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority|CorrelationRouting|Sandbox|Precision)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n",
     sensorAcceptanceCommand,
     daemonReplayCommand,
     "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n",
@@ -166,7 +168,8 @@ function assertRunnableUiWorkflow(
     cache: true,
     "cache-dependency-path": "services/platform/go.sum",
   });
-  expect(verificationSteps[14]?.["timeout-minutes"]).toBe(15);
+  expect(verificationSteps[11]?.["timeout-minutes"]).toBe(10);
+  expect(verificationSteps[15]?.["timeout-minutes"]).toBe(15);
   for (const step of verificationSteps) {
     expect(step.if).toBeUndefined();
     expect(step["continue-on-error"]).toBeUndefined();
@@ -193,10 +196,11 @@ function validWorkflow(): Workflow {
           { run: "go install github.com/zricethezav/gitleaks/v8@v8.30.1" },
           { run: "npm run implementation:status:check" },
           { run: "npm run verify" },
-          { run: "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n" },
+          { run: "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n" },
           { run: "npm run production:release:gate" },
+          { run: sessionIAMCommand, "timeout-minutes": 10 },
           { run: maintenanceAlertCommand },
-          { run: "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent\ngo test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority|CorrelationRouting)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n" },
+          { run: "test -x \"$(pg_config --bindir)/initdb\"\ngo test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent ./internal/testprocess ./internal/sandboxcutover\ngo test -C services/platform -race -count=1 ./agentsec-api ./agentsec-worker\ngo test -C services/platform -race -count=1 ./runtimemetadata ./runtimelineage ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...\ngo test -C services/platform -race -count=1 -timeout=30m ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority|CorrelationRouting|Sandbox|Precision)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'\n" },
           { run: sensorAcceptanceCommand },
           { run: daemonReplayCommand, "timeout-minutes": 15 },
           { run: "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n" },
@@ -207,6 +211,12 @@ function validWorkflow(): Workflow {
 }
 
 describe("runnable UI GitHub Actions gate", () => {
+  it("runs the precise browser checkpoint tests in CI and the combined acceptance command", async () => {
+    const workflow = await readFile(resolve(repositoryRoot, ".github/workflows/runnable-ui.yml"), "utf8");
+    const manifest = await readPackageManifest();
+    expect(workflow).toContain("scripts/runtime-precision-browser-proof.test.mjs");
+    expect(manifest.scripts?.["production:combined-e2e:test"]).toContain("scripts/runtime-precision-browser-proof.test.mjs");
+  });
   it.each(["omitted", "skipped", "unbounded", "allowed-failure"])("rejects %s actual daemon proof", async (condition) => {
     const workflow = validWorkflow();
     const steps = workflow.jobs?.verify?.steps;
@@ -315,7 +325,7 @@ describe("runnable UI GitHub Actions gate", () => {
     expect(() => assertRunnableUiWorkflow(workflow, packageManifest)).toThrow();
   });
 
-  it.each(["./runtimemetadata", "./sensoradapter", "./sessionsearch", "./runtimeprojection", "./runtimecorrelation", "./runtimeindex/..."])("rejects omission of runtime search verification for %s", async (target) => {
+  it.each(["./runtimemetadata", "./runtimelineage", "./sensoradapter", "./sessionsearch", "./runtimeprojection", "./runtimecorrelation", "./runtimeindex/..."])("rejects omission of runtime search verification for %s", async (target) => {
     const workflow = validWorkflow();
     const step = workflow.jobs?.verify?.steps?.find((value) => value.run?.includes("./sessionsearch"));
     expect(step?.run).toContain(target);
@@ -346,5 +356,29 @@ describe("runnable UI GitHub Actions gate", () => {
     ]);
 
     assertRunnableUiWorkflow(workflow, packageManifest);
+  });
+
+  it("selects the registered precision PostgreSQL tests in required CI", async () => {
+    const workflow = await readWorkflow();
+    const command = workflow.jobs?.verify?.steps?.flatMap(step => (step.run ?? "").split("\n")).find(line => line.includes("./apiserver -run '^(TestRuntime("));
+    const pattern = command?.match(/-run '([^']+)'/)?.[1];
+    expect(command).toContain("-timeout=30m");
+    expect(pattern).toBeDefined();
+    const selection = new RegExp(pattern!);
+    for (const name of ["TestRuntimePrecisionRepositoryRegisteredCompletion", "TestRuntimePrecisionRegisteredCompletionRejectsAlteredAuthorityAtomically", "TestRuntimePrecisionMigrationRoundTrip", "TestRuntimePrecisionUpgradeKeepsExistingAPIAndV1Intake"]) {
+      expect(selection.test(name), `${name} must run in CI`).toBe(true);
+    }
+  });
+
+  it("runs the cutover executor package tests, not only importing its implementation", async () => {
+    const workflow = await readWorkflow();
+    const command = workflow.jobs?.verify?.steps?.flatMap(step => (step.run ?? "").split("\n")).find(line => line.startsWith("go test ") && line.includes("./agentsec-migrate"));
+    expect(command?.split(/\s+/)).toContain("./internal/sandboxcutover");
+  });
+
+  it("includes the read-only cutover observation bridge in required release verification", async () => {
+    const manifest = await readPackageManifest();
+    expect(manifest.scripts?.verify).toContain("npm run production:release:test");
+    expect(manifest.scripts?.["production:release:test"]?.split(/\s+/)).toContain("deploy/production/sandbox-query-observation.test.mjs");
   });
 });

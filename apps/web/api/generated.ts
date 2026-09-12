@@ -3347,6 +3347,9 @@ export type components = {
             readonly label: string;
             /** Format: date-time */
             readonly projected_at: string;
+            /** @description Source-qualified sandbox identity, at most 256 UTF-8 bytes with no surrounding Unicode whitespace or CR/LF. Present only with its reporting sensor and Exact/Strong correlation. Omitted when unknown, including historical events; never inferred from session identity. */
+            readonly sandbox_id?: string;
+            readonly sandbox_source_sensor_id?: components["schemas"]["ProductID"];
             readonly session_id: string | null;
             /** @enum {string} */
             readonly source: "otlp" | "tetragon";

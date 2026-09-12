@@ -272,6 +272,9 @@ func composeRuntimeCoordinatorWorkerRuntime(config workerRuntimeConfig, database
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	repository, err := runtimeevent.NewPostgresProductionPipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCoordinator)
+	if config.RuntimeDeliverySchema == "runtime-event-v2" {
+		repository, err = runtimeevent.NewPostgresPrecisePipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCoordinator)
+	}
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -285,7 +288,11 @@ func composeRuntimeCoordinatorWorkerRuntime(config workerRuntimeConfig, database
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	processor, err := newRuntimeCoordinator(runtimeCoordinatorConfig{
+	constructor := newRuntimeCoordinator
+	if config.RuntimeDeliverySchema == "runtime-event-v2" {
+		constructor = newPreciseRuntimeCoordinator
+	}
+	processor, err := constructor(runtimeCoordinatorConfig{
 		Authority: repository, Queue: runtimeQueue.Queue, WorkerID: config.WorkerID,
 		LeaseSeconds: int(config.LeaseDuration / time.Second), VisibilitySeconds: int(config.LeaseDuration / time.Second), BatchSize: min(config.BatchSize, 10),
 		HeartbeatInterval: config.LeaseDuration / 3, NewLeaseToken: newWorkerLeaseToken,
@@ -308,12 +315,24 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 	if wantStage == runtimeevent.RuntimeStageCorrelate && config.RuntimeStageVersion == "runtime-correlation-v2" {
 		repository, err = runtimeevent.NewPostgresCorrelationPipelineRepository(database)
 	}
+	if wantStage == runtimeevent.RuntimeStageCorrelate && config.RuntimeStageVersion == "runtime-correlation-v3" {
+		repository, err = runtimeevent.NewPostgresSandboxCorrelationPipelineRepository(database)
+	}
+	if wantStage == runtimeevent.RuntimeStageProject && config.RuntimeStageVersion == "runtime-projection-v2" || wantStage == runtimeevent.RuntimeStageComplete && config.RuntimeStageVersion == "runtime-complete-v2" {
+		repository, err = runtimeevent.NewPostgresSandboxSessionPipelineRepository(database, authority)
+	}
+	if runtimePrecisionVersion(config.RuntimeStageVersion) {
+		repository, err = runtimeevent.NewPostgresPrecisePipelineRepository(database, authority)
+	}
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	var sessionAuthority *postgresRuntimeSessionSearchAuthority
 	if wantStage == runtimeevent.RuntimeStageIndex {
-		sessionAuthority, err = newPostgresRuntimeSessionSearchAuthority(database)
+		sessionAuthority, err = newConfiguredPostgresRuntimeSessionSearchAuthority(database, config.RuntimeSessionIndex)
+		if config.RuntimeStageVersion == "runtime-index-v2" {
+			sessionAuthority, err = newPrecisePostgresRuntimeSessionSearchAuthority(database)
+		}
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
@@ -424,7 +443,11 @@ func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.J
 	var err error
 	topic := discoveryOutboxTopic
 	if config.Mode == workerModeRuntimeOutbox {
-		repository, err = apiserver.NewRuntimeOutboxRepository(database)
+		if config.RuntimeDeliverySchema == "runtime-event-v2" {
+			repository, err = apiserver.NewPreciseRuntimeOutboxRepository(database)
+		} else {
+			repository, err = apiserver.NewRuntimeOutboxRepository(database)
+		}
 		topic = runtimeOutboxTopic
 	} else {
 		repository, err = apiserver.NewDiscoveryExecutionOutboxRepository(database)
@@ -442,7 +465,11 @@ func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.J
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	processor, err := newOutboxProcessor(outboxProcessorConfig{
+	constructor := newOutboxProcessor
+	if config.RuntimeDeliverySchema == "runtime-event-v2" {
+		constructor = newPreciseOutboxProcessor
+	}
+	processor, err := constructor(outboxProcessorConfig{
 		Authority: repository, Publisher: publisher, Topic: topic, WorkerID: config.WorkerID,
 		LeaseSeconds: int(config.LeaseDuration / time.Second), BatchSize: min(config.BatchSize, 10), RetrySeconds: int(config.LeaseDuration / time.Second), NewLeaseToken: newWorkerLeaseToken, Ready: ready,
 	})

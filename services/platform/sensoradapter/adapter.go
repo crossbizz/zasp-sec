@@ -73,6 +73,7 @@ type Heartbeat struct {
 }
 
 type providerRoot struct {
+	sourceTime    time.Time                  // original provider instant; never serialized as legacy wire time
 	ProcessExec   *providerExec              `json:"process_exec,omitempty"`
 	ProcessExit   *providerExit              `json:"process_exit,omitempty"`
 	ProcessKprobe *providerKprobe            `json:"process_kprobe,omitempty"`
@@ -210,6 +211,7 @@ func decodeProviderRoot(line []byte) (providerRoot, error) {
 	if !ok {
 		return providerRoot{}, ErrAdapter
 	}
+	root.sourceTime = when
 	root.Time = when.Truncate(time.Millisecond).Format(timestampLayout)
 	kinds := 0
 	if root.ProcessExec != nil {
@@ -307,6 +309,10 @@ func NewNormalizer(maximumProcesses int) (*Normalizer, error) {
 }
 
 func (normalizer *Normalizer) Normalize(line []byte) (RuntimeEvent, error) {
+	return normalizer.normalizeObserved(line, nil)
+}
+
+func (normalizer *Normalizer) normalizeObserved(line []byte, observe func(providerRoot, providerProcess, *RuntimeEvent) error) (RuntimeEvent, error) {
 	if normalizer == nil {
 		return RuntimeEvent{}, ErrAdapter
 	}
@@ -347,6 +353,11 @@ func (normalizer *Normalizer) Normalize(line []byte) (RuntimeEvent, error) {
 	event.ObservedLineage = normalizer.lineageSource.qualify(root.NodeName, *process, root.Time)
 	if event.ObservedLineage != (runtimelineage.Observation{}) {
 		event.ObservedLineage.CgroupID = cgroup
+	}
+	if observe != nil {
+		if err := observe(root, *process, &event); err != nil {
+			return RuntimeEvent{}, err
+		}
 	}
 	if root.ProcessExec != nil {
 		if !keyOK {
@@ -631,7 +642,7 @@ func (client *ProductionClient) send(ctx context.Context, path, media, schema, i
 		request.Header.Set("X-Zasp-Schema-Version", schema)
 	} else {
 		request.Header.Set("X-Zasp-Runtime-Schema", schema)
-		if schema == enrollmentRuntimeSchema {
+		if schema == enrollmentRuntimeSchema || schema == preciseEnrollmentSchema {
 			request.Header.Set("X-Zasp-Expected-Enrollment", client.enrollment)
 		}
 	}

@@ -1,0 +1,22 @@
+combined E2E: browser document transition /api/v1/session/start
+combined E2E: precise browser observed actual pending target2 checkpoint through fresh callback, API and UI
+runtime precise provider pipeline proven: registered51; precise normalizer/enrolled client and HTTP; fresh V1 semantic1/1/3/2/2 plus V2 Tetragon2/2/4/3/3 durable outbox/real SQS; same-millisecond nanosecond starts produce sandbox-bound Strong versus unbound unattributed; real S3/TLS Neo4j response-loss replay; target2 OpenSearch checkpoint and API freshness; immutable HTTP/SQS replay, historical evidence and empty DLQ. Local source fixture only; live Tetragon/cloud attestation NOT RUN
+runtime sandbox search backfill cutover proven: production runner49-to50, 7 real PostgreSQL/S3 receipts and 58 visible OpenSearch occurrences across 2 scopes, selected v2 worker and API repository, empty-target catch-up, old API current, v1 checkpoints unchanged, tenant denial and idle replay; local owned providers only, fresh sandbox producer activation NOT RUN
+runtime candidate recovery proven: authenticated ingest, registered PostgreSQL roles, natural lease expiry, frozen late-admission replay, actual TLS Neo4j replay and identical S3 version, Strong recovery and fresh Probable conflict; production-created v2 jobs on local schema49, cloud deployment NOT RUN
+runtime mixed session input proven: authenticated reverse-ingress 25-event batch, exact versioned correlation receipt and 27 worker-projected events with 26 Exact and one Strong; browser acceptance runs separately
+runtime v2 reader v1 backlog proven: production-created raw and semantic jobs, unchanged v1 versions and exact S3 receipts, no candidate observations or snapshots, stable replay; schema48 local proof only
+runtime correlation routing proven: migrated48-to49 after v1 backlog, original acceptance replay preserved, fresh production ingestion creates v2 and actual registered workers complete frozen Strong/Probable receipts; local owned composition, not cloud deployment
+combined E2E: local runtime SQS/S3/OpenSearch/TLS-Neo4j pipeline passed
+combined E2E: browser document transition /
+combined E2E: precise browser console and exception stream remained clean; identity fixtures only, live deployment NOT RUN
+runtime precise browser proven: actual worker evidence, pending/current, Strong sandbox and unknown identity, canonical order and tenant denial
+combined E2E: cleanup browser
+combined E2E: cleanup Task4 workers
+combined E2E: cleanup api
+combined E2E: cleanup proxy
+combined E2E: cleanup identity
+combined E2E: cleanup policy history
+combined E2E: cleanup web
+combined E2E: cleanup postgres
+combined E2E: cleanup remaining processes
+combined E2E: cleanup files

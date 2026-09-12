@@ -215,7 +215,11 @@ func (spool *lineageSpool) verifyAcknowledgmentLocked(ctx context.Context, recei
 	if err != nil || ack.SealDigest != lineageHash(sealBytes) {
 		return lineageConsumptionAck{}, false, errLineageSpool
 	}
-	err = sensoradapter.VerifyConsumptionSource(ctx, reader.root, source, destination, ack.Consumption, func(ctx context.Context, sequence int) (sensoradapter.ImmutableChunk, bool, error) {
+	verify := sensoradapter.VerifyConsumptionSource
+	if source.Profile == "tetragon-local-stream-v3" {
+		verify = sensoradapter.VerifyPreciseConsumptionSource
+	}
+	err = verify(ctx, reader.root, source, destination, ack.Consumption, func(ctx context.Context, sequence int) (sensoradapter.ImmutableChunk, bool, error) {
 		if ctx.Err() != nil {
 			return sensoradapter.ImmutableChunk{}, false, errLineageSpool
 		}

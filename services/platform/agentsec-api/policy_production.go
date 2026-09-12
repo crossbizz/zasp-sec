@@ -55,7 +55,7 @@ func newProductionPolicyHistory(config RuntimeConfig) (*productionPolicyHistory,
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
-	sessionSearch, err := runtimeopensearch.NewSessionIndex(runtimeopensearch.Config{Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumRequestBytes: 64 << 10, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}, credentials, v4.NewSigner(), clock)
+	sessionSearch, err := runtimeopensearch.NewConfiguredSessionIndex(config.RuntimeSessionIndex, runtimeopensearch.Config{Endpoint: config.PolicyHistoryEndpoint, Region: config.ConnectorAWSRegion, RequestTimeout: config.ProviderTimeout, MaximumRequestBytes: 64 << 10, MaximumResponseBytes: 8 << 20, AllowTestLoopback: allowTestLoopback}, credentials, v4.NewSigner(), clock)
 	if err != nil {
 		_ = history.Close()
 		schema.Close()

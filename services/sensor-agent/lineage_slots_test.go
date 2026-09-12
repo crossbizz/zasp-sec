@@ -7,9 +7,9 @@ import (
 	"testing"
 )
 
-func lineageSlotsFixture(t *testing.T) (lineageReceiptFixtureState, string, lineageSlotConfig) {
+func lineageSlotsFixture(t *testing.T, profiles ...string) (lineageReceiptFixtureState, string, lineageSlotConfig) {
 	t.Helper()
-	fixture := lineageReceiptFixture(t, true)
+	fixture := lineageReceiptFixture(t, true, profiles...)
 	if err := os.Chmod(fixture.generation.spool.root.Name(), 0750); err != nil {
 		t.Fatal(err)
 	}

@@ -19,6 +19,7 @@ import (
 )
 
 const productionCandidateFreezeSQL = `SELECT zasp_runtime_freeze_candidates($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+const productionSandboxCandidateFreezeSQL = `SELECT zasp_runtime_freeze_sandbox_candidates($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 const productionCandidateReadySQL = `SELECT jsonb_build_object('ready',zasp_production_runtime_candidate_authority_readiness($1,$2) AND zasp_runtime_principal_ready($3))`
 const productionCandidateReadyV48SQL = `SELECT jsonb_build_object('ready',zasp_production_runtime_acceptance_readiness($1,$2) AND zasp_production_runtime_candidate_authority_readiness($3,$4) AND zasp_runtime_principal_ready($5))`
 const maximumCandidateSnapshotBytes = 1 << 20
@@ -53,12 +54,16 @@ func (repository *PostgresProductionPipelineRepository) ReadyCandidates(ctx cont
 // CandidateObservation is a copy of one admitted, provenance-bound occurrence.
 // Its existence is not host attestation or permission to assign Exact confidence.
 type CandidateObservation struct {
-	BatchID            domain.ProductID
-	Generation         int64
-	EventOrdinal       int
-	SourceSensorID     domain.ProductID
-	AgentID            domain.ProductID
-	SessionID          domain.ProductID
+	BatchID        domain.ProductID
+	Generation     int64
+	EventOrdinal   int
+	SourceSensorID domain.ProductID
+	AgentID        domain.ProductID
+	SessionID      domain.ProductID
+	// SandboxObserved distinguishes retained semantic evidence from historical
+	// rows whose sandbox was not retained. Unknown isn't observed absence.
+	SandboxID          string
+	SandboxObserved    bool
 	ArchiveDigest      [sha256.Size]byte
 	IndexReceiptDigest [sha256.Size]byte
 	Lineage            runtimelineage.Observation
@@ -80,6 +85,7 @@ type FrozenCandidateSnapshot struct {
 	body               []byte
 	candidates         []CandidateObservation
 	replayed           bool
+	sandboxBindings    bool
 }
 
 // ValidFor checks historical snapshot binding, not a current execution lease.
@@ -95,6 +101,7 @@ func (value FrozenCandidateSnapshot) SourceSensorID() domain.ProductID  { return
 func (value FrozenCandidateSnapshot) RuntimeSensorID() domain.ProductID { return value.runtimeSensorID }
 func (value FrozenCandidateSnapshot) Bytes() []byte                     { return bytes.Clone(value.body) }
 func (value FrozenCandidateSnapshot) Replayed() bool                    { return value.replayed }
+func (value FrozenCandidateSnapshot) HasSandboxBindings() bool          { return value.sandboxBindings }
 func (value FrozenCandidateSnapshot) Candidates() []CandidateObservation {
 	return append([]CandidateObservation(nil), value.candidates...)
 }
@@ -107,7 +114,7 @@ func (FrozenCandidateSnapshot) Format(state fmt.State, _ rune) {
 // and lease credentials go only to the private SQL call, never into the snapshot.
 // An uncertain database outcome is retryable: SQL replays the original freeze.
 func (repository *PostgresProductionPipelineRepository) FreezeCandidates(ctx context.Context, lease StageLease, workerID, leaseToken string, indexReceipt, archive []byte) (FrozenCandidateSnapshot, error) {
-	if !validProductionPipelineRepository(repository, ctx) || repository.authority != ProductionPipelineAuthorityCorrelation || repository.stage != RuntimeStageCorrelate || !validStageLease(lease, RuntimeStageCorrelate, repository.clock()) || lease.ImplementationVersion != "runtime-correlation-v2" || !candidateWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) || lease.PredecessorDigest == nil || *lease.PredecessorDigest != lease.InputDigest {
+	if !validProductionPipelineRepository(repository, ctx) || repository.authority != ProductionPipelineAuthorityCorrelation || repository.stage != RuntimeStageCorrelate || !validStageLease(lease, RuntimeStageCorrelate, repository.clock()) || (lease.ImplementationVersion != "runtime-correlation-v2" && lease.ImplementationVersion != "runtime-correlation-v3") || !candidateWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) || lease.PredecessorDigest == nil || *lease.PredecessorDigest != lease.InputDigest {
 		return FrozenCandidateSnapshot{}, ErrProductionPipeline
 	}
 	receipt, err := DecodeStageReceipt(indexReceipt)
@@ -118,7 +125,11 @@ func (repository *PostgresProductionPipelineRepository) FreezeCandidates(ctx con
 	if err != nil {
 		return FrozenCandidateSnapshot{}, ErrProductionPipeline
 	}
-	payload, err := safeProductionQuery(repository.database, ctx, productionCandidateFreezeSQL, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.BatchID.String(), lease.Generation, workerID, leaseToken, lease.Attempt, lease.ImplementationVersion, lease.InputDigest[:], indexReceipt, archive)
+	statement := productionCandidateFreezeSQL
+	if lease.ImplementationVersion == "runtime-correlation-v3" {
+		statement = productionSandboxCandidateFreezeSQL
+	}
+	payload, err := safeProductionQuery(repository.database, ctx, statement, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.BatchID.String(), lease.Generation, workerID, leaseToken, lease.Attempt, lease.ImplementationVersion, lease.InputDigest[:], indexReceipt, archive)
 	if err != nil {
 		var provider *pgconn.PgError
 		if errors.As(err, &provider) {
@@ -169,6 +180,7 @@ type candidateObservationWire struct {
 	SourceSensorID     string                     `json:"source_sensor_id"`
 	AgentID            string                     `json:"agent_id"`
 	SessionID          string                     `json:"session_id"`
+	SandboxID          *string                    `json:"sandbox_id"`
 	ArchiveDigest      string                     `json:"archive_digest"`
 	IndexReceiptDigest string                     `json:"index_receipt_digest"`
 	Lineage            runtimelineage.Observation `json:"observed_lineage"`
@@ -192,7 +204,14 @@ func decodeFrozenCandidates(payload []byte, lease StageLease, archiveDigest, rec
 		return reject()
 	}
 	var wire candidateSnapshotWire
-	if !closedCandidateJSON(body, maximumCandidateSnapshotBytes, &wire, "schema", "organization_id", "workspace_id", "environment_id", "batch_id", "generation", "source_sensor_id", "runtime_sensor_id", "archive_digest", "index_receipt_digest", "window_seconds", "candidates") || wire.Schema != "runtime-candidate-snapshot-v1" || wire.OrganizationID != lease.Scope.OrganizationID().String() || wire.WorkspaceID != lease.Scope.WorkspaceID().String() || wire.EnvironmentID != lease.Scope.EnvironmentID().String() || wire.BatchID != lease.BatchID.String() || wire.Generation != lease.Generation || wire.WindowSeconds != 300 || len(wire.Candidates) > 1000 {
+	sandboxBindings := lease.ImplementationVersion == "runtime-correlation-v3"
+	expectedSchema := "runtime-candidate-snapshot-v1"
+	if sandboxBindings {
+		expectedSchema = "runtime-candidate-snapshot-v2"
+	} else if lease.ImplementationVersion != "runtime-correlation-v2" {
+		return reject()
+	}
+	if !closedCandidateJSON(body, maximumCandidateSnapshotBytes, &wire, "schema", "organization_id", "workspace_id", "environment_id", "batch_id", "generation", "source_sensor_id", "runtime_sensor_id", "archive_digest", "index_receipt_digest", "window_seconds", "candidates") || wire.Schema != expectedSchema || wire.OrganizationID != lease.Scope.OrganizationID().String() || wire.WorkspaceID != lease.Scope.WorkspaceID().String() || wire.EnvironmentID != lease.Scope.EnvironmentID().String() || wire.BatchID != lease.BatchID.String() || wire.Generation != lease.Generation || wire.WindowSeconds != 300 || len(wire.Candidates) > 1000 {
 		return reject()
 	}
 	gotArchive, archiveOK := candidateDigest(wire.ArchiveDigest)
@@ -208,11 +227,17 @@ func decodeFrozenCandidates(payload []byte, lease StageLease, archiveDigest, rec
 	if !archiveOK || !receiptOK || gotArchive != archiveDigest || gotReceipt != receiptDigest || sourceErr != nil || runtimeSensor.IsZero() && len(wire.Candidates) > 0 || archive.Source == "tetragon" && runtimeSensor != source || archive.Source == "otlp" && runtimeSensor == source {
 		return reject()
 	}
-	value := FrozenCandidateSnapshot{scope: lease.Scope, batchID: lease.BatchID, generation: lease.Generation, sourceSensorID: source, runtimeSensorID: runtimeSensor, archiveDigest: archiveDigest, indexReceiptDigest: receiptDigest, digest: digest, body: body, replayed: envelope.Replayed, candidates: make([]CandidateObservation, 0, len(wire.Candidates))}
+	value := FrozenCandidateSnapshot{scope: lease.Scope, batchID: lease.BatchID, generation: lease.Generation, sourceSensorID: source, runtimeSensorID: runtimeSensor, archiveDigest: archiveDigest, indexReceiptDigest: receiptDigest, digest: digest, body: body, replayed: envelope.Replayed, sandboxBindings: sandboxBindings, candidates: make([]CandidateObservation, 0, len(wire.Candidates))}
 	var previous CandidateObservation
 	for _, raw := range wire.Candidates {
 		var candidate candidateObservationWire
-		if !closedCandidateJSON(raw, maximumCandidateSnapshotBytes, &candidate, "batch_id", "generation", "event_ordinal", "source_sensor_id", "agent_id", "session_id", "archive_digest", "index_receipt_digest", "observed_lineage", "event_time") {
+		keys := []string{"batch_id", "generation", "event_ordinal", "source_sensor_id", "agent_id", "session_id", "archive_digest", "index_receipt_digest", "observed_lineage", "event_time"}
+		nullable := ""
+		if sandboxBindings {
+			keys = append(keys, "sandbox_id")
+			nullable = "sandbox_id"
+		}
+		if !closedCandidateJSONWithNullable(raw, maximumCandidateSnapshotBytes, &candidate, nullable, keys...) {
 			return reject()
 		}
 		observation, ok := decodeCandidateObservation(candidate)
@@ -224,7 +249,7 @@ func decodeFrozenCandidates(payload []byte, lease StageLease, archiveDigest, rec
 				return reject()
 			}
 			record := archive.Records[observation.EventOrdinal-1]
-			if observation.AgentID != record.AgentID || observation.SessionID != record.SessionID || observation.Lineage != record.ObservedLineage || !observation.EventTime.Equal(record.EventTime) {
+			if observation.AgentID != record.AgentID || observation.SessionID != record.SessionID || observation.Lineage != record.ObservedLineage || !observation.EventTime.Equal(record.EventTime) || sandboxBindings && (!observation.SandboxObserved || observation.SandboxID != record.SandboxID) {
 				return reject()
 			}
 		}
@@ -263,6 +288,12 @@ func decodeCandidateObservation(wire candidateObservationWire) (CandidateObserva
 		return CandidateObservation{}, false
 	}
 	value.Generation, value.EventOrdinal, value.Lineage = wire.Generation, wire.EventOrdinal, wire.Lineage
+	if wire.SandboxID != nil {
+		if !validProductionText(*wire.SandboxID, 256) {
+			return CandidateObservation{}, false
+		}
+		value.SandboxID, value.SandboxObserved = *wire.SandboxID, true
+	}
 	return value, true
 }
 
@@ -292,6 +323,12 @@ func candidateDigest(text string) ([sha256.Size]byte, bool) {
 
 // This dedicated limit must not relax strictProductionJSON's shared 16 KiB cap.
 func closedCandidateJSON(payload []byte, maximum int, destination any, keys ...string) bool {
+	return closedCandidateJSONWithNullable(payload, maximum, destination, "runtime_sensor_id", keys...)
+}
+
+// Only the versioned candidate decoder permits nullable sandbox_id. The old
+// decoder's keys and null policy remain unchanged.
+func closedCandidateJSONWithNullable(payload []byte, maximum int, destination any, nullable string, keys ...string) bool {
 	if len(payload) < 2 || len(payload) > maximum || !utf8.Valid(payload) || !uniqueProductionJSON(payload) {
 		return false
 	}
@@ -301,7 +338,7 @@ func closedCandidateJSON(payload []byte, maximum int, destination any, keys ...s
 	}
 	for _, key := range keys {
 		value, exists := fields[key]
-		if !exists || key != "runtime_sensor_id" && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+		if !exists || key != nullable && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
 			return false
 		}
 	}

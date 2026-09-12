@@ -6,6 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { loadAll, JSON_SCHEMA } from "js-yaml";
+import { validSessionSearchPhase, validateSessionSearchResources } from "./session-search-rollout.mjs";
 
 const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -67,11 +68,13 @@ export async function inspectContainerBuilds() {
 }
 
 export async function renderRelease(value, options = { schemaVersion: 49 }) {
-  if (!validRelease(value) || !options || Object.keys(options).join() !== "schemaVersion" || ![48, 49].includes(options.schemaVersion)) throw new Error("release rejected");
+  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase"].includes(key)) || !validSessionSearchPhase(options.schemaVersion, options.sessionSearchPhase ?? "compatibility")) throw new Error("release rejected");
   const schemaVersion = options.schemaVersion;
+  const sessionSearchPhase = options.sessionSearchPhase ?? "compatibility";
   const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
   const set = [
     ["schema.expectedVersion", String(schemaVersion)],
+    ["runtime.sessionSearchPhase", sessionSearchPhase],
     ["global.publicOrigin", `https://${value.host}`],
     ["global.trustedProxyCIDRs[0]", "10.20.0.0/16"],
     ...value.awsS3CIDRs.map((cidr, index) => [`network.s3CIDRs[${index}]`, cidr]),
@@ -346,13 +349,15 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
     throw new Error("release rejected");
   }
   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw new Error("release rejected");
-  validateRenderedRelease(resources, platformAccountID, schemaVersion);
+  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase);
   return Object.freeze(resources);
 }
 
-export async function renderCustomerEdgeRelease(value) {
-  if (!validCustomerEdgeRelease(value)) throw new Error("edge release rejected");
+export async function renderCustomerEdgeRelease(value, options = {}) {
+  if (!validCustomerEdgeRelease(value) || !options || typeof options !== "object" || Array.isArray(options) || Object.keys(options).some(key => key !== "sourceProfile") || options.sourceProfile !== undefined && !["tetragon-local-stream-v2", "tetragon-local-stream-v3"].includes(options.sourceProfile)) throw new Error("edge release rejected");
+  const sourceProfile = options.sourceProfile ?? "tetragon-local-stream-v2";
   const set = [
+    ["sensorAgent.sourceProfile", sourceProfile],
     ["global.productImages.runtimeGateway", value.image],
     ["global.productImages.sensorAgent", value.sensorImage],
     ["runtimeGateway.controlPlaneURL", value.controlPlaneURL],
@@ -514,9 +519,9 @@ function validRelease(value) {
   return value.telemetry.backend === "newrelic" && value.telemetry.endpoint === "https://otlp.nr-data.net";
 }
 
-export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49) {
+export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility") {
   const accountPattern = /^[0-9]{12}$/;
-  if (!Array.isArray(resources) || !accountPattern.test(platformAccountID) || platformAccountID === "000000000000" || ![48, 49].includes(schemaVersion)) throw new Error("release rejected");
+  if (!Array.isArray(resources) || !accountPattern.test(platformAccountID) || platformAccountID === "000000000000" || !validSessionSearchPhase(schemaVersion, sessionSearchPhase)) throw new Error("release rejected");
   const deployments = new Map(resources.filter(({ kind }) => kind === "Deployment").map((resource) => [resource.metadata?.name, resource]));
   const deploymentIdentities = new Map([
     ["web", "agentsec-web"],
@@ -552,13 +557,15 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
     ["nango", "nango"],
     ["otel-collector", "otel-collector"],
   ]);
+  if (sessionSearchPhase !== "compatibility") deploymentIdentities.set("agentsec-runtime-session-index-v2", "zasp-runtime-index");
   if (deployments.size !== deploymentIdentities.size || [...deploymentIdentities].some(([name, serviceAccount]) => deployments.get(name)?.spec?.template?.spec?.serviceAccountName !== serviceAccount)) throw new Error("release rejected");
+  validateSessionSearchResources(resources, sessionSearchPhase);
   // Pre-stage the compatible reader before a later migration routes new v2 work.
   // A downgraded reader can claim those jobs and exhaust their retry budget.
   const correlation = deployments.get("agentsec-runtime-correlation").spec.template.spec.containers;
   const correlationVersions = correlation?.length === 1 && Array.isArray(correlation[0].env)
     ? correlation[0].env.filter(({ name }) => name === "ZASP_RUNTIME_STAGE_VERSION") : [];
-  if (correlationVersions.length !== 1 || correlationVersions[0].value !== "runtime-correlation-v2" || correlationVersions[0].valueFrom !== undefined) throw new Error("release rejected");
+  if (correlationVersions.length !== 1 || correlationVersions[0].value !== (["precision-consumers", "precision-intake"].includes(sessionSearchPhase) ? "runtime-correlation-v4" : "runtime-correlation-v2") || correlationVersions[0].valueFrom !== undefined) throw new Error("release rejected");
   const identityContracts = new Map([
     ["agentsec-web", null],
     ["agentsec-api", "api"],
@@ -615,9 +622,10 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
     ["zasp-canary-secret-sync", "agentsec-canary-secret-sync"],
   ]);
   const jobs = resources.filter(({ kind }) => kind === "Job");
+  if (sessionSearchPhase !== "compatibility") jobIdentities.set("agentsec-projection-search-init-v2", "agentsec-projection-search-init");
   if (jobs.length !== jobIdentities.size || jobs.some((resource) => jobIdentities.get(resource.metadata?.name) !== resource.spec?.template?.spec?.serviceAccountName)) throw new Error("release rejected");
   const migration = jobs.find(({ metadata }) => metadata.name === `agentsec-schema-v${schemaVersion}`);
-  const command = `export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate ${schemaVersion === 48 ? "up-to-48" : "up"}`;
+  const command = `export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate up-to-${schemaVersion}`;
   const migrationContainers = migration?.spec?.template?.spec?.containers;
   if (!Array.isArray(migrationContainers) || migrationContainers.length !== 1 || JSON.stringify(migrationContainers[0].command) !== JSON.stringify(["/bin/sh", "-ec"]) || JSON.stringify(migrationContainers[0].args) !== JSON.stringify([command])) throw new Error("release rejected");
   for (const deployment of deployments.values()) {

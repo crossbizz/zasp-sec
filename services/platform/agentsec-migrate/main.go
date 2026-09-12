@@ -160,6 +160,9 @@ type releaseMigrationRunner interface {
 	DownProductionRuntimeAcceptance(context.Context) error
 	UpProductionRuntimeCorrelationRouting(context.Context) error
 	DownProductionRuntimeCorrelationRouting(context.Context) error
+	UpProductionRuntimeSandboxBinding(context.Context) error
+	DownProductionRuntimeSandboxBinding(context.Context) error
+	UpProductionRuntimePrecision(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -200,6 +203,12 @@ func main() {
 	if isForwardMigration(arguments) {
 		if err := registerReleasePrincipals(ctx, connection, registration); err != nil {
 			log.Fatal("release principal registration or readiness failed")
+		}
+		if arguments[0] == "up-to-51" {
+			var ready bool
+			if err := connection.QueryRow(ctx, `SELECT zasp_production_runtime_precision_readiness($1,$2)`, migrations.ProductionRuntimePrecision().Checksum(), migrations.ProductionRuntimePrecisionSemanticFingerprint()).Scan(&ready); err != nil || !ready {
+				log.Fatal("release precision readiness failed")
+			}
 		}
 	}
 }
@@ -285,7 +294,7 @@ func loadMigrationTimeout(getenv func(string) string) (time.Duration, error) {
 }
 
 func isForwardMigration(arguments []string) bool {
-	return len(arguments) == 1 && (arguments[0] == "up" || arguments[0] == "up-to-48")
+	return len(arguments) == 1 && (arguments[0] == "up" || arguments[0] == "up-to-48" || arguments[0] == "up-to-49" || arguments[0] == "up-to-50" || arguments[0] == "up-to-51")
 }
 
 func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arguments []string) error {
@@ -300,7 +309,7 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
-	case "up", "up-to-48":
+	case "up", "up-to-48", "up-to-49", "up-to-50", "up-to-51":
 		if version == 0 {
 			if err := runner.Up(ctx); err != nil {
 				return err
@@ -592,14 +601,40 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		target := int64(49)
 		if arguments[0] == "up-to-48" {
 			target = 48
+		} else if arguments[0] == "up-to-50" {
+			target = 50
+		} else if arguments[0] == "up-to-51" {
+			target = 51
 		}
-		if version == 48 && target == 49 {
+		if version == 48 && target >= 49 {
 			if err := runner.UpProductionRuntimeCorrelationRouting(ctx); err != nil {
 				return err
 			}
 			version = 49
 		}
+		if version == 49 && target >= 50 {
+			if err := runner.UpProductionRuntimeSandboxBinding(ctx); err != nil {
+				return err
+			}
+			version = 50
+		}
+		if version == 50 && target == 51 {
+			if err := runner.UpProductionRuntimePrecision(ctx); err != nil {
+				return err
+			}
+			version = 51
+		}
 		if version != target {
+			return migrations.ErrInvalidState
+		}
+	case "down-to-49":
+		if version == 50 {
+			if err := runner.DownProductionRuntimeSandboxBinding(ctx); err != nil {
+				return err
+			}
+			version = 49
+		}
+		if version != 49 {
 			return migrations.ErrInvalidState
 		}
 	case "down":

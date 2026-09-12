@@ -75,27 +75,30 @@ type ChunkProgress struct {
 	Bytes        int64  `json:"bytes"`
 }
 
-type pendingChunk struct {
+type pendingChunk = pendingChunkOf[RuntimeEvent]
+type pendingChunkOf[E any] struct {
 	Sequence int                     `json:"sequence"`
 	Digest   string                  `json:"digest"`
 	Bytes    int64                   `json:"bytes"`
 	Result   StreamResult            `json:"result"`
 	Next     ChunkProgress           `json:"next"`
-	Events   []RuntimeEvent          `json:"events,omitempty"`
+	Events   []E                     `json:"events,omitempty"`
 	Envelope *RuntimeEnvelope        `json:"envelope,omitempty"`
 	Cache    []cachedProcessIdentity `json:"cache"`
 }
 
-type chunkCheckpoint struct {
+type chunkCheckpoint = chunkCheckpointOf[RuntimeEvent]
+type chunkCheckpointOf[E any] struct {
 	Version   string                  `json:"version"`
 	Source    string                  `json:"source"`
 	Target    streamTarget            `json:"target"`
 	Committed ChunkProgress           `json:"committed"`
 	Cache     []cachedProcessIdentity `json:"cache"`
-	Pending   *pendingChunk           `json:"pending,omitempty"`
+	Pending   *pendingChunkOf[E]      `json:"pending,omitempty"`
 }
 
-type ChunkProcessor struct {
+type ChunkProcessor = chunkProcessor[RuntimeEvent]
+type chunkProcessor[E any] struct {
 	mu                                sync.Mutex
 	source                            LineageSource
 	sourceRoot, spoolRoot, cursorRoot *os.Root
@@ -105,7 +108,8 @@ type ChunkProcessor struct {
 	client                            *ProductionClient
 	normalizer                        *Normalizer
 	read                              func(context.Context, int) (ImmutableChunk, bool, error)
-	checkpoint                        *chunkCheckpoint
+	checkpoint                        *chunkCheckpointOf[E]
+	contract                          chunkRecordContract[E]
 	durable, closed                   bool
 	writeCheckpoint                   func(*os.Root, string, []byte) error
 }
@@ -127,11 +131,15 @@ func chunkRootInfo(root *os.Root) (os.FileInfo, error) {
 }
 
 func NewChunkProcessor(config ChunkProcessorConfig) (*ChunkProcessor, error) {
-	if !config.Source.valid() || config.Client == nil || config.Client.base == nil || config.Client.enrollment != config.Source.EnrollmentBinding || config.ReadChunk == nil || !validAbsoluteFilePath(config.CursorPath) || !validCursorName(filepath.Base(config.CursorPath)) || len(config.ProtectedInputs) > 8 || len(config.DisjointOutputRoots) > 8 {
-		return nil, ErrStream
-	}
 	normalizer, err := NewLineageNormalizer(config.MaximumProcesses, config.Source)
 	if err != nil {
+		return nil, ErrStream
+	}
+	return newChunkProcessor(config, normalizer, legacyChunkContract(normalizer))
+}
+
+func newChunkProcessor[E any](config ChunkProcessorConfig, normalizer *Normalizer, contract chunkRecordContract[E]) (*chunkProcessor[E], error) {
+	if normalizer == nil || config.Client == nil || config.Client.base == nil || config.Client.enrollment != config.Source.EnrollmentBinding || config.ReadChunk == nil || !validAbsoluteFilePath(config.CursorPath) || !validCursorName(filepath.Base(config.CursorPath)) || len(config.ProtectedInputs) > 8 || len(config.DisjointOutputRoots) > 8 {
 		return nil, ErrStream
 	}
 	sourceInfo, err := chunkRootInfo(config.SourceRoot)
@@ -187,7 +195,7 @@ func NewChunkProcessor(config ChunkProcessorConfig) (*ChunkProcessor, error) {
 		return nil, ErrStream
 	}
 	accepted = true
-	return &ChunkProcessor{source: config.Source, sourceRoot: config.SourceRoot, spoolRoot: config.SpoolRoot, cursorRoot: root, cursorName: name, lock: lock, binding: binding, client: config.Client, normalizer: normalizer, read: config.ReadChunk, writeCheckpoint: writeCheckpointBytes}, nil
+	return &chunkProcessor[E]{source: config.Source, sourceRoot: config.SourceRoot, spoolRoot: config.SpoolRoot, cursorRoot: root, cursorName: name, lock: lock, binding: binding, client: config.Client, normalizer: normalizer, contract: contract, read: config.ReadChunk, writeCheckpoint: writeCheckpointBytes}, nil
 }
 
 func privateChunkCursorDirectory(info os.FileInfo) bool {
@@ -218,11 +226,11 @@ func chunkChain(previous string, sequence int, digest string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (p *ChunkProcessor) initialProgress() ChunkProgress {
+func (p *chunkProcessor[E]) initialProgress() ChunkProgress {
 	return ChunkProgress{NextSequence: 1, Chain: chunkChain(p.binding, 0, "")}
 }
 
-func (p *ChunkProcessor) valid() bool {
+func (p *chunkProcessor[E]) valid() bool {
 	if p.closed || !validCursorLock(p.cursorRoot, p.cursorName+".lock", p.lock) {
 		return false
 	}
@@ -238,7 +246,7 @@ func (p *ChunkProcessor) valid() bool {
 	return err == nil
 }
 
-func (p *ChunkProcessor) Close() error {
+func (p *chunkProcessor[E]) Close() error {
 	if p == nil {
 		return ErrStream
 	}
@@ -257,7 +265,7 @@ func (p *ChunkProcessor) Close() error {
 
 // Committed reports durable local progress only when no upload is pending.
 // Reclamation requires separate verified generation-seal and ACK handling.
-func (p *ChunkProcessor) Committed() (ChunkProgress, bool, error) {
+func (p *chunkProcessor[E]) Committed() (ChunkProgress, bool, error) {
 	if p == nil {
 		return ChunkProgress{}, false, ErrStream
 	}
@@ -269,7 +277,7 @@ func (p *ChunkProcessor) Committed() (ChunkProgress, bool, error) {
 	return p.checkpoint.Committed, p.durable && p.checkpoint.Pending == nil, nil
 }
 
-func (p *ChunkProcessor) ProcessAvailable(ctx context.Context) (StreamResult, error) {
+func (p *chunkProcessor[E]) ProcessAvailable(ctx context.Context) (StreamResult, error) {
 	if p == nil || ctx == nil || ctx.Err() != nil {
 		return StreamResult{}, ErrStream
 	}
@@ -314,7 +322,7 @@ func (p *ChunkProcessor) ProcessAvailable(ctx context.Context) (StreamResult, er
 		}
 	}()
 	result := StreamResult{Read: len(lines)}
-	events := make([]RuntimeEvent, 0, len(lines))
+	events := make([]E, 0, len(lines))
 	for _, line := range lines {
 		if ctx.Err() != nil {
 			return StreamResult{}, ErrStream
@@ -326,7 +334,7 @@ func (p *ChunkProcessor) ProcessAvailable(ctx context.Context) (StreamResult, er
 		if json.Unmarshal(line, &identity) == nil && identity.NodeName != "" && identity.NodeName != p.source.NodeName {
 			return StreamResult{}, ErrStream
 		}
-		event, normalizeErr := safeChunkNormalize(p.normalizer, line)
+		event, normalizeErr := safeChunkRecordNormalize(p.contract.normalize, line)
 		if normalizeErr == ErrAdapter {
 			result.Dropped++
 			continue
@@ -342,7 +350,7 @@ func (p *ChunkProcessor) ProcessAvailable(ctx context.Context) (StreamResult, er
 		return StreamResult{}, err
 	}
 	next := ChunkProgress{NextSequence: progress.NextSequence + 1, Chain: chunkChain(progress.Chain, chunk.Sequence, chunk.Digest), Read: progress.Read + result.Read, Submitted: progress.Submitted + result.Submitted, Dropped: progress.Dropped + result.Dropped, Bytes: progress.Bytes + size}
-	pending := &pendingChunk{Sequence: chunk.Sequence, Digest: chunk.Digest, Bytes: size, Result: result, Next: next, Events: events, Cache: cache}
+	pending := &pendingChunkOf[E]{Sequence: chunk.Sequence, Digest: chunk.Digest, Bytes: size, Result: result, Next: next, Events: events, Cache: cache}
 	checkpoint := *p.checkpoint
 	checkpoint.Cache, checkpoint.Pending = nil, pending
 	if p.validate(&checkpoint) != nil {
@@ -392,19 +400,20 @@ func safeChunkRead(read func(context.Context, int) (ImmutableChunk, bool, error)
 	return read(ctx, sequence)
 }
 
-func safeChunkNormalize(normalizer *Normalizer, line []byte) (event RuntimeEvent, err error) {
+func safeChunkRecordNormalize[E any](normalize func([]byte) (E, error), line []byte) (event E, err error) {
 	defer func() {
 		if recover() != nil {
-			event, err = RuntimeEvent{}, ErrStream
+			var zero E
+			event, err = zero, ErrStream
 		}
 	}()
-	return normalizer.Normalize(line)
+	return normalize(line)
 }
 
-func (p *ChunkProcessor) commitPending(ctx context.Context) (StreamResult, error) {
+func (p *chunkProcessor[E]) commitPending(ctx context.Context) (StreamResult, error) {
 	pending := p.checkpoint.Pending
 	if pending.Envelope == nil && len(pending.Events) > 0 {
-		envelope, err := safeStreamEnvelopePrepare(p.client, cloneRuntimeEvents(pending.Events))
+		envelope, err := p.contract.prepare(p.client, pending.Events)
 		if err != nil {
 			if persistErr := p.persist(p.checkpoint); persistErr != nil {
 				return StreamResult{}, persistErr
@@ -418,7 +427,7 @@ func (p *ChunkProcessor) commitPending(ctx context.Context) (StreamResult, error
 		return StreamResult{}, err
 	}
 	if pending.Envelope != nil {
-		if err := safeStreamEnvelopeIngest(p.client, ctx, *pending.Envelope); err != nil {
+		if err := p.contract.ingest(p.client, ctx, *pending.Envelope); err != nil {
 			return StreamResult{}, err
 		}
 	}
@@ -434,11 +443,11 @@ func (p *ChunkProcessor) commitPending(ctx context.Context) (StreamResult, error
 	return pending.Result, nil
 }
 
-func (p *ChunkProcessor) load() error {
+func (p *chunkProcessor[E]) load() error {
 	if p.checkpoint != nil {
 		return nil
 	}
-	checkpoint := &chunkCheckpoint{Version: chunkCheckpointVersion, Source: p.binding, Target: streamSinkTarget(p.client), Committed: p.initialProgress(), Cache: []cachedProcessIdentity{}}
+	checkpoint := &chunkCheckpointOf[E]{Version: p.contract.checkpointVersion, Source: p.binding, Target: p.target(), Committed: p.initialProgress(), Cache: []cachedProcessIdentity{}}
 	raw, err := readCheckpointBytes(p.cursorRoot, p.cursorName)
 	if errors.Is(err, os.ErrNotExist) {
 		p.checkpoint = checkpoint
@@ -462,7 +471,7 @@ func (p *ChunkProcessor) load() error {
 	return nil
 }
 
-func (p *ChunkProcessor) persist(checkpoint *chunkCheckpoint) error {
+func (p *chunkProcessor[E]) persist(checkpoint *chunkCheckpointOf[E]) error {
 	if !p.valid() || p.validate(checkpoint) != nil {
 		return ErrStream
 	}
@@ -473,12 +482,12 @@ func (p *ChunkProcessor) persist(checkpoint *chunkCheckpoint) error {
 	return p.writeCheckpoint(p.cursorRoot, p.cursorName, buffer.Bytes())
 }
 
-func (p *ChunkProcessor) validProgress(value ChunkProgress) bool {
+func (p *chunkProcessor[E]) validProgress(value ChunkProgress) bool {
 	return validChunkProgress(value, p.initialProgress())
 }
 
-func (p *ChunkProcessor) validate(checkpoint *chunkCheckpoint) error {
-	if checkpoint == nil || checkpoint.Version != chunkCheckpointVersion || checkpoint.Source != p.binding || checkpoint.Target != streamSinkTarget(p.client) || !p.validProgress(checkpoint.Committed) {
+func (p *chunkProcessor[E]) validate(checkpoint *chunkCheckpointOf[E]) error {
+	if checkpoint == nil || checkpoint.Version != p.contract.checkpointVersion || checkpoint.Source != p.binding || checkpoint.Target != p.target() || !p.validProgress(checkpoint.Committed) {
 		return ErrStream
 	}
 	cache := checkpoint.Cache
@@ -497,24 +506,20 @@ func (p *ChunkProcessor) validate(checkpoint *chunkCheckpoint) error {
 		cacheHistory = pending.Next.Submitted
 		events := pending.Events
 		if envelope := pending.Envelope; envelope != nil {
-			if pending.Result.Submitted < 1 || len(events) != 0 || envelope.Version != runtimeEnvelopeVersion || envelope.Schema != enrollmentRuntimeSchema || envelope.Destination != checkpoint.Target.Destination || envelope.EnrollmentBinding != checkpoint.Target.Enrollment || len(envelope.Body) == 0 || len(envelope.Body) > maximumEnvelopeBodyBytes || envelope.IdempotencyKey != envelopeIdempotency(envelope.Body) {
+			if pending.Result.Submitted < 1 || len(events) != 0 || envelope.Version != p.contract.envelopeVersion || envelope.Schema != p.contract.schema || envelope.Destination != checkpoint.Target.Destination || envelope.EnrollmentBinding != checkpoint.Target.Enrollment || len(envelope.Body) == 0 || len(envelope.Body) > maximumEnvelopeBodyBytes || envelope.IdempotencyKey != p.contract.idempotency(envelope.Body) {
 				return ErrStream
 			}
-			var body runtimeEnvelopeBody
-			if !checkpointJSONBounded(envelope.Body, maximumBatchEvents) || json.Unmarshal(envelope.Body, &body) != nil || body.Source != "tetragon" {
+			var err error
+			events, err = p.contract.decode(envelope.Body)
+			if err != nil {
 				return ErrStream
 			}
-			comparison := &checkpointComparisonWriter{expected: append(envelope.Body[:len(envelope.Body):len(envelope.Body)], '\n')}
-			if json.NewEncoder(comparison).Encode(body) != nil || comparison.offset != len(comparison.expected) {
-				return ErrStream
-			}
-			events = body.Events
 			size += (len(envelope.Body)+2)/3*4 + 4096
 		}
 		if len(events) != pending.Result.Submitted {
 			return ErrStream
 		}
-		eventSize, err := checkpointEventsSize(events)
+		eventSize, err := p.contract.eventSize(events)
 		if err != nil {
 			return ErrStream
 		}
@@ -522,7 +527,7 @@ func (p *ChunkProcessor) validate(checkpoint *chunkCheckpoint) error {
 			size += eventSize
 		}
 		for _, event := range events {
-			observation := event.ObservedLineage
+			observation := p.contract.observation(event)
 			if observation.Profile != "" && (observation.ClusterUID != p.source.ClusterUID || observation.NodeUID != p.source.NodeUID || observation.BootID != p.source.BootID) {
 				return ErrStream
 			}

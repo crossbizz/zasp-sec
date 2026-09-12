@@ -124,7 +124,7 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 			_ = policyHistory.Close()
 		}
 	}()
-	repository, err := apiserver.NewPostgresRepositoryWithRuntimeSessionSearch(tracedDatabase, policyHistory.sessionSearch)
+	repository, err := apiserver.NewPostgresRepositoryWithRuntimeSessionSearchIndex(tracedDatabase, policyHistory.sessionSearch, config.RuntimeSessionIndex)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}

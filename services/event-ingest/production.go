@@ -24,6 +24,7 @@ var (
 )
 
 type productionIngestConfig struct {
+	RuntimeSchema          string
 	DatabaseURL            string
 	Region                 string
 	RoleARN                string
@@ -44,10 +45,20 @@ type productionIngestRepository interface {
 }
 
 func newProductionIngestRouter(repository productionIngestRepository, artifacts runtimeevent.RawArtifactAuthority, maximumBytes int64, clock func() time.Time) (http.Handler, error) {
+	return newVersionedProductionIngestRouter(repository, artifacts, maximumBytes, clock, "")
+}
+
+func newVersionedProductionIngestRouter(repository productionIngestRepository, artifacts runtimeevent.RawArtifactAuthority, maximumBytes int64, clock func() time.Time, schema string) (http.Handler, error) {
 	if invalidRuntimeValue(repository) || invalidRuntimeValue(artifacts) {
 		return nil, errRuntimeUnavailable
 	}
-	ingest, err := runtimeevent.NewProductionIngestHandler(runtimeevent.ProductionIngestConfig{Repository: repository, Artifacts: artifacts, MaximumBytes: maximumBytes, Clock: clock})
+	constructor := runtimeevent.NewProductionIngestHandler
+	if schema == "runtime-event-v2" {
+		constructor = runtimeevent.NewPreciseProductionIngestHandler
+	} else if schema != "" && schema != "runtime-event-v1" {
+		return nil, errRuntimeUnavailable
+	}
+	ingest, err := constructor(runtimeevent.ProductionIngestConfig{Repository: repository, Artifacts: artifacts, MaximumBytes: maximumBytes, Clock: clock})
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}
@@ -74,6 +85,7 @@ func loadProductionIngestConfig(getenv func(string) string) (productionIngestCon
 	shutdownTimeout, shutdownTimeoutErr := time.ParseDuration(getenv("ZASP_EVENT_INGEST_SHUTDOWN_TIMEOUT"))
 	reconciliationInterval, reconciliationIntervalErr := time.ParseDuration(getenv("ZASP_EVENT_INGEST_RECONCILIATION_INTERVAL"))
 	config := productionIngestConfig{
+		RuntimeSchema:          getenv("ZASP_RUNTIME_INGEST_SCHEMA"),
 		DatabaseURL:            getenv("ZASP_DATABASE_URL"),
 		Region:                 getenv("ZASP_AWS_REGION"),
 		RoleARN:                getenv("ZASP_EVENT_INGEST_ROLE_ARN"),
@@ -97,7 +109,7 @@ func validProductionIngestConfig(config productionIngestConfig) bool {
 	database, databaseErr := url.Parse(config.DatabaseURL)
 	role := productionRolePattern.FindStringSubmatch(config.RoleARN)
 	kms := productionKMSPattern.FindStringSubmatch(config.KMSKeyARN)
-	return databaseErr == nil && database.String() == config.DatabaseURL && (database.Scheme == "postgres" || database.Scheme == "postgresql") && database.User != nil && database.Hostname() != "" && database.Path != "" && database.Fragment == "" && database.RawQuery == "sslmode=verify-full" &&
+	return (config.RuntimeSchema == "" || config.RuntimeSchema == "runtime-event-v1" || config.RuntimeSchema == "runtime-event-v2") && databaseErr == nil && database.String() == config.DatabaseURL && (database.Scheme == "postgres" || database.Scheme == "postgresql") && database.User != nil && database.Hostname() != "" && database.Path != "" && database.Fragment == "" && database.RawQuery == "sslmode=verify-full" &&
 		productionRegionPattern.MatchString(config.Region) && len(role) == 2 && len(kms) == 3 && role[1] == config.ExpectedBucketOwner && kms[1] == config.Region && kms[2] == config.ExpectedBucketOwner &&
 		config.TokenFile == projectedServiceAccountTokenPath && productionBucketPattern.MatchString(config.Bucket) && productionAccountPattern.MatchString(config.ExpectedBucketOwner) &&
 		config.MaximumBytes >= 1<<20 && config.MaximumBytes <= 64<<20 && config.OperationTimeout >= time.Second && config.OperationTimeout <= 30*time.Second && config.ShutdownTimeout >= config.OperationTimeout && config.ShutdownTimeout <= time.Minute &&

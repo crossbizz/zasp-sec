@@ -63,13 +63,16 @@ func newProductionRuntimeIndex(ctx context.Context, config workerRuntimeConfig) 
 		return nil, errRuntimeUnavailable
 	}
 	cloud := productionDiscoveryCloudConfig{Region: config.AWSRegion, RoleARN: config.RuntimeStageRoleARN, TokenFile: config.RuntimeStageTokenFile, SecretRoot: "runtime/index", Timeout: requestTimeout, Clock: func() time.Time { return time.Now().UTC() }}
-	sessionIndex, err := runtimeopensearch.NewSessionIndex(runtimeopensearch.Config{Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20}, credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
+	sessionIndex, err := runtimeopensearch.NewConfiguredSessionIndex(config.RuntimeSessionIndex, runtimeopensearch.Config{Endpoint: config.OpenSearchURL, Region: config.AWSRegion, RequestTimeout: requestTimeout, MaximumRequestBytes: 8 << 20, MaximumResponseBytes: 8 << 20}, credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
 	if err != nil {
 		driver.Close()
 		transport.CloseIdleConnections()
 		return nil, errRuntimeUnavailable
 	}
 	sessions, err := newRuntimeSessionSearchExecutor(reader, receipts, sessionIndex)
+	if config.RuntimeStageVersion == "runtime-index-v2" {
+		sessions, err = newRuntimePreciseSessionSearchExecutor(reader, receipts, sessionIndex)
+	}
 	if err != nil {
 		sessionIndex.Close()
 		driver.Close()

@@ -14,7 +14,14 @@ import (
 // Submitted/Dropped are checked for consistency, not independently authenticated.
 // Success does not grant a reusable deletion capability or prove remote delivery.
 func VerifyConsumptionSource(ctx context.Context, root *os.Root, source LineageSource, destination string, proof VerifiedConsumption, read func(context.Context, int) (ImmutableChunk, bool, error)) error {
-	if ctx == nil || ctx.Err() != nil || !source.valid() || proof.Source != source || proof.Destination != destination || read == nil || len(destination) > 2048 {
+	if !source.valid() {
+		return ErrStream
+	}
+	return verifyConsumptionSource(ctx, root, source, destination, proof, read)
+}
+
+func verifyConsumptionSource(ctx context.Context, root *os.Root, source LineageSource, destination string, proof VerifiedConsumption, read func(context.Context, int) (ImmutableChunk, bool, error)) error {
+	if ctx == nil || ctx.Err() != nil || proof.Source != source || proof.Destination != destination || read == nil || len(destination) > 2048 {
 		return ErrStream
 	}
 	if !validConsumptionDestination(destination) {

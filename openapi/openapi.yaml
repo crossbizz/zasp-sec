@@ -3599,10 +3599,21 @@ components:
       type: object
       additionalProperties: false
       required: [id, session_id, agent_id, class, action, label, evidence_id, source, confidence, at, projected_at]
+      dependentRequired:
+        sandbox_id: [sandbox_source_sensor_id]
+        sandbox_source_sensor_id: [sandbox_id]
+      if: { properties: { sandbox_id: {} }, required: [sandbox_id] }
+      then: { properties: { confidence: { enum: [exact, strong] } } }
       properties:
         id: { $ref: '#/components/schemas/ProductID' }
         session_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
         agent_id: { type: [string, 'null'], pattern: '^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' }
+        sandbox_id:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: 'Source-qualified sandbox identity, at most 256 UTF-8 bytes with no surrounding Unicode whitespace or CR/LF. Present only with its reporting sensor and Exact/Strong correlation. Omitted when unknown, including historical events; never inferred from session identity.'
+        sandbox_source_sensor_id: { $ref: '#/components/schemas/ProductID' }
         class: { type: string, enum: [tool, runtime, network, file, credential, policy] }
         action: { type: string, enum: [invoke, exec, exit, read, write, connect, accept, use, allow, monitor, block] }
         label: { type: string, minLength: 1, maxLength: 256 }

@@ -65,6 +65,54 @@ func TestRuntimeCompleteRepositoryUsesAtomicProjectionFunctionWithoutLegacyFallb
 	}
 }
 
+func TestSandboxCompleteRepositoryPinsReadinessAndUsesNewAtomicFunction(t *testing.T) {
+	for _, ready := range []bool{true, false} {
+		database := &productionIngestDatabaseStub{responses: []json.RawMessage{json.RawMessage(`{"ready":true}`), nil}, errors: []error{nil, errors.New("database unavailable")}}
+		if !ready {
+			database.responses[0] = json.RawMessage(`{"ready":false}`)
+		}
+		repository, _ := NewPostgresProductionPipelineRepository(database, ProductionPipelineAuthorityCoordinator)
+		request := sessionProjectionFinishFixture(t)
+		request.Lease.ImplementationVersion = "runtime-complete-v2"
+		_, err := repository.FinishStage(context.Background(), request)
+		wantCalls := 1
+		if ready {
+			wantCalls = 2
+		}
+		wantArgs := []any{migrations.ProductionRuntimeSandboxBinding().Checksum(), migrations.ProductionRuntimeSandboxBindingSemanticFingerprint(), string(ProductionPipelineAuthorityCoordinator)}
+		if err == nil || database.calls != wantCalls || database.statements[0] != productionSandboxRoutingReadySQL || !reflect.DeepEqual(database.arguments[0], wantArgs) {
+			t.Fatal("sandbox completion did not pin authority", err, database.calls)
+		}
+		if ready && (database.statements[1] != `SELECT zasp_runtime_finish_sandbox_session_projection($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)` || len(database.arguments[1]) != 18 || !reflect.DeepEqual(database.arguments[1][17], []byte(request.ProjectionReceipt))) {
+			t.Fatal("new completion lost exact receipt or fell back")
+		}
+	}
+}
+
+func TestSandboxCompleteRepositoryNeverFallsBackFromMissingOrMalformedAuthority(t *testing.T) {
+	for _, failure := range []struct {
+		name    string
+		payload json.RawMessage
+		err     error
+	}{
+		{"missing", nil, &pgconn.PgError{Code: "42883"}},
+		{"denied", nil, &pgconn.PgError{Code: "42501"}},
+		{"unknown-field", json.RawMessage(`{"ready":true,"extra":true}`), nil},
+		{"duplicate", json.RawMessage(`{"ready":false,"ready":true}`), nil},
+		{"null", json.RawMessage(`{"ready":null}`), nil},
+	} {
+		t.Run(failure.name, func(t *testing.T) {
+			database := &productionIngestDatabaseStub{responses: []json.RawMessage{failure.payload}, errors: []error{failure.err}}
+			repository, _ := NewPostgresProductionPipelineRepository(database, ProductionPipelineAuthorityCoordinator)
+			request := sessionProjectionFinishFixture(t)
+			request.Lease.ImplementationVersion = "runtime-complete-v2"
+			if _, err := repository.FinishStage(context.Background(), request); !errors.Is(err, ErrProductionPipelineUnavailable) || database.calls != 1 || database.statements[0] != productionSandboxRoutingReadySQL {
+				t.Fatal("unavailable v2 authority reached mutation or fallback", err, database.calls)
+			}
+		})
+	}
+}
+
 func sessionProjectionFinishFixture(t *testing.T) StageFinishRequest {
 	t.Helper()
 	digest := sha256.Sum256([]byte("session-projection"))

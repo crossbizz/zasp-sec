@@ -16,6 +16,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
+	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 )
 
 var (
@@ -58,6 +59,7 @@ type RuntimeConfig struct {
 	ConnectorKMSKeyARN          string
 	ConnectorSecretPrefix       string
 	PolicyHistoryEndpoint       string
+	RuntimeSessionIndex         string
 	PolicyHistoryIndex          string
 	AWSCustomerRolePrefixes     []string
 	AWSCustomerRoleARNs         []string
@@ -110,6 +112,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), SecurityAgentPostgresDSN: getenv("ZASP_SECURITY_AGENT_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchWebhookSecret: getenv("ZASP_STYTCH_WEBHOOK_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
 		ConnectorAWSRegion: getenv("ZASP_CONNECTOR_AWS_REGION"), ConnectorRoleARN: getenv("ZASP_CONNECTOR_ROLE_ARN"), ConnectorTokenFile: getenv("ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE"), ConnectorKMSKeyARN: getenv("ZASP_CONNECTOR_KMS_KEY_ARN"), ConnectorSecretPrefix: getenv("ZASP_CONNECTOR_SECRET_PREFIX"),
 		PolicyHistoryEndpoint: getenv("ZASP_POLICY_HISTORY_ENDPOINT"), PolicyHistoryIndex: getenv("ZASP_POLICY_HISTORY_INDEX"),
+		RuntimeSessionIndex:     getenv("ZASP_RUNTIME_SESSION_INDEX"),
 		AWSCustomerRolePrefixes: parseAWSCustomerRolePrefixes(getenv("ZASP_AWS_CUSTOMER_ROLE_PREFIXES")), AWSCustomerRoleARNs: parseAWSCustomerRoleARNs(getenv("ZASP_AWS_CUSTOMER_ROLE_ARNS")), KubernetesEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_KUBERNETES_EGRESS_CIDRS")), FindingTicketEgressCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_FINDING_TICKET_EGRESS_CIDRS")),
 		GitHubClientID: getenv("ZASP_GITHUB_CLIENT_ID"), GitHubSecretReference: getenv("ZASP_GITHUB_CLIENT_SECRET_REFERENCE"), GitHubAppID: getenv("ZASP_GITHUB_APP_ID"), GitHubPrivateKeyReference: getenv("ZASP_GITHUB_PRIVATE_KEY_REFERENCE"), OktaClientID: getenv("ZASP_OKTA_CLIENT_ID"), OktaSecretReference: getenv("ZASP_OKTA_CLIENT_SECRET_REFERENCE"),
 		NangoBaseURL: getenv("ZASP_NANGO_BASE_URL"), NangoServiceSecretReference: getenv("ZASP_NANGO_SERVICE_SECRET_REFERENCE"), NangoEnvironment: getenv("ZASP_NANGO_ENVIRONMENT"),
@@ -126,6 +129,9 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 }
 
 func validRuntimeConfig(config RuntimeConfig) bool {
+	if !runtimeopensearch.ValidSessionIndexName(config.RuntimeSessionIndex) {
+		return false
+	}
 	if config.Environment != "production" && config.Environment != "development" && config.Environment != "test" {
 		return false
 	}

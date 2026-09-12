@@ -264,6 +264,9 @@ func TestLineageGenerationBracketsUnixSubscriptionWithActualTLSReads(t *testing.
 	}
 	defer generation.Close()
 	source := generation.Source()
+	if source.Profile != "tetragon-local-stream-v2" {
+		t.Fatal("default production constructor changed source generation")
+	}
 	if calls.Load() != 8 || atVersion.Load() != 4 || source.NodeName != "node-a" || source.ClusterUID != string(identity.namespace.UID) || source.NodeUID != string(identity.node.UID) || source.BootID != fixtureHostBootID || source.EnrollmentBinding != strings.Repeat("b", 64) || !validLineageUUID(source.GenerationID) || source.GenerationID[14] != '4' || !strings.ContainsRune("89ab", rune(source.GenerationID[19])) {
 		t.Fatalf("unbound generation: %#v, calls %d/%d", source, atVersion.Load(), calls.Load())
 	}

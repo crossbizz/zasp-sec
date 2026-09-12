@@ -53,6 +53,35 @@ func searchProcessorConfig(authority runtimeSessionSearchAuthority, executor run
 	return runtimeSessionSearchProcessorConfig{Authority: authority, Executor: executor, WorkerID: "search-worker", LeaseSeconds: 5, BatchSize: 2, HeartbeatInterval: 10 * time.Millisecond, RetrySeconds: 5, NewLeaseToken: func() (string, error) { return "search-lease-token-0001", nil }}
 }
 
+func TestRuntimeSessionSearchProcessorPublishesConfirmedRenewal(t *testing.T) {
+	lease, _, _ := sessionSearchWorkerFixture(t)
+	lease.LeaseUntil = time.Now().Add(time.Second)
+	authority := &sessionSearchAuthorityStub{lease: &lease}
+	executor := sessionSearchExecuteFunc(func(ctx context.Context, active runtimeSessionSearchLease) ([]string, error) {
+		ticker := time.NewTicker(time.Millisecond)
+		defer ticker.Stop()
+		for {
+			if active.currentDeadline().After(active.LeaseUntil) {
+				return slices.Clone(active.DocumentIDs), nil
+			}
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-ticker.C:
+			}
+		}
+	})
+	processor, err := newRuntimeSessionSearchProcessor(searchProcessorConfig(authority, executor))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := processor.RunOnce(ctx); err != nil || authority.finishes != 1 || authority.outcome != "indexed" {
+		t.Fatal("confirmed renewal not visible to work", err)
+	}
+}
+
 func TestRuntimeSessionSearchProcessorCheckpointsOnlyExactLiveLease(t *testing.T) {
 	for _, fault := range []string{"none", "wrong ids", "execution error", "malformed", "panic", "lost heartbeat", "lost finish"} {
 		t.Run(fault, func(t *testing.T) {

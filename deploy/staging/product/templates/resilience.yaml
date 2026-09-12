@@ -9,7 +9,7 @@ spec:
   selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
 {{- end }}
 {{- if ne .Values.profile "customer_edge" }}
-{{- range $name := list "agentsec-event-ingest" "agentsec-gateway-control" "agentsec-runtime-outbox" "agentsec-runtime-coordinator" "agentsec-runtime-archive" "agentsec-runtime-index" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete" }}
+{{- range $name := (include "zasp.runtimeNames" . | fromJsonArray) }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -67,7 +67,7 @@ spec:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
 {{- end }}
-{{- range $name := list "agentsec-event-ingest" "agentsec-gateway-control" "agentsec-runtime-outbox" "agentsec-runtime-coordinator" "agentsec-runtime-archive" "agentsec-runtime-index" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete" }}
+{{- range $name := (include "zasp.runtimeNames" . | fromJsonArray) }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

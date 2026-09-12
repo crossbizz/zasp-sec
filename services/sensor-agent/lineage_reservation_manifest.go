@@ -11,7 +11,7 @@ func lineageReservationEnrollmentMatches(raw []byte, id, enrollment string) bool
 	if !enrollmentBindingPattern.MatchString(enrollment) {
 		return false
 	}
-	for _, version := range []string{"1", "2"} {
+	for _, version := range []string{"1", "2", "3"} {
 		prefix := []byte(lineageManifestSourcePrefix(version, id) + enrollment + `"`)
 		n := min(len(raw), len(prefix))
 		if bytes.Equal(raw[:n], prefix[:n]) {
@@ -43,7 +43,7 @@ func validLineageReservationMetadata(name string, raw []byte, id string) bool {
 	if name != ".pending" {
 		return false
 	}
-	for _, version := range []string{"1", "2"} {
+	for _, version := range []string{"1", "2", "3"} {
 		if validLineageReservationPrefix(raw, id, version) {
 			return true
 		}

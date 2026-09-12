@@ -8,6 +8,7 @@ The production web surface is authenticated, capability-gated and API-backed. It
 - identity member/role and workspace/environment administration;
 - API-token create, reveal acknowledgement, rotation and revocation;
 - session investigation and revocation;
+- runtime session timelines and canonical evidence retain precise timestamps plus source-sensor and sandbox identity when the committed evidence contains them; historical or unknown identity stays absent;
 - audit, compliance, retention and external-flow reads with unavailable provider/export actions honestly disabled;
 - scoped finding list/detail, status update and risk acceptance;
 - scoped attack-path list/detail and ranked path-local break options.
@@ -16,4 +17,4 @@ The production web surface is authenticated, capability-gated and API-backed. It
 
 Attack Lab, reports, guardrail prototype controls, AI explanations, exports and deletion jobs are not supported production workflows through the web application. Attack Lab runtime and deployment authority are present, but the route remains capability-hidden until the API-backed product UI and complete provider/queue/artifact/recovery journey have production evidence. Red Team never accepts arbitrary prompts, arbitrary destinations, production environments, production-write credentials, or shell access.
 
-PostgreSQL schema v27 is the durable product authority. OpenSearch and Neo4j are projections only and cannot authorize or override a PostgreSQL result. The deployment does not fall back to demo fixtures, browser-local product state or in-memory stores.
+PostgreSQL is the durable product authority at the exact schema selected by the [release phase](production-deployment.md#configure). OpenSearch and Neo4j are projections only and cannot authorize or override a PostgreSQL result. The deployment does not fall back to demo fixtures, browser-local product state or in-memory stores. Runtime session reads stay on target v1 during schema-50 backfill; the query phase selects the independently verified v2 target. A rendered phase or local test result is not live cutover authorization.

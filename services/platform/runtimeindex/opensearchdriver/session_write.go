@@ -11,6 +11,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeindex"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeprojection"
 	"github.com/zasp-ai/zasp-sec/services/platform/sessionsearch"
 )
 
@@ -39,18 +40,35 @@ type sessionMultiGetResponse struct {
 // state without blindly reissuing writes. Nothing is marked searchable until
 // both readback and refresh succeed. The caller must hold committed PG authority.
 func (index *SessionIndex) Apply(ctx context.Context, binding sessionsearch.ReceiptBinding, receiptBody, archiveBody []byte) (SessionWriteResult, error) {
-	documents, err := sessionsearch.BuildDocuments(binding, receiptBody, archiveBody)
+	return index.applyProfile(ctx, binding, receiptBody, archiveBody, false)
+}
+
+func (index *SessionIndex) applyProfile(ctx context.Context, binding sessionsearch.ReceiptBinding, receiptBody, archiveBody []byte, precise bool) (SessionWriteResult, error) {
+	build := sessionsearch.BuildDocuments
+	if precise {
+		if index == nil || !index.sandboxV2 {
+			return SessionWriteResult{}, runtimeindex.ErrRejected
+		}
+		build = sessionsearch.BuildPreciseDocuments
+	}
+	documents, err := build(binding, receiptBody, archiveBody)
 	if err != nil {
 		return SessionWriteResult{}, runtimeindex.ErrRejected
 	}
 	if index == nil || index.transport == nil {
 		return SessionWriteResult{}, runtimeindex.ErrConfiguration
 	}
+	if !index.sandboxV2 {
+		receipt, err := runtimeprojection.DecodeReceipt(receiptBody)
+		if err != nil || receipt.ImplementationVersion != "runtime-projection-v1" {
+			return SessionWriteResult{}, runtimeindex.ErrRejected
+		}
+	}
 	var body bytes.Buffer
 	ids := make([]string, len(documents))
 	for i, document := range documents {
 		var action bulkAction
-		action.Create.Index, action.Create.ID = sessionIndexName, document.DocumentID
+		action.Create.Index, action.Create.ID = index.indexName(), document.DocumentID
 		encodedAction, err := json.Marshal(action)
 		if err != nil {
 			return SessionWriteResult{}, runtimeindex.ErrRejected
@@ -68,7 +86,7 @@ func (index *SessionIndex) Apply(ctx context.Context, binding sessionsearch.Rece
 	if err := index.Ready(ctx); err != nil {
 		return SessionWriteResult{}, err
 	}
-	path := "/" + sessionIndexName + "/_bulk?refresh=wait_for&timeout=" + strconv.Itoa(int(index.transport.config.RequestTimeout/time.Second)) + "s"
+	path := "/" + index.indexName() + "/_bulk?refresh=wait_for&timeout=" + strconv.Itoa(int(index.transport.config.RequestTimeout/time.Second)) + "s"
 	result, writeErr := index.transport.request(ctx, http.MethodPost, path, "application/x-ndjson", body.Bytes(), true)
 	if writeErr == nil && result.status != http.StatusOK {
 		if err := classifyStatus(result.status, true); err == runtimeindex.ErrDenied || err == runtimeindex.ErrRejected {
@@ -80,7 +98,7 @@ func (index *SessionIndex) Apply(ctx context.Context, binding sessionsearch.Rece
 	if err := index.exactDocuments(ctx, documents, ids); err != nil {
 		return SessionWriteResult{}, err
 	}
-	result, err = index.transport.request(ctx, http.MethodPost, "/"+sessionIndexName+"/_refresh", "", nil, false)
+	result, err = index.transport.request(ctx, http.MethodPost, "/"+index.indexName()+"/_refresh", "", nil, false)
 	if err != nil {
 		return SessionWriteResult{}, err
 	}
@@ -110,7 +128,7 @@ func (index *SessionIndex) exactDocuments(ctx context.Context, expected []sessio
 	if err != nil {
 		return runtimeindex.ErrRejected
 	}
-	result, err := index.transport.request(ctx, http.MethodPost, "/"+sessionIndexName+"/_mget?realtime=true", "application/json", body, false)
+	result, err := index.transport.request(ctx, http.MethodPost, "/"+index.indexName()+"/_mget?realtime=true", "application/json", body, false)
 	if err != nil {
 		return err
 	}
@@ -122,7 +140,7 @@ func (index *SessionIndex) exactDocuments(ctx context.Context, expected []sessio
 		return runtimeindex.ErrDrift
 	}
 	for i, document := range response.Documents {
-		if document.Index != sessionIndexName || document.ID != expected[i].DocumentID {
+		if document.Index != index.indexName() || document.ID != expected[i].DocumentID {
 			return runtimeindex.ErrDrift
 		}
 		if !document.Found {

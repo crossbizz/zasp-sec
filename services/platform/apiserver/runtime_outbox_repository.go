@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
@@ -30,6 +31,22 @@ type RuntimeOutboxRepository struct {
 	readySQL    string
 	checksum    string
 	fingerprint string
+	precision   bool
+}
+
+const postgresPreciseRuntimeOutboxReadySQL = `SELECT to_jsonb(zasp_production_runtime_precision_readiness($1,$2) AND zasp_discovery_principal_ready($3))`
+
+func NewPreciseRuntimeOutboxRepository(database JSONDatabase) (*RuntimeOutboxRepository, error) {
+	if nilInterface(database) {
+		return nil, ErrRepositoryConfiguration
+	}
+	repository := &RuntimeOutboxRepository{database: database, readySQL: postgresPreciseRuntimeOutboxReadySQL, checksum: migrations.ProductionRuntimePrecision().Checksum(), fingerprint: migrations.ProductionRuntimePrecisionSemanticFingerprint(), precision: true}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if repository.Ready(ctx) != nil {
+		return nil, ErrRepositoryConfiguration
+	}
+	return repository, nil
 }
 
 func NewRuntimeOutboxRepository(database JSONDatabase) (*RuntimeOutboxRepository, error) {
@@ -76,6 +93,13 @@ func (repository *RuntimeOutboxRepository) Ready(ctx context.Context) error {
 		return ErrRepositoryUnavailable
 	}
 	payload, err := repository.database.QueryJSON(ctx, repository.readySQL, repository.checksum, repository.fingerprint, DiscoveryDatabaseAuthorityOutbox)
+	if repository.precision {
+		var ready bool
+		if err != nil || ctx.Err() != nil || len(payload) > 16 || json.Unmarshal(payload, &ready) != nil || !ready {
+			return ErrRepositoryUnavailable
+		}
+		return nil
+	}
 	var result struct {
 		Ready bool `json:"ready"`
 	}
@@ -85,17 +109,34 @@ func (repository *RuntimeOutboxRepository) Ready(ctx context.Context) error {
 	return nil
 }
 
+func (repository *RuntimeOutboxRepository) ReadyPrecision(ctx context.Context) error {
+	if !validRuntimeOutboxRepository(repository, ctx) || !repository.precision {
+		return ErrRepositoryUnavailable
+	}
+	return repository.Ready(ctx)
+}
+
 func (repository *RuntimeOutboxRepository) ClaimOutboxTopic(ctx context.Context, topic, worker, leaseToken string, leaseSeconds, limit int) ([]DiscoveryOutboxEvent, error) {
 	if !validRuntimeOutboxRepository(repository, ctx) || topic != RuntimeOutboxTopic || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || leaseSeconds < 5 || leaseSeconds > 900 || limit < 1 || limit > 10 {
 		return nil, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimeClaimOutboxSQL, topic, worker, leaseToken, leaseSeconds, limit)
+	claimSQL := postgresRuntimeClaimOutboxSQL
+	if repository.precision {
+		if repository.Ready(ctx) != nil {
+			return nil, ErrRepositoryUnavailable
+		}
+		claimSQL = `SELECT zasp_runtime_claim_outbox_v2($1,$2,$3,$4,$5)`
+	}
+	payload, err := repository.database.QueryJSON(ctx, claimSQL, topic, worker, leaseToken, leaseSeconds, limit)
 	return decodeDiscoveryOutboxClaims(payload, err, topic, leaseSeconds, limit)
 }
 
 func (repository *RuntimeOutboxRepository) HeartbeatOutboxTopic(ctx context.Context, topic, worker, leaseToken string, leaseSeconds, expectedCount int) (OutboxLeaseHeartbeatResult, error) {
 	if !validRuntimeOutboxRepository(repository, ctx) || topic != RuntimeOutboxTopic || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || leaseSeconds < 5 || leaseSeconds > 900 || expectedCount < 1 || expectedCount > 10 {
 		return OutboxLeaseHeartbeatResult{}, ErrRepositoryOperation
+	}
+	if repository.precision && repository.Ready(ctx) != nil {
+		return OutboxLeaseHeartbeatResult{}, ErrRepositoryUnavailable
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresRuntimeHeartbeatOutboxSQL, topic, worker, leaseToken, leaseSeconds, expectedCount)
 	if err != nil {
@@ -113,6 +154,9 @@ func (repository *RuntimeOutboxRepository) AcknowledgeOutboxTopic(ctx context.Co
 	if !validRuntimeOutboxRepository(repository, ctx) || topic != RuntimeOutboxTopic || scope.Validate() != nil || !validProductID(id) || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || !outboxProviderAckPattern.MatchString(providerAck) {
 		return OutboxLeaseTransitionResult{}, ErrRepositoryOperation
 	}
+	if repository.precision && repository.Ready(ctx) != nil {
+		return OutboxLeaseTransitionResult{}, ErrRepositoryUnavailable
+	}
 	payload, err := repository.database.QueryJSON(ctx, postgresRuntimeAckOutboxSQL, topic, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id, worker, leaseToken, providerAck)
 	if err != nil {
 		return OutboxLeaseTransitionResult{}, discoveryProviderError(err)
@@ -128,6 +172,9 @@ func (repository *RuntimeOutboxRepository) AcknowledgeOutboxTopic(ctx context.Co
 func (repository *RuntimeOutboxRepository) RetryOutboxTopic(ctx context.Context, topic string, scope domain.Scope, id, worker, leaseToken string, retrySeconds int, code string) (OutboxLeaseTransitionResult, error) {
 	if !validRuntimeOutboxRepository(repository, ctx) || topic != RuntimeOutboxTopic || scope.Validate() != nil || !validProductID(id) || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || retrySeconds < 1 || retrySeconds > 3600 || code != "queue_publish_unknown" {
 		return OutboxLeaseTransitionResult{}, ErrRepositoryOperation
+	}
+	if repository.precision && repository.Ready(ctx) != nil {
+		return OutboxLeaseTransitionResult{}, ErrRepositoryUnavailable
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresRuntimeRetryOutboxSQL, topic, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id, worker, leaseToken, retrySeconds, code)
 	if err != nil {

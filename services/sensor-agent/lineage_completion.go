@@ -226,7 +226,11 @@ func (store *lineageAcknowledgments) retireBoundCheckpoint(ctx context.Context, 
 		}
 		return true, nil
 	}
-	err = sensoradapter.RetireConsumedCheckpoint(ctx, sensoradapter.ChunkRetirementConfig{
+	retire := sensoradapter.RetireConsumedCheckpoint
+	if request.Source.Profile == "tetragon-local-stream-v3" {
+		retire = sensoradapter.RetirePreciseConsumedCheckpoint
+	}
+	err = retire(ctx, sensoradapter.ChunkRetirementConfig{
 		CursorPath: cursor, Source: request.Source, Destination: request.Destination, Consumption: completion.record.Ack.Consumption, MaximumProcesses: maximum,
 		ProtectedInputs: protected, DisjointRoots: []*os.Root{store.root, reader.directory.root}, Authorize: authorize,
 		StateBinding: binding, SpoolRoot: reader.directory.root,

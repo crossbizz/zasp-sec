@@ -15,6 +15,7 @@ import (
 
 type lineageProducerDaemonConfig struct {
 	SpoolDirectory, AckDirectory, SocketPath, BootFile string
+	SourceProfile                                      string
 	Loop                                               lineageProducerLoopConfig
 	PollInterval, ShutdownTimeout                      time.Duration
 }
@@ -26,6 +27,7 @@ func loadLineageProducerDaemonConfig(getenv func(string) string) (lineageProduce
 	}
 	config.SpoolDirectory, config.AckDirectory = getenv("ZASP_LINEAGE_SPOOL_DIRECTORY"), getenv("ZASP_LINEAGE_ACK_DIRECTORY")
 	config.SocketPath, config.BootFile = getenv("ZASP_TETRAGON_SOCKET"), getenv("ZASP_HOST_BOOT_ID_FILE")
+	config.SourceProfile = getenv("ZASP_LINEAGE_SOURCE_PROFILE")
 	config.Loop.NodeName = getenv("ZASP_SENSOR_NODE_NAME")
 	config.Loop.Scope.EnrollmentBinding = getenv("ZASP_SENSOR_ENROLLMENT_BINDING")
 	config.Loop.Scope.Destination = getenv("ZASP_SENSOR_CONTROL_PLANE_URL") + "/internal/v1/runtime/events"
@@ -62,6 +64,9 @@ func loadLineageProducerDaemonConfig(getenv func(string) string) (lineageProduce
 }
 
 func validLineageProducerDaemonConfig(config lineageProducerDaemonConfig) bool {
+	if config.SourceProfile != "" && config.SourceProfile != "tetragon-local-stream-v2" && config.SourceProfile != "tetragon-local-stream-v3" {
+		return false
+	}
 	if !validKubernetesName(config.Loop.NodeName) || !enrollmentBindingPattern.MatchString(config.Loop.Scope.EnrollmentBinding) || !validLineageDestination(config.Loop.Scope.Destination) || config.Loop.Scope.ConsumerUID == 0 || config.Loop.Scope.ConsumerUID > 2147483647 || !validLineagePumpConfig(config.Loop.Pump) || config.Loop.Pump.MaximumDuration < time.Second || config.Loop.Pump.MaximumDuration > time.Hour || config.Loop.OperationTimeout < time.Second || config.Loop.OperationTimeout > 30*time.Second || config.PollInterval < time.Second || config.PollInterval > 30*time.Second || config.ShutdownTimeout < 10*time.Second || config.ShutdownTimeout > time.Minute {
 		return false
 	}
@@ -182,8 +187,20 @@ func (dependencies *lineageProducerDependencies) run(ctx context.Context, ticks 
 		if err != nil {
 			return nil, err
 		}
-		return startLineageGeneration(ctx, dependencies.config.Loop.NodeName, dependencies.config.Loop.Scope.EnrollmentBinding, dependencies.api, dependencies.boot, endpoint, dependencies.spool)
+		return startConfiguredLineageGeneration(ctx, dependencies.config, dependencies.api, dependencies.boot, endpoint, dependencies.spool)
 	}, ticks, ready)
+}
+
+func startConfiguredLineageGeneration(ctx context.Context, config lineageProducerDaemonConfig, api lineageIdentityAPI, boot *hostBootReader, endpoint *lineageSocket, spool lineageGenerationPublisher) (*lineageGeneration, error) {
+	if !validLineageProducerDaemonConfig(config) {
+		endpoint.Close()
+		return nil, errSensorConfig
+	}
+	profile := config.SourceProfile
+	if profile == "" {
+		profile = "tetragon-local-stream-v2"
+	}
+	return startLineageGenerationProfile(ctx, config.Loop.NodeName, config.Loop.Scope.EnrollmentBinding, api, boot, endpoint, spool, profile)
 }
 
 func (dependencies *lineageProducerDependencies) Close() error {

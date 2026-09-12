@@ -60,6 +60,8 @@ export function RuntimeSessionEvidence({ target, api }: { target: RuntimeEvidenc
       <dt>Correlation confidence</dt><dd><RuntimeConfidence confidence={event.confidence} /></dd>
       <dt>Agent</dt><dd>{event.agent_id ?? "Unknown"}</dd>
       <dt>Session</dt><dd>{event.session_id ?? "Unattributed collection"}</dd>
+      <dt>Sandbox</dt><dd>{event.sandbox_id ?? "Unknown (not recorded)"}</dd>
+      {event.sandbox_source_sensor_id && <><dt>Sandbox source sensor</dt><dd>{event.sandbox_source_sensor_id}</dd></>}
       <dt>Canonical event time</dt><dd><time dateTime={event.at}>{event.at}</time></dd>
       <dt>Projection time</dt><dd><time dateTime={event.projected_at}>{event.projected_at}</time></dd>
     </dl>

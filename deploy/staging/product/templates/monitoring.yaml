@@ -10,7 +10,7 @@ spec:
   namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
   endpoints:
     - { port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }
-{{- range $name := list "agentsec-discovery-scheduler" "agentsec-security-agent" "agentsec-security-agent-action" "agentsec-policy-deployment" "agentsec-outbox-publisher" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" "agentsec-event-ingest" "agentsec-gateway-control" "agentsec-runtime-outbox" "agentsec-runtime-coordinator" "agentsec-runtime-archive" "agentsec-runtime-index" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete" }}
+{{- range $name := concat (list "agentsec-discovery-scheduler" "agentsec-security-agent" "agentsec-security-agent-action" "agentsec-policy-deployment" "agentsec-outbox-publisher" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search") (include "zasp.runtimeNames" . | fromJsonArray) }}
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -189,6 +189,18 @@ spec:
           for: 5m
           labels: { severity: page, workload: {{ $runtime.name }} }
           annotations: { summary: "Runtime data-plane workload is unavailable or absent" }
+        {{- end }}
+        {{- if ne .Values.runtime.sessionSearchPhase "compatibility" }}
+        - alert: ZaspRuntimeSessionIndexV2Unavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-runtime-session-index-v2"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-runtime-session-index-v2"})
+          for: 5m
+          labels: { severity: page, workload: agentsec-runtime-session-index-v2 }
+          annotations: { summary: "V2 session index worker is unavailable or absent" }
+        - alert: ZaspRuntimeSessionIndexV2NotReady
+          expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service="agentsec-runtime-session-index-v2"} == 0
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "V2 session indexing dependency is not ready" }
         {{- end }}
         - alert: ZaspTask6RuntimeDependencyNotReady
           expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service=~"agentsec-(event-ingest|gateway-control|runtime-(outbox|coordinator|archive|index|correlation|projection|complete))"} == 0

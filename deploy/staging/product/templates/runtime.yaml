@@ -81,6 +81,9 @@ spec:
           resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
+            {{- if has .Values.runtime.sessionSearchPhase (list "precision-consumers" "precision-intake") }}
+            - { name: ZASP_RUNTIME_INGEST_SCHEMA, value: {{ ternary "runtime-event-v2" "runtime-event-v1" (eq .Values.runtime.sessionSearchPhase "precision-intake") | quote }} }
+            {{- end }}
             - { name: ZASP_AWS_REGION, value: {{ required "runtime.awsRegion is required" .Values.runtime.awsRegion | quote }} }
             - { name: ZASP_EVENT_INGEST_ROLE_ARN, value: {{ required "runtime.eventIngestRoleArn is required" .Values.runtime.eventIngestRoleArn | quote }} }
             - { name: ZASP_EVENT_INGEST_WEB_IDENTITY_TOKEN_FILE, value: {{ required "runtime.webIdentityTokenFile is required" .Values.runtime.webIdentityTokenFile | quote }} }
@@ -146,7 +149,7 @@ spec:
       volumes:
         - name: database
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.gatewayControlProviderClassName | quote }} } }
-{{- range $worker := list
+{{- $workers := list
       (dict "name" "agentsec-runtime-outbox" "container" "runtime-outbox" "sa" "runtimeOutbox" "replicas" "runtimeOutbox" "mode" "runtime-outbox" "authority" "zasp_outbox_worker" "provider" "outboxProviderClassName" "mount" "zasp-outbox" "kind" "outbox" "role" "outboxRoleArn")
       (dict "name" "agentsec-runtime-coordinator" "container" "runtime-coordinator" "sa" "runtimeCoordinator" "replicas" "runtimeCoordinator" "mode" "runtime-coordinator" "authority" "zasp_runtime_coordinator" "provider" "runtimeCoordinatorProviderClassName" "mount" "zasp-runtime-coordinator" "kind" "coordinator" "role" "coordinatorRoleArn")
       (dict "name" "agentsec-runtime-archive" "container" "runtime-archive" "sa" "runtimeArchive" "replicas" "runtimeArchive" "mode" "runtime-archive" "authority" "zasp_runtime_archive_worker" "provider" "runtimeArchiveProviderClassName" "mount" "zasp-runtime-archive" "kind" "stage" "role" "archiveRoleArn" "version" "runtime-archive-v1")
@@ -154,6 +157,20 @@ spec:
       (dict "name" "agentsec-runtime-correlation" "container" "runtime-correlation" "sa" "runtimeCorrelation" "replicas" "runtimeCorrelation" "mode" "runtime-correlation" "authority" "zasp_runtime_correlation_worker" "provider" "runtimeCorrelationProviderClassName" "mount" "zasp-runtime-correlation" "kind" "stage" "role" "correlationRoleArn" "version" "runtime-correlation-v2")
       (dict "name" "agentsec-runtime-projection" "container" "runtime-projection" "sa" "runtimeProjection" "replicas" "runtimeProjection" "mode" "runtime-projection" "authority" "zasp_runtime_projection_worker" "provider" "runtimeProjectionProviderClassName" "mount" "zasp-runtime-projection" "kind" "stage" "role" "projectionRoleArn" "version" "runtime-projection-v1")
       (dict "name" "agentsec-runtime-complete" "container" "runtime-complete" "sa" "runtimeComplete" "replicas" "runtimeComplete" "mode" "runtime-complete" "authority" "zasp_runtime_coordinator" "provider" "runtimeCoordinatorProviderClassName" "mount" "zasp-runtime-coordinator" "kind" "stage" "role" "completeRoleArn" "version" "runtime-complete-v1") }}
+{{- if ne .Values.runtime.sessionSearchPhase "compatibility" }}
+{{- $v2 := deepCopy (index $workers 3) }}
+{{- $_ := set $v2 "name" "agentsec-runtime-session-index-v2" }}
+{{- $_ := set $v2 "sessionIndex" "zasp-runtime-sessions-v2" }}
+{{- if has .Values.runtime.sessionSearchPhase (list "precision-consumers" "precision-intake") }}
+{{- $_ := set $v2 "version" "runtime-index-v2" }}
+{{- end }}
+{{- $workers = append $workers $v2 }}
+{{- end }}
+{{- range $worker := $workers }}
+{{- if has $root.Values.runtime.sessionSearchPhase (list "precision-consumers" "precision-intake") }}
+{{- $version := index (dict "runtime-archive" "runtime-archive-v2" "runtime-correlation" "runtime-correlation-v4" "runtime-projection" "runtime-projection-v3" "runtime-complete" "runtime-complete-v3") $worker.mode }}
+{{- if $version }}{{- $_ := set $worker "version" $version }}{{- end }}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -198,6 +215,9 @@ spec:
             - { name: ZASP_POLL_INTERVAL, value: "1s" }
             - { name: ZASP_LEASE_DURATION, value: "30s" }
             - { name: ZASP_BATCH_SIZE, value: "10" }
+            {{- if and (has $root.Values.runtime.sessionSearchPhase (list "precision-consumers" "precision-intake")) (has $worker.kind (list "outbox" "coordinator")) }}
+            - { name: ZASP_RUNTIME_DELIVERY_SCHEMA, value: "runtime-event-v2" }
+            {{- end }}
             - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
             - { name: ZASP_AWS_REGION, value: {{ required "runtime.awsRegion is required" $root.Values.runtime.awsRegion | quote }} }
             {{- if eq $worker.kind "outbox" }}
@@ -216,6 +236,7 @@ spec:
             - { name: ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE, value: {{ required "runtime.webIdentityTokenFile is required" $root.Values.runtime.webIdentityTokenFile | quote }} }
             - { name: ZASP_RUNTIME_STAGE_VERSION, value: {{ $worker.version | quote }} }
             {{- if eq $worker.kind "index" }}
+            - { name: ZASP_RUNTIME_SESSION_INDEX, value: {{ default "zasp-runtime-sessions-v1" $worker.sessionIndex | quote }} }
             - { name: ZASP_OPENSEARCH_ENDPOINT, value: {{ required "runtime.openSearchEndpoint is required" $root.Values.runtime.openSearchEndpoint | quote }} }
             - { name: ZASP_OPENSEARCH_INDEX, value: {{ required "runtime.openSearchIndex is required" $root.Values.runtime.openSearchIndex | quote }} }
             {{- else if or (eq $worker.mode "runtime-correlation") (eq $worker.mode "runtime-projection") }}
@@ -245,7 +266,8 @@ spec:
   selector: { app.kubernetes.io/name: {{ $service }} }
   ports: [{ name: product, port: 8080, targetPort: product, protocol: TCP }, { name: internal, port: 8081, targetPort: internal, protocol: TCP }]
 {{- end }}
-{{- range $service := list "agentsec-runtime-outbox" "agentsec-runtime-coordinator" "agentsec-runtime-archive" "agentsec-runtime-index" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete" }}
+{{- range $service := (include "zasp.runtimeNames" . | fromJsonArray) }}
+{{- if not (has $service (list "agentsec-event-ingest" "agentsec-gateway-control")) }}
 ---
 apiVersion: v1
 kind: Service
@@ -254,6 +276,7 @@ spec:
   type: ClusterIP
   selector: { app.kubernetes.io/name: {{ $service }} }
   ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+{{- end }}
 {{- end }}
 {{- range $ingress := list
       (dict "name" "event-ingest-from-ingress" "workload" "agentsec-event-ingest")
@@ -286,7 +309,7 @@ metadata: { name: task6-runtime-monitoring, labels: { app.kubernetes.io/part-of:
 spec:
   podSelector:
     matchExpressions:
-      - { key: app.kubernetes.io/name, operator: In, values: [agentsec-event-ingest, agentsec-gateway-control, agentsec-runtime-outbox, agentsec-runtime-coordinator, agentsec-runtime-archive, agentsec-runtime-index, agentsec-runtime-correlation, agentsec-runtime-projection, agentsec-runtime-complete] }
+      - { key: app.kubernetes.io/name, operator: In, values: {{ include "zasp.runtimeNames" . }} }
   policyTypes: [Ingress]
   ingress:
     - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ .Values.monitoring.namespace }} } } }]
@@ -296,7 +319,7 @@ spec:
       (dict "name" "runtime-outbox-dependencies" "workloads" (list "agentsec-runtime-outbox") "search" false "s3" false)
       (dict "name" "runtime-coordinator-dependencies" "workloads" (list "agentsec-runtime-coordinator") "search" false "s3" false)
       (dict "name" "runtime-stage-dependencies" "workloads" (list "agentsec-runtime-archive" "agentsec-runtime-correlation" "agentsec-runtime-projection" "agentsec-runtime-complete") "search" false "s3" true)
-      (dict "name" "runtime-index-dependencies" "workloads" (list "agentsec-runtime-index") "search" true "s3" true) }}
+      (dict "name" "runtime-index-dependencies" "workloads" (include "zasp.runtimeIndexNames" . | fromJsonArray) "search" true "s3" true) }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

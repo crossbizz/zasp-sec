@@ -41,6 +41,9 @@ func TestLineageProducerDaemonConfigHasNoProductCredential(t *testing.T) {
 		t.Fatal(config, err)
 	}
 	for _, change := range []struct{ key, value string }{
+		{"ZASP_LINEAGE_SOURCE_PROFILE", "tetragon-local-stream-v4"},
+		{"ZASP_LINEAGE_SOURCE_PROFILE", " tetragon-local-stream-v3"},
+		{"ZASP_LINEAGE_SOURCE_PROFILE", "tetragon-local-stream-v1"},
 		{"ZASP_SENSOR_TOKEN_FILE", "/secrets/product-token"},
 		{"ZASP_SENSOR_ROLE", "consumer"},
 		{"ZASP_LINEAGE_CONSUMER_UID", "0"},

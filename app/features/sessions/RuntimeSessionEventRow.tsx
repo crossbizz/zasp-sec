@@ -12,6 +12,8 @@ export function RuntimeSessionEventRow({ event, onEvidence }: { event: RuntimeSe
     <p><time dateTime={event.at} data-runtime-event-time={event.at}>{event.at}</time> · <strong>{labels[event.class][event.action]}</strong></p>
     <p>{event.label}</p>
     <p><RuntimeConfidence confidence={event.confidence} /> · Source: {event.source}</p>
+    <p>Sandbox: {event.sandbox_id ?? "Unknown (not recorded)"}</p>
+    {event.sandbox_source_sensor_id && <p>Sandbox source sensor: {event.sandbox_source_sensor_id}</p>}
     <p>Evidence: {onEvidence ? <a href={`#runtime-evidence-${event.id}`} aria-label={`Open evidence ${event.evidence_id}`} aria-haspopup="dialog" onClick={click => { click.preventDefault(); onEvidence(event); }}>{event.evidence_id}</a> : event.evidence_id} · Event: {event.id}</p>
   </li>;
 }

@@ -131,7 +131,10 @@ type ProductionIngestConfig struct {
 	Clock        func() time.Time
 }
 
-type ProductionIngestHandler struct{ config ProductionIngestConfig }
+type ProductionIngestHandler struct {
+	config    ProductionIngestConfig
+	precision bool
+}
 
 // ArchivedBatch is the strict, canonical runtime-event representation used by
 // every post-archive stage. It intentionally excludes transport credentials and
@@ -178,11 +181,12 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 		return
 	}
 	writer.Header().Set("Cache-Control", "no-store")
-	if handler == nil || request == nil || request.URL == nil || request.Method != http.MethodPost || request.URL.Path != "/internal/v1/runtime/events" || request.URL.RawQuery != "" || !validProductionIngestHeaders(request.Header) {
+	if handler == nil || request == nil || request.URL == nil || request.Method != http.MethodPost || request.URL.Path != "/internal/v1/runtime/events" || request.URL.RawQuery != "" || !validProductionIngestHeadersProfile(request.Header, handler.precision) {
 		writeProductionIngestError(writer, http.StatusBadRequest, false)
 		return
 	}
-	expectedEnrollment, _ := productionEnrollmentConstraint(request.Header)
+	expectedEnrollment, _ := productionEnrollmentConstraintProfile(request.Header, handler.precision)
+	preciseRequest := request.Header.Get("X-Zasp-Runtime-Schema") == "runtime-event-enrollment-v2"
 	credential, err := productionIngestCredential(request.Header)
 	if err != nil {
 		writeProductionIngestError(writer, http.StatusForbidden, false)
@@ -191,6 +195,10 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 	defer credential.Destroy()
 	ctx := request.Context()
 	if ctx == nil || ctx.Err() != nil || safeProductionReady(ctx, handler.config.Repository) != nil {
+		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
+		return
+	}
+	if preciseRequest && safeProductionPrecisionReady(ctx, handler.config.Repository) != nil {
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
 		return
 	}
@@ -215,7 +223,19 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 		return
 	}
 	defer clear(body)
-	input, archivedBody, err := decodeProductionInput(body, authority, handler.config.Clock())
+	var archivedBody []byte
+	var source string
+	var eventCount int
+	schema := productionRuntimeSchema
+	if preciseRequest {
+		var input preciseIngestInput
+		input, archivedBody, err = decodePreciseProductionInput(body, authority, handler.config.Clock())
+		source, eventCount, schema = input.Source, len(input.Events), "runtime-event-v2"
+	} else {
+		var input ingestInput
+		input, archivedBody, err = decodeProductionInput(body, authority, handler.config.Clock())
+		source, eventCount = input.Source, len(input.Events)
+	}
 	if err != nil || int64(len(archivedBody)) > handler.config.MaximumBytes {
 		writeProductionIngestError(writer, http.StatusBadRequest, false)
 		return
@@ -234,7 +254,7 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 		writeProductionIngestError(writer, http.StatusServiceUnavailable, true)
 		return
 	}
-	reserveRequest := IngestReserveRequest{Scope: authority.Scope, BatchID: batchID, IdempotencyKey: idempotencyKey, ContentDigest: digest, Source: input.Source, MediaType: "application/json", SchemaVersion: productionRuntimeSchema, PayloadSize: int64(len(archivedBody)), EventCount: len(input.Events)}
+	reserveRequest := IngestReserveRequest{Scope: authority.Scope, BatchID: batchID, IdempotencyKey: idempotencyKey, ContentDigest: digest, Source: source, MediaType: "application/json", SchemaVersion: schema, PayloadSize: int64(len(archivedBody)), EventCount: eventCount}
 	if expectedEnrollment != "" {
 		repository, ok := handler.config.Repository.(ProductionAcceptanceRepository)
 		if !ok || nilProductionIngestValue(repository) {
@@ -281,10 +301,14 @@ func (handler *ProductionIngestHandler) ServeHTTP(writer http.ResponseWriter, re
 }
 
 func validProductionIngestHeaders(header http.Header) bool {
+	return validProductionIngestHeadersProfile(header, false)
+}
+
+func validProductionIngestHeadersProfile(header http.Header, precision bool) bool {
 	if len(header.Values("Authorization")) != 1 || len(header.Values("Content-Type")) != 1 || header.Get("Content-Type") != "application/json" || len(header.Values("X-Zasp-Runtime-Schema")) != 1 || len(header.Values("Idempotency-Key")) != 1 || !productionIdempotencyPattern.MatchString(header.Get("Idempotency-Key")) {
 		return false
 	}
-	if _, valid := productionEnrollmentConstraint(header); !valid {
+	if _, valid := productionEnrollmentConstraintProfile(header, precision); !valid {
 		return false
 	}
 	for _, name := range []string{"X-Zasp-Organization", "X-Zasp-Workspace", "X-Zasp-Environment", "X-Zasp-Sensor", "X-Zasp-Organization-ID", "X-Zasp-Workspace-ID", "X-Zasp-Environment-ID", "X-Zasp-Scope", "X-Organization-ID", "X-Workspace-ID", "X-Environment-ID", "X-Scope", "X-Tenant", "X-Tenant-ID", "X-Forwarded-Authorization", "Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto"} {
@@ -296,6 +320,10 @@ func validProductionIngestHeaders(header http.Header) bool {
 }
 
 func productionEnrollmentConstraint(header http.Header) (string, bool) {
+	return productionEnrollmentConstraintProfile(header, false)
+}
+
+func productionEnrollmentConstraintProfile(header http.Header, precision bool) (string, bool) {
 	const name = "X-Zasp-Expected-Enrollment"
 	var values []string
 	present := false
@@ -314,6 +342,10 @@ func productionEnrollmentConstraint(header http.Header) (string, bool) {
 		return "", !present
 	case productionEnrollmentSchema:
 		if present && len(values) == 1 && productionEnrollmentPattern.MatchString(values[0]) {
+			return values[0], true
+		}
+	case "runtime-event-enrollment-v2":
+		if precision && present && len(values) == 1 && productionEnrollmentPattern.MatchString(values[0]) {
 			return values[0], true
 		}
 	}

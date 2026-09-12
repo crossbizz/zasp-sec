@@ -351,12 +351,20 @@ func (spool *lineageSpool) Close() error {
 }
 
 func lineageManifestBytes(source sensoradapter.LineageSource) ([]byte, error) {
-	if _, err := sensoradapter.NewLineageNormalizer(1, source); err != nil || !validKubernetesName(source.NodeName) {
+	var err error
+	if source.Profile == "tetragon-local-stream-v3" {
+		_, err = sensoradapter.NewPreciseLineageNormalizer(1, source)
+	} else {
+		_, err = sensoradapter.NewLineageNormalizer(1, source)
+	}
+	if err != nil || !validKubernetesName(source.NodeName) {
 		return nil, errLineageSpool
 	}
 	format := "zasp-tetragon-record-v1"
 	if source.Profile == "tetragon-local-stream-v2" {
 		format = "zasp-tetragon-record-v2"
+	} else if source.Profile == "tetragon-local-stream-v3" {
+		format = "zasp-tetragon-record-v3"
 	}
 	return json.Marshal(lineageSpoolManifest{Version: "tetragon-spool-v1", RecordFormat: format, Source: source})
 }

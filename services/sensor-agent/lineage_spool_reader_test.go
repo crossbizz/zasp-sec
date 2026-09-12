@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func lineageSpoolReaderFixture(t *testing.T) (*lineageSpoolGeneration, string) {
+func lineageSpoolReaderFixture(t *testing.T, profiles ...string) (*lineageSpoolGeneration, string) {
 	t.Helper()
 	parent := t.TempDir()
 	spool, err := newLineageSpool(parent, uint32(os.Getuid()))
@@ -18,7 +18,11 @@ func lineageSpoolReaderFixture(t *testing.T) (*lineageSpoolGeneration, string) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { spool.Close() })
-	generation, err := spool.Create(context.Background(), lineageSpoolSource())
+	source := lineageSpoolSource()
+	if len(profiles) > 0 {
+		source.Profile = profiles[0]
+	}
+	generation, err := spool.Create(context.Background(), source)
 	if err != nil {
 		t.Fatal(err)
 	}

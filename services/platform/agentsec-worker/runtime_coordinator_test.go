@@ -159,6 +159,7 @@ type runtimeCoordinatorQueueDriver struct {
 	message              jobqueue.DriverMessage
 	messageID            string
 	acknowledgements     int
+	consumes             int
 	visibilityExtensions int
 	failAcknowledgements int
 }
@@ -173,6 +174,7 @@ func (driver *runtimeCoordinatorQueueDriver) PublishBatch(_ context.Context, mes
 func (driver *runtimeCoordinatorQueueDriver) ConsumeBatch(context.Context, int) ([]jobqueue.DriverDelivery, error) {
 	driver.mu.Lock()
 	defer driver.mu.Unlock()
+	driver.consumes++
 	return []jobqueue.DriverDelivery{{Message: driver.message, MessageID: driver.messageID, ReceiptHandle: "runtime-receipt-handle", ReceiveCount: 1}}, nil
 }
 

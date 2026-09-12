@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -26,7 +27,10 @@ const (
 
 // SessionIndex shares the bounded SigV4 transport, not the immutable raw-event
 // index's mapping or write contract. Callers cannot select an index or raw DSL.
-type SessionIndex struct{ transport *Driver }
+type SessionIndex struct {
+	transport *Driver
+	sandboxV2 bool
+}
 
 func NewSessionIndex(config Config, credentials aws.CredentialsProvider, signer HTTPSigner, clock func() time.Time) (*SessionIndex, error) {
 	transport, err := New(config, credentials, signer, clock)
@@ -34,6 +38,47 @@ func NewSessionIndex(config Config, credentials aws.CredentialsProvider, signer 
 		return nil, err
 	}
 	return &SessionIndex{transport: transport}, nil
+}
+
+// NewSandboxSessionIndex selects a separate immutable v2 index. A deployment
+// must backfill committed historical occurrences and verify coverage before
+// switching readers. This constructor never mutates or aliases the v1 index.
+func NewSandboxSessionIndex(config Config, credentials aws.CredentialsProvider, signer HTTPSigner, clock func() time.Time) (*SessionIndex, error) {
+	index, err := NewSessionIndex(config, credentials, signer, clock)
+	if err != nil {
+		return nil, err
+	}
+	index.sandboxV2 = true
+	return index, nil
+}
+
+func (index *SessionIndex) indexName() string {
+	if index != nil && index.sandboxV2 {
+		return "zasp-runtime-sessions-v2"
+	}
+	return sessionIndexName
+}
+
+func (index *SessionIndex) markerID() string {
+	if index != nil && index.sandboxV2 {
+		return "_zasp_session_schema_v2"
+	}
+	return sessionSchemaMarkerID
+}
+
+func (index *SessionIndex) schemaJSON() string {
+	if index != nil && index.sandboxV2 {
+		return strings.Replace(sessionIndexSchemaJSON, `"schema_version":`, `"sandbox_id":{"type":"keyword"},"sandbox_source_sensor_id":{"type":"keyword"},"schema_version":`, 1)
+	}
+	return sessionIndexSchemaJSON
+}
+
+func (index *SessionIndex) expectedMarker() schemaMarker {
+	if index == nil || !index.sandboxV2 {
+		return expectedSessionSchemaMarker()
+	}
+	digest := sha256.Sum256([]byte(index.schemaJSON()))
+	return schemaMarker{RecordType: "schema_marker", SchemaVersion: 2, MappingDigest: "sha256:" + hex.EncodeToString(digest[:])}
 }
 
 func (index *SessionIndex) Close() {
@@ -73,7 +118,7 @@ func (index *SessionIndex) InitializeSchema(ctx context.Context) error {
 		return err
 	}
 	if !found {
-		result, writeErr := index.transport.request(ctx, http.MethodPut, "/"+sessionIndexName, "application/json", []byte(sessionIndexSchemaJSON), true)
+		result, writeErr := index.transport.request(ctx, http.MethodPut, "/"+index.indexName(), "application/json", []byte(index.schemaJSON()), true)
 		found, err = index.exactMapping(ctx)
 		if err != nil {
 			return err
@@ -87,8 +132,8 @@ func (index *SessionIndex) InitializeSchema(ctx context.Context) error {
 		return err
 	}
 	if !found {
-		body, _ := json.Marshal(expectedSessionSchemaMarker())
-		result, writeErr := index.transport.request(ctx, http.MethodPut, "/"+sessionIndexName+"/_doc/"+sessionSchemaMarkerID+"?op_type=create&refresh=wait_for", "application/json", body, true)
+		body, _ := json.Marshal(index.expectedMarker())
+		result, writeErr := index.transport.request(ctx, http.MethodPut, "/"+index.indexName()+"/_doc/"+index.markerID()+"?op_type=create&refresh=wait_for", "application/json", body, true)
 		found, err = index.exactMarker(ctx)
 		if err != nil {
 			return err
@@ -114,7 +159,7 @@ func (index *SessionIndex) exactMapping(ctx context.Context) (bool, error) {
 	if index == nil || index.transport == nil {
 		return false, runtimeindex.ErrConfiguration
 	}
-	result, err := index.transport.request(ctx, http.MethodGet, "/"+sessionIndexName+"/_mapping", "", nil, false)
+	result, err := index.transport.request(ctx, http.MethodGet, "/"+index.indexName()+"/_mapping", "", nil, false)
 	if err != nil {
 		return false, err
 	}
@@ -126,14 +171,14 @@ func (index *SessionIndex) exactMapping(ctx context.Context) (bool, error) {
 	}
 	var mappings map[string]indexSchemaDefinition
 	var expected indexSchemaDefinition
-	if decodeSessionResponse(result.body, &mappings) != nil || len(mappings) != 1 || json.Unmarshal([]byte(sessionIndexSchemaJSON), &expected) != nil || !equalCanonicalJSON(mappings[sessionIndexName].Mappings, expected.Mappings) {
+	if decodeSessionResponse(result.body, &mappings) != nil || len(mappings) != 1 || json.Unmarshal([]byte(index.schemaJSON()), &expected) != nil || !equalCanonicalJSON(mappings[index.indexName()].Mappings, expected.Mappings) {
 		return false, runtimeindex.ErrDrift
 	}
 	return true, nil
 }
 
 func (index *SessionIndex) exactMarker(ctx context.Context) (bool, error) {
-	result, err := index.transport.request(ctx, http.MethodGet, "/"+sessionIndexName+"/_doc/"+sessionSchemaMarkerID, "", nil, false)
+	result, err := index.transport.request(ctx, http.MethodGet, "/"+index.indexName()+"/_doc/"+index.markerID(), "", nil, false)
 	if err != nil {
 		return false, err
 	}
@@ -144,7 +189,7 @@ func (index *SessionIndex) exactMarker(ctx context.Context) (bool, error) {
 		return false, sessionReadStatus(result.status)
 	}
 	var marker schemaMarkerRecord
-	if decodeSessionResponse(result.body, &marker) != nil || !marker.Found || marker.Index != sessionIndexName || marker.ID != sessionSchemaMarkerID || marker.Version != 1 || marker.Sequence < 0 || marker.PrimaryTerm < 1 || marker.Source != expectedSessionSchemaMarker() {
+	if decodeSessionResponse(result.body, &marker) != nil || !marker.Found || marker.Index != index.indexName() || marker.ID != index.markerID() || marker.Version != 1 || marker.Sequence < 0 || marker.PrimaryTerm < 1 || marker.Source != index.expectedMarker() {
 		return false, runtimeindex.ErrDrift
 	}
 	return true, nil
@@ -197,7 +242,7 @@ func (index *SessionIndex) Search(ctx context.Context, scope domain.Scope, filte
 	if err := index.Ready(ctx); err != nil {
 		return SessionSearchPage{}, err
 	}
-	path := "/" + sessionIndexName + "/_search?allow_partial_search_results=false&request_cache=false&typed_keys=false&terminate_after=0&timeout=" + strconv.Itoa(int(index.transport.config.RequestTimeout/time.Second)) + "s"
+	path := "/" + index.indexName() + "/_search?allow_partial_search_results=false&request_cache=false&typed_keys=false&terminate_after=0&timeout=" + strconv.Itoa(int(index.transport.config.RequestTimeout/time.Second)) + "s"
 	result, err := index.transport.request(ctx, http.MethodPost, path, "application/json", body, false)
 	if err != nil {
 		return SessionSearchPage{}, err

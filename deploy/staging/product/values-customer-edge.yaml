@@ -17,6 +17,7 @@ runtimeGateway:
     storageClassName: ""
 sensorAgent:
   enabled: true
+  sourceProfile: tetragon-local-stream-v2
   enrollmentBinding: ""
   tokenSecretName: ""
   stateHostPath: /var/lib/zasp-sensor-lineage

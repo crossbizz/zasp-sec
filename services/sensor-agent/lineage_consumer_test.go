@@ -14,9 +14,9 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/sensoradapter"
 )
 
-func lineageConsumerFixture(t *testing.T, do func(*http.Request) (*http.Response, error)) (*lineageSpoolGeneration, *lineageSpoolReader, *sensoradapter.ProductionClient, string) {
+func lineageConsumerFixture(t *testing.T, do func(*http.Request) (*http.Response, error), profiles ...string) (*lineageSpoolGeneration, *lineageSpoolReader, *sensoradapter.ProductionClient, string) {
 	t.Helper()
-	generation, path := lineageSpoolReaderFixture(t)
+	generation, path := lineageSpoolReaderFixture(t, profiles...)
 	reader, err := newLineageSpoolReader(path, generation.source.EnrollmentBinding, uint32(os.Getuid()))
 	if err != nil {
 		t.Fatal(err)

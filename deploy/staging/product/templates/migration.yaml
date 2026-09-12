@@ -1,7 +1,5 @@
 {{- if ne .Values.profile "customer_edge" }}
-{{- if not (has (toString .Values.schema.expectedVersion) (list "48" "49")) }}
-{{- fail "schema.expectedVersion must be 48 for compatibility staging or 49 for routing activation" }}
-{{- end }}
+{{- include "zasp.sessionSearch.validate" . }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -62,7 +60,7 @@ spec:
           image: {{ required "global.productImages.agentsecApi must be an immutable digest" .Values.global.productImages.agentsecApi | quote }}
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-ec"]
-          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate {{ if eq (toString .Values.schema.expectedVersion) "48" }}up-to-48{{ else }}up{{ end }}']
+          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate up-to-{{ .Values.schema.expectedVersion }}']
           env:
             - { name: ZASP_MIGRATION_TIMEOUT, value: {{ .Values.schema.migrationTimeout | quote }} }
             - { name: ZASP_MIGRATION_DB_PRINCIPAL, value: {{ required "databasePrincipals.migration is required" .Values.databasePrincipals.migration | quote }} }

@@ -15,6 +15,10 @@ import (
 )
 
 type runtimeSessionSearchLease struct {
+	renewal *runtimeStageLeaseRenewal
+	// Empty is the legacy v1 target; only a v2 authority can issue a v2 lease.
+	indexName                        string
+	projectionImplementationVersion  string
 	Binding                          sessionsearch.ReceiptBinding
 	ReceiptReference, ReceiptVersion string
 	DocumentIDs                      []string
@@ -26,7 +30,17 @@ type runtimeSessionSearchIndex interface {
 	Apply(context.Context, sessionsearch.ReceiptBinding, []byte, []byte) (opensearchdriver.SessionWriteResult, error)
 }
 
+func (lease runtimeSessionSearchLease) currentDeadline() time.Time {
+	if lease.renewal == nil {
+		return lease.LeaseUntil
+	}
+	lease.renewal.mu.RLock()
+	defer lease.renewal.mu.RUnlock()
+	return lease.renewal.expiresAt
+}
+
 type runtimeSessionSearchExecutor struct {
+	precise  bool
 	reader   runtimeArchivedBatchReader
 	receipts artifactstore.ObjectReferencingArtifactStore
 	index    runtimeSessionSearchIndex
@@ -71,7 +85,7 @@ func (executor *runtimeSessionSearchExecutor) Execute(ctx context.Context, lease
 			resultErr = errWorkerExecution
 		}
 	}()
-	if executor == nil || ctx == nil || ctx.Err() != nil || !validRuntimeSessionSearchLease(lease) || !lease.LeaseUntil.After(time.Now()) {
+	if executor == nil || ctx == nil || ctx.Err() != nil || !validRuntimeSessionSearchLease(lease) || !lease.currentDeadline().After(time.Now()) {
 		return nil, errRuntimeStageMalformed
 	}
 	locator, _ := runtimeReceiptLocator(lease.Binding.Scope, lease.ReceiptReference, lease.ReceiptVersion)
@@ -80,7 +94,11 @@ func (executor *runtimeSessionSearchExecutor) Execute(ctx context.Context, lease
 		return nil, errRuntimeStageRetryable
 	}
 	defer clear(artifact.Body)
-	if !exactRuntimeReceiptArtifact(artifact, locator) || artifact.SHA256 != lease.Binding.ReceiptDigest || sha256.Sum256(artifact.Body) != lease.Binding.ReceiptDigest {
+	validArtifact := exactRuntimeReceiptArtifact(artifact, locator)
+	if executor.precise && lease.indexName == "zasp-runtime-sessions-v2" {
+		validArtifact = artifact.Locator == locator && artifact.MediaType == "application/json" && artifact.Size >= 1 && artifact.Size <= 4<<20 && artifact.Size == int64(len(artifact.Body)) && artifact.SHA256 == sha256.Sum256(artifact.Body)
+	}
+	if !validArtifact || artifact.SHA256 != lease.Binding.ReceiptDigest || sha256.Sum256(artifact.Body) != lease.Binding.ReceiptDigest {
 		return nil, errRuntimeStageMalformed
 	}
 	reference, err := executor.receipts.ObjectReference(artifact.Locator)
@@ -88,15 +106,31 @@ func (executor *runtimeSessionSearchExecutor) Execute(ctx context.Context, lease
 		return nil, errRuntimeStageMalformed
 	}
 	receipt, err := runtimeprojection.DecodeReceipt(artifact.Body)
-	if err != nil || receipt.Scope != lease.Binding.Scope || receipt.BatchID != lease.Binding.BatchID || receipt.Generation != lease.Binding.Generation || receipt.ImplementationVersion != "runtime-projection-v1" {
+	precise := false
+	if err != nil && executor.precise && lease.indexName == "zasp-runtime-sessions-v2" {
+		receipt, err = runtimeprojection.DecodePreciseReceipt(artifact.Body)
+		precise = err == nil
+	}
+	if err != nil || precise && lease.projectionImplementationVersion != "runtime-projection-v3" || lease.projectionImplementationVersion != "" && receipt.ImplementationVersion != lease.projectionImplementationVersion || receipt.Scope != lease.Binding.Scope || receipt.BatchID != lease.Binding.BatchID || receipt.Generation != lease.Binding.Generation ||
+		(!precise && (!exactRuntimeReceiptArtifact(artifact, locator) || receipt.ImplementationVersion != "runtime-projection-v1" && !(receipt.ImplementationVersion == "runtime-projection-v2" && lease.indexName == "zasp-runtime-sessions-v2"))) {
 		return nil, errRuntimeStageMalformed
 	}
-	archive, err := executor.reader.Read(ctx, runtimeevent.StageLease{Scope: lease.Binding.Scope, BatchID: lease.Binding.BatchID, Generation: lease.Binding.Generation, Stage: runtimeevent.RuntimeStageIndex, ImplementationVersion: "runtime-index-v1", Attempt: lease.Attempt, LeaseExpiresAt: lease.LeaseUntil, InputReference: receipt.ArchiveReference, InputVersionID: receipt.ArchiveVersionID, InputDigest: receipt.ArchiveDigest})
+	indexVersion := "runtime-index-v1"
+	build := sessionsearch.BuildDocuments
+	apply := executor.index.Apply
+	if precise {
+		capability, ok := executor.index.(runtimePreciseSessionSearchIndex)
+		if !ok || nilWorkerDependency(capability) {
+			return nil, errRuntimeStageMalformed
+		}
+		indexVersion, build, apply = "runtime-index-v2", sessionsearch.BuildPreciseDocuments, capability.ApplyPrecise
+	}
+	archive, err := executor.reader.Read(ctx, runtimeevent.StageLease{Scope: lease.Binding.Scope, BatchID: lease.Binding.BatchID, Generation: lease.Binding.Generation, Stage: runtimeevent.RuntimeStageIndex, ImplementationVersion: indexVersion, Attempt: lease.Attempt, LeaseExpiresAt: lease.currentDeadline(), InputReference: receipt.ArchiveReference, InputVersionID: receipt.ArchiveVersionID, InputDigest: receipt.ArchiveDigest})
 	if err != nil {
 		return nil, err
 	}
 	defer clear(archive)
-	documents, err := sessionsearch.BuildDocuments(lease.Binding, artifact.Body, archive)
+	documents, err := build(lease.Binding, artifact.Body, archive)
 	if err != nil || len(documents) != len(lease.DocumentIDs) {
 		return nil, errRuntimeStageMalformed
 	}
@@ -105,11 +139,14 @@ func (executor *runtimeSessionSearchExecutor) Execute(ctx context.Context, lease
 			return nil, errRuntimeStageMalformed
 		}
 	}
-	result, err := executor.index.Apply(ctx, lease.Binding, artifact.Body, archive)
+	if precise && (ctx.Err() != nil || !lease.currentDeadline().After(time.Now())) {
+		return nil, errRuntimeStageRetryable
+	}
+	result, err := apply(ctx, lease.Binding, artifact.Body, archive)
 	if err != nil {
 		return nil, errRuntimeStageRetryable
 	}
-	if ctx.Err() != nil || result.Scope != lease.Binding.Scope || result.BatchID != lease.Binding.BatchID || result.Generation != lease.Binding.Generation || result.ReceiptDigest != lease.Binding.ReceiptDigest || !slices.Equal(result.DocumentIDs, lease.DocumentIDs) {
+	if ctx.Err() != nil || precise && !lease.currentDeadline().After(time.Now()) || result.Scope != lease.Binding.Scope || result.BatchID != lease.Binding.BatchID || result.Generation != lease.Binding.Generation || result.ReceiptDigest != lease.Binding.ReceiptDigest || !slices.Equal(result.DocumentIDs, lease.DocumentIDs) {
 		return nil, errWorkerExecution
 	}
 	return slices.Clone(result.DocumentIDs), nil

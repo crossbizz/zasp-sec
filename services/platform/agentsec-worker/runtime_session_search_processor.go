@@ -63,6 +63,7 @@ func (processor *runtimeSessionSearchProcessor) process(ctx context.Context, lea
 		return errWorkerExecution
 	}
 	workCtx, cancel := context.WithTimeout(ctx, minDuration(time.Duration(processor.config.LeaseSeconds)*4*time.Second, 2*time.Minute))
+	lease.renewal = &runtimeStageLeaseRenewal{expiresAt: lease.LeaseUntil}
 	defer cancel()
 	heartbeatCtx, stopHeartbeat := context.WithCancel(workCtx)
 	defer stopHeartbeat()
@@ -142,6 +143,11 @@ func (processor *runtimeSessionSearchProcessor) keepLease(ctx context.Context, c
 				resultErr = errWorkerExecution
 				cancel()
 				return
+			}
+			if lease.renewal != nil {
+				lease.renewal.mu.Lock()
+				lease.renewal.expiresAt = until
+				lease.renewal.mu.Unlock()
 			}
 		}
 	}

@@ -29,8 +29,13 @@ type ProductionAcceptanceRepository interface {
 }
 
 func (repository *PostgresProductionIngestRepository) LookupAcceptance(ctx context.Context, credential *sensor.TokenCredential, request IngestAcceptanceRequest) (IngestAcceptance, error) {
-	if !validProductionRepository(repository, ctx) || credential == nil || !validReserveRequest(request.IngestReserveRequest) || !productionEnrollmentPattern.MatchString(request.EnrollmentBinding) || request.JobID.IsZero() || request.OutboxID.IsZero() {
+	if !validProductionRepository(repository, ctx) || credential == nil || !repository.acceptsReserveSchema(request.IngestReserveRequest) || !productionEnrollmentPattern.MatchString(request.EnrollmentBinding) || request.JobID.IsZero() || request.OutboxID.IsZero() {
 		return IngestAcceptance{}, ErrProductionIngestUnavailable
+	}
+	if repository.precision {
+		if err := repository.ReadyPrecision(ctx); err != nil {
+			return IngestAcceptance{}, err
+		}
 	}
 	locator, secret, err := credential.Parts()
 	if err != nil {

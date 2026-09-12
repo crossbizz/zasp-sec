@@ -1,13 +1,55 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile, readdir } from "node:fs/promises";
+import { load } from "js-yaml";
+import { renderRelease } from "../production/release-contract.mjs";
+import { productionReleaseFixture } from "../production/release-fixture.mjs";
 
-test("product chart targets the latest embedded forward migration", async () => {
+test("embedded migration release has explicit compatibility and forward chart phases", async () => {
   const files = await readdir(new URL("../../services/platform/migrations/sql/", import.meta.url));
   const latest = Math.max(...files.filter(name => /^\d+_.*\.up\.sql$/.test(name)).map(name => Number(name.split("_")[0])));
-  const values = await readFile(new URL("./product/values.yaml", import.meta.url), "utf8");
-  const expected = Number(/^ {2}expectedVersion: (\d+)$/m.exec(values)?.[1]);
-  assert.equal(expected, latest, "chart schema expectation does not match the embedded release");
+  const values = load(await readFile(new URL("./product/values.yaml", import.meta.url), "utf8"));
+  // A future embedded migration must define its own rollout before this gate
+  // accepts it. Default49 is deliberate: compatible pods precede the50 hook.
+  // This is a manifest compatibility gate, not live transition authorization.
+  assert.equal(latest, 51, "embedded migration needs an explicit rollout contract");
+  assert.equal(values.schema.expectedVersion, 49);
+  assert.equal(values.runtime.sessionSearchPhase, "compatibility");
+  for (const options of [
+    { schemaVersion: 48, sessionSearchPhase: "compatibility" },
+    { schemaVersion: values.schema.expectedVersion, sessionSearchPhase: values.runtime.sessionSearchPhase },
+    { schemaVersion: 50, sessionSearchPhase: "backfill" },
+    { schemaVersion: 50, sessionSearchPhase: "query" },
+    { schemaVersion: 51, sessionSearchPhase: "precision-consumers" },
+    { schemaVersion: 51, sessionSearchPhase: "precision-intake" },
+  ]) {
+    const resources = await renderRelease(productionReleaseFixture, options);
+    const jobs = resources.filter(r => r.kind === "Job" && r.metadata.name.startsWith("agentsec-schema-v"));
+    assert.equal(jobs.length, 1);
+    assert.equal(jobs[0].metadata.name, `agentsec-schema-v${options.schemaVersion}`);
+    const api = resources.find(r => r.kind === "Deployment" && r.metadata.name === "agentsec-api");
+    assert.equal(api.spec.template.spec.containers[0].env.find(e => e.name === "ZASP_RUNTIME_SESSION_INDEX").value, options.sessionSearchPhase === "query" || options.schemaVersion === 51 ? "zasp-runtime-sessions-v2" : "zasp-runtime-sessions-v1");
+    assert.equal(resources.filter(r => r.kind === "Deployment" && r.metadata.name === "agentsec-runtime-session-index-v2").length, options.schemaVersion >= 50 ? 1 : 0);
+    if (options.schemaVersion === 51) {
+      const env = name => resources.find(r => r.kind === "Deployment" && r.metadata.name === name).spec.template.spec.containers[0].env;
+      assert.equal(env("agentsec-event-ingest").find(e => e.name === "ZASP_RUNTIME_INGEST_SCHEMA").value, options.sessionSearchPhase === "precision-intake" ? "runtime-event-v2" : "runtime-event-v1");
+      for (const name of ["outbox", "coordinator"]) assert.equal(env(`agentsec-runtime-${name}`).find(e => e.name === "ZASP_RUNTIME_DELIVERY_SCHEMA").value, "runtime-event-v2");
+      for (const [name, version] of [["archive", 2], ["index", 1], ["correlation", 4], ["projection", 3], ["complete", 3]]) assert.equal(env(`agentsec-runtime-${name}`).find(e => e.name === "ZASP_RUNTIME_STAGE_VERSION").value, `runtime-${name}-v${version}`);
+      assert.equal(env("agentsec-runtime-session-index-v2").find(e => e.name === "ZASP_RUNTIME_STAGE_VERSION").value, "runtime-index-v2");
+    }
+  }
+  for (const options of [
+    { schemaVersion: 50 },
+    { schemaVersion: 49, sessionSearchPhase: "query" },
+    { schemaVersion: 50, sessionSearchPhase: "compatibility" },
+    { schemaVersion: 50, sessionSearchPhase: "unknown" },
+    { schemaVersion: 51, sessionSearchPhase: "query" },
+    { schemaVersion: 51 },
+    { schemaVersion: 50, sessionSearchPhase: "precision-consumers" },
+    { schemaVersion: 50, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 49, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 51, sessionSearchPhase: "precision-active" },
+  ]) await assert.rejects(renderRelease(productionReleaseFixture, options), /release rejected/);
 });
 
 import {

@@ -179,6 +179,9 @@ type PostgresProductionPipelineRepository struct {
 	stage         RuntimeStage
 	clock         func() time.Time
 	correlationV2 bool
+	correlationV3 bool
+	sessionV2     bool
+	precision     bool
 }
 
 func NewPostgresProductionPipelineRepository(database ProductionIngestDatabase, authority ProductionPipelineAuthority) (*PostgresProductionPipelineRepository, error) {
@@ -193,8 +196,15 @@ func (repository *PostgresProductionPipelineRepository) Ready(ctx context.Contex
 	if !validProductionPipelineRepository(repository, ctx) {
 		return ErrProductionPipelineUnavailable
 	}
+	if repository.precision {
+		return repository.requirePrecisionReady(ctx)
+	}
 	if repository.correlationV2 {
 		_, err := repository.correlationClaimStatement(ctx)
+		return err
+	}
+	if repository.sessionV2 {
+		_, err := repository.sessionClaimStatement(ctx)
 		return err
 	}
 	var result struct {
@@ -242,6 +252,9 @@ func (repository *PostgresProductionPipelineRepository) ClaimDelivery(ctx contex
 	if repository == nil || repository.authority != ProductionPipelineAuthorityCoordinator || !validDeliveryClaimRequest(request) || ctx == nil || ctx.Err() != nil {
 		return DeliveryClaim{}, ErrProductionPipeline
 	}
+	if repository.precision && repository.requirePrecisionReady(ctx) != nil {
+		return DeliveryClaim{}, ErrProductionPipelineUnavailable
+	}
 	payload, err := safeProductionQuery(repository.database, ctx, productionPipelineClaimDeliverySQL, scopeArguments(request.Scope, request.BatchID, request.Generation, request.MessageID, request.MessageDigest[:], request.ReceiveCount, request.WorkerID, request.LeaseToken, request.LeaseSeconds, request.VisibilitySeconds)...)
 	if err != nil {
 		return DeliveryClaim{}, ErrProductionPipelineUnavailable
@@ -256,6 +269,9 @@ func (repository *PostgresProductionPipelineRepository) ClaimDelivery(ctx contex
 func (repository *PostgresProductionPipelineRepository) HeartbeatDelivery(ctx context.Context, request DeliveryClaimRequest) (DeliveryLeaseResult, error) {
 	if repository == nil || repository.authority != ProductionPipelineAuthorityCoordinator || !validDeliveryClaimRequest(request) || ctx == nil || ctx.Err() != nil {
 		return DeliveryLeaseResult{}, ErrProductionPipeline
+	}
+	if repository.precision && repository.requirePrecisionReady(ctx) != nil {
+		return DeliveryLeaseResult{}, ErrProductionPipelineUnavailable
 	}
 	payload, err := safeProductionQuery(repository.database, ctx, productionPipelineHeartbeatDeliverySQL, scopeArguments(request.Scope, request.BatchID, request.Generation, request.MessageID, request.MessageDigest[:], request.WorkerID, request.LeaseToken, request.LeaseSeconds, request.VisibilitySeconds)...)
 	if err != nil {
@@ -276,6 +292,9 @@ func (repository *PostgresProductionPipelineRepository) ReleaseDelivery(ctx cont
 	if repository == nil || repository.authority != ProductionPipelineAuthorityCoordinator || !validDeliveryClaimRequest(request) || !validDeliveryOutcome(outcome, errorClass) || ctx == nil || ctx.Err() != nil {
 		return DeliveryTransitionResult{}, ErrProductionPipeline
 	}
+	if repository.precision && repository.requirePrecisionReady(ctx) != nil {
+		return DeliveryTransitionResult{}, ErrProductionPipelineUnavailable
+	}
 	payload, err := safeProductionQuery(repository.database, ctx, productionPipelineReleaseDeliverySQL, scopeArguments(request.Scope, request.BatchID, request.Generation, request.MessageID, request.MessageDigest[:], request.WorkerID, request.LeaseToken, string(outcome), errorClass)...)
 	if err != nil {
 		return DeliveryTransitionResult{}, ErrProductionPipelineUnknown
@@ -290,6 +309,9 @@ func (repository *PostgresProductionPipelineRepository) ReleaseDelivery(ctx cont
 func (repository *PostgresProductionPipelineRepository) AcknowledgeDelivery(ctx context.Context, request DeliveryClaimRequest, providerAck [sha256.Size]byte) (DeliveryTransitionResult, error) {
 	if repository == nil || repository.authority != ProductionPipelineAuthorityCoordinator || !validDeliveryClaimRequest(request) || providerAck == [sha256.Size]byte{} || ctx == nil || ctx.Err() != nil {
 		return DeliveryTransitionResult{}, ErrProductionPipeline
+	}
+	if repository.precision && repository.requirePrecisionReady(ctx) != nil {
+		return DeliveryTransitionResult{}, ErrProductionPipelineUnavailable
 	}
 	payload, err := safeProductionQuery(repository.database, ctx, productionPipelineAckDeliverySQL, scopeArguments(request.Scope, request.BatchID, request.Generation, request.MessageID, request.MessageDigest[:], request.WorkerID, request.LeaseToken, providerAck[:])...)
 	if err != nil {
@@ -307,9 +329,22 @@ func (repository *PostgresProductionPipelineRepository) ClaimStages(ctx context.
 		return nil, ErrProductionPipeline
 	}
 	statement := productionPipelineClaimStageSQL
+	if repository.precision {
+		if err := repository.requirePrecisionReady(ctx); err != nil {
+			return nil, err
+		}
+		statement = preciseStageClaimSQL(repository.stage)
+	}
 	if repository.correlationV2 {
 		var err error
 		statement, err = repository.correlationClaimStatement(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if repository.sessionV2 {
+		var err error
+		statement, err = repository.sessionClaimStatement(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -329,8 +364,20 @@ func (repository *PostgresProductionPipelineRepository) ClaimStages(ctx context.
 		if !ok || !validStageLease(lease, repository.stage, repository.clock()) {
 			return nil, ErrProductionPipelineUnavailable
 		}
-		if repository.correlationV2 && lease.ImplementationVersion != "runtime-correlation-v1" && !(statement == productionCorrelationClaimV2SQL && lease.ImplementationVersion == "runtime-correlation-v2") {
+		if repository.precision && !preciseStageVersionSupported(repository.stage, lease.ImplementationVersion) {
 			return nil, ErrProductionPipelineUnavailable
+		}
+		if repository.correlationV2 && lease.ImplementationVersion != "runtime-correlation-v1" && !((statement == productionCorrelationClaimV2SQL || statement == productionCorrelationClaimV3SQL) && lease.ImplementationVersion == "runtime-correlation-v2") && !(repository.correlationV3 && statement == productionCorrelationClaimV3SQL && lease.ImplementationVersion == "runtime-correlation-v3") {
+			return nil, ErrProductionPipelineUnavailable
+		}
+		if repository.sessionV2 {
+			v1, v2 := "runtime-projection-v1", "runtime-projection-v2"
+			if repository.stage == RuntimeStageComplete {
+				v1, v2 = "runtime-complete-v1", "runtime-complete-v2"
+			}
+			if lease.ImplementationVersion != v1 && lease.ImplementationVersion != v2 {
+				return nil, ErrProductionPipelineUnavailable
+			}
 		}
 		if _, duplicate := seen[lease.BatchID]; duplicate {
 			return nil, ErrProductionPipelineUnavailable
@@ -344,6 +391,14 @@ func (repository *PostgresProductionPipelineRepository) ClaimStages(ctx context.
 func (repository *PostgresProductionPipelineRepository) HeartbeatStage(ctx context.Context, lease StageLease, workerID, leaseToken string, leaseSeconds int) (time.Time, error) {
 	if !validProductionPipelineRepository(repository, ctx) || !validStageLease(lease, repository.stage, repository.clock()) || !validWorkerLease(workerID, leaseToken) || leaseSeconds < 5 || leaseSeconds > 900 {
 		return time.Time{}, ErrProductionPipeline
+	}
+	if repository.precision {
+		if !preciseStageVersionSupported(repository.stage, lease.ImplementationVersion) {
+			return time.Time{}, ErrProductionPipeline
+		}
+		if err := repository.requirePrecisionReady(ctx); err != nil {
+			return time.Time{}, err
+		}
 	}
 	payload, err := safeProductionQuery(repository.database, ctx, productionPipelineHeartbeatStageSQL, scopeArguments(lease.Scope, lease.BatchID, lease.Generation, workerID, leaseToken, leaseSeconds)...)
 	if err != nil {
@@ -365,6 +420,24 @@ func (repository *PostgresProductionPipelineRepository) FinishStage(ctx context.
 	if !validProductionPipelineRepository(repository, ctx) || !validStageFinishRequest(request, repository.stage, repository.clock()) {
 		return StageFinishResult{}, ErrProductionPipeline
 	}
+	if repository.precision && !preciseStageVersionSupported(repository.stage, request.Lease.ImplementationVersion) {
+		return StageFinishResult{}, ErrProductionPipeline
+	}
+	if repository.precision || request.Lease.Stage == RuntimeStageComplete && request.Lease.ImplementationVersion == "runtime-complete-v3" {
+		if err := repository.requirePrecisionReady(ctx); err != nil {
+			return StageFinishResult{}, err
+		}
+	}
+	if request.Lease.Stage == RuntimeStageComplete && request.Lease.ImplementationVersion == "runtime-complete-v2" {
+		metadata := migrations.ProductionRuntimeSandboxBinding()
+		payload, err := safeProductionQuery(repository.database, ctx, productionSandboxRoutingReadySQL, metadata.Checksum(), migrations.ProductionRuntimeSandboxBindingSemanticFingerprint(), string(repository.authority))
+		var ready struct {
+			Ready bool `json:"ready"`
+		}
+		if err != nil || ctx.Err() != nil || !closedCandidateJSON(payload, 16<<10, &ready, "ready") || !ready.Ready {
+			return StageFinishResult{}, ErrProductionPipelineUnavailable
+		}
+	}
 	var effect, resultDigest []byte
 	if request.Outcome == StageOutcomeSucceeded {
 		effect, resultDigest = request.EffectDigest[:], request.ResultDigest[:]
@@ -377,6 +450,12 @@ func (repository *PostgresProductionPipelineRepository) FinishStage(ctx context.
 	arguments := scopeArguments(request.Lease.Scope, request.Lease.BatchID, request.Lease.Generation, request.WorkerID, request.LeaseToken, request.Lease.Attempt, request.Lease.InputDigest[:], request.Lease.ImplementationVersion, string(request.Outcome), effect, nullableString(request.ResultReference), nullableString(request.ResultVersionID), resultDigest, nullableString(request.ErrorClass), retrySeconds)
 	if request.Lease.Stage == RuntimeStageComplete && request.Outcome == StageOutcomeSucceeded {
 		statement = productionPipelineFinishSessionSQL
+		if request.Lease.ImplementationVersion == "runtime-complete-v2" {
+			statement = `SELECT zasp_runtime_finish_sandbox_session_projection($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`
+		}
+		if request.Lease.ImplementationVersion == "runtime-complete-v3" {
+			statement = productionPreciseFinishSessionSQL
+		}
 		arguments = append(arguments, []byte(request.ProjectionReceipt))
 	}
 	payload, err := safeProductionQuery(repository.database, ctx, statement, arguments...)

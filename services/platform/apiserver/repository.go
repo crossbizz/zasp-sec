@@ -87,6 +87,8 @@ type PostgresRepository struct {
 	connectorWorkflows     bool
 	securityAgentExecution bool
 	runtimeSessionSearch   RuntimeSessionSearchIndex
+	sandboxSessionReads    bool
+	sandboxSessionSearch   bool
 }
 
 func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
@@ -105,6 +107,9 @@ func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
 func (repository *PostgresRepository) Ready(ctx context.Context) error {
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
+	}
+	if err := repository.readyRuntimeSessionSearch(ctx); err != nil {
+		return err
 	}
 	if repository.securityAgentExecution {
 		return repository.readySecurityAgentAuthority(ctx)

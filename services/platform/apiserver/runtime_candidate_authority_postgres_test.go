@@ -692,6 +692,11 @@ func proveConcurrentRuntimeCandidateRollback(t *testing.T, ctx context.Context, 
 
 func blockedRuntimeCandidateCall(t *testing.T, ctx context.Context, admin, worker, observer *pgx.Conn, args []any, lockSQL string, whileBlocked func(pgx.Tx)) error {
 	t.Helper()
+	return blockedRuntimeCandidateStatement(t, ctx, admin, worker, observer, args, runtimeCandidateFreezeSQL, lockSQL, whileBlocked)
+}
+
+func blockedRuntimeCandidateStatement(t *testing.T, ctx context.Context, admin, worker, observer *pgx.Conn, args []any, statement, lockSQL string, whileBlocked func(pgx.Tx)) error {
+	t.Helper()
 	blocker, err := admin.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -703,7 +708,7 @@ func blockedRuntimeCandidateCall(t *testing.T, ctx context.Context, admin, worke
 	done := make(chan error, 1)
 	go func() {
 		var output []byte
-		done <- worker.QueryRow(ctx, runtimeCandidateFreezeSQL, args...).Scan(&output)
+		done <- worker.QueryRow(ctx, statement, args...).Scan(&output)
 	}()
 	settled := false
 	defer func() {
@@ -750,6 +755,30 @@ func seedRuntimeCandidateBatch(t *testing.T, ctx context.Context, admin *pgx.Con
 
 func seedRuntimeCandidateBatchEvents(t *testing.T, ctx context.Context, admin *pgx.Conn, ordinal int, sensor, source string, candidate, eventCount int) []any {
 	t.Helper()
+	return seedRuntimeCandidateBatchVersion(t, ctx, admin, ordinal, sensor, source, candidate, eventCount, "runtime-correlation-v2", nil)
+}
+
+func seedRuntimeCandidateBatchVersion(t *testing.T, ctx context.Context, admin *pgx.Conn, ordinal int, sensor, source string, candidate, eventCount int, version string, mutate func(map[string]any)) []any {
+	t.Helper()
+	return seedRuntimeCandidateBatchInput(t, ctx, admin, ordinal, sensor, source, candidate, eventCount, version, mutate, true)
+}
+
+// Disabling archive validation is only for explicit SQL defense-in-depth tests
+// that seed forged committed input. Normal production-ingest proof uses the API.
+type candidateFixtureWire struct {
+	schema, archive, index string
+	prepare                func(*testing.T, []byte) []byte
+}
+
+func seedRuntimeCandidateBatchInput(t *testing.T, ctx context.Context, admin *pgx.Conn, ordinal int, sensor, source string, candidate, eventCount int, version string, mutate func(map[string]any), validateArchive bool, contracts ...candidateFixtureWire) []any {
+	t.Helper()
+	contract := candidateFixtureWire{schema: "runtime-event-v1", archive: "runtime-archive-v1", index: "runtime-index-v1"}
+	if len(contracts) > 1 {
+		t.Fatal("multiple fixture wire contracts")
+	}
+	if len(contracts) == 1 {
+		contract = contracts[0]
+	}
 	scope := fixtureRequestIdentity(t).Scope
 	org, workspace, environment := scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()
 	batch := fmt.Sprintf("pid_78900003-0000-4000-8000-%012d", ordinal)
@@ -765,7 +794,7 @@ func seedRuntimeCandidateBatchEvents(t *testing.T, ctx context.Context, admin *p
 	}
 	events := []any{event}
 	if eventCount > 1 {
-		if source != "tetragon" || eventCount > 1000 {
+		if (source != "tetragon" && source != "otlp") || eventCount > 1000 {
 			t.Fatal("unsupported multi-event fixture")
 		}
 		events = make([]any, eventCount)
@@ -774,28 +803,48 @@ func seedRuntimeCandidateBatchEvents(t *testing.T, ctx context.Context, admin *p
 			for key, value := range event {
 				copied[key] = value
 			}
-			copied["event_id"] = fmt.Sprintf("candidate-event-%d-%d", ordinal, i)
+			if source == "otlp" {
+				attributes := make(map[string]string)
+				for key, value := range event["attributes"].(map[string]string) {
+					attributes[key] = value
+				}
+				attributes["event.id"] = fmt.Sprintf("candidate-event-%d-%d", ordinal, i)
+				copied["attributes"] = attributes
+			} else {
+				copied["event_id"] = fmt.Sprintf("candidate-event-%d-%d", ordinal, i)
+				copied["event_time"] = time.Date(2026, 9, 10, 10, 0, 1, i*int(time.Millisecond), time.UTC).Format("2006-01-02T15:04:05.000Z")
+			}
 			copied["evidence_id"] = fmt.Sprintf("pid_78900008-0000-4000-8000-%012d", ordinal*1000+i)
-			copied["event_time"] = time.Date(2026, 9, 10, 10, 0, 1, i*int(time.Millisecond), time.UTC).Format("2006-01-02T15:04:05.000Z")
 			events[i] = copied
+		}
+	}
+	if mutate != nil {
+		for _, item := range events {
+			mutate(item.(map[string]any))
 		}
 	}
 	body, err := json.Marshal(map[string]any{"source": source, "events": events})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runtimeevent.DecodeArchivedBatch(scope, body); err != nil {
-		t.Fatal(err)
+	if validateArchive {
+		if _, err := runtimeevent.DecodeArchivedBatch(scope, body); err != nil {
+			t.Fatal(err)
+		}
 	}
 	archiveDigest := sha256.Sum256(body)
+	if contract.prepare != nil {
+		body = contract.prepare(t, body)
+		archiveDigest = sha256.Sum256(body)
+	}
 	indexDigest := sha256.Sum256([]byte("index-" + batch))
 	rawReference := "s3://zasp-evidence/runtime/" + batch + ".json"
-	indexBody, indexReceiptDigest, indexReference, err := runtimeevent.EncodeStageReceipt(runtimeevent.StageReceipt{Stage: runtimeevent.RuntimeStageIndex, ImplementationVersion: "runtime-index-v1", Scope: scope, BatchID: mustProductID(t, batch), Generation: int64(ordinal), InputReference: rawReference, InputVersionID: "raw-v1", InputDigest: archiveDigest, ArchiveReference: rawReference, ArchiveVersionID: "raw-v1", ArchiveDigest: archiveDigest, EffectDigest: indexDigest, ItemIDs: []string{"evt_" + strings.Repeat("c", 64)}})
+	indexBody, indexReceiptDigest, indexReference, err := runtimeevent.EncodeStageReceipt(runtimeevent.StageReceipt{Stage: runtimeevent.RuntimeStageIndex, ImplementationVersion: contract.index, Scope: scope, BatchID: mustProductID(t, batch), Generation: int64(ordinal), InputReference: rawReference, InputVersionID: "raw-v1", InputDigest: archiveDigest, ArchiveReference: rawReference, ArchiveVersionID: "raw-v1", ArchiveDigest: archiveDigest, EffectDigest: indexDigest, ItemIDs: []string{"evt_" + strings.Repeat("c", 64)}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	indexObject := "s3://zasp-evidence/organizations/" + org + "/workspaces/" + workspace + "/environments/" + environment + "/artifacts/" + indexReference.String()
-	if _, err := admin.Exec(ctx, `INSERT INTO zasp_runtime_batch_authorities(organization_id,workspace_id,environment_id,batch_id,sensor_id,sensor_token_id,token_generation,batch_generation,idempotency_key,request_digest,content_digest,source_kind,payload_media_type,payload_schema_version,payload_size_bytes,event_count,raw_artifact_key,raw_artifact_reference,raw_artifact_version_id,raw_artifact_checksum,raw_artifact_size_bytes,raw_artifact_kms_key,finalized_at,state) VALUES($1,$2,$3,$4,$5,$5,1,$6,$7,$8,$8,$9,'application/json','runtime-event-v1',$10,$13,$11,$12,'raw-v1',$8,$10,'fixture-kms-reference',clock_timestamp(),'processing')`, org, workspace, environment, batch, sensor, int64(ordinal), "candidate-request-"+batch, archiveDigest[:], source, len(body), "runtime/"+batch+".json", rawReference, eventCount); err != nil {
+	if _, err := admin.Exec(ctx, `INSERT INTO zasp_runtime_batch_authorities(organization_id,workspace_id,environment_id,batch_id,sensor_id,sensor_token_id,token_generation,batch_generation,idempotency_key,request_digest,content_digest,source_kind,payload_media_type,payload_schema_version,payload_size_bytes,event_count,raw_artifact_key,raw_artifact_reference,raw_artifact_version_id,raw_artifact_checksum,raw_artifact_size_bytes,raw_artifact_kms_key,finalized_at,state) VALUES($1,$2,$3,$4,$5,$5,1,$6,$7,$8,$8,$9,'application/json',$14,$10,$13,$11,$12,'raw-v1',$8,$10,'fixture-kms-reference',clock_timestamp(),'processing')`, org, workspace, environment, batch, sensor, int64(ordinal), "candidate-request-"+batch, archiveDigest[:], source, len(body), "runtime/"+batch+".json", rawReference, eventCount, contract.schema); err != nil {
 		t.Fatal(err)
 	}
 	for _, query := range []struct {
@@ -804,12 +853,13 @@ func seedRuntimeCandidateBatchEvents(t *testing.T, ctx context.Context, admin *p
 	}{
 		{`INSERT INTO zasp_runtime_stage_work(organization_id,workspace_id,environment_id,batch_id,batch_generation,stage,stage_order,implementation_version,input_digest,state,attempt,effect_digest,result_reference,result_version_id,result_digest,completed_at) VALUES($1,$2,$3,$4,$5,'archive',1,'runtime-archive-v1',$6,'succeeded',1,$6,$7,'raw-v1',$6,clock_timestamp())`, []any{org, workspace, environment, batch, int64(ordinal), archiveDigest[:], rawReference}},
 		{`INSERT INTO zasp_runtime_stage_work(organization_id,workspace_id,environment_id,batch_id,batch_generation,stage,stage_order,implementation_version,predecessor_digest,input_digest,state,attempt,effect_digest,result_reference,result_version_id,result_digest,completed_at) VALUES($1,$2,$3,$4,$5,'index',2,'runtime-index-v1',$6,$6,'succeeded',1,$7,$8,'index-v1',$9,clock_timestamp())`, []any{org, workspace, environment, batch, int64(ordinal), archiveDigest[:], indexDigest[:], indexObject, indexReceiptDigest[:]}},
-		{`INSERT INTO zasp_runtime_stage_work(organization_id,workspace_id,environment_id,batch_id,batch_generation,stage,stage_order,implementation_version,predecessor_digest,input_digest,state,attempt,lease_owner,lease_token,lease_expires_at) VALUES($1,$2,$3,$4,$5,'correlate',3,'runtime-correlation-v2',$6,$6,'leased',1,'candidate-worker','candidate-lease-token-01',clock_timestamp()+interval '1 hour')`, []any{org, workspace, environment, batch, int64(ordinal), indexDigest[:]}},
+		{`INSERT INTO zasp_runtime_stage_work(organization_id,workspace_id,environment_id,batch_id,batch_generation,stage,stage_order,implementation_version,predecessor_digest,input_digest,state,attempt,lease_owner,lease_token,lease_expires_at) VALUES($1,$2,$3,$4,$5,'correlate',3,$7,$6,$6,'leased',1,'candidate-worker','candidate-lease-token-01',clock_timestamp()+interval '1 hour')`, []any{org, workspace, environment, batch, int64(ordinal), indexDigest[:], version}},
 		{`INSERT INTO zasp_runtime_deliveries(organization_id,workspace_id,environment_id,batch_id,batch_generation,message_id,message_digest,receive_count,disposition,lease_owner,lease_token,lease_expires_at,visibility_deadline) VALUES($1,$2,$3,$4,$5,$4,$6,1,'held','candidate-coordinator','coordinator-lease-token',clock_timestamp()+interval '1 hour',clock_timestamp()+interval '1 hour')`, []any{org, workspace, environment, batch, int64(ordinal), archiveDigest[:]}},
 	} {
+		query.sql = strings.ReplaceAll(strings.ReplaceAll(query.sql, "'runtime-archive-v1'", "'"+contract.archive+"'"), "'runtime-index-v1'", "'"+contract.index+"'")
 		if _, err := admin.Exec(ctx, query.sql, query.args...); err != nil {
 			t.Fatal(err)
 		}
 	}
-	return []any{org, workspace, environment, batch, int64(ordinal), "candidate-worker", "candidate-lease-token-01", 1, "runtime-correlation-v2", indexDigest[:], indexBody, body}
+	return []any{org, workspace, environment, batch, int64(ordinal), "candidate-worker", "candidate-lease-token-01", 1, version, indexDigest[:], indexBody, body}
 }

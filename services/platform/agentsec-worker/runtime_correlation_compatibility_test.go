@@ -177,7 +177,7 @@ func TestRuntimeCorrelationProductionFactoryBindsDatabaseCandidateAuthority(t *t
 	if !validWorkerRuntimeConfig(config) {
 		t.Fatal("production config cannot consume v2 jobs")
 	}
-	config.RuntimeStageVersion = "runtime-correlation-v3"
+	config.RuntimeStageVersion = "runtime-correlation-v5"
 	if validWorkerRuntimeConfig(config) {
 		t.Fatal("unknown correlation implementation accepted")
 	}
