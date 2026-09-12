@@ -440,3 +440,38 @@ build phases and compiled7 client/8 server chunks passed. No live producer
 activation, trusted release-loader completion, cloud authorization or original
 728-row task credit follows from publication. This docs-sync pass made no commit,
 push, PR change or deployment.
+
+## Linux provider-lock regression, 2026-09-12
+
+PR49 was opened at `756f0ecc473776f6ee8ab9283715ff9016e52e67`.
+Its retained CI run `34685101906` failed in the session-search IAM check.
+The runnable UI, Red Team and production-release source checks passed before
+that failure; later migration/Go/sensor checks did not run. Main was not merged.
+Redundant push runs34684725142 and34685094584 were cancelled explicitly.
+
+The pinned Terraform1.15.8 Linux archive passed its SHA256 check. Readonly init
+downloaded signed AWS6.60.0 and TLS4.3.0 providers, but the subsequent mock plan
+tests rejected their unpacked packages against the committed lock. That lock
+contained Darwin content hashes and official archive hashes, not Linux content
+hashes. Local Terraform1.15.8 `providers lock -platform=linux_amd64
+-platform=darwin_arm64` fetched both platforms from their signed HashiCorp origin
+and added the two missing Linux content hashes. It also synchronized the lock's
+constraints with the already exact provider pins in versions.tf. No provider or
+Terraform version, checksum enforcement, IAM policy or CI command was changed.
+
+Actual Linux verification reproduced the failure: old readonly init6055 exited0
+with the lock warning, then old mock test50801 exited1 on both provider hashes.
+Fixed readonly init71128 exited0 without that warning; fixed mock test22871
+exited0 with2 passed/0 failed. Isolated module copies differed only in their lock.
+Both test runs had networking disabled and no cloud credentials. The archive
+matched the CI SHA256; the actual binary reported1.15.8/linux_amd64, emulated on
+the local arm64 Docker host. No apply or deployed-resource operation ran. All
+owned containers exited and were removed. Commands and raw logs are retained in
+`/tmp/zasp-tf-linux-lock.hqroXr/report.md`. The verified lock SHA256 is
+`b6854422e0baa8db2da685af27a959ec465b53922d57a091e7ad79b9e41ff783`.
+
+Independent scoped review found no issue with the correction, conditional on
+this Linux proof. Root read the report and raw old/new test outputs. Local staging
+checks66039 passed4/4 with no skips in2.317s; the ledger and diff checks passed.
+This is not a green remote CI or main-publication claim. The ledger remains536
+production-available/131 component-only/61 external across728 rows.

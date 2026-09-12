@@ -694,6 +694,19 @@ identifiers, code expressions, documented IP ranges or loopback test URLs, with
 no concrete inadvertent sensitive disclosure found in those flagged contexts.
 This bounded review is not a complete privacy audit. Counts remain536/131/61.
 
+Later publication checkpoint (2026-09-12): PR49 at756f0ecc is open and main is
+not merged. Retained CI34685101906 failed in Terraform's session-search IAM
+step because its Linux provider content hashes were absent from the lockfile.
+Runnable UI, Red Team and release-source checks passed before that failure;
+later CI steps did not run. Redundant push runs34684725142/34685094584 were
+cancelled. Signed origin downloads generated the missing Linux hashes without
+changing pinned versions or weakening readonly/checksum enforcement. Independent
+review approved the narrow correction. Actual Linux verification reproduced the
+old-lock failure and passed both mock IAM plans with the fixed lock, networking
+disabled and no cloud credentials. Local staging checks passed4/4. A new remote
+CI result is still pending. See the cutover evidence's Linux-lock checkpoint.
+Counts remain536/131/61; M3-46/M3-47 still await verified main publication.
+
 M7-07 now meets its independently reviewed original acceptance criterion after
 verified main. Current counts: 536 production-available, 131 component-only and
 61 external gates, with all 728 rows accounted for. M3-46/M3-47 remain open.
