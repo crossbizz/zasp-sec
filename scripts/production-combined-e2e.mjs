@@ -15,6 +15,16 @@ import { reloadBrowserPage } from "./browser-e2e-helpers.mjs";
 import { createRuntimePipelineDependencies } from "./runtime-pipeline-dependencies.mjs";
 import { createGraphFixtureDependency } from "../proofs/neo4j-graphstore/run.mjs";
 import { createRedTeamRuntimeProof } from "./red-team-runtime-proof.mjs";
+import { assertPrecisionBrowserCanonicalOrder, assertPrecisionBrowserIdentity, createPrecisionBrowserCheckpoint, runPrecisionBrowserProof, validatePrecisionBrowserMode } from "./runtime-precision-browser-proof.mjs";
+
+const precisionBrowserMode = validatePrecisionBrowserMode(process.env);
+
+if (process.env.ZASP_COMBINED_E2E_RUNTIME_PRECISION === "true") {
+  assert.ok(process.env.ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY === "true" && process.env.ZASP_COMBINED_E2E_RUNTIME_SANDBOX_SEARCH === "true", "precision proof requires runtime-only and sandbox-search modes");
+}
+if (process.env.ZASP_COMBINED_E2E_RUNTIME_SANDBOX_SEARCH === "true") {
+  assert.equal(process.env.ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY, "true", "sandbox search cutover requires runtime-only mode");
+}
 
 const FIXED_NODE_VERSION = "v22.23.1";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -48,6 +58,7 @@ const children = [];
 const ownedCommands = new WeakMap();
 const runtimePipelineDependencies = createRuntimePipelineDependencies(command);
 let runtimeGraphDependency;
+let precisionBrowserCheckpoint, runtimePipelineChild;
 const redTeamRuntimeProof = createRedTeamRuntimeProof(command);
 let redTeamRuntimeConfiguration;
 let proxy;
@@ -231,10 +242,14 @@ try {
     await command("go", ["test", "-c", "-o", binary, "./agentsec-worker"], { cwd: platform, timeout: 120_000, env: { ...process.env, CGO_ENABLED: "0", GOOS: "linux", GOARCH: architecture } });
     redTeamRuntimeConfiguration = { binary, runner: path.join(root, "workers/redteam-node/runner.mjs"), dsn, awsEndpoint: runtimeAWSEndpoint };
   }
-  const runtimePipelineResult = await command(workerE2EBinary, ["-test.run", "^TestProductionCombinedE2ERuntimeQueueIndex$", "-test.v", "-test.timeout", "240s"], {
-    timeout: 250_000,
-    env: { ...process.env, ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN: dsn, ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT: runtimeAWSEndpoint, ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT: runtimeSearchEndpoint, ZASP_COMBINED_E2E_RUNTIME_GRAPH_URI: runtimeGraph.uri, ZASP_COMBINED_E2E_RUNTIME_GRAPH_PASSWORD: runtimeGraph.password, ZASP_COMBINED_E2E_RUNTIME_GRAPH_CA_PEM: runtimeGraph.certificate, GODEBUG: "x509usefallbackroots=1" },
+  const preciseRuntimeProof = process.env.ZASP_COMBINED_E2E_RUNTIME_PRECISION === "true";
+  if (precisionBrowserMode) precisionBrowserCheckpoint = await createPrecisionBrowserCheckpoint();
+  const runRuntimePipeline = () => command(workerE2EBinary, ["-test.run", "^TestProductionCombinedE2ERuntimeQueueIndex$", "-test.v", "-test.timeout", preciseRuntimeProof ? "450s" : "240s"], {
+    timeout: preciseRuntimeProof ? 460_000 : 250_000,
+    onStarted: child => { runtimePipelineChild = child; },
+    env: { ...process.env, ZASP_COMBINED_E2E_RUNTIME_PRECISION_BROWSER_ENDPOINT: precisionBrowserCheckpoint?.endpoint ?? "", ZASP_COMBINED_E2E_RUNTIME_PRECISION_BROWSER_TOKEN: precisionBrowserCheckpoint?.token ?? "", ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN: dsn, ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT: runtimeAWSEndpoint, ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT: runtimeSearchEndpoint, ZASP_COMBINED_E2E_RUNTIME_GRAPH_URI: runtimeGraph.uri, ZASP_COMBINED_E2E_RUNTIME_GRAPH_PASSWORD: runtimeGraph.password, ZASP_COMBINED_E2E_RUNTIME_GRAPH_CA_PEM: runtimeGraph.certificate, GODEBUG: "x509usefallbackroots=1" },
   });
+  const verifyRuntimePipelineResult = runtimePipelineResult => {
   assert.match(runtimePipelineResult.stdout, /runtime pipeline proof passed:/);
   assert.match(runtimePipelineResult.stdout, /semantic observation pipeline proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime observed lineage preservation proven:/);
@@ -242,6 +257,14 @@ try {
   assert.match(runtimePipelineResult.stdout, /runtime mixed session input proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime v2 reader v1 backlog proven:/);
   assert.match(runtimePipelineResult.stdout, /runtime correlation routing proven:/);
+  if (preciseRuntimeProof) {
+    assert.match(runtimePipelineResult.stdout, /runtime precise provider pipeline proven:/);
+    console.log(runtimePipelineResult.stdout.match(/runtime precise provider pipeline proven:[^\n]*/)[0]);
+  }
+  if (process.env.ZASP_COMBINED_E2E_RUNTIME_SANDBOX_SEARCH === "true") {
+    assert.match(runtimePipelineResult.stdout, /runtime sandbox search backfill cutover proven:/);
+    console.log(runtimePipelineResult.stdout.match(/runtime sandbox search backfill cutover proven:[^\n]*/)[0]);
+  }
   assert.match(runtimePipelineResult.stdout, /runtime session persistence proven: worker-written event, unknown attribution retained, predecessor receipt digest, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /runtime session summaries proven: completion-triggered unknown collection, byte-stable replay/);
   assert.match(runtimePipelineResult.stdout, /runtime session search index proven: committed PG receipt, exact S3 archive, real OpenSearch, immutable replay, structured process filter, pagination and scope denial/);
@@ -254,60 +277,26 @@ try {
   console.log(runtimePipelineResult.stdout.match(/runtime v2 reader v1 backlog proven:[^\n]*/)[0]);
   console.log(runtimePipelineResult.stdout.match(/runtime correlation routing proven:[^\n]*/)[0]);
   console.log("combined E2E: local runtime SQS/S3/OpenSearch/TLS-Neo4j pipeline passed");
+  };
+  if (precisionBrowserMode) {
+    await runPrecisionBrowserProof({
+      checkpoint: precisionBrowserCheckpoint,
+      startProvider: runRuntimePipeline,
+      stopProvider: async () => { if (runtimePipelineChild) await stopChild(runtimePipelineChild); },
+      observePending: metadata => beginPrecisionBrowserAcceptance(metadata, { dsn, apiDSN, apiBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort, runtimeSearchEndpoint }),
+      verifyProvider: verifyRuntimePipelineResult,
+      observeCurrent: async (_metadata, acceptance) => acceptance.observeCurrent(),
+    });
+    console.log("runtime precise browser proven: actual worker evidence, pending/current, Strong sandbox and unknown identity, canonical order and tenant denial");
+  } else {
+    verifyRuntimePipelineResult(await runRuntimePipeline());
+  }
 
   if (process.env.ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY !== "true") {
   const publicOrigin = `https://${productHostname}:${proxyPort}`;
   identity = await startIdentityServer(identityPort, publicOrigin);
   policyHistory = await startPolicyHistoryServer(policyHistoryPort, runtimeSearchEndpoint);
-  const apiEnvironment = {
-    ...process.env,
-    HOSTNAME: "agentsec-api-production-e2e",
-    ZASP_ENVIRONMENT: "test",
-    ZASP_DEPLOYMENT_MODE: "saas",
-    ZASP_ORGANIZATION_ID: "",
-    ZASP_PRODUCT_LISTEN_ADDRESS: `127.0.0.1:${apiPort}`,
-    ZASP_INTERNAL_LISTEN_ADDRESS: `127.0.0.1:${healthPort}`,
-    ZASP_PUBLIC_ORIGIN: publicOrigin,
-    ZASP_TRUSTED_PROXY_CIDRS: "127.0.0.0/8",
-    ZASP_REQUEST_RATE_PER_SECOND: "1000",
-    ZASP_REQUEST_BURST: "2000",
-    ZASP_COOKIE_SECURE: "true",
-    ZASP_PROVIDER_TIMEOUT: "5s",
-    ZASP_REQUEST_TIMEOUT: "10s",
-    ZASP_SHUTDOWN_TIMEOUT: "5s",
-    ZASP_READINESS_INTERVAL: "100ms",
-    ZASP_READINESS_MAX_INTERVAL: "1s",
-    ZASP_DISCOVERY_PARSER_VERSION: "inventory-parser-2026.08.20",
-    ZASP_DISCOVERY_TOOL_VERSION: "collector-tool-2026.08.20",
-    ZASP_POSTGRES_DSN: apiDSN,
-    ZASP_SECURITY_AGENT_POSTGRES_DSN: `postgres://zasp_e2e_security_agent_api@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
-    ZASP_STYTCH_BASE_URL: `http://127.0.0.1:${identityPort}`,
-    ZASP_STYTCH_AUTHORIZE_URL: `http://127.0.0.1:${identityPort}/v1/b2b/public/oauth/google/start`,
-    ZASP_STYTCH_PROJECT_ID: "project-test-local",
-    ZASP_STYTCH_SECRET: "secret-test-local",
-    ZASP_STYTCH_WEBHOOK_SECRET: stytchWebhookSecret,
-    ZASP_STYTCH_PUBLIC_TOKEN: "public-token-test-local",
-    ZASP_STYTCH_ORGANIZATION_ID: "organization-test-local",
-    ZASP_WORKFLOW_SIGNING_KEY: "0123456789abcdef0123456789abcdef",
-    ZASP_TOKEN_REVEAL_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY",
-    ZASP_CONNECTOR_AWS_REGION: "us-east-1",
-    ZASP_CONNECTOR_ROLE_ARN: "arn:aws:iam::000000000000:role/zasp-production-e2e-api-connectors",
-    ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
-    ZASP_CONNECTOR_KMS_KEY_ARN: "arn:aws:kms:us-east-1:000000000000:key/11111111-1111-1111-1111-111111111111",
-    ZASP_CONNECTOR_SECRET_PREFIX: "zasp-production-e2e/connectors/oauth",
-    ZASP_POLICY_HISTORY_ENDPOINT: `http://127.0.0.1:${policyHistoryPort}`,
-    ZASP_POLICY_HISTORY_INDEX: "zasp-runtime-events-v1",
-    ZASP_AWS_CUSTOMER_ROLE_PREFIXES: '["arn:aws:iam::123456789012:role/zasp-reference/"]',
-    ZASP_AWS_CUSTOMER_ROLE_ARNS: '["arn:aws:iam::123456789012:role/zasp-reference/production-e2e"]',
-    ZASP_KUBERNETES_EGRESS_CIDRS: "203.0.113.0/24",
-    ZASP_FINDING_TICKET_EGRESS_CIDRS: "192.0.2.64/28",
-    ZASP_GITHUB_CLIENT_ID: "Iv1.1234567890abcdef",
-    ZASP_GITHUB_CLIENT_SECRET_REFERENCE: "ref:github/client-secret",
-    ZASP_GITHUB_APP_ID: "123456",
-    ZASP_GITHUB_PRIVATE_KEY_REFERENCE: "ref:github/app-private-key",
-    ZASP_OKTA_CLIENT_ID: "0oa1234567890abcdef",
-    ZASP_OKTA_CLIENT_SECRET_REFERENCE: "ref:okta/client-secret",
-  };
+  const apiEnvironment = combinedAPIEnvironment({ apiDSN, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, publicOrigin });
   api = startChild(apiBinary, [], { env: apiEnvironment });
 	try {
 		await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200);
@@ -1195,37 +1184,276 @@ try {
 	cleanupController.dispose();
 }
 
+function combinedAPIEnvironment({ apiDSN, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, publicOrigin }) {
+  return {
+    ...process.env,
+    HOSTNAME: "agentsec-api-production-e2e",
+    ZASP_ENVIRONMENT: "test",
+    ZASP_DEPLOYMENT_MODE: "saas",
+    ZASP_ORGANIZATION_ID: "",
+    ZASP_PRODUCT_LISTEN_ADDRESS: `127.0.0.1:${apiPort}`,
+    ZASP_INTERNAL_LISTEN_ADDRESS: `127.0.0.1:${healthPort}`,
+    ZASP_PUBLIC_ORIGIN: publicOrigin,
+    ZASP_TRUSTED_PROXY_CIDRS: "127.0.0.0/8",
+    ZASP_REQUEST_RATE_PER_SECOND: "1000",
+    ZASP_REQUEST_BURST: "2000",
+    ZASP_COOKIE_SECURE: "true",
+    ZASP_PROVIDER_TIMEOUT: "5s",
+    ZASP_REQUEST_TIMEOUT: "10s",
+    ZASP_SHUTDOWN_TIMEOUT: "5s",
+    ZASP_READINESS_INTERVAL: "100ms",
+    ZASP_READINESS_MAX_INTERVAL: "1s",
+    ZASP_DISCOVERY_PARSER_VERSION: "inventory-parser-2026.08.20",
+    ZASP_DISCOVERY_TOOL_VERSION: "collector-tool-2026.08.20",
+    ZASP_POSTGRES_DSN: apiDSN,
+    ZASP_SECURITY_AGENT_POSTGRES_DSN: `postgres://zasp_e2e_security_agent_api@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
+    ZASP_STYTCH_BASE_URL: `http://127.0.0.1:${identityPort}`,
+    ZASP_STYTCH_AUTHORIZE_URL: `http://127.0.0.1:${identityPort}/v1/b2b/public/oauth/google/start`,
+    ZASP_STYTCH_PROJECT_ID: "project-test-local",
+    ZASP_STYTCH_SECRET: "secret-test-local",
+    ZASP_STYTCH_WEBHOOK_SECRET: stytchWebhookSecret,
+    ZASP_STYTCH_PUBLIC_TOKEN: "public-token-test-local",
+    ZASP_STYTCH_ORGANIZATION_ID: "organization-test-local",
+    ZASP_WORKFLOW_SIGNING_KEY: "0123456789abcdef0123456789abcdef",
+    ZASP_TOKEN_REVEAL_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY",
+    ZASP_CONNECTOR_AWS_REGION: "us-east-1",
+    ZASP_CONNECTOR_ROLE_ARN: "arn:aws:iam::000000000000:role/zasp-production-e2e-api-connectors",
+    ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
+    ZASP_CONNECTOR_KMS_KEY_ARN: "arn:aws:kms:us-east-1:000000000000:key/11111111-1111-1111-1111-111111111111",
+    ZASP_CONNECTOR_SECRET_PREFIX: "zasp-production-e2e/connectors/oauth",
+    ZASP_POLICY_HISTORY_ENDPOINT: `http://127.0.0.1:${policyHistoryPort}`,
+    ZASP_POLICY_HISTORY_INDEX: "zasp-runtime-events-v1",
+    ZASP_AWS_CUSTOMER_ROLE_PREFIXES: '["arn:aws:iam::123456789012:role/zasp-reference/"]',
+    ZASP_AWS_CUSTOMER_ROLE_ARNS: '["arn:aws:iam::123456789012:role/zasp-reference/production-e2e"]',
+    ZASP_KUBERNETES_EGRESS_CIDRS: "203.0.113.0/24",
+    ZASP_FINDING_TICKET_EGRESS_CIDRS: "192.0.2.64/28",
+    ZASP_GITHUB_CLIENT_ID: "Iv1.1234567890abcdef",
+    ZASP_GITHUB_CLIENT_SECRET_REFERENCE: "ref:github/client-secret",
+    ZASP_GITHUB_APP_ID: "123456",
+    ZASP_GITHUB_PRIVATE_KEY_REFERENCE: "ref:github/app-private-key",
+    ZASP_OKTA_CLIENT_ID: "0oa1234567890abcdef",
+    ZASP_OKTA_CLIENT_SECRET_REFERENCE: "ref:okta/client-secret",
+  };
+}
+
+async function beginPrecisionBrowserAcceptance(metadata, configuration) {
+  const { dsn, apiDSN, apiBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort, runtimeSearchEndpoint } = configuration;
+  const publicOrigin = `https://${productHostname}:${proxyPort}`;
+  const scope = `${metadata.scope.organization_id}/${metadata.scope.workspace_id}/${metadata.scope.environment_id}`;
+  const productionScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+  assert.equal(scope, "pid_10000001-0000-4000-8000-000000000001/pid_10000022-0000-4000-8000-000000000022/pid_10000023-0000-4000-8000-000000000023", "precise browser fixture scope changed");
+  const sql = async statement => (await command(path.join(postgresBin, "psql"), [dsn, "-X", "-v", "ON_ERROR_STOP=1", "-At", "-c", statement])).stdout.trim();
+  const predicate = `organization_id='${metadata.scope.organization_id}' AND workspace_id='${metadata.scope.workspace_id}' AND environment_id='${metadata.scope.environment_id}'`;
+  // Search checkpoint state changes only when the actual worker is released.
+  // These immutable evidence tables must not change during browser inspection.
+  const snapshot = () => sql(`SELECT jsonb_build_object('events',(SELECT jsonb_agg(to_jsonb(e) ORDER BY event_id) FROM zasp_runtime_session_events e WHERE ${predicate}),'summaries',(SELECT jsonb_agg(to_jsonb(s) ORDER BY id) FROM zasp_runtime_session_summaries s WHERE ${predicate}),'candidates',(SELECT jsonb_agg(to_jsonb(c) ORDER BY batch_id) FROM zasp_runtime_candidate_snapshots c WHERE ${predicate}),'receipts',(SELECT jsonb_agg(to_jsonb(r) ORDER BY batch_id) FROM zasp_runtime_session_projection_receipts r WHERE ${predicate}))::text`);
+  const before = await snapshot();
+  const releaseDeadline = Math.min(Date.now() + 90_000, metadata.deadline_unix_ms);
+  const pendingStep = async operation => {
+    assert.ok(Date.now() < releaseDeadline, "precise browser pending acceptance exceeded provider deadline");
+    const result = await operation();
+    assert.ok(Date.now() < releaseDeadline, "precise browser pending acceptance exceeded provider deadline");
+    return result;
+  };
+  await pendingStep(async () => { identity = await startIdentityServer(identityPort, publicOrigin); });
+  await pendingStep(async () => { policyHistory = await startPolicyHistoryServer(policyHistoryPort, runtimeSearchEndpoint); });
+  api = startChild(apiBinary, [], { env: { ...combinedAPIEnvironment({ apiDSN, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, publicOrigin }), ZASP_RUNTIME_SESSION_INDEX: "zasp-runtime-sessions-v2" } });
+  try {
+    await pendingStep(() => waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200));
+  } catch (error) {
+    throw new Error(`precise API readiness failed: ${error.message}; ${api.output()}`);
+  }
+  web = startChild(path.join(root, "node_modules", ".bin", "vinext"), ["start", "--port", String(webPort), "--hostname", "127.0.0.1"], { cwd: root });
+  await pendingStep(() => waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`, 200));
+  const key = path.join(temporaryRoot, "precision-tls.key"), certificate = path.join(temporaryRoot, "precision-tls.crt");
+  await pendingStep(() => command("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", `/CN=${productHostname}`, "-addext", `subjectAltName=DNS:${productHostname},DNS:${recoveryHostname}`, "-keyout", key, "-out", certificate]));
+  await pendingStep(async () => { proxy = await startProxy(proxyPort, apiPort, webPort, key, certificate, dsn); });
+  await pendingStep(() => waitForHTTP(`${publicOrigin}/sign-in`, 200, true));
+  await pendingStep(async () => { browser = await startBrowser(path.join(temporaryRoot, "precision-chrome-profile"), chromePort, "about:blank"); });
+  const cdp = browser.cdp;
+  const authenticationStarted = new Date().toISOString();
+  await pendingStep(() => navigateBrowser(cdp, `${publicOrigin}/api/v1/session/start?return_to=%2Fdiscovery%2Fassets`));
+  await pendingStep(() => waitForBrowserScope(cdp, productionScope));
+  assert.equal(observedSessionCookie, true, "precise browser did not receive callback cookie");
+  assert.equal(await sql(`SELECT count(*) FROM zasp_product_sessions WHERE principal_id='pid_10000004-0000-4000-8000-000000000004' AND authenticated_at>='${authenticationStarted}'::timestamptz AND expires_at>transaction_timestamp()+interval '50 minutes' AND revoked_at IS NULL`), "1", "browser did not authenticate freshly after provider setup");
+  await pendingStep(() => selectBrowserOption(cdp, "Authorized scope", "Staging"));
+  await pendingStep(() => waitForBrowserScope(cdp, scope));
+  const read = target => browserFetchJSON(cdp, target, { "X-Zasp-Expected-Scope": scope });
+  const pending = await pendingStep(() => read("/api/v1/sessions?kind=runtime&limit=100"));
+  assert.equal(pending.status, 200);
+  assert.equal(pending.body.search.state, "catching_up");
+  assert.equal(pending.body.search.pending_batches, 1);
+  await pendingStep(() => clickBrowserAria(cdp, "Sessions"));
+  await pendingStep(() => waitForBrowserText(cdp, /Indexing is catching up/));
+  assert.equal(await snapshot(), before, "pending browser inspection changed runtime evidence");
+  console.log("combined E2E: precise browser observed actual pending target2 checkpoint through fresh callback, API and UI");
+  return { async observeCurrent() {
+    const current = await read("/api/v1/sessions?kind=runtime&limit=100");
+    assert.equal(current.status, 200);
+    assert.equal(current.body.search.state, "current");
+    assert.equal(current.body.search.pending_batches, 0);
+    assert.equal(current.body.search.quarantined_batches, 0);
+    await reloadBrowser(cdp);
+    await waitForBrowserScope(cdp, scope);
+    await waitForBrowserText(cdp, /Known indexing work is current/);
+    await exercisePrecisionBrowserEvidence(cdp, metadata, read);
+    await exercisePrecisionBrowserTenantDenial(metadata, sql, chromePort, publicOrigin);
+    // Change investigation scope while a real evidence dialog is still open.
+    await clickBrowserAria(cdp, `Open runtime timeline ${metadata.session_id}`);
+    await clickBrowserAria(cdp, `Open evidence ${metadata.bound_event.evidence_id}`);
+    await waitForBrowserText(cdp, /Canonical event time/);
+    await selectBrowserOption(cdp, "Authorized scope", "Production");
+    await waitForBrowserScope(cdp, productionScope);
+    await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Evidence metadata"]') === null && document.querySelector('[aria-label="Runtime timeline"]') === null`);
+    assert.equal((await browserFetchJSON(cdp, `/api/v1/sessions/${metadata.session_id}/events/${metadata.bound_event.event_id}`, { "X-Zasp-Expected-Scope": productionScope })).status, 404, "scope change retained old investigation authority");
+    assert.equal(await snapshot(), before, "precise browser acceptance changed worker-written runtime evidence");
+    assert.deepEqual(browserConsoleErrors, [], `precise browser exceptions: ${JSON.stringify(browserConsoleErrors)}`);
+    assert.equal(proxyFailure, undefined, `precise proxy failed: ${proxyFailure}`);
+    console.log("combined E2E: precise browser console and exception stream remained clean; identity fixtures only, live deployment NOT RUN");
+  } };
+}
+
+async function closePrecisionBrowserPanel(cdp, label) {
+  const selector = `[aria-label="${label}"]`;
+  await waitForBrowserAction(cdp, `(() => { const button=document.querySelector(${JSON.stringify(selector + ' button[aria-label="Close"]')}); if (!button) return false; button.click(); return true; })()`);
+  await waitForBrowserAction(cdp, `document.querySelector(${JSON.stringify(selector)}) === null`);
+}
+
+async function exercisePrecisionBrowserEvidence(cdp, metadata, read) {
+  const bound = await read(`/api/v1/sessions/${metadata.session_id}/events/${metadata.bound_event.event_id}`);
+  const unknown = await read(`/api/v1/sessions/unattributed/events/${metadata.unknown_event.event_id}`);
+  assert.equal(bound.status, 200);
+  assert.equal(unknown.status, 200);
+  assertPrecisionBrowserIdentity(metadata, bound.body, unknown.body);
+  assert.equal((await read(`/api/v1/sessions/${metadata.session_id}/events/${metadata.unknown_event.event_id}`)).status, 404, "unknown event acquired a bound investigation");
+  assert.equal((await read(`/api/v1/sessions/unattributed/events/${metadata.bound_event.event_id}`)).status, 404, "bound event escaped to unknown investigation");
+  for (const [investigation, expected, target] of [[metadata.session_id, bound.body, metadata.bound_event], ["unattributed", unknown.body, metadata.unknown_event]]) {
+    await clickBrowserAria(cdp, `Open runtime timeline ${investigation}`);
+    const all = [];
+    let cursor = null, found = 0;
+    for (let pageNumber = 0; pageNumber < 100; pageNumber++) {
+      const canonical = await read(`/api/v1/sessions/${investigation}/events?limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+      assert.equal(canonical.status, 200);
+      assert.ok(canonical.body.items.length > 0, "browser timeline lost canonical page");
+      const ids = canonical.body.items.map(event => event.id);
+      await waitForBrowserAction(cdp, `JSON.stringify(Array.from(document.querySelectorAll('[aria-label="Runtime evidence timeline"] > li'), row => row.dataset.runtimeEventId)) === ${JSON.stringify(JSON.stringify(ids))}`);
+      const visible = await cdp.send("Runtime.evaluate", { expression: `Array.from(document.querySelectorAll('[aria-label="Runtime evidence timeline"] > li'), row => ({ id: row.dataset.runtimeEventId, evidence: row.dataset.runtimeEvidenceId, at: row.querySelector('time').dataset.runtimeEventTime, confidence: row.querySelector('[data-runtime-confidence]').dataset.runtimeConfidence, label: row.querySelector('[data-runtime-confidence] .badge').textContent, text: row.innerText }))`, returnByValue: true });
+      const rows = visible.result.value;
+      for (const [index, row] of rows.entries()) {
+        const event = canonical.body.items[index];
+        assert.equal(row.id, event.id);
+        assert.equal(row.evidence, event.evidence_id);
+        assert.equal(row.at, event.at);
+        assert.equal(row.confidence, event.confidence);
+        assert.match(row.text, new RegExp(`Source: ${event.source}`));
+        const previous = all.at(-1);
+        if (previous) assertPrecisionBrowserCanonicalOrder(previous, row);
+        all.push(row);
+      }
+      const selected = rows.find(row => row.id === target.event_id);
+      if (selected) {
+        found++;
+        assert.equal(selected.label, investigation === "unattributed" ? "Unattributed" : "Strong");
+        assert.ok(selected.text.includes(`Sandbox: ${expected.sandbox_id ?? "Unknown (not recorded)"}`));
+        if (expected.sandbox_source_sensor_id) assert.ok(selected.text.includes(`Sandbox source sensor: ${expected.sandbox_source_sensor_id}`));
+        else assert.equal(selected.text.includes("Sandbox source sensor:"), false);
+        await clickBrowserAria(cdp, `Open evidence ${target.evidence_id}`);
+        await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Canonical evidence metadata"]') !== null`);
+        const detail = await cdp.send("Runtime.evaluate", { expression: `Object.fromEntries(Array.from(document.querySelectorAll('[aria-label="Canonical evidence metadata"] dt'), term => [term.textContent, term.nextElementSibling.textContent]))`, returnByValue: true });
+        assert.equal(detail.result.value["Canonical event"], target.event_id);
+        assert.equal(detail.result.value["Evidence reference"], target.evidence_id);
+        assert.equal(detail.result.value["Canonical event time"], expected.at);
+        assert.equal(detail.result.value["Correlation confidence"], investigation === "unattributed" ? "Unattributed" : "Strong");
+        assert.equal(detail.result.value["Sandbox"], expected.sandbox_id ?? "Unknown (not recorded)");
+        assert.equal(detail.result.value["Sandbox source sensor"], expected.sandbox_source_sensor_id ?? undefined);
+        await closePrecisionBrowserPanel(cdp, "Evidence metadata");
+      }
+      if (!canonical.body.page_info.has_more) {
+        await waitForBrowserAction(cdp, `Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Next event page')?.disabled === true`);
+        break;
+      }
+      assert.ok(canonical.body.page_info.next_cursor && canonical.body.page_info.next_cursor !== cursor && pageNumber < 99, "runtime browser pagination failed to advance");
+      cursor = canonical.body.page_info.next_cursor;
+      await clickBrowserText(cdp, "Next event page");
+    }
+    assert.equal(found, 1, "fresh precise event missing or duplicated across actual browser pages");
+    assert.equal(new Set(all.map(event => event.id)).size, all.length);
+    await closePrecisionBrowserPanel(cdp, "Runtime timeline");
+  }
+}
+
+async function exercisePrecisionBrowserTenantDenial(metadata, sql, chromePort, origin) {
+  // This existing foreign scope belongs to the historical provider fixture.
+  // Only its isolated browser identity/session is created here, never evidence.
+  const organization = "pid_78930001-0000-4000-8000-000000000001", workspace = "pid_78930002-0000-4000-8000-000000000002", environment = "pid_78930003-0000-4000-8000-000000000003";
+  const principal = "pid_78931601-0000-4000-8000-000000000601", sessionID = "session-precision-browser-denial-fixture";
+  const scope = `${organization}/${workspace}/${environment}`;
+  assert.equal(await sql(`SELECT count(*) FROM zasp_identity_memberships WHERE principal_id='${principal}'`), "0", "precise browser does not own foreign principal");
+  const token = randomBytes(32).toString("hex"), digest = createHash("sha256").update(token).digest("hex"), csrf = randomBytes(32).toString("hex");
+  let isolated;
+  try {
+    await sql(`BEGIN;
+      INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role) VALUES('${principal}','${organization}','organization-precision-browser-denial','member-precision-browser-denial','security_admin');
+      INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES('${principal}','${organization}','${workspace}','${environment}','Precision denial','["view"]'::jsonb,true);
+      INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES(decode('${digest}','hex'),'${csrf}','${sessionID}','${principal}','${organization}','${workspace}','${environment}','["view"]'::jsonb,transaction_timestamp()+interval '1 hour');
+      COMMIT;`);
+    isolated = await startBrowserTab(chromePort, `${origin}/`, { name: "__Host-zasp_session", value: token, sameSite: "Lax" });
+    isolated.on("Runtime.exceptionThrown", event => browserConsoleErrors.push({ kind: "foreign exception", text: event.exceptionDetails?.text ?? "unknown" }));
+    await waitForBrowserScope(isolated, scope);
+    const read = target => browserFetchJSON(isolated, target, { "X-Zasp-Expected-Scope": scope });
+    assert.equal((await read("/api/v1/sessions?kind=runtime&limit=100")).status, 200, "foreign identity was not independently authorized");
+    for (const target of [`/api/v1/sessions/${metadata.session_id}`, `/api/v1/sessions/${metadata.session_id}/events/${metadata.bound_event.event_id}`, `/api/v1/sessions/unattributed/events/${metadata.unknown_event.event_id}`]) {
+      assert.equal((await read(target)).status, 404, "foreign tenant read precise worker evidence");
+    }
+  } finally {
+    try { await isolated?.dispose(); } finally {
+      await sql(`BEGIN;
+        DELETE FROM zasp_product_sessions WHERE principal_id='${principal}' AND organization_id='${organization}' AND session_id='${sessionID}';
+        DELETE FROM zasp_authorized_scopes WHERE principal_id='${principal}' AND organization_id='${organization}' AND workspace_id='${workspace}' AND environment_id='${environment}';
+        DELETE FROM zasp_identity_memberships WHERE principal_id='${principal}' AND organization_id='${organization}';
+        COMMIT;`);
+    }
+  }
+}
+
 async function cleanupOwnedResources() {
-  let runtimeCleanupError;
-  try { await runtimeGraphDependency?.close(); } catch (error) { runtimeCleanupError = error; }
-  try { await redTeamRuntimeProof.close(); } catch (error) { runtimeCleanupError = error; }
-  try { await runtimePipelineDependencies.close(); } catch (error) { runtimeCleanupError = error; }
+  const cleanupErrors = [];
+  const attempt = async operation => {
+    try { await operation(); } catch (error) { cleanupErrors.push(error); }
+  };
+  await attempt(() => precisionBrowserCheckpoint?.close());
+  if (runtimePipelineChild) await attempt(() => stopChild(runtimePipelineChild));
+  await attempt(() => runtimeGraphDependency?.close());
+  await attempt(() => redTeamRuntimeProof.close());
+  await attempt(() => runtimePipelineDependencies.close());
   console.log("combined E2E: cleanup browser");
-  if (secondBrowserTab) await secondBrowserTab.dispose();
+  if (secondBrowserTab) await attempt(() => secondBrowserTab.dispose());
   if (browser) {
-    browser.cdp.close();
-    await stopChild(browser.child);
+    await attempt(() => browser.cdp.close());
+    await attempt(() => stopChild(browser.child));
   }
   console.log("combined E2E: cleanup Task4 workers");
-  for (const worker of task4Workers.reverse()) await stopChild(worker);
+  for (const worker of task4Workers.reverse()) await attempt(() => stopChild(worker));
   task4Workers.length = 0;
   console.log("combined E2E: cleanup api");
-  if (api) await stopChild(api);
+  if (api) await attempt(() => stopChild(api));
   console.log("combined E2E: cleanup proxy");
-  if (proxy) await closeServer(proxy);
+  if (proxy) await attempt(() => closeServer(proxy));
   console.log("combined E2E: cleanup identity");
-  if (identity) await closeServer(identity);
+  if (identity) await attempt(() => closeServer(identity));
   console.log("combined E2E: cleanup policy history");
-  if (policyHistory) await closeServer(policyHistory);
+  if (policyHistory) await attempt(() => closeServer(policyHistory));
   console.log("combined E2E: cleanup web");
-  if (web) await stopChild(web);
+  if (web) await attempt(() => stopChild(web));
   console.log("combined E2E: cleanup postgres");
-  if (postgres) await stopPostgres(postgres);
+  if (postgres) await attempt(() => stopPostgres(postgres));
   console.log("combined E2E: cleanup remaining processes");
-  for (const child of children.reverse()) await stopChild(child);
+  for (const child of children.reverse()) await attempt(() => stopChild(child));
+  // A failed join can leave a process using these files. Keep the owned root
+  // and every original error, even if a later cleanup attempt succeeded.
+  if (cleanupErrors.length) throw new AggregateError(cleanupErrors, `owned resource cleanup failed; temporary root retained: ${temporaryRoot}`);
   console.log("combined E2E: cleanup files");
   await rm(temporaryRoot, { recursive: true, force: true });
-  if (runtimeCleanupError) throw runtimeCleanupError;
 }
 
 async function generateHarnessGitHubAppPrivateKey(target) {
@@ -3508,8 +3736,14 @@ async function startPolicyHistoryServer(port, runtimeSearchEndpoint) {
 		}
     // Only these fixed session read routes reach the owned real engine. The
     // unrelated policy-history fixture below remains synthetic.
+    // The actual SessionIndex client requires these five safety parameters.
+    // Accept their signer-sorted order, never duplicate or extra parameters.
+    const preciseSearchParameters = { allow_partial_search_results: "false", request_cache: "false", typed_keys: "false", terminate_after: "0", timeout: "5s" };
+    const preciseSearchQuery = [...target.searchParams].length === 5 && Object.entries(preciseSearchParameters).every(([name, value]) => target.searchParams.getAll(name).length === 1 && target.searchParams.get(name) === value);
     const sessionRead = request.method === "GET" && ["/zasp-runtime-sessions-v1/_mapping", "/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1"].includes(target.pathname)
-      || request.method === "POST" && target.pathname === "/zasp-runtime-sessions-v1/_search";
+      || request.method === "POST" && target.pathname === "/zasp-runtime-sessions-v1/_search"
+      || target.search === "" && request.method === "GET" && ["/zasp-runtime-sessions-v2/_mapping", "/zasp-runtime-sessions-v2/_doc/_zasp_session_schema_v2"].includes(target.pathname)
+      || preciseSearchQuery && request.method === "POST" && target.pathname === "/zasp-runtime-sessions-v2/_search";
     if (sessionRead) {
       if (failNextRuntimeSessionSearch && request.method === "POST") {
         failNextRuntimeSessionSearch = false;
@@ -4650,6 +4884,7 @@ async function command(executable, args, options = {}) {
   });
   children.push(owned.child);
   ownedCommands.set(owned.child, owned);
+  options.onStarted?.(owned.child);
   let rejectShutdown;
   const failedShutdown = new Promise((_, reject) => { rejectShutdown = reject; });
   let timedOut = false;

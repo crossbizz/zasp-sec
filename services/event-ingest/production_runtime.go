@@ -281,10 +281,6 @@ func buildProductionIngestDependencies(ctx context.Context, config productionIng
 		database.Close()
 		return productionIngestDependencies{}, errRuntimeUnavailable
 	}
-	repository, err := runtimeevent.NewPostgresProductionIngestRepository(database)
-	if err != nil {
-		return failDatabase()
-	}
 	clock := func() time.Time { return time.Now().UTC() }
 	cloud, err := newProductionIngestCloud(config, clock)
 	if err != nil {
@@ -296,29 +292,6 @@ func buildProductionIngestDependencies(ctx context.Context, config productionIng
 		return productionIngestDependencies{}, errRuntimeUnavailable
 	}
 	artifacts, err := s3rawstore.New(cloud.s3, s3rawstore.Config{Bucket: config.Bucket, ExpectedBucketOwner: config.ExpectedBucketOwner, KMSKeyARN: config.KMSKeyARN, MaximumBytes: config.MaximumBytes, OperationTimeout: config.OperationTimeout})
-	if err != nil {
-		return failCloud()
-	}
-	check := func(readyCtx context.Context) error {
-		if repository.Ready(readyCtx) != nil || readyProductionIngestCloud(readyCtx, cloud, config) != nil {
-			return errRuntimeUnavailable
-		}
-		return nil
-	}
-	readiness, err := newProductionReadinessCache(check, config.OperationTimeout, productionIngestReadinessTTL, clock)
-	if err != nil || readiness.Ready(connectCtx) != nil {
-		return failCloud()
-	}
-	cachedRepository := cachedProductionIngestRepository{productionIngestRepository: repository, ready: readiness.Ready}
-	router, err := newProductionIngestRouter(cachedRepository, artifacts, config.MaximumBytes, clock)
-	if err != nil {
-		return failCloud()
-	}
-	reconciler, err := runtimeevent.NewProductionIngestReconciler(runtimeevent.ProductionIngestReconcilerConfig{
-		Repository: cachedProductionIngestReconciliationRepository{ProductionIngestReconciliationRepository: repository, ready: readiness.Ready},
-		Artifacts:  artifacts, WorkerID: config.ReconcilerID, LeaseSeconds: 60, ClaimLimit: 10,
-		OperationTimeout: config.OperationTimeout, NewLeaseToken: newProductionReconciliationLeaseToken,
-	})
 	if err != nil {
 		return failCloud()
 	}
@@ -334,10 +307,11 @@ func buildProductionIngestDependencies(ctx context.Context, config productionIng
 		})
 		return closeErr
 	}
-	return productionIngestDependencies{
-		Handler: readinessGatedIngestHandler{ready: readiness.Ready, next: router}, Ready: readiness.Ready,
-		Reconcile: reconciler.RunOnce, ReconcileInterval: config.ReconciliationInterval, Close: closeDependencies,
-	}, nil
+	dependencies, err := composeProductionIngestDependencies(connectCtx, config, database, artifacts, func(ctx context.Context) error { return readyProductionIngestCloud(ctx, cloud, config) }, clock, closeDependencies)
+	if err != nil {
+		return failCloud()
+	}
+	return dependencies, nil
 }
 
 func newProductionReconciliationLeaseToken() (string, error) {

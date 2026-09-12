@@ -40,6 +40,15 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 	if config.ProductListenAddress != ":8080" || config.InternalListenAddress != ":8081" || config.PublicOrigin != "https://app.zasp.example" || !config.CookieSecure || config.DiscoveryParserVersion != "parser-v1" || config.DiscoveryToolVersion != "tool-v1" || config.SecurityAgentPostgresDSN != values["ZASP_SECURITY_AGENT_POSTGRES_DSN"] || len(config.AWSCustomerRolePrefixes) != 2 || config.AWSCustomerRolePrefixes[0] != "arn:aws:iam::111111111111:role/zasp,team/" || config.AWSCustomerRolePrefixes[1] != "arn:aws:iam::123456789012:role/zasp/" || len(config.AWSCustomerRoleARNs) != 2 {
 		t.Fatalf("config = %#v", config)
 	}
+	for _, name := range []string{"", "zasp-runtime-sessions-v1", "zasp-runtime-sessions-v2", "zasp-runtime-sessions-v3", "*"} {
+		selected := mapsClone(values)
+		selected["ZASP_RUNTIME_SESSION_INDEX"] = name
+		loaded, err := loadRuntimeConfig(func(key string) string { return selected[key] })
+		valid := name == "" || name == "zasp-runtime-sessions-v1" || name == "zasp-runtime-sessions-v2"
+		if (err == nil) != valid || valid && loaded.RuntimeSessionIndex != name {
+			t.Fatal("API session index environment selection", name, err)
+		}
+	}
 	invalidCIDRs := mapsClone(values)
 	invalidCIDRs["ZASP_KUBERNETES_EGRESS_CIDRS"] = "not-a-cidr"
 	if _, err := loadRuntimeConfig(func(key string) string { return invalidCIDRs[key] }); !errors.Is(err, errInvalidRuntimeConfig) {

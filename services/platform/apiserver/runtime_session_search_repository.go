@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	searchdriver "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 	"github.com/zasp-ai/zasp-sec/services/platform/sessionsearch"
 	"strconv"
@@ -20,6 +21,30 @@ type RuntimeSessionSearchIndex interface {
 	Search(context.Context, domain.Scope, sessionsearch.Filters, string, int) (searchdriver.SessionSearchPage, error)
 }
 
+func NewPostgresRepositoryWithRuntimeSessionSearchIndex(database JSONDatabase, index RuntimeSessionSearchIndex, name string) (*PostgresRepository, error) {
+	if !searchdriver.ValidSessionIndexName(name) {
+		return nil, ErrRepositoryConfiguration
+	}
+	repository, err := NewPostgresRepositoryWithRuntimeSessionSearch(database, index)
+	if err != nil {
+		return nil, err
+	}
+	repository.sandboxSessionSearch = name == "zasp-runtime-sessions-v2"
+	return repository, nil
+}
+
+func (repository *PostgresRepository) readyRuntimeSessionSearch(ctx context.Context) error {
+	if !repository.sandboxSessionSearch {
+		return nil
+	}
+	metadata := migrations.ProductionRuntimeSandboxBinding()
+	body, err := repository.database.QueryJSON(ctx, `SELECT to_jsonb(zasp_production_runtime_sandbox_binding_readiness($1,$2))`, metadata.Checksum(), migrations.ProductionRuntimeSandboxBindingSemanticFingerprint())
+	if err != nil || ctx.Err() != nil || !bytes.Equal(bytes.TrimSpace(body), []byte("true")) {
+		return ErrRepositoryUnavailable
+	}
+	return nil
+}
+
 func NewPostgresRepositoryWithRuntimeSessionSearch(database JSONDatabase, index RuntimeSessionSearchIndex) (*PostgresRepository, error) {
 	if nilInterface(index) {
 		return nil, ErrRepositoryConfiguration
@@ -29,6 +54,7 @@ func NewPostgresRepositoryWithRuntimeSessionSearch(database JSONDatabase, index 
 		return nil, err
 	}
 	repository.runtimeSessionSearch = index
+	repository.sandboxSessionReads = true
 	return repository, nil
 }
 
@@ -198,7 +224,15 @@ func (repository *PostgresRepository) searchRuntimeSessions(ctx context.Context,
 		}
 		return body, nil
 	}
-	statusBody, err := query(postgresRuntimeSessionQueryStatusSQL, args...)
+	statusSQL, hydrateSQL := postgresRuntimeSessionQueryStatusSQL, postgresRuntimeSessionQueryHydrateSQL
+	if repository.sandboxSessionSearch {
+		if err := repository.readyRuntimeSessionSearch(ctx); err != nil {
+			return nil, ErrRepositoryUnavailable
+		}
+		statusSQL = `SELECT zasp_runtime_sandbox_query_status($1,$2,$3,$4)`
+		hydrateSQL = `SELECT zasp_runtime_sandbox_query_hydrate($1,$2,$3,$4,$5)`
+	}
+	statusBody, err := query(statusSQL, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +257,7 @@ func (repository *PostgresRepository) searchRuntimeSessions(ctx context.Context,
 	} else if !runtimeSessionTarget(candidates.After) || candidates.After < previous {
 		return nil, ErrRepositoryUnavailable
 	}
-	payload, err = query(postgresRuntimeSessionQueryHydrateSQL, append(args, candidates.InvestigationIDs)...)
+	payload, err = query(hydrateSQL, append(args, candidates.InvestigationIDs)...)
 	if err != nil {
 		return nil, err
 	}

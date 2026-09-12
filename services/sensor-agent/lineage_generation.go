@@ -39,7 +39,11 @@ type lineageGenerationPublisher interface {
 // provide the controlled host mounts, procfs boot reader and Kubernetes client.
 // This constructor doesn't grant tenant authority or authenticate those mounts.
 func startLineageGeneration(ctx context.Context, nodeName, binding string, api lineageIdentityAPI, boot *hostBootReader, endpoint *lineageSocket, spool lineageGenerationPublisher) (_ *lineageGeneration, err error) {
-	if ctx == nil || ctx.Err() != nil || !validKubernetesName(nodeName) || !enrollmentBindingPattern.MatchString(binding) || nilClusterValue(api) || boot == nil || endpoint == nil || nilClusterValue(spool) {
+	return startLineageGenerationProfile(ctx, nodeName, binding, api, boot, endpoint, spool, "tetragon-local-stream-v2")
+}
+
+func startLineageGenerationProfile(ctx context.Context, nodeName, binding string, api lineageIdentityAPI, boot *hostBootReader, endpoint *lineageSocket, spool lineageGenerationPublisher, profile string) (_ *lineageGeneration, err error) {
+	if (profile != "tetragon-local-stream-v2" && profile != "tetragon-local-stream-v3") || ctx == nil || ctx.Err() != nil || !validKubernetesName(nodeName) || !enrollmentBindingPattern.MatchString(binding) || nilClusterValue(api) || boot == nil || endpoint == nil || nilClusterValue(spool) {
 		endpoint.Close()
 		return nil, errLineageGeneration
 	}
@@ -77,7 +81,7 @@ func startLineageGeneration(ctx context.Context, nodeName, binding string, api l
 	uuid[6] = uuid[6]&0x0f | 0x40
 	uuid[8] = uuid[8]&0x3f | 0x80
 	generation.source = sensoradapter.LineageSource{
-		Profile:           "tetragon-local-stream-v2",
+		Profile:           profile,
 		GenerationID:      fmt.Sprintf("%x-%x-%x-%x-%x", uuid[:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:]),
 		EnrollmentBinding: binding,
 		NodeName:          before.NodeName, ClusterUID: before.ClusterUID, NodeUID: before.NodeUID, BootID: before.BootID,

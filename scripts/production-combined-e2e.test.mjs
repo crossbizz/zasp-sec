@@ -1,10 +1,50 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
-import { mkdtemp, readFile, readdir, rmdir } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, rmdir } from "node:fs/promises";
 import os from "node:os";
+import http from "node:http";
 import path from "node:path";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
+
+test("precise browser rejects every missing prerequisite before dependency allocation", () => {
+  const flags = { ZASP_COMBINED_E2E_RUNTIME_PRECISION_BROWSER: "true", ZASP_COMBINED_E2E_RUNTIME_PRECISION: "true", ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY: "true", ZASP_COMBINED_E2E_RUNTIME_SANDBOX_SEARCH: "true" };
+  for (const key of Object.keys(flags).filter(key => !key.endsWith("_BROWSER"))) {
+    for (const value of ["", "TRUE", "false"]) {
+      const result = spawnSync(process.execPath, [new URL("./production-combined-e2e.mjs", import.meta.url).pathname], {
+        env: { ...process.env, ...flags, [key]: value, PATH: "" }, encoding: "utf8", timeout: 5000,
+      });
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /precision browser checkpoint requires/);
+      assert.doesNotMatch(result.stderr, /pg_config|ENOENT/);
+      assert.equal(result.stdout, "");
+    }
+  }
+});
+
+test("precision proof rejects missing prerequisite flags before starting dependencies", () => {
+  for (const [only, sandbox] of [["false", "false"], ["true", "false"], ["false", "true"]]) {
+    const result = spawnSync(process.execPath, [new URL("./production-combined-e2e.mjs", import.meta.url).pathname], {
+      env: { ...process.env, PATH: "", ZASP_COMBINED_E2E_RUNTIME_PRECISION: "true", ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY: only, ZASP_COMBINED_E2E_RUNTIME_SANDBOX_SEARCH: sandbox },
+      encoding: "utf8", timeout: 5000,
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /precision proof requires runtime-only and sandbox-search modes/);
+    assert.doesNotMatch(result.stdout, /disposable PostgreSQL ready/);
+  }
+});
+
+test("sandbox search cutover rejects broad harness mode before starting dependencies", () => {
+  const result = spawnSync(process.execPath, [new URL("./production-combined-e2e.mjs", import.meta.url).pathname], {
+    env: { ...process.env, PATH: "", ZASP_COMBINED_E2E_RUNTIME_SANDBOX_SEARCH: "true", ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY: "false" },
+    encoding: "utf8", timeout: 5000,
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /sandbox search cutover requires runtime-only mode/);
+  assert.doesNotMatch(result.stdout, /disposable PostgreSQL ready/);
+});
 
 test("combined product proof requires the forward reconciliation migration", async () => {
   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
@@ -62,6 +102,97 @@ test("runtime query composition requires schema43 and real indexed HTTP search",
   assert.ok(source.includes('"/zasp-runtime-sessions-v1/_mapping"'));
   assert.ok(source.includes('"/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1"'));
   assert.ok(source.includes('"/zasp-runtime-sessions-v1/_search"'));
+});
+
+test("runtime proxy forwards only fixed target1 and target2 read routes to the owned engine", async t => {
+  const requests = [];
+  const engine = http.createServer(async (request, response) => {
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    requests.push({ method: request.method, path: request.url, body });
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify({ forwarded: requests.at(-1) }));
+  });
+  engine.listen(0, "127.0.0.1");
+  await once(engine, "listening");
+  t.after(() => new Promise(resolve => engine.close(resolve)));
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function startPolicyHistoryServer(");
+  const end = source.indexOf("\nasync function startProxy(", start);
+  assert.ok(start > 0 && end > start);
+  const startProxy = runInNewContext(`(${source.slice(start, end)})`, {
+    readFile, path, platform: new URL("../services/platform/", import.meta.url).pathname, assert, createHash, http, URL, once,
+    policyHistoryRequests: [], failNextRuntimeSessionSearch: false,
+  });
+  const proxy = await startProxy(0, `http://127.0.0.1:${engine.address().port}`);
+  t.after(() => new Promise(resolve => proxy.close(resolve)));
+  const request = async (method, route, signed = true) => {
+    const response = await fetch(`http://127.0.0.1:${proxy.address().port}${route}`, {
+      method, headers: { ...(signed ? { authorization: "AWS4-HMAC-SHA256 owned-route-test" } : {}), "content-type": "application/json" },
+      ...(method === "POST" || method === "PUT" ? { body: '{"query":{"match_none":{}}}' } : {}),
+    });
+    return { status: response.status, body: await response.json() };
+  };
+  const productionQuery = "allow_partial_search_results=false&request_cache=false&typed_keys=false&terminate_after=0&timeout=5s";
+  for (const version of [1, 2]) {
+    for (const [method, route] of [["GET", `_mapping`], ["GET", `_doc/_zasp_session_schema_v${version}`], ["POST", "_search"]]) {
+      const pathname = `/zasp-runtime-sessions-v${version}/${route}${version === 2 && method === "POST" ? `?${productionQuery}` : ""}`;
+      const response = await request(method, pathname);
+      assert.equal(response.status, 200, pathname);
+      assert.deepEqual(response.body.forwarded, { method, path: pathname, body: method === "POST" ? '{"query":{"match_none":{}}}' : "" });
+    }
+  }
+  const sorted = new URLSearchParams(productionQuery);
+  sorted.sort();
+  assert.equal((await request("POST", `/zasp-runtime-sessions-v2/_search?${sorted}`)).status, 200, "AWS signer query sorting changed fixed read authority");
+  const accepted = [...requests];
+  for (const [method, route] of [["PUT", "_mapping"], ["POST", "_bulk"], ["POST", "_delete_by_query"], ["DELETE", "_doc/_zasp_session_schema_v2"], ["GET", "_doc/foreign"], ["GET", "_search"], ["POST", "_search"], ["POST", "_search?scroll=1m"], ["GET", "_mapping?expand_wildcards=all"], ...[`${productionQuery}&scroll=1m`, `${productionQuery}&timeout=5s`, productionQuery.replace("request_cache=false", "request_cache=true"), productionQuery.replace("&timeout=5s", ""), productionQuery.replace("timeout=5s", "timeout=60s")].map(query => ["POST", `_search?${query}`])]) {
+    assert.equal((await request(method, `/zasp-runtime-sessions-v2/${route}`)).status, 404);
+  }
+  assert.equal((await request("POST", "/zasp-runtime-sessions-v2/_search", false)).status, 403);
+  assert.deepEqual(requests, accepted, "unknown/write/unsigned route reached real engine");
+});
+
+test("precise callback readiness accepts authorized empty inventory and still checks fresh session authority", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("  await pendingStep(() => navigateBrowser(cdp,", source.indexOf("async function beginPrecisionBrowserAcceptance("));
+  const end = source.indexOf('  await pendingStep(() => selectBrowserOption(cdp, "Authorized scope", "Staging"));', start);
+  assert.ok(start > 0 && end > start);
+  const sqlQueries = [], scopes = [];
+  const context = {
+    assert, cdp: {}, publicOrigin: "https://owned.test", productionScope: "authorized-production-scope", authenticationStarted: "2026-09-12T00:00:00.000Z", observedSessionCookie: true,
+    pendingStep: operation => operation(), navigateBrowser: async () => {},
+    waitForBrowserText: async (_cdp, pattern) => assert.match("Zasp Production Staging Sign out Agents Authorized canonical inventory. No records in this scope.", pattern),
+    waitForBrowserScope: async (_cdp, scope) => { scopes.push(scope); },
+    sql: async query => { sqlQueries.push(query); return "1"; },
+  };
+  await runInNewContext(`(async () => { ${source.slice(start, end)} })()`, context);
+  assert.deepEqual(scopes, [context.productionScope]);
+  assert.equal(sqlQueries.length, 1);
+  assert.match(sqlQueries[0], /authenticated_at>=.*expires_at>transaction_timestamp\(\).*revoked_at IS NULL/);
+  await assert.rejects(runInNewContext(`(async () => { ${source.slice(start, end)} })()`, { ...context, observedSessionCookie: false }), /did not receive callback cookie/);
+  await assert.rejects(runInNewContext(`(async () => { ${source.slice(start, end)} })()`, { ...context, sql: async () => "0" }), /did not authenticate freshly/);
+});
+
+test("a pending deadline after server allocation leaves the server owned by parent cleanup", async t => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function beginPrecisionBrowserAcceptance(");
+  const end = source.indexOf("\nasync function closePrecisionBrowserPanel(", start);
+  assert.ok(start > 0 && end > start);
+  let now = 100_000;
+  const server = http.createServer((_request, response) => response.end());
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const context = {
+    assert, path, productHostname: "zasp.production-e2e.test", postgresBin: "/owned/postgres", identity: undefined,
+    Date: { now: () => now },
+    command: async (_executable, args) => { assert.ok(args.at(-1).startsWith("SELECT jsonb_build_object")); return { stdout: "immutable snapshot" }; },
+    startIdentityServer: async () => { now = 102_000; return server; },
+  };
+  const begin = runInNewContext(`(${source.slice(start, end)})`, context);
+  await assert.rejects(begin({ scope: { organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000022-0000-4000-8000-000000000022", environment_id: "pid_10000023-0000-4000-8000-000000000023" }, deadline_unix_ms: 101_000 }, { dsn: "owned", proxyPort: 1234, identityPort: server.address().port }), /exceeded provider deadline/);
+  assert.equal(context.identity, server, "deadline rejection lost ownership of listening server");
 });
 
 test("runtime timeline proves reverse-ingress canonical order across real UI pages", async () => {
@@ -274,7 +405,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
 		"exerciseProductionAttackLabLifecycle", "TestProductionCombinedE2EAttackLabWorker", "ZASP_COMBINED_E2E_ATTACK_LAB_CONTROLLER_DSN",
 		"Review safety decision", "Approve exact safety decision", "composed Attack Lab outbox and controller completed deterministic isolated sandbox evidence",
   ]) assert.match(source, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  const apiEnvironment = source.slice(source.indexOf("const apiEnvironment = {"), source.indexOf("api = startChild(apiBinary"));
+  const apiEnvironment = source.slice(source.indexOf("function combinedAPIEnvironment("), source.indexOf("async function beginPrecisionBrowserAcceptance("));
   for (const value of ["HOSTNAME", "ZASP_STYTCH_WEBHOOK_SECRET", "ZASP_SECURITY_AGENT_POSTGRES_DSN", "ZASP_DISCOVERY_PARSER_VERSION", "ZASP_DISCOVERY_TOOL_VERSION", "ZASP_AWS_CUSTOMER_ROLE_PREFIXES", "ZASP_AWS_CUSTOMER_ROLE_ARNS", "ZASP_KUBERNETES_EGRESS_CIDRS", "ZASP_FINDING_TICKET_EGRESS_CIDRS"]) assert.match(apiEnvironment, new RegExp(value));
   const outboxBoundary = source.slice(source.indexOf("const outbox = startTask4Worker"), source.indexOf("for (const candidate of", source.indexOf("const outbox = startTask4Worker")));
   assert.match(outboxBoundary, /waitForChildExit\(outbox, 10_000\)/);
@@ -335,6 +466,47 @@ test("owned cleanup is idempotent", async () => {
 	} finally {
 		controller.dispose();
 	}
+});
+
+test("failed checkpoint or provider joins retain errors and files while other owned resources close", async t => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function cleanupOwnedResources() {");
+  const end = source.indexOf("\nasync function generateHarnessGitHubAppPrivateKey", start);
+  assert.ok(start > 0 && end > start);
+  // Execute the actual cleanup function, substituting only its owned external
+  // process/server boundaries so a failed join is deterministic and bounded.
+  for (const failureAt of ["checkpoint", "provider", "graph", "browser", "postgres", ""]) {
+    await t.test(failureAt || "all closed", async () => {
+    const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "zasp-cleanup-order-test-"));
+    const events = [], expectedError = new Error(`${failureAt} cleanup rejected`);
+    const close = async name => { events.push(name); if (name === failureAt) throw expectedError; };
+    const cleanup = runInNewContext(`(${source.slice(start, end)})`, {
+      console: { log() {} }, AggregateError, temporaryRoot,
+      precisionBrowserCheckpoint: { close: () => close("checkpoint") }, runtimePipelineChild: "provider",
+      runtimeGraphDependency: { close: () => close("graph") }, redTeamRuntimeProof: { close: () => close("redteam") }, runtimePipelineDependencies: { close: () => close("aws/search") },
+      secondBrowserTab: { dispose: () => close("second tab") }, browser: { cdp: { close: () => { events.push("cdp"); } }, child: "browser" },
+      task4Workers: ["task4"], api: "api", proxy: "proxy", identity: "identity", policyHistory: "policy history", web: "web", postgres: "postgres", children: ["remaining child"],
+      stopChild: close, closeServer: close, stopPostgres: close,
+      rm: async (...args) => { events.push("files"); await rm(...args); },
+    });
+    try {
+      let caught;
+      try { await cleanup(); } catch (error) { caught = error; }
+      assert.deepEqual(events, ["checkpoint", "provider", "graph", "redteam", "aws/search", "second tab", "cdp", "browser", "task4", "api", "proxy", "identity", "policy history", "web", "postgres", "remaining child", ...(failureAt ? [] : ["files"])]);
+      if (failureAt) {
+        assert.ok(caught instanceof AggregateError, "cleanup lost collected errors");
+        assert.ok(caught.errors.includes(expectedError), "cleanup replaced original failure");
+        assert.deepEqual(await readdir(temporaryRoot), [], "failed join deleted its owned root");
+      } else {
+        assert.equal(caught, undefined);
+        await assert.rejects(readdir(temporaryRoot), { code: "ENOENT" });
+      }
+    } finally {
+      // Empty-only removal cannot hide files leaked by the cleanup under test.
+      await rmdir(temporaryRoot).catch(error => { if (error.code !== "ENOENT") throw error; });
+    }
+    });
+  }
 });
 
 test("PostgreSQL tool discovery does not depend on a macOS installation path", async () => {

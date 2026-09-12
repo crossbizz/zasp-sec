@@ -6,7 +6,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
-import { inspectContainerBuilds } from "./release-contract.mjs";
+import { inspectContainerBuilds, renderRelease } from "./release-contract.mjs";
+import { productionReleaseFixture } from "./release-fixture.mjs";
 
 const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -46,6 +47,19 @@ export async function runReadOnlySynthetic({ origin, token, allowHTTPLoopback = 
 }
 
 export async function verifyReleaseSources() {
+  // Evaluate the actual initializer/worker ordering in every supported phase.
+  // A literal hook-weight string in the template doesn't prove rendered order.
+  const renderedRollouts = [];
+  for (const [schemaVersion, phase] of [
+    [48, "compatibility"], [49, "compatibility"],
+    [50, "backfill"], [50, "query"],
+    [51, "precision-consumers"], [51, "precision-intake"],
+  ]) {
+    const resources = await renderRelease(productionReleaseFixture, { schemaVersion, sessionSearchPhase: phase });
+    const schemaJobs = resources.filter(resource => resource.kind === "Job" && resource.metadata.name.startsWith("agentsec-schema-v"));
+    if (schemaJobs.length !== 1 || schemaJobs[0].metadata.name !== `agentsec-schema-v${schemaVersion}`) throw new Error("rendered rollout schema gate rejected");
+    renderedRollouts.push({ schemaVersion, phase, schemaJob: schemaJobs[0].metadata.name });
+  }
   const builds = await inspectContainerBuilds();
   if (builds.length !== 9 || builds.some((build) => !build.readOnlyCompatible || build.containsSecret)) throw new Error("container gate rejected");
 
@@ -97,7 +111,7 @@ export async function verifyReleaseSources() {
   for (const contract of ["agentsec-recovery-controller", "agentsec-recovery-namespace-operator", "ValidatingAdmissionPolicy", "agentsec-recovery-namespace-fence"]) if (!services.includes(contract)) throw new Error("recovery runner authority gate rejected");
   for (const contract of ["agentsec-red-team-outbox", "agentsec-red-team-worker", "agentsec-red-team-adapter", "red-team-outbox", "zasp_red_team_worker", "zasp_red_team_adapter", "ZASP_RED_TEAM_TARGET_ENDPOINT", "ZASP_RED_TEAM_TARGET_CA_FILE", "ZASP_RED_TEAM_ADAPTER_TLS_CERT_FILE", "HorizontalPodAutoscaler", "PodDisruptionBudget", "NetworkPolicy", "ServiceMonitor"]) if (!redTeamWorkloads.includes(contract)) throw new Error("Red Team deployment gate rejected");
   for (const contract of ["zasp-attack-lab", "agentsec-attack-lab-runner", "agentsec-attack-lab-outbox", "agentsec-attack-lab-controller", "agentsec-attack-lab-proxy", "attack-lab-outbox", "attack-lab-controller", "ZASP_ATTACK_LAB_NAMESPACE", "ZASP_ATTACK_LAB_RUNNER_SERVICE_ACCOUNT", "https://agentsec-attack-lab-proxy.agentsec.svc.cluster.local/v1/egress", "/app/agentsec-attack-lab-proxy", "SecurityGroupPolicy", "HorizontalPodAutoscaler", "PodDisruptionBudget", "NetworkPolicy", "ServiceMonitor"]) if (!attackLabWorkloads.includes(contract)) throw new Error("Attack Lab deployment gate rejected");
-  for (const contract of ["projection-search-init", "projection-graph-init", "ZASP_PROJECTION_INIT_ROLE_ARN", "ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE", "ZASP_PROJECTION_INIT_TIMEOUT", "ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE", "ZASP_OPENSEARCH_INDEX", 'helm.sh/hook-weight: "-7"']) if (!projectionInit.includes(contract)) throw new Error("projection init gate rejected");
+  for (const contract of ["projection-search-init", "projection-graph-init", "ZASP_PROJECTION_INIT_ROLE_ARN", "ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE", "ZASP_PROJECTION_INIT_TIMEOUT", "ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE", "ZASP_OPENSEARCH_INDEX"]) if (!projectionInit.includes(contract)) throw new Error("projection init gate rejected");
   for (const contract of ["agentsec-discovery-worker", "agentsec-security-agent", "agentsec-security-agent-action", "agentsec-policy-deployment", "security-agent-database", "security-agent-action-database", "policy-deployment-database", "agentsec-projection-risk", "agentsec-projection-graph", "agentsec-projection-search", "HorizontalPodAutoscaler", "PodDisruptionBudget", "default-deny"]) if (!resilience.includes(contract)) throw new Error("worker resilience gate rejected");
   for (const contract of ["agentsec-event-ingest", "agentsec-gateway-control", "runtime-outbox", "runtime-coordinator", "runtime-archive", "runtime-index", "runtime-correlation", "runtime-projection", "runtime-complete", "ZASP_RUNTIME_RAW_BUCKET", "ZASP_RUNTIME_QUEUE_URL", "ZASP_OPENSEARCH_INDEX"]) if (!runtimeWorkloads.includes(contract)) throw new Error("runtime deployment gate rejected");
   for (const contract of ["packages/server/dist/migrate.js", "NANGO_DATABASE_URL", "NANGO_ENCRYPTION_KEY", "NANGO_MIGRATE_AT_START", "RECORDS_DATABASE_SSL", "NANGO_ENTERPRISE", "nango-private", "nango-migrate-private"]) if (!nango.includes(contract)) throw new Error("Nango deployment gate rejected");
@@ -119,7 +133,7 @@ export async function verifyReleaseSources() {
   const imageReferences = new Set(definitions.flatMap((definition) => [...definition.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1])));
   if (imageReferences.size !== 5 || [...imageReferences].some((reference) => !/@sha256:[0-9a-f]{64}$/.test(reference))) throw new Error("image definition gate rejected");
 
-  return deepFreeze({ canary: true, documentation: true, imageDefinitions: builds.length, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, goSpdx, requiredCI: true, task4Deployment: true, task6Deployment: true, recoveryDeployment: true, attackLabDeployment: true, privateDependencies: true });
+  return deepFreeze({ renderedRollouts, canary: true, documentation: true, imageDefinitions: builds.length, licensePolicy: true, trackedSecretScan: true, npmSpdxPackages: sbom.packages.length, goSpdxPackages: goSpdx.packages.length, goSpdx, requiredCI: true, task4Deployment: true, task6Deployment: true, recoveryDeployment: true, attackLabDeployment: true, privateDependencies: true });
 }
 
 async function goSourceSBOM() {

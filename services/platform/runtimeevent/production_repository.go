@@ -42,7 +42,10 @@ type ProductionIngestDatabase interface {
 	QueryJSON(context.Context, string, ...any) (json.RawMessage, error)
 }
 
-type PostgresProductionIngestRepository struct{ database ProductionIngestDatabase }
+type PostgresProductionIngestRepository struct {
+	database  ProductionIngestDatabase
+	precision bool
+}
 
 func NewPostgresProductionIngestRepository(database ProductionIngestDatabase) (*PostgresProductionIngestRepository, error) {
 	if nilProductionDatabase(database) {
@@ -54,6 +57,9 @@ func NewPostgresProductionIngestRepository(database ProductionIngestDatabase) (*
 func (repository *PostgresProductionIngestRepository) Ready(ctx context.Context) error {
 	if !validProductionRepository(repository, ctx) {
 		return ErrProductionIngestUnavailable
+	}
+	if repository.precision {
+		return repository.ReadyPrecision(ctx)
 	}
 	var result struct {
 		Ready bool `json:"ready"`
@@ -119,8 +125,13 @@ func (repository *PostgresProductionIngestRepository) Authenticate(ctx context.C
 }
 
 func (repository *PostgresProductionIngestRepository) Reserve(ctx context.Context, credential *sensor.TokenCredential, request IngestReserveRequest) (IngestReservation, error) {
-	if !validProductionRepository(repository, ctx) || credential == nil || !validReserveRequest(request) {
+	if !validProductionRepository(repository, ctx) || credential == nil || !repository.acceptsReserveSchema(request) {
 		return IngestReservation{}, ErrProductionIngest
+	}
+	if repository.precision {
+		if err := repository.ReadyPrecision(ctx); err != nil {
+			return IngestReservation{}, err
+		}
 	}
 	locator, secret, err := credential.Parts()
 	if err != nil {
@@ -163,6 +174,11 @@ func (repository *PostgresProductionIngestRepository) Reserve(ctx context.Contex
 func (repository *PostgresProductionIngestRepository) Finalize(ctx context.Context, credential *sensor.TokenCredential, request IngestFinalizeRequest) (IngestResult, error) {
 	if !validProductionRepository(repository, ctx) || credential == nil || !validFinalizeRequest(request) {
 		return IngestResult{}, ErrProductionIngest
+	}
+	if repository.precision {
+		if err := repository.ReadyPrecision(ctx); err != nil {
+			return IngestResult{}, err
+		}
 	}
 	locator, secret, err := credential.Parts()
 	if err != nil {
@@ -225,7 +241,14 @@ func (repository *PostgresProductionIngestRepository) ClaimReconciliation(ctx co
 	if !validProductionRepository(repository, ctx) || !productionWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) || leaseSeconds < 60 || leaseSeconds > 300 || limit < 1 || limit > 10 {
 		return nil, ErrProductionIngest
 	}
-	payload, err := safeProductionQuery(repository.database, ctx, productionIngestClaimReconciliationSQL, workerID, leaseToken, leaseSeconds, limit)
+	statement := productionIngestClaimReconciliationSQL
+	if repository.precision {
+		if repository.ReadyPrecision(ctx) != nil {
+			return nil, ErrProductionIngestUnavailable
+		}
+		statement = `SELECT zasp_runtime_claim_reconciliation_v2($1,$2,$3,$4)`
+	}
+	payload, err := safeProductionQuery(repository.database, ctx, statement, workerID, leaseToken, leaseSeconds, limit)
 	if err != nil {
 		return nil, ErrProductionIngestUnavailable
 	}
@@ -256,8 +279,8 @@ func (repository *PostgresProductionIngestRepository) ClaimReconciliation(ctx co
 		scope, scopeErr := domain.NewScope(organizationID, workspaceID, environmentID)
 		requestDigest, requestOK := decodeProductionDigest(value.RequestDigest)
 		contentDigest, contentOK := decodeProductionDigest(value.ContentDigest)
-		lease := IngestReconciliationLease{Scope: scope, BatchID: batchID, Generation: value.Generation, Attempt: value.Attempt, LeaseExpiresAt: value.LeaseExpiresAt, RequestDigest: requestDigest, ArtifactKey: value.ArtifactKey, ContentDigest: contentDigest, PayloadSize: value.PayloadSize, MediaType: value.MediaType, SchemaVersion: value.SchemaVersion}
-		if organizationErr != nil || workspaceErr != nil || environmentErr != nil || batchErr != nil || scopeErr != nil || !requestOK || !contentOK || !validIngestReconciliationLease(lease) {
+		lease := IngestReconciliationLease{Scope: scope, BatchID: batchID, Generation: value.Generation, Attempt: value.Attempt, LeaseExpiresAt: value.LeaseExpiresAt.UTC(), RequestDigest: requestDigest, ArtifactKey: value.ArtifactKey, ContentDigest: contentDigest, PayloadSize: value.PayloadSize, MediaType: value.MediaType, SchemaVersion: value.SchemaVersion}
+		if organizationErr != nil || workspaceErr != nil || environmentErr != nil || batchErr != nil || scopeErr != nil || !requestOK || !contentOK || !validVersionedIngestReconciliationLease(lease, repository.precision) {
 			return nil, ErrProductionIngestUnavailable
 		}
 		result = append(result, lease)
@@ -267,8 +290,11 @@ func (repository *PostgresProductionIngestRepository) ClaimReconciliation(ctx co
 
 func (repository *PostgresProductionIngestRepository) ReleaseReconciliation(ctx context.Context, lease IngestReconciliationLease, workerID, leaseToken string, delay time.Duration, code string) error {
 	seconds := int(delay / time.Second)
-	if !validProductionRepository(repository, ctx) || !validIngestReconciliationLease(lease) || !productionWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) || delay != time.Duration(seconds)*time.Second || seconds < 5 || seconds > 300 || code != "not_found" && code != "dependency_unavailable" && code != "outcome_unknown" {
+	if !validProductionRepository(repository, ctx) || !validVersionedIngestReconciliationLease(lease, repository.precision) || !productionWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) || delay != time.Duration(seconds)*time.Second || seconds < 5 || seconds > 300 || code != "not_found" && code != "dependency_unavailable" && code != "outcome_unknown" {
 		return ErrProductionIngest
+	}
+	if repository.precision && repository.ReadyPrecision(ctx) != nil {
+		return ErrProductionIngestUnavailable
 	}
 	payload, err := safeProductionQuery(repository.database, ctx, productionIngestReleaseReconciliationSQL, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.BatchID.String(), lease.Generation, workerID, leaseToken, seconds, code)
 	if err != nil || !validReconciliationTransition(payload, lease, "retryable", "exhausted") {
@@ -278,8 +304,11 @@ func (repository *PostgresProductionIngestRepository) ReleaseReconciliation(ctx 
 }
 
 func (repository *PostgresProductionIngestRepository) FinishReconciliation(ctx context.Context, lease IngestReconciliationLease, workerID, leaseToken string, jobID, outboxID domain.ProductID, artifact RawArtifact) error {
-	if !validProductionRepository(repository, ctx) || !validIngestReconciliationLease(lease) || !productionWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) || jobID.IsZero() || outboxID.IsZero() || jobID == outboxID || !validRawArtifact(artifact, lease.Scope, lease.ArtifactKey, lease.ContentDigest, lease.PayloadSize) {
+	if !validProductionRepository(repository, ctx) || !validVersionedIngestReconciliationLease(lease, repository.precision) || !productionWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) || jobID.IsZero() || outboxID.IsZero() || jobID == outboxID || !validRawArtifact(artifact, lease.Scope, lease.ArtifactKey, lease.ContentDigest, lease.PayloadSize) {
 		return ErrProductionIngest
+	}
+	if repository.precision && repository.ReadyPrecision(ctx) != nil {
+		return ErrProductionIngestUnavailable
 	}
 	payload, err := safeProductionQuery(repository.database, ctx, productionIngestFinishReconciliationSQL, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.BatchID.String(), lease.Generation, workerID, leaseToken, jobID.String(), outboxID.String(), artifact.Reference, artifact.Key, artifact.VersionID, artifact.ContentDigest[:], artifact.Size, artifact.KMSKeyARN)
 	if err != nil || !validReconciliationTransition(payload, lease, "queued") {
@@ -289,8 +318,11 @@ func (repository *PostgresProductionIngestRepository) FinishReconciliation(ctx c
 }
 
 func (repository *PostgresProductionIngestRepository) QuarantineReconciliation(ctx context.Context, lease IngestReconciliationLease, workerID, leaseToken string) error {
-	if !validProductionRepository(repository, ctx) || !validIngestReconciliationLease(lease) || !productionWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) {
+	if !validProductionRepository(repository, ctx) || !validVersionedIngestReconciliationLease(lease, repository.precision) || !productionWorkerPattern.MatchString(workerID) || !productionLeaseTokenPattern.MatchString(leaseToken) {
 		return ErrProductionIngest
+	}
+	if repository.precision && repository.ReadyPrecision(ctx) != nil {
+		return ErrProductionIngestUnavailable
 	}
 	payload, err := safeProductionQuery(repository.database, ctx, productionIngestQuarantineReconciliationSQL, lease.Scope.OrganizationID().String(), lease.Scope.WorkspaceID().String(), lease.Scope.EnvironmentID().String(), lease.BatchID.String(), lease.Generation, workerID, leaseToken)
 	if err != nil || !validReconciliationTransition(payload, lease, "quarantined") {
@@ -320,7 +352,7 @@ func validReconciliationTransition(payload json.RawMessage, lease IngestReconcil
 }
 
 func validReserveRequest(request IngestReserveRequest) bool {
-	return request.Scope.Validate() == nil && !request.BatchID.IsZero() && productionIdempotencyPattern.MatchString(request.IdempotencyKey) && request.ContentDigest != [sha256.Size]byte{} && (request.Source == "tetragon" || request.Source == "otlp") && request.MediaType == "application/json" && request.SchemaVersion == productionRuntimeSchema && request.PayloadSize >= 1 && request.PayloadSize <= maximumProductionIngestBytes && request.EventCount >= 1 && request.EventCount <= maximumProductionEvents
+	return request.Scope.Validate() == nil && !request.BatchID.IsZero() && productionIdempotencyPattern.MatchString(request.IdempotencyKey) && request.ContentDigest != [sha256.Size]byte{} && (request.Source == "tetragon" || request.Source == "otlp") && request.MediaType == "application/json" && (request.SchemaVersion == productionRuntimeSchema || request.SchemaVersion == "runtime-event-v2" && request.Source == "tetragon") && request.PayloadSize >= 1 && request.PayloadSize <= maximumProductionIngestBytes && request.EventCount >= 1 && request.EventCount <= maximumProductionEvents
 }
 
 func validFinalizeRequest(request IngestFinalizeRequest) bool {

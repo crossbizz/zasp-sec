@@ -44,7 +44,21 @@ type ProductionIngestReconcilerConfig struct {
 }
 
 type ProductionIngestReconciler struct {
-	config ProductionIngestReconcilerConfig
+	config    ProductionIngestReconcilerConfig
+	precision bool
+}
+
+func NewPreciseProductionIngestReconciler(config ProductionIngestReconcilerConfig) (*ProductionIngestReconciler, error) {
+	reconciler, err := NewProductionIngestReconciler(config)
+	if err != nil {
+		return nil, err
+	}
+	authority, ok := config.Repository.(productionPrecisionReadiness)
+	if !ok || nilProductionIngestValue(authority) {
+		return nil, ErrProductionIngest
+	}
+	reconciler.precision = true
+	return reconciler, nil
 }
 
 func NewProductionIngestReconciler(config ProductionIngestReconcilerConfig) (*ProductionIngestReconciler, error) {
@@ -66,6 +80,12 @@ func (reconciler *ProductionIngestReconciler) RunOnce(ctx context.Context) (resu
 	if err := reconciler.config.Repository.Ready(ctx); err != nil {
 		return ErrProductionIngestUnavailable
 	}
+	if reconciler.precision {
+		authority, ok := reconciler.config.Repository.(productionPrecisionReadiness)
+		if !ok || nilProductionIngestValue(authority) || authority.ReadyPrecision(ctx) != nil || ctx.Err() != nil {
+			return ErrProductionIngestUnavailable
+		}
+	}
 	token, err := reconciler.config.NewLeaseToken()
 	if err != nil || !productionLeaseTokenPattern.MatchString(token) {
 		return ErrProductionIngestUnavailable
@@ -75,7 +95,7 @@ func (reconciler *ProductionIngestReconciler) RunOnce(ctx context.Context) (resu
 		return ErrProductionIngestUnavailable
 	}
 	for _, lease := range leasing {
-		if !validIngestReconciliationLease(lease) {
+		if !validVersionedIngestReconciliationLease(lease, reconciler.precision) {
 			return ErrProductionIngestUnavailable
 		}
 		if err := reconciler.process(ctx, lease, token); err != nil {
@@ -96,6 +116,10 @@ func (reconciler *ProductionIngestReconciler) process(ctx context.Context, lease
 		}
 		jobID, jobErr := reconciliationID(lease, "job")
 		outboxID, outboxErr := reconciliationID(lease, "outbox")
+		if reconciler.precision {
+			jobID, jobErr = deterministicID(lease.BatchID.String() + "\x00runtime-job")
+			outboxID, outboxErr = deterministicID(lease.BatchID.String() + "\x00runtime-outbox")
+		}
 		if jobErr != nil || outboxErr != nil || reconciler.config.Repository.FinishReconciliation(operation, lease, reconciler.config.WorkerID, token, jobID, outboxID, artifact) != nil {
 			return ErrProductionIngestUnavailable
 		}
@@ -127,6 +151,13 @@ func reconciliationID(lease IngestReconciliationLease, kind string) (domain.Prod
 }
 
 func validIngestReconciliationLease(value IngestReconciliationLease) bool {
+	return validVersionedIngestReconciliationLease(value, false)
+}
+
+func validVersionedIngestReconciliationLease(value IngestReconciliationLease, precision bool) bool {
+	if precision && value.SchemaVersion == "runtime-event-v2" {
+		value.SchemaVersion = productionRuntimeSchema
+	}
 	return value.Scope.Validate() == nil && !value.BatchID.IsZero() && value.Generation > 0 && value.Attempt >= 1 && value.Attempt <= 100 && !value.LeaseExpiresAt.IsZero() && value.LeaseExpiresAt.Location() == time.UTC && value.RequestDigest != [sha256.Size]byte{} && len(value.ArtifactKey) >= 32 && len(value.ArtifactKey) <= 1024 && strings.HasPrefix(value.ArtifactKey, "runtime/v15/"+value.Scope.OrganizationID().String()+"/"+value.Scope.WorkspaceID().String()+"/"+value.Scope.EnvironmentID().String()+"/") && !strings.Contains(value.ArtifactKey, "..") && value.ContentDigest != [sha256.Size]byte{} && value.PayloadSize >= 1 && value.PayloadSize <= maximumProductionIngestBytes && value.MediaType == "application/json" && value.SchemaVersion == productionRuntimeSchema
 }
 

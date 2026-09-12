@@ -251,6 +251,15 @@ func TestProjectionInitModesRequireDistinctOneShotAuthority(t *testing.T) {
 		if err != nil || string(config.Mode) != mode || config.PostgresDSN != "" || config.ProjectionRoleARN != values["ZASP_PROJECTION_INIT_ROLE_ARN"] || config.LeaseDuration != 20*time.Second {
 			t.Fatalf("%s config=%#v error=%v", mode, config, err)
 		}
+		for _, name := range []string{"", "zasp-runtime-sessions-v1", "zasp-runtime-sessions-v2", "zasp-runtime-sessions-v3"} {
+			selected := cloneStringMap(values)
+			selected["ZASP_RUNTIME_SESSION_INDEX"] = name
+			loaded, err := loadProjectionInitConfig(mapLookup(selected))
+			valid := name == "" || mode == "projection-search-init" && (name == "zasp-runtime-sessions-v1" || name == "zasp-runtime-sessions-v2")
+			if (err == nil) != valid || valid && loaded.RuntimeSessionIndex != name {
+				t.Fatal("init session index environment selection", mode, name, err)
+			}
+		}
 	}
 	for _, missing := range []string{"ZASP_PROJECTION_INIT_ROLE_ARN", "ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE", "ZASP_PROJECTION_INIT_TIMEOUT"} {
 		values := cloneStringMap(base)
@@ -484,6 +493,23 @@ func TestRuntimeOutboxRequiresDistinctExactQueueAuthority(t *testing.T) {
 	if err != nil || config.Mode != workerModeRuntimeOutbox || config.RuntimeQueueURL != base["ZASP_RUNTIME_QUEUE_URL"] {
 		t.Fatalf("runtime outbox config=%#v err=%v", config, err)
 	}
+	for _, schema := range []string{"", "runtime-event-v1", "runtime-event-v2", "runtime-event-v3", " runtime-event-v2"} {
+		values := cloneStringMap(base)
+		values["ZASP_RUNTIME_DELIVERY_SCHEMA"] = schema
+		selected, err := loadWorkerRuntimeConfig(mapLookup(values))
+		want := schema == "" || schema == "runtime-event-v1" || schema == "runtime-event-v2"
+		if (err == nil) != want || want && selected.RuntimeDeliverySchema != schema {
+			t.Fatalf("runtime outbox selection %q: %v", schema, err)
+		}
+	}
+	unrelated := validSchedulerRuntimeConfig()
+	if !validWorkerRuntimeConfig(unrelated) {
+		t.Fatal("invalid baseline scheduler")
+	}
+	unrelated.RuntimeDeliverySchema = "runtime-event-v2"
+	if validWorkerRuntimeConfig(unrelated) {
+		t.Fatal("scheduler accepted delivery selector")
+	}
 	for name, mutate := range map[string]func(map[string]string){
 		"discovery queue": func(values map[string]string) {
 			values["ZASP_DISCOVERY_QUEUE_URL"] = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs"
@@ -558,8 +584,17 @@ func TestRuntimeCoordinatorRequiresDistinctConsumerAuthority(t *testing.T) {
 	if err != nil || config.Mode != workerModeRuntimeCoordinator || config.RuntimeRoleARN != base["ZASP_RUNTIME_ROLE_ARN"] {
 		t.Fatalf("runtime coordinator config=%#v err=%v", config, err)
 	}
+	for _, schema := range []string{"", "runtime-event-v1", "runtime-event-v2"} {
+		values := cloneStringMap(base)
+		values["ZASP_RUNTIME_DELIVERY_SCHEMA"] = schema
+		selected, err := loadWorkerRuntimeConfig(mapLookup(values))
+		if err != nil || selected.RuntimeDeliverySchema != schema {
+			t.Fatalf("delivery selection %q was lost: %v", schema, err)
+		}
+	}
 	for name, mutate := range map[string]func(map[string]string){
-		"publisher role": func(values map[string]string) { values["ZASP_OUTBOX_ROLE_ARN"] = values["ZASP_RUNTIME_ROLE_ARN"] },
+		"unknown delivery schema": func(values map[string]string) { values["ZASP_RUNTIME_DELIVERY_SCHEMA"] = "runtime-event-v3" },
+		"publisher role":          func(values map[string]string) { values["ZASP_OUTBOX_ROLE_ARN"] = values["ZASP_RUNTIME_ROLE_ARN"] },
 		"discovery queue": func(values map[string]string) {
 			values["ZASP_DISCOVERY_QUEUE_URL"] = "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-discovery-jobs"
 		},
@@ -594,7 +629,7 @@ func TestRuntimeArchiveRequiresNonUnionEvidenceAuthority(t *testing.T) {
 		t.Fatalf("runtime archive config=%#v err=%v", config, err)
 	}
 	for name, mutate := range map[string]func(map[string]string){
-		"wrong version":  func(values map[string]string) { values["ZASP_RUNTIME_STAGE_VERSION"] = "runtime-archive-v2" },
+		"wrong version":  func(values map[string]string) { values["ZASP_RUNTIME_STAGE_VERSION"] = "runtime-archive-v3" },
 		"publisher role": func(values map[string]string) { values["ZASP_OUTBOX_ROLE_ARN"] = values["ZASP_RUNTIME_STAGE_ROLE_ARN"] },
 		"wrong account":  func(values map[string]string) { values["ZASP_EVIDENCE_BUCKET_OWNER"] = "210987654321" },
 		"kms region": func(values map[string]string) {
@@ -624,6 +659,15 @@ func TestRuntimeIndexRequiresSeparateEvidenceAndSearchAuthority(t *testing.T) {
 	config, err := loadWorkerRuntimeConfig(mapLookup(base))
 	if err != nil || config.Mode != workerModeRuntimeIndex || config.RuntimeStageVersion != "runtime-index-v1" {
 		t.Fatalf("runtime index config=%#v err=%v", config, err)
+	}
+	for _, name := range []string{"", "zasp-runtime-sessions-v1", "zasp-runtime-sessions-v2", "zasp-runtime-sessions-v3", "*"} {
+		selected := cloneStringMap(base)
+		selected["ZASP_RUNTIME_SESSION_INDEX"] = name
+		loaded, err := loadWorkerRuntimeConfig(mapLookup(selected))
+		valid := name == "" || name == "zasp-runtime-sessions-v1" || name == "zasp-runtime-sessions-v2"
+		if (err == nil) != valid || valid && loaded.RuntimeSessionIndex != name {
+			t.Fatal("worker session index environment selection", name, err)
+		}
 	}
 	for name, mutate := range map[string]func(map[string]string){
 		"archive version":  func(values map[string]string) { values["ZASP_RUNTIME_STAGE_VERSION"] = "runtime-archive-v1" },

@@ -40,7 +40,23 @@ type runtimeCoordinatorConfig struct {
 	NewLeaseToken     func() (string, error)
 }
 
-type runtimeCoordinator struct{ config runtimeCoordinatorConfig }
+type runtimeCoordinator struct {
+	config    runtimeCoordinatorConfig
+	precision bool
+}
+
+func newPreciseRuntimeCoordinator(config runtimeCoordinatorConfig) (*runtimeCoordinator, error) {
+	coordinator, err := newRuntimeCoordinator(config)
+	if err != nil {
+		return nil, err
+	}
+	authority, ok := config.Authority.(interface{ ReadyPrecision(context.Context) error })
+	if !ok || nilWorkerDependency(authority) {
+		return nil, errWorkerExecution
+	}
+	coordinator.precision = true
+	return coordinator, nil
+}
 
 func newRuntimeCoordinator(config runtimeCoordinatorConfig) (*runtimeCoordinator, error) {
 	leaseDuration := time.Duration(config.LeaseSeconds) * time.Second
@@ -53,6 +69,12 @@ func newRuntimeCoordinator(config runtimeCoordinatorConfig) (*runtimeCoordinator
 func (coordinator *runtimeCoordinator) RunOnce(ctx context.Context) error {
 	if coordinator == nil || ctx == nil || ctx.Err() != nil {
 		return errWorkerExecution
+	}
+	if coordinator.precision {
+		authority, ok := coordinator.config.Authority.(interface{ ReadyPrecision(context.Context) error })
+		if !ok || nilWorkerDependency(authority) || authority.ReadyPrecision(ctx) != nil || ctx.Err() != nil {
+			return errWorkerExecution
+		}
 	}
 	deliveries, err := coordinator.config.Queue.ConsumeBatch(ctx, coordinator.config.BatchSize)
 	if err != nil || len(deliveries) > coordinator.config.BatchSize {
@@ -85,7 +107,7 @@ func (coordinator *runtimeCoordinator) callProcess(ctx context.Context, delivery
 }
 
 func (coordinator *runtimeCoordinator) process(ctx context.Context, delivery jobqueue.Delivery) error {
-	payload, batchID, ok := decodeRuntimeDeliveryJob(delivery.Job)
+	payload, batchID, ok := decodeVersionedRuntimeDeliveryJob(delivery.Job, coordinator.precision)
 	messageID := delivery.Receipt.MessageKey()
 	if !ok || messageID == "" || delivery.ReceiveCount < 1 || delivery.ReceiveCount > 100 {
 		return errWorkerExecution
@@ -199,6 +221,10 @@ func runtimeQueueAcknowledgementDigest(messageID string) [sha256.Size]byte {
 }
 
 func decodeRuntimeDeliveryJob(job jobqueue.Job) (runtimeOutboxPayload, domain.ProductID, bool) {
+	return decodeVersionedRuntimeDeliveryJob(job, false)
+}
+
+func decodeVersionedRuntimeDeliveryJob(job jobqueue.Job, precision bool) (runtimeOutboxPayload, domain.ProductID, bool) {
 	if job.Scope.Validate() != nil || job.JobID.IsZero() || job.Kind != "runtime" || len(job.Payload) < 1 || len(job.Payload) > 65_536 || job.AuthorityDigest == ([sha256.Size]byte{}) {
 		return runtimeOutboxPayload{}, domain.ProductID{}, false
 	}
@@ -210,7 +236,7 @@ func decodeRuntimeDeliveryJob(job jobqueue.Job) (runtimeOutboxPayload, domain.Pr
 	}
 	batchID, batchErr := domain.ParseProductID(payload.BatchID)
 	jobID, jobErr := domain.ParseProductID(payload.JobID)
-	if batchErr != nil || jobErr != nil || batchID.IsZero() || jobID != job.JobID || payload.Generation < 1 || payload.PipelineVersion != 15 || !validRuntimeArtifactKey(job.Scope, batchID, payload.Generation, payload.ArtifactKey) || !runtimeS3ReferencePattern.MatchString(payload.ArtifactReference) || !strings.HasSuffix(payload.ArtifactReference, "/"+payload.ArtifactKey) || !validRuntimeVersion(payload.ArtifactVersionID) || !discoveryRequestDigestPattern.MatchString(payload.ArtifactChecksum) || payload.ArtifactChecksum == strings.Repeat("0", 64) || payload.ArtifactSizeBytes < 1 || payload.ArtifactSizeBytes > 64<<20 || payload.PayloadMediaType != "application/json" || payload.PayloadSchema != "runtime-event-v1" || payload.EventCount < 1 || payload.EventCount > 1000 || !discoveryRequestDigestPattern.MatchString(payload.RequestDigest) || payload.RequestDigest == strings.Repeat("0", 64) {
+	if batchErr != nil || jobErr != nil || batchID.IsZero() || jobID != job.JobID || payload.Generation < 1 || payload.PipelineVersion != 15 || !validRuntimeArtifactKey(job.Scope, batchID, payload.Generation, payload.ArtifactKey) || !runtimeS3ReferencePattern.MatchString(payload.ArtifactReference) || !strings.HasSuffix(payload.ArtifactReference, "/"+payload.ArtifactKey) || !validRuntimeVersion(payload.ArtifactVersionID) || !discoveryRequestDigestPattern.MatchString(payload.ArtifactChecksum) || payload.ArtifactChecksum == strings.Repeat("0", 64) || payload.ArtifactSizeBytes < 1 || payload.ArtifactSizeBytes > 64<<20 || payload.PayloadMediaType != "application/json" || (payload.PayloadSchema != "runtime-event-v1" && (!precision || payload.PayloadSchema != "runtime-event-v2")) || payload.EventCount < 1 || payload.EventCount > 1000 || !discoveryRequestDigestPattern.MatchString(payload.RequestDigest) || payload.RequestDigest == strings.Repeat("0", 64) {
 		return runtimeOutboxPayload{}, domain.ProductID{}, false
 	}
 	return payload, batchID, true

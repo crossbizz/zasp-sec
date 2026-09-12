@@ -743,7 +743,6 @@ resource "aws_sqs_queue" "dead_letter" {
   message_retention_seconds  = 1209600
   visibility_timeout_seconds = 30
   kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : aws_kms_key.staging.arn
-  sqs_managed_sse_enabled    = false
   tags                       = { Schema = each.value.schema }
 }
 
@@ -756,7 +755,6 @@ resource "aws_sqs_queue" "work" {
   receive_wait_time_seconds  = 20
   max_message_size           = 262144
   kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : aws_kms_key.staging.arn
-  sqs_managed_sse_enabled    = false
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.dead_letter[each.key].arn
     maxReceiveCount     = each.value.max_receive
@@ -932,6 +930,8 @@ resource "aws_iam_role_policy" "runtime" {
         Resource = [
           "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_mapping",
           "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_mapping",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_doc/_zasp_session_schema_v2",
         ]
       }) : null,
       each.key == "index" ? jsonencode({
@@ -941,6 +941,9 @@ resource "aws_iam_role_policy" "runtime" {
           "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_bulk",
           "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_mget",
           "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_refresh",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_bulk",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_mget",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_refresh",
         ]
       }) : null,
       contains(["correlation", "projection"], each.key) ? jsonencode({
@@ -1028,6 +1031,8 @@ resource "aws_iam_role_policy" "api_connectors" {
           "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_doc/_zasp_schema_v1",
           "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_mapping",
           "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_mapping",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_doc/_zasp_session_schema_v2",
         ]
       },
       {
@@ -1036,6 +1041,7 @@ resource "aws_iam_role_policy" "api_connectors" {
         Resource = [
           "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_search",
           "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_search",
+          "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_search",
         ]
       },
       {
@@ -1696,6 +1702,8 @@ resource "aws_iam_role_policy" "projection_search_init" {
       "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_doc/_zasp_schema_v1",
       "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_mapping",
       "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_mapping",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_doc/_zasp_session_schema_v2",
     ] },
     { Effect = "Allow", Action = ["es:ESHttpPut"], Resource = [
       "${aws_opensearch_domain.events.arn}/zasp-inventory-v1",
@@ -1704,6 +1712,8 @@ resource "aws_iam_role_policy" "projection_search_init" {
       "${aws_opensearch_domain.events.arn}/zasp-runtime-events-v1/_doc/_zasp_schema_v1",
       "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1",
       "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v1/_doc/_zasp_session_schema_v1",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2",
+      "${aws_opensearch_domain.events.arn}/zasp-runtime-sessions-v2/_doc/_zasp_session_schema_v2",
     ] },
     { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },
   ] })

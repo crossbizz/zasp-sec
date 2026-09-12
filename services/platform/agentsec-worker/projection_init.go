@@ -38,7 +38,7 @@ func runProductionProjectionInit(ctx context.Context, config workerRuntimeConfig
 			return errRuntimeUnavailable
 		}
 		defer raw.Close()
-		sessions, err := runtimeopensearch.NewSessionIndex(runtimeConfig, authority.credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
+		sessions, err := runtimeopensearch.NewConfiguredSessionIndex(config.RuntimeSessionIndex, runtimeConfig, authority.credentials, v4.NewSigner(), func() time.Time { return time.Now().UTC() })
 		if err != nil {
 			return errRuntimeUnavailable
 		}

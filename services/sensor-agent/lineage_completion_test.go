@@ -11,9 +11,9 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/sensoradapter"
 )
 
-func lineageCompletionFixture(t *testing.T, empty bool) (lineageReceiptFixtureState, *lineageAcknowledgments, *lineageCompletionReader) {
+func lineageCompletionFixture(t *testing.T, empty bool, profiles ...string) (lineageReceiptFixtureState, *lineageAcknowledgments, *lineageCompletionReader) {
 	t.Helper()
-	fixture := lineageReceiptFixture(t, empty)
+	fixture := lineageReceiptFixture(t, empty, profiles...)
 	spool := fixture.generation.spool
 	if complete, err := spool.ReclaimAcknowledged(context.Background(), fixture.receipts, reclaimFixtureRequest(fixture)); err != nil || !complete {
 		t.Fatal(err)
@@ -32,6 +32,49 @@ func lineageCompletionFixture(t *testing.T, empty bool) (lineageReceiptFixtureSt
 	}
 	t.Cleanup(func() { store.Close() })
 	return fixture, store, reader
+}
+
+func TestLineagePrecisionCompletionRetiresExactCheckpoint(t *testing.T) {
+	for _, empty := range []bool{false, true} {
+		t.Run(map[bool]string{false: "record", true: "empty"}[empty], func(t *testing.T) {
+			fixture, store, reader := lineageCompletionFixture(t, empty, "tetragon-local-stream-v3")
+			request := reclaimFixtureRequest(fixture)
+			lock, err := os.Lstat(fixture.cursor + ".lock")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ackPath := filepath.Join(fixture.ackPath, "ack-"+request.Source.GenerationID+".json")
+			completionPath := filepath.Join(fixture.generation.spool.root.Name(), "reclaim-"+request.Source.GenerationID+".json")
+			ackBefore, err := os.ReadFile(ackPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			completionBefore, err := os.ReadFile(completionPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for retry := 0; retry < 2; retry++ {
+				if done, err := store.RetireCheckpoint(context.Background(), reader, request, fixture.cursor, 16, nil); err != nil || !done {
+					t.Fatal("V3 completion retirement", done, err)
+				}
+			}
+			if _, err := os.Lstat(fixture.cursor); !os.IsNotExist(err) {
+				t.Fatal("precise checkpoint remains", err)
+			}
+			after, err := os.Lstat(fixture.cursor + ".lock")
+			if err != nil || !os.SameFile(lock, after) {
+				t.Fatal("retirement changed persistent lock", err)
+			}
+			ackAfter, err := os.ReadFile(ackPath)
+			if err != nil || !bytes.Equal(ackBefore, ackAfter) {
+				t.Fatal("retirement changed ACK evidence", err)
+			}
+			completionAfter, err := os.ReadFile(completionPath)
+			if err != nil || !bytes.Equal(completionBefore, completionAfter) {
+				t.Fatal("retirement changed producer evidence", err)
+			}
+		})
+	}
 }
 
 func TestLineageCompletionChecksACKOutputIsolationBeforeTakingWriterLock(t *testing.T) {

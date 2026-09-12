@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
 )
 
 type workerMode string
@@ -56,6 +58,7 @@ type workerRuntimeConfig struct {
 	ShutdownTimeout              time.Duration
 	DiscoveryQueueURL            string
 	RuntimeQueueURL              string
+	RuntimeDeliverySchema        string
 	RedTeamQueueURL              string
 	AttackLabQueueURL            string
 	RecoveryQueueURL             string
@@ -100,6 +103,7 @@ type workerRuntimeConfig struct {
 	DiscoveryReadinessTimeout    time.Duration
 	OpenSearchURL                string
 	OpenSearchIndex              string
+	RuntimeSessionIndex          string
 	Neo4jURI                     string
 	Neo4jCredential              string
 	Neo4jExpectedPrincipal       string
@@ -139,6 +143,10 @@ type workerRuntimeConfig struct {
 	SecurityAgentPlannerPolicy   string
 }
 
+func validRuntimeSessionIndexSelection(config workerRuntimeConfig) bool {
+	return runtimeopensearch.ValidSessionIndexName(config.RuntimeSessionIndex) && (config.RuntimeSessionIndex == "" || config.Mode == workerModeRuntimeIndex || config.Mode == workerModeProjectionSearchInit)
+}
+
 func loadProjectionInitConfig(getenv func(string) string) (workerRuntimeConfig, error) {
 	if getenv == nil {
 		return workerRuntimeConfig{}, errWorkerConfiguration
@@ -146,7 +154,8 @@ func loadProjectionInitConfig(getenv func(string) string) (workerRuntimeConfig, 
 	timeout, err := time.ParseDuration(getenv("ZASP_PROJECTION_INIT_TIMEOUT"))
 	config := workerRuntimeConfig{
 		Mode: workerMode(getenv("ZASP_WORKER_MODE")), AWSRegion: getenv("ZASP_AWS_REGION"),
-		ProjectionRoleARN: getenv("ZASP_PROJECTION_INIT_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE"),
+		RuntimeSessionIndex: getenv("ZASP_RUNTIME_SESSION_INDEX"),
+		ProjectionRoleARN:   getenv("ZASP_PROJECTION_INIT_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE"),
 		LeaseDuration: timeout, ShutdownTimeout: timeout, OpenSearchURL: getenv("ZASP_OPENSEARCH_ENDPOINT"), OpenSearchIndex: getenv("ZASP_OPENSEARCH_INDEX"),
 		ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"), Neo4jURI: getenv("ZASP_NEO4J_URI"), Neo4jCredential: getenv("ZASP_NEO4J_SCHEMA_CREDENTIAL_REFERENCE"),
 	}
@@ -157,6 +166,9 @@ func loadProjectionInitConfig(getenv func(string) string) (workerRuntimeConfig, 
 }
 
 func validProjectionInitConfig(config workerRuntimeConfig) bool {
+	if !validRuntimeSessionIndexSelection(config) {
+		return false
+	}
 	if config.Mode != workerModeProjectionSearchInit && config.Mode != workerModeProjectionGraphInit || config.LeaseDuration < 3*time.Second || config.LeaseDuration > 30*time.Second || !validProjectionAWSAuthority(config) {
 		return false
 	}
@@ -183,7 +195,9 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 	batch, batchErr := strconv.Atoi(getenv("ZASP_BATCH_SIZE"))
 	config := workerRuntimeConfig{
 		Mode: workerMode(getenv("ZASP_WORKER_MODE")), PostgresDSN: getenv("ZASP_POSTGRES_DSN"),
-		DatabaseAuthority: getenv("ZASP_DATABASE_AUTHORITY"), WorkerID: getenv("ZASP_WORKER_ID"),
+		RuntimeDeliverySchema: getenv("ZASP_RUNTIME_DELIVERY_SCHEMA"),
+		RuntimeSessionIndex:   getenv("ZASP_RUNTIME_SESSION_INDEX"),
+		DatabaseAuthority:     getenv("ZASP_DATABASE_AUTHORITY"), WorkerID: getenv("ZASP_WORKER_ID"),
 		PollInterval: poll, LeaseDuration: lease, BatchSize: batch, ShutdownTimeout: shutdown,
 		DiscoveryQueueURL: getenv("ZASP_DISCOVERY_QUEUE_URL"), RuntimeQueueURL: getenv("ZASP_RUNTIME_QUEUE_URL"), RedTeamQueueURL: getenv("ZASP_RED_TEAM_QUEUE_URL"), AttackLabQueueURL: getenv("ZASP_ATTACK_LAB_QUEUE_URL"), RecoveryQueueURL: getenv("ZASP_RECOVERY_QUEUE_URL"), RecoveryOutboxTopic: getenv("ZASP_RECOVERY_OUTBOX_TOPIC"), RecoveryOperationKind: getenv("ZASP_RECOVERY_OPERATION_KIND"), AWSRegion: getenv("ZASP_AWS_REGION"), EvidenceBucket: getenv("ZASP_EVIDENCE_BUCKET"), EvidenceOwner: getenv("ZASP_EVIDENCE_BUCKET_OWNER"),
 		EvidenceKMSKeyARN: getenv("ZASP_EVIDENCE_KMS_KEY_ARN"), ParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), ToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
@@ -221,6 +235,12 @@ func parseWorkerCIDRs(value string) []string {
 }
 
 func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
+	if config.RuntimeDeliverySchema != "" && (config.Mode != workerModeRuntimeCoordinator && config.Mode != workerModeRuntimeOutbox || config.RuntimeDeliverySchema != "runtime-event-v1" && config.RuntimeDeliverySchema != "runtime-event-v2") {
+		return false
+	}
+	if !validRuntimeSessionIndexSelection(config) {
+		return false
+	}
 	parsed, err := url.Parse(config.PostgresDSN)
 	if err != nil || parsed.String() != config.PostgresDSN || parsed.Scheme != "postgres" && parsed.Scheme != "postgresql" || parsed.User == nil || parsed.Hostname() == "" || parsed.Path == "" || parsed.Fragment != "" {
 		return false
@@ -306,25 +326,28 @@ func validModeDependencies(config workerRuntimeConfig) bool {
 func validRuntimeArchiveAWSAuthority(config workerRuntimeConfig) bool {
 	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RuntimeStageRoleARN)
 	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
-	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && config.RuntimeStageVersion == "runtime-archive-v1" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
+	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && (config.RuntimeStageVersion == "runtime-archive-v1" || config.RuntimeStageVersion == "runtime-archive-v2") && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
 }
 
 func validRuntimeIndexAWSAuthority(config workerRuntimeConfig) bool {
+	if !validRuntimeSessionIndexSelection(config) {
+		return false
+	}
 	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RuntimeStageRoleARN)
 	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
-	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && config.RuntimeStageVersion == "runtime-index-v1" && validOpenSearchEndpoint(config.OpenSearchURL, config.AWSRegion) && config.OpenSearchIndex == "zasp-runtime-events-v1" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
+	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && (config.RuntimeStageVersion == "runtime-index-v1" || config.RuntimeStageVersion == "runtime-index-v2" && config.RuntimeSessionIndex == "zasp-runtime-sessions-v2") && validOpenSearchEndpoint(config.OpenSearchURL, config.AWSRegion) && config.OpenSearchIndex == "zasp-runtime-events-v1" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
 }
 
 func validRuntimeCorrelationAWSAuthority(config workerRuntimeConfig) bool {
 	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RuntimeStageRoleARN)
 	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
-	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && (config.RuntimeStageVersion == "runtime-correlation-v1" || config.RuntimeStageVersion == "runtime-correlation-v2") && validRuntimeGraphAuthority(config) && config.OpenSearchURL == "" && config.OpenSearchIndex == "" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
+	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && (config.RuntimeStageVersion == "runtime-correlation-v1" || config.RuntimeStageVersion == "runtime-correlation-v2" || config.RuntimeStageVersion == "runtime-correlation-v3" || config.RuntimeStageVersion == "runtime-correlation-v4") && validRuntimeGraphAuthority(config) && config.OpenSearchURL == "" && config.OpenSearchIndex == "" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
 }
 
 func validRuntimeProjectionAWSAuthority(config workerRuntimeConfig) bool {
 	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RuntimeStageRoleARN)
 	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
-	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && config.RuntimeStageVersion == "runtime-projection-v1" && validRuntimeGraphAuthority(config) && config.OpenSearchURL == "" && config.OpenSearchIndex == "" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
+	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && (config.RuntimeStageVersion == "runtime-projection-v1" || config.RuntimeStageVersion == "runtime-projection-v2" || config.RuntimeStageVersion == "runtime-projection-v3") && validRuntimeGraphAuthority(config) && config.OpenSearchURL == "" && config.OpenSearchIndex == "" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
 }
 
 func validRuntimeGraphAuthority(config workerRuntimeConfig) bool {
@@ -335,7 +358,7 @@ func validRuntimeGraphAuthority(config workerRuntimeConfig) bool {
 func validRuntimeCompleteAWSAuthority(config workerRuntimeConfig) bool {
 	role := regexp.MustCompile(`^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]{1,128}$`).FindStringSubmatch(config.RuntimeStageRoleARN)
 	kms := regexp.MustCompile(`^arn:aws:kms:([a-z]{2}(?:-gov)?-[a-z]+-[0-9]):([0-9]{12}):key/[0-9a-f-]{36}$`).FindStringSubmatch(config.EvidenceKMSKeyARN)
-	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && config.RuntimeStageVersion == "runtime-complete-v1" && config.OpenSearchURL == "" && config.OpenSearchIndex == "" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
+	return len(role) == 2 && len(kms) == 3 && workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner && config.RuntimeStageTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && (config.RuntimeStageVersion == "runtime-complete-v1" || config.RuntimeStageVersion == "runtime-complete-v2" || config.RuntimeStageVersion == "runtime-complete-v3") && config.OpenSearchURL == "" && config.OpenSearchIndex == "" && config.RuntimeQueueURL == "" && config.DiscoveryQueueURL == "" && config.RuntimeRoleARN == "" && config.OutboxRoleARN == "" && config.DiscoveryRoleARN == "" && config.ProjectionRoleARN == ""
 }
 
 func validRuntimeCoordinatorAWSAuthority(config workerRuntimeConfig) bool {

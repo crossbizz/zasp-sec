@@ -113,6 +113,10 @@ func New(driver Driver, config Config) (*Store, error) {
 }
 
 func (store *Store) Apply(ctx context.Context, input Batch) (ApplyResult, error) {
+	return store.applyProfile(ctx, input, false)
+}
+
+func (store *Store) applyProfile(ctx context.Context, input Batch, precise bool) (ApplyResult, error) {
 	if store == nil || nilInterface(store.driver) || ctx == nil || ctx.Err() != nil {
 		if ctx != nil && ctx.Err() != nil {
 			return ApplyResult{}, ErrCanceled
@@ -122,11 +126,26 @@ func (store *Store) Apply(ctx context.Context, input Batch) (ApplyResult, error)
 	if !validBatch(input, store.config) {
 		return ApplyResult{}, ErrInput
 	}
-	decoded, err := runtimeevent.DecodeArchivedBatch(input.Scope, input.Body)
+	var decoded runtimeevent.ArchivedBatch
+	var err error
+	if precise {
+		var archive runtimeevent.PreciseArchivedBatch
+		archive, err = runtimeevent.DecodePreciseArchivedBatch(input.Scope, input.Body)
+		decoded.Records = make([]runtimeevent.Record, len(archive.Records))
+		for i, record := range archive.Records {
+			decoded.Records[i] = record.Record
+		}
+	} else {
+		decoded, err = runtimeevent.DecodeArchivedBatch(input.Scope, input.Body)
+	}
 	if err != nil || len(decoded.Records) > store.config.MaximumDocuments {
 		return ApplyResult{}, ErrInput
 	}
-	driverInput, ids, ok := makeDriverBatch(input, decoded)
+	digestDomain := contentDigestDomain
+	if precise {
+		digestDomain = "zasp.runtime-index.batch.v2"
+	}
+	driverInput, ids, ok := makeDriverBatchDomain(input, decoded, digestDomain)
 	if !ok {
 		return ApplyResult{}, ErrInput
 	}
@@ -162,6 +181,10 @@ func validVersion(value string) bool {
 }
 
 func makeDriverBatch(input Batch, decoded runtimeevent.ArchivedBatch) (DriverBatch, []string, bool) {
+	return makeDriverBatchDomain(input, decoded, contentDigestDomain)
+}
+
+func makeDriverBatchDomain(input Batch, decoded runtimeevent.ArchivedBatch, digestDomain string) (DriverBatch, []string, bool) {
 	records := append([]runtimeevent.Record(nil), decoded.Records...)
 	sort.Slice(records, func(i, j int) bool { return records[i].ID.String() < records[j].ID.String() })
 	documents := make([]DriverDocument, len(records))
@@ -191,7 +214,7 @@ func makeDriverBatch(input Batch, decoded runtimeevent.ArchivedBatch) (DriverBat
 		ArchiveReference string           `json:"archive_reference"`
 		ArchiveVersionID string           `json:"archive_version_id"`
 		Documents        []DriverDocument `json:"documents"`
-	}{contentDigestDomain, input.Scope.OrganizationID().String(), input.Scope.WorkspaceID().String(), input.Scope.EnvironmentID().String(), input.BatchID.String(), input.Generation, hex.EncodeToString(input.InputDigest[:]), input.ArchiveReference, input.ArchiveVersionID, documents}
+	}{digestDomain, input.Scope.OrganizationID().String(), input.Scope.WorkspaceID().String(), input.Scope.EnvironmentID().String(), input.BatchID.String(), input.Generation, hex.EncodeToString(input.InputDigest[:]), input.ArchiveReference, input.ArchiveVersionID, documents}
 	encoded, err := json.Marshal(authority)
 	if err != nil {
 		return DriverBatch{}, nil, false

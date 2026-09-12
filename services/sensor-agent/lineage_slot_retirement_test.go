@@ -14,9 +14,9 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/sensoradapter"
 )
 
-func lineageRetiringSlotFixture(t *testing.T) (lineageReceiptFixtureState, *lineageConsumerSlots, lineageSlotAssignment) {
+func lineageRetiringSlotFixture(t *testing.T, profiles ...string) (lineageReceiptFixtureState, *lineageConsumerSlots, lineageSlotAssignment) {
 	t.Helper()
-	fixture, parent, config := lineageSlotsFixture(t)
+	fixture, parent, config := lineageSlotsFixture(t, profiles...)
 	path := filepath.Join(parent, "slots")
 	if err := os.Mkdir(path, 0700); err != nil {
 		t.Fatal(err)
@@ -58,7 +58,16 @@ func lineageRetiringSlotFixture(t *testing.T) (lineageReceiptFixtureState, *line
 }
 
 func TestLineageSlotRetirementReusesOneFixedSlotAcrossTwentyFourGenerations(t *testing.T) {
-	fixture, slots, assignment := lineageRetiringSlotFixture(t)
+	checkLineageSlotRetirementAcrossGenerations(t)
+}
+
+func TestLineagePrecisionSlotRetirementReusesOneFixedSlotAcrossTwentyFourGenerations(t *testing.T) {
+	checkLineageSlotRetirementAcrossGenerations(t, "tetragon-local-stream-v3")
+}
+
+func checkLineageSlotRetirementAcrossGenerations(t *testing.T, profiles ...string) {
+	t.Helper()
+	fixture, slots, assignment := lineageRetiringSlotFixture(t, profiles...)
 	ctx := context.Background()
 	client, err := sensoradapter.NewProductionClient(sensoradapter.ProductionClientConfig{BaseURL: "https://runtime.example.test", EnrollmentBinding: assignment.Source.EnrollmentBinding, Now: func() time.Time { return time.Date(2026, 9, 10, 12, 0, 1, 0, time.UTC) }, Token: func() ([]byte, error) { return []byte(fixtureAgentToken()), nil }, Do: func(*http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: http.StatusAccepted, Header: http.Header{"Cache-Control": {"no-store"}}, Body: io.NopCloser(bytes.NewBufferString(`{"batch_id":"pid_10000001-0000-4000-8000-000000000001"}`))}, nil

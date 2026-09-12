@@ -60,10 +60,20 @@ jobs:
         run: npm run verify
       - name: Verify Red Team runtime and ledger regressions
         run: |
-          node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs
+          node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs
           go test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'
       - name: Verify production release sources
         run: npm run production:release:gate
+      - name: Verify session search IAM policies
+        timeout-minutes: 10
+        run: |
+          task_tf_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-terraform.XXXXXX")
+          curl --fail --location --retry 3 --max-time 120 --output "$task_tf_dir/terraform.zip" https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip
+          printf '%s  %s\n' d25ce7b6902013ad905db3d2eab0be4cd905887fe88b81a6171b8d5503c31f3d "$task_tf_dir/terraform.zip" | sha256sum --check -
+          unzip -q "$task_tf_dir/terraform.zip" -d "$task_tf_dir"
+          export TF_DATA_DIR="$task_tf_dir/data"
+          "$task_tf_dir/terraform" -chdir=deploy/staging init -backend=false -input=false -lockfile=readonly
+          "$task_tf_dir/terraform" -chdir=deploy/staging test -filter=tests/session_search_iam.tftest.hcl -var-file=release.tfvars -no-color
       - name: Verify reconciliation maintenance alerts
         run: |
           task_prom_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-promtool.XXXXXX")
@@ -75,9 +85,10 @@ jobs:
       - name: Verify durable runtime sessions, enrollment pairing and candidate authority
         run: |
           test -x "$(pg_config --bindir)/initdb"
-          go test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent
-          go test -C services/platform -race -count=1 ./runtimemetadata ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...
-          go test -C services/platform -race -count=1 ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority|CorrelationRouting)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'
+          go test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent ./internal/testprocess ./internal/sandboxcutover
+          go test -C services/platform -race -count=1 ./agentsec-api ./agentsec-worker
+          go test -C services/platform -race -count=1 ./runtimemetadata ./runtimelineage ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...
+          go test -C services/platform -race -count=1 -timeout=30m ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority|CorrelationRouting|Sandbox|Precision)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'
       - name: Verify sensor lineage and authenticated replay
         run: |
           export PATH="$(pg_config --bindir):$PATH"

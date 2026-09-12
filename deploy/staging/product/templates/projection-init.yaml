@@ -63,19 +63,27 @@ spec:
         - ipBlock: { cidr: {{ $cidr | quote }} }
       {{- end }}
       ports: [{ protocol: TCP, port: 443 }]
-{{- range $init := list
+{{- $initializers := list
   (dict "name" "agentsec-projection-graph-init" "mode" "projection-graph-init" "serviceAccount" .Values.serviceAccounts.projectionGraphInit "roleArn" .Values.projectionGraph.initRoleArn "timeout" .Values.projectionGraph.initTimeout "awsRegion" .Values.projectionGraph.awsRegion)
   (dict "name" "agentsec-projection-search-init" "mode" "projection-search-init" "serviceAccount" .Values.serviceAccounts.projectionSearchInit "roleArn" .Values.projectionSearch.initRoleArn "timeout" .Values.projectionSearch.initTimeout "awsRegion" .Values.projectionSearch.awsRegion)
 }}
+{{- if ne .Values.runtime.sessionSearchPhase "compatibility" }}
+{{- $v2 := deepCopy (index $initializers 1) }}
+{{- $_ := set $v2 "revision" "2" }}
+{{- $_ := set $v2 "weight" "-6" }}
+{{- $_ := set $v2 "sessionIndex" "zasp-runtime-sessions-v2" }}
+{{- $initializers = append $initializers $v2 }}
+{{- end }}
+{{- range $init := $initializers }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .name }}-v1
+  name: {{ .name }}-v{{ default "1" .revision }}
   labels: { app.kubernetes.io/name: {{ .name }}, app.kubernetes.io/part-of: zasp }
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
-    helm.sh/hook-weight: "-7"
+    helm.sh/hook-weight: {{ default "-7" .weight | quote }}
     helm.sh/hook-delete-policy: before-hook-creation
 spec:
   backoffLimit: 0
@@ -101,6 +109,7 @@ spec:
             - { name: ZASP_PROJECTION_INIT_WEB_IDENTITY_TOKEN_FILE, value: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" }
             - { name: ZASP_PROJECTION_INIT_TIMEOUT, value: {{ required "projection init timeout is required" .timeout | quote }} }
             {{- if eq .mode "projection-search-init" }}
+            - { name: ZASP_RUNTIME_SESSION_INDEX, value: {{ default "zasp-runtime-sessions-v1" .sessionIndex | quote }} }
             - { name: ZASP_OPENSEARCH_ENDPOINT, value: {{ required "projectionSearch.endpoint is required" $root.Values.projectionSearch.endpoint | quote }} }
             - { name: ZASP_OPENSEARCH_INDEX, value: {{ required "projectionSearch.index is required" $root.Values.projectionSearch.index | quote }} }
             {{- else }}

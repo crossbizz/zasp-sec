@@ -16,6 +16,7 @@ import (
 )
 
 const receiptSchema = "runtime-projection-receipt-v1"
+const sandboxReceiptSchema = "runtime-projection-receipt-v2"
 
 type Receipt struct {
 	ImplementationVersion string
@@ -51,11 +52,19 @@ type receiptWire struct {
 }
 
 func EncodeReceipt(receipt Receipt) ([]byte, [sha256.Size]byte, domain.EvidenceRef, error) {
-	if !validReceipt(receipt) {
+	return encodeReceiptProfile(receipt, false)
+}
+
+func encodeReceiptProfile(receipt Receipt, precise bool) ([]byte, [sha256.Size]byte, domain.EvidenceRef, error) {
+	if !validReceiptProfile(receipt, precise) {
 		return nil, [sha256.Size]byte{}, domain.EvidenceRef{}, ErrInput
 	}
-	body, err := json.Marshal(receiptToWire(receipt))
-	if err != nil {
+	wire := receiptToWire(receipt)
+	if precise {
+		wire.Schema = "runtime-projection-receipt-v3"
+	}
+	body, err := json.Marshal(wire)
+	if err != nil || precise && len(body) > 4<<20 {
 		return nil, [sha256.Size]byte{}, domain.EvidenceRef{}, ErrInput
 	}
 	digest := sha256.Sum256(body)
@@ -71,6 +80,10 @@ func EncodeReceipt(receipt Receipt) ([]byte, [sha256.Size]byte, domain.EvidenceR
 }
 
 func DecodeReceipt(body []byte) (Receipt, error) {
+	return decodeReceiptProfile(body, false)
+}
+
+func decodeReceiptProfile(body []byte, precise bool) (Receipt, error) {
 	if len(body) < 1 || len(body) > 4<<20 || !utf8.Valid(body) {
 		return Receipt{}, ErrInput
 	}
@@ -80,11 +93,11 @@ func DecodeReceipt(body []byte) (Receipt, error) {
 	if decoder.Decode(&wire) != nil || decoder.Decode(&struct{}{}) != io.EOF {
 		return Receipt{}, ErrInput
 	}
-	receipt, ok := receiptFromWire(wire)
+	receipt, ok := receiptFromWireProfile(wire, precise)
 	if !ok {
 		return Receipt{}, ErrInput
 	}
-	canonical, _, _, err := EncodeReceipt(receipt)
+	canonical, _, _, err := encodeReceiptProfile(receipt, precise)
 	if err != nil || !bytes.Equal(canonical, body) {
 		return Receipt{}, ErrInput
 	}
@@ -93,14 +106,32 @@ func DecodeReceipt(body []byte) (Receipt, error) {
 }
 
 func validReceipt(receipt Receipt) bool {
-	if receipt.Scope.Validate() != nil || receipt.BatchID.IsZero() || receipt.Generation < 1 || !validRequired(receipt.ImplementationVersion, 64) || !validReference(receipt.InputReference) || !validVersion(receipt.InputVersionID) || receipt.InputDigest == ([sha256.Size]byte{}) || !validReference(receipt.ArchiveReference) || !validVersion(receipt.ArchiveVersionID) || receipt.ArchiveDigest == ([sha256.Size]byte{}) || receipt.EffectDigest == ([sha256.Size]byte{}) || !validItems(receipt) {
+	return validReceiptProfile(receipt, false)
+}
+
+func validReceiptProfile(receipt Receipt, precise bool) bool {
+	if precise && receipt.ImplementationVersion != "runtime-projection-v3" || !precise && receipt.ImplementationVersion != "runtime-projection-v1" && receipt.ImplementationVersion != "runtime-projection-v2" {
 		return false
 	}
-	expected, err := projectionDigest(receipt.Scope, receipt.BatchID, receipt.Generation, receipt.ArchiveDigest, receipt.Items)
+	if receipt.Scope.Validate() != nil || receipt.BatchID.IsZero() || receipt.Generation < 1 || !validRequired(receipt.ImplementationVersion, 64) || !validReference(receipt.InputReference) || !validVersion(receipt.InputVersionID) || receipt.InputDigest == ([sha256.Size]byte{}) || !validReference(receipt.ArchiveReference) || !validVersion(receipt.ArchiveVersionID) || receipt.ArchiveDigest == ([sha256.Size]byte{}) || receipt.EffectDigest == ([sha256.Size]byte{}) || !validItemsProfile(receipt, precise) {
+		return false
+	}
+	digestDomain := contentDigestDomain
+	if receipt.ImplementationVersion == "runtime-projection-v2" {
+		digestDomain = "zasp.runtime-projection.batch.v2"
+	}
+	if precise {
+		digestDomain = "zasp.runtime-projection.batch.v3"
+	}
+	expected, err := projectionDigestDomain(receipt.Scope, receipt.BatchID, receipt.Generation, receipt.ArchiveDigest, receipt.Items, digestDomain)
 	return err == nil && expected == receipt.EffectDigest
 }
 
 func validItems(receipt Receipt) bool {
+	return validItemsProfile(receipt, false)
+}
+
+func validItemsProfile(receipt Receipt, precise bool) bool {
 	if len(receipt.Items) < 1 || len(receipt.Items) > 1000 {
 		return false
 	}
@@ -115,6 +146,21 @@ func validItems(receipt Receipt) bool {
 			return false
 		}
 		expectedID := riskID(Batch{Scope: receipt.Scope, BatchID: receipt.BatchID, ArchiveDigest: receipt.ArchiveDigest}, item.EventID, runtimeCorrelation(item))
+		if precise || receipt.ImplementationVersion == "runtime-projection-v2" {
+			if !validSandboxCorrelation(runtimeCorrelation(item)) {
+				return false
+			}
+			expectedID = sandboxRiskID(Batch{Scope: receipt.Scope, BatchID: receipt.BatchID, ArchiveDigest: receipt.ArchiveDigest}, item.EventID, runtimeCorrelation(item))
+			if precise {
+				if item.Source != "tetragon" || item.Confidence == domain.EvidenceConfidenceExact {
+					return false
+				}
+				digest := sha256.Sum256([]byte("zasp.runtime-risk.v3\x00" + expectedID))
+				expectedID = "rsk_" + hex.EncodeToString(digest[:])
+			}
+		} else if item.SandboxID != "" || !item.SandboxSourceSensorID.IsZero() {
+			return false
+		}
 		if item.ID != expectedID || !validItemCorrelation(item) || !validCanonicalTime(item.EventTime) {
 			return false
 		}
@@ -123,7 +169,7 @@ func validItems(receipt Receipt) bool {
 }
 
 func runtimeCorrelation(item Item) runtimecorrelation.Result {
-	return runtimecorrelation.Result{EventID: item.EventID, SessionID: item.SessionID, AgentID: item.AgentID, Confidence: item.Confidence}
+	return runtimecorrelation.Result{EventID: item.EventID, SessionID: item.SessionID, AgentID: item.AgentID, Confidence: item.Confidence, SandboxID: item.SandboxID, SandboxSourceSensorID: item.SandboxSourceSensorID}
 }
 
 func validItemCorrelation(item Item) bool {
@@ -151,10 +197,18 @@ func validRiskID(value string) bool {
 }
 
 func receiptToWire(receipt Receipt) receiptWire {
-	return receiptWire{Schema: receiptSchema, ImplementationVersion: receipt.ImplementationVersion, OrganizationID: receipt.Scope.OrganizationID().String(), WorkspaceID: receipt.Scope.WorkspaceID().String(), EnvironmentID: receipt.Scope.EnvironmentID().String(), BatchID: receipt.BatchID.String(), Generation: receipt.Generation, InputReference: receipt.InputReference, InputVersionID: receipt.InputVersionID, InputDigest: hex.EncodeToString(receipt.InputDigest[:]), ArchiveReference: receipt.ArchiveReference, ArchiveVersionID: receipt.ArchiveVersionID, ArchiveDigest: hex.EncodeToString(receipt.ArchiveDigest[:]), EffectDigest: hex.EncodeToString(receipt.EffectDigest[:]), Items: itemsToWire(receipt.Items)}
+	schema := receiptSchema
+	if receipt.ImplementationVersion == "runtime-projection-v2" {
+		schema = sandboxReceiptSchema
+	}
+	return receiptWire{Schema: schema, ImplementationVersion: receipt.ImplementationVersion, OrganizationID: receipt.Scope.OrganizationID().String(), WorkspaceID: receipt.Scope.WorkspaceID().String(), EnvironmentID: receipt.Scope.EnvironmentID().String(), BatchID: receipt.BatchID.String(), Generation: receipt.Generation, InputReference: receipt.InputReference, InputVersionID: receipt.InputVersionID, InputDigest: hex.EncodeToString(receipt.InputDigest[:]), ArchiveReference: receipt.ArchiveReference, ArchiveVersionID: receipt.ArchiveVersionID, ArchiveDigest: hex.EncodeToString(receipt.ArchiveDigest[:]), EffectDigest: hex.EncodeToString(receipt.EffectDigest[:]), Items: itemsToWire(receipt.Items)}
 }
 
 func receiptFromWire(wire receiptWire) (Receipt, bool) {
+	return receiptFromWireProfile(wire, false)
+}
+
+func receiptFromWireProfile(wire receiptWire, precise bool) (Receipt, bool) {
 	organization, organizationErr := domain.ParseProductID(wire.OrganizationID)
 	workspace, workspaceErr := domain.ParseProductID(wire.WorkspaceID)
 	environment, environmentErr := domain.ParseProductID(wire.EnvironmentID)
@@ -163,7 +217,11 @@ func receiptFromWire(wire receiptWire) (Receipt, bool) {
 	inputDigest, inputErr := parseDigest(wire.InputDigest)
 	archiveDigest, archiveErr := parseDigest(wire.ArchiveDigest)
 	effectDigest, effectErr := parseDigest(wire.EffectDigest)
-	if wire.Schema != receiptSchema || organizationErr != nil || workspaceErr != nil || environmentErr != nil || scopeErr != nil || batchErr != nil || inputErr != nil || archiveErr != nil || effectErr != nil {
+	versionMatches := wire.Schema == receiptSchema && wire.ImplementationVersion == "runtime-projection-v1" || wire.Schema == sandboxReceiptSchema && wire.ImplementationVersion == "runtime-projection-v2"
+	if precise {
+		versionMatches = wire.Schema == "runtime-projection-receipt-v3" && wire.ImplementationVersion == "runtime-projection-v3"
+	}
+	if !versionMatches || organizationErr != nil || workspaceErr != nil || environmentErr != nil || scopeErr != nil || batchErr != nil || inputErr != nil || archiveErr != nil || effectErr != nil {
 		return Receipt{}, false
 	}
 	items := make([]Item, len(wire.Items))
@@ -171,21 +229,25 @@ func receiptFromWire(wire receiptWire) (Receipt, bool) {
 		eventID, eventErr := domain.ParseProductID(value.EventID)
 		evidenceID, evidenceErr := domain.ParseProductID(value.EvidenceID)
 		confidence, confidenceErr := domain.ParseEvidenceConfidence(value.Confidence)
-		var agentID, sessionID domain.ProductID
-		var agentErr, sessionErr error
+		var agentID, sessionID, sandboxSource domain.ProductID
+		var agentErr, sessionErr, sandboxSourceErr error
 		if value.AgentID != "" {
 			agentID, agentErr = domain.ParseProductID(value.AgentID)
 		}
 		if value.SessionID != "" {
 			sessionID, sessionErr = domain.ParseProductID(value.SessionID)
 		}
-		if eventErr != nil || evidenceErr != nil || confidenceErr != nil || agentErr != nil || sessionErr != nil {
+		if value.SandboxSourceSensorID != "" {
+			sandboxSource, sandboxSourceErr = domain.ParseProductID(value.SandboxSourceSensorID)
+		}
+		if eventErr != nil || evidenceErr != nil || confidenceErr != nil || agentErr != nil || sessionErr != nil || sandboxSourceErr != nil {
 			return Receipt{}, false
 		}
 		items[index] = Item{ID: value.ID, EventID: eventID, Source: value.Source, EventClass: value.EventClass, Action: value.Action, Severity: value.Severity, Title: value.Title, AgentID: agentID, SessionID: sessionID, Confidence: confidence, EvidenceID: evidenceID, EventTime: value.EventTime, ArchiveReference: value.ArchiveReference, ArchiveVersionID: value.ArchiveVersionID}
+		items[index].SandboxID, items[index].SandboxSourceSensorID = value.SandboxID, sandboxSource
 	}
 	receipt := Receipt{ImplementationVersion: wire.ImplementationVersion, Scope: scope, BatchID: batchID, Generation: wire.Generation, InputReference: wire.InputReference, InputVersionID: wire.InputVersionID, InputDigest: inputDigest, ArchiveReference: wire.ArchiveReference, ArchiveVersionID: wire.ArchiveVersionID, ArchiveDigest: archiveDigest, EffectDigest: effectDigest, Items: items}
-	return receipt, validReceipt(receipt)
+	return receipt, validReceiptProfile(receipt, precise)
 }
 
 func parseDigest(value string) ([sha256.Size]byte, error) {

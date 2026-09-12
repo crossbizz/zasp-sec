@@ -10,7 +10,7 @@ import (
 )
 
 func TestLineageCgroupVersionedManifestAndEveryStartupPrefix(t *testing.T) {
-	for _, version := range []string{"1", "2"} {
+	for _, version := range []string{"1", "2", "3"} {
 		source := lineageSpoolSource()
 		source.Profile = "tetragon-local-stream-v" + version
 		manifest, err := lineageManifestBytes(source)

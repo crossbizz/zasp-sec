@@ -17,7 +17,7 @@ type VerifiedConsumption struct {
 	Progress    ChunkProgress `json:"progress"`
 }
 
-func (p *ChunkProcessor) VerifyConsumed(ctx context.Context) (VerifiedConsumption, error) {
+func (p *chunkProcessor[E]) VerifyConsumed(ctx context.Context) (VerifiedConsumption, error) {
 	if p == nil || ctx == nil || ctx.Err() != nil {
 		return VerifiedConsumption{}, ErrStream
 	}

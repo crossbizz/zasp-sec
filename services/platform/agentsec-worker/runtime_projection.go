@@ -29,20 +29,56 @@ type runtimeProjectionExecutor struct {
 }
 
 func newRuntimeProjectionExecutor(config runtimeProjectionExecutorConfig) (*runtimeProjectionExecutor, error) {
-	if nilWorkerDependency(config.Reader) || nilWorkerDependency(config.Receipts) || nilWorkerDependency(config.Graph) || config.ImplementationVersion != "runtime-projection-v1" {
+	if nilWorkerDependency(config.Reader) || nilWorkerDependency(config.Receipts) || nilWorkerDependency(config.Graph) || (config.ImplementationVersion != "runtime-projection-v1" && config.ImplementationVersion != "runtime-projection-v2" && config.ImplementationVersion != "runtime-projection-v3") {
 		return nil, errRuntimeUnavailable
 	}
 	return &runtimeProjectionExecutor{config: config}, nil
 }
 
 func (executor *runtimeProjectionExecutor) Execute(ctx context.Context, lease runtimeevent.StageLease) (effect runtimeStageEffect, resultErr error) {
+	if executor == nil || lease.ImplementationVersion != "runtime-projection-v1" || !executor.SupportsRuntimeStageVersion(lease.Stage, executor.config.ImplementationVersion, lease.ImplementationVersion) {
+		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	return executor.forVersion(lease.ImplementationVersion).execute(ctx, lease, nil)
+}
+
+func (executor *runtimeProjectionExecutor) ExecuteAuthorized(ctx context.Context, execution runtimeStageExecution) (runtimeStageEffect, error) {
+	if executor == nil || ctx == nil || ctx.Err() != nil || !exactRuntimeStageLease(execution.currentLease(), runtimeevent.RuntimeStageProject) || !executor.SupportsRuntimeStageVersion(execution.lease.Stage, executor.config.ImplementationVersion, execution.lease.ImplementationVersion) || !workerIdentityPattern.MatchString(execution.workerID) || !runtimeLeaseToken(execution.leaseToken) {
+		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	if execution.lease.ImplementationVersion != "runtime-projection-v1" && (execution.lease.PredecessorDigest == nil || *execution.lease.PredecessorDigest != execution.lease.InputDigest) {
+		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	return executor.forVersion(execution.lease.ImplementationVersion).execute(ctx, execution.currentLease(), &execution)
+}
+
+func (executor *runtimeProjectionExecutor) SupportsRuntimeStageVersion(stage runtimeevent.RuntimeStage, configured, claimed string) bool {
+	return executor != nil && stage == runtimeevent.RuntimeStageProject && configured == executor.config.ImplementationVersion && (configured == "runtime-projection-v1" && claimed == configured || configured == "runtime-projection-v2" && (claimed == configured || claimed == "runtime-projection-v1") || configured == "runtime-projection-v3" && (claimed == configured || claimed == "runtime-projection-v1" || claimed == "runtime-projection-v2"))
+}
+
+func (executor *runtimeProjectionExecutor) forVersion(version string) *runtimeProjectionExecutor {
+	if version == executor.config.ImplementationVersion {
+		return executor
+	}
+	selected := *executor
+	selected.config.ImplementationVersion = version
+	return &selected
+}
+
+func (executor *runtimeProjectionExecutor) execute(ctx context.Context, lease runtimeevent.StageLease, execution *runtimeStageExecution) (effect runtimeStageEffect, resultErr error) {
+	currentLease := func() runtimeevent.StageLease {
+		if execution != nil {
+			return execution.currentLease()
+		}
+		return lease
+	}
 	defer func() {
 		if recover() != nil {
 			effect = runtimeStageEffect{}
 			resultErr = errWorkerExecution
 		}
 	}()
-	if executor == nil || ctx == nil || ctx.Err() != nil || !exactRuntimeStageLease(lease, runtimeevent.RuntimeStageProject) || lease.ImplementationVersion != executor.config.ImplementationVersion {
+	if executor == nil || ctx == nil || ctx.Err() != nil || !exactRuntimeStageLease(lease, runtimeevent.RuntimeStageProject) || lease.ImplementationVersion != executor.config.ImplementationVersion || executor.config.ImplementationVersion != "runtime-projection-v1" && execution == nil {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
 	locator, ok := runtimeReceiptLocator(lease.Scope, lease.InputReference, lease.InputVersionID)
@@ -62,14 +98,25 @@ func (executor *runtimeProjectionExecutor) Execute(ctx context.Context, lease ru
 		clear(artifact.Body)
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
-	correlationReceipt, err := runtimecorrelation.DecodeReceipt(artifact.Body)
+	decodeReceipt := runtimecorrelation.DecodeReceipt
+	if lease.ImplementationVersion == "runtime-projection-v3" {
+		decodeReceipt = runtimecorrelation.DecodePreciseReceipt
+	}
+	correlationReceipt, err := decodeReceipt(artifact.Body)
 	clear(artifact.Body)
-	if err != nil || correlationReceipt.Scope != lease.Scope || correlationReceipt.BatchID != lease.BatchID || correlationReceipt.Generation != lease.Generation || correlationReceipt.EffectDigest != lease.InputDigest || (correlationReceipt.ImplementationVersion != "runtime-correlation-v1" && correlationReceipt.ImplementationVersion != "runtime-correlation-v2") {
+	compatiblePredecessor := lease.ImplementationVersion == "runtime-projection-v1" && (correlationReceipt.ImplementationVersion == "runtime-correlation-v1" || correlationReceipt.ImplementationVersion == "runtime-correlation-v2") || lease.ImplementationVersion == "runtime-projection-v2" && correlationReceipt.ImplementationVersion == "runtime-correlation-v3"
+	if lease.ImplementationVersion == "runtime-projection-v3" {
+		compatiblePredecessor = correlationReceipt.ImplementationVersion == "runtime-correlation-v4"
+	}
+	if err != nil || correlationReceipt.Scope != lease.Scope || correlationReceipt.BatchID != lease.BatchID || correlationReceipt.Generation != lease.Generation || correlationReceipt.EffectDigest != lease.InputDigest || !compatiblePredecessor {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
 	archiveLease := lease
 	archiveLease.Stage = runtimeevent.RuntimeStageIndex
 	archiveLease.ImplementationVersion = "runtime-index-v1"
+	if lease.ImplementationVersion == "runtime-projection-v3" {
+		archiveLease.ImplementationVersion = "runtime-index-v2"
+	}
 	archiveLease.InputReference = correlationReceipt.ArchiveReference
 	archiveLease.InputVersionID = correlationReceipt.ArchiveVersionID
 	archiveLease.InputDigest = correlationReceipt.ArchiveDigest
@@ -83,13 +130,39 @@ func (executor *runtimeProjectionExecutor) Execute(ctx context.Context, lease ru
 	}
 	projectionBody := bytes.Clone(body)
 	defer clear(projectionBody)
-	projected, err := runtimeprojection.Project(runtimeprojection.Batch{Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, ArchiveReference: correlationReceipt.ArchiveReference, ArchiveVersionID: correlationReceipt.ArchiveVersionID, ArchiveDigest: correlationReceipt.ArchiveDigest, Body: projectionBody, Correlations: correlationReceipt.Results})
+	input := runtimeprojection.Batch{Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, ArchiveReference: correlationReceipt.ArchiveReference, ArchiveVersionID: correlationReceipt.ArchiveVersionID, ArchiveDigest: correlationReceipt.ArchiveDigest, Body: projectionBody, Correlations: correlationReceipt.Results}
+	var projected runtimeprojection.ProjectedBatch
+	if lease.ImplementationVersion == "runtime-projection-v3" {
+		projected, err = runtimeprojection.ProjectPrecise(input)
+	} else if lease.ImplementationVersion == "runtime-projection-v2" {
+		projected, err = runtimeprojection.ProjectSandbox(input)
+	} else {
+		projected, err = runtimeprojection.Project(input)
+	}
 	if err != nil {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
 	}
-	snapshot, nodeIDs, edgeIDs, ok := runtimeProjectionRiskGraphSnapshot(lease, projected)
+	var receiptBody []byte
+	var receiptDigest [sha256.Size]byte
+	var reference domain.EvidenceRef
+	prepareReceipt := func() error {
+		encodeReceipt := runtimeprojection.EncodeReceipt
+		if lease.ImplementationVersion == "runtime-projection-v3" {
+			encodeReceipt = runtimeprojection.EncodePreciseReceipt
+		}
+		var encodeErr error
+		receiptBody, receiptDigest, reference, encodeErr = encodeReceipt(runtimeprojection.Receipt{ImplementationVersion: lease.ImplementationVersion, Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, InputReference: lease.InputReference, InputVersionID: lease.InputVersionID, InputDigest: lease.InputDigest, ArchiveReference: correlationReceipt.ArchiveReference, ArchiveVersionID: correlationReceipt.ArchiveVersionID, ArchiveDigest: correlationReceipt.ArchiveDigest, EffectDigest: projected.ContentDigest, Items: projected.Items})
+		return encodeErr
+	}
+	if lease.ImplementationVersion == "runtime-projection-v3" && prepareReceipt() != nil {
+		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	snapshot, nodeIDs, edgeIDs, ok := runtimeProjectionRiskGraphSnapshot(currentLease(), projected)
 	if !ok {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	if lease.ImplementationVersion != "runtime-projection-v1" && (ctx.Err() != nil || !exactRuntimeStageLease(currentLease(), runtimeevent.RuntimeStageProject)) {
+		return runtimeStageEffect{}, errRuntimeStageRetryable
 	}
 	applied, err := executor.config.Graph.ApplySnapshot(ctx, snapshot)
 	if err != nil {
@@ -98,9 +171,14 @@ func (executor *runtimeProjectionExecutor) Execute(ctx context.Context, lease ru
 	if applied.SnapshotID != snapshot.SnapshotID || applied.Source != snapshot.Source || applied.Generation != snapshot.Generation || applied.InputDigest != snapshot.InputDigest || applied.ContentDigest == ([sha256.Size]byte{}) || !slices.Equal(applied.NodeIDs, nodeIDs) || !slices.Equal(applied.EdgeIDs, edgeIDs) || applied.RemovedNodes < 0 || applied.RemovedEdges < 0 {
 		return runtimeStageEffect{}, errWorkerExecution
 	}
-	receiptBody, receiptDigest, reference, err := runtimeprojection.EncodeReceipt(runtimeprojection.Receipt{ImplementationVersion: lease.ImplementationVersion, Scope: lease.Scope, BatchID: lease.BatchID, Generation: lease.Generation, InputReference: lease.InputReference, InputVersionID: lease.InputVersionID, InputDigest: lease.InputDigest, ArchiveReference: correlationReceipt.ArchiveReference, ArchiveVersionID: correlationReceipt.ArchiveVersionID, ArchiveDigest: correlationReceipt.ArchiveDigest, EffectDigest: projected.ContentDigest, Items: projected.Items})
-	if err != nil {
+	if lease.ImplementationVersion != "runtime-projection-v1" && (ctx.Err() != nil || !exactRuntimeStageLease(currentLease(), runtimeevent.RuntimeStageProject)) {
+		return runtimeStageEffect{}, errRuntimeStageRetryable
+	}
+	if lease.ImplementationVersion != "runtime-projection-v3" && prepareReceipt() != nil {
 		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	if lease.ImplementationVersion != "runtime-projection-v1" && (ctx.Err() != nil || !exactRuntimeStageLease(currentLease(), runtimeevent.RuntimeStageProject)) {
+		return runtimeStageEffect{}, errRuntimeStageRetryable
 	}
 	stored, err := executor.config.Receipts.Put(ctx, artifactstore.PutRequest{Locator: artifactstore.Locator{Scope: lease.Scope, Reference: reference}, MediaType: "application/json", Body: bytes.Clone(receiptBody)})
 	if err != nil || stored.Scope != lease.Scope || stored.Reference != reference || stored.VersionID == "" || stored.MediaType != "application/json" || stored.Size != int64(len(receiptBody)) || stored.SHA256 != receiptDigest || !bytes.Equal(stored.Body, receiptBody) {
@@ -109,6 +187,9 @@ func (executor *runtimeProjectionExecutor) Execute(ctx context.Context, lease ru
 	resultReference, err := executor.config.Receipts.ObjectReference(stored.Locator)
 	if err != nil || resultReference == "" {
 		return runtimeStageEffect{}, errWorkerExecution
+	}
+	if lease.ImplementationVersion != "runtime-projection-v1" && (ctx.Err() != nil || !exactRuntimeStageLease(currentLease(), runtimeevent.RuntimeStageProject)) {
+		return runtimeStageEffect{}, errRuntimeStageRetryable
 	}
 	return runtimeStageEffect{EffectDigest: projected.ContentDigest, ResultReference: resultReference, ResultVersionID: stored.VersionID, ResultDigest: receiptDigest}, nil
 }

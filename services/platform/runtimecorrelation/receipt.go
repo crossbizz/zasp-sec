@@ -55,12 +55,20 @@ type receiptWire struct {
 }
 
 func EncodeReceipt(receipt Receipt) ([]byte, [sha256.Size]byte, domain.EvidenceRef, error) {
-	if !validReceipt(receipt) {
+	return encodeReceiptProfile(receipt, false)
+}
+
+func encodeReceiptProfile(receipt Receipt, precise bool) ([]byte, [sha256.Size]byte, domain.EvidenceRef, error) {
+	if !validReceiptProfile(receipt, precise) {
 		return nil, [sha256.Size]byte{}, domain.EvidenceRef{}, ErrInput
 	}
 	wire := receiptToWire(receipt)
+	if precise {
+		wire.Schema = "runtime-correlation-receipt-v4"
+		wire.CandidateSnapshotDigest = hex.EncodeToString(receipt.CandidateSnapshotDigest[:])
+	}
 	body, err := json.Marshal(wire)
-	if err != nil {
+	if err != nil || (precise && len(body) > 1<<20) {
 		return nil, [sha256.Size]byte{}, domain.EvidenceRef{}, ErrInput
 	}
 	digest := sha256.Sum256(body)
@@ -76,6 +84,10 @@ func EncodeReceipt(receipt Receipt) ([]byte, [sha256.Size]byte, domain.EvidenceR
 }
 
 func DecodeReceipt(body []byte) (Receipt, error) {
+	return decodeReceiptProfile(body, false)
+}
+
+func decodeReceiptProfile(body []byte, precise bool) (Receipt, error) {
 	if len(body) < 1 || len(body) > 1<<20 || !utf8.Valid(body) {
 		return Receipt{}, ErrInput
 	}
@@ -85,11 +97,11 @@ func DecodeReceipt(body []byte) (Receipt, error) {
 	if decoder.Decode(&wire) != nil || decoder.Decode(&struct{}{}) != io.EOF {
 		return Receipt{}, ErrInput
 	}
-	receipt, ok := receiptFromWire(wire)
+	receipt, ok := receiptFromWireProfile(wire, precise)
 	if !ok {
 		return Receipt{}, ErrInput
 	}
-	canonical, _, _, err := EncodeReceipt(receipt)
+	canonical, _, _, err := encodeReceiptProfile(receipt, precise)
 	if err != nil || !bytes.Equal(canonical, body) {
 		return Receipt{}, ErrInput
 	}
@@ -98,12 +110,29 @@ func DecodeReceipt(body []byte) (Receipt, error) {
 }
 
 func validReceipt(receipt Receipt) bool {
+	return validReceiptProfile(receipt, false)
+}
+
+func validReceiptProfile(receipt Receipt, precise bool) bool {
+	if precise != (receipt.ImplementationVersion == "runtime-correlation-v4") {
+		return false
+	}
 	if receipt.Scope.Validate() != nil || receipt.BatchID.IsZero() || receipt.Generation < 1 || !validRequired(receipt.ImplementationVersion, 64) || !validReference(receipt.InputReference) || !validReference(receipt.ArchiveReference) || !validVersion(receipt.InputVersionID) || !validVersion(receipt.ArchiveVersionID) || receipt.InputDigest == ([sha256.Size]byte{}) || receipt.ArchiveDigest == ([sha256.Size]byte{}) || receipt.EffectDigest == ([sha256.Size]byte{}) || !validResults(receipt.Results) {
 		return false
 	}
 	var expected [sha256.Size]byte
 	var err error
-	if receipt.ImplementationVersion == "runtime-correlation-v3" {
+	if precise {
+		if receipt.CandidateSnapshotDigest == ([sha256.Size]byte{}) || !validSandboxResults(receipt.Results) {
+			return false
+		}
+		for _, result := range receipt.Results {
+			if result.Confidence == domain.EvidenceConfidenceExact {
+				return false
+			}
+		}
+		expected, err = versionedFrozenCorrelationDigest("zasp.runtime-correlation.batch.v4", receipt.Scope, receipt.BatchID, receipt.Generation, receipt.ArchiveDigest, receipt.CandidateSnapshotDigest, receipt.Results)
+	} else if receipt.ImplementationVersion == "runtime-correlation-v3" {
 		if receipt.CandidateSnapshotDigest == ([sha256.Size]byte{}) || !validSandboxResults(receipt.Results) {
 			return false
 		}
@@ -119,7 +148,7 @@ func validReceipt(receipt Receipt) bool {
 		}
 		expected, err = correlationDigest(receipt.Scope, receipt.BatchID, receipt.Generation, receipt.ArchiveDigest, receipt.Results)
 	}
-	if receipt.ImplementationVersion != "runtime-correlation-v3" {
+	if !precise && receipt.ImplementationVersion != "runtime-correlation-v3" {
 		for _, result := range receipt.Results {
 			if result.SandboxID != "" || !result.SandboxSourceSensorID.IsZero() {
 				return false
@@ -168,6 +197,13 @@ func receiptToWire(receipt Receipt) receiptWire {
 }
 
 func receiptFromWire(wire receiptWire) (Receipt, bool) {
+	return receiptFromWireProfile(wire, false)
+}
+
+func receiptFromWireProfile(wire receiptWire, precise bool) (Receipt, bool) {
+	if precise != (wire.ImplementationVersion == "runtime-correlation-v4") {
+		return Receipt{}, false
+	}
 	organization, organizationErr := domain.ParseProductID(wire.OrganizationID)
 	workspace, workspaceErr := domain.ParseProductID(wire.WorkspaceID)
 	environment, environmentErr := domain.ParseProductID(wire.EnvironmentID)
@@ -178,10 +214,13 @@ func receiptFromWire(wire receiptWire) (Receipt, bool) {
 	effectDigest, effectErr := parseDigest(wire.EffectDigest)
 	expectedSchema := receiptSchema
 	var snapshotDigest [sha256.Size]byte
-	if wire.ImplementationVersion == "runtime-correlation-v2" || wire.ImplementationVersion == "runtime-correlation-v3" {
+	if precise || wire.ImplementationVersion == "runtime-correlation-v2" || wire.ImplementationVersion == "runtime-correlation-v3" {
 		expectedSchema = frozenReceiptSchema
 		if wire.ImplementationVersion == "runtime-correlation-v3" {
 			expectedSchema = sandboxReceiptSchema
+		}
+		if precise {
+			expectedSchema = "runtime-correlation-receipt-v4"
 		}
 		var snapshotErr error
 		snapshotDigest, snapshotErr = parseDigest(wire.CandidateSnapshotDigest)
@@ -215,7 +254,7 @@ func receiptFromWire(wire receiptWire) (Receipt, bool) {
 		results[index] = Result{EventID: eventID, SessionID: sessionID, AgentID: agentID, Confidence: confidence, SandboxID: value.SandboxID, SandboxSourceSensorID: sandboxSource}
 	}
 	receipt := Receipt{ImplementationVersion: wire.ImplementationVersion, Scope: scope, BatchID: batchID, Generation: wire.Generation, InputReference: wire.InputReference, InputVersionID: wire.InputVersionID, InputDigest: inputDigest, ArchiveReference: wire.ArchiveReference, ArchiveVersionID: wire.ArchiveVersionID, ArchiveDigest: archiveDigest, EffectDigest: effectDigest, Results: results, CandidateSnapshotDigest: snapshotDigest}
-	return receipt, validReceipt(receipt)
+	return receipt, validReceiptProfile(receipt, precise)
 }
 
 func parseDigest(value string) ([sha256.Size]byte, error) {

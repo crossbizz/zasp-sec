@@ -55,7 +55,11 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	}
 	awsEndpoint := runtimePipelineLoopback(t, os.Getenv("ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT"))
 	searchEndpoint := runtimePipelineLoopback(t, os.Getenv("ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT"))
-	ctx, cancel := context.WithTimeout(context.Background(), 210*time.Second)
+	proofTimeout := 210 * time.Second
+	if runtimePrecisionProofEnabled() {
+		proofTimeout = 420 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), proofTimeout)
 	defer cancel()
 	realGraph := newRuntimePipelineGraphFixture(t, ctx)
 	admin, err := pgx.Connect(ctx, dsn)
@@ -869,6 +873,12 @@ func TestProductionCombinedE2ERuntimeQueueIndex(t *testing.T) {
 	t.Log("runtime correlation routing proven: migrated48-to49 after v1 backlog, original acceptance replay preserved, fresh production ingestion creates v2 and actual registered workers complete frozen Strong/Probable receipts; local owned composition, not cloud deployment")
 	assertQueuesEmpty()
 	t.Log("runtime observed lineage preservation proven: exact S3 versions and committed digests, same qualified observations from separate enrollments, original v1 unknown kernel attribution and explicit semantic IDs retained, immutable replay; fresh v2 Strong/Probable proven separately on local schema49, live producer attestation NOT RUN")
+	if runtimeSandboxSearchCutoverEnabled() {
+		proveRuntimeSandboxSearchCutover(t, ctx, runtimeSandboxSearchCutoverFixture{admin: admin, runner: runner, database: database, scope: scope, archive: archive, rawIndex: indexExecutor, rawReady: searchDriver.Ready, receipts: receipts, oldIndex: sessionIndex, endpoint: searchEndpoint, credentials: creds})
+	}
+	if runtimePrecisionProofEnabled() {
+		proveRuntimePrecisionPipeline(t, ctx, runtimePrecisionProofFixture{admin: admin, runner: runner, database: database, scope: scope, raw: raw, archive: archive, index: index, receipts: receipts, graph: realGraph, queue: queue, endpoint: searchEndpoint, credentials: creds, assertQueuesEmpty: assertQueuesEmpty})
+	}
 	t.Log("runtime pipeline proof passed: production roles, durable ingest/outbox, actual local SQS/S3/OpenSearch/authenticated TLS Neo4j, five stage receipts, replay and empty DLQ; cloud IAM and graph publisher-role attestation NOT RUN")
 }
 

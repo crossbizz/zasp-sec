@@ -44,6 +44,42 @@ type scriptedMigrationRunner struct {
 	version int64
 }
 
+func (runner *scriptedMigrationRunner) UpProductionRuntimePrecision(context.Context) error {
+	runner.events = append(runner.events, "up-precision")
+	if runner.errAt == "up-precision" {
+		return migrations.ErrInvalidState
+	}
+	runner.version = 51
+	return nil
+}
+
+func TestPrecisionExplicitReleaseCommand(t *testing.T) {
+	for _, start := range []int64{48, 49, 50, 51} {
+		runner := &scriptedMigrationRunner{version: start}
+		if err := runReleaseMigration(context.Background(), runner, []string{"up-to-51"}); err != nil || runner.version != 51 {
+			t.Errorf("explicit precision command from %d: version=%d err=%v", start, runner.version, err)
+		}
+	}
+	if !isForwardMigration([]string{"up-to-51"}) {
+		t.Error("precision command skips principal registration")
+	}
+	failed := &scriptedMigrationRunner{version: 49, errAt: "up-precision"}
+	if err := runReleaseMigration(context.Background(), failed, []string{"up-to-51"}); !errors.Is(err, migrations.ErrInvalidState) || failed.version != 50 || !equalMigrationEvents(failed.events, []string{"version", "up-sandbox", "up-precision"}) {
+		t.Errorf("precision failure crossed target: version=%d events=%v err=%v", failed.version, failed.events, err)
+	}
+	for _, command := range []string{"up", "up-to-48", "up-to-49", "up-to-50", "down", "down-to-49"} {
+		runner := &scriptedMigrationRunner{version: 51}
+		if err := runReleaseMigration(context.Background(), runner, []string{command}); !errors.Is(err, migrations.ErrInvalidState) || runner.version != 51 || !equalMigrationEvents(runner.events, []string{"version"}) {
+			t.Errorf("historical command %s changed precision: version=%d events=%v err=%v", command, runner.version, runner.events, err)
+		}
+	}
+	for _, args := range [][]string{{"up-to-51", "extra"}, {"up-to-52"}, {"down-to-50"}} {
+		if isForwardMigration(args) {
+			t.Error("unexpected forward command", args)
+		}
+	}
+}
+
 func (runner *scriptedMigrationRunner) Version(context.Context) (int64, error) {
 	runner.events = append(runner.events, "version")
 	if runner.errAt == "version" {
@@ -1643,6 +1679,9 @@ func TestAgentsecMigrateCLIReachesV34FromEmptyAndV12(t *testing.T) {
 		}
 		// Restore this empty fixture for its historical48 security tests. This
 		// isn't a production rollback recommendation or a retained-evidence bypass.
+		t.Run("sandbox50 compiled executable environment", func(t *testing.T) {
+			verifySandboxMigrationBinary(t, ctx, dsn, connection, principalEnvironment)
+		})
 		if err := runner.DownProductionRuntimeCorrelationRouting(ctx); err != nil {
 			t.Fatal(err)
 		}

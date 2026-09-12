@@ -24,7 +24,8 @@ export function decodeRuntimeSession(value: unknown): RuntimeSession {
 }
 
 export function decodeRuntimeSessionEvent(value: unknown): RuntimeSessionEvent {
-  const record = exact(value, ["id", "session_id", "agent_id", "class", "action", "label", "evidence_id", "source", "confidence", "at", "projected_at"]);
+  const hasSandbox = value !== null && typeof value === "object" && (Object.hasOwn(value, "sandbox_id") || Object.hasOwn(value, "sandbox_source_sensor_id"));
+  const record = exact(value, ["id", "session_id", "agent_id", "class", "action", "label", "evidence_id", "source", "confidence", "at", "projected_at", ...(hasSandbox ? ["sandbox_id", "sandbox_source_sensor_id"] : [])]);
   id(record.id); id(record.evidence_id); nullableID(record.session_id); nullableID(record.agent_id);
   text(record.label, 256);
   if ([...record.label as string].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)) bad();
@@ -34,6 +35,11 @@ export function decodeRuntimeSessionEvent(value: unknown): RuntimeSessionEvent {
   if (typeof record.confidence !== "string" || !CONFIDENCE.includes(record.confidence)) bad();
   const attributed = record.confidence === "exact" || record.confidence === "strong";
   if (attributed ? record.session_id === null || record.agent_id === null : record.session_id !== null || record.agent_id !== null) bad();
+  if (hasSandbox) {
+    if (!attributed || record.agent_id === record.session_id) bad();
+    id(record.sandbox_source_sensor_id);
+    sandboxID(record.sandbox_id);
+  }
   instant(record.at); instant(record.projected_at);
   return value as RuntimeSessionEvent;
 }
@@ -103,6 +109,14 @@ function exact(value: unknown, keys: readonly string[]): Record<string, unknown>
 }
 function id(value: unknown) { if (typeof value !== "string" || !PRODUCT_ID.test(value)) bad(); }
 function nullableID(value: unknown) { if (value !== null) id(value); }
+function sandboxID(value: unknown) {
+  if (typeof value !== "string") bad();
+  const bytes = new TextEncoder().encode(value);
+  if (bytes.length < 1 || bytes.length > 256 || new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes) !== value || value.includes("\u0000") || /[\r\n]/.test(value)) bad();
+  // Match the Go/SQL identity contract, including NEL (not JS trim's BOM).
+  const whitespace = "\t\n\v\f\r \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000";
+  if (whitespace.includes(value[0]) || whitespace.includes(value[value.length - 1])) bad();
+}
 function text(value: unknown, maximum: number) { if (typeof value !== "string" || value.length < 1 || value.length > maximum) bad(); }
 function count(value: unknown, minimum: number) { if (!Number.isSafeInteger(value) || (value as number) < minimum) bad(); }
 function instant(value: unknown): bigint {

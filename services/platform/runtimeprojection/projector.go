@@ -32,20 +32,22 @@ type Batch struct {
 }
 
 type Item struct {
-	ID               string
-	EventID          domain.ProductID
-	Source           string
-	EventClass       string
-	Action           string
-	Severity         string
-	Title            string
-	AgentID          domain.ProductID
-	SessionID        domain.ProductID
-	Confidence       domain.EvidenceConfidence
-	EvidenceID       domain.ProductID
-	EventTime        string
-	ArchiveReference string
-	ArchiveVersionID string
+	ID                    string
+	EventID               domain.ProductID
+	Source                string
+	EventClass            string
+	Action                string
+	Severity              string
+	Title                 string
+	AgentID               domain.ProductID
+	SessionID             domain.ProductID
+	SandboxID             string
+	SandboxSourceSensorID domain.ProductID
+	Confidence            domain.EvidenceConfidence
+	EvidenceID            domain.ProductID
+	EventTime             string
+	ArchiveReference      string
+	ArchiveVersionID      string
 }
 
 type ProjectedBatch struct {
@@ -57,16 +59,49 @@ type ProjectedBatch struct {
 }
 
 func Project(input Batch) (ProjectedBatch, error) {
+	return project(input, false)
+}
+
+// ProjectSandbox consumes only the v3 correlation semantics. Callers must bind
+// those results to their authenticated predecessor receipt before projecting.
+func ProjectSandbox(input Batch) (ProjectedBatch, error) {
+	return project(input, true)
+}
+
+func project(input Batch, sandbox bool) (ProjectedBatch, error) {
+	return projectProfile(input, sandbox, false)
+}
+
+func projectProfile(input Batch, sandbox, precise bool) (ProjectedBatch, error) {
 	if input.Scope.Validate() != nil || input.BatchID.IsZero() || input.Generation < 1 || input.ArchiveDigest == ([sha256.Size]byte{}) || len(input.Body) < 1 || len(input.Body) > 64<<20 || sha256.Sum256(input.Body) != input.ArchiveDigest || !validReference(input.ArchiveReference) || !validVersion(input.ArchiveVersionID) || len(input.Correlations) < 1 || len(input.Correlations) > 1000 {
 		return ProjectedBatch{}, ErrInput
 	}
-	batch, err := runtimeevent.DecodeArchivedBatch(input.Scope, input.Body)
+	var batch runtimeevent.ArchivedBatch
+	var err error
+	if precise {
+		var decoded runtimeevent.PreciseArchivedBatch
+		decoded, err = runtimeevent.DecodePreciseArchivedBatch(input.Scope, input.Body)
+		// Projection consumes display fields, never lineage for attribution.
+		// Qualified identity was validated against exact source time upstream.
+		batch.Records = make([]runtimeevent.Record, len(decoded.Records))
+		for i, record := range decoded.Records {
+			batch.Records[i] = record.Record
+		}
+	} else {
+		batch, err = runtimeevent.DecodeArchivedBatch(input.Scope, input.Body)
+	}
 	if err != nil || len(batch.Records) != len(input.Correlations) {
 		return ProjectedBatch{}, ErrInput
 	}
 	correlations := make(map[domain.ProductID]runtimecorrelation.Result, len(input.Correlations))
 	for _, correlation := range input.Correlations {
-		if correlation.EventID.IsZero() || !validCorrelation(correlation) {
+		if correlation.EventID.IsZero() || !validCorrelation(correlation) || sandbox && !validSandboxCorrelation(correlation) {
+			return ProjectedBatch{}, ErrInput
+		}
+		if precise && correlation.Confidence == domain.EvidenceConfidenceExact {
+			return ProjectedBatch{}, ErrInput
+		}
+		if !sandbox && (correlation.SandboxID != "" || !correlation.SandboxSourceSensorID.IsZero()) {
 			return ProjectedBatch{}, ErrInput
 		}
 		if _, exists := correlations[correlation.EventID]; exists {
@@ -85,9 +120,24 @@ func Project(input Batch) (ProjectedBatch, error) {
 			return ProjectedBatch{}, ErrInput
 		}
 		items[index] = Item{ID: riskID(input, record.ID, correlation), EventID: record.ID, Source: record.Source, EventClass: record.Class, Action: record.Action, Severity: severity, Title: title, AgentID: correlation.AgentID, SessionID: correlation.SessionID, Confidence: correlation.Confidence, EvidenceID: record.Event.Evidence.ArtifactID(), EventTime: record.EventTime.Format("2006-01-02T15:04:05.000Z"), ArchiveReference: input.ArchiveReference, ArchiveVersionID: input.ArchiveVersionID}
+		if sandbox {
+			items[index].ID = sandboxRiskID(input, record.ID, correlation)
+			items[index].SandboxID, items[index].SandboxSourceSensorID = correlation.SandboxID, correlation.SandboxSourceSensorID
+		}
+		if precise {
+			digest := sha256.Sum256([]byte("zasp.runtime-risk.v3\x00" + items[index].ID))
+			items[index].ID = "rsk_" + hex.EncodeToString(digest[:])
+		}
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].EventID.String() < items[j].EventID.String() })
-	contentDigest, err := projectionDigest(input.Scope, input.BatchID, input.Generation, input.ArchiveDigest, items)
+	digestDomain := contentDigestDomain
+	if sandbox {
+		digestDomain = "zasp.runtime-projection.batch.v2"
+	}
+	if precise {
+		digestDomain = "zasp.runtime-projection.batch.v3"
+	}
+	contentDigest, err := projectionDigestDomain(input.Scope, input.BatchID, input.Generation, input.ArchiveDigest, items, digestDomain)
 	if err != nil {
 		return ProjectedBatch{}, ErrInput
 	}
@@ -102,6 +152,23 @@ func validCorrelation(result runtimecorrelation.Result) bool {
 		return result.SessionID.IsZero() && result.AgentID.IsZero()
 	default:
 		return false
+	}
+}
+
+func validSandboxCorrelation(result runtimecorrelation.Result) bool {
+	if !validCorrelation(result) || !result.AgentID.IsZero() && result.AgentID == result.SessionID || (result.SandboxID == "") != result.SandboxSourceSensorID.IsZero() {
+		return false
+	}
+	if result.SandboxID != "" && !validRequired(result.SandboxID, 256) {
+		return false
+	}
+	switch result.Confidence {
+	case domain.EvidenceConfidenceExact:
+		return result.SandboxID != ""
+	case domain.EvidenceConfidenceStrong:
+		return true
+	default:
+		return result.SandboxID == ""
 	}
 }
 
@@ -148,32 +215,48 @@ func riskID(input Batch, eventID domain.ProductID, correlation runtimecorrelatio
 	return "rsk_" + hex.EncodeToString(digest[:])
 }
 
+func sandboxRiskID(input Batch, eventID domain.ProductID, correlation runtimecorrelation.Result) string {
+	digest := sha256.Sum256([]byte("zasp.runtime-risk.v2\x00" + riskID(input, eventID, correlation) + "\x00" + correlation.AgentID.String() + "\x00" + correlation.SessionID.String() + "\x00" + correlation.SandboxSourceSensorID.String() + "\x00" + correlation.SandboxID))
+	return "rsk_" + hex.EncodeToString(digest[:])
+}
+
 type itemWire struct {
-	ID               string `json:"id"`
-	EventID          string `json:"event_id"`
-	Source           string `json:"source"`
-	EventClass       string `json:"event_class"`
-	Action           string `json:"action"`
-	Severity         string `json:"severity"`
-	Title            string `json:"title"`
-	AgentID          string `json:"agent_id"`
-	SessionID        string `json:"session_id"`
-	Confidence       string `json:"confidence"`
-	EvidenceID       string `json:"evidence_id"`
-	EventTime        string `json:"event_time"`
-	ArchiveReference string `json:"archive_reference"`
-	ArchiveVersionID string `json:"archive_version_id"`
+	ID                    string `json:"id"`
+	EventID               string `json:"event_id"`
+	Source                string `json:"source"`
+	EventClass            string `json:"event_class"`
+	Action                string `json:"action"`
+	Severity              string `json:"severity"`
+	Title                 string `json:"title"`
+	AgentID               string `json:"agent_id"`
+	SessionID             string `json:"session_id"`
+	SandboxID             string `json:"sandbox_id,omitempty"`
+	SandboxSourceSensorID string `json:"sandbox_source_sensor_id,omitempty"`
+	Confidence            string `json:"confidence"`
+	EvidenceID            string `json:"evidence_id"`
+	EventTime             string `json:"event_time"`
+	ArchiveReference      string `json:"archive_reference"`
+	ArchiveVersionID      string `json:"archive_version_id"`
 }
 
 func itemsToWire(items []Item) []itemWire {
 	wire := make([]itemWire, len(items))
 	for index, item := range items {
 		wire[index] = itemWire{ID: item.ID, EventID: item.EventID.String(), Source: item.Source, EventClass: item.EventClass, Action: item.Action, Severity: item.Severity, Title: item.Title, AgentID: item.AgentID.String(), SessionID: item.SessionID.String(), Confidence: item.Confidence.String(), EvidenceID: item.EvidenceID.String(), EventTime: item.EventTime, ArchiveReference: item.ArchiveReference, ArchiveVersionID: item.ArchiveVersionID}
+		wire[index].SandboxID, wire[index].SandboxSourceSensorID = item.SandboxID, item.SandboxSourceSensorID.String()
 	}
 	return wire
 }
 
-func projectionDigest(scope domain.Scope, batchID domain.ProductID, generation int64, archiveDigest [sha256.Size]byte, items []Item) ([sha256.Size]byte, error) {
+func projectionDigest(scope domain.Scope, batchID domain.ProductID, generation int64, archiveDigest [sha256.Size]byte, items []Item, sandbox bool) ([sha256.Size]byte, error) {
+	digestDomain := contentDigestDomain
+	if sandbox {
+		digestDomain = "zasp.runtime-projection.batch.v2"
+	}
+	return projectionDigestDomain(scope, batchID, generation, archiveDigest, items, digestDomain)
+}
+
+func projectionDigestDomain(scope domain.Scope, batchID domain.ProductID, generation int64, archiveDigest [sha256.Size]byte, items []Item, digestDomain string) ([sha256.Size]byte, error) {
 	wire := struct {
 		Domain         string     `json:"domain"`
 		OrganizationID string     `json:"organization_id"`
@@ -183,7 +266,7 @@ func projectionDigest(scope domain.Scope, batchID domain.ProductID, generation i
 		Generation     int64      `json:"generation"`
 		ArchiveDigest  string     `json:"archive_digest"`
 		Items          []itemWire `json:"items"`
-	}{contentDigestDomain, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), batchID.String(), generation, hex.EncodeToString(archiveDigest[:]), itemsToWire(items)}
+	}{digestDomain, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), batchID.String(), generation, hex.EncodeToString(archiveDigest[:]), itemsToWire(items)}
 	encoded, err := json.Marshal(wire)
 	if err != nil {
 		return [sha256.Size]byte{}, ErrInput

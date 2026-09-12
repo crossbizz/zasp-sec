@@ -9,7 +9,7 @@ const exec = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 await verifyReleaseSources();
-await run("node", ["--test", "deploy/production/release-contract.test.mjs", "deploy/production/release-gates.test.mjs"]);
+await run("node", ["--test", "deploy/production/release-contract.test.mjs", "deploy/production/release-gates.test.mjs", "deploy/production/session-search-rollout.test.mjs", "deploy/production/compatibility-observation.test.mjs"]);
 await run("node", ["--test", "deploy/production/nango-image-proof.test.mjs"]);
 await run("node", ["--test", "deploy/production/otel-redaction-proof.test.mjs"]);
 await run("node", ["--test", "deploy/staging/gate.test.mjs", "deploy/staging/preflight.test.mjs"]);

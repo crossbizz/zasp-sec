@@ -5,6 +5,9 @@ kind: ServiceAccount
 metadata: { name: runtime-gateway, labels: { app.kubernetes.io/name: runtime-gateway, app.kubernetes.io/part-of: zasp } }
 automountServiceAccountToken: false
 {{- if .Values.sensorAgent.enabled }}
+{{- if not (has .Values.sensorAgent.sourceProfile (list "tetragon-local-stream-v2" "tetragon-local-stream-v3")) }}
+{{- fail "sensorAgent.sourceProfile must select a supported immutable stream format" }}
+{{- end }}
 {{- if not (regexMatch "^[0-9a-f]{64}$" (required "sensorAgent.enrollmentBinding is required" .Values.sensorAgent.enrollmentBinding)) }}
 {{- fail "sensorAgent.enrollmentBinding must be the exact enrollment receipt binding" }}
 {{- end }}
@@ -227,6 +230,7 @@ spec:
           env:
             - { name: GOMEMLIMIT, value: "128MiB" }
             - { name: ZASP_SENSOR_ROLE, value: lineage-producer }
+            - { name: ZASP_LINEAGE_SOURCE_PROFILE, value: {{ .Values.sensorAgent.sourceProfile | quote }} }
             - { name: ZASP_SENSOR_ENROLLMENT_BINDING, value: {{ .Values.sensorAgent.enrollmentBinding | quote }} }
             - { name: ZASP_SENSOR_CONTROL_PLANE_URL, value: {{ .Values.runtimeGateway.controlPlaneURL | quote }} }
             - { name: ZASP_LINEAGE_CONSUMER_UID, value: "65532" }

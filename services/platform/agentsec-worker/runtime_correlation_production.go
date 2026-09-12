@@ -93,14 +93,17 @@ func newProductionRuntimeCorrelation(ctx context.Context, config workerRuntimeCo
 }
 
 func newRuntimeCorrelationExecutorWithDatabase(config runtimeCorrelationExecutorConfig, database runtimeevent.ProductionIngestDatabase) (*runtimeCorrelationExecutor, error) {
-	if !nilWorkerDependency(config.Candidates) {
+	if !nilWorkerDependency(config.Candidates) || !nilWorkerDependency(config.PreciseCandidates) {
 		return nil, errRuntimeUnavailable
 	}
-	if config.ImplementationVersion == "runtime-correlation-v2" {
-		var err error
-		config.Candidates, err = runtimeevent.NewPostgresProductionPipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCorrelation)
+	if config.ImplementationVersion == "runtime-correlation-v2" || config.ImplementationVersion == "runtime-correlation-v3" || config.ImplementationVersion == "runtime-correlation-v4" {
+		repository, err := runtimeevent.NewPostgresProductionPipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCorrelation)
 		if err != nil {
 			return nil, errRuntimeUnavailable
+		}
+		config.Candidates = repository
+		if config.ImplementationVersion == "runtime-correlation-v4" {
+			config.PreciseCandidates = repository
 		}
 	}
 	return newRuntimeCorrelationExecutor(config)

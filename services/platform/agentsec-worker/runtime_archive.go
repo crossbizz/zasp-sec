@@ -47,6 +47,25 @@ func newRuntimeArchiveExecutor(config runtimeArchiveExecutorConfig) (*runtimeArc
 }
 
 func (executor *runtimeArchiveExecutor) Execute(ctx context.Context, lease runtimeevent.StageLease) (effect runtimeStageEffect, resultErr error) {
+	if lease.Stage != runtimeevent.RuntimeStageArchive || lease.ImplementationVersion != "runtime-archive-v1" {
+		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	return executor.execute(ctx, lease, nil)
+}
+
+func (executor *runtimeArchiveExecutor) SupportsRuntimeStageVersion(stage runtimeevent.RuntimeStage, configured, claimed string) bool {
+	return executor != nil && stage == runtimeevent.RuntimeStageArchive && (configured == "runtime-archive-v1" && claimed == configured || configured == "runtime-archive-v2" && (claimed == configured || claimed == "runtime-archive-v1"))
+}
+
+func (executor *runtimeArchiveExecutor) ExecuteAuthorized(ctx context.Context, execution runtimeStageExecution) (runtimeStageEffect, error) {
+	lease := execution.currentLease()
+	if executor == nil || ctx == nil || ctx.Err() != nil || !exactRuntimeStageLease(lease, runtimeevent.RuntimeStageArchive) || (lease.ImplementationVersion != "runtime-archive-v1" && lease.ImplementationVersion != "runtime-archive-v2") || !workerIdentityPattern.MatchString(execution.workerID) || !runtimeLeaseToken(execution.leaseToken) {
+		return runtimeStageEffect{}, errRuntimeStageMalformed
+	}
+	return executor.execute(ctx, lease, &execution)
+}
+
+func (executor *runtimeArchiveExecutor) execute(ctx context.Context, lease runtimeevent.StageLease, execution *runtimeStageExecution) (effect runtimeStageEffect, resultErr error) {
 	defer func() {
 		if recover() != nil {
 			effect = runtimeStageEffect{}
@@ -57,8 +76,19 @@ func (executor *runtimeArchiveExecutor) Execute(ctx context.Context, lease runti
 	if err != nil {
 		return runtimeStageEffect{}, err
 	}
+	defer clear(body)
+	if lease.ImplementationVersion == "runtime-archive-v2" {
+		if execution == nil {
+			return runtimeStageEffect{}, errRuntimeStageMalformed
+		}
+		if _, err := runtimeevent.DecodePreciseArchivedBatch(lease.Scope, body); err != nil {
+			return runtimeStageEffect{}, errRuntimeStageMalformed
+		}
+		if ctx.Err() != nil || !exactRuntimeStageLease(execution.currentLease(), runtimeevent.RuntimeStageArchive) {
+			return runtimeStageEffect{}, errRuntimeStageRetryable
+		}
+	}
 	digest := sha256.Sum256(body)
-	clear(body)
 	return runtimeStageEffect{EffectDigest: digest, ResultReference: lease.InputReference, ResultVersionID: lease.InputVersionID, ResultDigest: digest}, nil
 }
 

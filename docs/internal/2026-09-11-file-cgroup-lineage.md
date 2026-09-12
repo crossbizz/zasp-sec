@@ -2,7 +2,7 @@
 
 PR48's exact head `f398bb67d51db34a57ab82829ccee2d4419bdbaa` passed push CI
 34634470637 and PR CI34634548903. It merged at 19:00:37 UTC as
-`6f0a93cccc4e68119af5956a5e0ad4b4fcc3e719`; main CI34636483553 is running.
+`6f0a93cccc4e68119af5956a5e0ad4b4fcc3e719`; main CI34636483553 passed.
 M3-46 and M3-47 remain open. There is no
 new original-task credit, live kernel acceptance or deployed-release claim.
 

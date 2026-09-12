@@ -208,7 +208,7 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = 'attack-lab-e
   AND zasp_attack_lab_execution_readiness($1, $2)
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 26)`
 
-const postgresProductionRecoverySchemaVersionSQL = `SELECT metadata.value
+const postgresProductionRecoverySchemaPrerequisitesSQL = `SELECT metadata.value
 FROM zasp_schema_metadata AS metadata
 JOIN zasp_schema_versions AS release ON release.version = 27 AND release.name = 'production_recovery'
 WHERE metadata.key = 'production_core_schema' AND metadata.value = 'production-recovery-v1'
@@ -218,8 +218,15 @@ WHERE metadata.key = 'production_core_schema' AND metadata.value = 'production-r
       AND EXISTS (SELECT 1 FROM zasp_schema_metadata acceptance WHERE acceptance.key = 'production_runtime_acceptance_fingerprint' AND acceptance.value = $4)))
   AND (NOT EXISTS (SELECT 1 FROM zasp_schema_versions routing WHERE routing.version = 49)
     OR (EXISTS (SELECT 1 FROM zasp_schema_versions routing WHERE routing.version = 49 AND routing.name = 'production_runtime_correlation_routing' AND routing.checksum = $5)
-      AND EXISTS (SELECT 1 FROM zasp_schema_metadata routing WHERE routing.key = 'production_runtime_correlation_routing_fingerprint' AND routing.value = $6)))
+      AND EXISTS (SELECT 1 FROM zasp_schema_metadata routing WHERE routing.key = 'production_runtime_correlation_routing_fingerprint' AND routing.value = $6)))`
+
+const postgresProductionRecoverySchemaVersionSQL = postgresProductionRecoverySchemaPrerequisitesSQL + `
   AND NOT EXISTS (SELECT 1 FROM zasp_schema_versions newer WHERE newer.version > 49)`
+
+// Keep the released six-argument check intact for older installations and direct
+// callers. Only an empty result can try this separately pinned schema50 path.
+const postgresProductionSandboxSchemaVersionSQL = postgresProductionRecoverySchemaPrerequisitesSQL + `
+  AND zasp_production_runtime_sandbox_binding_readiness($7,$8)`
 
 func expectedCoreSchemaChecksum() string { return migrations.ProductionRiskProjection().Checksum() }
 func expectedCoreSchemaFingerprint() string {
@@ -364,7 +371,11 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 	}
 	var version string
 	if marker == ProductionRecoverySchemaVersion {
-		if err := database.driver.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), migrations.ProductionRuntimeCorrelationRouting().Checksum(), migrations.ProductionRuntimeCorrelationRoutingSemanticFingerprint()).Scan(&version); err != nil {
+		err := database.driver.QueryRow(ctx, postgresProductionRecoverySchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), migrations.ProductionRuntimeCorrelationRouting().Checksum(), migrations.ProductionRuntimeCorrelationRoutingSemanticFingerprint()).Scan(&version)
+		if errors.Is(err, pgx.ErrNoRows) && ctx.Err() == nil {
+			err = database.driver.QueryRow(ctx, postgresProductionSandboxSchemaVersionSQL, expectedProductionRecoverySchemaChecksum(), expectedProductionRecoverySchemaFingerprint(), migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), migrations.ProductionRuntimeCorrelationRouting().Checksum(), migrations.ProductionRuntimeCorrelationRoutingSemanticFingerprint(), migrations.ProductionRuntimeSandboxBinding().Checksum(), migrations.ProductionRuntimeSandboxBindingSemanticFingerprint()).Scan(&version)
+		}
+		if err != nil {
 			return "", classifyPostgresError(err)
 		}
 	} else if marker == AttackLabExecutionSchemaVersion {

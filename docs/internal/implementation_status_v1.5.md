@@ -3,22 +3,772 @@
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-sandbox-binding`; local sandbox contract prerequisites; PR48 merged, main CI running
-**Latest main:** `6f0a93cc`, PR 48; main CI 34636483553 running
-**Last verified main:** `c6aec68d`, PR 47; main CI 34634275277 passed
+**Execution branch:** `codex/runtime-sandbox-binding`; unpushed sandbox database/routing draft, rollout incomplete
+**Latest main:** `6f0a93cc`, PR 48; main CI 34636483553 passed
+**Last verified main:** `6f0a93cc`, PR 48; main CI 34636483553 passed
+
+Current unpushed SQL50 work adds separate projection-v2/completion-v2 claims,
+v1-only legacy filtering and an in-flight mutation fence. Actual PostgreSQL
+routing cases passed36.387s, race/compatibility controls43.223s and selected
+rollback checks26.035s. Final review controls passed51.598s and independent
+review approved this local checkpoint; the UI build passed. Full sandbox
+PostgreSQL races passed282.902s at that checkpoint. Follow-on Go consumer and
+worker configuration wiring is now implemented and reviewed locally; focused
+PostgreSQL transition tests passed9.460s. New binaries pre-stage with v1 config
+on49; v2 config requires healthy50. Migration50 adds only the missing projection
+readiness EXECUTE grant. Fresh full sandbox PostgreSQL races passed277.550s.
+All three search factories now support strict explicit v1/v2 selection, default
+v1 unchanged; API/worker/driver package races pass. Independent Superpowers
+review approved this bounded local checkpoint, not activation or merge.
+Separate v2 database backfill/enqueue is now local and tested; independent review
+found an unpinned queue-trigger gap, reproduced and corrected. Fresh focused
+PostgreSQL acceptance passed25.084s and the UI build passed. Full backfill sandbox
+regression passed296.264s. Follow-on v2 query authorities and API target routing
+are now local and independently reviewed. Fixed-v2 lease authorities and matching
+Go worker selection are also local. Actual PostgreSQL lease controls passed
+40.506s; the real Go/PostgreSQL lease round trip passed11.052s. API, worker and
+migration package races and a fresh UI build passed. The review's child-process
+cleanup issue is fixed and independently approved. Parent verification of the
+cleanup regressions and real worker/PostgreSQL round trip passed17.665s.
+Full sandbox regression passed360.809s at the earlier lease fingerprint. The
+executor receipt gate is fixed and reviewed. Legacy enqueue filtering is now
+local and independently reviewed, with expanded rollback/lock checks passed
+30.312s and fresh-v1-after50 worker compatibility passed6.032s. Full sandbox
+PostgreSQL races under the new fingerprint passed363.577s. Actual local provider
+backfill/API-repository cutover now passed and was independently reviewed:
+7 PostgreSQL/S3 receipts,58 OpenSearch occurrences across2 scopes, v1 current
+during backfill, v2 current after completion, unchanged v1 checkpoints and tenant
+denial. Actual API composition and idle-connection cleanup regression tests now
+replace obsolete source-text checks; independent review accepted this coverage.
+Parent API/worker races passed2.249s/8.927s, release contracts40/40, workflow
+contracts23/23 and a fresh UI build. Explicit guarded50 CLI commands are now
+local; actual PostgreSQL command-handler acceptance passed5.608s and independent
+review approved this bounded checkpoint. Compiled-binary49/50 install/retry,
+config rejection and clean rollback now passed against PostgreSQL and received
+independent Superpowers review. Shared child-process cleanup tests are wired into
+CI; fresh full migration package races passed69.082s/1.647s. Kubernetes job
+environment materialization and deployment acceptance remain open.
+Full migration package races passed69.103s/1.421s with PostgreSQL18 available.
+Exact v2 IAM grants and an existing conflicting SQS encryption setting are now
+fixed locally and reviewed. Evaluated Terraform policies and all14 queue-key
+assertions passed; release tests43/43 and CI workflow checks23/23 passed. The
+mocked policy checks are wired into CI, but hosted CI/live IAM are not yet proven.
+Phase-specific compatibility/backfill/query Helm resources now render locally,
+with parallel v1/v2 workers, ordered initialization and selected API targets.
+The 46 release tests, 1238 UI tests, UI build, typecheck and lint passed at the
+review checkpoint. Review found missing hook-type validation for the two v1
+initializers; regression tests reproduced it, the final 46 tests passed, and
+independent Superpowers review approved this bounded local manifest task.
+Read-only compatibility observation is now local: intended template/image
+identities, full Deployment/ReplicaSet/Pod ownership, schema49 and ready replica
+checks, with30-second revalidation. Controlled-response regressions and the full
+release suite passed70/70 after review-found Pod config/metadata gaps were fixed.
+Independent Superpowers scoped review approved the local observer checkpoint.
+Fresh UI build,1238 UI tests, lint and ledger checks passed. This is not
+live-cluster or deployment proof.
+Manifest validation does not authorize a live transition. The stale staging
+default-equals-latest check is now replaced by actual49 compatibility and50
+backfill/query renders with closed phase/schema checks. Staging7/7 passed and
+independent Superpowers review approved the correction. Fresh full
+`npm run verify` exited0, including1238 UI tests,70 release tests, typecheck,
+lint, build and compiled import checks. No push or task credit follows from
+these local contracts; transition authorization and composed acceptance remain open.
+Fresh full Vitest passed1238 tests across197 files; typecheck, lint and43 release
+tests also passed. Fresh sandbox producers, browser acceptance and deployed rollout remain
+unfinished. Details and evidence are in
+`2026-09-11-sandbox-database-draft.md`.
+No new task credit or production-readiness claim.
+
+The source process-time gap now has a separately decoded V2 observation contract
+that preserves nanoseconds while binding them to the millisecond display time.
+V1 validation/bytes remain unchanged. Five component-package race suites and a
+fresh UI build passed; independent Superpowers review approved the contract.
+The separate V3 source normalizer now retains precise source/process times;
+invalid or future process starts omit the pair without dropping the container.
+Three component race suites and a fresh UI build passed, with independent
+Superpowers review. Deployed V3 emission,
+persistence/frozen matching and composed acceptance still
+need implementation. M3-46 remains open; see `2026-09-11-process-precision-design.md`.
+The precise record decoder now validates complete canonical records and restores
+the embedded legacy-rejection marker after JSON decoding. Tests reproduced the
+previous downgrade and malformed-record acceptance before the fix. Three package
+race suites and UI build passed; independent Superpowers review found no issues.
+This is a local codec prerequisite, not a transport or production completion.
+The separate precise envelope now freezes V2 records with enrollment-bound retry,
+current credentials and unchanged saved bytes. V1/V2 envelopes reject cross-use;
+invalid, oversized or expired payloads fail before credentials. Three platform
+race suites, the existing sensor-agent race suite and UI build passed. Independent
+Superpowers review closed all findings. See
+`2026-09-11-process-precision-envelope-plan.md`. This is client transport evidence,
+not server acceptance or activation.
+Owned precise chunk checkpoints now persist pending V2 envelopes and restore
+nanosecond process identity across restart, using the existing filesystem and
+progress state machine. V1 layouts remain unchanged; generation/boot mismatches
+fail closed. Tests cover interrupted uploads, failed persistence/preparation,
+expired records and all-dropped accounting. Platform and sensor-agent race suites,
+UI build and independent Superpowers review passed. See
+`2026-09-11-process-precision-chunk-plan.md`.
+The separate daemon V3 startup now admits owned identity-bracketed subscriptions,
+publishes format3 manifests and selects precise consumers for admitted V3 readers.
+Local Unix gRPC, spool-file and retry tests preserve exact source/process times;
+identity drift fails before publication. Full sensor-agent/platform races, UI
+build and independent Superpowers review passed. See
+`2026-09-11-process-precision-daemon-plan.md`. Production still selects V2.
+Precise receipt verification and checkpoint retirement now use explicit V3
+entry points. Local tests prove exact producer/consumer completion evidence,
+retained slot locks, refusal of pending/mismatched checkpoints, and bounded
+slot reuse across24 generations. Platform and full daemon race suites, focused
+V3 slot tests, UI build and independent Superpowers review passed. See
+`2026-09-11-process-precision-retirement-plan.md`. Server V2 persistence and
+deployed activation remain open; counts and M3-46 status are unchanged.
+
+The local server archive codec now preserves precise source/process times through
+authenticated collection-mode filtering and scoped replay. Its mandatory V2
+archive root prevents old-worker consumption even without qualified lineage.
+Real normalizer/envelope/archive tests, count/freshness/size controls, three
+package race suites and UI build passed; independent Superpowers review closed
+without findings. See `2026-09-11-process-precision-archive-plan.md`. HTTP V2
+acceptance remains disabled until SQL persistence and versioned workers exist.
+No new push, original task credit or production-availability claim.
+
+The separate exact-time SQL fragment now passes actual PostgreSQL18 tests for
+nanosecond preservation, calendar/canonical rejection, source/display binding,
+optional process identity and private execution permissions. Tests also cover
+non-UTC session settings and a1ns five-minute-boundary distinction. Related Go
+race suites, UI build and independent Superpowers review passed. This fragment
+still needs migration inclusion and production candidate-query integration;
+it does not activate V2 ingestion. See `2026-09-11-process-precision-sql-plan.md`.
+Original task counts remain unchanged.
+
+The private precise candidate-freeze SQL now applies the exact source-time
+window before limiting candidates, retains versioned snapshots and preserves
+legacy replay. Actual PostgreSQL tests passed for late admission, wrong versions,
+expired delivery, forged lineage, crowding and overflow; final new+legacy races,
+UI build and independent Superpowers review passed. See
+`2026-09-11-process-precision-freeze-plan.md`. This fragment still needs complete
+migration readiness/registration and Go worker integration. No production
+grant, push or original task credit was added.
+
+The Go precise-freeze repository now consumes actual PostgreSQL snapshot-v3
+results through a distinct sealed type. Tests cover exact source-time selection,
+tenant/digest/version binding, copied private state, historical unknown sandboxes,
+provider error sanitization and late-response lease/cancellation checks. Actual
+Go/PostgreSQL and legacy regression tests, three Go race suites, UI build and
+independent Superpowers review passed. See
+`2026-09-11-process-precision-repository-plan.md`. V4 correlation, worker claiming
+and migration activation remain open; original task counts are unchanged.
+
+The separate V4 correlation algorithm now consumes precise archives and sealed
+snapshot-v3. Exact source-time and optional process/cgroup checks preserve
+same-millisecond identity. Competing complete bindings clear assigned identity;
+kernel records never receive Exact confidence. Actual PostgreSQL-to-repository-
+to-correlator tests prove immutable replay and fresh ambiguity after late
+admission. Four package races, UI build and independent Superpowers review
+passed. See `2026-09-11-process-precision-correlation-plan.md`. Receipt V4,
+worker dispatch and migration activation remain open. No push or original task
+credit; these are local component checks, not production acceptance.
+
+Separate V4 receipt encoding/decoding now preserves the precise correlation
+digest and sandbox/snapshot bindings. Direct-wire tests reject forged Exact
+confidence and older-version downgrades. Review found and closed a serialized
+size mismatch with an otherwise-valid oversized regression. Four package races,
+actual PostgreSQL-through-receipt integration and UI build passed. See
+`2026-09-11-process-precision-receipt-evidence.md`. Worker dispatch, migration
+activation and production acceptance remain open; original task counts and
+published main are unchanged.
+
+The local correlation executor now dispatches V4 through precise snapshot
+authority, index V2 and the V4 receipt codec. V4 preflights serialization before
+graph writes; cancellation and renewed-lease replay checks remain in place.
+Historical V1/V2/V3 receipt-byte regressions pass. Independent Superpowers review
+closed the effect-ordering finding; related race suites and UI build passed.
+See `2026-09-11-process-precision-worker-evidence.md`. Production startup/claim
+routing, migration activation and downstream receipt consumption remain open.
+This is local executor evidence with declared provider responses, not live
+worker acceptance. Original task counts and published main remain unchanged.
+
+V4 database factory wiring now constructs historical and precise candidate
+authorities from the same correlation-authorized repository, rejecting injected
+authorities. The declared-response executor/repository/receipt composition and
+historical worker race tests passed, along with UI build and independent
+Superpowers review. Evidence is in
+`2026-09-11-process-precision-worker-evidence.md`. Production configuration,
+claim routing, migration readiness and downstream consumers remain open;
+original counts and published main are unchanged.
+
+The separate precise projector now preserves V2 archive evidence and V4
+source/sandbox bindings under new projection/risk digest domains, rejecting
+Exact kernel attribution. Tests cover nanosecond evidence changes, version
+isolation and historical vectors. Actual PostgreSQL-to-receipt-to-projection
+integration and three package race suites passed; UI build is runnable. See
+`2026-09-11-process-precision-projection-evidence.md`. Projection receipt V3,
+worker/downstream integration and production activation remain open. Counts
+and published main are unchanged; local tests do not prove deployed acceptance.
+
+The separate precise projection receipt codec now validates V3 risk/effect
+domains, Tetragon-only non-Exact items and sandbox provenance. Direct-wire
+forgery tests and historical vectors pass. The encoder's4MiB bound has a failing
+guard-removal regression; three related package races passed after restoration.
+See `2026-09-11-process-precision-projection-receipt-evidence.md`. Worker and
+completion consumption, migration routing and deployed acceptance remain open;
+original task counts and published main are unchanged.
+
+The projection receipt checkpoint also passed UI build and independent
+Superpowers review with no findings. This does not change production status.
+
+Local projection V3 worker execution now consumes V4 correlation receipts and
+preserves admitted identity through precise projection receipts. Authorization,
+predecessor, cancellation and historical receipt-byte tests pass. A valid
+oversized projection regression proves receipt validation precedes graph writes.
+Expanded worker races, UI build and independent Superpowers review passed. See
+`2026-09-11-process-precision-projection-worker-evidence.md`. Completion V3 and
+production pipeline activation remain open; counts and published main are
+unchanged. Declared-provider tests do not establish live worker acceptance.
+
+Completion V3 now consumes precise projection V3 receipts with exact artifact
+binding and a matching4MiB limit. The local correlation/projection/completion
+chain and stage-processor finalizer handoff preserve original receipt bytes.
+Expanded worker races, three package races, UI build and independent Superpowers
+review passed. See `2026-09-11-process-precision-completion-evidence.md`.
+Database finalization, archive/index V2 execution and production activation
+remain open. Original counts and published main are unchanged.
+
+The full root `npm run verify` now passes after completion V3 integration,
+including1238 UI tests/197 files,70 production release contract tests, the full
+worker package race suite, typecheck, lint, import gates, standalone build and
+ledger validation. See `2026-09-11-precision-full-verification.md` for evidence
+and the inspected archive/index/finalizer integration gaps. This is a local
+verification baseline, not deployed acceptance; no counts or publication changed.
+
+The index store now has a separate precise archive path with V2 effect hashing.
+Tests preserve display/evidence fields, keep observed lineage out of semantic
+identity and bind1ns archive changes to document identity. Index/driver and three
+related package race suites passed; independent Superpowers review found no
+issues. See `2026-09-11-process-precision-index-store-evidence.md`. Index worker
+wiring and production pipeline activation remain open. Original counts and
+published main are unchanged.
+
+Index V2 worker capability and dispatch now pass local verification, including
+authorization refusal, renewed leases, cancellation before receipts and exact
+historical V1 receipt bytes. Worker/index/driver races and a fresh standalone UI
+build passed. Independent Superpowers review found no implementation issues.
+See `2026-09-11-process-precision-index-worker-evidence.md`. Durable routing,
+archive V2 execution, database finalization and activation remain open. This
+checkpoint is unpushed and does not change original task counts.
+
+Follow-on composition confirms the production archive reader already supports
+V2 index reads: actual reader validation, decoder and index store produce the
+bound receipt; corrupt HEAD evidence stops before GET and indexing. Focused
+races and independent review passed. This removes a suspected reader-code gap,
+not the remaining startup/routing, archive production or finalization work.
+The S3 API is a declared test dependency, not live cloud acceptance.
+
+Archive V2 now requires authorized execution and strict precise-body validation,
+then refuses success if its lease is lost. Direct V2 execution is blocked and
+historical V1 effects remain unchanged. Full worker races passed14.963s and
+independent Superpowers review approved this local checkpoint. See
+`2026-09-11-process-precision-archive-worker-evidence.md`. Startup selection,
+server V2 ingestion, database routing/finalization and activation remain open.
+Original counts and published main are unchanged.
+
+The precise finalization audit found an additional transaction dependency:
+schema50's legacy search enqueue skips only projection-v2, so projection-v3
+would hit the legacy insert guard and roll back completion. Search worker and
+document codecs also reject receipt-v3. The implementation plan now includes
+version-filtered enqueue, cached-body guards and consumer/claim compatibility
+before successful finalization or activation. See
+`2026-09-11-process-precision-finalization-plan.md`. No completion credit.
+
+The precise search document builder now validates V3 receipts against their V2
+archives, preserving qualified identity and keeping weak identity empty. Local
+search/projection/worker races, historical-byte controls, independent review
+and UI build passed. See
+`2026-09-11-process-precision-search-document-evidence.md`. Search worker/provider
+integration, queue routing, database finalization and activation remain open.
+
+The search driver now has an explicit precise-write capability for V3 receipts
+on the V2 target. Declared-HTTP tests cover immutable writes, lost-ack readback,
+refresh and old-target/method refusal. Driver/search/worker races and UI build
+passed; independent review found no issues. See
+`2026-09-11-process-precision-search-driver-evidence.md`. Worker dispatch and
+live provider/database acceptance remain open; original counts are unchanged.
+
+Precise search-worker execution is now local: explicit capability, V3 receipt
+size/version checks, V2 archive reads and precise driver dispatch. Superpowers
+review caught stale deadlines; the processor now publishes only confirmed
+renewals through synchronized state. Regression tests and final worker/search/
+driver races passed19.540s/1.585s/1.436s, and review closed the finding. See
+`2026-09-11-process-precision-search-worker-evidence.md`. Production factory
+selection, queue routing, database finalization and live acceptance remain open.
+
+A private precise SQL finisher now installs with checked version substitutions
+and no worker grants. Actual PostgreSQL18 races passed5.914s: ungranted callers
+are denied, V2 requests/predecessors are rejected without session persistence,
+and historical function bytes/readiness are unchanged. Independent review
+approved only this construction unit. See
+`2026-09-11-process-precision-private-finalizer-evidence.md`. Successful V3
+finalization, item checks, replay, enqueue integration and migration readiness
+remain unproved. No original task credit or publication change.
+
+Follow-on PostgreSQL tests now execute the precise item checks and prove zero
+partial completion/session/receipt/outbox writes on invalid source or Exact
+confidence. A codec-valid V3 receipt reaches the legacy enqueue guard, confirming
+the migration dependency at runtime. Combined precise rejection plus historical
+V1/V2 success races passed17.470s; independent review and UI build passed.
+Successful V3 persistence and migration/enqueue integration are still open.
+
+Local V3 finalization now commits and replays after the unpublished schema50
+enqueue filter was extended to skip V3. The V1-only table guard remains intact.
+Actual PostgreSQL verifies3 session rows/1 projection receipt/1 sandbox queue
+entry/0 legacy entries and rejects stale legacy inserts. Queue compatibility
+races passed18.211s; rollback/reinstall plus precise tests passed13.831s.
+Independent review approved the scoped change. New schema50 fingerprint:
+`f124ddec35f3c93c4dc9b9426b38adee49f1edc52abc1dda6e2ce61305c525be`.
+Production readiness/permissions, repository routing and activation remain open.
+
+Full `npm run verify` passed after the enqueue/fingerprint change:1238 UI tests,
+service races, API/tenancy contracts, typecheck/lint,70 release checks, UI build,
+production import gates and ledger validation. The broad actual PostgreSQL
+sandbox/precision regression is still running at this checkpoint. See
+`2026-09-11-precision-enqueue-full-verification.md`. Routing audit confirms old
+V2-target search consumers can still claim V3 receipts; version-qualified
+claims/exhaustion and cached-worker guards are required before activation.
+
+The broad actual PostgreSQL sandbox/precision race suite has now completed
+successfully in409.964s on the same f124ddec schema50 fingerprint. This closes
+the pending regression run above, not production activation. No original task
+counts or publication state changed.
+
+Old search claim pre-stage now filters both normal and exhausted selections to
+succeeded, fully scoped V1/V2 projection stages. The actual PostgreSQL regression
+first reproduced V3 claims and quarantine. Current unpublished schema50 pin is
+`a6f3e317cd99ef9890c7dff18487aa732b196349e133c687606e971c1456865d`.
+Independent review, UI build and scoped PostgreSQL race verification passed
+(76.501s). See `2026-09-11-precision-search-claim-evidence.md`. Migration51 cached
+mutation fences and new authority remain required. No original task credit.
+
+Precision completion repository routing now requires compiled release51
+readiness for all outcomes and uses only the precise finisher for success.
+Declared-database races passed in1.848s; independent review and UI build passed.
+Actual PostgreSQL registered completion test is present but fails at the
+unfinished51 install gate. Migration implementation continues. See
+`2026-09-11-precision-repository-routing-evidence.md`. No original task credit
+or publication change.
+
+The explicit precision pipeline repository now selects versioned claims for
+all five stages and enforces closed implementation allowlists. Readiness,
+heartbeat and completion require healthy51 even for historical drain. Full
+runtimeevent race tests passed in5.363s; independent review found no repository
+issues. The remaining SQL migration must prove compatible50 readiness for V2
+completion and actual mixed-version claim/mutation behavior before activation.
+
+Registered precision repository completion now passes actual PostgreSQL
+(5.063s on the then-current6508ca6f pin), including replay, target queue,
+source-qualified persistence, retained-evidence rollback refusal and readiness
+drift. The new search authority selects51 and binds the claimed projection
+version. Its final review fix passed full worker races in19.170s and re-review;
+migration-wide tests remain in progress. See `2026-09-11-precision-search-authority-evidence.md`.
+No original task credit or push.
+
+Explicit precision stage configuration now selects the release51 pipeline and
+search authorities; index2 requires target2 and constructs the precise session
+executor. Defaults and charts remain unchanged. Full worker races passed in
+19.233s, with startup readiness/claim tests for all five stages. UI build passed;
+independent review found no issues. See `2026-09-11-precision-startup-evidence.md`. This isn't deployment
+or original task completion.
+
+Explicit precision ingestion repository now supports V2 Tetragon reservation
+under compiled51 readiness, including fresh checks before acceptance lookup and
+finalization. Historical repositories still reject V2. Full runtimeevent races
+passed in5.479s; independent review and UI build passed. HTTP admission remains V1-only. See
+`2026-09-11-precision-ingest-repository-evidence.md`. No original task credit.
+
+Explicit enrolled V2 HTTP handler now binds credential-derived enrollment,
+precise archive2 bytes/schema2 and collection mode to the existing persistence
+flow. Full runtimeevent races passed in5.364s and UI build passed; independent HTTP
+review found no blocking issue. Added review coverage passed full races in5.529s.
+Production event-ingest still uses the historical constructor. See
+`2026-09-11-precision-http-evidence.md`. Migration review found an unexpected-trigger
+fingerprint gap on batch/stage tables. The correction now fingerprints all noninternal
+triggers on all eight locked runtime tables. Independent spec/quality review approved
+the bounded migration and the corrected full precision suite passed in183.572s,
+with targeted drift/rollback in9.037s and migration races in1.737s. Registered HTTP
+intake passed in6.165s: actual client/handler/ingest principal, exact precision,
+persisted five-stage tuple, lost-response replay after token rotation and rejection
+of wrong enrollment/release drift. Independent review found no blocking issue.
+Transport/artifacts are local fixtures; production service composition is pending.
+No original task credit or publication.
+
+Production event-ingest now selects both precision repository and HTTP handler
+from explicit `ZASP_RUNTIME_INGEST_SCHEMA=runtime-event-v2`, with unknown values
+rejected and historical defaults preserved. Its readiness wrapper forwards
+acceptance lookup and fresh precision readiness. Full event-ingest races passed
+in1.284s and UI build passed; independent review found a P1: the unchanged
+V1-only reconciler rejects leased V2 interrupted uploads and can exhaust attempts.
+Version-aware recovery and interruption tests are required before activation. See
+`2026-09-11-precision-ingest-startup-evidence.md`. Deployment manifests remain
+unchanged; this is not cloud startup or live producer proof. No task credit.
+
+Precision recovery Go changes now route explicit precision claims through the new
+versioned SQL API, retain V1-only historical validation, support V1/V2 recovery
+transitions and require fresh51 readiness. Production selection includes the
+explicit precise reconciler. Runtimeevent races passed in5.072s and event-ingest
+races in1.533s. Independent review and actual registered database isolation/recovery
+tests are pending; the P1 remains open. See `2026-09-11-precision-recovery-evidence.md`.
+
+Recovery review follow-up closed the failed-readiness coverage gap with20 cases
+and found a second issue: Go recovery IDs differed from HTTP acceptance IDs.
+Explicit precision recovery now uses the HTTP IDs for both supported schemas,
+with historical derivation unchanged. Full runtimeevent races passed in5.260s,
+event-ingest in1.493s; independent review found no further Go issues. The actual
+HTTP interruption/reconciliation/rotation test compiles but awaits stable51 SQL.
+No recovery P1 closure, publication or original task credit yet.
+
+Actual PostgreSQL HTTP interruption/recovery/rotation replay now passes in10.796s
+on7459 precision fingerprint. It exposed a SQL timestamp-offset rejection; decoding
+now normalizes the instant to UTC, with RED/GREEN offset regression coverage.
+Runtimeevent races passed in5.279s and event-ingest in1.539s. Local transport/artifact
+fixtures remain explicitly bounded. Full migration regression/review and actual
+production factory coverage are still required; no publication or task credit.
+
+The production resource factory now uses one shared intake composition path,
+tested with declared database/cloud/artifact boundaries. Tests exercise actual
+repository/router/cache/reconciler wiring, V2 artifact retry release and fresh
+readiness drift; reverting precise reconciler selection reproduced failure.
+Event-ingest races passed in1.496s and UI build passed. Independent review found
+no issues. See `2026-09-11-precision-ingest-composition-evidence.md`. Live resource
+acquisition and deployed startup remain separate gates.
+
+Broader root verification passed1238 UI tests, typecheck, lint, API/tenancy checks
+and production source imports, then failed the staging gate: schema51 lacks its
+explicit rollout contract (the gate deliberately expects50). Do not treat root
+verification as passed. A fresh-pipeline audit also found the queue coordinator
+still rejects V2 payloads. Both are required follow-ups. See
+`2026-09-11-precision-broad-verification.md`; no publication or original task credit.
+
+Final-pin precision PostgreSQL suite passed in268.186s, closing the bounded
+upload-recovery regression/review gate. The next delivery audit reproduced missing
+fresh51 checks before delivery operations; all four now check before SQL. Full
+runtimeevent races passed in5.332s and independent review found no blocking issue.
+`2026-09-11-precision-delivery-finalization-plan.md` records the remaining outbox,
+coordinator, full worker/provider proof and explicit51 rollout work. Those remain
+required before publication; original counts are unchanged.
+
+Explicit precise queue coordination now admits V1/V2 with fresh precision
+readiness before consumption, preserving legacy refusal and queue digest/lease
+identity. Focused tests, full worker races18.995s, final runtimeevent races5.296s
+and independent review passed. Public readiness also now rejects invalid context
+before SQL. See `2026-09-11-precision-coordinator-evidence.md`. Production
+coordinator selection now pairs the precise repository/decoder under explicit
+`ZASP_RUNTIME_DELIVERY_SCHEMA=runtime-event-v2`; unknown selections fail startup.
+Composition/cache-drift tests passed, followed by full worker races19.287s and
+runtimeevent races6.021s. Selection review found and closed a test gap: the
+composition now asserts zero queue consumes after drift. Isolated old-constructor
+mutation failed, restored coordinator/schema races passed2.195s, and independent
+rereview approved. Actual
+outbox/coordinator/provider flow and schema51 rollout remain pending; no task credit.
+
+Explicit precise outbox repository now binds compiled51, claims through the
+versioned entry and checks fresh readiness before all four outbox operations.
+Focused TDD/race evidence is recorded in
+`2026-09-11-precision-outbox-repository-evidence.md`. Bounded Go review passed.
+The explicit V1/V2 publisher core now preserves durable bytes/digest and checks
+fresh readiness before claim; full worker races19.122s and independent core
+review passed. Final-pin actual precision PostgreSQL suite passed326.450s,
+satisfying the bounded SQL review conditions. Production outbox selection now
+pairs precise repository/publisher; the composed V2 publish/ack and drift test
+passed and caught an isolated legacy-publisher mutation. Full worker races18.899s,
+independent selection review and UI build passed. Full provider flow and schema51
+rollout remain pending; no task credit.
+
+Schema51 consumer-phase manifests now keep intakeV1 while selecting dual-version
+workers and preserving the historical index deployment. Rendered-resource
+mutation tests cover the new selections and reject premature V2 intake; tests
+also caught and fixed injected precision selectors in historical phases. See
+`2026-09-11-precision-rollout-evidence.md`. Full rollout/activation verification
+and fresh semantic sandbox-bound producer routing remain pending; no task credit.
+
+Read-only schema51 consumer observation/revalidation now checks all11 workloads,
+explicit stage/intake selections, admitted template/image/pod identities and
+orphan coordinator refusal. TDD and28 controlled observer tests passed; see
+`2026-09-11-precision-consumer-observation-evidence.md`. Live observations and
+activation workflow integration remain pending; no task credit.
+
+Retained schema50 API/V1 intake instances passed real PostgreSQL migration51
+readiness, HTTP reads, replay/fresh intake and checksum-drift tests. Independent
+root rerun passed7.570s; evidence is in
+`2026-09-11-precision-retained-api-upgrade-evidence.md`. The next correction routes
+new OTLP semantic commits through existing sandbox-aware3/2/2 workers while
+preserving historical accepted tuples. Its reviewed plan includes cached-commit
+guards and refusal to roll back with pending semantic work. Implementation and
+fresh bound-provider proof remain pending; no task credit.
+
+Precision source startup now honors an explicit closed profile through the
+production daemon helper and edge chart, with legacyv2 unchanged by default.
+Owned stream/spool/retry tests and full sensor-agent races126.787s passed;
+release/session render contracts passed46 tests. See
+`2026-09-11-precision-source-startup-evidence.md`. Live source/intake activation
+and final bound-provider proof remain pending; no task credit.
+
+The separate schema51 precision-intake render phase now changes only intakeV1
+toV2 after the consumer phase. Resource equality and refusal tests passed in the
+47/47 release/session suite9.712s; independent review passed6/6 in2.859s.
+Edge source selection review
+passed4/4. The current semantic-routing51 pin passed scoped actual PostgreSQL
+tests42.955s, but its provider run failed at correlation after archive/index.
+Full SQL tests/review, provider repair and live activation gates remain open.
+See `2026-09-11-precision-rollout-evidence.md`. No push or original task credit.
+
+Release source verification now renders all six supported schema/phase pairs,
+including51 consumers/intake, and records each actual schema job. TDD reproduced
+missing coverage, then all3 release-gate tests passed15.161s. Independent review
+found no issues and repeated3/3 in13.824s. Full actualPG precision races passed
+384.915s on the current semantic pin; an extra combined cached-body/post-wait
+control is running separately. Retained API/V1 intake upgrade races passed7.501s on
+the current semantic pin. The provider failure was traced to pending test-sensor
+enrollment; the corrected declared fixtures are rerunning with production
+validation unchanged. No new completion or publication credit.
+
+The post-intake read-only observer now fixes intakeV2 and requires the same11
+schema51 consumers, fresh identities and expiry bound. TDD and33 observer tests
+passed1.492s; independent review repeated33/33 in1.416s with no findings. See
+`2026-09-11-precision-consumer-observation-evidence.md`. Final cached-body/post-wait
+PostgreSQL controls passed13.776s without SQL changes. First provider run80945
+passed after correcting declared sensor identity fixtures; stronger per-event
+API/OpenSearch assertions and independent proof review remain pending. No live
+deployment, push or original task credit.
+
+Fresh UI verification after the intake observer passed197 files/1238 tests in
+28.29s, the production build, typecheck and lint. See
+`2026-09-11-precision-broad-verification.md`. Provider review requested explicit
+legacy-search queue isolation and historical provider preservation checks;
+these remain required before accepting the composed proof. Whole-release and
+live rollout gates remain open. No original row or main-push credit.
+
+Reconciled the older precision finalization plan and four evidence documents:
+their historical 'not wired' notes now point to registered51 implementation and
+the current acceptance gaps. Kept incomplete checklist rows open. The audit
+identified missing full-field/digest assertions and negative tenant/lease/replay
+controls specifically for registeredV3 completion; those tests are being added.
+HistoricalV1 controls are not counted as V3 proof. Provider review corrections
+remain separate. No original completion or main publication credit.
+
+UI precision coverage now checks one-nanosecond-separated bound Strong events,
+opposite-ID chronology, reversed-page refusal and exact rendered timestamps.
+Two affected files passed102 tests in1.30s; review is pending. Historical Exact
+Tetragon decoding remains intact because only the new precise receipt path
+forbids Exact and the public event does not expose its receipt version. No
+production behavior change, live browser proof or original task credit.
+
+The staging manifest gate now checks all six implemented phases, explicit51
+worker/intake selectors and rejected mixed combinations while retaining default49.
+Staging/preflight tests passed7/7 in2.340s; review and fresh complete root verify
+session85568 are pending. Independent provider re-review accepted final corrected
+run78940 for local delivery-finalization steps4-5. UI row/decoder review passed51
+tests1.14s. Serialized live rollout, browser acceptance and whole-release
+publication remain open. No original task or main-push credit.
+
+Fresh complete root verification session85568 exited0 after the phase-aware
+staging gate update. It passed197 UI files/1239 tests,83 release tests,7 staging
+tests, service/API/tenancy checks, typecheck/lint, production build and compiled
+import checks. Independent staging review passed7/7 in2.113s. See
+`2026-09-11-precision-broad-verification.md`. This clears local root verification,
+not composed browser acceptance, serialized live rollout enforcement or review
+of the whole publishable change set. No original row or main-push credit.
+
+RegisteredV3 finalization coverage now checks full persisted fields/digests and
+24 direct production-role rejection cases with unchanged nine-table atomic
+snapshots. Implementer actualPG races passed10.670s; independent review passed
+both tests22.448s with no findings. Updated the corresponding component checklist
+in `2026-09-11-process-precision-finalization-plan.md`; broader provider/browser
+and release requirements remain distinct. These seeded predecessor tests do not
+earn fresh-ingestion, live-deployment or original task publication credit.
+
+Post-verification audit found the chart's `up-to-51` command missing from the
+actual migration executable dispatch. Library51 migration and rendered manifests
+do not prove the job can run. CLI integration and executable PostgreSQL tests
+are assigned; this is an open launch blocker. The dedicated actual-backend
+browser plan is saved in `2026-09-11-precision-browser-acceptance-plan.md` and
+under review. No deployable-release, original task or publication credit.
+
+Added the missing fixed schema50 backfill observer/revalidator, preserving the
+V1 API, two stage1 index targets and historical worker versions. Rendered-fixture
+tests reject premature query/precision selection and expired observations;
+all34 tests passed1.488s and independent review repeated34/34 in1.650s with no
+findings. This does not supply the remaining serialized
+receipt-set/provider cutover. CLI51 implementation and actual browser integration
+continue separately. No original task or publication credit.
+
+ExplicitCLI51 focused executable PostgreSQL coverage passed root9.738s after
+the unsupported-command RED and implementation. Final command-suite/fixture
+checks remain pending; see `2026-09-11-precision-cli-evidence.md`. CI's required
+runtime filter also omitted Precision: reproduced that exclusion, added the
+selection and passed24 workflow tests. Combined actualPG CI-scope run46102 and
+independent CI review are pending. No remote CI or original publication credit.
+
+CLI51 command coverage is now green: full migration package77.613s, final
+owned-process/isolated-environment built-binary test10.002s and root scoped source
+review. Earlier48/49/50 behavior remains intact; unknown-command sentinels now
+reject52. See `2026-09-11-precision-cli-evidence.md`. This resolves the executable
+dispatch gap but doesn't authorize a live rollout. Combined CI-scope PostgreSQL
+verification and browser integration remain underway; no original row/push credit.
+
+Retained the accepted local provider proof in
+`2026-09-11-precision-provider-evidence.md`, including final78940 controls and
+explicit fixture/browser/cloud limits. The browser-hook changes require their
+own subsequent run; this document doesn't promote those unfinished changes.
+Read-only remote check confirms main remains6f0a93cccc4e68119af5956a5e0ad4b4fcc3e719.
+Nothing is staged or newly published; original availability counts are unchanged.
+
+Checkpoint follow-up: the browser harness Task1 passed independent review after
+fixing cleanup on failed child joins. Root Node46 tests passed with2 existing
+opt-in cleanup skips; Go checkpoint races passed2.301s. Real API/browser Task2
+is in progress. The original combined database run46102 timed out at600.867s;
+the same full selection then passed as5115 in914.702s with the reviewed30minute
+bound and actual PostgreSQL18. This is local required-CI-scope evidence, not a
+remote CI run or publication.
+
+The guarded schema50 query-cutover design is reviewed, including one dispatch
+per invocation and at most one applied CAS against the same old API identity.
+Its exact read-only search visibility method is implemented and independently
+reviewed: focused races1.481s, final root driver package1.836s. Executor integration,
+production provenance and live rollout are still open. See
+`2026-09-11-sandbox-query-cutover-evidence.md`. No original task row advanced.
+
+Fresh full root verification50910 passed after the browser-harness lint
+correction:197 UI files/1241 tests, typecheck/lint, release gates and production
+build/compiled imports. Browser proof99412 failed an inventory-dependent readiness
+check after authentication. Run71249 then passed pending API/UI and provider
+checks but failed a timestamp-offset comparison in the browser harness. Its
+nanosecond-instant correction passed independent focused review. Run57484 exposed
+the helper's null-versus-absent sandbox-field mismatch; the exact API-contract
+correction is independently reviewed and actual run2555 passed against that
+completed build. Root read its exact saved terminal output: pending/current,
+Strong/unknown identity, canonical order, tenant denial, clean browser errors and
+all provider markers passed; cleanup completed. Fresh full verification11329 then
+passed197 UI files/1243 tests, typecheck/lint,93 release tests, production build
+and compiled imports. Later full verification65788 passed197 UI files/1243 tests
+in25.61s, all94 release tests in14.745s, typecheck/lint, all production build phases
+and compiled imports (7 client/8 server chunks). The PostgreSQL adapter passed
+independent actual-PG races in62.486s. The composed database, artifact, exact-search
+and conditional TLS cutover tests passed35.133s after review corrections;
+independent correction review passed14.364s. The artifact adapter also passed
+independent review and races1.780s. These tests use declared release/consumer
+fixtures and owner-seeded completed authority, not production provenance.
+The read-only observation bridge and query profile are reviewed and included in
+required release tests. The Go backfill observation adapter passed independent
+specification/quality review after42 JSON-key alias regressions and atomic test
+listener publication corrections. Its final Node22 full package race passed
+12.773s. Five process/watcher tests also passed in a digest-pinned Linux amd64
+container on the arm64 host; that static emulated run is not Linux race or full
+bridge proof. Go query-mode observation is now independently reviewed, with
+focused races7.997s and full package19.357s. Full11 observer composition with the
+actual TLS/PostgreSQL test lane now passes: complete cutover package21.570s,
+driver1.906s, actual PostgreSQL cutover selection128.623s and94 Node release tests.
+It proves real observer reads, fenced drift refusal and old-replica pending to
+fixture-controller completion without another PATCH. Independent specification
+and quality review approved it; release approval and controller progress remain fixtures, not live
+production proof. No original task row advanced.
+Remote main remains6f0a93c; this increment is prepared locally, not pushed. Full original acceptance
+and live deployment gates remain open.
+
+Latest publication verification13612 passed after adding the missing lineage
+package to required CI:197 UI files/1244 tests,94 release tests, typecheck/lint,
+standalone production build and compiled imports. Integration review found no new
+blocking wiring issue. Local main-history merge f5cfb2c3 changes no source files.
+The unpublished-file secret scan covered5.55MB and found12 synthetic fixture
+values or non-authentication identifiers, independently traced to test provenance.
+The staged scan finds six of those known fixture detections; exact historical
+fingerprints must be recorded before the publication scan can pass. No provisioned
+credential was identified. No production readiness or original task credit is implied.
 
 M7-07 now meets its independently reviewed original acceptance criterion after
 verified main. Current counts: 536 production-available, 131 component-only and
 61 external gates, with all 728 rows accounted for. M3-46/M3-47 remain open.
 The local sandbox-v3 prerequisite retains source-scoped semantic identity in a
 new frozen snapshot and receipt contract, with historical unknowns preserved.
-It isn't activated or shipped. SQL admission/freeze, worker routing, downstream
-projection/graph/index/API/browser proof and process precision remain pending.
-Full verification and final runtime contract races pass. The independent
+It isn't activated or shipped. The follow-on SQL50 draft now admits source-bound
+sandbox observations, preserves old null history and frozen snapshots, and has
+separate v3 claims with pinned readiness. Actual PostgreSQL tests cover admission,
+ambiguity, replay, atomic rejection and old-reader version filtering. Review
+found a missing readiness gate in freeze; its six-case failure reproduced and
+the fix now checks before execution and after blocking work. Final sandbox races
+passed in83.458s, including the actual lock-wait case; independent review approved
+only this local draft. The standalone UI build and runtime contract races pass.
+The follow-on guarded rollback and transactional runner now pass actual
+PostgreSQL round-trip, evidence-refusal and twelve lock-contention cases.
+Rollback restores49 and preserves historical snapshot bytes. A reproduced
+PostgreSQL dropped-column ordinal mismatch on reinstall is fixed without
+changing predecessor column checks; its fingerprint-function body is pinned.
+The full sandbox race selection passed in116.915s, and final runner/rollback
+tests passed in35.626s. This remains an uncommitted local draft with no task
+credit or activation. The v3 worker/reader now supports schema49 pre-stage and
+healthy50 claims, preserves historical v1/v2 receipt bytes, and emits tested
+Exact/Strong/Probable sandbox-bound receipts. The same reader's actual PostgreSQL
+49-to50 negotiation and missing50-authority refusal passed in5.993s. Full worker
+and runtime contract race packages pass. Explicit CLI `up-to-49` is added;50
+CLI activation, producer activation, complete rollout and
+downstream projection/graph/index/API/browser proof remain pending, as does
+process precision. Full verification of this SQL draft fails the chart49 versus
+embedded50 gate. The chart isn't changed just to silence it; no draft push or
+M3 credit is authorized by these partial results. Evidence:
+`docs/internal/2026-09-11-sandbox-database-draft.md`.
+The final all-sandbox PostgreSQL races passed in154.393s and full migration CLI
+races in91.979s. The fresh standalone UI build passed. The local projection-v2
+contract now retains sandbox/source in receipts, risk IDs and effect hashes;
+pinned historical v1 bytes are unchanged. Independent review approved this
+contract only. The compatible projection worker consumes authenticated v3
+receipts and drains v1 work unchanged. New tests reproduced missing predecessor
+validation, now fixed before I/O. All five runtime/worker/migration race packages
+pass after the fix; independent worker review found no blocker. The local
+completion-v2 consumer now seals the exact projection-v2 receipt while draining
+historical v1 work unchanged. Composed worker tests and five fresh race packages
+pass; independent completion review found no blocker. Both reviews are limited
+to local logic with stub infrastructure. Search now reprojects v2 receipts with
+the sandbox contract and retains both identity fields, with unchanged historical
+document bytes. A separate explicit v2 index accepts old/new document versions;
+the default v1 index rejects v2 receipts before provider I/O. Six fresh race
+packages pass, including worker and API. Independent review found no
+implementation blocker and confirmed the negative tests. The actual local
+OpenSearch run passed sandbox replay, historical backfill and tenant-separated
+queries after correcting the fixture's non-UTC signing clock. Production
+transport checks are unchanged. Final independent review approved the local
+provider checkpoint only, with no PostgreSQL authority or rollout claim.
+The schema50 draft now persists sandbox/source in session events through a
+separate v2 completion entrypoint. Actual PostgreSQL tests prove atomic malformed
+receipt rejection, binding-conflict rollback, readiness recheck after lock waits,
+historical v1 replay and safe rollback/reinstall. The Go completion repository
+pins schema50 before that atomic call; its actual PostgreSQL test passes.
+Independent review approved only this local checkpoint. Expanded migration
+preflight locks now cover both session tables after a contention regression
+exposed a missing lock. Rollout/backfill, API/browser retention and activation
+remain pending. No product-completion claim or task credit follows from these
+local proofs.
+The latest all-sandbox PostgreSQL race selection passed in225.785s; selected
+historical session regressions passed in26.520s. Final runtimeevent, worker and
+migration races passed, as did the standalone UI build. Full verification passed
+1188 tests, typecheck, lint and source imports, then failed the unchanged
+chart49/embedded50 rollout gate. Later gates in that command did not run. The
+separate ledger check validates all728 rows with unchanged counts. No draft push.
+The next local checkpoint adds separate sandbox-aware event page/detail APIs and
+retains the sandbox/source pair in the timeline and evidence view. Production
+repository negotiation supports verified49 pre-stage and pinned50 reads without
+falling back after read errors. Actual HTTP/PostgreSQL tests cover retained
+bindings, keyset paging, unchanged historical responses, revocation and missing50
+authority. Startup tests reproduced acceptance of altered predecessor metadata;
+the new50 path now preserves compiled27/48/49 checks before its own readiness.
+Final HTTP/startup races passed14.289s, and independent review approved only this
+local checkpoint. The broader all-sandbox run passed176.042s before the final
+startup-only fix. Full verification passed1238 tests, typecheck, lint and source
+imports, then failed the unchanged chart49/embedded50 rollout gate; the separate
+UI build passed. Superpowers is now installed and was used after the user's
+correction. Claim routing, index cutover, rollout, process precision and composed
+browser acceptance remain pending. No push, activation or task credit.
+The preceding Go-contract checkpoint's full verification and final races passed. The independent
 review's same-batch provenance and pinned historical-v2 receipt regressions
 also pass. Evidence: `docs/internal/2026-09-11-sandbox-binding-contract.md`.
 PR48 merged its exact reviewed head after push CI34634470637 and PR
-CI34634548903 passed. Main CI34636483553 is running. No M3 task credit follows.
+CI34634548903 passed. Main CI34636483553 also passed. No M3 task credit follows.
 
 PR45 merged its exact reviewed head after push CI 34621547317 and PR CI
 34621568895 passed. Main CI 34623324047 also passed. PR44's main CI
@@ -135,7 +885,7 @@ Evidence and rollback limits:
 `docs/internal/2026-09-11-file-cgroup-lineage.md`.
 PR48 is published at `f398bb67d51db34a57ab82829ccee2d4419bdbaa`. Push CI
 34634470637 and PR CI34634548903 passed. PR47's main gate also passed before
-PR48 merged as `6f0a93cc`. Its main CI34636483553 is running. Postcommit scanning
+PR48 merged as `6f0a93cc`. Its main CI34636483553 passed. Postcommit scanning
 passed all 1,398 commits. The eight unchanged-hook MEDIUM findings were inspected
 against exact added lines: all were public CI IDs, with no HIGH findings or
 bypass. The next local branch preserves the published head. Counts are unchanged.

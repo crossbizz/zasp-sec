@@ -20,11 +20,11 @@ type lineageReceiptFixtureState struct {
 	ack             lineageConsumptionAck
 }
 
-func lineageReceiptFixture(t *testing.T, empty bool) lineageReceiptFixtureState {
+func lineageReceiptFixture(t *testing.T, empty bool, profiles ...string) lineageReceiptFixtureState {
 	t.Helper()
 	generation, reader, client, cursor := lineageConsumerFixture(t, func(*http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: http.StatusAccepted, Header: http.Header{"Cache-Control": {"no-store"}}, Body: io.NopCloser(strings.NewReader(`{"batch_id":"pid_10000001-0000-4000-8000-000000000001"}`))}, nil
-	})
+	}, profiles...)
 	if !empty {
 		line, _ := sanitizeLineageEvent(lineageProviderFixture("exec"))
 		if _, err := generation.Append(context.Background(), [][]byte{line}); err != nil {

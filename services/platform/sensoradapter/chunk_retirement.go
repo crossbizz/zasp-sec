@@ -31,8 +31,15 @@ type ChunkRetirementConfig struct {
 // Its persistent slot lock stays in place. The caller must use a bounded set of
 // cursor slots and retire the ACK separately after this durability barrier.
 func RetireConsumedCheckpoint(ctx context.Context, config ChunkRetirementConfig) error {
+	if !config.Source.valid() {
+		return ErrStream
+	}
+	return retireConsumedCheckpoint(ctx, config, chunkCheckpointVersion, runtimeEnvelopeVersion)
+}
+
+func retireConsumedCheckpoint(ctx context.Context, config ChunkRetirementConfig, checkpointVersion, envelopeVersion string) error {
 	proof := config.Consumption
-	if ctx == nil || ctx.Err() != nil || config.Authorize == nil || !config.Source.valid() || proof.Source != config.Source || proof.Destination != config.Destination || !validConsumptionDestination(config.Destination) || proof.Inode == 0 || config.MaximumProcesses < 1 || config.MaximumProcesses > 100_000 || len(config.ProtectedInputs) > 8 || len(config.DisjointRoots) > 8 || !validAbsoluteFilePath(config.CursorPath) || !validCursorName(filepath.Base(config.CursorPath)) {
+	if ctx == nil || ctx.Err() != nil || config.Authorize == nil || proof.Source != config.Source || proof.Destination != config.Destination || !validConsumptionDestination(config.Destination) || proof.Inode == 0 || config.MaximumProcesses < 1 || config.MaximumProcesses > 100_000 || len(config.ProtectedInputs) > 8 || len(config.DisjointRoots) > 8 || !validAbsoluteFilePath(config.CursorPath) || !validCursorName(filepath.Base(config.CursorPath)) {
 		return ErrStream
 	}
 	binding := chunkSourceIdentityBinding(config.Source, proof.Device, proof.Inode)
@@ -117,7 +124,7 @@ func RetireConsumedCheckpoint(ctx context.Context, config ChunkRetirementConfig)
 		return ErrStream
 	}
 	var checkpoint chunkCheckpoint
-	if json.Unmarshal(raw, &checkpoint) != nil || checkpoint.Version != chunkCheckpointVersion || checkpoint.Source != binding || checkpoint.Target != (streamTarget{Mode: runtimeEnvelopeVersion, Destination: config.Destination, Enrollment: config.Source.EnrollmentBinding}) || checkpoint.Pending != nil || checkpoint.Committed != proof.Progress || len(checkpoint.Cache) > proof.Progress.Submitted {
+	if json.Unmarshal(raw, &checkpoint) != nil || checkpoint.Version != checkpointVersion || checkpoint.Source != binding || checkpoint.Target != (streamTarget{Mode: envelopeVersion, Destination: config.Destination, Enrollment: config.Source.EnrollmentBinding}) || checkpoint.Pending != nil || checkpoint.Committed != proof.Progress || len(checkpoint.Cache) > proof.Progress.Submitted {
 		return ErrStream
 	}
 	if _, err := cacheCheckpointSize(checkpoint.Cache, config.MaximumProcesses); err != nil {

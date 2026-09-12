@@ -57,7 +57,22 @@ type outboxProcessorConfig struct {
 	Ready             func(context.Context) error
 }
 
-type outboxProcessor struct{ config outboxProcessorConfig }
+type outboxProcessor struct {
+	config    outboxProcessorConfig
+	precision bool
+}
+
+func newPreciseOutboxProcessor(config outboxProcessorConfig) (*outboxProcessor, error) {
+	processor, err := newOutboxProcessor(config)
+	if err != nil || config.Topic != runtimeOutboxTopic {
+		return nil, errWorkerExecution
+	}
+	if authority, ok := config.Authority.(interface{ ReadyPrecision(context.Context) error }); !ok || nilWorkerDependency(authority) {
+		return nil, errWorkerExecution
+	}
+	processor.precision = true
+	return processor, nil
+}
 
 func newOutboxProcessor(config outboxProcessorConfig) (*outboxProcessor, error) {
 	if config.Authority == nil || config.Publisher == nil || config.Topic != discoveryOutboxTopic && config.Topic != runtimeOutboxTopic || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 5 || config.LeaseSeconds > 900 || config.BatchSize < 1 || config.BatchSize > 10 || config.RetrySeconds < 1 || config.RetrySeconds > 3600 || config.NewLeaseToken == nil || config.Ready == nil {
@@ -79,6 +94,9 @@ func (processor *outboxProcessor) RunOnce(ctx context.Context) error {
 	if err := processor.config.Ready(ctx); err != nil {
 		return errWorkerExecution
 	}
+	if processor.precision && processor.config.Authority.(interface{ ReadyPrecision(context.Context) error }).ReadyPrecision(ctx) != nil {
+		return errWorkerExecution
+	}
 	token, err := processor.config.NewLeaseToken()
 	if err != nil || len(token) < 16 || len(token) > 128 {
 		return errWorkerExecution
@@ -96,6 +114,9 @@ func (processor *outboxProcessor) RunOnce(ctx context.Context) error {
 	seenJobs := make(map[domain.ProductID]struct{}, len(events))
 	for index, event := range events {
 		job, scope, ok := discoveryJobForOutbox(event, processor.config.Topic)
+		if processor.precision {
+			job, scope, ok = versionedRuntimeJobForOutbox(event, true)
+		}
 		if !ok {
 			return errWorkerExecution
 		}
@@ -310,6 +331,10 @@ type runtimeOutboxPayload struct {
 }
 
 func runtimeJobForOutbox(event apiserver.DiscoveryOutboxEvent) (jobqueue.Job, domain.Scope, bool) {
+	return versionedRuntimeJobForOutbox(event, false)
+}
+
+func versionedRuntimeJobForOutbox(event apiserver.DiscoveryOutboxEvent, precision bool) (jobqueue.Job, domain.Scope, bool) {
 	organization, organizationErr := domain.ParseProductID(event.OrganizationID)
 	workspace, workspaceErr := domain.ParseProductID(event.WorkspaceID)
 	environment, environmentErr := domain.ParseProductID(event.EnvironmentID)
@@ -327,6 +352,11 @@ func runtimeJobForOutbox(event apiserver.DiscoveryOutboxEvent) (jobqueue.Job, do
 	}
 	batchID, batchErr := domain.ParseProductID(payload.BatchID)
 	jobID, jobErr := domain.ParseProductID(payload.JobID)
+	// Both schemas share envelope validation. Only this decoded local copy is
+	// normalized; the queue receives the original durable payload and digest.
+	if precision && payload.PayloadSchema == "runtime-event-v2" {
+		payload.PayloadSchema = "runtime-event-v1"
+	}
 	if batchErr != nil || jobErr != nil || batchID.IsZero() || jobID.IsZero() || payload.Generation < 1 || payload.PipelineVersion != 15 || event.DeterministicKey != "runtime:"+payload.BatchID || !validRuntimeArtifactKey(scope, batchID, payload.Generation, payload.ArtifactKey) || !runtimeS3ReferencePattern.MatchString(payload.ArtifactReference) || !strings.HasSuffix(payload.ArtifactReference, "/"+payload.ArtifactKey) || !validRuntimeVersion(payload.ArtifactVersionID) || !discoveryRequestDigestPattern.MatchString(payload.ArtifactChecksum) || payload.ArtifactChecksum == strings.Repeat("0", 64) || payload.ArtifactSizeBytes < 1 || payload.ArtifactSizeBytes > 64<<20 || payload.PayloadMediaType != "application/json" || payload.PayloadSchema != "runtime-event-v1" || payload.EventCount < 1 || payload.EventCount > 1000 || !discoveryRequestDigestPattern.MatchString(payload.RequestDigest) || payload.RequestDigest == strings.Repeat("0", 64) {
 		return jobqueue.Job{}, domain.Scope{}, false
 	}

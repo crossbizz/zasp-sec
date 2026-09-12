@@ -263,6 +263,7 @@ attackLab:
   proxyShutdownTimeout: 15s
   proxyCABundleBase64: ""
 runtime:
+  sessionSearchPhase: compatibility
   awsRegion: ""
   queueURL: ""
   rawBucket: ""
