@@ -684,6 +684,16 @@ fingerprint exceptions, not wildcard exclusions, let the publication-range scan
 pass with no leaks across1.98MB. No provisioned credential was identified and
 nothing has been pushed yet. No production readiness or original task credit is implied.
 
+Publication checkpoint (2026-09-12): branch push succeeded at
+bd5789422f45ab8eccfc745d92500b1e45c22aef. Remote CI run34684725142 is running;
+remote main remains6f0a93c and no merge is claimed. Full-history secret scan
+passed1401 commits/35.48MB, and the final publication-range scan passed4 commits/
+1.99MB. Independent review approved the five exact synthetic-fixture exceptions.
+The push hook's67 medium privacy warnings were individually traced to fixture
+identifiers, code expressions, documented IP ranges or loopback test URLs, with
+no concrete inadvertent sensitive disclosure found in those flagged contexts.
+This bounded review is not a complete privacy audit. Counts remain536/131/61.
+
 M7-07 now meets its independently reviewed original acceptance criterion after
 verified main. Current counts: 536 production-available, 131 component-only and
 61 external gates, with all 728 rows accounted for. M3-46/M3-47 remain open.

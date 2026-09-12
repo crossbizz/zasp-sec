@@ -417,3 +417,26 @@ The publication-range historical scan reproduced the six fixture detections.
 Five exact commit/path/rule/line exceptions now retain the existing repository
 policy. The same range scan passed with no leaks: three non-merge commits,
 1.98MB,361ms. No source credential values or broad test exclusions were added.
+
+## Publication checkpoint, 2026-09-12
+
+This checkpoint supersedes the earlier uncommitted/unpushed and scan-pending
+statements above; their historical test and review records are unchanged.
+Root-owned push91105 succeeded for `codex/runtime-sandbox-binding` at
+`bd5789422f45ab8eccfc745d92500b1e45c22aef`. Remote main remained
+`6f0a93cccc4e68119af5956a5e0ad4b4fcc3e719`. At this checkpoint, remote CI run
+`34684725142` was running, with its verify job started at09:01:50UTC;
+no PR or merge had occurred. A started job is not a passing CI result.
+
+Root-owned full-history Gitleaks run69024 exited0:1,401 commits,35.48MB,4.29s.
+The final publication-range scan after the documentation/security commit also
+exited0:4 commits,1.99MB,264ms. Five exact historical fixture exceptions received
+independent review; no blanket test-directory exclusion was added. These results
+supersede the earlier scan-pending checkpoint, not its record of detections.
+
+Final root verification13612 remains the local application checkpoint:
+197 UI files/1244 tests,94 release tests, typecheck/lint, all five production
+build phases and compiled7 client/8 server chunks passed. No live producer
+activation, trusted release-loader completion, cloud authorization or original
+728-row task credit follows from publication. This docs-sync pass made no commit,
+push, PR change or deployment.

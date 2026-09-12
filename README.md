@@ -43,8 +43,9 @@ API, worker, Red Team worker/adapter, event-ingest, gateway-control, and custome
 runtime-gateway and sensor-agent boundaries. Separate TLS ingress routes the public product and authenticated
 runtime control/data-plane paths while health, readiness, and metrics remain
 private on 8081. Secrets are resolved through secret-manager CSI references,
-schema v33 is a blocking release Job, and the hosted chart renders 32 isolated
-deployments with default-deny network policy, disruption/spread/drain controls,
+the selected schema is a blocking release Job, and the hosted chart renders 32 isolated
+deployments in compatibility phases or 33 with the separate v2 session indexer,
+with default-deny network policy, disruption/spread/drain controls,
 read-only canaries, security headers, SLO alerts, and exact cloud identities.
 The customer-edge profile contains the database-free runtime gateway plus a
 non-root sensor-agent DaemonSet and the exact vendored Tetragon 1.7.0 chart.
@@ -65,6 +66,13 @@ exact workflow truth are in [`docs/operations`](docs/operations). Built-image
 scanning/signing, remote CI, production secret values, live providers and
 public DNS/TLS remain release-environment gates; local source verification does
 not claim they have run.
+
+The [release phase reference](docs/operations/production-deployment.md#configure)
+covers schema 48/49 compatibility, schema 50 backfill/query, and schema 51
+precision consumers/intake. Milestone sections below retain their historical,
+task-scoped evidence. Current local precision and cutover results, with their
+remaining live-release limits, are in the [precision verification](docs/internal/2026-09-11-precision-broad-verification.md)
+and [cutover evidence](docs/internal/2026-09-11-sandbox-query-cutover-evidence.md).
 
 ## Base web shell
 
