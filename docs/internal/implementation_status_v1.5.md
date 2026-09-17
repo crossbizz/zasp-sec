@@ -1,5 +1,13 @@
 # Agent Security Platform Implementation Status
 
+Current availability: 534 production-available, 133 component-only, 61
+blocked/external, all728 original tasks retained. The six-row
+[evidence reconciliation](2026-09-17-availability-reconciliation.md) corrects
+unsupported claims and records two already-shipped fixture-defined criteria.
+Production-available means the documented shipped composition category, not
+live deployment or completed end-to-end production readiness. Older counts
+below are historical checkpoints.
+
 2026-09-17 cache-preparation increment: runtime harnesses reuse cached pinned
 images instead of contacting registries on every preparation. See
 [bounded shipping evidence](2026-09-17-cached-runtime-shipping-evidence.md).
@@ -1961,8 +1969,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 536 |
-| Component-only | 131 |
+| Production-available | 534 |
+| Component-only | 133 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -2167,17 +2175,17 @@ gates. M7-07's actual worker-backed mixed-evidence acceptance and PR47 main CI
 | Milestone | Total | Production-available | Component-only | Blocked/external | Missing |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | M0 | 27 | 7 | 17 | 3 | 0 |
-| M1 | 68 | 58 | 10 | 0 | 0 |
+| M1 | 68 | 57 | 11 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
 | M2 | 72 | 69 | 3 | 0 | 0 |
-| M3 | 75 | 71 | 2 | 2 | 0 |
+| M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
-| M7 | 62 | 38 | 24 | 0 | 0 |
-| M7A | 113 | 98 | 15 | 0 | 0 |
-| M8 | 141 | 35 | 54 | 52 | 0 |
-| **Total** | **728** | **536** | **131** | **61** | **0** |
+| M7 | 62 | 37 | 25 | 0 | 0 |
+| M7A | 113 | 97 | 16 | 0 | 0 |
+| M8 | 141 | 34 | 55 | 52 | 0 |
+| **Total** | **728** | **534** | **133** | **61** | **0** |
 
 ## Prerequisite work
 

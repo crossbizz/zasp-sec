@@ -72,7 +72,7 @@ M1	M1-30d	Complete	component-only	T04-discovery-worker	audited component-only pr
 M1	M1-30	Complete	component-only	T04-discovery-worker	audited component-only proof: local dev manifests
 M1	M1-31	Complete	component-only	T04-discovery-worker	audited component-only proof: LocalStack client factory
 M1	M1-32	Complete	production-available	T04-discovery-worker	production evidence: OpenSearch index template; verified by Task 4 source/deploy review and focused race/release gates
-M1	M1-33	Complete	production-available	T04-discovery-worker	production evidence: SQS queue definitions; verified by Task 4 source/deploy review and focused race/release gates
+M1	M1-33	Complete	component-only	T04-discovery-worker	2026-09-17-availability-reconciliation.md: original agentsec-tests queue/schema acceptance is not met by main's current queue definitions; repaired implementation has local evidence only and is unshipped. No live queue claim.
 M1	M1-34	Complete	component-only	T04-discovery-worker	audited component-only proof: S3 bucket layout
 M1	M1-35	Complete	production-available	PROD-current-composition	audited shipped composition: base web shell
 M1	M1-36a	Complete	production-available	PROD-current-composition	audited shipped composition: M1 build check
@@ -229,8 +229,8 @@ M3	M3-43d	Complete	production-available	T06-runtime-data-plane	production correl
 M3	M3-43	Complete	production-available	T06-runtime-data-plane	production runtime worker: archive and index precede durable correlation graph; stage receipt and queue acknowledgement remain ACK-last at 3497c084
 M3	M3-44	Complete	production-available	T06-runtime-data-plane	production evidence: OpenSearch event indexer; verified by Task 6 source/deploy review and focused race/release gates
 M3	M3-45	Complete	production-available	T04-discovery-worker	production evidence: correlation exact path; verified by Task 4 source/deploy review and focused race/release gates
-M3	M3-46	Complete	component-only	T04-discovery-worker	2026-09-09 independent original-criterion audit: Strong path lacks enrolled cross-batch trusted candidates; observed-lineage preservation passed full local/composed/Chrome proof and independent review but grants no correlation authority or task credit; PR 33 merged as main 1aab7f58 and main CI 34429707297 passed; evidence docs/internal/2026-09-09-runtime-lineage-preservation.md
-M3	M3-47	Complete	component-only	T04-discovery-worker	2026-09-09 independent original-criterion audit: production cannot exercise competing lineage candidates; absent-candidate Unattributed results do not prove concurrent ambiguity handling; preservation-only work grants no task credit; evidence docs/internal/2026-09-09-runtime-lineage-preservation.md
+M3	M3-46	Complete	production-available	T04-discovery-worker	2026-09-12 original-criterion reconciliation supersedes 2026-09-09 reachability refusal: controlled fresh registered51 provider/browser proof2555 (prior78940) scores semantic-ID-absent kernel input Strong, not Exact, with source-qualified sandbox/container and exact process identity; separate installed file-event source/archive proof preserves uint64 cgroup membership and precise matching rejects conflicting cgroups; independent scope review accepted these distinct controls; PR49 main fda8ae99921be468b3d95f2369f54112a725e046 verified by CI34687750130 SUCCESS40m6s; docs/internal/2026-09-11-precision-provider-evidence.md and docs/internal/2026-09-11-file-cgroup-lineage.md; controlled fixture acceptance, not live deployment or source attestation
+M3	M3-47	Complete	production-available	T04-discovery-worker	2026-09-12 original-criterion reconciliation supersedes 2026-09-09 reachability refusal: controlled proveRuntimeCandidateRecovery admits competing semantic candidates through authenticated ingestion and registered workers, persists unassigned Probable after fresh runtime ingestion and preserves frozen Strong replay; precise complete-binding tests retain competing sandbox/enrollment/unknown candidates as Probable/Unattributed, never Exact; independent scope review accepted actual ambiguity coverage, not absent-candidate-only evidence; PR49 main fda8ae99921be468b3d95f2369f54112a725e046 verified by CI34687750130 SUCCESS40m6s; docs/internal/2026-09-11-precision-provider-evidence.md and services/platform/runtimecorrelation/precise_correlator_test.go; controlled fixture acceptance, not live deployment or source attestation
 M3	M3-48a	Complete	production-available	PROD-current-composition	audited shipped composition: Connection catalog route
 M3	M3-48b	Complete	production-available	PROD-current-composition	audited shipped composition: Connection list route
 M3	M3-48c1	Complete	production-available	PROD-current-composition	audited shipped composition: Connection detail summary
@@ -457,7 +457,7 @@ M7	M7-32	Complete	production-available	PROD-current-composition	audited shipped 
 M7	M7-33	Complete	production-available	PROD-current-composition	audited shipped composition: System Health UI
 M7	M7-34	Complete	production-available	PROD-current-composition	audited shipped composition: Data & Retention UI
 M7	M7-35	Complete	production-available	PROD-current-composition	audited shipped composition: External Data Flows UI
-M7	M7-36	Complete	production-available	PROD-current-composition	audited shipped composition: Audit Log UI
+M7	M7-36	Complete	component-only	T11-identity-admin	2026-09-17-availability-reconciliation.md: shipped Audit Log UI does not establish all original filters/export and SSO/config/policy/test-event browser acceptance. New local UI/export component work remains outside this publication.
 M7	M7-37	Complete	production-available	PROD-current-composition	audited shipped composition: Home/search UI binding
 M7	M7-38	Complete	production-available	PROD-current-composition	audited shipped composition: full UI API map
 M7	M7-39a	Complete	component-only	T14-data-workflows	audited component-only proof: stale connector UX
@@ -529,7 +529,7 @@ M7A	M7A-45	Complete	production-available	T07-security-agent-authority	production
 M7A	M7A-46	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: deterministic allow, approval-required, and deny decisions
 M7A	M7A-47	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: mandatory approval floors for irreversible and containment actions
 M7A	M7A-48	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent API: fresh-auth activation and capability-gated action enablement
-M7A	M7A-49	Complete	production-available	T07-security-agent-authority	production-composed v27 Security Agent authority: step, duration, token, and tenant concurrency budgets
+M7A	M7A-49	Complete	component-only	T07-security-agent-authority	2026-09-17-availability-reconciliation.md: source-composed budget fields alone do not prove original enforced run limits through waits/reclaims and actual worker accounting. Candidate repairs are unshipped; remaining action/accounting acceptance is open.
 M7A	M7A-50	Complete	production-available	T09-agent-actions	production-composed tenant-scoped database queue with lease fencing and replay-safe run identity
 M7A	M7A-51	Complete	production-available	T09-agent-actions	production-composed v32 worker loads and accepts one lease-fenced tenant plan, persists its digests and receipt, then advances the exact run under durable replay authority
 M7A	M7A-52	Complete	production-available	T09-agent-actions	production-composed idempotent autonomous finding-response executor with exact prior-outcome replay
@@ -678,7 +678,7 @@ M8	M8-43	Complete	production-available	T06-runtime-data-plane	production evidenc
 M8	M8-44	Complete	production-available	T13-attack-lab	production evidence: fail-closed non-production sandbox, exact egress, bounded resources, no-sandbox cancellation and mandatory cleanup gates
 M8	M8-45	Blocked	blocked/external	EXT-image-attestation	audited external evidence gate: SBOM generation
 M8	M8-46	Blocked	blocked/external	EXT-image-attestation	audited external evidence gate: image signing
-M8	M8-47	Complete	production-available	PROD-current-composition	audited shipped composition: dependency vulnerability gate
+M8	M8-47	Complete	component-only	T15-deployment	2026-09-17-availability-reconciliation.md: main's offline npm audit skips advisory lookup, so zero counters do not prove a vulnerability scan. Candidate fail-closed containment is local/unshipped, not an implemented fresh candidate-bound scan.
 M8	M8-48	Complete	production-available	PROD-current-composition	audited shipped composition: license/subprocessor inventory
 M8	M8-49	Complete	production-available	PROD-current-composition	audited shipped composition: HIPAA profile test
 M8	M8-50	Complete	production-available	PROD-current-composition	audited shipped composition: SOC2 evidence checklist

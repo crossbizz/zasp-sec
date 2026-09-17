@@ -61,6 +61,73 @@ test("canonical ledger, owner map and documentation satisfy every audited count"
   await validateLedger({ ledgerPath: canonicalLedgerPath, sourcePlanPath, statusPath: canonicalStatusPath });
 });
 
+test("M1-33 cannot regain production credit before original queue proof and publication", async () => {
+  await withLedger((ledger) => {
+    const expected = "M1\tM1-33\tComplete\tcomponent-only\tT04-discovery-worker\t";
+    assert.ok(ledger.includes(expected), "preserve the audited M1-33 class, owner and historical state");
+    return ledger.replace(expected, "M1\tM1-33\tComplete\tproduction-available\tT04-discovery-worker\t");
+  }, async (ledgerPath) => {
+    await assert.rejects(
+      () => validateLedger({ ledgerPath, sourcePlanPath }),
+      /production class production-available does not match audited component-only for M1-33/,
+    );
+  });
+});
+
+test("Audit Log original gates keep M7-36 component-only despite historical Complete", async () => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  const row = rows(ledger).find((value) => value.startsWith("M7\tM7-36\t"))?.split("\t");
+  assert.equal(row?.[2], "Complete", "preserve the historical execution ledger");
+  assert.equal(row?.[3], "component-only", "filters, export action and actual SSO/config/policy/test mutation E2E remain required");
+});
+
+test("M8-47 keeps historical completion but requires real scanner evidence for production credit", async () => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  const row = rows(ledger).find((value) => value.startsWith("M8\tM8-47\t"))?.split("\t");
+  assert.equal(row?.[2], "Complete", "preserve the historical policy-fixture record");
+  assert.equal(row?.[3], "component-only", "offline zero counters do not prove advisory lookup or release blocking");
+  assert.equal(row?.[4], "T15-deployment", "the actual release boundary owns scanner remediation");
+});
+
+test("M7A-49 cannot regain production credit from in-memory budget fixtures", async () => {
+  await withLedger((ledger) => rows(ledger).map((line) => {
+    const fields = line.split("\t");
+    if (fields[1] === "M7A-49") fields[3] = "production-available";
+    return fields.join("\t");
+  }).join("\n") + "\n", async (ledgerPath) => {
+    await assert.rejects(
+      () => validateLedger({ ledgerPath, sourcePlanPath }),
+      /production class production-available does not match audited component-only for M7A-49/,
+    );
+  });
+});
+
+test("M8-47 cannot regain production credit from offline-zero or policy fixtures", async () => {
+  await withLedger((ledger) => rows(ledger).map((row) => {
+    const fields = row.split("\t");
+    if (fields[1] === "M8-47") fields[3] = "production-available";
+    return fields.join("\t");
+  }).join("\n") + "\n", async (ledgerPath) => {
+    await assert.rejects(
+      () => validateLedger({ ledgerPath, sourcePlanPath }),
+      /production class production-available does not match audited component-only for M8-47/,
+    );
+  });
+});
+
+test("Audit Log cannot regain production credit from partial API or component evidence", async () => {
+  await withLedger((ledger) => rows(ledger).map((row) => {
+    const fields = row.split("\t");
+    if (fields[1] === "M7-36") fields[3] = "production-available";
+    return fields.join("\t");
+  }).join("\n") + "\n", async (ledgerPath) => {
+    await assert.rejects(
+      () => validateLedger({ ledgerPath, sourcePlanPath }),
+      /production class production-available does not match audited component-only for M7-36/,
+    );
+  });
+});
+
 test("mixed runtime session acceptance records its verified release evidence", async () => {
   const ledger = await readFile(canonicalLedgerPath, "utf8");
   const row = rows(ledger).find((value) => value.startsWith("M7\tM7-07\t"));
@@ -68,9 +135,26 @@ test("mixed runtime session acceptance records its verified release evidence", a
   for (const evidence of ["PR47", "c6aec68d", "34634275277", "2026-09-11-worker-mixed-evidence.md"]) assert.ok(row.includes(evidence), evidence);
 });
 
-test("lineage and ambiguity tasks cannot inherit unreachable production-path credit", async () => {
+test("lineage and ambiguity acceptance records controlled fixtures and verified main publication", async () => {
   const ledger = await readFile(canonicalLedgerPath, "utf8");
-  for (const id of ["M3-46", "M3-47"]) assert.ok(ledger.includes(`M3\t${id}\tComplete\tcomponent-only\tT04-discovery-worker\t`), id + " requires actual lineage and candidate composition");
+  for (const id of ["M3-46", "M3-47"]) {
+    const row = rows(ledger).find((value) => value.startsWith(`M3\t${id}\t`));
+    assert.ok(row?.includes("\tproduction-available\tT04-discovery-worker\t"), id + " requires its reviewed original criterion");
+    for (const evidence of ["PR49", "fda8ae99921be468b3d95f2369f54112a725e046", "34687750130", "controlled", "2026-09-11-precision-provider-evidence.md", "not live deployment"]) assert.ok(row.includes(evidence), id + ": " + evidence);
+    assert.ok(row.includes(id === "M3-46" ? "Strong, not Exact" : "Probable/Unattributed, never Exact"));
+  }
+});
+
+test("verified runtime lineage and ambiguity acceptance cannot silently lose production credit", async () => {
+  for (const id of ["M3-46", "M3-47"]) {
+    await withLedger((ledger) => {
+      const expected = `M3\t${id}\tComplete\tproduction-available\t`;
+      assert.ok(ledger.includes(expected), `${id} acceptance was not recorded`);
+      return ledger.replace(expected, `M3\t${id}\tComplete\tcomponent-only\t`);
+    }, async (ledgerPath) => {
+      await assert.rejects(() => validateLedger({ ledgerPath, sourcePlanPath }), new RegExp(`audited production-available for ${id}`));
+    });
+  }
 });
 
 test("shipped runtime session acceptance cannot silently lose production credit", async () => {
@@ -189,11 +273,15 @@ test("rejects an approved but wrong production owner for a source ID", async () 
 
 test("rejects audited production-class count drift", async () => {
   await withLedger(
-    (ledger) => ledger.replace("\tproduction-available\t", "\tcomponent-only\t"),
+    (ledger) => {
+      const mutated = ledger.replace("\tproduction-available\t", "\tcomponent-only\t");
+      assert.notEqual(mutated, ledger, "count-drift fixture must change a current production row");
+      return mutated;
+    },
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 535; expected 536/,
+        /production-available count is 533; expected 534/,
       );
     },
   );
@@ -225,7 +313,7 @@ test("rejects a cross-milestone class swap that preserves global totals", async 
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /M1 production-available count is 59; expected 58/,
+        /M1 production-available count is 58; expected 57/,
       );
     },
   );
@@ -399,7 +487,11 @@ test("rejects demotion of individually accepted Red Team domain, APIs, worker an
 test("rejects a published milestone matrix that drifts from the audited map", async () => {
   await withLedgerAndStatus(
     (ledger) => ledger,
-    (status) => status.replace("| M1 | 68 | 58 | 10 | 0 | 0 |", "| M1 | 68 | 57 | 11 | 0 | 0 |"),
+    (status) => {
+      const expected = "| M1 | 68 | 57 | 11 | 0 | 0 |";
+      assert.ok(status.includes(expected), "matrix-drift fixture must match the current M1 row");
+      return status.replace(expected, "| M1 | 68 | 58 | 10 | 0 | 0 |");
+    },
     async ({ ledgerPath, statusPath }) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath, statusPath }),
@@ -412,10 +504,11 @@ test("rejects a published milestone matrix that drifts from the audited map", as
 test("rejects a published availability summary that drifts from the audited ledger", async () => {
   await withLedgerAndStatus(
     (ledger) => ledger,
-    (status) => status.replace(
-      "| Production-available | 536 |",
-      "| Production-available | 496 |",
-    ),
+    (status) => {
+      const expected = "| Production-available | 534 |";
+      assert.ok(status.includes(expected), "summary-drift fixture must match the current total");
+      return status.replace(expected, "| Production-available | 496 |");
+    },
     async ({ ledgerPath, statusPath }) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath, statusPath }),

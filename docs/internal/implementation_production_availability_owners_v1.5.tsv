@@ -457,7 +457,7 @@ M7-32	PROD-current-composition
 M7-33	PROD-current-composition
 M7-34	PROD-current-composition
 M7-35	PROD-current-composition
-M7-36	PROD-current-composition
+M7-36	T11-identity-admin
 M7-37	PROD-current-composition
 M7-38	PROD-current-composition
 M7-39a	T14-data-workflows
@@ -678,7 +678,7 @@ M8-43	T06-runtime-data-plane
 M8-44	T13-attack-lab
 M8-45	EXT-image-attestation
 M8-46	EXT-image-attestation
-M8-47	PROD-current-composition
+M8-47	T15-deployment
 M8-48	PROD-current-composition
 M8-49	PROD-current-composition
 M8-50	PROD-current-composition

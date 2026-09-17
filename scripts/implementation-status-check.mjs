@@ -20,23 +20,23 @@ const allowedProductionClasses = new Set([
   "missing",
 ]);
 const expectedClassCounts = new Map([
-  ["production-available", 536],
-  ["component-only", 131],
+  ["production-available", 534],
+  ["component-only", 133],
   ["blocked/external", 61],
   ["missing", 0],
 ]);
 const expectedMilestoneClassCounts = new Map([
   ["M0", new Map([["production-available", 7], ["component-only", 17], ["blocked/external", 3], ["missing", 0]])],
-  ["M1", new Map([["production-available", 58], ["component-only", 10], ["blocked/external", 0], ["missing", 0]])],
+  ["M1", new Map([["production-available", 57], ["component-only", 11], ["blocked/external", 0], ["missing", 0]])],
   ["M1A", new Map([["production-available", 0], ["component-only", 6], ["blocked/external", 4], ["missing", 0]])],
   ["M2", new Map([["production-available", 69], ["component-only", 3], ["blocked/external", 0], ["missing", 0]])],
-  ["M3", new Map([["production-available", 71], ["component-only", 2], ["blocked/external", 2], ["missing", 0]])],
+  ["M3", new Map([["production-available", 73], ["component-only", 0], ["blocked/external", 2], ["missing", 0]])],
   ["M4", new Map([["production-available", 82], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
   ["M5", new Map([["production-available", 42], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
   ["M6", new Map([["production-available", 36], ["component-only", 0], ["blocked/external", 0], ["missing", 0]])],
-  ["M7", new Map([["production-available", 38], ["component-only", 24], ["blocked/external", 0], ["missing", 0]])],
-  ["M7A", new Map([["production-available", 98], ["component-only", 15], ["blocked/external", 0], ["missing", 0]])],
-  ["M8", new Map([["production-available", 35], ["component-only", 54], ["blocked/external", 52], ["missing", 0]])],
+  ["M7", new Map([["production-available", 37], ["component-only", 25], ["blocked/external", 0], ["missing", 0]])],
+  ["M7A", new Map([["production-available", 97], ["component-only", 16], ["blocked/external", 0], ["missing", 0]])],
+  ["M8", new Map([["production-available", 34], ["component-only", 55], ["blocked/external", 52], ["missing", 0]])],
 ]);
 const productionOwnerTaskIDs = new Set([
   "T02-discovery-authority",
@@ -67,21 +67,22 @@ const auditedProductionAvailableIDs = new Set([
   "M7-01", "M7-02", "M7-03", "M7-04", "M7-05", "M7-06", "M7-07a", "M7-07b", "M7-07c", "M7-07",
   "M5-01", "M5-02", "M5-03", "M5-04", "M5-14", "M5-16", "M5-17", "M5-18", "M5-19", "M5-20", "M5-21", "M5-22",
   "M5-05", "M5-06", "M5-07", "M5-08", "M5-09", "M5-10", "M5-11", "M5-12", "M5-13", "M5-15",
-  "M3-48h", "M3-52d",
+  "M3-46", "M3-47", "M3-48h", "M3-52d",
   "M0-12", "M0-13", "M0-17",
-  "M1-01a", "M1-01e", "M1-01f", "M1-12", "M1-13", "M1-14", "M1-15", "M1-16", "M1-22", "M1-28c", "M1-28d", "M1-32", "M1-33",
+  "M1-01a", "M1-01e", "M1-01f", "M1-12", "M1-13", "M1-14", "M1-15", "M1-16", "M1-22", "M1-28c", "M1-28d", "M1-32",
   "M2-20", "M2-21", "M2-22", "M2-23", "M2-24", "M2-25", "M2-26", "M2-27", "M2-28", "M2-29", "M2-30", "M2-31", "M2-32", "M2-33", "M2-43c", "M2-43d", "M2-43e", "M2-47a", "M2-47b",
   "M3-09", "M3-10", "M3-11", "M3-12", "M3-13", "M3-15", "M3-16", "M3-17", "M3-18", "M3-19", "M3-20", "M3-21", "M3-22a", "M3-22b", "M3-22c", "M3-22", "M3-23", "M3-24", "M3-25", "M3-26", "M3-27", "M3-28", "M3-29", "M3-30", "M3-31", "M3-32", "M3-33", "M3-34", "M3-35", "M3-36", "M3-37", "M3-38", "M3-39", "M3-40", "M3-41", "M3-42", "M3-43a", "M3-43b", "M3-43c", "M3-43d", "M3-43", "M3-44", "M3-45", "M3-48c2", "M3-48c3", "M3-48d", "M3-48e", "M3-48f", "M3-48g", "M3-49", "M3-50", "M3-51", "M3-52a", "M3-52b", "M3-52c", "M3-52e",
   "M4-01a", "M4-01b", "M4-01c", "M4-01d", "M4-01e", "M4-01f", "M4-01", "M4-02", "M4-05", "M4-16", "M4-17", "M4-18", "M4-19", "M4-20", "M4-21", "M4-22", "M4-23", "M4-24", "M4-25", "M4-26", "M4-27", "M4-28", "M4-29", "M4-30", "M4-31", "M4-32", "M4-33", "M4-38", "M4-39", "M4-40", "M4-41", "M4-42", "M4-59a", "M4-59b", "M4-59c", "M4-59d", "M4-59e", "M4-59",
   "M5-23a", "M5-23b", "M5-23c", "M5-23d", "M5-23", "M5-24", "M5-25", "M5-26", "M5-27", "M5-28", "M5-29", "M5-30", "M5-31", "M5-32", "M5-33a", "M5-33b", "M5-33c", "M5-33", "M5-34", "M5-35",
   "M6-03", "M6-04", "M6-05", "M6-06", "M6-07", "M6-13", "M6-16", "M6-17", "M6-19", "M6-20", "M6-21", "M6-22", "M6-23", "M6-24", "M6-25", "M6-26", "M6-30", "M6-31a", "M6-31b", "M6-31c", "M6-31d", "M6-31e", "M6-31",
-  "M7A-02", "M7A-03", "M7A-04", "M7A-05", "M7A-06", "M7A-07", "M7A-08", "M7A-09", "M7A-10", "M7A-11", "M7A-12", "M7A-13", "M7A-14", "M7A-35", "M7A-36", "M7A-37", "M7A-38", "M7A-38a", "M7A-38b", "M7A-38c", "M7A-38d", "M7A-39", "M7A-42", "M7A-43", "M7A-44", "M7A-45", "M7A-46", "M7A-47", "M7A-48", "M7A-49", "M7A-62", "M7A-68", "M7A-69", "M7A-70", "M7A-71", "M7A-72", "M7A-73", "M7A-74", "M7A-75", "M7A-76",
+  "M7A-02", "M7A-03", "M7A-04", "M7A-05", "M7A-06", "M7A-07", "M7A-08", "M7A-09", "M7A-10", "M7A-11", "M7A-12", "M7A-13", "M7A-14", "M7A-35", "M7A-36", "M7A-37", "M7A-38", "M7A-38a", "M7A-38b", "M7A-38c", "M7A-38d", "M7A-39", "M7A-42", "M7A-43", "M7A-44", "M7A-45", "M7A-46", "M7A-47", "M7A-48", "M7A-62", "M7A-68", "M7A-69", "M7A-70", "M7A-71", "M7A-72", "M7A-73", "M7A-74", "M7A-75", "M7A-76",
   "M7A-15", "M7A-16", "M7A-17", "M7A-18", "M7A-18a", "M7A-18b", "M7A-18c", "M7A-18d", "M7A-19", "M7A-20", "M7A-25", "M7A-26", "M7A-27", "M7A-28",
   "M7A-50", "M7A-52", "M7A-53", "M7A-54", "M7A-55", "M7A-56", "M7A-57", "M7A-58", "M7A-59", "M7A-60", "M7A-90a", "M7A-90b", "M7A-90c", "M7A-90d", "M7A-92", "M7A-93", "M7A-97", "M7A-98", "M7A-99",
   "M8-09a", "M8-09b", "M8-09c", "M8-09", "M8-10", "M8-11", "M8-12", "M8-13", "M8-14",
   "M8-20a", "M8-20b", "M8-20c", "M8-20", "M8-21a", "M8-21b", "M8-21c", "M8-21d", "M8-21e", "M8-21", "M8-43", "M8-44",
   "M8-57a", "M8-57b", "M8-57c", "M8-57",
 ]);
+const auditedComponentOnlyIDs = new Set(["M1-33", "M7-36", "M7A-49", "M8-47"]);
 const auditedMissingIDs = new Set();
 const externalGateIDs = new Set([
   "EXT-cloud-deploy",
@@ -278,7 +279,7 @@ export async function validateLedger({
     if (expectedOwner && row.owner !== expectedOwner) {
       errors.push(`owner ${row.owner} does not match expected owner ${expectedOwner} for ${row.id}`);
     }
-    if (auditedProductionClassOwners.has(row.owner) || auditedProductionAvailableIDs.has(row.id) || auditedMissingIDs.has(row.id)) {
+    if (auditedProductionClassOwners.has(row.owner) || auditedProductionAvailableIDs.has(row.id) || auditedComponentOnlyIDs.has(row.id) || auditedMissingIDs.has(row.id)) {
       const expectedProductionClass = auditedProductionAvailableIDs.has(row.id)
         ? "production-available"
         : auditedMissingIDs.has(row.id) ? "missing" : "component-only";
