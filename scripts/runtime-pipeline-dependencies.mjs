@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { LOCALSTACK_IMAGE } from "../proofs/localstack-storage/run.mjs";
 import { OPENSEARCH_IMAGE } from "../proofs/opensearch-event/run.mjs";
+import { preparePinnedRuntimeImage } from "./pinned-runtime-image.mjs";
 
 const kinds = new Map([["aws", { port: "4566", image: LOCALSTACK_IMAGE }], ["search", { port: "9200", image: OPENSEARCH_IMAGE }]]);
 const validMarker = (marker) => typeof marker === "string" && /^[a-f0-9]{16}$/.test(marker);
@@ -33,9 +34,11 @@ export function createRuntimePipelineDependencies(command, { marker = randomByte
   return {
     async prepare() {
       if (closed || entries.length) throw new Error("runtime dependency preparation rejected");
-      // Pulling only downloads pinned images. It cannot create a container and
-      // does not hold the container cleanup path behind a cold registry request.
-      await Promise.all([...kinds.values()].map(({ image }) => command("docker", ["pull", image], { timeout: 120_000 })));
+      // Image preparation creates no containers and never holds their cleanup.
+      await Promise.all([...kinds.values()].map(({ image }) => preparePinnedRuntimeImage((...args) => {
+        if (closed) throw new Error("runtime dependency preparation interrupted");
+        return command(...args);
+      }, image)));
       if (closed) throw new Error("runtime dependency preparation interrupted");
     },
     async start(kind) {

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import { preparePinnedRuntimeImage } from "./pinned-runtime-image.mjs";
 
 export const RED_TEAM_RUNTIME_IMAGE="ghcr.io/promptfoo/promptfoo:0.121.19@sha256:50d3a796710e4db7a5ede90bf27dc28146ef022a7ebb83914c5105608396fd96";
 const ownerPattern=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
@@ -20,10 +21,11 @@ export function createRedTeamRuntimeProof(command,{owner=randomUUID()}={}) {
   return {
     async prepare(){
       if(closed || started)throw new Error("runtime preparation rejected");
-      await command("docker",["pull",RED_TEAM_RUNTIME_IMAGE],{timeout:120_000});
-      const result=await command("docker",["image","inspect","--format","{{.Architecture}}",RED_TEAM_RUNTIME_IMAGE],{timeout:10_000});
-      const architecture=result.stdout.trim();
-      if(closed || !["amd64","arm64"].includes(architecture))throw new Error("runtime image architecture rejected");
+      const architecture=await preparePinnedRuntimeImage((...args)=>{
+        if(closed)throw new Error("runtime preparation interrupted");
+        return command(...args);
+      },RED_TEAM_RUNTIME_IMAGE);
+      if(closed)throw new Error("runtime preparation interrupted");
       return architecture;
     },
     async run(config){

@@ -4,6 +4,17 @@ import { readFile } from "node:fs/promises";
 import { buildRedTeamRuntimeArguments, createRedTeamRuntimeProof } from "./red-team-runtime-proof.mjs";
 
 const config={owner:"12345678-1234-4234-8234-123456789abc",binary:"/tmp/proof/worker.test",runner:"/workspace/workers/redteam-node/runner.mjs",dsn:"postgres://zasp_e2e@127.0.0.1:15432/postgres?sslmode=disable",awsEndpoint:"http://127.0.0.1:14566",runID:"pid_92700001-0000-4000-8000-000000000001"};
+test("cached engine preparation performs no registry request", async () => {
+  const calls = [];
+  const proof = createRedTeamRuntimeProof(async (_executable, args) => {
+    calls.push(args);
+    assert.deepEqual(args.slice(0, 4), ["image", "inspect", "--format", "{{.Architecture}}"]);
+    return { status: 0, stdout: "arm64\n", stderr: "" };
+  });
+  assert.equal(await proof.prepare(), "arm64");
+  assert.equal(calls.length, 1);
+  await proof.close();
+});
 test("Linux supervisor never signals after wait ownership is lost", async()=>{
   const source=await readFile(new URL("../services/platform/agentsec-worker/red_team_command_linux.go",import.meta.url),"utf8");
   const lost=source.split("if observed != nil {")[1]?.split("return errRuntimeUnavailable")[0];

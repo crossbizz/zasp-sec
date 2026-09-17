@@ -1,5 +1,11 @@
 # Agent Security Platform Implementation Status
 
+2026-09-17 cache-preparation increment: runtime harnesses reuse cached pinned
+images instead of contacting registries on every preparation. See
+[bounded shipping evidence](2026-09-17-cached-runtime-shipping-evidence.md).
+This changes no product capability or availability row and does not establish
+end-to-end production readiness. The full 728-task goal remains open.
+
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
 **Last updated:** September 11, 2026

@@ -5,6 +5,22 @@ import { buildRuntimeContainerArguments, createRuntimePipelineDependencies } fro
 const marker = "a".repeat(16);
 const containerID = "b".repeat(64);
 
+test("cached pipeline preparation performs no registry requests", async () => {
+  const images = [];
+  const dependencies = createRuntimePipelineDependencies(async (_executable, args) => {
+    assert.deepEqual(args.slice(0, 4), ["image", "inspect", "--format", "{{.Architecture}}"]);
+    images.push(args[4]);
+    return { status: 0, stdout: "arm64\n", stderr: "" };
+  });
+  await dependencies.prepare();
+  assert.deepEqual(new Set(images), new Set([
+    "localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c",
+    "opensearchproject/opensearch:3.8.0@sha256:bcc1797519726ceb6d651d4a3e60b7c30da91793914a8dfe75fd441d4f641509",
+  ]));
+  assert.equal(images.length, 2);
+  await dependencies.close();
+});
+
 test("runtime proof uses pinned loopback-only disposable dependencies", () => {
   for (const kind of ["aws", "search"]) {
     const args = buildRuntimeContainerArguments(kind, marker);
@@ -51,18 +67,24 @@ test("cleanup never deletes a container with mismatched ownership", async () => 
 test("cold image preparation cannot hold container cleanup behind a registry request", async () => {
   let finishPull;
   const pulling = new Promise((resolve) => { finishPull = resolve; });
+  let pullsStarted;
+  const started = new Promise((resolve) => { pullsStarted = resolve; });
+  let pullCount = 0;
   const calls = [];
   const dependencies = createRuntimePipelineDependencies(async (_, args) => {
     calls.push(args);
+    if (args[0] === "image") return { status: 1, stdout: "", stderr: `No such image: ${args[4]}` };
     assert.equal(args[0], "pull");
+    if (++pullCount === 2) pullsStarted();
     await pulling;
     return { status: 0, stdout: "" };
   }, { marker });
   const preparing = dependencies.prepare();
+  await started;
   await dependencies.close();
-  assert.equal(calls.length, 2);
   finishPull();
   await assert.rejects(preparing, /interrupted/);
+  assert.equal(calls.length, 4);
 });
 
 test("interrupted in-flight starts are bounded and delete only the verified owned ID", async () => {
