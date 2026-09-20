@@ -75,6 +75,9 @@ func BuiltInTemplates() []Template {
 		{ID: "prompt_tool_injection", Name: "Prompt or Tool Injection", Version: 1, TriggerKind: "attack_path", DefaultActions: []string{"create_temporary_policy", "run_test"}, VerificationCondition: "linked_risk_blocked_or_not_reproduced", ApprovalRequired: map[string]bool{"create_temporary_policy": true}},
 		{ID: "repeated_policy_violation", Name: "Repeated Policy Violation", Version: 1, TriggerKind: "runtime_decision", DefaultActions: []string{"isolate_session", "create_evidence_export"}, VerificationCondition: "session_blocked_and_evidence_exported", ApprovalRequired: map[string]bool{"isolate_session": true}, AgentBound: true, SessionBound: true, Count: 3, Window: 5 * time.Minute},
 		{ID: "shadow_agent_triage", Name: "Shadow Agent Triage", Version: 1, TriggerKind: "finding", DefaultActions: []string{"run_test", "create_evidence_export", "send_response_webhook"}, VerificationCondition: "evidence_collected_for_human_triage", ApprovalRequired: map[string]bool{}},
+		{ID: "existing_test_run", Name: "Run Existing Test", Version: 1, TriggerKind: "finding", DefaultActions: []string{"run_test"}, VerificationCondition: "test_run", ApprovalRequired: map[string]bool{}},
+		{ID: "existing_test_rerun", Name: "Rerun Existing Test", Version: 1, TriggerKind: "finding", DefaultActions: []string{"rerun_test"}, VerificationCondition: "test_run", ApprovalRequired: map[string]bool{}},
+		{ID: "existing_test_attack_lab", Name: "Reproduce in Attack Lab", Version: 1, TriggerKind: "finding", DefaultActions: []string{"start_attack_lab"}, VerificationCondition: "attack_lab_run", ApprovalRequired: map[string]bool{"start_attack_lab": true}},
 	}
 }
 func validTemplate(value Template) bool {
