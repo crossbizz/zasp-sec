@@ -1,5 +1,21 @@
 # Agent Security Platform Implementation Status
 
+2026-09-25 worker-image packaging checkpoint: an isolated candidate based on
+main `8733b16f8d939d38a8157dd2519e57fc6f630542` adds `gcc` and `libc6-dev` only
+to the Python build stage for the pinned Prowler zstd source extension on ARM64.
+The runtime image receives only the installed security environments, not the
+compiler or headers. Python dependency hashes, base-image pins and main's Go
+runtime composition are unchanged. This candidate passed 130 grouped release,
+Dockerfile and ledger tests (52.537s), UI typecheck, production UI build and the
+728-row ledger check. Its full ARM64 worker image built successfully:
+`sha256:366f11486189a9cbd494cad791887e69a9f814f5894a64a3f0a6eb8aa4d55ece`.
+Offline, read-only final-image smoke passed as UID/GID65532: no gcc, three Go
+executables present, zstd1.5.7.2 compression roundtrip, Prowler5.39.1 import and
+Cartography/Prowler health. No provider or cloud calls were made. This is a
+packaging repair, not the separate Temporal/OpenFGA architecture completion,
+deployed acceptance or hosted-CI evidence. Existing main availability counts
+remain unchanged and do not establish revised Temporal/OpenFGA readiness.
+
 Current availability: 534 production-available, 133 component-only, 61
 blocked/external, all728 original tasks retained. The six-row
 [evidence reconciliation](2026-09-17-availability-reconciliation.md) corrects

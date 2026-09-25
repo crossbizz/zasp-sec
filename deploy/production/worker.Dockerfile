@@ -18,6 +18,9 @@ RUN python -m venv /opt/zasp/security/cartography && \
     /opt/zasp/security/cartography/bin/pip install --no-build-isolation --no-deps /src/security-python && \
     /opt/zasp/security/cartography/bin/python -c "import cartography; from security_worker import cartography_aws; assert cartography_aws.load_runtime_api().version == '0.139.1'" && \
     /opt/zasp/security/cartography/bin/security-worker health
+# The pinned zstd dependency resolves to source on CPython 3.13 ARM64. Compile its
+# bundled C sources here; no compiler or build headers enter the runtime stage.
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev
 RUN python -m venv /opt/zasp/security/prowler && \
     /opt/zasp/security/prowler/bin/pip install --require-hashes --no-deps -r /src/security-python/build-requirements.lock && \
     /opt/zasp/security/prowler/bin/pip install --require-hashes --no-build-isolation --no-deps -r /src/security-python/prowler/requirements.lock && \
