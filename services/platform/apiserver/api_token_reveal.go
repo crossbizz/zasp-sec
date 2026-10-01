@@ -8,10 +8,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"regexp"
 	"time"
 )
 
 const apiTokenRevealLifetime = 10 * time.Minute
+
+// Bound fractional precision so parsing cannot discard an authenticated instant's
+// subnanosecond digits. Go's parser alone also accepts malformed numeric offsets.
+var apiTokenRevealTimePattern = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$`)
 
 type apiTokenRevealEnvelope struct {
 	GrantID           string `json:"grant_id"`
@@ -64,7 +69,7 @@ func decryptAPITokenReveal(key []byte, identity RequestIdentity, envelope apiTok
 		return "", ErrRepositoryNotFound
 	}
 	expires, err := time.Parse(time.RFC3339Nano, envelope.ExpiresAt)
-	if err != nil || expires.Format(time.RFC3339Nano) != envelope.ExpiresAt {
+	if err != nil || !apiTokenRevealTimePattern.MatchString(envelope.ExpiresAt) {
 		return "", ErrRepositoryNotFound
 	}
 	ciphertext, cipherErr := decodeCanonicalRevealBytes(envelope.Ciphertext)

@@ -1,5 +1,14 @@
 # Agent Security Platform Implementation Status
 
+2026-10-01 independent API-token reveal correction: isolated main-based batch
+fixes equivalent PostgreSQL/Go expiry timestamp parsing while preserving UTC
+AES-GCM and exact tenant/principal/grant/token/operation bindings. Fresh affected
+API race checks and four disposable PostgreSQL create/rotate/restart, cleanup
+and hostile-scope tests passed. See
+[scoped merge evidence](api-token-reveal-merge-status-2026-10-01.md) for exact
+payload and final review/release status. No availability row is reclassified;
+full launch, deployed acceptance and Temporal/OpenFGA gates remain open.
+
 2026-09-25 worker-image packaging checkpoint: an isolated candidate based on
 main `8733b16f8d939d38a8157dd2519e57fc6f630542` adds `gcc` and `libc6-dev` only
 to the Python build stage for the pinned Prowler zstd source extension on ARM64.
