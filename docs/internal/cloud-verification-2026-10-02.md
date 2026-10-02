@@ -189,3 +189,15 @@ existing Stytch Test-project organization search again returned HTTP200 without
 printing credentials or identity data. The full ledger validator again passed
 728rows with523production-available categories,144component-only,61blocked/
 external and0missing. No category promotion occurred.
+
+## Reviewed local native acceptance and subsequent verification
+
+The frozen `026c164b` original33 native reference passed in153.15s and independent offline review accepted its33 complete bags as a local component. The original acceptance receipt and its additive review-log correction are required together; both failed and successful review logs remain unchanged. See [the original33 acceptance record](2026-10-02-original33-local-acceptance.md). No further original33 retry is required for that frozen local checkpoint. Native379, installed-worker, portability and production acceptance remain separate.
+
+The same reviewed Linux PostgreSQL18.3 source runtime now has a successful, independently reviewed full-build identity witness:1847bytes, SHA256 `468c02f31c83d0b2dd9bbe4fc2d6138591186ca88d66e967201148f0319d61fd`. Its owned backend-parent control, strict row/stderr checks and normal stop/join/endpoint cleanup passed. The accepted SOURCE-only receipt is `13eda7ab5db5be3ad4d64df3449b18543b0fa12c45450de7c93e234ce9e87f8d`; all four preceding failed attempts remain preserved. This supplies a fixed SOURCE identity for a distinct Linux module successor. It is not native379 or production acceptance, and the historical source-only module retains its exact Homebrew version guard.
+
+Commit `d4226a98` closed all nine readonly proof/service consumer graphs. Commit `9737b05f` aligned three stale proof-minimum assertions with the reviewed Go1.25.4 minimum. The preserved complete verification attempt passed the serialized Go health/proof prefix and then failed those three assertions. Subsequent full UI verification passed2535/2535; the original nine-stage tail passed typecheck/lint/imports, staging30/30, release285/285, the production build and ledger validation. These are composite stage observations, not a complete `npm run verify` pass. Package-scheduling work and a canonical default invocation remain next.
+
+Fresh configured-secret checks show all four requested variables injected, existing-project Stytch organization search HTTP200 and authenticated GitHub access working. Fresh connection probes still refused configured Redis, Forgejo, artifact and Temporal endpoints; the configured database hostname failed DNS resolution. Those observations are connectivity failures, not missing-secret claims. Detailed Actions logs still redirect to an inaccessible `results-receiver.actions.githubusercontent.com` host under the enforced network policy. No hosted failure cause is inferred.
+
+The original728 ledger remains valid with523 production-available evidence categories,144 component-only,61 blocked/external and0 missing. No row was promoted. Independent advisory collection and the separately versioned native successor continue; no immutable packet, guard or legacy retirement evidence was replaced.
